@@ -225,6 +225,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
 		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
+		// note that we already have the address in node struct: see GetNodeRegistryAtHeightWithNodeAddress
 		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
 		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
@@ -309,6 +310,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
 		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
+		// note that we already have the address in node struct: see GetNodeRegistryAtHeightWithNodeAddress
 		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
 		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
@@ -453,8 +455,7 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*mo
 	return nodeAddressesInfo, nil
 }
 
-// STEF TODO: add unit test
-// UpdateNodeAddressInfo adds a node address info record to db
+// UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
 // NOTE: nodeAddressMessage is supposed to have been already validated
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
 	// check if already exist and if new one is more recent
@@ -467,15 +468,14 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 		if prevNodeAddressInfo.Address == nodeAddressMessage.Address &&
 			prevNodeAddressInfo.Port == nodeAddressMessage.Port &&
 			bytes.Equal(prevNodeAddressInfo.Signature, nodeAddressMessage.Signature) {
+			nrs.Logger.Warnf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
 			return nil
 		}
 		qryArgs := nrs.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressMessage)
-		err = nrs.QueryExecutor.ExecuteTransactions(qryArgs)
-		if err != nil {
-			return err
-		}
+		return nrs.QueryExecutor.ExecuteTransactions(qryArgs)
 	}
-	return nil
+	qry, args := nrs.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressMessage)
+	return nrs.QueryExecutor.ExecuteTransaction(qry, false, args)
 }
 
 // STEF TODO: implement this method

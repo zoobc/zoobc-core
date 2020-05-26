@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"regexp"
+	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -944,6 +945,169 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 			}
 			if gotNewScore != tt.wantNewScore {
 				t.Errorf("NodeRegistrationService.AddParticipationScore() = %v, want %v", gotNewScore, tt.wantNewScore)
+			}
+		})
+	}
+}
+
+type (
+	nrNodeAddressInfoQueryMock struct {
+		query.Executor
+		success              bool
+		prevAddressInfoFound bool
+	}
+)
+
+func (nrMock *nrNodeAddressInfoQueryMock) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows,
+	error) {
+	if nrMock.success {
+		var (
+			sqlRows *sqlmock.Rows
+		)
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		switch qe {
+		case "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE nodeID IN (?)":
+			sqlRows = sqlmock.NewRows([]string{
+				"node_id",
+				"address",
+				"port",
+				"block_height",
+				"block_hash",
+				"signature",
+			},
+			)
+			if nrMock.prevAddressInfoFound {
+				sqlRows.AddRow(
+					int64(222),
+					"192.168.1.1",
+					uint32(8080),
+					uint32(10),
+					make([]byte, 32),
+					make([]byte, 64),
+				)
+			}
+			mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlRows)
+		default:
+			return nil, errors.New("InvalidQuery")
+		}
+		rows, _ := db.Query(qe)
+		return rows, nil
+	}
+	return nil, errors.New("MockedError")
+}
+
+func (nrMock *nrNodeAddressInfoQueryMock) ExecuteTransactions(queries [][]interface{}) error {
+	if nrMock.success {
+		return nil
+	}
+	return errors.New("ExecuteTransactions")
+}
+
+func (nrMock *nrNodeAddressInfoQueryMock) ExecuteTransaction(query string, args ...interface{}) error {
+	if nrMock.success {
+		return nil
+	}
+	return errors.New("ExecuteTransaction")
+}
+
+func TestNodeRegistrationService_UpdateNodeAddressInfo(t *testing.T) {
+	type fields struct {
+		QueryExecutor                query.ExecutorInterface
+		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		BlockQuery                   query.BlockQueryInterface
+		NodeAdmittanceCycle          uint32
+		Logger                       *log.Logger
+		ScrambledNodes               map[uint32]*model.ScrambledNodes
+		ScrambledNodesLock           sync.RWMutex
+		MemoizedLatestScrambledNodes *model.ScrambledNodes
+		BlockchainStatusService      BlockchainStatusServiceInterface
+		CurrentNodePublicKey         []byte
+	}
+	type args struct {
+		nodeAddressMessage *model.NodeAddressInfo
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// {
+		// 	name: "UpdateNodeAddressInfo:success-{recordUpdated}",
+		// 	args: args{
+		// 		nodeAddressMessage: &model.NodeAddressInfo{
+		// 			NodeID: int64(222),
+		// 		},
+		// 	},
+		// 	fields: fields{
+		// 		NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+		// 		QueryExecutor: &nrNodeAddressInfoQueryMock{
+		// 			success:              true,
+		// 			prevAddressInfoFound: true,
+		// 		},
+		// 		Logger: log.New(),
+		// 	},
+		// },
+		// {
+		// 	name: "UpdateNodeAddressInfo:success-{nothingToUpdate}",
+		// 	args: args{
+		// 		nodeAddressMessage: &model.NodeAddressInfo{
+		// 			NodeID:    int64(222),
+		// 			Address:   "192.168.1.1",
+		// 			Port:      uint32(8080),
+		// 			Signature: make([]byte, 64),
+		// 		},
+		// 	},
+		// 	fields: fields{
+		// 		NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+		// 		QueryExecutor: &nrNodeAddressInfoQueryMock{
+		// 			success:              true,
+		// 			prevAddressInfoFound: true,
+		// 		},
+		// 		Logger: log.New(),
+		// 	},
+		// },
+		{
+			name: "UpdateNodeAddressInfo:success-{recordInserted}",
+			args: args{
+				nodeAddressMessage: &model.NodeAddressInfo{
+					NodeID: int64(111),
+				},
+			},
+			fields: fields{
+				NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+				QueryExecutor: &nrNodeAddressInfoQueryMock{
+					success:              true,
+					prevAddressInfoFound: false,
+				},
+				Logger: log.New(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:                tt.fields.QueryExecutor,
+				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				BlockQuery:                   tt.fields.BlockQuery,
+				NodeAdmittanceCycle:          tt.fields.NodeAdmittanceCycle,
+				Logger:                       tt.fields.Logger,
+				ScrambledNodes:               tt.fields.ScrambledNodes,
+				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
+				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
+				BlockchainStatusService:      tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
+			}
+			if err := nrs.UpdateNodeAddressInfo(tt.args.nodeAddressMessage); (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistrationService.UpdateNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
