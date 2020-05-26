@@ -181,11 +181,10 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"participation_score",
 		},
 		).AddRow(1, nrsNodePubKey1, 8000))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
-		"locked_balance, registration_status, latest, height " +
-		"FROM node_registry where registration_status = 0 AND (id,height) in " +
-		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 1 GROUP BY id) " +
-		"ORDER BY height DESC":
+	case "SELECT id, node_public_key, account_address, registration_height, t2.address || t2.port AS node_address, locked_balance, " +
+		"registration_status, latest, height FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id " +
+		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) " +
+		"FROM node_registry AS t1 WHERE t1.height <= 1 GROUP BY t1.id) ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",

@@ -147,6 +147,7 @@ func initialize(
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),

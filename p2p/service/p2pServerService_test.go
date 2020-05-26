@@ -70,8 +70,8 @@ type (
 	}
 )
 
-func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfo(nodeIDs []int64) []*model.NodeAddressInfo {
-	return mock.nodeaddressesInfo
+func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+	return mock.nodeaddressesInfo, nil
 }
 func (*mockPeerExplorerStrategySuccess) GetHostInfo() *model.Node {
 	return &mockNode
@@ -1873,6 +1873,16 @@ func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 		ctx context.Context
 		req *model.GetNodeAddressesInfoRequest
 	}
+	nodeAddressesInfo := []*model.NodeAddressInfo{
+		{
+			NodeID:      int64(111),
+			Signature:   make([]byte, 64),
+			BlockHash:   make([]byte, 32),
+			BlockHeight: 1,
+			Port:        8080,
+			Address:     "192.168.1.1",
+		},
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -1890,20 +1900,11 @@ func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantFail:GetBlockByID",
+			name: "success",
 			fields: fields{
 				PeerExplorer: &mockPeerExplorerStrategySuccess{},
-				NodeRegistrationService: mockNodeRegistrationServiceGetNodeAddressesInfoSuccess{
-					nodeaddressesInfo: []*model.NodeAddressInfo{
-						{
-							NodeID:      int64(111),
-							Signature:   make([]byte, 64),
-							BlockHash:   make([]byte, 32),
-							BlockHeight: 1,
-							Port:        8080,
-							Address:     "192.168.1.1",
-						},
-					},
+				NodeRegistrationService: &mockNodeRegistrationServiceGetNodeAddressesInfoSuccess{
+					nodeaddressesInfo: nodeAddressesInfo,
 				},
 			},
 			args: args{
@@ -1912,8 +1913,9 @@ func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 					NodeIDs: []int64{111},
 				},
 			},
-			want:    nil,
-			wantErr: true,
+			want: &model.GetNodeAddressesInfoResponse{
+				NodeAddressesInfo: nodeAddressesInfo,
+			},
 		},
 	}
 	for _, tt := range tests {

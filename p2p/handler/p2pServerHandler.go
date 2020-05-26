@@ -46,9 +46,9 @@ func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 
-	// STEF TODO implement server service method (P2PServerServiceInterface) to send get node addresses
-	// return ss.Service.SendNodeAddressInfo(ctx, req)
-	return nil, nil
+	// STEF
+	// service method (P2PServerServiceInterface) to send a node address info message to a peer
+	return ss.Service.SendNodeAddressInfo(ctx, req)
 }
 
 // GetMorePeers contains info other peers
