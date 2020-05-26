@@ -154,6 +154,8 @@ func init() {
 		query.NewBlockQuery(mainchain),
 		loggerCoreService,
 		blockchainStatusService,
+		crypto.NewSignature(),
+		service.NewNodeRegistrationUtils(),
 	)
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),

@@ -3,6 +3,8 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"regexp"
 	"sync"
@@ -11,6 +13,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -1037,41 +1040,41 @@ func TestNodeRegistrationService_UpdateNodeAddressInfo(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// {
-		// 	name: "UpdateNodeAddressInfo:success-{recordUpdated}",
-		// 	args: args{
-		// 		nodeAddressMessage: &model.NodeAddressInfo{
-		// 			NodeID: int64(222),
-		// 		},
-		// 	},
-		// 	fields: fields{
-		// 		NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
-		// 		QueryExecutor: &nrNodeAddressInfoQueryMock{
-		// 			success:              true,
-		// 			prevAddressInfoFound: true,
-		// 		},
-		// 		Logger: log.New(),
-		// 	},
-		// },
-		// {
-		// 	name: "UpdateNodeAddressInfo:success-{nothingToUpdate}",
-		// 	args: args{
-		// 		nodeAddressMessage: &model.NodeAddressInfo{
-		// 			NodeID:    int64(222),
-		// 			Address:   "192.168.1.1",
-		// 			Port:      uint32(8080),
-		// 			Signature: make([]byte, 64),
-		// 		},
-		// 	},
-		// 	fields: fields{
-		// 		NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
-		// 		QueryExecutor: &nrNodeAddressInfoQueryMock{
-		// 			success:              true,
-		// 			prevAddressInfoFound: true,
-		// 		},
-		// 		Logger: log.New(),
-		// 	},
-		// },
+		{
+			name: "UpdateNodeAddressInfo:success-{recordUpdated}",
+			args: args{
+				nodeAddressMessage: &model.NodeAddressInfo{
+					NodeID: int64(222),
+				},
+			},
+			fields: fields{
+				NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+				QueryExecutor: &nrNodeAddressInfoQueryMock{
+					success:              true,
+					prevAddressInfoFound: true,
+				},
+				Logger: log.New(),
+			},
+		},
+		{
+			name: "UpdateNodeAddressInfo:success-{nothingToUpdate}",
+			args: args{
+				nodeAddressMessage: &model.NodeAddressInfo{
+					NodeID:    int64(222),
+					Address:   "192.168.1.1",
+					Port:      uint32(8080),
+					Signature: make([]byte, 64),
+				},
+			},
+			fields: fields{
+				NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+				QueryExecutor: &nrNodeAddressInfoQueryMock{
+					success:              true,
+					prevAddressInfoFound: true,
+				},
+				Logger: log.New(),
+			},
+		},
 		{
 			name: "UpdateNodeAddressInfo:success-{recordInserted}",
 			args: args{
@@ -1108,6 +1111,365 @@ func TestNodeRegistrationService_UpdateNodeAddressInfo(t *testing.T) {
 			}
 			if err := nrs.UpdateNodeAddressInfo(tt.args.nodeAddressMessage); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.UpdateNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	validateNodeAddressInfoExecutorMock struct {
+		query.Executor
+		nodeIDNotFound bool
+		blockNotFound  bool
+		nodePublicKey  []byte
+		blockHash      []byte
+	}
+	validateNodeAddressInfoSignatureMock struct {
+		crypto.SignatureInterface
+		isValid bool
+	}
+	nodeRegistrationUtilsMock struct {
+		NodeRegistrationUtilsInterface
+		nodeAddressInfoBytes []byte
+	}
+)
+
+func (nrMock *nodeRegistrationUtilsMock) GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte {
+	return nrMock.nodeAddressInfoBytes
+}
+
+func (nrMock *validateNodeAddressInfoSignatureMock) VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool {
+	return nrMock.isValid
+}
+
+func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+	var (
+		sqlRows *sqlmock.Rows
+	)
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	if nrMock.nodeIDNotFound || nrMock.blockNotFound {
+		mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
+		row := db.QueryRow(qStr)
+		return row, nil
+	}
+
+	switch qStr {
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+		"latest, height FROM node_registry WHERE id = ? AND latest=1":
+		sqlRows = sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		},
+		).AddRow(
+			0, nrMock.nodePublicKey, "accountA", 0, "127.0.0.1:3000", 0, 0, true, 0,
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version " +
+		"FROM main_block WHERE height = 10":
+		sqlRows = sqlmock.NewRows([]string{
+			"id",
+			"block_hash",
+			"previous_block_hash",
+			"height",
+			"timestamp",
+			"block_seed",
+			"block_signature",
+			"cumulative_difficulty",
+			"payload_length",
+			"payload_hash",
+			"blocksmith_public_key",
+			"total_amount",
+			"total_fee",
+			"total_coinbase",
+			"version",
+		},
+		).AddRow(
+			0, nrMock.blockHash, nil, 0, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
+		)
+	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version " +
+		"FROM main_block WHERE height = 11":
+		sqlRows = sqlmock.NewRows([]string{
+			"id",
+			"block_hash",
+			"previous_block_hash",
+			"height",
+			"timestamp",
+			"block_seed",
+			"block_signature",
+			"cumulative_difficulty",
+			"payload_length",
+			"payload_hash",
+			"blocksmith_public_key",
+			"total_amount",
+			"total_fee",
+			"total_coinbase",
+			"version",
+		},
+		).AddRow(
+			0, nrMock.blockHash, nil, 0, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
+	default:
+		return nil, errors.New("InvalidQuery")
+	}
+	return db.QueryRow(qStr), nil
+}
+
+func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx bool,
+	args ...interface{}) (*sql.Rows,
+	error) {
+	var (
+		sqlRows *sqlmock.Rows
+	)
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE nodeID IN (?)":
+		sqlRows = sqlmock.NewRows([]string{
+			"node_id",
+			"address",
+			"port",
+			"block_height",
+			"block_hash",
+			"signature",
+		},
+		)
+		sqlRows.AddRow(
+			int64(222),
+			"192.168.1.1",
+			uint32(8080),
+			uint32(10),
+			make([]byte, 32),
+			make([]byte, 64),
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlRows)
+	default:
+		return nil, errors.New("InvalidQuery")
+	}
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
+	type fields struct {
+		QueryExecutor                query.ExecutorInterface
+		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
+		AccountBalanceQuery          query.AccountBalanceQueryInterface
+		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
+		BlockQuery                   query.BlockQueryInterface
+		NodeAdmittanceCycle          uint32
+		Logger                       *log.Logger
+		ScrambledNodes               map[uint32]*model.ScrambledNodes
+		ScrambledNodesLock           sync.RWMutex
+		MemoizedLatestScrambledNodes *model.ScrambledNodes
+		BlockchainStatusService      BlockchainStatusServiceInterface
+		CurrentNodePublicKey         []byte
+		Signature                    crypto.SignatureInterface
+		NodeRegistrationUtils        NodeRegistrationUtilsInterface
+	}
+	type args struct {
+		nodeAddressInfo *model.NodeAddressInfo
+	}
+
+	nodePublicKey := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
+	validBlockHash := []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
+	nodeAddressInfo := &model.NodeAddressInfo{
+		NodeID:      int64(1111),
+		Address:     "192.168.1.1",
+		Port:        uint32(8080),
+		BlockHeight: uint32(10),
+		BlockHash:   validBlockHash,
+	}
+	nodeAddressInfoValid := &model.NodeAddressInfo{
+		NodeID:      int64(1111),
+		Address:     "192.168.1.1",
+		Port:        uint32(8080),
+		BlockHeight: uint32(11),
+		BlockHash:   validBlockHash,
+	}
+
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+		errMsg  string
+	}{
+		{
+			name: "ValidateNodeAddressInfo:fail-{NodeIDNotFound}",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodeIDNotFound: true,
+				},
+				Logger: log.New(),
+			},
+			wantErr: true,
+			errMsg:  "NodeIDNotFound",
+		},
+		{
+			name: "ValidateNodeAddressInfo:fail-{InvalidSignature}",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodePublicKey: nodePublicKey,
+				},
+				Signature: &validateNodeAddressInfoSignatureMock{
+					isValid: false,
+				},
+				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+					nodeAddressInfoBytes: make([]byte, 64),
+				},
+				Logger: log.New(),
+			},
+			wantErr: true,
+			errMsg:  "InvalidSignature",
+		},
+		{
+			name: "ValidateNodeAddressInfo:fail-{InvalidBlockHeight}",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodePublicKey: nodePublicKey,
+					blockNotFound: true,
+				},
+				Signature: &validateNodeAddressInfoSignatureMock{
+					isValid: true,
+				},
+				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+					nodeAddressInfoBytes: make([]byte, 64),
+				},
+				Logger: log.New(),
+			},
+			wantErr: true,
+			errMsg:  "InvalidBlockHeight",
+		},
+		{
+			name: "ValidateNodeAddressInfo:fail-{InvalidBlockHash}",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodePublicKey: nodePublicKey,
+					blockHash:     []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+				},
+				Signature: &validateNodeAddressInfoSignatureMock{
+					isValid: true,
+				},
+				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+					nodeAddressInfoBytes: make([]byte, 64),
+				},
+				Logger: log.New(),
+			},
+			wantErr: true,
+			errMsg:  "InvalidBlockHash",
+		},
+		{
+			name: "ValidateNodeAddressInfo:fail-{OutdatedNodeAddressInfo}",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodePublicKey: nodePublicKey,
+					blockHash:     validBlockHash,
+				},
+				Signature: &validateNodeAddressInfoSignatureMock{
+					isValid: true,
+				},
+				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+					nodeAddressInfoBytes: make([]byte, 64),
+				},
+				Logger: log.New(),
+			},
+			wantErr: true,
+			errMsg:  "OutdatedNodeAddressInfo",
+		},
+		{
+			name: "ValidateNodeAddressInfo:success",
+			args: args{
+				nodeAddressInfo: nodeAddressInfoValid,
+			},
+			fields: fields{
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor: &validateNodeAddressInfoExecutorMock{
+					nodePublicKey: nodePublicKey,
+					blockHash:     validBlockHash,
+				},
+				Signature: &validateNodeAddressInfoSignatureMock{
+					isValid: true,
+				},
+				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+					nodeAddressInfoBytes: make([]byte, 64),
+				},
+				Logger: log.New(),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrs := &NodeRegistrationService{
+				QueryExecutor:                tt.fields.QueryExecutor,
+				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
+				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
+				BlockQuery:                   tt.fields.BlockQuery,
+				NodeAdmittanceCycle:          tt.fields.NodeAdmittanceCycle,
+				Logger:                       tt.fields.Logger,
+				ScrambledNodes:               tt.fields.ScrambledNodes,
+				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
+				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
+				BlockchainStatusService:      tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
+				Signature:                    tt.fields.Signature,
+				NodeRegistrationUtils:        tt.fields.NodeRegistrationUtils,
+			}
+
+			if err := nrs.ValidateNodeAddressInfo(tt.args.nodeAddressInfo); err != nil {
+				if tt.wantErr {
+					errorMsg := err.Error()
+					errCasted, ok := err.(blocker.Blocker)
+					if ok {
+						errorMsg = errCasted.Message
+					}
+					if tt.errMsg != errorMsg {
+						t.Errorf("error differs from what expected. wrong test exit line. gotErr %s, wantErr %s",
+							err.Error(),
+							tt.errMsg)
+					}
+					return
+				}
+				t.Errorf("NodeRegistrationService.ValidateNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

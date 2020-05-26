@@ -904,19 +904,8 @@ func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.Node
 
 		// validate downloaded address list
 		for _, nodeAddressInfo := range res.NodeAddressesInfo {
-			if !ps.NodeRegistrationService.ValidateNodeAddressInfoSignature(nodeAddressInfo) {
-				// TODO: send updated nodeAddressInfo to
-				ps.Logger.Warnf("%v", blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
-					"GetNodeAddressesInfo api client: this peer returned an invalid node address signature %v for node with ID: %d. "+
-						"maybe an outdated record in its node_address_info",
-					peer.GetInfo(), nodeAddressInfo.NodeID)))
+			if err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
 				continue
-			}
-			if !ps.NodeRegistrationService.ValidateNodeAddressInfoMessage(nodeAddressInfo) {
-				// TODO: blacklist peers that send invalid data
-				return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
-					"GetNodeAddressesInfo api client: this peer returned an invalid node address signature %v for node with ID: %d",
-					peer.GetInfo(), nodeAddressInfo.NodeID))
 			}
 			nodeAddressesInfo = append(nodeAddressesInfo, nodeAddressInfo)
 		}

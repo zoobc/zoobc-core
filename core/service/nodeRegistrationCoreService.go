@@ -2,6 +2,8 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 	"sort"
 	"sync"
@@ -35,8 +37,7 @@ type (
 		SetCurrentNodePublicKey(publicKey []byte)
 		GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
 		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
-		ValidateNodeAddressInfoMessage(nodeAddressMessage *model.NodeAddressInfo) bool
-		ValidateNodeAddressInfoSignature(nodeAddressMessage *model.NodeAddressInfo) bool
+		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -54,6 +55,8 @@ type (
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
+		Signature                    crypto.SignatureInterface
+		NodeRegistrationUtils        NodeRegistrationUtilsInterface
 	}
 )
 
@@ -66,6 +69,8 @@ func NewNodeRegistrationService(
 	blockQuery query.BlockQueryInterface,
 	logger *log.Logger,
 	blockchainStatusService BlockchainStatusServiceInterface,
+	signature crypto.SignatureInterface,
+	nodeRegistrationUtils NodeRegistrationUtilsInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:           queryExecutor,
@@ -78,6 +83,8 @@ func NewNodeRegistrationService(
 		Logger:                  logger,
 		ScrambledNodes:          map[uint32]*model.ScrambledNodes{},
 		BlockchainStatusService: blockchainStatusService,
+		Signature:               signature,
+		NodeRegistrationUtils:   nodeRegistrationUtils,
 	}
 }
 
@@ -456,7 +463,7 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*mo
 }
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
-// NOTE: nodeAddressMessage is supposed to have been already validated
+// NOTE: nodeAddressInfo is supposed to have been already validated
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
 	// check if already exist and if new one is more recent
 	nodeAddressesInfo, err := nrs.GetNodeAddressesInfo([]int64{nodeAddressMessage.NodeID})
@@ -478,14 +485,64 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 	return nrs.QueryExecutor.ExecuteTransaction(qry, false, args)
 }
 
-// STEF TODO: implement this method
-// ValidateNodeAddressInfoMessage validate message data against main blocks (block height and hash)
-func (nrs *NodeRegistrationService) ValidateNodeAddressInfoMessage(nodeAddressMessage *model.NodeAddressInfo) bool {
-	return true
-}
+// STEF TODO: test this method
+// ValidateNodeAddressInfo validate message data against main blocks (block height and hash)
+func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+	var (
+		block            model.Block
+		nodeRegistration model.NodeRegistration
+	)
+	// validate nodeID
+	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
+	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args)
+	err := nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+		}
+		return err
+	}
 
-// STEF TODO: implement this method
-// ValidateNodeAddressInfoSignature validate against node registry (verify signature against node public key)
-func (nrs *NodeRegistrationService) ValidateNodeAddressInfoSignature(nodeAddressMessage *model.NodeAddressInfo) bool {
-	return true
+	// validate the message signature
+	unsignedBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	if !nrs.Signature.VerifyNodeSignature(
+		unsignedBytes,
+		nodeAddressInfo.GetSignature(),
+		nodeRegistration.GetNodePublicKey(),
+	) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+	}
+
+	// validate block height
+	blockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()), false)
+	err = nrs.BlockQuery.Scan(&block, blockRow)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+		}
+		return err
+	}
+	// validate block hash
+	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+	}
+
+	// in case node address info for nodeID exists, validate that its height is lower than the one in the message
+	qry, args = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs([]int64{nodeAddressInfo.GetNodeID()})
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	prevAddressInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	if err != nil {
+		return err
+	}
+	if len(prevAddressInfo) > 0 {
+		if prevAddressInfo[0].BlockHeight >= nodeAddressInfo.BlockHeight {
+			return blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
+		}
+	}
+
+	return nil
 }

@@ -104,6 +104,8 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewBlockQuery(&chaintype.MainChain{}),
 			nil,
 			nil,
+			nil,
+			nil,
 		)
 	)
 

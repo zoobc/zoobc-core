@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -134,15 +132,9 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// validate node address info message and signature
-		if !ps.NodeRegistrationService.ValidateNodeAddressInfoSignature(nodeAddressInfo) {
-			return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
-				"SendNodeAddressInfo api server: a peer sent an invalid node address signature for node with ID: %d",
-				nodeAddressInfo.NodeID))
-		} else if !ps.NodeRegistrationService.ValidateNodeAddressInfoMessage(nodeAddressInfo) {
+		if err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
 			// TODO: blacklist peers that send invalid data
-			return nil, blocker.NewBlocker(blocker.P2PInvalidDataError, fmt.Sprintf(
-				"SendNodeAddressInfo api server: a peer sent an invalid node address info message for node with ID: %d",
-				nodeAddressInfo.NodeID))
+			return nil, err
 		}
 		// add it to nodeAddressInfo table
 		err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
