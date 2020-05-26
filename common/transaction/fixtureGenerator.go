@@ -245,6 +245,7 @@ func GetFixturesForTransaction(
 	}
 	if escrow {
 		tx.Escrow = &model.Escrow{
+			ID:              tx.GetID(),
 			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 			Commission:      1,
 			Timeout:         100,

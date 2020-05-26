@@ -84,14 +84,17 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 }
 
 func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, args []interface{}) {
-	var txIdsStr []string
 
-	for _, txID := range txIds {
-		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
+	for _, id := range txIds {
+		args = append(args, id)
 	}
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_child = false AND id in (%s)",
-		strings.Join(tq.Fields, ", "), tq.getTableName(), strings.Join(txIdsStr, ","))
-	return query, []interface{}{}
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE multisig_child = false AND id IN(?%s)",
+			strings.Join(tq.Fields, ", "),
+			tq.getTableName(),
+			strings.Repeat(", ?", len(txIds)-1),
+		),
+		args
 }
 
 // ExtractModel extract the model struct fields to the order of TransactionQuery.Fields
