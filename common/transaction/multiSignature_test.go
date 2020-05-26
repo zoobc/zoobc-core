@@ -397,7 +397,8 @@ func TestSignatureInfoHelper_GetPendingSignatureByTransactionHash(t *testing.T) 
 				QueryExecutor:           tt.fields.QueryExecutor,
 				Signature:               tt.fields.Signature,
 			}
-			if err := sih.GetPendingSignatureByTransactionHash(tt.args.pendingSigs, tt.args.transactionHash, tt.args.txHeight); (err != nil) != tt.wantErr {
+			if _, err := sih.GetPendingSignatureByTransactionHash(
+				tt.args.transactionHash, tt.args.txHeight); (err != nil) != tt.wantErr {
 				t.Errorf("GetPendingSignatureByTransactionHash() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -720,7 +721,8 @@ func TestPendingTransactionHelper_GetPendingTransactionBySenderAddress(t *testin
 				TypeSwitcher:            tt.fields.TypeSwitcher,
 				QueryExecutor:           tt.fields.QueryExecutor,
 			}
-			if err := pth.GetPendingTransactionBySenderAddress(tt.args.pendingTxs, tt.args.senderAddress, tt.args.txHeight); (err != nil) != tt.wantErr {
+			if _, err := pth.GetPendingTransactionBySenderAddress(
+				tt.args.senderAddress, tt.args.txHeight); (err != nil) != tt.wantErr {
 				t.Errorf("GetPendingTransactionBySenderAddress() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

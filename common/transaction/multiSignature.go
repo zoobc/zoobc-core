@@ -44,10 +44,8 @@ type (
 			pendingSignature *model.PendingSignature,
 		) error
 		GetPendingSignatureByTransactionHash(
-			pendingSigs []*model.PendingSignature,
-			transactionHash []byte,
-			txHeight uint32,
-		) error
+			transactionHash []byte, txHeight uint32,
+		) ([]*model.PendingSignature, error)
 	}
 
 	MultisignatureInfoHelperInterface interface {
@@ -73,10 +71,8 @@ type (
 			dbTx bool,
 		) error
 		GetPendingTransactionBySenderAddress(
-			pendingTxs []*model.PendingTransaction,
-			senderAddress string,
-			txHeight uint32,
-		) error
+			senderAddress string, txHeight uint32,
+		) ([]*model.PendingTransaction, error)
 		ApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
 		UndoApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
 		ApplyConfirmedPendingTransaction(
@@ -128,24 +124,23 @@ func (pth *PendingTransactionHelper) GetPendingTransactionByHash(
 }
 
 func (pth *PendingTransactionHelper) GetPendingTransactionBySenderAddress(
-	pendingTxs []*model.PendingTransaction,
-	senderAddress string,
-	txHeight uint32,
-) error {
+	senderAddress string, txHeight uint32,
+) ([]*model.PendingTransaction, error) {
+	var pendingTxs []*model.PendingTransaction
 	q, args := pth.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
 		senderAddress, model.PendingTransactionStatus_PendingTransactionPending,
 		txHeight, constant.MinRollbackBlocks,
 	)
 	pendingTxRows, err := pth.QueryExecutor.ExecuteSelect(q, false, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer pendingTxRows.Close()
 	_, err = pth.PendingTransactionQuery.BuildModel(pendingTxs, pendingTxRows)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return pendingTxs, nil
 }
 
 func (pth *PendingTransactionHelper) InsertPendingTransaction(
@@ -251,25 +246,22 @@ func (sih *SignatureInfoHelper) InsertPendingSignature(
 	return nil
 }
 
-func (sih *SignatureInfoHelper) GetPendingSignatureByTransactionHash(
-	pendingSigs []*model.PendingSignature,
-	transactionHash []byte,
-	txHeight uint32,
-) error {
+func (sih *SignatureInfoHelper) GetPendingSignatureByTransactionHash(transactionHash []byte, txHeight uint32) ([]*model.PendingSignature, error) {
+	var pendingSigs []*model.PendingSignature
 	q, args := sih.PendingSignatureQuery.GetPendingSignatureByHash(
 		transactionHash,
 		txHeight, constant.MinRollbackBlocks,
 	)
 	pendingSigRows, err := sih.QueryExecutor.ExecuteSelect(q, false, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer pendingSigRows.Close()
-	_, err = sih.PendingSignatureQuery.BuildModel(pendingSigs, pendingSigRows)
+	pendingSigs, err = sih.PendingSignatureQuery.BuildModel(pendingSigs, pendingSigRows)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return pendingSigs, nil
 }
 
 func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
@@ -500,13 +492,12 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			multisigInfoAddresses[address] = true
 		}
 		if len(body.UnsignedTransactionBytes) > 0 {
-			var multisigInfo model.MultiSignatureInfo
 			err := tx.MultisigUtil.ValidatePendingTransactionBytes(
 				tx.TransactionUtil,
 				tx.TypeSwitcher,
 				tx.MultisignatureInfoHelper,
 				tx.PendingTransactionHelper,
-				&multisigInfo,
+				body.MultiSignatureInfo,
 				tx.SenderAddress,
 				body.UnsignedTransactionBytes,
 				tx.Height,
