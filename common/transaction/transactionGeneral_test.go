@@ -649,3 +649,168 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestMultisigTransactionUtil_ValidateMultisignatureInfo(t *testing.T) {
+	type args struct {
+		multisigInfo *model.MultiSignatureInfo
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Multsig.Participants < 2",
+			args: args{
+				&model.MultiSignatureInfo{
+					MinimumSignatures: 0,
+					Nonce:             0,
+					Addresses:         make([]string, 1),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Multsig.MinSigs < 1",
+			args: args{
+				&model.MultiSignatureInfo{
+					MinimumSignatures: 0,
+					Nonce:             0,
+					Addresses:         make([]string, 2),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Multsig.MinSigs < 1",
+			args: args{
+				&model.MultiSignatureInfo{
+					MinimumSignatures: 1,
+					Nonce:             0,
+					Addresses:         make([]string, 2),
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mu := &MultisigTransactionUtil{}
+			if err := mu.ValidateMultisignatureInfo(tt.args.multisigInfo); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateMultisignatureInfo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestMultisigTransactionUtil_ValidateSignatureInfo(t *testing.T) {
+	type args struct {
+		signature                   crypto.SignatureInterface
+		signatureInfo               *model.SignatureInfo
+		multiSignatureInfoAddresses map[string]bool
+	}
+	sig := &crypto.Signature{}
+	txHash := make([]byte, 32)
+	_, _, _, validAddress, _ := sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, "a")
+	validSignature, _ := sig.Sign(txHash, model.SignatureType_DefaultSignature, "a")
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ValidateSignatureInfo - transaction Hash not exist",
+			args: args{
+				signature: nil,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: nil,
+					Signatures:      nil,
+				},
+				multiSignatureInfoAddresses: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSignatureInfo - signatures not provided",
+			args: args{
+				signature: nil,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: txHash,
+					Signatures:      make(map[string][]byte),
+				},
+				multiSignatureInfoAddresses: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSignatureInfo - one or more participants provide empty signature",
+			args: args{
+				signature: nil,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: txHash,
+					Signatures: map[string][]byte{
+						"a": nil,
+					},
+				},
+				multiSignatureInfoAddresses: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSignatureInfo - one or more participants is not participant in multisigInfo provided",
+			args: args{
+				signature: nil,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: txHash,
+					Signatures: map[string][]byte{
+						"c": make([]byte, 68),
+					},
+				},
+				multiSignatureInfoAddresses: map[string]bool{
+					"a": true, "b": true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSignatureInfo - normal account participant provide wrong signature",
+			args: args{
+				signature: sig,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: make([]byte, 32),
+					Signatures: map[string][]byte{
+						"a": make([]byte, 68),
+					},
+				},
+				multiSignatureInfoAddresses: map[string]bool{
+					"a": true, "b": true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateSignatureInfo - normal account participant provide valid signature",
+			args: args{
+				signature: sig,
+				signatureInfo: &model.SignatureInfo{
+					TransactionHash: make([]byte, 32),
+					Signatures: map[string][]byte{
+						validAddress: validSignature,
+					},
+				},
+				multiSignatureInfoAddresses: map[string]bool{
+					validAddress: true, "b": true,
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mtu := &MultisigTransactionUtil{}
+			if err := mtu.ValidateSignatureInfo(tt.args.signature, tt.args.signatureInfo, tt.args.multiSignatureInfoAddresses); (err != nil) != tt.wantErr {
+				t.Errorf("ValidateSignatureInfo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
