@@ -239,8 +239,6 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		j2, _ := json.MarshalIndent(tx, "", "  ")
-		fmt.Printf("tx liquid %s \n %s \n %s", senderSeed, recipientAccountAddress, j2)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }
@@ -473,6 +471,8 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			recipientAccountAddress,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
+		j, _ := json.MarshalIndent(tx, "", "  ")
+		fmt.Printf("tx basic %s \n %s \n %s", senderSeed, recipientAccountAddress, j)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }

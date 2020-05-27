@@ -272,6 +272,20 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "wantSuccess:status_is_already_completed",
+			fields: fields{
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
+					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
+				},
+				QueryExecutor: &executorLiquidPaymentStopApplyConfirmed{},
+				Body: &model.LiquidPaymentStopTransactionBody{
+					TransactionID: 123,
+				},
+			},
+		},
+		{
 			name: "wantSuccess",
 			fields: fields{
 				AccountBalanceQuery:           query.NewAccountBalanceQuery(),

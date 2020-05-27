@@ -83,6 +83,11 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 		return err
 	}
 
+	// handle multiple stop transaction
+	if liquidPayment.Status == model.LiquidPaymentStatus_LiquidPaymentCompleted {
+		return nil
+	}
+
 	// get what transaction type it is, and switch to specific approval
 	transactionQ := tx.TransactionQuery.GetTransaction(tx.Body.GetTransactionID())
 	row, err = tx.QueryExecutor.ExecuteSelectRow(transactionQ, false)

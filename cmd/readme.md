@@ -215,4 +215,6 @@ go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --send
 go run main.go generate transaction liquid-payment --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient omtchrWztGDKzBftKfEarsed913s41ReV7qpMOHsFdC8 --amount 5000000000 --complete-minutes 3
 ```
 
-go run main.go generate transaction liquid-payment --sender-seed "concur vocalist rotten busload quote stinging undiluted surfer goofiness deviation starved gap" --recipient 1D2yYdC5Ze2ubZu7SEeBkx4fyJj5dTgmqs --amount 5000000 --complete-minutes 1440
+### Transaction Liquid Payment Stop
+
+go run main.go generate transaction liquid-payment-stop --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --transaction-id "4032174520571320308"
