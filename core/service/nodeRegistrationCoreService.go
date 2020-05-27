@@ -485,8 +485,9 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 	return nrs.QueryExecutor.ExecuteTransaction(qry, false, args)
 }
 
-// STEF TODO: test this method
-// ValidateNodeAddressInfo validate message data against main blocks (block height and hash)
+// ValidateNodeAddressInfo validate message data against:
+// - main blocks: block height and hash
+// - node registry: nodeID and message signature (use node public key in registry to validate the signature)
 func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
 	var (
 		block            model.Block

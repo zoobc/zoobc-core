@@ -364,6 +364,7 @@ func initP2pInstance() {
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		loggerP2PService,
+		p2pStrategy.NewPeerStrategyHelper(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		p2pHost,

@@ -183,10 +183,11 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 
 func TestNewPriorityStrategy(t *testing.T) {
 	type args struct {
-		host              *model.Host
-		peerServiceClient client.PeerServiceClientInterface
-		queryExecutor     query.ExecutorInterface
-		Logger            *log.Logger
+		host               *model.Host
+		peerServiceClient  client.PeerServiceClientInterface
+		queryExecutor      query.ExecutorInterface
+		Logger             *log.Logger
+		PeerStrategyHelper PeerStrategyHelperInterface
 	}
 	tests := []struct {
 		name string
@@ -203,6 +204,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 						Port:          3000,
 					},
 				},
+				PeerStrategyHelper: NewPeerStrategyHelper(),
 			},
 			want: &PriorityStrategy{
 				Host: &model.Host{
@@ -214,12 +216,14 @@ func TestNewPriorityStrategy(t *testing.T) {
 				},
 				MaxUnresolvedPeers: constant.MaxUnresolvedPeers,
 				MaxResolvedPeers:   constant.MaxResolvedPeers,
+				PeerStrategyHelper: NewPeerStrategyHelper(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewPriorityStrategy(tt.args.host, tt.args.peerServiceClient, nil, tt.args.queryExecutor, nil, tt.args.Logger)
+			got := NewPriorityStrategy(tt.args.host, tt.args.peerServiceClient, nil, tt.args.queryExecutor, nil,
+				tt.args.Logger, tt.args.PeerStrategyHelper)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
 			}
@@ -690,7 +694,8 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, log.New())
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				log.New(), nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -757,7 +762,8 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -802,7 +808,8 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -858,7 +865,8 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
@@ -921,7 +929,8 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -964,7 +973,8 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil, nil)
+			ps := NewPriorityStrategy(tt.args.hostInstance, nil, nil, nil, nil,
+				nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -975,7 +985,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		UnresolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -1004,7 +1014,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 	ps := NewPriorityStrategy(&model.Host{
 		ResolvedPeers: make(map[string]*model.Peer),
-	}, nil, nil, nil, nil, nil)
+	}, nil, nil, nil, nil, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
@@ -1354,7 +1364,62 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 	}
 }
 
-func TestPriorityStrategy_GetRandomPeerWithoutRepetition(t *testing.T) {
+type (
+	psMockNodeRegistrationService struct {
+		coreService.NodeRegistrationServiceInterface
+		validateAddressInfoSuccess bool
+	}
+	psMockPeerStrategyHelper struct {
+		PeerStrategyHelperInterface
+		peer *model.Peer
+	}
+)
+
+func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
+	if psMock.validateAddressInfoSuccess {
+		return nil
+	}
+	return errors.New("MockedError")
+}
+
+func (psMock *psMockPeerStrategyHelper) GetRandomPeerWithoutRepetition(peers map[string]*model.Peer, mutex *sync.Mutex) *model.Peer {
+	if psMock.peer != nil {
+		return psMock.peer
+	}
+	return &model.Peer{
+		Info: &model.Node{
+			SharedAddress: "127.0.0.1",
+			Address:       "127.0.0.1",
+			Port:          3000,
+		},
+	}
+}
+
+func (*mockPeerServiceClientFail) GetNodeAddressesInfo(
+	destPeer *model.Peer,
+	nodeRegistrations []*model.NodeRegistration,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	return nil, errors.New("MockedError")
+}
+
+func (*mockPeerServiceClientSuccess) GetNodeAddressesInfo(
+	destPeer *model.Peer,
+	nodeRegistrations []*model.NodeRegistration,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	return &model.GetNodeAddressesInfoResponse{
+		NodeAddressesInfo: []*model.NodeAddressInfo{
+			{
+				Address:     "127.0.0.1",
+				Port:        3000,
+				Signature:   make([]byte, 64),
+				BlockHash:   make([]byte, 32),
+				BlockHeight: 10,
+			},
+		},
+	}, nil
+}
+
+func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 	type fields struct {
 		Host                    *model.Host
 		PeerServiceClient       client.PeerServiceClientInterface
@@ -1367,40 +1432,99 @@ func TestPriorityStrategy_GetRandomPeerWithoutRepetition(t *testing.T) {
 		MaxUnresolvedPeers      int32
 		MaxResolvedPeers        int32
 		Logger                  *log.Logger
+		PeerStrategyHelper      PeerStrategyHelperInterface
 	}
 	type args struct {
-		peers map[string]*model.Peer
-		mutex *sync.Mutex
+		nodeRegistrations []*model.NodeRegistration
 	}
+
+	nodeRegistrations := []*model.NodeRegistration{
+		{
+			NodeID:             111,
+			Height:             10,
+			NodePublicKey:      []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			Latest:             true,
+			RegistrationStatus: 0,
+			RegistrationHeight: 0,
+			LockedBalance:      0,
+			AccountAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		},
+	}
+
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name    string
+		fields  fields
+		args    args
+		want    []*model.NodeAddressInfo
+		wantErr bool
 	}{
 		{
-			name: "GetRandomPeerWithoutRepetition:success",
+			name: "GetNodeAddressesInfo:fail-{noResolvedPeers}",
 			args: args{
-				peers: map[string]*model.Peer{
-					"127.0.0.1:8000": {
-						Info: &model.Node{
-							Address: "127.0.0.1",
-							Port:    8000,
-						},
-					},
-					"127.0.0.2:8000": {
-						Info: &model.Node{
-							Address: "127.0.0.2",
-							Port:    8000,
-						},
-					},
-					"127.0.0.3:8000": {
-						Info: &model.Node{
-							Address: "127.0.0.3",
-							Port:    8000,
-						},
-					},
+				nodeRegistrations: nodeRegistrations,
+			},
+			fields: fields{
+				Host: &model.Host{
+					ResolvedPeers: make(map[string]*model.Peer, 0),
 				},
-				mutex: &sync.Mutex{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "GetNodeAddressesInfo:fail-{ErrorGettingNodeAddressInfo}",
+			args: args{
+				nodeRegistrations: nodeRegistrations,
+			},
+			fields: fields{
+				Host: &model.Host{
+					ResolvedPeers: goodResolvedPeers,
+				},
+				PeerStrategyHelper: NewPeerStrategyHelper(),
+				PeerServiceClient:  &mockPeerServiceClientFail{},
+				Logger:             log.New(),
+			},
+			want: make([]*model.NodeAddressInfo, 0),
+		},
+		{
+			name: "GetNodeAddressesInfo:fail-{ErrorValidatingNodeAddressInfo}",
+			args: args{
+				nodeRegistrations: nodeRegistrations,
+			},
+			fields: fields{
+				Host: &model.Host{
+					ResolvedPeers: goodResolvedPeers,
+				},
+				PeerStrategyHelper:      NewPeerStrategyHelper(),
+				PeerServiceClient:       &mockPeerServiceClientSuccess{},
+				NodeRegistrationService: &psMockNodeRegistrationService{},
+				Logger:                  log.New(),
+			},
+			want: make([]*model.NodeAddressInfo, 0),
+		},
+		{
+			name: "GetNodeAddressesInfo:success",
+			args: args{
+				nodeRegistrations: nodeRegistrations,
+			},
+			fields: fields{
+				Host: &model.Host{
+					ResolvedPeers: goodResolvedPeers,
+				},
+				PeerStrategyHelper: &psMockPeerStrategyHelper{},
+				PeerServiceClient:  &mockPeerServiceClientSuccess{},
+				NodeRegistrationService: &psMockNodeRegistrationService{
+					validateAddressInfoSuccess: true,
+				},
+				Logger: log.New(),
+			},
+			want: []*model.NodeAddressInfo{
+				{
+					Address:     "127.0.0.1",
+					Port:        3000,
+					Signature:   make([]byte, 64),
+					BlockHash:   make([]byte, 32),
+					BlockHeight: 10,
+				},
 			},
 		},
 	}
@@ -1418,11 +1542,15 @@ func TestPriorityStrategy_GetRandomPeerWithoutRepetition(t *testing.T) {
 				MaxUnresolvedPeers:      tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:        tt.fields.MaxResolvedPeers,
 				Logger:                  tt.fields.Logger,
+				PeerStrategyHelper:      tt.fields.PeerStrategyHelper,
 			}
-			got := ps.GetRandomPeerWithoutRepetition(tt.args.peers, tt.args.mutex)
-			fullAddress := p2pUtil.GetFullAddressPeer(got)
-			if _, ok := tt.args.peers[fullAddress]; ok {
-				t.Error("PriorityStrategy.GetRandomPeerWithoutRepetition() = peer not removed from peer list")
+			got, err := ps.GetNodeAddressesInfo(tt.args.nodeRegistrations)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("PriorityStrategy.GetNodeAddressesInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PriorityStrategy.GetNodeAddressesInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
