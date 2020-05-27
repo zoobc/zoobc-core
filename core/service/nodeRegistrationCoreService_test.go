@@ -1148,7 +1148,11 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 	)
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if nrMock.nodeIDNotFound || nrMock.blockNotFound {
+	if (nrMock.nodeIDNotFound && qStr == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1") ||
+		(nrMock.blockNotFound && qStr == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, "+
+			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
+			"FROM main_block WHERE height = 10") {
 		mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
 		row := db.QueryRow(qStr)
 		return row, nil
@@ -1218,10 +1222,10 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 		).AddRow(
 			0, nrMock.blockHash, nil, 0, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
 		)
-		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
 	default:
 		return nil, errors.New("InvalidQuery")
 	}
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
 	return db.QueryRow(qStr), nil
 }
 

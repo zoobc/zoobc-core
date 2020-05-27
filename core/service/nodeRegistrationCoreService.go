@@ -497,7 +497,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args)
 	err := nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
-		if err != sql.ErrNoRows {
+		if err == sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
 		}
 		return err
