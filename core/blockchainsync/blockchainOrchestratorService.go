@@ -83,7 +83,7 @@ CheckLoop:
 }
 
 func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainType) error {
-	bos.Logger.Info("dowloading snapshots...")
+	bos.Logger.Info("downloading snapshots...")
 	lastSpineBlockManifest, err := bos.SpineBlockManifestService.GetLastSpineBlockManifest(ct,
 		model.SpineBlockManifestType_Snapshot)
 	if err != nil {
