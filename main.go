@@ -220,6 +220,7 @@ func init() {
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
 		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	defaultSignatureType = crypto.NewEd25519Signature()
@@ -617,6 +618,7 @@ func startMainchain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
@@ -712,6 +714,7 @@ func startSpinechain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(

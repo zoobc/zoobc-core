@@ -26,6 +26,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 
 	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
 
+	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
+	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
+
 	type fields struct {
 		Executor query.ExecutorInterface
 	}
@@ -333,6 +336,66 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
+			},
+		},
+		{
+			name: "wantLiquidPayment",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 0, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentBytes,
+				},
+			},
+			want: &LiquidPaymentTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:            query.NewAccountLedgerQuery(),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+			},
+		},
+		{
+			name: "wantLiquidPaymentStop",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentStopBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 1, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentStopBytes,
+				},
+			},
+			want: &LiquidPaymentStopTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentStopBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:            query.NewAccountLedgerQuery(),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},
