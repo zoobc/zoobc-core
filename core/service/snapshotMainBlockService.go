@@ -11,12 +11,16 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
 	SnapshotMainBlockService struct {
 		SnapshotPath               string
 		chainType                  chaintype.ChainType
+		TransactionUtil            transaction.UtilInterface
+		TypeActionSwitcher         transaction.TypeActionSwitcher
 		Logger                     *log.Logger
 		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
 		QueryExecutor              query.ExecutorInterface
@@ -56,6 +60,8 @@ func NewSnapshotMainBlockService(
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
 	derivedQueries []query.DerivedQuery,
+	transactionUtil transaction.UtilInterface,
+	typeSwitcher transaction.TypeActionSwitcher,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:               snapshotPath,
@@ -77,6 +83,8 @@ func NewSnapshotMainBlockService(
 		SnapshotQueries:            snapshotQueries,
 		BlocksmithSafeQuery:        blocksmithSafeQueries,
 		DerivedQueries:             derivedQueries,
+		TransactionUtil:            transactionUtil,
+		TypeActionSwitcher:         typeSwitcher,
 	}
 }
 
@@ -167,8 +175,17 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 
 // ImportSnapshotFile parses a downloaded snapshot file into db
 func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.SnapshotFileInfo) error {
-	snapshotPayload, err := ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(snapshotFileInfo.GetSnapshotFileHash(),
-		snapshotFileInfo.GetFileChunksHashes(), ss.SnapshotPath)
+	var (
+		snapshotPayload *model.SnapshotPayload
+		currentBlock    *model.Block
+		err             error
+	)
+
+	snapshotPayload, err = ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(
+		snapshotFileInfo.GetSnapshotFileHash(),
+		snapshotFileInfo.GetFileChunksHashes(),
+		ss.SnapshotPath,
+	)
 	if err != nil {
 		return err
 	}
@@ -177,6 +194,38 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		return err
 	}
 
+	ss.Logger.Infof("Need Re-ApplyUnconfirmed in %d pending transactions", len(snapshotPayload.GetPendingTransactions()))
+	/*
+		Need to manually ApplyUnconfirmed the pending transaction
+		after finished insert snapshot payload into DB
+	*/
+	currentBlock, err = commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
+	if err != nil {
+		return err
+	}
+	for _, pendingTX := range snapshotPayload.GetPendingTransactions() {
+		var (
+			innerTX *model.Transaction
+			txType  transaction.TypeAction
+		)
+		if pendingTX.GetStatus() == model.PendingTransactionStatus_PendingTransactionPending {
+
+			innerTX, err = ss.TransactionUtil.ParseTransactionBytes(pendingTX.GetTransactionBytes(), false)
+			if err != nil {
+				return err
+			}
+
+			innerTX.Height = currentBlock.GetHeight()
+			txType, err = ss.TypeActionSwitcher.GetTransactionType(innerTX)
+			if err != nil {
+				return err
+			}
+			err = txType.ApplyUnconfirmed()
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -305,14 +354,13 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	}
 
 	for key, dQuery := range ss.DerivedQueries {
-		queries := dQuery.Rollback(height)
+		queries = dQuery.Rollback(height)
 		err = ss.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			fmt.Println(key)
-			fmt.Println("Failed execute rollback queries, ", err.Error())
+			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
 			err = ss.QueryExecutor.RollbackTx()
 			if err != nil {
-				fmt.Println("Failed to run RollbackTX DB")
+				ss.Logger.Warnf("Failed to run RollbackTX DB: %s", err.Error())
 			}
 			break
 		}

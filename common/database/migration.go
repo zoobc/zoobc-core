@@ -366,6 +366,13 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
+			`,
+			`
+			CREATE INDEX "pending_transaction_status_idx" ON "pending_transaction" ("status")
+			`,
+			`
+			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
 			`,
 		}
 		return nil
