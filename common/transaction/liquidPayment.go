@@ -186,14 +186,14 @@ func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 	completeMinutes := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.LiquidPaymentCompleteMinutes)))
 	return &model.LiquidPaymentTransactionBody{
 		Amount:          int64(amount),
-		CompleteMinutes: uint64(completeMinutes),
+		CompleteMinutes: completeMinutes,
 	}, nil
 }
 
 func (tx *LiquidPaymentTransaction) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
-	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.CompleteMinutes)))
+	buffer.Write(util.ConvertUint64ToBytes(tx.Body.CompleteMinutes))
 	return buffer.Bytes()
 }
 
@@ -278,7 +278,8 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 	}
 
 	// update the status of the liquid payment
-	liquidPaymentStatusUpdateQ := tx.LiquidPaymentTransactionQuery.CompleteLiquidPaymentTransaction(tx.ID, map[string]interface{}{"block_height": blockHeight})
+	liquidPaymentStatusUpdateQ := tx.LiquidPaymentTransactionQuery.CompleteLiquidPaymentTransaction(tx.ID,
+		map[string]interface{}{"block_height": blockHeight})
 	queries = append(queries, liquidPaymentStatusUpdateQ...)
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)

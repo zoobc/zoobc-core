@@ -400,7 +400,7 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantError:recepient_address_is_empty",
+			name: "wantError:recipient_address_is_empty",
 			fields: fields{
 				ID:               10,
 				Fee:              10,
