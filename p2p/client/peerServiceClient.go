@@ -26,6 +26,7 @@ type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
+		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
@@ -288,6 +289,31 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetMorePeers(ctx, &model.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return res, err
+}
+
+// SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
+func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+	res, err := p2pClient.SendNodeAddressInfo(ctx, &model.SendNodeAddressInfoRequest{
+		NodeAddressInfoMessage: nodeAddressInfo,
+	})
 	if err != nil {
 		return nil, err
 	}

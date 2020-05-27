@@ -90,13 +90,14 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64) (s
 	for i, v := range nodeIDs {
 		b[i] = strconv.Itoa(int(v))
 	}
-	return fmt.Sprintf("SELECT %s FROM %s WHERE nodeID IN (?)",
-		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{strings.Join(b, ",")}
+	nodeIDsStr := strings.Join(b, ",")
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (?)",
+		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{nodeIDsStr}
 }
 
 // GetNodeIDByAddressPort returns query string to get peerAddress by node ID
 func (paq *NodeAddressInfoQuery) GetNodeIDByAddressPort(address string, port uint32) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE nodeID = ? AND port = ?",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ?",
 		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port}
 }
 

@@ -205,7 +205,7 @@ func TestNodeAddressInfoQuery_GetNodeIDByAddressPort(t *testing.T) {
 				"192.168.1.2",
 				uint32(8080),
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE nodeID = ? AND port = ?",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id = ? AND port = ?",
 		},
 	}
 	for _, tt := range tests {
@@ -436,7 +436,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 			wantArgs: []interface{}{
 				"1,2,3,4,5,6,7,100,2,3,4,6,7",
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE nodeID IN (?)",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN (?)",
 		},
 	}
 	for _, tt := range tests {

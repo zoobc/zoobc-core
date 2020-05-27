@@ -176,7 +176,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"height",
 		},
 		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
+	case "SELECT nr.id AS id, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
 		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
 		"WHERE nr.registration_status = 0 AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -1013,6 +1013,14 @@ func (nrMock *nrNodeAddressInfoQueryMock) ExecuteTransaction(query string, args 
 		return nil
 	}
 	return errors.New("ExecuteTransaction")
+}
+
+func (nrMock *nrNodeAddressInfoQueryMock) BeginTx() error {
+	return nil
+}
+
+func (nrMock *nrNodeAddressInfoQueryMock) CommitTx() error {
+	return nil
 }
 
 func TestNodeRegistrationService_UpdateNodeAddressInfo(t *testing.T) {

@@ -353,7 +353,6 @@ func (m *Migration) Init() error {
 			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
 			`
-			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
 			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
 			`,
 			`
@@ -373,6 +372,9 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("node_id"),			-- primary key
 				UNIQUE(address, port)			-- address + port must be unique too
 			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
 			`,
 		}
 		return nil

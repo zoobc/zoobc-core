@@ -60,6 +60,7 @@ const (
 	P2pGetPeerInfoClient                = "P2pGetPeerInfoClient"
 	P2pGetMorePeersClient               = "P2pGetMorePeersClient"
 	P2pSendPeersClient                  = "P2pSendPeersClient"
+	P2pSendNodeAddressInfoClient        = "P2pSendNodeAddressInfoClient"
 	P2pSendBlockClient                  = "P2pSendBlockClient"
 	P2pSendTransactionClient            = "P2pSendTransactionClient"
 	P2pRequestBlockTransactionsClient   = "P2pRequestBlockTransactionsClient"

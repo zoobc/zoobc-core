@@ -17,7 +17,7 @@ import (
 	"syscall"
 	"time"
 
-	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
@@ -237,7 +237,7 @@ func init() {
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
 	var (
-		seed string
+		seed, myAddressDiscoveredMsg string
 	)
 
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
@@ -246,13 +246,19 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 
 	myAddress = viper.GetString("myAddress")
 	if myAddress == "" {
-		ipAddr, err := util.GetOutboundIP()
-		if err != nil {
-			myAddress = "127.0.0.1"
-		} else {
-			myAddress = ipAddr.String()
+		ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress()
+		if ipAddr == nil {
+			// panic if we can't set an IP address for the node
+			panic(err)
+		} else if err != nil {
+			// notify user that something went wrong in net address discovery process and its node might not behave properly on the network
+			log.Print(err)
 		}
+		myAddress = ipAddr.String()
+		myAddressDiscoveredMsg = "automatically discovered"
 		viper.Set("myAddress", myAddress)
+	} else {
+		myAddressDiscoveredMsg = "set in configuration file"
 	}
 	peerPort = viper.GetUint32("peerPort")
 	monitoringPort = viper.GetInt("monitoringPort")
@@ -312,7 +318,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
-	log.Printf("myAddress: %s", myAddress)
+	log.Printf("myAddress: %s (%s)", myAddress, myAddressDiscoveredMsg)
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}

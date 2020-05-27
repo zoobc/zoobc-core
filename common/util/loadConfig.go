@@ -23,7 +23,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
 	viper.SetDefault("configPath", "./resource")
 	viper.SetDefault("peerPort", 8001)
-	viper.SetDefault("myAddress", "127.0.0.1")
+	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
 	viper.SetDefault("apiHTTPPort", 0)

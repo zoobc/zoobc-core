@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -36,6 +37,11 @@ type (
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
 		GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
+		GenerateNodeAddressInfo(
+			nodeID int64,
+			nodeAddress string,
+			port uint32,
+			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
 		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
 	}
@@ -448,7 +454,7 @@ func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 // GetNodeAddressesInfo returns a list of node address info messages given a list of nodeIDs
 func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
 	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -478,11 +484,37 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 			nrs.Logger.Warnf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
 			return nil
 		}
+		err = nrs.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
 		qryArgs := nrs.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressMessage)
-		return nrs.QueryExecutor.ExecuteTransactions(qryArgs)
+		err := nrs.QueryExecutor.ExecuteTransactions(qryArgs)
+		if err != nil {
+			_ = nrs.QueryExecutor.RollbackTx()
+			return err
+		}
+		err = nrs.QueryExecutor.CommitTx()
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	err = nrs.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
 	}
 	qry, args := nrs.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressMessage)
-	return nrs.QueryExecutor.ExecuteTransaction(qry, false, args)
+	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
+	if err != nil {
+		_ = nrs.QueryExecutor.RollbackTx()
+		return err
+	}
+	err = nrs.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ValidateNodeAddressInfo validate message data against:
@@ -493,6 +525,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		block            model.Block
 		nodeRegistration model.NodeRegistration
 	)
+
 	// validate nodeID
 	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
 	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args)
@@ -546,4 +579,27 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	}
 
 	return nil
+}
+
+// GenerateNodeAddressInfo generate a nodeAddressInfo signed message
+func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
+	nodeID int64,
+	nodeAddress string,
+	port uint32,
+	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
+	lastBlock, err := commonUtils.GetLastBlock(nrs.QueryExecutor, nrs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	nodeAddressInfo := &model.NodeAddressInfo{
+		NodeID:      nodeID,
+		Address:     nodeAddress,
+		Port:        port,
+		BlockHeight: lastBlock.GetHeight(),
+		BlockHash:   lastBlock.GetBlockHash(),
+	}
+	nodeAddressInfoBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	nodeAddressInfo.Signature = nrs.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
+	return nodeAddressInfo, nil
 }

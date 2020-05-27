@@ -13,7 +13,7 @@ type (
 		GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte
 	}
 
-	// NodeRegistrationUtils mockable service methods
+	// NodeRegistrationUtils nodeRegistration helper service methods
 	NodeRegistrationUtils struct {
 		Logger *log.Logger
 	}

@@ -46,7 +46,10 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
+
+		// internal p2p methods
 		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
+		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error
 	}
 	Peer2PeerService struct {
 		Host                    *model.Host
@@ -127,6 +130,12 @@ func (s *Peer2PeerService) StartP2P(
 		}
 	}()
 	go s.PeerExplorer.Start()
+	// update nodeAddressInfo and broadcast if necessary
+	go func() {
+		if err := s.UpdateOwnNodeAddressInfo(myAddress, peerPort, nodeSecretPhrase); err != nil {
+			s.Logger.Fatal(err.Error())
+		}
+	}()
 }
 
 // GetHostInfo exposed the p2p host information to the client
@@ -368,4 +377,39 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 	}
 
 	return fileChunksToDownload, nil
+}
+
+// STEF TODO: implement method
+// UpdateOwnNodeAddressInfo check if nodeAddress in db must be updated and broadcast the new address
+func (s *Peer2PeerService) UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error {
+	var (
+		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
+	)
+	if nr, _ := s.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey); nr != nil {
+		nodeAddrInfo, err := s.NodeRegistrationService.GetNodeAddressesInfo([]int64{nr.NodeID})
+		if err != nil {
+			return err
+		}
+		if len(nodeAddrInfo) == 0 ||
+			(len(nodeAddrInfo) > 0 &&
+				nodeAddress == nodeAddrInfo[0].GetAddress() &&
+				port == nodeAddrInfo[0].GetPort()) {
+			nodeAddressInfo, err := s.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
+			if err != nil {
+				return err
+			}
+			if err := s.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo); err != nil {
+				return err
+			}
+			// broadcast
+			for _, peer := range s.GetResolvedPeers() {
+				go func(peer *model.Peer) {
+					if _, err := s.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
+						s.Logger.Warnf("Could not send updated node address info to peer %s:%d", peer.Info.Address, peer.Info.Port)
+					}
+				}(peer)
+			}
+		}
+	}
+	return nil
 }
