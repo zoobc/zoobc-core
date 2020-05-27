@@ -245,6 +245,7 @@ func GetFixturesForTransaction(
 	}
 	if escrow {
 		tx.Escrow = &model.Escrow{
+			ID:              tx.GetID(),
 			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
 			Commission:      1,
 			Timeout:         100,
@@ -348,4 +349,24 @@ func GetFixtureForSpecificTransaction(
 	}
 	tx.TransactionBody = nil
 	return tx, transactionBytes
+}
+
+func GetFixturesForBlock(height uint32, id int64) *model.Block {
+	return &model.Block{
+		ID:                   id,
+		BlockHash:            []byte{},
+		PreviousBlockHash:    []byte{},
+		Height:               height,
+		Timestamp:            10000,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{3},
+		CumulativeDifficulty: "1",
+		PayloadLength:        1,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  []byte{},
+		TotalAmount:          1000,
+		TotalFee:             0,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
 }
