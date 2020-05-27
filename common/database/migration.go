@@ -352,6 +352,14 @@ func (m *Migration) Init() error {
 			`
 			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_scale" (
+				"fee_scale" INTEGER,		-- current fee scale
+				"block_height" INTEGER,		-- block_height when the fee scale apply
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
 		}
 		return nil
 	}
