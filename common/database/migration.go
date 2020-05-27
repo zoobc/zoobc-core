@@ -353,6 +353,16 @@ func (m *Migration) Init() error {
 			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
 			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
+			`,
+			`
+			CREATE INDEX "pending_transaction_status_idx" ON "pending_transaction" ("status")
+			`,
+			`
+			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "node_address_info" (
 				"node_id"		INTEGER,		-- node_id relative to this node address
 				"address"		VARCHAR(255),	-- peer/node address
@@ -363,16 +373,6 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("node_id"),			-- primary key
 				UNIQUE(address, port)			-- address + port must be unique too
 			)
-			`,
-			`
-			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
-			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
-			`,
-			`
-			CREATE INDEX "pending_transaction_status_idx" ON "pending_transaction" ("status")
-			`,
-			`
-			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
 			`,
 		}
 		return nil
