@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
 type (
@@ -408,6 +410,32 @@ func (*mockSnapshotQueryExecutor) ExecuteSelect(query string, tx bool, args ...i
 	return db.Query("")
 }
 
+func (*mockSnapshotQueryExecutor) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
+	mockedRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
+	mockedRows.AddRow(
+		mockedBlock.GetID(),
+		mockedBlock.GetBlockHash(),
+		mockedBlock.GetPreviousBlockHash(),
+		mockedBlock.GetHeight(),
+		mockedBlock.GetTimestamp(),
+		mockedBlock.GetBlockSeed(),
+		mockedBlock.GetBlockSignature(),
+		mockedBlock.GetCumulativeDifficulty(),
+		mockedBlock.GetPayloadLength(),
+		mockedBlock.GetPayloadHash(),
+		mockedBlock.GetBlocksmithPublicKey(),
+		mockedBlock.GetTotalAmount(),
+		mockedBlock.GetTotalFee(),
+		mockedBlock.GetTotalCoinBase(),
+		mockedBlock.GetVersion(),
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	return db.QueryRow(qe), nil
+}
 func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload,
 	filePath string) (fullHash []byte,
 	fileChunkHashes [][]byte, err error) {
@@ -755,6 +783,8 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		SnapshotQueries            map[string]query.SnapshotQuery
 		BlocksmithSafeQuery        map[string]bool
 		DerivedQueries             []query.DerivedQuery
+		TransactionUtil            transaction.UtilInterface
+		TypeActionSwitcher         transaction.TypeActionSwitcher
 	}
 	tests := []struct {
 		name    string
@@ -788,6 +818,10 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SnapshotQueries:         query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:     query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:          query.GetDerivedQuery(chaintype.GetChainType(0)),
+				TransactionUtil:         &transaction.Util{},
+				TypeActionSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockSnapshotQueryExecutor{success: true},
+				},
 			},
 		},
 	}
@@ -813,6 +847,8 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				SnapshotQueries:            tt.fields.SnapshotQueries,
 				BlocksmithSafeQuery:        tt.fields.BlocksmithSafeQuery,
 				DerivedQueries:             tt.fields.DerivedQueries,
+				TransactionUtil:            tt.fields.TransactionUtil,
+				TypeActionSwitcher:         tt.fields.TypeActionSwitcher,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

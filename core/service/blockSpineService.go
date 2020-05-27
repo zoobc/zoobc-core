@@ -441,7 +441,7 @@ func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
 
 }
 
-// GetLastBlock return the last pushed block
+// GetBlockByHeight return the last pushed block
 func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
@@ -454,7 +454,7 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 	return block, nil
 }
 
-// GetGenesis return the genesis block
+// GetGenesisBlock return the genesis block
 func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	var (
 		genesisBlock model.Block
@@ -504,7 +504,7 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 	return nil
 }
 
-// GetPayloadBytes compute and return the block's payload hash
+// GetPayloadHashAndLength compute and return the block's payload hash
 func (bs *BlockSpineService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
 	var (
 		digest = sha3.New256()
