@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -60,6 +61,16 @@ var (
 		Short: "transaction sub command used to generate 'multi signature' transaction",
 		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
 			"before it is valid to be executed",
+	}
+	liquidPaymentCmd = &cobra.Command{
+		Use:   "liquid-payment",
+		Short: "transaction sub command used to generate 'liquid payment' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment' transaction whose payment is based on at what time the payment is stopped",
+	}
+	liquidPaymentStopCmd = &cobra.Command{
+		Use:   "liquid-payment-stop",
+		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
 	}
 )
 
@@ -168,6 +179,17 @@ func init() {
 	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
 	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
 		"--address1='signature1' --address2='signature2'")
+
+	/*
+		liquidPaymentCmd
+	*/
+	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send with liquid payment")
+	liquidPaymentCmd.Flags().Uint64Var(&completeMinutes, "complete-minutes", 0, "In how long the span we want to send the liquid payment (in minutes)")
+
+	/*
+		liquidPaymentStopCmd
+	*/
+	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -194,6 +216,10 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
+	liquidPaymentCmd.Run = txGeneratorCommandsInstance.LiquidPaymentProcess()
+	txCmd.AddCommand(liquidPaymentCmd)
+	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
+	txCmd.AddCommand(liquidPaymentStopCmd)
 	return txCmd
 }
 
@@ -213,6 +239,8 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
+		j2, _ := json.MarshalIndent(tx, "", "  ")
+		fmt.Printf("tx liquid %s \n %s \n %s", senderSeed, recipientAccountAddress, j2)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }
@@ -429,5 +457,41 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		} else {
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 		}
+	}
+}
+
+// LiquidPaymentProcess for generate TX LiquidPayment type
+func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// LiquidPaymentStopProcess for generate TX LiquidPaymentStop type
+func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
+		j, _ := json.MarshalIndent(tx, "", "  ")
+		fmt.Printf("tx basic %s \n %s \n %s", senderSeed, recipientAccountAddress, j)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }
