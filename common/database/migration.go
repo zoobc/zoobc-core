@@ -353,6 +353,15 @@ func (m *Migration) Init() error {
 			CREATE INDEX "spine_block_manifest_reference_height_idx" ON "spine_block_manifest" ("manifest_reference_height")
 			`,
 			`
+			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
+			`,
+			`
+			CREATE INDEX "pending_transaction_status_idx" ON "pending_transaction" ("status")
+			`,
+			`
+			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
 				"id" INTEGER,
 				"sender_address" VARCHAR(255),

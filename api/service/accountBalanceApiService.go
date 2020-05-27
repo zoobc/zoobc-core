@@ -68,6 +68,7 @@ func (abs *AccountBalanceService) GetAccountBalances(
 		accountAddresses = append(accountAddresses, v)
 	}
 	caseQ.And(caseQ.In("account_address", accountAddresses...))
+	caseQ.And(caseQ.Equal("latest", true))
 
 	selectQ, args := caseQ.Build()
 	rows, err = abs.QueryExecutor.ExecuteSelect(selectQ, false, args...)
