@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
@@ -1869,8 +1871,22 @@ type (
 	mockAddGenesisPublishedReceiptServiceSuccess struct {
 		PublishedReceiptService
 	}
+	mockAddGenesisFeeScaleServiceCache struct {
+		fee.FeeScaleServiceInterface
+	}
 )
 
+func (*mockAddGenesisFeeScaleServiceCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+func (*mockAddGenesisFeeScaleServiceCache) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error {
+	return nil
+}
 func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block, withLock bool) {
 
 }
@@ -1955,6 +1971,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				Logger:                  tt.fields.Logger,
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
+				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

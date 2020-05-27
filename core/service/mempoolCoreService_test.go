@@ -8,6 +8,9 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
@@ -294,6 +297,24 @@ func (*mockQueryExecutorSelectTransactionsFromMempoolSuccess) ExecuteSelectRow(q
 	return mockedRow, nil
 }
 
+type (
+	mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+func (*mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error {
+	return nil
+}
+
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	successTx1, _ := (&transaction.Util{}).ParseTransactionBytes(mockSuccessSelectMempool[0].TransactionBytes, true)
 	successTx2, _ := (&transaction.Util{}).ParseTransactionBytes(mockSuccessSelectMempool[1].TransactionBytes, true)
@@ -338,7 +359,9 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				TransactionUtil:     &transaction.Util{},
+				TransactionUtil: &transaction.Util{
+					FeeScaleService: &mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache{},
+				},
 				Chaintype:           tt.fields.Chaintype,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,

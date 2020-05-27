@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -507,14 +509,32 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 	return row, nil
 }
 
+type (
+	mockValidateTransactionFeeScaleServiceCache struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockValidateTransactionFeeScaleServiceCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+
 func TestValidateTransaction(t *testing.T) {
-	transactionUtil := &Util{}
+	transactionUtil := &Util{
+		FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
+	}
 	type args struct {
 		tx                  *model.Transaction
 		queryExecutor       query.ExecutorInterface
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		verifySignature     bool
 	}
+
 	txEscrowValidate := GetFixturesForTransaction(
 		1562893303,
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",

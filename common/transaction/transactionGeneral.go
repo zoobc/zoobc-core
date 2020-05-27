@@ -8,6 +8,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -32,7 +34,9 @@ type (
 		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error)
 	}
 
-	Util struct{}
+	Util struct {
+		FeeScaleService fee.FeeScaleServiceInterface
+	}
 
 	MultisigTransactionUtilInterface interface {
 		CheckMultisigComplete(
@@ -290,7 +294,16 @@ func (u *Util) ValidateTransaction(
 			"FailToGetTxMinFee",
 		)
 	}
-	if tx.Fee < minFee {
+	var feeScale model.FeeScale
+	err = u.FeeScaleService.GetLatestFeeScale(&feeScale)
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxMinFee",
+		)
+	}
+	// multiply by minimum fee first
+	if tx.Fee < (minFee * (feeScale.FeeScale / constant.OneZBC)) {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeLessThanMinimumRequiredFee",
