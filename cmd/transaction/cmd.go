@@ -63,10 +63,10 @@ var (
 		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
 			"before it is valid to be executed",
 	}
-	feeScaleCommitVoteCmd = &cobra.Command{
-		Use:   "fee-scale-commit-vote",
-		Short: "transaction sub command used to generate 'fee scale commit vote' transaction",
-		Long:  "transaction sub command used to generate 'fee scale commit vote' transaction that require the hash or vote object ",
+	feeVoteCommitmentCmd = &cobra.Command{
+		Use:   "fee-vote-commitment-vote",
+		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
+		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash or vote object ",
 	}
 )
 
@@ -179,8 +179,8 @@ func init() {
 	/*
 		Fee Vote Command
 	*/
-	feeScaleCommitVoteCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
-	feeScaleCommitVoteCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
+	feeVoteCommitmentCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
+	feeVoteCommitmentCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
 		"eg: --vote-hash-bytes='1, 222, 54, 12, 32'")
 }
 
@@ -208,8 +208,8 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
-	feeScaleCommitVoteCmd.Run = txGeneratorCommandsInstance.FeeScaleCommitVote()
-	txCmd.AddCommand(feeScaleCommitVoteCmd)
+	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentmentProcess()
+	txCmd.AddCommand(feeVoteCommitmentCmd)
 
 	return txCmd
 }
@@ -449,8 +449,8 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	}
 }
 
-// FeeScaleCommitVote for generate TX fee scale commit vote type
-func (*TXGeneratorCommands) FeeScaleCommitVote() RunCommand {
+// feeVoteCommitmentmentProcess for generate TX  commitment vote of fee vote
+func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			err      error
@@ -479,7 +479,7 @@ func (*TXGeneratorCommands) FeeScaleCommitVote() RunCommand {
 			panic("Please provide teh vote hash in hex or bytes string")
 		}
 
-		tx = GenerateTxFeeScaleCommitVote(tx, voteHash)
+		tx = GenerateTxFeeVoteCommitment(tx, voteHash)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {

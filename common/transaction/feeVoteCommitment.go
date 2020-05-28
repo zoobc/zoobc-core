@@ -11,25 +11,25 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-// FeeScaleCommitVote is Transaction Type that implemented TypeAction
-type FeeScaleCommitVote struct {
-	ID                      int64
-	Fee                     int64
-	SenderAddress           string
-	Height                  uint32
-	Body                    *model.FeeScaleCommitVoteTransactionsBody
-	AccountBalanceQuery     query.AccountBalanceQueryInterface
-	BlockQuery              query.BlockQueryInterface
-	AccountLedgerQuery      query.AccountLedgerQueryInterface
-	FeeScaleVoteCommitQuery query.FeeScaleVoteCommitQueryInterface
-	QueryExecutor           query.ExecutorInterface
+// FeeVoteCommitment is Transaction Type that implemented TypeAction
+type FeeVoteCommitment struct {
+	ID                         int64
+	Fee                        int64
+	SenderAddress              string
+	Height                     uint32
+	Body                       *model.FeeVoteCommitmentTransactionBody
+	AccountBalanceQuery        query.AccountBalanceQueryInterface
+	BlockQuery                 query.BlockQueryInterface
+	AccountLedgerQuery         query.AccountLedgerQueryInterface
+	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
+	QueryExecutor              query.ExecutorInterface
 }
 
-//ApplyConfirmed to apply confirmed transaction FeeScaleCommitVote type
-func (tx *FeeScaleCommitVote) ApplyConfirmed(blockTimestamp int64) error {
+//ApplyConfirmed to apply confirmed transaction FeeVoteCommitment type
+func (tx *FeeVoteCommitment) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err        error
-		voteCommit *model.FeeScaleVoteCommit
+		voteCommit *model.FeeVoteCommitmentVote
 		queries    [][]interface{}
 	)
 	// update sender balance by reducing his spendable balance of the tx fee
@@ -42,12 +42,12 @@ func (tx *FeeScaleCommitVote) ApplyConfirmed(blockTimestamp int64) error {
 	)
 	queries = append(queries, accountBalanceSenderQ...)
 	// build query to insert commit vote
-	voteCommit = &model.FeeScaleVoteCommit{
+	voteCommit = &model.FeeVoteCommitmentVote{
 		VoteHash:     tx.Body.VoteHash,
 		VoterAddress: tx.SenderAddress,
 		BlockHeight:  tx.Height,
 	}
-	voteCommitQ, voteCommitArgs := tx.FeeScaleVoteCommitQuery.InsertCommitVote(voteCommit)
+	voteCommitQ, voteCommitArgs := tx.FeeVoteCommitmentVoteQuery.InsertCommitVote(voteCommit)
 	queries = append(queries, append([]interface{}{voteCommitQ}, voteCommitArgs...))
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
@@ -55,7 +55,7 @@ func (tx *FeeScaleCommitVote) ApplyConfirmed(blockTimestamp int64) error {
 		BalanceChange:  -tx.Fee,
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventFeeScaleCommitVoteTransaction,
+		EventType:      model.EventType_EventFeeVoteCommitmentTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
 	queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
@@ -67,8 +67,8 @@ func (tx *FeeScaleCommitVote) ApplyConfirmed(blockTimestamp int64) error {
 	return nil
 }
 
-// ApplyUnconfirmed to apply unconfirmed transaction FeeScaleCommitVote type
-func (tx *FeeScaleCommitVote) ApplyUnconfirmed() error {
+// ApplyUnconfirmed to apply unconfirmed transaction FeeVoteCommitment type
+func (tx *FeeVoteCommitment) ApplyUnconfirmed() error {
 	var (
 		// update account sender spendable balance
 		accountBalanceSenderQ, accountBalanceSenderQArgs = tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -89,7 +89,7 @@ func (tx *FeeScaleCommitVote) ApplyUnconfirmed() error {
 UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
-func (tx *FeeScaleCommitVote) UndoApplyUnconfirmed() error {
+func (tx *FeeVoteCommitment) UndoApplyUnconfirmed() error {
 	var (
 		// update account sender spendable balance
 		accountBalanceSenderQ, accountBalanceSenderQArgs = tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -107,9 +107,9 @@ func (tx *FeeScaleCommitVote) UndoApplyUnconfirmed() error {
 }
 
 /*
-Validate to validating Transaction FeeScaleCommitVote type
+Validate to validating Transaction FeeVoteCommitment type
 */
-func (tx *FeeScaleCommitVote) Validate(dbTx bool) error {
+func (tx *FeeVoteCommitment) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
 		lastBlock      model.Block
@@ -153,26 +153,26 @@ func (tx *FeeScaleCommitVote) Validate(dbTx bool) error {
 }
 
 // GetAmount return Amount from TransactionBody
-func (tx *FeeScaleCommitVote) GetAmount() int64 {
+func (tx *FeeVoteCommitment) GetAmount() int64 {
 	return 0
 }
 
 // GetMinimumFee return minimum fee of transaction
-func (*FeeScaleCommitVote) GetMinimumFee() (int64, error) {
+func (*FeeVoteCommitment) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
 
 // GetSize is size of transaction body
-func (tx *FeeScaleCommitVote) GetSize() uint32 {
+func (tx *FeeVoteCommitment) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (tx *FeeScaleCommitVote) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+func (tx *FeeVoteCommitment) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
 		buffer = bytes.NewBuffer(txBodyBytes)
 	)
-	voteHashLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.FeeScaleVoteHashLength))
+	voteHashLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.FeeVoteObjectHashLength))
 	if err != nil {
 		return nil, err
 	}
@@ -181,32 +181,32 @@ func (tx *FeeScaleCommitVote) ParseBodyBytes(txBodyBytes []byte) (model.Transact
 	if err != nil {
 		return nil, err
 	}
-	return &model.FeeScaleCommitVoteTransactionsBody{
+	return &model.FeeVoteCommitmentTransactionBody{
 		VoteHash: voteHash,
 	}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeScaleCommitVote) GetBodyBytes() []byte {
+func (tx *FeeVoteCommitment) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.VoteHash))))
 	buffer.Write(tx.Body.VoteHash)
 	return buffer.Bytes()
 }
 
-// GetTransactionBody return transaction body of FeeScaleCommitVote transactions
-func (tx *FeeScaleCommitVote) GetTransactionBody(transaction *model.Transaction) {
-	transaction.TransactionBody = &model.Transaction_FeeScaleCommitVoteTransactionBody{
-		FeeScaleCommitVoteTransactionBody: tx.Body,
+// GetTransactionBody return transaction body of FeeVoteCommitment transactions
+func (tx *FeeVoteCommitment) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_FeeVoteCommitmentTransactionBody{
+		FeeVoteCommitmentTransactionBody: tx.Body,
 	}
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeScaleCommitVote) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteCommitment) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
 	return false, nil
 }
 
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
-func (*FeeScaleCommitVote) Escrowable() (EscrowTypeAction, bool) {
+func (*FeeVoteCommitment) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
 }

@@ -10,40 +10,40 @@ import (
 )
 
 var (
-	mockFeeScaleVoteCommitsQuery = NewFeeScaleVoteCommitsQuery()
-	mockFeeScaleVoteCommit       = model.FeeScaleVoteCommit{
+	mockFeeVoteCommitmentVoteQuery = NewFeeVoteCommitmentVoteQuery()
+	mockFeeVoteCommitmentVote      = model.FeeVoteCommitmentVote{
 		VoteHash:     []byte{1, 2, 1},
 		VoterAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		BlockHeight:  1,
 	}
 )
 
-func TestNewFeeScaleVoteCommitsQuery(t *testing.T) {
+func TestNewFeeVoteCommitmentVoteQuery(t *testing.T) {
 	tests := []struct {
 		name string
-		want *FeeScaleVoteCommitQuery
+		want *FeeVoteCommitmentVoteQuery
 	}{
 		{
 			name: "wantSuccess",
-			want: mockFeeScaleVoteCommitsQuery,
+			want: mockFeeVoteCommitmentVoteQuery,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewFeeScaleVoteCommitsQuery(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewFeeScaleVoteCommitsQuery() = %v, want %v", got, tt.want)
+			if got := NewFeeVoteCommitmentVoteQuery(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NewFeeVoteCommitmentVoteQuery() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestFeeScaleVoteCommitQuery_InsertCommitVote(t *testing.T) {
+func TestFeeVoteCommitmentVoteQuery_InsertCommitVote(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		voteCommit *model.FeeScaleVoteCommit
+		voteCommit *model.FeeVoteCommitmentVote
 	}
 	tests := []struct {
 		name     string
@@ -54,36 +54,36 @@ func TestFeeScaleVoteCommitQuery_InsertCommitVote(t *testing.T) {
 	}{
 		{
 			name:   "wantSuccess",
-			fields: fields(*mockFeeScaleVoteCommitsQuery),
+			fields: fields(*mockFeeVoteCommitmentVoteQuery),
 			args: args{
-				voteCommit: &mockFeeScaleVoteCommit,
+				voteCommit: &mockFeeVoteCommitmentVote,
 			},
-			wantStr: "INSERT INTO fee_scale_vote_commits (vote_hash,voter_address,block_height) VALUES(? , ?, ?)",
+			wantStr: "INSERT INTO fee_vote_commitment_votes (vote_hash,voter_address,block_height) VALUES(? , ?, ?)",
 			wantArgs: []interface{}{
-				mockFeeScaleVoteCommit.GetVoteHash(),
-				mockFeeScaleVoteCommit.GetVoterAddress(),
-				mockFeeScaleVoteCommit.GetBlockHeight(),
+				mockFeeVoteCommitmentVote.GetVoteHash(),
+				mockFeeVoteCommitmentVote.GetVoterAddress(),
+				mockFeeVoteCommitmentVote.GetBlockHeight(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fsvc := &FeeScaleVoteCommitQuery{
+			fsvc := &FeeVoteCommitmentVoteQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			gotStr, gotArgs := fsvc.InsertCommitVote(tt.args.voteCommit)
 			if gotStr != tt.wantStr {
-				t.Errorf("FeeScaleVoteCommitQuery.InsertCommitVote() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("FeeVoteCommitmentVoteQuery.InsertCommitVote() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("FeeScaleVoteCommitQuery.InsertCommitVote() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("FeeVoteCommitmentVoteQuery.InsertCommitVote() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
 }
 
-func TestFeeScaleVoteCommitQuery_GetVoteCommitByAccountAddress(t *testing.T) {
+func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddress(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -100,58 +100,58 @@ func TestFeeScaleVoteCommitQuery_GetVoteCommitByAccountAddress(t *testing.T) {
 	}{
 		{
 			name:   "wantSuccess",
-			fields: fields(*mockFeeScaleVoteCommitsQuery),
+			fields: fields(*mockFeeVoteCommitmentVoteQuery),
 			args: args{
-				accountAddress: mockFeeScaleVoteCommit.GetVoterAddress(),
+				accountAddress: mockFeeVoteCommitmentVote.GetVoterAddress(),
 			},
-			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_scale_vote_commits WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_vote_commitment_votes WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 			wantArgs: []interface{}{
-				mockFeeScaleVoteCommit.GetVoterAddress(),
+				mockFeeVoteCommitmentVote.GetVoterAddress(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fsvc := &FeeScaleVoteCommitQuery{
+			fsvc := &FeeVoteCommitmentVoteQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			gotQStr, gotArgs := fsvc.GetVoteCommitByAccountAddress(tt.args.accountAddress)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("FeeScaleVoteCommitQuery.GetVoteCommitByAccountAddress() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("FeeScaleVoteCommitQuery.GetVoteCommitByAccountAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
 }
 
 type (
-	mockRowFeeScaleVoteCommitQueryScan struct {
+	mockRowFeeVoteCommitmentVoteQueryScan struct {
 		Executor
 	}
 )
 
-func (*mockRowFeeScaleVoteCommitQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
+func (*mockRowFeeVoteCommitmentVoteQueryScan) ExecuteSelectRow(qStr string, args ...interface{}) *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(
-		sqlmock.NewRows(NewFeeScaleVoteCommitsQuery().Fields).AddRow(
-			mockFeeScaleVoteCommit.GetVoteHash(),
-			mockFeeScaleVoteCommit.GetVoterAddress(),
-			mockFeeScaleVoteCommit.GetBlockHeight(),
+		sqlmock.NewRows(NewFeeVoteCommitmentVoteQuery().Fields).AddRow(
+			mockFeeVoteCommitmentVote.GetVoteHash(),
+			mockFeeVoteCommitmentVote.GetVoterAddress(),
+			mockFeeVoteCommitmentVote.GetBlockHeight(),
 		),
 	)
 	return db.QueryRow("")
 }
 
-func TestFeeScaleVoteCommitQuery_Scan(t *testing.T) {
+func TestFeeVoteCommitmentVoteQuery_Scan(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		voteCommit *model.FeeScaleVoteCommit
+		voteCommit *model.FeeVoteCommitmentVote
 		row        *sql.Row
 	}
 	tests := []struct {
@@ -162,28 +162,28 @@ func TestFeeScaleVoteCommitQuery_Scan(t *testing.T) {
 	}{
 		{
 			name:   "wantSuccess",
-			fields: fields(*mockFeeScaleVoteCommitsQuery),
+			fields: fields(*mockFeeVoteCommitmentVoteQuery),
 			args: args{
-				voteCommit: &model.FeeScaleVoteCommit{},
-				row:        (&mockRowFeeScaleVoteCommitQueryScan{}).ExecuteSelectRow("", ""),
+				voteCommit: &model.FeeVoteCommitmentVote{},
+				row:        (&mockRowFeeVoteCommitmentVoteQueryScan{}).ExecuteSelectRow("", ""),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &FeeScaleVoteCommitQuery{
+			f := &FeeVoteCommitmentVoteQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			if err := f.Scan(tt.args.voteCommit, tt.args.row); (err != nil) != tt.wantErr {
-				t.Errorf("FeeScaleVoteCommitQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("FeeVoteCommitmentVoteQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestFeeScaleVoteCommitQuery_Rollback(t *testing.T) {
+func TestFeeVoteCommitmentVoteQuery_Rollback(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -199,11 +199,11 @@ func TestFeeScaleVoteCommitQuery_Rollback(t *testing.T) {
 	}{
 		{
 			name:   "wantSuccess",
-			fields: fields(*mockFeeScaleVoteCommitsQuery),
+			fields: fields(*mockFeeVoteCommitmentVoteQuery),
 			args:   args{height: uint32(1)},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM fee_scale_vote_commits WHERE block_height > ?",
+					"DELETE FROM fee_vote_commitment_votes WHERE block_height > ?",
 					uint32(1),
 				},
 			},
@@ -211,12 +211,12 @@ func TestFeeScaleVoteCommitQuery_Rollback(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fsvc := &FeeScaleVoteCommitQuery{
+			fsvc := &FeeVoteCommitmentVoteQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			if gotMultiQueries := fsvc.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
-				t.Errorf("FeeScaleVoteCommitQuery.Rollback() = %v, want %v", gotMultiQueries, tt.wantMultiQueries)
+				t.Errorf("FeeVoteCommitmentVoteQuery.Rollback() = %v, want %v", gotMultiQueries, tt.wantMultiQueries)
 			}
 		})
 	}

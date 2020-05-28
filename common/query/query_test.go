@@ -36,7 +36,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewPendingTransactionQuery(),
 				NewPendingSignatureQuery(),
 				NewMultisignatureInfoQuery(),
-				NewFeeScaleVoteCommitsQuery(),
+				NewFeeVoteCommitmentVoteQuery(),
 			},
 		},
 		{

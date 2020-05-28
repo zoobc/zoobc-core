@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 1070983609761144356
+	MainchainGenesisBlockID int64 = 7693829184545826152
 )
 
 type (
@@ -30,29 +30,26 @@ var (
 	// GenesisConfig one configuration for all block types (mainchain, spinechain), since they might share some fields
 	GenesisConfig = []GenesisConfigEntry{
 		{
-			AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			AccountBalance: 0,
-			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
-				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			NodeAddress:        "172.104.34.10:8080",
+			AccountAddress:     "2HoAsfL8ZnbkBOy2eGYqSbxzmOSk3lmN0mfh1J9J3XDe",
+			AccountBalance:     0,
+			NodePublicKey:      []byte{96, 21, 14, 132, 184, 49, 58, 139, 223, 5, 194, 185, 154, 93, 70, 25, 220, 39, 12, 90, 133, 239, 3, 248, 26, 144, 109, 252, 122, 153, 193, 107},
+			NodeAddress:        "127.0.0.1:8001",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
 		{
-			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
-			AccountBalance: 0,
-			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
-				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-			NodeAddress:        "45.79.39.58:8080",
+			AccountAddress:     "nIsUYYvfb5qxeY6kT5yU3Nxw5CjwOgSjSL53C4SNaE8_",
+			AccountBalance:     0,
+			NodePublicKey:      []byte{223, 12, 38, 9, 208, 50, 54, 70, 114, 245, 153, 140, 160, 228, 6, 40, 117, 43, 63, 89, 55, 101, 229, 192, 6, 100, 16, 43, 191, 232, 81, 98},
+			NodeAddress:        "127.0.0.1:8002",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},
 		{
-			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
-			AccountBalance: 100000000000,
-			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
-				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
-			NodeAddress:        "85.90.246.90:8080",
+			AccountAddress:     "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
+			AccountBalance:     100000000000,
+			NodePublicKey:      []byte{230, 146, 58, 14, 220, 96, 98, 166, 87, 139, 81, 212, 206, 173, 44, 132, 235, 168, 253, 65, 79, 12, 193, 252, 46, 97, 167, 93, 65, 238, 147, 10},
+			NodeAddress:        "127.0.0.1:8003",
 			LockedBalance:      0,
 			ParticipationScore: DefaultParticipationScore,
 		},

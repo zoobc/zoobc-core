@@ -35,7 +35,7 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewPendingTransactionQuery(),
 			NewPendingSignatureQuery(),
 			NewMultisignatureInfoQuery(),
-			NewFeeScaleVoteCommitsQuery(),
+			NewFeeVoteCommitmentVoteQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -53,18 +53,18 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 	switch ct.(type) {
 	case *chaintype.MainChain:
 		snapshotQuery = map[string]SnapshotQuery{
-			"block":              NewBlockQuery(ct),
-			"accountBalance":     NewAccountBalanceQuery(),
-			"nodeRegistration":   NewNodeRegistrationQuery(),
-			"accountDataset":     NewAccountDatasetsQuery(),
-			"participationScore": NewParticipationScoreQuery(),
-			"publishedReceipt":   NewPublishedReceiptQuery(),
-			"escrowTransaction":  NewEscrowTransactionQuery(),
-			"pendingTransaction": NewPendingTransactionQuery(),
-			"pendingSignature":   NewPendingSignatureQuery(),
-			"multisignatureInfo": NewMultisignatureInfoQuery(),
-			"skippedBlocksmith":  NewSkippedBlocksmithQuery(),
-			"feeScaleCommitVote": NewFeeScaleVoteCommitsQuery(),
+			"block":                 NewBlockQuery(ct),
+			"accountBalance":        NewAccountBalanceQuery(),
+			"nodeRegistration":      NewNodeRegistrationQuery(),
+			"accountDataset":        NewAccountDatasetsQuery(),
+			"participationScore":    NewParticipationScoreQuery(),
+			"publishedReceipt":      NewPublishedReceiptQuery(),
+			"escrowTransaction":     NewEscrowTransactionQuery(),
+			"pendingTransaction":    NewPendingTransactionQuery(),
+			"pendingSignature":      NewPendingSignatureQuery(),
+			"multisignatureInfo":    NewMultisignatureInfoQuery(),
+			"skippedBlocksmith":     NewSkippedBlocksmithQuery(),
+			"feeVoteCommitmentVote": NewFeeVoteCommitmentVoteQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}

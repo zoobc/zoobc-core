@@ -290,21 +290,21 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 7:
 		switch buf[1] {
 		case 0:
-			feeScleCommitVoteTransactionBody, err := new(FeeScaleCommitVote).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			feeScleCommitVoteTransactionBody, err := new(FeeVoteCommitment).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
-			return &FeeScaleCommitVote{
-				ID:                      tx.ID,
-				Fee:                     tx.Fee,
-				SenderAddress:           tx.SenderAccountAddress,
-				Height:                  tx.Height,
-				Body:                    feeScleCommitVoteTransactionBody.(*model.FeeScaleCommitVoteTransactionsBody),
-				QueryExecutor:           ts.Executor,
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				FeeScaleVoteCommitQuery: query.NewFeeScaleVoteCommitsQuery(),
+			return &FeeVoteCommitment{
+				ID:                         tx.ID,
+				Fee:                        tx.Fee,
+				SenderAddress:              tx.SenderAccountAddress,
+				Height:                     tx.Height,
+				Body:                       feeScleCommitVoteTransactionBody.(*model.FeeVoteCommitmentTransactionBody),
+				QueryExecutor:              ts.Executor,
+				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountLedgerQuery:         query.NewAccountLedgerQuery(),
+				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 			}, nil
 		default:
 			return nil, nil
