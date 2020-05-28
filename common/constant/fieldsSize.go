@@ -50,4 +50,6 @@ var (
 	MultiSigInfoNonce              uint32 = 8
 	MultiSigInfoMinSignature       uint32 = 4
 	MultiSigTransactionHash        uint32 = 32
+
+	FeeScaleVoteHashLength uint32 = 4
 )

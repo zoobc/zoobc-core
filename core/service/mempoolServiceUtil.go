@@ -80,7 +80,10 @@ func (mpsu *MempoolServiceUtil) ValidateMempoolTransaction(mpTx *model.MempoolTr
 
 	// check for duplication in mempool table
 	mempoolQ := mpsu.MempoolQuery.GetMempoolTransaction()
-	row, _ = mpsu.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
+	row, err = mpsu.QueryExecutor.ExecuteSelectRow(mempoolQ, false, mpTx.ID)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	err = mpsu.MempoolQuery.Scan(&mempoolTx, row)
 	if err != nil {
 		if err != sql.ErrNoRows {

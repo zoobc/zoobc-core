@@ -35,6 +35,7 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewPendingTransactionQuery(),
 			NewPendingSignatureQuery(),
 			NewMultisignatureInfoQuery(),
+			NewFeeScaleVoteCommitsQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -63,6 +64,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"pendingSignature":   NewPendingSignatureQuery(),
 			"multisignatureInfo": NewMultisignatureInfoQuery(),
 			"skippedBlocksmith":  NewSkippedBlocksmithQuery(),
+			"feeScaleCommitVote": NewFeeScaleVoteCommitsQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}

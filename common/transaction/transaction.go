@@ -49,6 +49,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Send Money
 	case 1:
 		switch buf[1] {
 		case 0:
@@ -78,6 +79,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Node Registry
 	case 2:
 		switch buf[1] {
 		case 0:
@@ -162,6 +164,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Account Dataset
 	case 3:
 		switch buf[1] {
 		case 0:
@@ -201,6 +204,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Excrow
 	case 4:
 		switch buf[1] {
 		case 0:
@@ -226,6 +230,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Multi Signature
 	case 5:
 		switch buf[1] {
 		case 0:
@@ -262,6 +267,29 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+			}, nil
+		default:
+			return nil, nil
+		}
+	// Fee Voting
+	case 7:
+		switch buf[1] {
+		case 0:
+			feeScleCommitVoteTransactionBody, err := new(FeeScaleCommitVote).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &FeeScaleCommitVote{
+				ID:                      tx.ID,
+				Fee:                     tx.Fee,
+				SenderAddress:           tx.SenderAccountAddress,
+				Height:                  tx.Height,
+				Body:                    feeScleCommitVoteTransactionBody.(*model.FeeScaleCommitVoteTransactionsBody),
+				QueryExecutor:           ts.Executor,
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				FeeScaleVoteCommitQuery: query.NewFeeScaleVoteCommitsQuery(),
 			}, nil
 		default:
 			return nil, nil

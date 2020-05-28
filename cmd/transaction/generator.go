@@ -483,3 +483,27 @@ func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *mod
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
 	return tx
 }
+
+/*
+GenerateTxFeeScaleCommitVote return fee scale commit vote transaction based on provided basic transaction &
+others specific field for fee scale commit vote transaction
+*/
+func GenerateTxFeeScaleCommitVote(
+	tx *model.Transaction,
+	voteHash []byte,
+) *model.Transaction {
+	var (
+		txBody = &model.FeeScaleCommitVoteTransactionsBody{
+			VoteHash: voteHash,
+		}
+		txBodyBytes = (&transaction.FeeScaleCommitVote{Body: txBody}).GetBodyBytes()
+	)
+
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeScaleCommitVote"])
+	tx.TransactionBody = &model.Transaction_FeeScaleCommitVoteTransactionBody{
+		FeeScaleCommitVoteTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
