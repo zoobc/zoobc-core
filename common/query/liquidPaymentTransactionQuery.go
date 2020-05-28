@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -18,8 +19,8 @@ type (
 	// LiquidPaymentTransactionQueryInterface methods must have
 	LiquidPaymentTransactionQueryInterface interface {
 		InsertLiquidPaymentTransaction(liquidPayment *model.LiquidPayment) [][]interface{}
-		GetPendingLiquidPaymentTransactionByID(id int64) (str string, args []interface{})
-		GetPassedTimeLiquidPaymentTransactions(timestamp int64) (qStr string, args []interface{})
+		GetPendingLiquidPaymentTransactionByID(id int64, status model.LiquidPaymentStatus) (str string, args []interface{})
+		GetPassedTimePendingLiquidPaymentTransactions(timestamp int64) (qStr string, args []interface{})
 		CompleteLiquidPaymentTransaction(id int64, causedFields map[string]interface{}) [][]interface{}
 		ExtractModel(*model.LiquidPayment) []interface{}
 		BuildModels(*sql.Rows) ([]*model.LiquidPayment, error)
@@ -27,7 +28,7 @@ type (
 	}
 )
 
-// NewLiquidPaymentTransactionQuery build an LiquidPaymentTransactionQuery
+// NewLiquidPaymentTransactionQuery build a LiquidPaymentTransactionQuery
 func NewLiquidPaymentTransactionQuery() *LiquidPaymentTransactionQuery {
 	return &LiquidPaymentTransactionQuery{
 		Fields: []string{
@@ -101,20 +102,23 @@ func (lpt *LiquidPaymentTransactionQuery) CompleteLiquidPaymentTransaction(id in
 	}
 }
 
-func (lpt *LiquidPaymentTransactionQuery) GetPendingLiquidPaymentTransactionByID(id int64) (str string, args []interface{}) {
+// GetPendingLiquidPaymentTransactionByID fetches the latest Liquid payment record that matches with the ID and have pending status
+func (lpt *LiquidPaymentTransactionQuery) GetPendingLiquidPaymentTransactionByID(id int64,
+	status model.LiquidPaymentStatus) (str string, args []interface{}) {
 	return fmt.Sprintf(
 			"SELECT %s FROM %s WHERE id = ? AND status = ? AND latest = ?",
 			strings.Join(lpt.Fields, ", "),
 			lpt.getTableName(),
 		),
-		[]interface{}{id, model.LiquidPaymentStatus_LiquidPaymentPending, true}
+		[]interface{}{id, status, true}
 }
 
-func (lpt *LiquidPaymentTransactionQuery) GetPassedTimeLiquidPaymentTransactions(timestamp int64) (qStr string, args []interface{}) {
+func (lpt *LiquidPaymentTransactionQuery) GetPassedTimePendingLiquidPaymentTransactions(timestamp int64) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE applied_time+(complete_minutes*60) <= ? AND status = ? AND latest = ?",
+			"SELECT %s FROM %s WHERE applied_time+(complete_minutes*%d) <= ? AND status = ? AND latest = ?",
 			strings.Join(lpt.Fields, ", "),
 			lpt.getTableName(),
+			constant.CompleteMinutesUnit,
 		),
 		[]interface{}{timestamp, model.LiquidPaymentStatus_LiquidPaymentPending, true}
 }

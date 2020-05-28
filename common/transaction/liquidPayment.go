@@ -2,9 +2,9 @@ package transaction
 
 import (
 	"bytes"
-	"database/sql"
 	"errors"
 	"math"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -25,8 +25,8 @@ type (
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		AccountLedgerQuery            query.AccountLedgerQueryInterface
+		AccountBalanceHelper          AccountBalanceHelperInterface
+		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	LiquidPaymentTransactionInterface interface {
@@ -41,17 +41,15 @@ func (tx *LiquidPaymentTransaction) ApplyConfirmed(blockTimestamp int64) error {
 	)
 
 	// update sender
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Body.Amount + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, accountBalanceSenderQ...)
+	err = tx.AccountBalanceHelper.AddAccountBalance(tx.SenderAddress,
+		-(tx.Body.Amount + tx.Fee), tx.Height)
+
+	if err != nil {
+		return err
+	}
 
 	// sender ledger
-	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -(tx.GetAmount() + tx.Fee),
 		TransactionID:  tx.ID,
@@ -59,8 +57,10 @@ func (tx *LiquidPaymentTransaction) ApplyConfirmed(blockTimestamp int64) error {
 		EventType:      model.EventType_EventLiquidPaymentTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
+
+	if err != nil {
+		return err
+	}
 
 	// create the Liquid payment record
 	liquidPaymentTransaction := &model.LiquidPayment{
@@ -85,49 +85,26 @@ func (tx *LiquidPaymentTransaction) ApplyConfirmed(blockTimestamp int64) error {
 }
 
 func (tx *LiquidPaymentTransaction) ApplyUnconfirmed() error {
-	var (
-		err error
-	)
-
 	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-(tx.Body.Amount + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.Amount + tx.Fee))
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (tx *LiquidPaymentTransaction) UndoApplyUnconfirmed() error {
-	var (
-		err error
-	)
-
 	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.Amount+tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.Amount+tx.Fee)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		row            *sql.Row
 		err            error
 	)
 
@@ -141,13 +118,7 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
 		return err
 	}
@@ -171,7 +142,7 @@ func (tx *LiquidPaymentTransaction) GetAmount() int64 {
 
 func (tx *LiquidPaymentTransaction) GetSize() uint32 {
 	// only amount
-	return constant.Balance + constant.LiquidPaymentCompleteMinutes
+	return constant.Balance + constant.LiquidPaymentCompleteMinutesLength
 }
 
 func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
@@ -183,7 +154,7 @@ func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 	// read body bytes
 	bufferBytes := bytes.NewBuffer(txBodyBytes)
 	amount := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.Balance)))
-	completeMinutes := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.LiquidPaymentCompleteMinutes)))
+	completeMinutes := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.LiquidPaymentCompleteMinutesLength)))
 	return &model.LiquidPaymentTransactionBody{
 		Amount:          int64(amount),
 		CompleteMinutes: completeMinutes,
@@ -217,13 +188,16 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 		queries                                           [][]interface{}
 		err                                               error
 		recipientBalanceIncrement, senderBalanceIncrement int64
+		blockTimestampTime                                = time.Unix(blockTimestamp, 0)
+		firstAppliedTimestampTime                         = time.Unix(firstAppliedTimestamp, 0)
+		durationPassed                                    = blockTimestampTime.Sub(firstAppliedTimestampTime).Minutes()
 	)
 
-	if blockTimestamp-firstAppliedTimestamp < 0 {
+	if durationPassed < 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "blockTimestamp is less than firstAppliedTimestamp")
 	}
 
-	durationRate := (float64(blockTimestamp-firstAppliedTimestamp) / 60) / float64(tx.Body.GetCompleteMinutes())
+	durationRate := durationPassed / float64(tx.Body.GetCompleteMinutes())
 	if durationRate > 1 {
 		recipientBalanceIncrement = tx.Body.GetAmount()
 	} else {
@@ -232,17 +206,14 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 	}
 
 	// transfer the money to the recipient pro-rate wise
-	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
-		recipientBalanceIncrement,
-		map[string]interface{}{
-			"account_address": tx.RecipientAddress,
-			"block_height":    blockHeight,
-		},
-	)
-	queries = append(queries, accountBalanceRecipientQ...)
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.RecipientAddress, recipientBalanceIncrement, blockHeight)
+	if err != nil {
+		return err
+	}
 
 	// recipient ledger
-	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
 		AccountAddress: tx.RecipientAddress,
 		BalanceChange:  recipientBalanceIncrement,
 		TransactionID:  tx.ID,
@@ -250,22 +221,20 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 		EventType:      model.EventType_EventLiquidPaymentPaidTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
-	queries = append(queries, recipientAccountLedgerArgs)
+	if err != nil {
+		return err
+	}
 
 	if senderBalanceIncrement > 0 {
 		// returning the remaining payment to the sender
-		accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-			senderBalanceIncrement,
-			map[string]interface{}{
-				"account_address": tx.SenderAddress,
-				"block_height":    blockHeight,
-			},
-		)
-		queries = append(queries, accountBalanceSenderQ...)
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress, senderBalanceIncrement, blockHeight)
+		if err != nil {
+			return err
+		}
 
 		// sender ledger
-		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
 			AccountAddress: tx.SenderAddress,
 			BalanceChange:  senderBalanceIncrement,
 			TransactionID:  tx.ID,
@@ -273,8 +242,9 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 			EventType:      model.EventType_EventLiquidPaymentPaidTransaction,
 			Timestamp:      uint64(blockTimestamp),
 		})
-		senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-		queries = append(queries, senderAccountLedgerArgs)
+		if err != nil {
+			return err
+		}
 	}
 
 	// update the status of the liquid payment

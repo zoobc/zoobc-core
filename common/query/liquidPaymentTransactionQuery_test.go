@@ -117,7 +117,8 @@ func TestLiquidPaymentTransactionQuery_CompleteLiquidPaymentTransaction(t *testi
 
 func TestLiquidPaymentTransactionQuery_GetPendingLiquidPaymentTransactionByID(t *testing.T) {
 	type args struct {
-		id int64
+		id     int64
+		status model.LiquidPaymentStatus
 	}
 	tests := []struct {
 		name     string
@@ -128,7 +129,8 @@ func TestLiquidPaymentTransactionQuery_GetPendingLiquidPaymentTransactionByID(t 
 		{
 			name: "wantSuccess",
 			args: args{
-				id: 123,
+				id:     123,
+				status: model.LiquidPaymentStatus_LiquidPaymentPending,
 			},
 			wantStr: "SELECT id, sender_address, recipient_address, amount, applied_time, complete_minutes, status," +
 				" block_height, latest FROM liquid_payment_transaction WHERE id = ? AND status = ? AND latest = ?",
@@ -138,7 +140,7 @@ func TestLiquidPaymentTransactionQuery_GetPendingLiquidPaymentTransactionByID(t 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lpt := NewLiquidPaymentTransactionQuery()
-			gotStr, gotArgs := lpt.GetPendingLiquidPaymentTransactionByID(tt.args.id)
+			gotStr, gotArgs := lpt.GetPendingLiquidPaymentTransactionByID(tt.args.id, tt.args.status)
 			if gotStr != tt.wantStr {
 				t.Errorf("LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
@@ -149,7 +151,7 @@ func TestLiquidPaymentTransactionQuery_GetPendingLiquidPaymentTransactionByID(t 
 	}
 }
 
-func TestLiquidPaymentTransactionQuery_GetPassedTimeLiquidPaymentTransactions(t *testing.T) {
+func TestLiquidPaymentTransactionQuery_GetPassedTimePendingLiquidPaymentTransactions(t *testing.T) {
 	type args struct {
 		timestamp int64
 	}
@@ -172,12 +174,12 @@ func TestLiquidPaymentTransactionQuery_GetPassedTimeLiquidPaymentTransactions(t 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lpt := NewLiquidPaymentTransactionQuery()
-			gotQStr, gotArgs := lpt.GetPassedTimeLiquidPaymentTransactions(tt.args.timestamp)
+			gotQStr, gotArgs := lpt.GetPassedTimePendingLiquidPaymentTransactions(tt.args.timestamp)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("LiquidPaymentTransactionQuery.GetPassedTimeLiquidPaymentTransactions() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+				t.Errorf("LiquidPaymentTransactionQuery.GetPassedTimePendingLiquidPaymentTransactions() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
 			}
 			if fmt.Sprintf("%v", gotArgs) != fmt.Sprintf("%v", tt.wantArgs) {
-				t.Errorf("LiquidPaymentTransactionQuery.GetPassedTimeLiquidPaymentTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("LiquidPaymentTransactionQuery.GetPassedTimePendingLiquidPaymentTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

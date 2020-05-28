@@ -759,11 +759,17 @@ type (
 	}
 )
 
-func (m *mockCompletePassedLiquidPaymentExecutor) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (m *mockCompletePassedLiquidPaymentExecutor) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	if m.isExecuteSelectError {
 		return nil, errors.New("mockError ExecuteSelect")
 	}
-	return nil, nil
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockRows := mock.NewRows(query.NewLiquidPaymentTransactionQuery().Fields)
+	mock.ExpectQuery("").WillReturnRows(mockRows)
+
+	return db.Query("")
 }
 
 func (m *mockCompletePassedLiquidPaymentExecutor) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {

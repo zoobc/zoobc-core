@@ -25,8 +25,8 @@ type (
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		AccountLedgerQuery            query.AccountLedgerQueryInterface
+		AccountBalanceHelper          AccountBalanceHelperInterface
+		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -39,21 +39,17 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 		liquidPayment model.LiquidPayment
 		transaction   model.Transaction
 		txType        TypeAction
-		queries       [][]interface{}
 	)
 
 	// update sender
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, accountBalanceSenderQ...)
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress, -tx.Fee, tx.Height)
+	if err != nil {
+		return err
+	}
 
 	// sender ledger
-	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  -(tx.Fee),
 		TransactionID:  tx.ID,
@@ -61,16 +57,13 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 		EventType:      model.EventType_EventLiquidPaymentStopTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
-	err = tx.QueryExecutor.ExecuteTransactions(queries)
-
 	if err != nil {
 		return err
 	}
 
 	// processing the liquid payment transaction
-	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID)
+	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID,
+		model.LiquidPaymentStatus_LiquidPaymentPending)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(liquidPaymentQ, true, liquidPaymentArgs...)
 	if err != nil {
 		return err
@@ -118,13 +111,7 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 }
 
 func (tx *LiquidPaymentStopTransaction) ApplyUnconfirmed() error {
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
 	if err != nil {
 		return err
 	}
@@ -132,14 +119,7 @@ func (tx *LiquidPaymentStopTransaction) ApplyUnconfirmed() error {
 }
 
 func (tx *LiquidPaymentStopTransaction) UndoApplyUnconfirmed() error {
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 	if err != nil {
 		return err
 	}
@@ -160,7 +140,8 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		return errors.New("transaction must have a valid transaction id")
 	}
 
-	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID)
+	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID,
+		model.LiquidPaymentStatus_LiquidPaymentPending)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(liquidPaymentQ, dbTx, liquidPaymentArgs...)
 	if err != nil {
 		return err
@@ -178,7 +159,7 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 	}
 
 	if liquidPayment.Status == model.LiquidPaymentStatus_LiquidPaymentCompleted {
-		return blocker.NewBlocker(blocker.ValidationErr, "LiquidPaymentHasPrevioslyCompleted")
+		return blocker.NewBlocker(blocker.ValidationErr, "LiquidPaymentHasPreviouslyCompleted")
 	}
 
 	return nil
@@ -193,8 +174,8 @@ func (tx *LiquidPaymentStopTransaction) GetAmount() int64 {
 }
 
 func (tx *LiquidPaymentStopTransaction) GetSize() uint32 {
-	// only amount
-	return constant.Balance
+	// only TransactionID
+	return constant.TransactionID
 }
 
 func (tx *LiquidPaymentStopTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {

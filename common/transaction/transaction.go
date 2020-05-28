@@ -44,6 +44,7 @@ type (
 // GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
+	// TODO OPTIMIZATION: initiate accountBalanceHelper and accountLedgerHelper once only in the instance lifecycle
 	accountBalanceHelper := NewAccountBalanceHelper(query.NewAccountBalanceQuery(), ts.Executor)
 	accountLedgerHelper := NewAccountLedgerHelper(query.NewAccountLedgerQuery(), ts.Executor)
 	transactionHelper := NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
@@ -300,8 +301,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                        tx.GetHeight(),
 				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
 				QueryExecutor:                 ts.Executor,
-				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:            query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:          accountBalanceHelper,
+				AccountLedgerHelper:           accountLedgerHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 			}, nil
 		case 1: // LiquidPaymentStop Transaction
@@ -318,9 +319,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                        tx.GetHeight(),
 				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
 				QueryExecutor:                 ts.Executor,
-				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
+				AccountBalanceHelper:          accountBalanceHelper,
+				AccountLedgerHelper:           accountLedgerHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountLedgerQuery:            query.NewAccountLedgerQuery(),
 				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
 				TypeActionSwitcher:            ts,
 			}, nil

@@ -337,12 +337,15 @@ func (tg *TransactionCoreService) CompletePassedLiquidPayment(block *model.Block
 		tx             model.Transaction
 		txType         transaction.TypeAction
 	)
-	liquidPaymentQ, liquidPaymentArgs := tg.LiquidPaymentTransactionQuery.GetPassedTimeLiquidPaymentTransactions(block.GetTimestamp())
-	rows, err = tg.QueryExecutor.ExecuteSelect(liquidPaymentQ, true, liquidPaymentArgs...)
-	if err != nil {
-		return err
-	}
-	liquidPayments, err = tg.LiquidPaymentTransactionQuery.BuildModels(rows)
+	liquidPayments, err = func() ([]*model.LiquidPayment, error) {
+		liquidPaymentQ, liquidPaymentArgs := tg.LiquidPaymentTransactionQuery.GetPassedTimePendingLiquidPaymentTransactions(block.GetTimestamp())
+		rows, err = tg.QueryExecutor.ExecuteSelect(liquidPaymentQ, true, liquidPaymentArgs...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return tg.LiquidPaymentTransactionQuery.BuildModels(rows)
+	}()
 	if err != nil {
 		return err
 	}

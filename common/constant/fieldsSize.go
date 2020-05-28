@@ -51,6 +51,6 @@ var (
 	MultiSigInfoMinSignature       uint32 = 4
 	MultiSigTransactionHash        uint32 = 32
 
-	// LiquidPaymentCompleteMinutes indicates how many minutes is required before the liquid payment is completed
-	LiquidPaymentCompleteMinutes uint32 = 8
+	LiquidPaymentCompleteMinutesLength uint32 = 8
+	TransactionID                      uint32 = 8
 )
