@@ -375,8 +375,10 @@ func GetFixtureForFeeVoteCommitTransaction() (
 	txBody *model.FeeVoteCommitTransactionBody,
 	txBodyBytes []byte,
 ) {
+	digest := sha3.New256()
+	_, _ = digest.Write([]byte("zoobcVote"))
 	txBody = &model.FeeVoteCommitTransactionBody{
-		VoteHash: []byte{1},
+		VoteHash: digest.Sum([]byte{}),
 	}
 
 	sa := FeeVoteCommitTransaction{

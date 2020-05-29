@@ -363,11 +363,12 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
-				"vote_hash" BLOB,		-- hash of fee vote‌‌ object
+				"vote_hash" BLOB,		-- hash of fee vote object
 				"voter_address" VARCHAR(255), -- sender account address of commit vote
 				"block_height" INTEGER,	-- height when commit vote inserted
 				PRIMARY KEY("vote_hash", "block_height")
-			)`,
+			)
+			`,
 		}
 		return nil
 	}

@@ -327,22 +327,35 @@ func GenerateSignedTxBytes(
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
+		err             error
 	)
-	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	minimumFee, _ := txType.GetMinimumFee()
+	txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	if err != nil {
+		log.Fatalf("fail get transaction type: %s", err)
+	}
+	minimumFee, err := txType.GetMinimumFee()
+	if err != nil {
+		log.Fatalf("fail get minimum fee: %s", err)
+	}
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
-	tx.Signature, _ = signature.Sign(
+	tx.Signature, err = signature.Sign(
 		unsignedTxBytes,
 		model.SignatureType(signatureType),
 		senderSeed,
 		optionalSignParams...,
 	)
-	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
+	if err != nil {
+		log.Fatalf("fail get sign tx: %s", err)
+	}
+	signedTxBytes, err := transactionUtil.GetTransactionBytes(tx, true)
+	if err != nil {
+		log.Fatalf("fail get get signed transactionBytes: %s", err)
+	}
 	return signedTxBytes
 }
 
@@ -498,8 +511,7 @@ func GenerateTxFeeVoteCommitment(
 		}
 		txBodyBytes = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
 	)
-
-	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommitment"])
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommit"])
 	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
 		FeeVoteCommitTransactionBody: txBody,
 	}
