@@ -147,7 +147,7 @@ func init() {
 
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
-	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), queryExecutor)
+	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
 		FeeScaleService: feeScaleService,
 	}

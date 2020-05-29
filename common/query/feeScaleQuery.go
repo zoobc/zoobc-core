@@ -60,9 +60,9 @@ func (fsq *FeeScaleQuery) InsertFeeScale(feeScale *model.FeeScale) (qStr string,
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
 func (*FeeScaleQuery) ExtractModel(feeScale *model.FeeScale) []interface{} {
 	return []interface{}{
-		&feeScale.FeeScale,
-		&feeScale.BlockHeight,
-		&feeScale.Latest,
+		feeScale.FeeScale,
+		feeScale.BlockHeight,
+		feeScale.Latest,
 	}
 }
 

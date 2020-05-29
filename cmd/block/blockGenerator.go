@@ -163,7 +163,11 @@ func initialize(
 		query.NewPublishedReceiptQuery(),
 		queryExecutor,
 	)
-	feeScaleService := fee.NewFeeScaleService(query.NewFeeScaleQuery(), queryExecutor)
+	feeScaleService := fee.NewFeeScaleService(
+		query.NewFeeScaleQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		queryExecutor,
+	)
 	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
