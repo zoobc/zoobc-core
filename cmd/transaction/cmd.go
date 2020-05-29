@@ -476,7 +476,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
 				panic("failed to parse vote hash bytes")
 			}
 		} else {
-			panic("Please provide teh vote hash in hex or bytes string")
+			panic("Please provide the vote hash in hex or bytes string")
 		}
 
 		tx = GenerateTxFeeVoteCommitment(tx, voteHash)

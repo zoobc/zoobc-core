@@ -28,7 +28,7 @@ type FeeVoteCommitTransaction struct {
 	QueryExecutor              query.ExecutorInterface
 }
 
-//ApplyConfirmed to apply confirmed transaction FeeVoteCommitTransaction type
+// ApplyConfirmed to apply confirmed transaction FeeVoteCommitTransaction type
 func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err        error
