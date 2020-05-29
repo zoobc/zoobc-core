@@ -32,7 +32,7 @@ func NewFeeVoteCommitmentVoteQuery() *FeeVoteCommitmentVoteQuery {
 			"voter_address",
 			"block_height",
 		},
-		TableName: "fee_vote_commitment_votes",
+		TableName: "fee_vote_commitment_vote",
 	}
 }
 
@@ -40,7 +40,7 @@ func (fsvc *FeeVoteCommitmentVoteQuery) getTableName() string {
 	return fsvc.TableName
 }
 
-// InsertCommitVote to build insert query for `fee_vote_commitment_votes` table
+// InsertCommitVote to build insert query for `fee_vote_commitment_vote` table
 func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (
 	str string, args []interface{},
 ) {

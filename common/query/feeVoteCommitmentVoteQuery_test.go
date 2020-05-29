@@ -58,7 +58,7 @@ func TestFeeVoteCommitmentVoteQuery_InsertCommitVote(t *testing.T) {
 			args: args{
 				voteCommit: &mockFeeVoteCommitmentVote,
 			},
-			wantStr: "INSERT INTO fee_vote_commitment_votes (vote_hash,voter_address,block_height) VALUES(? , ?, ?)",
+			wantStr: "INSERT INTO fee_vote_commitment_vote (vote_hash,voter_address,block_height) VALUES(? , ?, ?)",
 			wantArgs: []interface{}{
 				mockFeeVoteCommitmentVote.GetVoteHash(),
 				mockFeeVoteCommitmentVote.GetVoterAddress(),
@@ -104,7 +104,7 @@ func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddress(t *testing.T) 
 			args: args{
 				accountAddress: mockFeeVoteCommitmentVote.GetVoterAddress(),
 			},
-			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_vote_commitment_votes WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_vote_commitment_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 			wantArgs: []interface{}{
 				mockFeeVoteCommitmentVote.GetVoterAddress(),
 			},
@@ -203,7 +203,7 @@ func TestFeeVoteCommitmentVoteQuery_Rollback(t *testing.T) {
 			args:   args{height: uint32(1)},
 			wantMultiQueries: [][]interface{}{
 				{
-					"DELETE FROM fee_vote_commitment_votes WHERE block_height > ?",
+					"DELETE FROM fee_vote_commitment_vote WHERE block_height > ?",
 					uint32(1),
 				},
 			},
