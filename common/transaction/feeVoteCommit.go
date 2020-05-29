@@ -134,7 +134,7 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	)
 	// check the sender account is awner of node registration
 	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	_, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
