@@ -370,3 +370,17 @@ func GetFixturesForBlock(height uint32, id int64) *model.Block {
 		Version:              0,
 	}
 }
+
+func GetFixtureForFeeVoteCommitTransaction() (
+	txBody *model.FeeVoteCommitTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.FeeVoteCommitTransactionBody{
+		VoteHash: []byte{1},
+	}
+
+	sa := FeeVoteCommitTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}

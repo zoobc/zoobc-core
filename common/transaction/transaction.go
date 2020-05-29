@@ -290,20 +290,22 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 7:
 		switch buf[1] {
 		case 0:
-			feeScleCommitVoteTransactionBody, err := new(FeeVoteCommitment).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			feeVoteCommitTransactionBody, err := new(FeeVoteCommitTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
-			return &FeeVoteCommitment{
+			return &FeeVoteCommitTransaction{
 				ID:                         tx.ID,
 				Fee:                        tx.Fee,
 				SenderAddress:              tx.SenderAccountAddress,
 				Height:                     tx.Height,
-				Body:                       feeScleCommitVoteTransactionBody.(*model.FeeVoteCommitmentTransactionBody),
+				TimeStamp:                  tx.Timestamp,
+				Body:                       feeVoteCommitTransactionBody.(*model.FeeVoteCommitTransactionBody),
 				QueryExecutor:              ts.Executor,
 				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountLedgerQuery:         query.NewAccountLedgerQuery(),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 			}, nil
 		default:

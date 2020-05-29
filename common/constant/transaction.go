@@ -12,6 +12,4 @@ var (
 	OneFeePerByteTransaction int64 = 10000
 	// TransactionTimeOffset use to put time offset for transaction timestamp when validate transaction
 	TransactionTimeOffset = 10 * time.Second
-	// FeeScaleDayPhaseBounds is the day bounds beetween commit phase (last day) and reveal phase
-	FeeScaleDayPhaseBounds = 29
 )

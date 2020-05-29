@@ -64,9 +64,9 @@ var (
 			"before it is valid to be executed",
 	}
 	feeVoteCommitmentCmd = &cobra.Command{
-		Use:   "fee-vote-commitment-vote",
+		Use:   "fee-vote-commit",
 		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
-		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash or vote object ",
+		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash of vote object ",
 	}
 )
 

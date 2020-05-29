@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -11,22 +12,24 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-// FeeVoteCommitment is Transaction Type that implemented TypeAction
-type FeeVoteCommitment struct {
+// FeeVoteCommitTransaction is Transaction Type that implemented TypeAction
+type FeeVoteCommitTransaction struct {
 	ID                         int64
 	Fee                        int64
 	SenderAddress              string
 	Height                     uint32
-	Body                       *model.FeeVoteCommitmentTransactionBody
+	TimeStamp                  int64
+	Body                       *model.FeeVoteCommitTransactionBody
 	AccountBalanceQuery        query.AccountBalanceQueryInterface
 	BlockQuery                 query.BlockQueryInterface
 	AccountLedgerQuery         query.AccountLedgerQueryInterface
+	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 	QueryExecutor              query.ExecutorInterface
 }
 
-//ApplyConfirmed to apply confirmed transaction FeeVoteCommitment type
-func (tx *FeeVoteCommitment) ApplyConfirmed(blockTimestamp int64) error {
+//ApplyConfirmed to apply confirmed transaction FeeVoteCommitTransaction type
+func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err        error
 		voteCommit *model.FeeVoteCommitmentVote
@@ -55,7 +58,7 @@ func (tx *FeeVoteCommitment) ApplyConfirmed(blockTimestamp int64) error {
 		BalanceChange:  -tx.Fee,
 		TransactionID:  tx.ID,
 		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventFeeVoteCommitmentTransaction,
+		EventType:      model.EventType_EventFeeVoteCommitTransaction,
 		Timestamp:      uint64(blockTimestamp),
 	})
 	queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
@@ -67,8 +70,8 @@ func (tx *FeeVoteCommitment) ApplyConfirmed(blockTimestamp int64) error {
 	return nil
 }
 
-// ApplyUnconfirmed to apply unconfirmed transaction FeeVoteCommitment type
-func (tx *FeeVoteCommitment) ApplyUnconfirmed() error {
+// ApplyUnconfirmed to apply unconfirmed transaction FeeVoteCommitTransaction type
+func (tx *FeeVoteCommitTransaction) ApplyUnconfirmed() error {
 	var (
 		// update account sender spendable balance
 		accountBalanceSenderQ, accountBalanceSenderQArgs = tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -89,7 +92,7 @@ func (tx *FeeVoteCommitment) ApplyUnconfirmed() error {
 UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
-func (tx *FeeVoteCommitment) UndoApplyUnconfirmed() error {
+func (tx *FeeVoteCommitTransaction) UndoApplyUnconfirmed() error {
 	var (
 		// update account sender spendable balance
 		accountBalanceSenderQ, accountBalanceSenderQArgs = tx.AccountBalanceQuery.AddAccountSpendableBalance(
@@ -107,12 +110,12 @@ func (tx *FeeVoteCommitment) UndoApplyUnconfirmed() error {
 }
 
 /*
-Validate to validating Transaction FeeVoteCommitment type
+Validate to validating Transaction FeeVoteCommitTransaction type
 */
-func (tx *FeeVoteCommitment) Validate(dbTx bool) error {
+func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		lastBlock      model.Block
+		block          model.Block
 		row            *sql.Row
 		err            error
 	)
@@ -122,22 +125,22 @@ func (tx *FeeVoteCommitment) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "fee vote hash required")
 	}
 
-	// check is period to submit commit vote or not
-	row, err = tx.QueryExecutor.ExecuteSelectRow(tx.BlockQuery.GetLastBlock(), dbTx)
+	// TODO: check is period to submit commit vote or not
+
+	var (
+		qry            string
+		args           []interface{}
+		commitmentVote model.FeeVoteCommitmentVote
+	)
+	// check the sender account is awner of node registration
+	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	err = tx.BlockQuery.Scan(&lastBlock, row)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	var day = util.GetDayOfMonthUTC(lastBlock.GetTimestamp())
-	if day > constant.FeeScaleDayPhaseBounds {
-		return blocker.NewBlocker(blocker.ValidationErr, "curently it's not commitment phase")
 	}
 
 	// check account balance sender
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -149,26 +152,61 @@ func (tx *FeeVoteCommitment) Validate(dbTx bool) error {
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
 	}
+
+	// checking prevoius commit vote
+	qry, args = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.FeeVoteCommitmentVoteQuery.Scan(&commitmentVote, row)
+	if err != nil && err != sql.ErrNoRows {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	// no need to check existing vote commit if height is 0
+	if commitmentVote.BlockHeight == 0 {
+		return nil
+	}
+	row, err = tx.QueryExecutor.ExecuteSelectRow(
+		tx.BlockQuery.GetBlockByHeight(commitmentVote.BlockHeight),
+		dbTx,
+	)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.BlockQuery.Scan(&block, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	// check alredy have vote commit or not
+	var (
+		yearBlock, mountBlock, _ = time.Unix(block.Timestamp, 0).UTC().Date()
+		yearTx, mountTx, _       = time.Unix(block.Timestamp, 0).UTC().Date()
+	)
+	if yearBlock == yearTx && mountBlock == mountTx {
+		return blocker.NewBlocker(blocker.ValidationErr, "already have vote commit for this phase")
+	}
 	return nil
 }
 
 // GetAmount return Amount from TransactionBody
-func (tx *FeeVoteCommitment) GetAmount() int64 {
+func (tx *FeeVoteCommitTransaction) GetAmount() int64 {
 	return 0
 }
 
 // GetMinimumFee return minimum fee of transaction
-func (*FeeVoteCommitment) GetMinimumFee() (int64, error) {
+func (*FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
 
 // GetSize is size of transaction body
-func (tx *FeeVoteCommitment) GetSize() uint32 {
+func (tx *FeeVoteCommitTransaction) GetSize() uint32 {
 	return uint32(len(tx.GetBodyBytes()))
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (tx *FeeVoteCommitment) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+func (tx *FeeVoteCommitTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
 		buffer = bytes.NewBuffer(txBodyBytes)
 	)
@@ -181,32 +219,32 @@ func (tx *FeeVoteCommitment) ParseBodyBytes(txBodyBytes []byte) (model.Transacti
 	if err != nil {
 		return nil, err
 	}
-	return &model.FeeVoteCommitmentTransactionBody{
+	return &model.FeeVoteCommitTransactionBody{
 		VoteHash: voteHash,
 	}, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeVoteCommitment) GetBodyBytes() []byte {
+func (tx *FeeVoteCommitTransaction) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.VoteHash))))
 	buffer.Write(tx.Body.VoteHash)
 	return buffer.Bytes()
 }
 
-// GetTransactionBody return transaction body of FeeVoteCommitment transactions
-func (tx *FeeVoteCommitment) GetTransactionBody(transaction *model.Transaction) {
-	transaction.TransactionBody = &model.Transaction_FeeVoteCommitmentTransactionBody{
-		FeeVoteCommitmentTransactionBody: tx.Body,
+// GetTransactionBody return transaction body of FeeVoteCommitTransaction transactions
+func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transaction) {
+	transaction.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
+		FeeVoteCommitTransactionBody: tx.Body,
 	}
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteCommitment) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
 	return false, nil
 }
 
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
-func (*FeeVoteCommitment) Escrowable() (EscrowTypeAction, bool) {
+func (*FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
 }

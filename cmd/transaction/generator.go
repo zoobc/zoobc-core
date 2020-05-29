@@ -493,15 +493,15 @@ func GenerateTxFeeVoteCommitment(
 	voteHash []byte,
 ) *model.Transaction {
 	var (
-		txBody = &model.FeeVoteCommitmentTransactionBody{
+		txBody = &model.FeeVoteCommitTransactionBody{
 			VoteHash: voteHash,
 		}
-		txBodyBytes = (&transaction.FeeVoteCommitment{Body: txBody}).GetBodyBytes()
+		txBodyBytes = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
 	)
 
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommitment"])
-	tx.TransactionBody = &model.Transaction_FeeVoteCommitmentTransactionBody{
-		FeeVoteCommitmentTransactionBody: txBody,
+	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
+		FeeVoteCommitTransactionBody: txBody,
 	}
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
