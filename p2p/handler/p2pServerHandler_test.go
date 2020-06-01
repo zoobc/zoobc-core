@@ -230,6 +230,80 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 }
 
 type (
+	mockGetCumulativeDifficultyError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockGetCumulativeDifficultySuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockGetCumulativeDifficultyError) GetCumulativeDifficulty(ctx context.Context, chainType chaintype.ChainType,
+) (*model.GetCumulativeDifficultyResponse, error) {
+	return nil, errors.New("Error GetCumulativeDifficulty")
+}
+
+func (*mockGetCumulativeDifficultySuccess) GetCumulativeDifficulty(ctx context.Context, chainType chaintype.ChainType,
+) (*model.GetCumulativeDifficultyResponse, error) {
+	return &model.GetCumulativeDifficultyResponse{}, nil
+}
+
+func TestP2PServerHandler_GetCumulativeDifficulty(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetCumulativeDifficultyRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetCumulativeDifficultyResponse
+		wantErr bool
+	}{
+		{
+			name: "GetCumulativeDifficulty:Error",
+			fields: fields{
+				Service: &mockGetCumulativeDifficultyError{},
+			},
+			args: args{
+				req: &model.GetCumulativeDifficultyRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetCumulativeDifficulty:Success",
+			fields: fields{
+				Service: &mockGetCumulativeDifficultySuccess{},
+			},
+			args: args{
+				req: &model.GetCumulativeDifficultyRequest{},
+			},
+			want:    &model.GetCumulativeDifficultyResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.GetCumulativeDifficulty(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.GetCumulativeDifficulty() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.GetCumulativeDifficulty() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
 	mockGetCommonMilestoneBlockIDsSuccess struct {
 		service2.P2PServerServiceInterface
 	}
