@@ -2,6 +2,20 @@ package genesisblock
 
 import "github.com/spf13/cobra"
 
+const (
+	envTargetDevelop envTargetType = 0
+	envTargetStaging envTargetType = 1
+	envTargetAlpha   envTargetType = 2
+	envTargetLocal   envTargetType = 3
+)
+
+type (
+	/*
+		ENV Target enum
+	*/
+	envTargetType uint32
+)
+
 var (
 	genesisCmd = &cobra.Command{
 		Use:   "genesis",
@@ -22,4 +36,16 @@ var (
 	wellKnownPeers         string
 	deploymentName         string
 	kvFileCustomConfigFile string
+
+	/*
+		ENV Target
+	*/
+	envTarget       string
+	output          string
+	envTarget_value = map[string]uint32{
+		"develop": 0,
+		"staging": 1,
+		"alpha":   2,
+		"local":   3,
+	}
 )

@@ -1,0 +1,32 @@
+[
+  {
+    "AccountAddress": "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+    "AccountBalance": 0,
+    "NodeSeed": "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
+    "NodePublicKeyB64": "mToyyAc9bOXMMMeRFWN9SzEtdmHbUPL0ZIaQ9iWQ1Yc=",
+    "LockedBalance": 0,
+    "NodeAddress": "172.104.34.10:8080",
+    "ParticipationScore": 0,
+    "Smithing": true
+  },
+  {
+    "AccountAddress": "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+    "AccountBalance": 0,
+    "NodeSeed": "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
+    "NodePublicKeyB64": "AA4G2qo2PDICQoJ34ut+ywUMmMKqkis/4GV/8T6Yu/8=",
+    "LockedBalance": 0,
+    "NodeAddress": "45.79.39.58:8080",
+    "ParticipationScore": 0,
+    "Smithing": true
+  },
+  {
+    "AccountAddress": "AFiTqqX99kYXjLFJJ2AWuzKK5zxYUT1Pn0p3s6lutkai",
+    "AccountBalance": 100000000000,
+    "NodeSeed": "merge plug donor drop cancel inherit extra toss cabbage awkward destroy rail",
+    "NodePublicKeyB64": "WyTkRmVeuva6BE6OraK7rcpR81yNeJTcKaDQXq6mPs8=",
+    "LockedBalance": 0,
+    "NodeAddress": "85.90.246.90:8080",
+    "ParticipationScore": 0,
+    "Smithing": true
+  }
+]

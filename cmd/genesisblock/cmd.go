@@ -8,6 +8,8 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
+	"strings"
 	"text/template"
 	"time"
 
@@ -56,6 +58,9 @@ var (
 		Short: "genesis generate command used to generate a new genesis.go and cluster_config.json file",
 		Long:  `genesis generate command generate a genesis.go file from a list of accounts and/or from current database.`,
 		Run: func(cmd *cobra.Command, args []string) {
+			if _, ok := envTarget_value[envTarget]; !ok {
+				log.Fatal("Invalid env-target flag given, only: develop,staging,alpha")
+			}
 			generateGenesisFiles(withDbLastState, dbPath, extraNodesCount)
 		},
 	}
@@ -82,9 +87,11 @@ func init() {
 	genesisGeneratorCmd.Flags().StringVar(&deploymentName, "deploymentName", "zoobc-alpha",
 		"nomad task name associated to this deployment")
 	genesisGeneratorCmd.Flags().StringVar(&kvFileCustomConfigFile, "kvFileCustomConfigFile", "",
-		"(optional) full path (path + fileNane) of a custom cluster_config.json file to use to generate consulKvInitScript."+
+		"(optional) full path (path + fileName) of a custom cluster_config.json file to use to generate consulKvInitScript."+
 			"sh instead of the automatically generated in resource/generated/genesis directory")
 
+	genesisGeneratorCmd.Flags().StringVarP(&envTarget, "env-target", "e", "alpha", "env mode indeed a.k.a develop,staging,alpha")
+	genesisGeneratorCmd.Flags().StringVarP(&output, "output", "o", "resource", "output generated files target")
 	genesisCmd.AddCommand(genesisGeneratorCmd)
 }
 
@@ -116,8 +123,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			log.Fatal(err)
 		}
 	}
-
-	file, err := ioutil.ReadFile("./genesisblock/templates/preRegisteredNodes.json")
+	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.preRegisteredNodes.json", envTarget)))
 	if err == nil {
 		err = json.Unmarshal(file, &preRegisteredNodes)
 		if err != nil {
@@ -158,7 +164,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	}
 
 	// generate extra nodes from a json file containing only account addresses
-	file, err = ioutil.ReadFile("./genesisblock/templates/genesisAccountAddresses.json")
+	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.genesisAccountAddresses.json", envTarget)))
 	if err == nil {
 		// read custom addresses from file
 		err = json.Unmarshal(file, &preRegisteredAccountAddresses)
@@ -175,7 +181,8 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	}
 
 	// append to preRegistered nodes/accounts previous entries from a blockchain db file
-	outPath := "../resource/generated/genesis"
+	var outPath = path.Join(getRootPath(), fmt.Sprintf("%s/generated/genesis", output))
+
 	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 		log.Fatalf("can't create folder %s. error: %s", outPath, err)
 	}
@@ -194,14 +201,14 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		accountNodes = append(accountNodes, newEntry)
 	}
 	generateAccountNodesFile(accountNodes, fmt.Sprintf("%s/accountNodes.json", outPath))
-	fmt.Println("Command executed successfully\ngenesis.go.new has been generated in resource/generated/genesis")
-	fmt.Println("to apply new genesis to the core-node, please overwrite common/constant/genesis." +
-		"go with the new one: resource/generated/genesis/genesis.go")
+	fmt.Printf("Command executed successfully\ngenesis.go.new has been generated in %s\n", outPath)
+	fmt.Printf("to apply new genesis to the core-node, please overwrite common/constant/genesis."+
+		"go with the new one: %s/genesis.go", outPath)
 }
 
 // generateRandomGenesisEntry randomly generates a genesis node entry
 // note: the account address is mandatory for the node registration, but as there is no wallet connected to it
-//       and we are not storing the relaitve seed, needed to sign transactions, these nodes can smith but their owners
+//       and we are not storing the relative seed, needed to sign transactions, these nodes can smith but their owners
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
@@ -333,8 +340,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 // generateGenesisFile generates a genesis file with given entries, starting from a template
 func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
-	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles("./genesisblock/templates/genesis.tmpl")
+	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/genesis.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
@@ -464,7 +470,7 @@ func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePa
 func generateConsulKvInitScript(clusterConfigEntries []clusterConfigEntry, consulKvInitScriptPath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles("./genesisblock/templates/consulKvInit.tmpl")
+	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/consulKvInit.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading consulKvInit.tmpl file: %s", err)
 	}
@@ -504,6 +510,14 @@ func generateConsulKvInitScript(clusterConfigEntries []clusterConfigEntry, consu
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getRootPath() string {
+	wd, _ := os.Getwd()
+	if strings.Contains(wd, "zoobc-core") {
+		return wd
+	}
+	return path.Join(wd, "../")
 }
 
 func (ge *genesisEntry) FormatPubKeyByteString() string {

@@ -86,6 +86,11 @@ jobs:
                           sudo apt-get update && sudo apt-get install rsync
                       fi
             - run:
+                  name: GENERATING GENESIS
+                  command: |
+                      go run cmd/main.go genesis -e ${CIRLE_BRANCH} -o dist \
+                      && cp ./dist/generated/genesis/genesis.go ./common/constant/genesis.go
+            - run:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
@@ -120,7 +125,7 @@ jobs:
             - run:
                   name: DEPLOY
                   command: |
-                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db'; done
+                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
             - run:
                   name: UP SERVICES
                   command: |
@@ -152,7 +157,7 @@ jobs:
             - run:
                   name: DEPLOY APP
                   command: |
-                      rsync -vae ssh ./dist/ root@$ln4:/root/zoobc --exclude='*.db'
+                      rsync -vae ssh ./dist/ root@$ln4:/root/zoobc --exclude='*.db' --exclude='generated'
             - run:
                   name: UP SERVICE
                   command: |
