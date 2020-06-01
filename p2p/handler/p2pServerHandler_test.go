@@ -232,3 +232,74 @@ func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetNextBlocksError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockGetNextBlocksSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockGetNextBlocksError) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64, blockIDList []int64) (*model.BlocksData, error) {
+	return nil, errors.New("Error GetNextBlocks")
+}
+func (*mockGetNextBlocksSuccess) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64, blockIDList []int64) (*model.BlocksData, error) {
+	return &model.BlocksData{}, nil
+}
+
+func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetNextBlocksRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.BlocksData
+		wantErr bool
+	}{
+		{
+			name: "GetNextBlocks:Error",
+			fields: fields{
+				Service: &mockGetNextBlocksError{},
+			},
+			args: args{
+				req: &model.GetNextBlocksRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetNextBlocks:Success",
+			fields: fields{
+				Service: &mockGetNextBlocksSuccess{},
+			},
+			args: args{
+				req: &model.GetNextBlocksRequest{},
+			},
+			want:    &model.BlocksData{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.GetNextBlocks(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.GetNextBlocks() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.GetNextBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
