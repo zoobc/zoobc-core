@@ -739,3 +739,77 @@ func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockRequestBlockTransactionsError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockRequestBlockTransactionsSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockRequestBlockTransactionsError) RequestBlockTransactions(ctx context.Context, chainType chaintype.ChainType,
+	blockID int64, transactionsIDs []int64) (*model.Empty, error) {
+	return nil, errors.New("Error RequestBlockTransactions")
+}
+
+func (*mockRequestBlockTransactionsSuccess) RequestBlockTransactions(ctx context.Context, chainType chaintype.ChainType,
+	blockID int64, transactionsIDs []int64) (*model.Empty, error) {
+	return &model.Empty{}, nil
+}
+
+func TestP2PServerHandler_RequestBlockTransactions(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.RequestBlockTransactionsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Empty
+		wantErr bool
+	}{
+		{
+			name: "RequestBlockTransactions:Error",
+			fields: fields{
+				Service: &mockRequestBlockTransactionsError{},
+			},
+			args: args{
+				req: &model.RequestBlockTransactionsRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "RequestBlockTransactions:Success",
+			fields: fields{
+				Service: &mockRequestBlockTransactionsSuccess{},
+			},
+			args: args{
+				req: &model.RequestBlockTransactionsRequest{},
+			},
+			want:    &model.Empty{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.RequestBlockTransactions(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.RequestBlockTransactions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.RequestBlockTransactions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
