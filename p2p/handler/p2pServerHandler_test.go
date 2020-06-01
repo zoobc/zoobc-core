@@ -12,6 +12,71 @@ import (
 )
 
 type (
+	mockGetPeerInfoError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockGetPeerInfoSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockGetPeerInfoError) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
+	return nil, errors.New("Error GetPeerInfo")
+}
+func (*mockGetPeerInfoSuccess) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
+	return &model.GetPeerInfoResponse{}, nil
+}
+
+func TestP2PServerHandler_GetPeerInfo(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetPeerInfoRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetPeerInfoResponse
+		wantErr bool
+	}{
+		{
+			name: "GetPeerInfo:Error",
+			fields: fields{
+				Service: &mockGetPeerInfoError{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetPeerInfo:Success",
+			fields: fields{
+				Service: &mockGetPeerInfoSuccess{},
+			},
+			want:    &model.GetPeerInfoResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.GetPeerInfo(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.GetPeerInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.GetPeerInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
 	mockGetMorePeersError struct {
 		service2.P2PServerServiceInterface
 	}
