@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	service2 "github.com/zoobc/zoobc-core/p2p/service"
 )
@@ -158,6 +159,75 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("P2PServerHandler.SendPeers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockGetCommonMilestoneBlockIDsSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockGetCommonMilestoneBlockIDsSuccess) GetCommonMilestoneBlockIDs(ctx context.Context, chainType chaintype.ChainType, lastBlockID int64, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	return &model.GetCommonMilestoneBlockIdsResponse{}, nil
+}
+func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetCommonMilestoneBlockIdsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetCommonMilestoneBlockIdsResponse
+		wantErr bool
+	}{
+		{
+			name: "GetCommonMilestoneBlockIDs:Error",
+			args: args{
+				req: &model.GetCommonMilestoneBlockIdsRequest{
+					ChainType:            int32(0),
+					LastBlockID:          int64(0),
+					LastMilestoneBlockID: int64(0),
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetCommonMilestoneBlockIDs:Success",
+			args: args{
+				req: &model.GetCommonMilestoneBlockIdsRequest{
+					ChainType:            int32(1),
+					LastBlockID:          int64(1),
+					LastMilestoneBlockID: int64(1),
+				},
+			},
+			fields: fields{
+				Service: &mockGetCommonMilestoneBlockIDsSuccess{},
+			},
+			want:    &model.GetCommonMilestoneBlockIdsResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.GetCommonMilestoneBlockIDs(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.GetCommonMilestoneBlockIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.GetCommonMilestoneBlockIDs() = %v, want %v", got, tt.want)
 			}
 		})
 	}
