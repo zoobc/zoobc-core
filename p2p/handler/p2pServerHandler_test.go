@@ -518,3 +518,76 @@ func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockSendBlockError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockSendBlockSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockSendBlockError) SendBlock(ctx context.Context, chainType chaintype.ChainType, block *model.Block,
+	senderPublicKey []byte) (*model.SendBlockResponse, error) {
+	return nil, errors.New("Error SendBlock")
+}
+func (*mockSendBlockSuccess) SendBlock(ctx context.Context, chainType chaintype.ChainType, block *model.Block,
+	senderPublicKey []byte) (*model.SendBlockResponse, error) {
+	return &model.SendBlockResponse{}, nil
+}
+
+func TestP2PServerHandler_SendBlock(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.SendBlockRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.SendBlockResponse
+		wantErr bool
+	}{
+		{
+			name: "SendBlock:Error",
+			fields: fields{
+				Service: &mockSendBlockError{},
+			},
+			args: args{
+				req: &model.SendBlockRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendBlock:Success",
+			fields: fields{
+				Service: &mockSendBlockSuccess{},
+			},
+			args: args{
+				req: &model.SendBlockRequest{},
+			},
+			want:    &model.SendBlockResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.SendBlock(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.SendBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.SendBlock() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
