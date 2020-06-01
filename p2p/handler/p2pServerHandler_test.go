@@ -373,6 +373,82 @@ func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 }
 
 type (
+	mockGetNextBlockIDsError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockGetNextBlockIDsSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockGetNextBlockIDsError) GetNextBlockIDs(ctx context.Context, chainType chaintype.ChainType,
+	reqLimit uint32, reqBlockID int64) ([]int64, error) {
+	return nil, errors.New("Error GetNextBlockIDs")
+}
+
+func (*mockGetNextBlockIDsSuccess) GetNextBlockIDs(ctx context.Context, chainType chaintype.ChainType,
+	reqLimit uint32, reqBlockID int64) ([]int64, error) {
+	return []int64{}, nil
+}
+
+func TestP2PServerHandler_GetNextBlockIDs(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetNextBlockIdsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.BlockIdsResponse
+		wantErr bool
+	}{
+		{
+			name: "GetNextBlockIDs:Error",
+			fields: fields{
+				Service: &mockGetNextBlockIDsError{},
+			},
+			args: args{
+				req: &model.GetNextBlockIdsRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetNextBlockIDs:Success",
+			fields: fields{
+				Service: &mockGetNextBlockIDsSuccess{},
+			},
+			args: args{
+				req: &model.GetNextBlockIdsRequest{},
+			},
+			want: &model.BlockIdsResponse{
+				BlockIds: []int64{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.GetNextBlockIDs(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.GetNextBlockIDs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.GetNextBlockIDs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
 	mockGetNextBlocksError struct {
 		service2.P2PServerServiceInterface
 	}
