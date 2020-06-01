@@ -591,3 +591,77 @@ func TestP2PServerHandler_SendBlock(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockSendTransactionError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockSendTransactionSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockSendTransactionError) SendTransaction(ctx context.Context, chainType chaintype.ChainType,
+	transactionBytes []byte, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
+	return nil, errors.New("Error SendTransaction")
+}
+
+func (*mockSendTransactionSuccess) SendTransaction(ctx context.Context, chainType chaintype.ChainType,
+	transactionBytes []byte, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
+	return &model.SendTransactionResponse{}, nil
+}
+
+func TestP2PServerHandler_SendTransaction(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.SendTransactionRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.SendTransactionResponse
+		wantErr bool
+	}{
+		{
+			name: "SendTransaction:Error",
+			fields: fields{
+				Service: &mockSendTransactionError{},
+			},
+			args: args{
+				req: &model.SendTransactionRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendTransaction:Success",
+			fields: fields{
+				Service: &mockSendTransactionSuccess{},
+			},
+			args: args{
+				req: &model.SendTransactionRequest{},
+			},
+			want:    &model.SendTransactionResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.SendTransaction(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.SendTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.SendTransaction() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
