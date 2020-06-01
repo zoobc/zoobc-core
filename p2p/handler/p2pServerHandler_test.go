@@ -665,3 +665,77 @@ func TestP2PServerHandler_SendTransaction(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockSendBlockTransactionsError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockSendBlockTransactionsSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockSendBlockTransactionsError) SendBlockTransactions(ctx context.Context, chainType chaintype.ChainType,
+	transactionsBytes [][]byte, senderPublicKey []byte) (*model.SendBlockTransactionsResponse, error) {
+	return nil, errors.New("Error SendBlockTransactions")
+}
+
+func (*mockSendBlockTransactionsSuccess) SendBlockTransactions(ctx context.Context, chainType chaintype.ChainType,
+	transactionsBytes [][]byte, senderPublicKey []byte) (*model.SendBlockTransactionsResponse, error) {
+	return &model.SendBlockTransactionsResponse{}, nil
+}
+
+func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.SendBlockTransactionsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.SendBlockTransactionsResponse
+		wantErr bool
+	}{
+		{
+			name: "SendBlockTransactions:Error",
+			fields: fields{
+				Service: &mockSendBlockTransactionsError{},
+			},
+			args: args{
+				req: &model.SendBlockTransactionsRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendBlockTransactions:Success",
+			fields: fields{
+				Service: &mockSendBlockTransactionsSuccess{},
+			},
+			args: args{
+				req: &model.SendBlockTransactionsRequest{},
+			},
+			want:    &model.SendBlockTransactionsResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.SendBlockTransactions(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.SendBlockTransactions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.SendBlockTransactions() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
