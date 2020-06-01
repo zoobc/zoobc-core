@@ -2,13 +2,6 @@ package genesisblock
 
 import "github.com/spf13/cobra"
 
-const (
-	envTargetDevelop envTargetType = 0
-	envTargetStaging envTargetType = 1
-	envTargetAlpha   envTargetType = 2
-	envTargetLocal   envTargetType = 3
-)
-
 type (
 	/*
 		ENV Target enum
@@ -40,9 +33,9 @@ var (
 	/*
 		ENV Target
 	*/
-	envTarget       string
-	output          string
-	envTarget_value = map[string]uint32{
+	envTarget      string
+	output         string
+	envTargetValue = map[string]uint32{
 		"develop": 0,
 		"staging": 1,
 		"alpha":   2,

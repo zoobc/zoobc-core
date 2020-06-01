@@ -58,7 +58,7 @@ var (
 		Short: "genesis generate command used to generate a new genesis.go and cluster_config.json file",
 		Long:  `genesis generate command generate a genesis.go file from a list of accounts and/or from current database.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			if _, ok := envTarget_value[envTarget]; !ok {
+			if _, ok := envTargetValue[envTarget]; !ok {
 				log.Fatal("Invalid env-target flag given, only: develop,staging,alpha")
 			}
 			generateGenesisFiles(withDbLastState, dbPath, extraNodesCount)
