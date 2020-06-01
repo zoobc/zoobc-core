@@ -79,3 +79,86 @@ func TestP2PServerHandler_GetMorePeers(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockSendPeersError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockSendPeersSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockSendPeersError) SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error) {
+	return nil, errors.New("Error SendPeers")
+}
+func (*mockSendPeersSuccess) SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error) {
+	return &model.Empty{}, nil
+}
+
+func TestP2PServerHandler_SendPeers(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.SendPeersRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.Empty
+		wantErr bool
+	}{
+		{
+			name: "SendPeers:PeersIsNil",
+			args: args{
+				req: &model.SendPeersRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendPeers:Error",
+			args: args{
+				req: &model.SendPeersRequest{
+					Peers: []*model.Node{},
+				},
+			},
+			fields: fields{
+				Service: &mockSendPeersError{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "SendPeers:Success",
+			args: args{
+				req: &model.SendPeersRequest{
+					Peers: []*model.Node{},
+				},
+			},
+			fields: fields{
+				Service: &mockSendPeersSuccess{},
+			},
+			want:    &model.Empty{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.SendPeers(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.SendPeers() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.SendPeers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
