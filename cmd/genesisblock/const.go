@@ -2,13 +2,6 @@ package genesisblock
 
 import "github.com/spf13/cobra"
 
-type (
-	/*
-		ENV Target enum
-	*/
-	envTargetType uint32
-)
-
 var (
 	genesisCmd = &cobra.Command{
 		Use:   "genesis",
