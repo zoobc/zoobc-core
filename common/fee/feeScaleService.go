@@ -81,7 +81,7 @@ func (fss *FeeScaleService) GetLatestFeeScale(feeScale *model.FeeScale) error {
 func (fss *FeeScaleService) GetCurrentPhase(
 	blockTimestamp int64,
 	isPostTransaction bool,
-) (model.FeeVotePhase, bool, error) {
+) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	// check if lastBlockstimestamp is 0
 	if fss.lastBlockTimestamp == 0 {
 		lastBlock, err := util.GetLastBlock(fss.executor, fss.mainchainBlockQuery)
