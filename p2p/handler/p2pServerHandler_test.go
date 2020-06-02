@@ -310,7 +310,7 @@ type (
 )
 
 func (*mockGetCommonMilestoneBlockIDsSuccess) GetCommonMilestoneBlockIDs(ctx context.Context, chainType chaintype.ChainType,
-	lastBlockID int64, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+	lastBlockID, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return &model.GetCommonMilestoneBlockIdsResponse{}, nil
 }
 func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
@@ -605,12 +605,12 @@ type (
 )
 
 func (*mockSendTransactionError) SendTransaction(ctx context.Context, chainType chaintype.ChainType,
-	transactionBytes []byte, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
+	transactionBytes, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
 	return nil, errors.New("Error SendTransaction")
 }
 
 func (*mockSendTransactionSuccess) SendTransaction(ctx context.Context, chainType chaintype.ChainType,
-	transactionBytes []byte, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
+	transactionBytes, senderPublicKey []byte) (*model.SendTransactionResponse, error) {
 	return &model.SendTransactionResponse{}, nil
 }
 
