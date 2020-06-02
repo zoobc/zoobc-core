@@ -1,7 +1,9 @@
 package query
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -101,13 +103,28 @@ func TestNewFeeScaleQuery(t *testing.T) {
 
 func TestFeeScaleQuery_InsertFeeScale(t *testing.T) {
 	t.Run("InsertFeeScale", func(t *testing.T) {
-		insertQry, args := mockFeeScaleQuery.InsertFeeScale(mockFeeScale)
-		expectQuery := "INSERT INTO fee_scale (fee_scale, block_height, latest) VALUES(? , ?, ?)"
-		if insertQry != expectQuery {
-			t.Errorf("expect query: %s get: %s", expectQuery, insertQry)
+		insertQueries := mockFeeScaleQuery.InsertFeeScale(mockFeeScale)
+		expect := [][]interface{}{
+			{
+
+				"UPDATE fee_scale SET latest = ? WHERE latest = ? AND block_height IN (SELECT MAX(t2.block_height) FROM fee_scale as t2)",
+				0,
+				1,
+			},
+			append(
+				[]interface{}{
+					fmt.Sprintf(
+						"INSERT INTO fee_scale (%s) VALUES(%s)",
+						strings.Join(mockFeeScaleQuery.Fields, ", "),
+						fmt.Sprintf("? %s", strings.Repeat(", ?", len(mockFeeScaleQuery.Fields)-1)),
+					),
+				},
+				mockFeeScaleQuery.ExtractModel(mockFeeScale)...,
+			),
 		}
-		if !reflect.DeepEqual(args, mockFeeScaleQuery.ExtractModel(mockFeeScale)) {
-			t.Error("returns args doesn't match return of .ExtractModel call")
+
+		if !reflect.DeepEqual(insertQueries, expect) {
+			t.Errorf("expect: %v\n got: %v\n", expect, insertQueries)
 		}
 	})
 

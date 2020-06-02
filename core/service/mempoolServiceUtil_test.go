@@ -234,7 +234,7 @@ func (*mockValidateMempoolTransactionScaleServiceSuccessCache) GetLatestFeeScale
 	}
 	return nil
 }
-func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error {
+func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(feeScale *model.FeeScale) error {
 	return nil
 }
 

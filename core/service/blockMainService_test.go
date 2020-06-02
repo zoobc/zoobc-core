@@ -1884,7 +1884,7 @@ func (*mockAddGenesisFeeScaleServiceCache) GetLatestFeeScale(feeScale *model.Fee
 	}
 	return nil
 }
-func (*mockAddGenesisFeeScaleServiceCache) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error {
+func (*mockAddGenesisFeeScaleServiceCache) InsertFeeScale(feeScale *model.FeeScale) error {
 	return nil
 }
 func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Block, withLock bool) {

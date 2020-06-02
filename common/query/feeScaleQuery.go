@@ -12,7 +12,7 @@ import (
 type (
 	FeeScaleQueryInterface interface {
 		GetLatestFeeScale() string
-		InsertFeeScale(feeScale *model.FeeScale) (qStr string, args []interface{})
+		InsertFeeScale(feeScale *model.FeeScale) [][]interface{}
 		ExtractModel(feeScale *model.FeeScale) []interface{}
 		BuildModel(feeScales []*model.FeeScale, rows *sql.Rows) ([]*model.FeeScale, error)
 		Scan(feeScale *model.FeeScale, row *sql.Row) error
@@ -48,13 +48,34 @@ func (fsq *FeeScaleQuery) GetLatestFeeScale() string {
 }
 
 // InsertFeeScale insert new fee scale record
-func (fsq *FeeScaleQuery) InsertFeeScale(feeScale *model.FeeScale) (qStr string, args []interface{}) {
-	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
-		fsq.getTableName(),
-		strings.Join(fsq.Fields, ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(fsq.Fields)-1)),
-	), fsq.ExtractModel(feeScale)
+func (fsq *FeeScaleQuery) InsertFeeScale(feeScale *model.FeeScale) [][]interface{} {
+	// return fmt.Sprintf(
+	// 	"INSERT INTO %s (%s) VALUES(%s)",
+	// 	fsq.getTableName(),
+	// 	strings.Join(fsq.Fields, ", "),
+	// 	fmt.Sprintf("? %s", strings.Repeat(", ?", len(fsq.Fields)-1)),
+	// ), fsq.ExtractModel(feeScale)
+	return [][]interface{}{
+		{
+			fmt.Sprintf(
+				"UPDATE %s SET latest = ? WHERE latest = ? AND block_height IN (SELECT MAX(t2.block_height) FROM %s as t2)",
+				fsq.getTableName(), fsq.getTableName(),
+			),
+			0,
+			1,
+		},
+		append(
+			[]interface{}{
+				fmt.Sprintf(
+					"INSERT INTO %s (%s) VALUES(%s)",
+					fsq.getTableName(),
+					strings.Join(fsq.Fields, ", "),
+					fmt.Sprintf("? %s", strings.Repeat(", ?", len(fsq.Fields)-1)),
+				),
+			},
+			fsq.ExtractModel(feeScale)...,
+		),
+	}
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields

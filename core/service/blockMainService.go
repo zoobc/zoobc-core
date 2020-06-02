@@ -645,7 +645,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			FeeScale:    constant.OneZBC, // initial fee_scale 1
 			BlockHeight: 0,
 			Latest:      true,
-		}, true)
+		})
 		if err != nil {
 			rollbackErr := bs.QueryExecutor.RollbackTx()
 			bs.Logger.Warnf("initFeeScale:rollback-error=%s", rollbackErr.Error())

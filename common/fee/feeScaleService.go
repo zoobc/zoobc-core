@@ -13,12 +13,12 @@ import (
 
 type (
 	FeeScaleServiceInterface interface {
-		InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error
+		InsertFeeScale(feeScale *model.FeeScale) error
 		GetLatestFeeScale(feeScale *model.FeeScale) error
 		GetCurrentPhase(
 			blockTimestamp int64,
 			isPostTransaction bool,
-		) (model.FeeVotePhase, bool, error)
+		) (phase model.FeeVotePhase, canAdjust bool, err error)
 	}
 
 	FeeScaleService struct {
@@ -42,13 +42,10 @@ func NewFeeScaleService(
 	}
 }
 
-// InsertFeeScale insert newly agreed feeScale value
-func (fss *FeeScaleService) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) error {
-	insertQry, args := fss.feeScaleQuery.InsertFeeScale(feeScale)
-	if dbTx {
-		return fss.executor.ExecuteTransaction(insertQry, args...)
-	}
-	_, err := fss.executor.ExecuteStatement(insertQry, args...)
+// InsertFeeScale insert newly agreed feeScale value must be called in database transaction
+func (fss *FeeScaleService) InsertFeeScale(feeScale *model.FeeScale) error {
+	insertQueries := fss.feeScaleQuery.InsertFeeScale(feeScale)
+	err := fss.executor.ExecuteTransactions(insertQueries)
 	if err != nil {
 		return err
 	}
@@ -85,6 +82,7 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	// check if lastBlockstimestamp is 0
 	if fss.lastBlockTimestamp == 0 {
 		lastBlock, err := util.GetLastBlock(fss.executor, fss.mainchainBlockQuery)
+
 		if err != nil {
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, err
 		}

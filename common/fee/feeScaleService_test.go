@@ -23,7 +23,7 @@ type (
 	}
 )
 
-func (*mockInsertFeeScaleExecutorFail) ExecuteTransaction(string, ...interface{}) error {
+func (*mockInsertFeeScaleExecutorFail) ExecuteTransactions([][]interface{}) error {
 	return errors.New("mockedError")
 }
 
@@ -31,7 +31,7 @@ func (*mockInsertFeeScaleExecutorFail) ExecuteStatement(string, ...interface{}) 
 	return nil, errors.New("mockedError")
 }
 
-func (*mockInsertFeeScaleExecutorSuccess) ExecuteTransaction(string, ...interface{}) error {
+func (*mockInsertFeeScaleExecutorSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
 
@@ -127,7 +127,7 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 				mainchainBlockQuery: tt.fields.mainchainBlockQuery,
 				executor:            tt.fields.executor,
 			}
-			if err := fss.InsertFeeScale(tt.args.feeScale, tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := fss.InsertFeeScale(tt.args.feeScale); (err != nil) != tt.wantErr {
 				t.Errorf("InsertFeeScale() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
