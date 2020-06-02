@@ -49,7 +49,11 @@ func (fss *FeeScaleService) InsertFeeScale(feeScale *model.FeeScale, dbTx bool) 
 		return fss.executor.ExecuteTransaction(insertQry, args...)
 	}
 	_, err := fss.executor.ExecuteStatement(insertQry, args...)
-	return err
+	if err != nil {
+		return err
+	}
+	fss.lastFeeScale = *feeScale
+	return nil
 }
 
 // GetLatestFeeScale return the latest agreed fee-scale value and cached
