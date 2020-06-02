@@ -99,3 +99,26 @@ func (*FeeScaleQuery) Scan(feeScale *model.FeeScale, row *sql.Row) error {
 	)
 	return err
 }
+
+// Rollback delete records `WHERE height > "block_height"
+func (fsq *FeeScaleQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", fsq.getTableName()),
+			height,
+		},
+		{
+			fmt.Sprintf(`
+			UPDATE %s SET latest = ?
+			WHERE latest = ? AND block_height IN (
+				SELECT MAX(t2.block_height)
+				FROM %s as t2
+			)`,
+				fsq.TableName,
+				fsq.TableName,
+			),
+			1,
+			0,
+		},
+	}
+}
