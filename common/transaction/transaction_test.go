@@ -25,6 +25,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
 
 	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
+	feeVoteCommitTransactionBody, feeVoteCommitTransactionBodyBytes := GetFixtureForFeeVoteCommitTransaction()
 
 	type fields struct {
 		Executor query.ExecutorInterface
@@ -336,6 +337,35 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},
+			},
+		},
+		{
+			name: "wantFeeVoteCommitTransaction",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_FeeVoteCommitTransactionBody{
+						FeeVoteCommitTransactionBody: feeVoteCommitTransactionBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 0, 0, 0}),
+					TransactionBodyBytes: feeVoteCommitTransactionBodyBytes,
+				},
+			},
+			want: &FeeVoteCommitTransaction{
+				Body:                       feeVoteCommitTransactionBody,
+				Height:                     5,
+				SenderAddress:              "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:              &query.Executor{},
+				AccountBalanceHelper:       NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:        NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
+				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 			},
 		},
 	}

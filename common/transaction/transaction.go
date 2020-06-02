@@ -52,6 +52,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Send Money
 	case 1:
 		switch buf[1] {
 		case 0:
@@ -81,6 +82,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Node Registry
 	case 2:
 		switch buf[1] {
 		case 0:
@@ -165,6 +167,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Account Dataset
 	case 3:
 		switch buf[1] {
 		case 0:
@@ -204,6 +207,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Excrow
 	case 4:
 		switch buf[1] {
 		case 0:
@@ -229,6 +233,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	// Multi Signature
 	case 5:
 		switch buf[1] {
 		case 0:
@@ -277,6 +282,31 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				SignatureInfoHelper:      signatureInfoHelper,
 				PendingTransactionHelper: pendingTransactionHelper,
 				MultisignatureInfoHelper: multisignatureInfoHelper,
+			}, nil
+		default:
+			return nil, nil
+		}
+	// Fee Voting
+	case 7:
+		switch buf[1] {
+		case 0:
+			feeVoteCommitTransactionBody, err := new(FeeVoteCommitTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &FeeVoteCommitTransaction{
+				ID:                         tx.ID,
+				Fee:                        tx.Fee,
+				SenderAddress:              tx.SenderAccountAddress,
+				Height:                     tx.Height,
+				Timestamp:                  tx.Timestamp,
+				Body:                       feeVoteCommitTransactionBody.(*model.FeeVoteCommitTransactionBody),
+				QueryExecutor:              ts.Executor,
+				AccountBalanceHelper:       accountBalanceHelper,
+				AccountLedgerHelper:        accountLedgerHelper,
+				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
+				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 			}, nil
 		default:
 			return nil, nil

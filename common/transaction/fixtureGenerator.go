@@ -370,3 +370,19 @@ func GetFixturesForBlock(height uint32, id int64) *model.Block {
 		Version:              0,
 	}
 }
+
+func GetFixtureForFeeVoteCommitTransaction() (
+	txBody *model.FeeVoteCommitTransactionBody,
+	txBodyBytes []byte,
+) {
+	digest := sha3.New256()
+	_, _ = digest.Write([]byte("zoobcVote"))
+	txBody = &model.FeeVoteCommitTransactionBody{
+		VoteHash: digest.Sum([]byte{}),
+	}
+
+	sa := FeeVoteCommitTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}

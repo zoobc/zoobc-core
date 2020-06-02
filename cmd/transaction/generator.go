@@ -327,22 +327,35 @@ func GenerateSignedTxBytes(
 	var (
 		transactionUtil = &transaction.Util{}
 		txType          transaction.TypeAction
+		err             error
 	)
-	txType, _ = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	minimumFee, _ := txType.GetMinimumFee()
+	txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	if err != nil {
+		log.Fatalf("fail get transaction type: %s", err)
+	}
+	minimumFee, err := txType.GetMinimumFee()
+	if err != nil {
+		log.Fatalf("fail get minimum fee: %s", err)
+	}
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
-	tx.Signature, _ = signature.Sign(
+	tx.Signature, err = signature.Sign(
 		unsignedTxBytes,
 		model.SignatureType(signatureType),
 		senderSeed,
 		optionalSignParams...,
 	)
-	signedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, true)
+	if err != nil {
+		log.Fatalf("fail get sign tx: %s", err)
+	}
+	signedTxBytes, err := transactionUtil.GetTransactionBytes(tx, true)
+	if err != nil {
+		log.Fatalf("fail get get signed transactionBytes: %s", err)
+	}
 	return signedTxBytes
 }
 
@@ -478,6 +491,29 @@ func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *mod
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["removeNodeRegistration"])
 	tx.TransactionBody = &model.Transaction_RemoveNodeRegistrationTransactionBody{
 		RemoveNodeRegistrationTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+/*
+GenerateTxFeeVoteCommitment return fee vote commit vote transaction based on provided basic transaction &
+others specific field for fee vote commit vote transaction
+*/
+func GenerateTxFeeVoteCommitment(
+	tx *model.Transaction,
+	voteHash []byte,
+) *model.Transaction {
+	var (
+		txBody = &model.FeeVoteCommitTransactionBody{
+			VoteHash: voteHash,
+		}
+		txBodyBytes = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
+	)
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommit"])
+	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
+		FeeVoteCommitTransactionBody: txBody,
 	}
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
