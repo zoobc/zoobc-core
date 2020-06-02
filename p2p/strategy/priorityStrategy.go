@@ -858,7 +858,7 @@ func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
 	}
 }
 
-// GetNodeAddressesInfo
+// GetNodeAddressesInfo request a list of node addresses from peers
 func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error) {
 	resolvedPeers := ps.Host.GetResolvedPeers()
 	if len(resolvedPeers) < 1 {
@@ -900,4 +900,26 @@ func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.Node
 		}
 	}
 	return nodeAddressesInfo, nil
+}
+
+// STEF TODO: implement this function
+// ReceiveNodeAddressInfo receive a node address info from a peer (server side of SendNodeAddressInfo client api call)
+func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+	// add it to nodeAddressInfo table
+	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	if updated {
+		// re-broadcast updated node address info
+		for _, peer := range ps.GetResolvedPeers() {
+			go func(peer *model.Peer) {
+				if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
+					ps.Logger.Warnf("Received invalid node address info message from peer %s:%d. Error: %s", peer.Info.Address, peer.Info.Port,
+						err.Error())
+				}
+			}(peer)
+		}
+	}
+	return nil
 }

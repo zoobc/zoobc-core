@@ -115,7 +115,7 @@ func (ps *P2PServerService) GetNodeAddressesInfo(
 	// STEF not sure if we should validate this request. ask @alhiee
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// get a slice of node address info by node IDs
-		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfo(req.NodeIDs); err == nil {
+		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(req.NodeIDs); err == nil {
 			return &model.GetNodeAddressesInfoResponse{
 				NodeAddressesInfo: nodeAddressesInfo,
 			}, nil
@@ -125,7 +125,7 @@ func (ps *P2PServerService) GetNodeAddressesInfo(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
-// GetNodeAddressesInfo responds to the request of peers a node address info
+// SendNodeAddressesInfo receives a node address info from a peer
 func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
 	var (
 		nodeAddressInfo = req.NodeAddressInfoMessage
@@ -136,12 +136,11 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 			// TODO: blacklist peers that send invalid data
 			return nil, err
 		}
-		// add it to nodeAddressInfo table
-		err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
+		// update db and rebroadcast message if nodeAddressInfo is new
+		err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		// - re-broadcast to all node's peers but the one who send the address
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")

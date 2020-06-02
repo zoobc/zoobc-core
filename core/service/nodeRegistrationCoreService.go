@@ -36,13 +36,13 @@ type (
 		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
-		GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
+		GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
 		GenerateNodeAddressInfo(
 			nodeID int64,
 			nodeAddress string,
 			port uint32,
 			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
-		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
+		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error)
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
 	}
 
@@ -451,8 +451,8 @@ func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 	nrs.CurrentNodePublicKey = publicKey
 }
 
-// GetNodeAddressesInfo returns a list of node address info messages given a list of nodeIDs
-func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+// GetNodeAddressesInfoFromDb returns a list of node address info messages given a list of nodeIDs
+func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
 	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
@@ -470,11 +470,11 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfo(nodeIDs []int64) ([]*mo
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
 // NOTE: nodeAddressInfo is supposed to have been already validated
-func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
+func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (bool, error) {
 	// check if already exist and if new one is more recent
-	nodeAddressesInfo, err := nrs.GetNodeAddressesInfo([]int64{nodeAddressMessage.NodeID})
+	nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressMessage.NodeID})
 	if err != nil {
-		return err
+		return false, err
 	}
 	if len(nodeAddressesInfo) > 0 {
 		prevNodeAddressInfo := nodeAddressesInfo[0]
@@ -482,39 +482,39 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 			prevNodeAddressInfo.Port == nodeAddressMessage.Port &&
 			bytes.Equal(prevNodeAddressInfo.Signature, nodeAddressMessage.Signature) {
 			nrs.Logger.Warnf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
-			return nil
+			return false, err
 		}
 		err = nrs.QueryExecutor.BeginTx()
 		if err != nil {
-			return err
+			return false, err
 		}
 		qryArgs := nrs.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressMessage)
 		err := nrs.QueryExecutor.ExecuteTransactions(qryArgs)
 		if err != nil {
 			_ = nrs.QueryExecutor.RollbackTx()
-			return err
+			return false, err
 		}
 		err = nrs.QueryExecutor.CommitTx()
 		if err != nil {
-			return err
+			return false, err
 		}
-		return nil
+		return true, nil
 	}
 	err = nrs.QueryExecutor.BeginTx()
 	if err != nil {
-		return err
+		return false, err
 	}
 	qry, args := nrs.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressMessage)
 	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
 		_ = nrs.QueryExecutor.RollbackTx()
-		return err
+		return false, err
 	}
 	err = nrs.QueryExecutor.CommitTx()
 	if err != nil {
-		return err
+		return false, err
 	}
-	return nil
+	return true, nil
 }
 
 // ValidateNodeAddressInfo validate message data against:

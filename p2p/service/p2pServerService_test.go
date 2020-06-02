@@ -70,7 +70,8 @@ type (
 	}
 )
 
-func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfo(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfoFromDb(
+	nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
 	return mock.nodeaddressesInfo, nil
 }
 func (*mockPeerExplorerStrategySuccess) GetHostInfo() *model.Node {
