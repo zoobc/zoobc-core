@@ -171,9 +171,6 @@ workflows:
             - test:
                   requires:
                       - prepare
-            - build:
-                  requires:
-                      - test
             - deploy-develop:
                   requires:
                       - test
