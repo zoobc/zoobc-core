@@ -165,23 +165,26 @@ jobs:
 
 workflows:
     version: 2
-    prepare-deploy:
+    prepare_and_test:
         jobs:
             - prepare
             - test:
                   requires:
                       - prepare
+    deploy:
+        jobs:
+            - build:
+                  requires:
+                      - test
             - deploy-develop:
                   requires:
                       - test
-                      - build
                   filters:
                       branches:
                           only: develop
             - deploy-staging:
                   requires:
                       - test
-                      - build
                   filters:
                       branches:
                           only: staging
