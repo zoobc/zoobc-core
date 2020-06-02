@@ -411,7 +411,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	/*
-		Expiring Process: expiring the the transactions that affected by current block height.
+		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
@@ -419,6 +419,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+
+	/*
+		Stopping liquid payment that already passes the time
+	*/
+	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}

@@ -292,6 +292,35 @@ func GetFixturesForApprovalEscrowTransaction() (
 	return txBody, sa.GetBodyBytes()
 }
 
+func GetFixturesForLiquidPaymentTransaction() (
+	txBody *model.LiquidPaymentTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentTransactionBody{
+		Amount:          100,
+		CompleteMinutes: 200,
+	}
+
+	sa := LiquidPaymentTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixturesForLiquidPaymentStopTransaction() (
+	txBody *model.LiquidPaymentStopTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentStopTransactionBody{
+		TransactionID: 123,
+	}
+
+	sa := LiquidPaymentStopTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,
 	sender, recipient string,
