@@ -196,6 +196,7 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
+			nil,
 		),
 		nil,
 		nil,

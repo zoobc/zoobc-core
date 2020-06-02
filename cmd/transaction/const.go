@@ -15,6 +15,8 @@ var (
 		"removeAccountDataset":   {3, 1, 0, 0},
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
+		"liquidPayment":          {6, 0, 0, 0},
+		"liquidPaymentStop":      {6, 1, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -63,4 +65,7 @@ var (
 	addresses         []string
 	nonce             int64
 	minSignature      uint32
+
+	// liquidPayment
+	completeMinutes uint64
 )

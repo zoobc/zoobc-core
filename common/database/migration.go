@@ -362,7 +362,20 @@ func (m *Migration) Init() error {
 			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "node_address_info" (
+			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"amount" INTEGER,
+				"applied_time" INTEGER,
+				"complete_minutes" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("id", "block_height")
+			)
+			`,
+			`CREATE TABLE IF NOT EXISTS "node_address_info" (
 				"node_id"		INTEGER,		-- node_id relative to this node address
 				"address"		VARCHAR(255),	-- peer/node address
 				"port"			INTEGER,		-- peer rpc port
@@ -375,8 +388,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
-			`,
-		}
+			`}
 		return nil
 	}
 	return fmt.Errorf("make sure have add query.Executor")
