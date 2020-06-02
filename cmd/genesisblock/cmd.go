@@ -514,10 +514,10 @@ func generateConsulKvInitScript(clusterConfigEntries []clusterConfigEntry, consu
 
 func getRootPath() string {
 	wd, _ := os.Getwd()
-	if strings.Contains(wd, "zoobc-core") {
-		return wd
+	if strings.Contains(wd, "zoobc-core/") {
+		return path.Join(wd, "../")
 	}
-	return path.Join(wd, "../")
+	return wd
 }
 
 func (ge *genesisEntry) FormatPubKeyByteString() string {
