@@ -49,12 +49,6 @@ func (fsq *FeeScaleQuery) GetLatestFeeScale() string {
 
 // InsertFeeScale insert new fee scale record
 func (fsq *FeeScaleQuery) InsertFeeScale(feeScale *model.FeeScale) [][]interface{} {
-	// return fmt.Sprintf(
-	// 	"INSERT INTO %s (%s) VALUES(%s)",
-	// 	fsq.getTableName(),
-	// 	strings.Join(fsq.Fields, ", "),
-	// 	fmt.Sprintf("? %s", strings.Repeat(", ?", len(fsq.Fields)-1)),
-	// ), fsq.ExtractModel(feeScale)
 	return [][]interface{}{
 		{
 			fmt.Sprintf(
