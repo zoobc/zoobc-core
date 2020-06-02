@@ -88,8 +88,10 @@ jobs:
             - run:
                   name: GENERATING GENESIS
                   command: |
+                    if [[ ${CIRCLE_BRANCH} == *"develop staging"* ]]; then
                       go run cmd/main.go genesis generate -e ${CIRLE_BRANCH} -o dist \
                       && cp ./dist/generated/genesis/genesis.go ./common/constant/genesis.go
+                    fi
             - run:
                   name: BUILD
                   command: |
@@ -165,26 +167,24 @@ jobs:
 
 workflows:
     version: 2
-    prepare_and_test:
+    prepare-deploy:
         jobs:
             - prepare
             - test:
                   requires:
                       - prepare
-    deploy:
-        jobs:
             - build:
                   requires:
                       - test
             - deploy-develop:
                   requires:
-                      - test
+                      - build
                   filters:
                       branches:
                           only: develop
             - deploy-staging:
                   requires:
-                      - test
+                      - build
                   filters:
                       branches:
                           only: staging
