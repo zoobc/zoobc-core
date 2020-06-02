@@ -120,8 +120,11 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	err = tx.NodeRegistrationQuery.Scan(&nodeRegistration, row)
-	if err != nil && err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
 	// check account balance sender
