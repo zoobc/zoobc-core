@@ -309,7 +309,8 @@ type (
 	}
 )
 
-func (*mockGetCommonMilestoneBlockIDsSuccess) GetCommonMilestoneBlockIDs(ctx context.Context, chainType chaintype.ChainType, lastBlockID int64, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
+func (*mockGetCommonMilestoneBlockIDsSuccess) GetCommonMilestoneBlockIDs(ctx context.Context, chainType chaintype.ChainType,
+	lastBlockID int64, lastMilestoneBlockID int64) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	return &model.GetCommonMilestoneBlockIdsResponse{}, nil
 }
 func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
@@ -457,10 +458,12 @@ type (
 	}
 )
 
-func (*mockGetNextBlocksError) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64, blockIDList []int64) (*model.BlocksData, error) {
+func (*mockGetNextBlocksError) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64,
+	blockIDList []int64) (*model.BlocksData, error) {
 	return nil, errors.New("Error GetNextBlocks")
 }
-func (*mockGetNextBlocksSuccess) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64, blockIDList []int64) (*model.BlocksData, error) {
+func (*mockGetNextBlocksSuccess) GetNextBlocks(ctx context.Context, chainType chaintype.ChainType, blockID int64,
+	blockIDList []int64) (*model.BlocksData, error) {
 	return &model.BlocksData{}, nil
 }
 
