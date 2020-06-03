@@ -24,9 +24,9 @@ type (
 	FeeScaleService struct {
 		lastBlockTimestamp  int64
 		lastFeeScale        model.FeeScale
-		feeScaleQuery       query.FeeScaleQueryInterface
-		mainchainBlockQuery query.BlockQueryInterface
-		executor            query.ExecutorInterface
+		FeeScaleQuery       query.FeeScaleQueryInterface
+		MainchainBlockQuery query.BlockQueryInterface
+		Executor            query.ExecutorInterface
 	}
 )
 
@@ -36,16 +36,16 @@ func NewFeeScaleService(
 	executor query.ExecutorInterface,
 ) *FeeScaleService {
 	return &FeeScaleService{
-		feeScaleQuery:       feeScaleQuery,
-		mainchainBlockQuery: mainchainBlockQuery,
-		executor:            executor,
+		FeeScaleQuery:       feeScaleQuery,
+		MainchainBlockQuery: mainchainBlockQuery,
+		Executor:            executor,
 	}
 }
 
 // InsertFeeScale insert newly agreed feeScale value must be called in database transaction
 func (fss *FeeScaleService) InsertFeeScale(feeScale *model.FeeScale) error {
-	insertQueries := fss.feeScaleQuery.InsertFeeScale(feeScale)
-	err := fss.executor.ExecuteTransactions(insertQueries)
+	insertQueries := fss.FeeScaleQuery.InsertFeeScale(feeScale)
+	err := fss.Executor.ExecuteTransactions(insertQueries)
 	if err != nil {
 		return err
 	}
@@ -59,12 +59,12 @@ func (fss *FeeScaleService) GetLatestFeeScale(feeScale *model.FeeScale) error {
 		*feeScale = fss.lastFeeScale
 		return nil
 	}
-	getLatestQry := fss.feeScaleQuery.GetLatestFeeScale()
-	row, err := fss.executor.ExecuteSelectRow(getLatestQry, false)
+	getLatestQry := fss.FeeScaleQuery.GetLatestFeeScale()
+	row, err := fss.Executor.ExecuteSelectRow(getLatestQry, false)
 	if err != nil {
 		return err
 	}
-	err = fss.feeScaleQuery.Scan(feeScale, row)
+	err = fss.FeeScaleQuery.Scan(feeScale, row)
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,7 @@ func (fss *FeeScaleService) GetCurrentPhase(
 ) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	// check if lastBlockstimestamp is 0
 	if fss.lastBlockTimestamp == 0 {
-		lastBlock, err := util.GetLastBlock(fss.executor, fss.mainchainBlockQuery)
+		lastBlock, err := util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
 
 		if err != nil {
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, err

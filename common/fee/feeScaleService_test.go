@@ -123,9 +123,9 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 			fss := &FeeScaleService{
 				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
 				lastFeeScale:        tt.fields.lastFeeScale,
-				feeScaleQuery:       tt.fields.feeScaleQuery,
-				mainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				executor:            tt.fields.executor,
+				FeeScaleQuery:       tt.fields.feeScaleQuery,
+				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
+				Executor:            tt.fields.executor,
 			}
 			if err := fss.InsertFeeScale(tt.args.feeScale); (err != nil) != tt.wantErr {
 				t.Errorf("InsertFeeScale() error = %v, wantErr %v", err, tt.wantErr)
@@ -199,7 +199,7 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GetLatestFeeScale - executor fail",
+			name: "GetLatestFeeScale - Executor fail",
 			fields: fields{
 				lastBlockTimestamp:  0,
 				lastFeeScale:        model.FeeScale{},
@@ -246,9 +246,9 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 			fss := &FeeScaleService{
 				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
 				lastFeeScale:        tt.fields.lastFeeScale,
-				feeScaleQuery:       tt.fields.feeScaleQuery,
-				mainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				executor:            tt.fields.executor,
+				FeeScaleQuery:       tt.fields.feeScaleQuery,
+				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
+				Executor:            tt.fields.executor,
 			}
 			if err := fss.GetLatestFeeScale(tt.args.feeScale); (err != nil) != tt.wantErr {
 				t.Errorf("GetLatestFeeScale() error = %v, wantErr %v", err, tt.wantErr)
@@ -391,9 +391,9 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 			fss := &FeeScaleService{
 				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
 				lastFeeScale:        tt.fields.lastFeeScale,
-				feeScaleQuery:       tt.fields.feeScaleQuery,
-				mainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				executor:            tt.fields.executor,
+				FeeScaleQuery:       tt.fields.feeScaleQuery,
+				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
+				Executor:            tt.fields.executor,
 			}
 			got, got1, err := fss.GetCurrentPhase(tt.args.blockTimestamp, tt.args.isPostTransaction)
 			if (err != nil) != tt.wantErr {
@@ -431,9 +431,9 @@ func TestNewFeeScaleService(t *testing.T) {
 			want: &FeeScaleService{
 				lastBlockTimestamp:  0,
 				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: nil,
-				executor:            nil,
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
 			},
 		},
 	}
