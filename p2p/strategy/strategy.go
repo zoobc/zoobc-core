@@ -28,5 +28,6 @@ type (
 		ValidateRequest(ctx context.Context) bool
 		GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error)
 		ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error
+		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error
 	}
 )

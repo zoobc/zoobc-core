@@ -550,7 +550,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	// validate block height
 	blockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()), false)
 	err = nrs.BlockQuery.Scan(&block, blockRow)
-	if err != nil {
+	if err != nil || nodeAddressInfo.GetBlockHeight() <= block.GetHeight() {
 		if err == sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
 		}

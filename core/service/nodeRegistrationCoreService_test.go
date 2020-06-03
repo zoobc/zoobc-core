@@ -1117,7 +1117,7 @@ func TestNodeRegistrationService_UpdateNodeAddressInfo(t *testing.T) {
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
 			}
-			if err := nrs.UpdateNodeAddressInfo(tt.args.nodeAddressMessage); (err != nil) != tt.wantErr {
+			if _, err := nrs.UpdateNodeAddressInfo(tt.args.nodeAddressMessage); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.UpdateNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

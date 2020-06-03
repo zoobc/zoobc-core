@@ -48,6 +48,7 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeAddressDynamic                              bool
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -71,7 +72,6 @@ var (
 	blockIncompleteQueueService                     service.BlockIncompleteQueueServiceInterface
 	receiptService                                  service.ReceiptServiceInterface
 	peerServiceClient                               client.PeerServiceClientInterface
-	p2pHost                                         *model.Host
 	peerExplorer                                    p2pStrategy.PeerExplorerStrategyInterface
 	wellknownPeers                                  []string
 	smithing, isNodePreSeed, isDebugMode            bool
@@ -91,6 +91,7 @@ var (
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
+	nodeConfigurationService                        service.NodeConfigurationServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
@@ -143,6 +144,7 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	nodeConfigurationService = service.NewNodeConfigurationService(nodeAddressDynamic, nodeSecretPhrase, loggerCoreService)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -238,7 +240,7 @@ func init() {
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
 	var (
-		seed, myAddressDiscoveredMsg string
+		seed string
 	)
 
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
@@ -256,10 +258,8 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 			log.Print(err)
 		}
 		myAddress = ipAddr.String()
-		myAddressDiscoveredMsg = "automatically discovered"
+		nodeAddressDynamic = true
 		viper.Set("myAddress", myAddress)
-	} else {
-		myAddressDiscoveredMsg = "set in configuration file"
 	}
 	peerPort = viper.GetUint32("peerPort")
 	monitoringPort = viper.GetInt("monitoringPort")
@@ -319,12 +319,15 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
-	log.Printf("myAddress: %s (%s)", myAddress, myAddressDiscoveredMsg)
+	if nodeAddressDynamic {
+		log.Printf("myAddress: %s (%s)", myAddress, "automatically discovered")
+	} else {
+		log.Printf("myAddress: %s (%s)", myAddress, "set in configuration file")
+	}
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
 }
-
 func initLogInstance() {
 	var (
 		err       error
@@ -349,7 +352,7 @@ func initP2pInstance() {
 	if err != nil {
 		loggerCoreService.Fatal("Initialize P2P Err : ", err.Error())
 	}
-	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+	nodeConfigurationService.SetHost(p2pUtil.NewHost(myAddress, peerPort, knownPeersResult))
 
 	// initialize peer client service
 	nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
@@ -361,28 +364,28 @@ func initP2pInstance() {
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		receiptService,
-		p2pHost,
+		nodeConfigurationService,
 		loggerP2PService,
 	)
 
 	// peer discovery strategy
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
-		p2pHost,
 		peerServiceClient,
 		nodeRegistrationService,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
+		nodeConfigurationService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
-		p2pHost,
 		peerServiceClient,
 		peerExplorer,
 		loggerP2PService,
 		transactionUtil,
 		fileService,
 		nodeRegistrationService,
+		nodeConfigurationService,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,

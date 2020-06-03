@@ -31,7 +31,7 @@ func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 	return ss.Service.GetPeerInfo(ctx, req)
 }
 
-// GetNodeAddressesInfo to return info of this host
+// GetNodeAddressesInfo return content of node_address_info table to requesting peer
 func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.
 	GetNodeAddressesInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
@@ -41,7 +41,7 @@ func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model
 	return nil, nil
 }
 
-// SendNodeAddressInfo send/broadcast (usually own) NodeAddressInfo to other peers
+// SendNodeAddressInfo receive a NodeAddressInfo sent by a peer
 func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)

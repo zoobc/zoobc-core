@@ -512,3 +512,9 @@ func (ns *NativeStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRe
 func (ns *NativeStrategy) SendNodeAddressInfo(peer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) error {
 	return nil
 }
+
+// STEF TODO implement this method
+// UpdateOwnNodeAddressInfo check if nodeAddress in db must be updated and broadcast the new address
+func (ns *NativeStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error {
+	return nil
+}

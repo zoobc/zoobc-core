@@ -52,11 +52,12 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		effectiveBalanceToLock, lockedBalance int64
 		nodePublicKey                         []byte
-		nodeAddress                           *model.NodeAddress
-		nodeReg                               model.NodeRegistration
-		queries                               [][]interface{}
-		row                                   *sql.Row
-		err                                   error
+		// STEF TODO: remove nodeAddress from nodeRegistration
+		nodeAddress *model.NodeAddress
+		nodeReg     model.NodeRegistration
+		queries     [][]interface{}
+		row         *sql.Row
+		err         error
 	)
 
 	// get the latest node registration by owner (sender account)

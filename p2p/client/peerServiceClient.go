@@ -66,18 +66,18 @@ type (
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
-		Dialer                  Dialer
-		Logger                  *log.Logger
-		QueryExecutor           query.ExecutorInterface
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
-		BatchReceiptQuery       query.BatchReceiptQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		ReceiptService          coreService.ReceiptServiceInterface
-		NodeRegistrationService coreService.NodeRegistrationServiceInterface
-		NodePublicKey           []byte
-		Host                    *model.Host
-		PeerConnections         map[string]*grpc.ClientConn
-		PeerConnectionsLock     sync.RWMutex
+		Dialer                   Dialer
+		Logger                   *log.Logger
+		QueryExecutor            query.ExecutorInterface
+		NodeReceiptQuery         query.NodeReceiptQueryInterface
+		BatchReceiptQuery        query.BatchReceiptQueryInterface
+		MerkleTreeQuery          query.MerkleTreeQueryInterface
+		ReceiptService           coreService.ReceiptServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		NodePublicKey            []byte
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		PeerConnections          map[string]*grpc.ClientConn
+		PeerConnectionsLock      sync.RWMutex
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -92,7 +92,7 @@ func NewPeerServiceClient(
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
-	host *model.Host,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log
@@ -115,16 +115,16 @@ func NewPeerServiceClient(
 			}
 			return conn, nil
 		},
-		QueryExecutor:           queryExecutor,
-		NodeReceiptQuery:        nodeReceiptQuery,
-		BatchReceiptQuery:       batchReceiptQuery,
-		MerkleTreeQuery:         merkleTreeQuery,
-		ReceiptService:          receiptService,
-		NodeRegistrationService: nodeRegistrationService,
-		NodePublicKey:           nodePublicKey,
-		Logger:                  logger,
-		Host:                    host,
-		PeerConnections:         make(map[string]*grpc.ClientConn),
+		QueryExecutor:            queryExecutor,
+		NodeReceiptQuery:         nodeReceiptQuery,
+		BatchReceiptQuery:        batchReceiptQuery,
+		MerkleTreeQuery:          merkleTreeQuery,
+		ReceiptService:           receiptService,
+		NodeRegistrationService:  nodeRegistrationService,
+		NodePublicKey:            nodePublicKey,
+		Logger:                   logger,
+		NodeConfigurationService: nodeConfigurationService,
+		PeerConnections:          make(map[string]*grpc.ClientConn),
 	}
 }
 
@@ -178,7 +178,7 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 // setDefaultMetadata use to set default metadata.
 // It will use in validation request
 func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
-	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.Host.GetInfo())}
+	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo())}
 }
 
 // getDefaultContext use to get default context with deadline & default metadata

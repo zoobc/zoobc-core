@@ -225,6 +225,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.Poown == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
 	}
+	// STEF TODO: remove nodeAddress from nodeRegistration
 	if tx.Body.GetNodeAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
 	}
