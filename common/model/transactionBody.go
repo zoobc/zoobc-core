@@ -14,3 +14,4 @@ func (*RemoveAccountDatasetTransactionBody) isTransaction_TransactionBody()   {}
 func (*ApprovalEscrowTransactionBody) isTransaction_TransactionBody()         {}
 func (*MultiSignatureTransactionBody) isTransaction_TransactionBody()         {}
 func (*FeeVoteCommitTransactionBody) isTransaction_TransactionBody()          {}
+func (*FeeVoteRevealTransactionBody) isTransaction_TransactionBody()          {}

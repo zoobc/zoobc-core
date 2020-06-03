@@ -1,0 +1,56 @@
+package query
+
+import (
+	"database/sql"
+	"fmt"
+	"strings"
+
+	"github.com/zoobc/zoobc-core/common/model"
+)
+
+type (
+	FeeVoteRevealVoteQueryInterface interface {
+		GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{})
+		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
+	}
+	FeeVoteRevealVoteQuery struct {
+		Fields    []string
+		TableName string
+	}
+)
+
+func NewFeeVoteRevealVoteQuery() *FeeVoteCommitmentVoteQuery {
+	return &FeeVoteCommitmentVoteQuery{
+		Fields: []string{
+			"voter_address",
+			"recent_block_hash",
+			"recent_block_height",
+			"fee_vote",
+			"voter_signature",
+			"block_height",
+		},
+		TableName: "fee_vote_reveal_vote",
+	}
+}
+
+func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
+	return fvr.TableName
+}
+func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{}) {
+	return fmt.Sprintf(
+		"SELECT (%s) FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+		strings.Join(fvr.Fields, ", "),
+		fvr.getTableName(),
+	), []interface{}{accountAddress}
+}
+
+func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error {
+	return row.Scan(
+		&vote.VoterAddress,
+		&vote.VoteInfo.RecentBlockHash,
+		&vote.VoteInfo.RecentBlockHeight,
+		&vote.VoteInfo.FeeVote,
+		&vote.VoterSignature,
+		&vote.BlockHeight,
+	)
+}
