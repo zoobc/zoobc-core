@@ -358,6 +358,20 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,		-- block_height when the fee scale apply
 				"latest" INTEGER,
 				PRIMARY KEY("block_height")
+			CREATE INDEX "pending_transaction_transaction_hash_idx" ON "pending_transaction" ("transaction_hash")
+			`,
+			`
+			CREATE INDEX "pending_transaction_status_idx" ON "pending_transaction" ("status")
+			`,
+			`
+			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
+				"vote_hash" BLOB,		-- hash of fee vote object
+				"voter_address" VARCHAR(255), -- sender account address of commit vote
+				"block_height" INTEGER,	-- height when commit vote inserted
+				PRIMARY KEY("vote_hash", "block_height")
 			)
 			`,
 		}

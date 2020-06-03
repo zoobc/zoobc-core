@@ -15,6 +15,7 @@ var (
 		"removeAccountDataset":   {3, 1, 0, 0},
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
+		"feeVoteCommit":          {7, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -63,4 +64,8 @@ var (
 	addresses         []string
 	nonce             int64
 	minSignature      uint32
+
+	// fee vote
+	voteHashHex   string
+	voteHashBytes string
 )

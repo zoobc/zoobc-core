@@ -1,10 +1,12 @@
 package transaction
 
 import (
+	"encoding/hex"
 	"fmt"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -60,6 +62,11 @@ var (
 		Short: "transaction sub command used to generate 'multi signature' transaction",
 		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
 			"before it is valid to be executed",
+	}
+	feeVoteCommitmentCmd = &cobra.Command{
+		Use:   "fee-vote-commit",
+		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
+		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash of vote object ",
 	}
 )
 
@@ -168,6 +175,13 @@ func init() {
 	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
 	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
 		"--address1='signature1' --address2='signature2'")
+
+	/*
+		Fee Vote Command
+	*/
+	feeVoteCommitmentCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
+	feeVoteCommitmentCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
+		"eg: --vote-hash-bytes='1, 222, 54, 12, 32'")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -194,6 +208,9 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
+	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentmentProcess()
+	txCmd.AddCommand(feeVoteCommitmentCmd)
+
 	return txCmd
 }
 
@@ -424,6 +441,45 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			recipientAccountAddress)
 
 		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addresses)
+		if tx == nil {
+			fmt.Printf("fail to generate transaction, please check the provided parameter")
+		} else {
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		}
+	}
+}
+
+// feeVoteCommitmentmentProcess for generate TX  commitment vote of fee vote
+func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		var (
+			err      error
+			voteHash []byte
+			tx       = GenerateBasicTransaction(
+				senderAddress,
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress)
+		)
+		// parsing vote hash
+		if voteHashHex != "" {
+			voteHash, err = hex.DecodeString(voteHashHex)
+			if err != nil {
+				panic(fmt.Sprintln("failed decode voteHash Hex, ", err.Error()))
+			}
+		} else if voteHashBytes != "" {
+			voteHash, err = helper.ParseBytesArgument(voteHashBytes, ", ")
+			if err != nil {
+				panic("failed to parse vote hash bytes")
+			}
+		} else {
+			panic("Please provide the vote hash in hex or bytes string")
+		}
+
+		tx = GenerateTxFeeVoteCommitment(tx, voteHash)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {

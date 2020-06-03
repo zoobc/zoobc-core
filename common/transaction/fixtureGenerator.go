@@ -350,3 +350,39 @@ func GetFixtureForSpecificTransaction(
 	tx.TransactionBody = nil
 	return tx, transactionBytes
 }
+
+func GetFixturesForBlock(height uint32, id int64) *model.Block {
+	return &model.Block{
+		ID:                   id,
+		BlockHash:            []byte{},
+		PreviousBlockHash:    []byte{},
+		Height:               height,
+		Timestamp:            10000,
+		BlockSeed:            []byte{},
+		BlockSignature:       []byte{3},
+		CumulativeDifficulty: "1",
+		PayloadLength:        1,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey:  []byte{},
+		TotalAmount:          1000,
+		TotalFee:             0,
+		TotalCoinBase:        1,
+		Version:              0,
+	}
+}
+
+func GetFixtureForFeeVoteCommitTransaction() (
+	txBody *model.FeeVoteCommitTransactionBody,
+	txBodyBytes []byte,
+) {
+	digest := sha3.New256()
+	_, _ = digest.Write([]byte("zoobcVote"))
+	txBody = &model.FeeVoteCommitTransactionBody{
+		VoteHash: digest.Sum([]byte{}),
+	}
+
+	sa := FeeVoteCommitTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
