@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/mohae/deepcopy"
 
 	badger "github.com/dgraph-io/badger/v2"
@@ -67,6 +69,7 @@ type (
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
 		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher
 		AccountBalanceQuery         query.AccountBalanceQueryInterface
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
@@ -117,6 +120,7 @@ func NewBlockMainService(
 	coinbaseService CoinbaseServiceInterface,
 	participationScoreService ParticipationScoreServiceInterface,
 	publishedReceiptService PublishedReceiptServiceInterface,
+	feeScaleService fee.FeeScaleServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -148,6 +152,7 @@ func NewBlockMainService(
 		CoinbaseService:             coinbaseService,
 		ParticipationScoreService:   participationScoreService,
 		PublishedReceiptService:     publishedReceiptService,
+		FeeScaleService:             feeScaleService,
 	}
 }
 
@@ -632,6 +637,20 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			// if canPersistBlock return true ignore the passed `persist` flag
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
+	}
+	// if genesis
+	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		// insert initial fee scale
+		err := bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    constant.OneZBC, // initial fee_scale 1
+			BlockHeight: 0,
+			Latest:      true,
+		})
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("initFeeScale:rollback-error=%s", rollbackErr.Error())
+			return err
+		}
 	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx

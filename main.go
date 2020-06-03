@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -84,13 +86,14 @@ var (
 	spinechainSynchronizer, mainchainSynchronizer   blockchainsync.BlockchainSyncServiceInterface
 	spineBlockManifestService                       service.SpineBlockManifestServiceInterface
 	snapshotService                                 service.SnapshotServiceInterface
-	transactionUtil                                 = &transaction.Util{}
+	transactionUtil                                 transaction.UtilInterface
 	receiptUtil                                     = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                       service.TransactionCoreServiceInterface
 	fileService                                     service.FileServiceInterface
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
+	feeScaleService                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
@@ -144,7 +147,10 @@ func init() {
 
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
-
+	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
+	transactionUtil = &transaction.Util{
+		FeeScaleService: feeScaleService,
+	}
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -218,7 +224,7 @@ func init() {
 		&transaction.TypeSwitcher{
 			Executor: queryExecutor,
 		},
-		&transaction.Util{},
+		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
 		query.NewPendingTransactionQuery(),
@@ -507,6 +513,7 @@ func startMainchain() {
 		receiptService,
 		queryExecutor,
 	)
+
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
@@ -537,6 +544,7 @@ func startMainchain() {
 		mainchainCoinbaseService,
 		mainchainParticipationScoreService,
 		mainchainPublishedReceiptService,
+		feeScaleService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -615,7 +623,7 @@ func startMainchain() {
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
 			},
-			&transaction.Util{},
+			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
@@ -710,7 +718,7 @@ func startSpinechain() {
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
 			},
-			&transaction.Util{},
+			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
