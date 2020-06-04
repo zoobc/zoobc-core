@@ -375,7 +375,7 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,		-- block_height when the fee scale apply
 				"latest" INTEGER,
 				PRIMARY KEY("block_height")
-			`,
+			)`,
 		}
 		return nil
 	}
