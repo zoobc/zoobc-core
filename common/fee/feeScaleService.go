@@ -80,7 +80,7 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	isPostTransaction bool,
 ) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	// check if lastBlockstimestamp is 0
-	if fss.lastBlockTimestamp == 0 {
+	if fss.lastBlockTimestamp == 0 || blockTimestamp < fss.lastBlockTimestamp {
 		lastBlock, err := util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
 
 		if err != nil {
