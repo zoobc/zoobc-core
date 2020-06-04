@@ -625,9 +625,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					b := deepcopy.Copy(block)
 					blockToBroadcast, ok := b.(*model.Block)
 					if !ok {
-						if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-							bs.Logger.Error(rollbackErr.Error())
-						}
 						return blocker.NewBlocker(blocker.AppErr, "FailCopyingBlock")
 					}
 					// add transactionIDs and remove transaction before broadcast
