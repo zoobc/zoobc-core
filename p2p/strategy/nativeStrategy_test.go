@@ -556,3 +556,48 @@ func TestNativeStrategy_RemoveUnresolvedPeer(t *testing.T) {
 		})
 	}
 }
+
+func TestNativeStrategy_GetBlacklistedPeers(t *testing.T) {
+	type fields struct {
+		Host                 *model.Host
+		PeerServiceClient    client.PeerServiceClientInterface
+		ResolvedPeersLock    sync.RWMutex
+		UnresolvedPeersLock  sync.RWMutex
+		BlacklistedPeersLock sync.RWMutex
+		MaxUnresolvedPeers   int32
+		MaxResolvedPeers     int32
+		Logger               *log.Logger
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   map[string]*model.Peer
+	}{
+		{
+			name: "GetBlacklistedPeers:Success",
+			fields: fields{
+				Host: &model.Host{
+					BlacklistedPeers: mockPeers,
+				},
+			},
+			want: mockPeers,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := &NativeStrategy{
+				Host:                 tt.fields.Host,
+				PeerServiceClient:    tt.fields.PeerServiceClient,
+				ResolvedPeersLock:    tt.fields.ResolvedPeersLock,
+				UnresolvedPeersLock:  tt.fields.UnresolvedPeersLock,
+				BlacklistedPeersLock: tt.fields.BlacklistedPeersLock,
+				MaxUnresolvedPeers:   tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:     tt.fields.MaxResolvedPeers,
+				Logger:               tt.fields.Logger,
+			}
+			if got := ns.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NativeStrategy.GetBlacklistedPeers() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
