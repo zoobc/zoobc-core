@@ -1,7 +1,10 @@
 package fee
 
 import (
+	"math"
 	"time"
+
+	"github.com/montanaflynn/stats"
 
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -19,6 +22,7 @@ type (
 			blockTimestamp int64,
 			isPostTransaction bool,
 		) (phase model.FeeVotePhase, canAdjust bool, err error)
+		SelectVote(votes []model.FeeVoteInfo, currentSendMoneyFee int64) int64
 	}
 
 	FeeScaleService struct {
@@ -75,16 +79,24 @@ func (fss *FeeScaleService) GetLatestFeeScale(feeScale *model.FeeScale) error {
 // GetCurrentPhase require 2 parameters the blockTimestamp (when pushBlock) or currentTimestamp (when postTransaction)
 // and isPostTransaction parameter when set true will not update the cache, and blockTimestamp need to be filled with
 // node's current timestamp instead
+// todo: @andy-shi88 discard `isPostTransaction` parameter as there is no way to flag that in validate function with current state
+// of the code
 func (fss *FeeScaleService) GetCurrentPhase(
 	blockTimestamp int64,
 	isPostTransaction bool,
 ) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	// check if lastBlockstimestamp is 0
 	if fss.lastBlockTimestamp == 0 || blockTimestamp < fss.lastBlockTimestamp {
+		if blockTimestamp == constant.MainchainGenesisBlockTimestamp { // genesis exception
+			return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
+		}
 		lastBlock, err := util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
-
 		if err != nil {
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, err
+		}
+		if lastBlock.Timestamp == constant.MainchainGenesisBlockTimestamp { // genesis exception
+			fss.lastBlockTimestamp = blockTimestamp
+			return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
 		}
 		fss.lastBlockTimestamp = lastBlock.Timestamp
 	}
@@ -107,4 +119,32 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	}
 	// same month, year, over the commit phase
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
+}
+
+// SelectVote return the scaled vote relative to original / unscaled send-money fee
+func (fss *FeeScaleService) SelectVote(votes []model.FeeVoteInfo, originalSendMoneyFee int64) int64 {
+	var (
+		floats   stats.Float64Data
+		feeScale int64
+		err      error
+	)
+	// sort votes and get median value
+	for _, vote := range votes {
+		floats = append(floats, float64(vote.FeeVote))
+	}
+	median, err := stats.Median(floats)
+	if err != nil { // stats.Median can only return stats.EmptyInputErr
+		return fss.lastFeeScale.FeeScale
+	}
+	// constraints 0.5 to 2.0 from previous scale
+	scale := median / float64(originalSendMoneyFee)
+	compareToPreviousScale := scale / float64(fss.lastFeeScale.FeeScale)
+	if compareToPreviousScale < 0.5 {
+		scale = 0.5
+	} else if compareToPreviousScale > 2.0 {
+		scale = 2.0
+	}
+	feeScale = int64(math.Floor(scale * float64(constant.OneZBC)))
+	// scale median value to currentSendMoneyFee
+	return feeScale
 }

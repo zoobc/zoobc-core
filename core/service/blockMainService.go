@@ -652,6 +652,26 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+	// adjust fee if end of fee-vote period
+	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
+	if err != nil {
+		return err
+	}
+	if adjust {
+		// fetch vote-reveals
+		voteInfos := []model.FeeVoteInfo{} // mocked - fetch from database later
+		// select vote
+		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
+		// insert new fee-scale
+		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    vote,
+			BlockHeight: block.Height,
+			Latest:      true,
+		})
+		if err != nil {
+			return err
+		}
+	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -669,6 +689,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
