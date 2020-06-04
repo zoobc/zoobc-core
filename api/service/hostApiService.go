@@ -42,7 +42,7 @@ func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2P
 
 func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	var (
-		chainStatuses []*model.ChainStatus
+		chainStatuses = make([]*model.ChainStatus, len(hs.BlockServices))
 		lastBlock     *model.Block
 		err           error
 	)
@@ -52,11 +52,11 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 		if lastBlock == nil || err != nil {
 			continue
 		}
-		chainStatuses = append(chainStatuses, &model.ChainStatus{
+		chainStatuses[chainType] = &model.ChainStatus{
 			ChainType: chainType,
 			Height:    lastBlock.Height,
 			LastBlock: lastBlock,
-		})
+		}
 	}
 
 	if lastBlock == nil {
