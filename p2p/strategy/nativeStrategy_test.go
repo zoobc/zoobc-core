@@ -820,3 +820,61 @@ func TestNativeStrategy_PeerBlacklist(t *testing.T) {
 		})
 	}
 }
+
+func TestNativeStrategy_PeerUnblacklist(t *testing.T) {
+	type fields struct {
+		Host                 *model.Host
+		PeerServiceClient    client.PeerServiceClientInterface
+		ResolvedPeersLock    sync.RWMutex
+		UnresolvedPeersLock  sync.RWMutex
+		BlacklistedPeersLock sync.RWMutex
+		MaxUnresolvedPeers   int32
+		MaxResolvedPeers     int32
+		Logger               *log.Logger
+	}
+	type args struct {
+		peer *model.Peer
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *model.Peer
+	}{
+		{
+			name: "PeerUnblacklist:Success",
+			fields: fields{
+				Host: &model.Host{
+					BlacklistedPeers: mockPeers,
+					UnresolvedPeers:  mockPeers,
+				},
+				Logger: &log.Logger{},
+			},
+			args: args{
+				peer: &model.Peer{
+					Info: &mockNode,
+				},
+			},
+			want: &model.Peer{
+				Info: &mockNode,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := &NativeStrategy{
+				Host:                 tt.fields.Host,
+				PeerServiceClient:    tt.fields.PeerServiceClient,
+				ResolvedPeersLock:    tt.fields.ResolvedPeersLock,
+				UnresolvedPeersLock:  tt.fields.UnresolvedPeersLock,
+				BlacklistedPeersLock: tt.fields.BlacklistedPeersLock,
+				MaxUnresolvedPeers:   tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:     tt.fields.MaxResolvedPeers,
+				Logger:               tt.fields.Logger,
+			}
+			if got := ns.PeerUnblacklist(tt.args.peer); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NativeStrategy.PeerUnblacklist() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
