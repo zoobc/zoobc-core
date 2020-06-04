@@ -244,6 +244,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
 	if err != nil {
+		rollbackErr := mps.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
+		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
