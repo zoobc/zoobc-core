@@ -11,14 +11,14 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/mohae/deepcopy"
-
 	badger "github.com/dgraph-io/badger/v2"
+	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -67,6 +67,7 @@ type (
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
 		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher
 		AccountBalanceQuery         query.AccountBalanceQueryInterface
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
@@ -117,6 +118,7 @@ func NewBlockMainService(
 	coinbaseService CoinbaseServiceInterface,
 	participationScoreService ParticipationScoreServiceInterface,
 	publishedReceiptService PublishedReceiptServiceInterface,
+	feeScaleService fee.FeeScaleServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -148,6 +150,7 @@ func NewBlockMainService(
 		CoinbaseService:             coinbaseService,
 		ParticipationScoreService:   participationScoreService,
 		PublishedReceiptService:     publishedReceiptService,
+		FeeScaleService:             feeScaleService,
 	}
 }
 
@@ -632,6 +635,20 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			// if canPersistBlock return true ignore the passed `persist` flag
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
+	}
+	// if genesis
+	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		// insert initial fee scale
+		err := bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    constant.OneZBC, // initial fee_scale 1
+			BlockHeight: 0,
+			Latest:      true,
+		})
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("initFeeScale:rollback-error=%s", rollbackErr.Error())
+			return err
+		}
 	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -1597,7 +1614,7 @@ func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Li
 	}
 }
 
-// ReceivedValidatedBlockTransactionsListener will send the transactions required by blocks
+// BlockTransactionsRequestedListener will send the transactions required by blocks
 func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {

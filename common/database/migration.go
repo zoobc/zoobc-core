@@ -370,6 +370,13 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "fee_scale" (
+				"fee_scale" INTEGER,		-- current fee scale
+				"block_height" INTEGER,		-- block_height when the fee scale apply
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_reveal_vote" (
 				"voter_address" VARCHAR(255), -- sender account address as voter
 				"recent_block_hash" BLOB, 

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -161,6 +163,11 @@ func initialize(
 		query.NewPublishedReceiptQuery(),
 		queryExecutor,
 	)
+	feeScaleService := fee.NewFeeScaleService(
+		query.NewFeeScaleQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		queryExecutor,
+	)
 	blockService = service.NewBlockMainService(
 		chainType,
 		nil,
@@ -199,6 +206,7 @@ func initialize(
 		nil,
 		nil,
 		nil,
+		feeScaleService,
 	)
 
 	migration = database.Migration{Query: queryExecutor}
