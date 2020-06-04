@@ -376,3 +376,59 @@ func TestNativeStrategy_GetUnresolvedPeers(t *testing.T) {
 		})
 	}
 }
+
+func TestNativeStrategy_AddToUnresolvedPeer(t *testing.T) {
+	type fields struct {
+		Host                 *model.Host
+		PeerServiceClient    client.PeerServiceClientInterface
+		ResolvedPeersLock    sync.RWMutex
+		UnresolvedPeersLock  sync.RWMutex
+		BlacklistedPeersLock sync.RWMutex
+		MaxUnresolvedPeers   int32
+		MaxResolvedPeers     int32
+		Logger               *log.Logger
+	}
+	type args struct {
+		peer *model.Peer
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:    "AddToUnresolvedPeer:Nil",
+			wantErr: true,
+		},
+		{
+			name: "AddToUnresolvedPeer:Success",
+			fields: fields{
+				Host: &model.Host{
+					UnresolvedPeers: mockPeers,
+				},
+			},
+			args: args{
+				peer: &model.Peer{},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := &NativeStrategy{
+				Host:                 tt.fields.Host,
+				PeerServiceClient:    tt.fields.PeerServiceClient,
+				ResolvedPeersLock:    tt.fields.ResolvedPeersLock,
+				UnresolvedPeersLock:  tt.fields.UnresolvedPeersLock,
+				BlacklistedPeersLock: tt.fields.BlacklistedPeersLock,
+				MaxUnresolvedPeers:   tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:     tt.fields.MaxResolvedPeers,
+				Logger:               tt.fields.Logger,
+			}
+			if err := ns.AddToUnresolvedPeer(tt.args.peer); (err != nil) != tt.wantErr {
+				t.Errorf("NativeStrategy.AddToUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
