@@ -528,7 +528,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 
 	// validate nodeID
 	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
-	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args)
+	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	err := nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
 		if err == sql.ErrNoRows {

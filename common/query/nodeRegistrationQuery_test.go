@@ -559,7 +559,7 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 			args: args{
 				height: 10,
 			},
-			want: "SELECT id, node_public_key, account_address, registration_height, t2.address || t2.port AS node_address, " +
+			want: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
 				"locked_balance, registration_status, latest, height " +
 				"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id " +
 				"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) " +

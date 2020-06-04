@@ -1842,11 +1842,17 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 				nodeSecretPhrase: "itsasecret",
 			},
 			fields: fields{
+				NodeConfigurationService: &p2pMockNodeConfigurationService{
+					host: &model.Host{
+						ResolvedPeers: peers,
+					},
+				},
 				NodeRegistrationService: &p2pMockNodeRegistraionService{
 					successGetNodeRegistrationByNodePublicKey: true,
 					successGenerateNodeAddressInfo:            true,
 					successGetNodeAddressesInfoFromDb:         true,
 				},
+				Logger: log.New(),
 			},
 		},
 		{
@@ -1869,6 +1875,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 					addressInfoUpdated:                        true,
 				},
 				PeerServiceClient: &p2pMockPeerServiceClient{},
+				Logger:            log.New(),
 			},
 		},
 	}

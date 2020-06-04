@@ -20,6 +20,7 @@ import (
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"time"
 )
 
 type (
@@ -131,8 +132,10 @@ func (s *Peer2PeerService) StartP2P(
 	go s.PeerExplorer.Start()
 	// update nodeAddressInfo and broadcast if necessary
 	go func() {
+		// wait until some peers are resolved
+		time.Sleep(5 * time.Second)
 		if err := s.PeerExplorer.UpdateOwnNodeAddressInfo(myAddress, peerPort, nodeSecretPhrase); err != nil {
-			s.Logger.Fatal(err.Error())
+			s.Logger.Error(err)
 		}
 	}()
 }

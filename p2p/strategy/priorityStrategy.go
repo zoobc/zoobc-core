@@ -71,7 +71,9 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-	go ps.GetNodeAddress()
+	if ps.NodeConfigurationService.IsMyAddressDynamic() {
+		go ps.UpdateNodeAddressThread()
+	}
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -503,7 +505,7 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 }
 
 // GetMorePeersThread to periodically request more peers from another node in Peers list
-func (ps *PriorityStrategy) GetNodeAddress() {
+func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	ticker := time.NewTicker(time.Duration(constant.UpdateNodeAddressGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -522,7 +524,7 @@ func (ps *PriorityStrategy) GetNodeAddress() {
 					ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
 					ps.NodeConfigurationService.GetNodeSecretPhrase(),
 				); err != nil {
-					ps.Logger.Errorf("Cannot update node address. %s", err)
+					ps.Logger.Error(err)
 				}
 			}
 		case <-sigs:
@@ -959,35 +961,50 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error {
 	var (
 		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
+		resolvedPeers = ps.GetResolvedPeers()
 	)
-	if nr, _ := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey); nr != nil {
-		nodeAddrInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.NodeID})
-		if err != nil {
-			return err
-		}
-		if len(nodeAddrInfo) == 0 ||
-			(len(nodeAddrInfo) > 0 &&
-				(nodeAddress != nodeAddrInfo[0].GetAddress() ||
-					port != nodeAddrInfo[0].GetPort())) {
-			nodeAddressInfo, err := ps.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
+	// only update own address if it's possible to broadcast it
+	if len(resolvedPeers) > 0 {
+		if nr, _ := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey); nr != nil {
+			nodeAddrInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.NodeID})
 			if err != nil {
 				return err
 			}
-			updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
-			if err != nil {
-				return err
-			}
-			// broadcast, if node addressInfo has been updated
-			if updated {
-				for _, peer := range ps.GetResolvedPeers() {
-					go func(peer *model.Peer) {
-						if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
-							ps.Logger.Warnf("Could not send updated node address info to peer %s:%d", peer.Info.Address, peer.Info.Port)
-						}
-					}(peer)
+			if len(nodeAddrInfo) == 0 ||
+				(len(nodeAddrInfo) > 0 &&
+					(nodeAddress != nodeAddrInfo[0].GetAddress() ||
+						port != nodeAddrInfo[0].GetPort())) {
+				nodeAddressInfo, err := ps.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
+				if err != nil {
+					return err
+				}
+				updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
+				if err != nil {
+					return err
+				}
+				// broadcast, if node addressInfo has been updated
+				if updated {
+					for _, peer := range resolvedPeers {
+						go func(peer *model.Peer) {
+							ps.Logger.Debugf("Broadcasting node addresses %s:%d  to %s:%d",
+								nodeAddressInfo.Address,
+								nodeAddressInfo.Port,
+								peer.Info.Address,
+								peer.Info.Port)
+							if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
+								ps.Logger.Warnf("Could not send updated node address info to peer %s:%d. %s",
+									peer.Info.Address,
+									peer.Info.Port,
+									err)
+							}
+						}(peer)
+					}
 				}
 			}
 		}
+		return nil
 	}
-	return nil
+	return blocker.NewBlocker(blocker.P2PPeerError,
+		fmt.Sprintf("Address %s:%d won't be updated now because there are no resolved peers to broadcast it to. Retrying later...",
+			nodeAddress, port))
 }

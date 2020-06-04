@@ -102,7 +102,8 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			want: [][]interface{}{
-				append([]interface{}{"UPDATE node_address_info SET address = ? port = ? block_height = ? block_hash = ? signature = ? WHERE" +
+				append([]interface{}{"UPDATE node_address_info SET address = ?, " +
+					"port = ?, block_height = ?, block_hash = ?, signature = ? WHERE" +
 					" node_id = ?"},
 					"192.168.1.2",
 					uint32(8080),

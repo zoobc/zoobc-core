@@ -206,7 +206,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height 
 		"node_public_key",
 		"account_address",
 		"registration_height",
-		"t2.address || t2.port AS node_address",
+		"t2.address || ':' || t2.port AS node_address",
 		"locked_balance",
 		"registration_status",
 		"latest",

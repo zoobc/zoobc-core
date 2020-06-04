@@ -8,8 +8,8 @@ snapshotPath = "./resource/snapshots"
 
 # Peer
 peerPort=8001
-#myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+myAddress="127.0.0.1"
+#wellknownPeers=["127.0.0.1:8002"]
 
 apiRPCPort=7000
 # comment out or set to 0 to disable http proxy, only enable in dev mode
@@ -24,4 +24,4 @@ smithing=true
 proofOfOwnershipReqTimeoutSec = 2
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["fatal", "error", "panic"]
+logLevels=["warn", "info", "fatal", "error", "panic"]

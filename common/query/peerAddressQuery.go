@@ -62,10 +62,10 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 	)
 	qryUpdate := fmt.Sprintf(
 		"UPDATE %s SET"+
-			" address = ?"+
-			" port = ?"+
-			" block_height = ?"+
-			" block_hash = ?"+
+			" address = ?,"+
+			" port = ?,"+
+			" block_height = ?,"+
+			" block_hash = ?,"+
 			" signature = ?"+
 			" WHERE node_id = ?", paq.getTableName())
 	// move NodeID at the bottom of the values array
