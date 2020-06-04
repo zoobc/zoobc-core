@@ -20,13 +20,13 @@ type (
 	}
 )
 
-func NewFeeVoteRevealVoteQuery() *FeeVoteCommitmentVoteQuery {
-	return &FeeVoteCommitmentVoteQuery{
+func NewFeeVoteRevealVoteQuery() *FeeVoteRevealVoteQuery {
+	return &FeeVoteRevealVoteQuery{
 		Fields: []string{
-			"voter_address",
 			"recent_block_hash",
 			"recent_block_height",
 			"fee_vote",
+			"voter_address",
 			"voter_signature",
 			"block_height",
 		},
@@ -37,7 +37,7 @@ func NewFeeVoteRevealVoteQuery() *FeeVoteCommitmentVoteQuery {
 func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
 	return fvr.TableName
 }
-func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{}) {
+func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (qry string, args []interface{}) {
 	return fmt.Sprintf(
 		"SELECT (%s) FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 		strings.Join(fvr.Fields, ", "),
@@ -45,12 +45,12 @@ func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddre
 	), []interface{}{accountAddress}
 }
 
-func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{}) {
+func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRevealVote) (qry string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		fvr.getTableName(),
 		strings.Join(fvr.Fields, ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ?", len(fvr.Fields)-1)),
+		fmt.Sprintf("?%s", strings.Repeat(", ?", len(fvr.Fields)-1)),
 	), fvr.ExtractModel(revealVote)
 }
 
@@ -59,19 +59,29 @@ func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote)
 		revealVote.VoteInfo.GetRecentBlockHash(),
 		revealVote.VoteInfo.GetRecentBlockHeight(),
 		revealVote.VoteInfo.GetFeeVote(),
-		revealVote.GetVoterSignature(),
 		revealVote.GetVoterAddress(),
+		revealVote.GetVoterSignature(),
 		revealVote.GetBlockHeight(),
 	}
 }
 
 func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error {
 	return row.Scan(
-		&vote.VoterAddress,
 		&vote.VoteInfo.RecentBlockHash,
 		&vote.VoteInfo.RecentBlockHeight,
 		&vote.VoteInfo.FeeVote,
+		&vote.VoterAddress,
 		&vote.VoterSignature,
 		&vote.BlockHeight,
 	)
+}
+
+// Rollback delete records `WHERE block_height > "block_height"`
+func (fvr *FeeVoteRevealVoteQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", fvr.getTableName()),
+			height,
+		},
+	}
 }

@@ -91,7 +91,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "BlockNotFound")
 	}
 	if res := bytes.Compare(tx.Body.GetFeeVoteInfo().GetRecentBlockHash(), recentBlock.GetBlockHash()); res != 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "")
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidRecentBlock")
 	}
 	err = tx.FeeScaleService.IsInPhasePeriod(recentBlock.GetTimestamp())
 	if err != nil {
@@ -150,12 +150,11 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 			return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 		}
 		if accountBalance.GetSpendableBalance() < tx.Fee {
-			return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
+			return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 		}
 		return nil
-	} else {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction
