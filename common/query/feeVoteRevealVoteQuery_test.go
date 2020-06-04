@@ -31,7 +31,7 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddress(t *testing.T) {
 			args: args{
 				accountAddress: "ABSCasjkdahsdasd",
 			},
-			want: "SELECT (voter_address, recent_block_hash, recent_block_height, fee_vote, voter_signature, block_height)" +
+			want: "SELECT (recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height)" +
 				" FROM fee_vote_reveal_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 			want1: []interface{}{"ABSCasjkdahsdasd"},
 		},
@@ -84,14 +84,14 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 					BlockHeight:    230,
 				},
 			},
-			wantQry: "INSERT INTO fee_vote_reveal_vote (voter_address, recent_block_hash, recent_block_height, fee_vote," +
+			wantQry: "INSERT INTO fee_vote_reveal_vote (recent_block_hash, recent_block_height, fee_vote, voter_address," +
 				" voter_signature, block_height) VALUES(?, ?, ?, ?, ?, ?)",
 			wantArgs: []interface{}{
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				uint32(100),
 				int64(10),
-				[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 				"ABSCasjkdahsdasd",
+				[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 				uint32(230),
 			},
 		},

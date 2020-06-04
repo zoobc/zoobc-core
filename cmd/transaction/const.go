@@ -16,6 +16,7 @@ var (
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
 		"feeVoteCommit":          {7, 0, 0, 0},
+		"feeVoteReveal":          {7, 1, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -65,7 +66,12 @@ var (
 	nonce             int64
 	minSignature      uint32
 
-	// fee vote
+	// fee vote commitment
 	voteHashHex   string
 	voteHashBytes string
+
+	// fee vote reveal
+	recentBlockHash   string
+	recentBlockHeight uint32
+	feeVote           int64
 )

@@ -3,12 +3,16 @@ package transaction
 import (
 	"encoding/hex"
 	"fmt"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
 type (
@@ -67,6 +71,11 @@ var (
 		Use:   "fee-vote-commit",
 		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
 		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash of vote object ",
+	}
+	feeVoteRevealCmd = &cobra.Command{
+		Use:   "fee-vote-reveal",
+		Short: "transaction sub command used to generate 'fee vote reveal phase' transaction",
+		Long:  "transaction sub command used to generate 'fee vote reveal phase' transaction. part of fee vote do this after commitment vote",
 	}
 )
 
@@ -177,11 +186,20 @@ func init() {
 		"--address1='signature1' --address2='signature2'")
 
 	/*
-		Fee Vote Command
+		Fee Vote Commitment Command
 	*/
 	feeVoteCommitmentCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
 	feeVoteCommitmentCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
 		"eg: --vote-hash-bytes='1, 222, 54, 12, 32'")
+
+	/*
+		Fee Vote Reveal Command
+	*/
+	feeVoteRevealCmd.Flags().StringVarP(&recentBlockHash, "recent-block-hash", "b", "", "recent-block-hash string format with 'comma' as separator")
+	feeVoteRevealCmd.Flags().Uint32VarP(&recentBlockHeight, "recent-block-height", "i", 0,
+		"recent-block-height which is the recent block hash reference")
+	feeVoteRevealCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
+
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -208,9 +226,10 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
-	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentmentProcess()
+	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentProcess()
 	txCmd.AddCommand(feeVoteCommitmentCmd)
-
+	feeVoteRevealCmd.Run = txGeneratorCommandsInstance.feeVoteRevealProcess()
+	txCmd.AddCommand(feeVoteRevealCmd)
 	return txCmd
 }
 
@@ -449,8 +468,8 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	}
 }
 
-// feeVoteCommitmentmentProcess for generate TX  commitment vote of fee vote
-func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
+// feeVoteCommitmentProcess for generate TX  commitment vote of fee vote
+func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			err      error
@@ -485,5 +504,61 @@ func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
 		} else {
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 		}
+	}
+}
+
+func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		var (
+			feeVoteInfo   model.FeeVoteInfo
+			feeVoteSigned []byte
+			err           error
+			tx            = GenerateBasicTransaction(
+				senderAddress,
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress)
+		)
+		recentBlockHash = strings.ReplaceAll(recentBlockHash, " ", "")
+		if recentBlockHash != "" {
+			feeVoteInfo.RecentBlockHash, err = helper.ParseBytesArgument(recentBlockHash, ",")
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Error("failed to parse recent block hash\n")
+				os.Exit(1)
+			}
+		} else {
+			_ = feeVoteRevealCmd.Help()
+			logrus.Error("Required recent block hash\n")
+			os.Exit(1)
+		}
+
+		if recentBlockHeight != 0 {
+			feeVoteInfo.RecentBlockHeight = recentBlockHeight
+		}
+
+		feeVoteInfo.FeeVote = feeVote
+		fb := (&transaction.FeeVoteRevealTransaction{
+			Body: &model.FeeVoteRevealTransactionBody{
+				FeeVoteInfo: &feeVoteInfo,
+			},
+		}).GetFeeVoteInfoBytes()
+		feeVoteSigned, err = signature.Sign(
+			fb,
+			model.SignatureType_DefaultSignature,
+			senderSeed,
+			true,
+		)
+		if err != nil {
+			_ = feeVoteRevealCmd.Help()
+			logrus.Error("failed to sign fee vote info, check seed")
+			return
+		}
+		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
+
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, 0), outputType)
 	}
 }

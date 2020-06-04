@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 	"testing"
@@ -397,6 +398,294 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockAccountBalanceHelperFeeVoteRevealSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountLedgerHelperFeeVoteRevealSuccess struct {
+		AccountLedgerHelper
+	}
+	mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+	return nil
+}
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+	return nil
+}
+
+func (*mockAccountLedgerHelperFeeVoteRevealSuccess) InsertLedgerEntry(*model.AccountLedger) error {
+	return nil
+}
+
+func (*mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess) ExecuteTransaction(string, ...interface{}) error {
+	return nil
+}
+
+func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		ID                     int64
+		Fee                    int64
+		SenderAddress          string
+		Height                 uint32
+		Timestamp              int64
+		Body                   *model.FeeVoteRevealTransactionBody
+		FeeScaleService        fee.FeeScaleServiceInterface
+		SignatureInterface     crypto.SignatureInterface
+		BlockQuery             query.BlockQueryInterface
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
+		AccountBalanceHelper   AccountBalanceHelperInterface
+		AccountLedgerHelper    AccountLedgerHelperInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &FeeVoteRevealTransaction{
+				ID:                     tt.fields.ID,
+				Fee:                    tt.fields.Fee,
+				SenderAddress:          tt.fields.SenderAddress,
+				Height:                 tt.fields.Height,
+				Timestamp:              tt.fields.Timestamp,
+				Body:                   tt.fields.Body,
+				FeeScaleService:        tt.fields.FeeScaleService,
+				SignatureInterface:     tt.fields.SignatureInterface,
+				BlockQuery:             tt.fields.BlockQuery,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
+				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
+				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
+	type fields struct {
+		ID                     int64
+		Fee                    int64
+		SenderAddress          string
+		Height                 uint32
+		Timestamp              int64
+		Body                   *model.FeeVoteRevealTransactionBody
+		FeeScaleService        fee.FeeScaleServiceInterface
+		SignatureInterface     crypto.SignatureInterface
+		BlockQuery             query.BlockQueryInterface
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
+		AccountBalanceHelper   AccountBalanceHelperInterface
+		AccountLedgerHelper    AccountLedgerHelperInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &FeeVoteRevealTransaction{
+				ID:                     tt.fields.ID,
+				Fee:                    tt.fields.Fee,
+				SenderAddress:          tt.fields.SenderAddress,
+				Height:                 tt.fields.Height,
+				Timestamp:              tt.fields.Timestamp,
+				Body:                   tt.fields.Body,
+				FeeScaleService:        tt.fields.FeeScaleService,
+				SignatureInterface:     tt.fields.SignatureInterface,
+				BlockQuery:             tt.fields.BlockQuery,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
+				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
+				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
+				t.Errorf("UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
+	type fields struct {
+		ID                     int64
+		Fee                    int64
+		SenderAddress          string
+		Height                 uint32
+		Timestamp              int64
+		Body                   *model.FeeVoteRevealTransactionBody
+		FeeScaleService        fee.FeeScaleServiceInterface
+		SignatureInterface     crypto.SignatureInterface
+		BlockQuery             query.BlockQueryInterface
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
+		AccountBalanceHelper   AccountBalanceHelperInterface
+		AccountLedgerHelper    AccountLedgerHelperInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		blockTimestamp int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			fields: fields{
+				AccountBalanceHelper:   &mockAccountBalanceHelperFeeVoteRevealSuccess{},
+				AccountLedgerHelper:    &mockAccountLedgerHelperFeeVoteRevealSuccess{},
+				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
+				QueryExecutor:          &mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess{},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &FeeVoteRevealTransaction{
+				ID:                     tt.fields.ID,
+				Fee:                    tt.fields.Fee,
+				SenderAddress:          tt.fields.SenderAddress,
+				Height:                 tt.fields.Height,
+				Timestamp:              tt.fields.Timestamp,
+				Body:                   tt.fields.Body,
+				FeeScaleService:        tt.fields.FeeScaleService,
+				SignatureInterface:     tt.fields.SignatureInterface,
+				BlockQuery:             tt.fields.BlockQuery,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
+				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
+				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			if err := tx.ApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
+				t.Errorf("ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
+	txBody := &model.FeeVoteRevealTransactionBody{
+		FeeVoteInfo: &model.FeeVoteInfo{
+			RecentBlockHeight: 100,
+			RecentBlockHash:   []byte{1, 2, 3, 4, 5},
+			FeeVote:           100,
+		},
+		VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+	}
+
+	type fields struct {
+		ID                     int64
+		Fee                    int64
+		SenderAddress          string
+		Height                 uint32
+		Timestamp              int64
+		Body                   *model.FeeVoteRevealTransactionBody
+		FeeScaleService        fee.FeeScaleServiceInterface
+		SignatureInterface     crypto.SignatureInterface
+		BlockQuery             query.BlockQueryInterface
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
+		AccountBalanceHelper   AccountBalanceHelperInterface
+		AccountLedgerHelper    AccountLedgerHelperInterface
+		QueryExecutor          query.ExecutorInterface
+	}
+	type args struct {
+		txBodyBytes []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    model.TransactionBodyInterface
+		wantErr bool
+	}{
+		{
+			name: "WantSuccess",
+			args: args{
+				txBodyBytes: (&FeeVoteRevealTransaction{
+					Body: txBody,
+				}).GetBodyBytes(),
+			},
+			want: txBody,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := &FeeVoteRevealTransaction{
+				ID:                     tt.fields.ID,
+				Fee:                    tt.fields.Fee,
+				SenderAddress:          tt.fields.SenderAddress,
+				Height:                 tt.fields.Height,
+				Timestamp:              tt.fields.Timestamp,
+				Body:                   tt.fields.Body,
+				FeeScaleService:        tt.fields.FeeScaleService,
+				SignatureInterface:     tt.fields.SignatureInterface,
+				BlockQuery:             tt.fields.BlockQuery,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
+				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
+				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
+				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
+				QueryExecutor:          tt.fields.QueryExecutor,
+			}
+			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ParseBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ParseBodyBytes() got = %v, want %v", got, tt.want)
 			}
 		})
 	}

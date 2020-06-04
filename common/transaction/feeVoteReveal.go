@@ -62,13 +62,8 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidPhasePeriod")
 	}
 	// VoteObject.Signature must be a valid signature from node-owner on bytes(VoteInfo)
-	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
-	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
-	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
-	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	err = tx.SignatureInterface.VerifySignature(
-		buff.Bytes(),
+		tx.GetFeeVoteInfoBytes(),
 		tx.Body.GetVoterSignature(),
 		tx.SenderAddress,
 	)
@@ -206,7 +201,7 @@ func (tx *FeeVoteRevealTransaction) ApplyConfirmed(blockTimestamp int64) error {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (tx *FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
 		buff    = bytes.NewBuffer(txBodyBytes)
 		chunked []byte
@@ -271,6 +266,16 @@ func (tx *FeeVoteRevealTransaction) GetTransactionBody(transaction *model.Transa
 	}
 }
 
+// GetFeeVoteInfoBytes will build bytes from model.FeeVoteInfo
+func (tx *FeeVoteRevealTransaction) GetFeeVoteInfoBytes() []byte {
+	buff := bytes.NewBuffer([]byte{})
+	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
+	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
+	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
+	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
+	return buff.Bytes()
+}
+
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
 func (*FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
@@ -280,6 +285,8 @@ func (*FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 	return 0
 }
+
+// GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
