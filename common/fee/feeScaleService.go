@@ -22,7 +22,7 @@ type (
 			blockTimestamp int64,
 			isPostTransaction bool,
 		) (phase model.FeeVotePhase, canAdjust bool, err error)
-		SelectVote(votes []model.FeeVoteInfo, currentSendMoneyFee int64) int64
+		SelectVote(votes []*model.FeeVoteInfo, originalSendMoneyFee int64) int64
 	}
 
 	FeeScaleService struct {
@@ -122,11 +122,10 @@ func (fss *FeeScaleService) GetCurrentPhase(
 }
 
 // SelectVote return the scaled vote relative to original / unscaled send-money fee
-func (fss *FeeScaleService) SelectVote(votes []model.FeeVoteInfo, originalSendMoneyFee int64) int64 {
+func (fss *FeeScaleService) SelectVote(votes []*model.FeeVoteInfo, originalSendMoneyFee int64) int64 {
 	var (
-		floats   stats.Float64Data
-		feeScale int64
-		err      error
+		floats stats.Float64Data
+		err    error
 	)
 	// sort votes and get median value
 	for _, vote := range votes {
@@ -137,14 +136,13 @@ func (fss *FeeScaleService) SelectVote(votes []model.FeeVoteInfo, originalSendMo
 		return fss.lastFeeScale.FeeScale
 	}
 	// constraints 0.5 to 2.0 from previous scale
-	scale := median / float64(originalSendMoneyFee)
+	scale := math.Floor(median / float64(originalSendMoneyFee) * float64(constant.OneZBC))
 	compareToPreviousScale := scale / float64(fss.lastFeeScale.FeeScale)
 	if compareToPreviousScale < 0.5 {
-		scale = 0.5
+		scale = math.Floor(0.5 * float64(fss.lastFeeScale.FeeScale))
 	} else if compareToPreviousScale > 2.0 {
-		scale = 2.0
+		scale = math.Floor(2.0 * float64(fss.lastFeeScale.FeeScale))
 	}
-	feeScale = int64(math.Floor(scale * float64(constant.OneZBC)))
 	// scale median value to currentSendMoneyFee
-	return feeScale
+	return int64(scale)
 }
