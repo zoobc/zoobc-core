@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -19,8 +20,10 @@ type FeeVoteCommitTransaction struct {
 	Height                     uint32
 	Timestamp                  int64
 	Body                       *model.FeeVoteCommitTransactionBody
+	FeeScaleService            fee.FeeScaleServiceInterface
 	AccountBalanceQuery        query.AccountBalanceQueryInterface
 	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+	BlockQuery                 query.BlockQueryInterface
 	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 	AccountBalanceHelper       AccountBalanceHelperInterface
 	AccountLedgerHelper        AccountLedgerHelperInterface
@@ -56,8 +59,8 @@ func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 		VoterAddress: tx.SenderAddress,
 		BlockHeight:  tx.Height,
 	}
-	qry, args := tx.FeeVoteCommitmentVoteQuery.InsertCommitVote(voteCommit)
-	err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
+	qry, qryArgs := tx.FeeVoteCommitmentVoteQuery.InsertCommitVote(voteCommit)
+	err = tx.QueryExecutor.ExecuteTransaction(qry, qryArgs...)
 	if err != nil {
 		return err
 	}
@@ -71,7 +74,7 @@ func (tx *FeeVoteCommitTransaction) ApplyUnconfirmed() error {
 		err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
 	)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	return nil
 }
@@ -96,26 +99,62 @@ Validate to validating Transaction FeeVoteCommitTransaction type
 */
 func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	var (
-		accountBalance model.AccountBalance
-		row            *sql.Row
-		err            error
+		row              *sql.Row
+		err              error
+		qry              string
+		qryArgs          []interface{}
+		accountBalance   model.AccountBalance
+		feeVotePhase     model.FeeVotePhase
+		nodeRegistration model.NodeRegistration
+		voteCommit       model.FeeVoteCommitmentVote
+		block            model.Block
 	)
 
-	// Checking existing fee vote hash
+	// Checking length hash of fee vote
 	if len(tx.Body.GetVoteHash()) != sha3.New256().Size() {
-		return blocker.NewBlocker(blocker.ValidationErr, "fee vote hash required")
+		return blocker.NewBlocker(blocker.ValidationErr, "FeeVoteHashRequired")
 	}
 
-	// TODO: check is period to submit commit vote or not
-	// TODO: check duplicated vote
-	var (
-		qry              string
-		args             []interface{}
-		nodeRegistration model.NodeRegistration
-	)
+	// check is period to submit commit vote or not
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	if err != nil {
+		return err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseCommmit {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidFeeCommitVotePeriod")
+	}
+	// check duplicate vote
+	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
+	if err != nil && err != sql.ErrNoRows {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	// only check duplicate if already have previous commit vote
+	if err == nil {
+		qry = tx.BlockQuery.GetBlockByHeight(voteCommit.GetBlockHeight())
+		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx)
+		if err != nil {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		err = tx.BlockQuery.Scan(&block, row)
+		if err != nil {
+			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		// isCanAdjust means given time is having different month & year with last block time or not.
+		// duplicate vote happen when isCanAdjust is false
+		_, isCanAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
+		if !isCanAdjust {
+			return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
+		}
+	}
+
 	// check the sender account is owner of node registration
-	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	qry, qryArgs = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -128,8 +167,8 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	qry, qryArgs = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -138,7 +177,7 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
 }
@@ -188,7 +227,17 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+	// TODO: checking block timestamp
+
+	// check duplicate vote
+	for _, selectedTx := range selectedTransactions {
+		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
+		isSameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
+		if isSameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+			return true, nil
+		}
+	}
 	return false, nil
 }
 

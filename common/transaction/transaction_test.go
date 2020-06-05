@@ -363,9 +363,15 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:              &query.Executor{},
 				AccountBalanceHelper:       NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 				AccountLedgerHelper:        NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					&query.Executor{},
+				),
 			},
 		},
 	}

@@ -304,9 +304,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:              ts.Executor,
 				AccountBalanceHelper:       accountBalanceHelper,
 				AccountLedgerHelper:        accountLedgerHelper,
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					ts.Executor,
+				),
 			}, nil
 		default:
 			return nil, nil
