@@ -1127,19 +1127,6 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 			want:    true,
 			wantErr: false,
 		},
-		{
-			name:   "wantSucess",
-			fields: fields{},
-			args: args{
-				selectedTransactions: []*model.Transaction{
-					0: {
-						TransactionType: uint32(model.TransactionType_EmptyTransaction),
-					},
-				},
-			},
-			want:    false,
-			wantErr: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

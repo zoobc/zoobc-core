@@ -106,8 +106,6 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		accountBalance   model.AccountBalance
 		feeVotePhase     model.FeeVotePhase
 		nodeRegistration model.NodeRegistration
-		voteCommit       model.FeeVoteCommitmentVote
-		block            model.Block
 	)
 
 	// Checking length hash of fee vote
@@ -124,34 +122,10 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidFeeCommitVotePeriod")
 	}
 	// check duplicate vote
-	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	err = tx.checkDuplicateVoteCommit(dbTx)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
-	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
-	if err != nil && err != sql.ErrNoRows {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	// only check duplicate if already have previous commit vote
-	if err == nil {
-		qry = tx.BlockQuery.GetBlockByHeight(voteCommit.GetBlockHeight())
-		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = tx.BlockQuery.Scan(&block, row)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		// isCanAdjust means given time is having different month & year with last block time or not.
-		// duplicate vote happen when isCanAdjust is false
-		_, isCanAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
-		if !isCanAdjust {
-			return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
-		}
-	}
-
 	// check the sender account is owner of node registration
 	qry, qryArgs = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
@@ -179,6 +153,50 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
+	return nil
+}
+
+func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) (err error) {
+	var (
+		row        *sql.Row
+		qry        string
+		qryArgs    []interface{}
+		voteCommit model.FeeVoteCommitmentVote
+		block      model.Block
+	)
+
+	// get previous vote based on sender account address
+	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
+	if err != nil {
+		// it means don't have previous vote
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	// check vote phase for previous vote
+	qry = tx.BlockQuery.GetBlockByHeight(voteCommit.GetBlockHeight())
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.BlockQuery.Scan(&block, row)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	// isCanAdjust means given time is having different month & year with last block time or not.
+	// duplicate vote happen when isCanAdjust is false
+	_, isCanAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
+	if !isCanAdjust {
+		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
+	}
+
 	return nil
 }
 
@@ -230,13 +248,18 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
 	// TODO: checking block timestamp
 
-	// check duplicate vote
+	// check duplicate vote on mempool
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
 		isSameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
 		if isSameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
 			return true, nil
 		}
+	}
+	// check dupicate on previous vote
+	err := tx.checkDuplicateVoteCommit(false)
+	if err != nil {
+		return true, nil
 	}
 	return false, nil
 }
