@@ -519,35 +519,39 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	ticker := time.NewTicker(time.Duration(constant.UpdateNodeAddressGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	currentAddr, _ := ps.NodeConfigurationService.GetMyAddress()
+	currentAddr, err := ps.NodeConfigurationService.GetMyAddress()
+	if err != nil {
+		ps.Logger.Warnf("Cannot get address from node. %s", err)
+	}
 	for {
-		select {
-		case <-ticker.C:
-			if !ps.NodeConfigurationService.IsMyAddressDynamic() {
+		if !ps.NodeConfigurationService.IsMyAddressDynamic() {
+			if err := ps.UpdateOwnNodeAddressInfo(
+				currentAddr,
+				ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
+				ps.NodeConfigurationService.GetNodeSecretPhrase(),
+			); err == nil {
+				// break the loop if address is static (from config file) and has been updated
+				ticker.Stop()
+				return
+			}
+		} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil {
+			// get ip address from internet
+			newAddr := ipAddr.String()
+			if ipAddr != nil && err == nil && currentAddr != newAddr {
 				if err := ps.UpdateOwnNodeAddressInfo(
-					currentAddr,
+					newAddr,
 					ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
 					ps.NodeConfigurationService.GetNodeSecretPhrase(),
 				); err != nil {
 					ps.Logger.Error(err)
-				} else {
-					// break the loop if address is static (from config file) and has been updated
-					ticker.Stop()
-					return
 				}
-			} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil {
-				// get ip address from internet
-				newAddr := ipAddr.String()
-				if ipAddr != nil && err == nil && currentAddr != newAddr {
-					if err := ps.UpdateOwnNodeAddressInfo(
-						newAddr,
-						ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
-						ps.NodeConfigurationService.GetNodeSecretPhrase(),
-					); err != nil {
-						ps.Logger.Error(err)
-					}
-				}
+			} else {
+				ps.Logger.Error(err)
 			}
+		}
+		select {
+		case <-ticker.C:
+			continue
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -974,8 +978,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		peer := ps.PeerStrategyHelper.GetRandomPeerWithoutRepetition(peers, mutex)
 		res, err := ps.PeerServiceClient.GetNodeAddressesInfo(peer, nodeRegistrations)
 		if err != nil {
-			ps.Logger.Warnf("Cannot get node address info list from peer %s:%d. Error: %s", peer.Info.Address, peer.Info.Port,
-				err.Error())
+			ps.Logger.Warn(err)
 			continue
 		}
 

@@ -232,8 +232,8 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	}
 	if res.NodeAddressesInfo == nil {
 		return nil, blocker.NewBlocker(blocker.P2PPeerError, fmt.Sprintf(
-			"GetNodeAddressesInfo client: this peer returned an empty node address list %v",
-			destPeer.GetInfo()))
+			"GetNodeAddressesInfo client: peer %s:%d returned an empty node address list",
+			destPeer.GetInfo().Address, destPeer.GetInfo().Port))
 	}
 
 	return res, err

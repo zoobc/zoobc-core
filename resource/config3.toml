@@ -9,7 +9,7 @@ snapshotPath = "./resource/snapshots"
 # Peer
 peerPort=8003
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3003
 apiHTTPPort=3033
