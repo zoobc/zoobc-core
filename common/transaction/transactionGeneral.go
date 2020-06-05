@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -317,7 +318,7 @@ func (u *Util) ValidateTransaction(
 		)
 	}
 	// multiply by minimum fee first
-	if tx.Fee < (minFee * (feeScale.FeeScale / constant.OneZBC)) {
+	if tx.Fee < int64(math.Floor(float64(minFee)*(float64(feeScale.FeeScale)/float64(constant.OneZBC)))) {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeLessThanMinimumRequiredFee",
