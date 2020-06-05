@@ -246,7 +246,7 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 
 // SkipMempoolTransaction this tx type has no mempool filter
 func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
-	// TODO: checking block timestamp
+	// TODO: check vote phase based on new block timestamp
 
 	// check duplicate vote on mempool
 	for _, selectedTx := range selectedTransactions {
@@ -256,7 +256,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions 
 			return true, nil
 		}
 	}
-	// check dupicate on previous vote
+	// check duplicate on previous vote
 	err := tx.checkDuplicateVoteCommit(false)
 	if err != nil {
 		return true, nil
