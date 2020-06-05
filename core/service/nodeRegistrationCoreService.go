@@ -24,6 +24,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
+		GetNodeRegistry() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
@@ -139,6 +140,21 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 	}
 
 	return nodeRegistrations, nil
+}
+
+func (nrs *NodeRegistrationService) GetNodeRegistry() ([]*model.NodeRegistration, error) {
+	qry := nrs.NodeRegistrationQuery.GetNodeRegistry()
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistry) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return nodeRegistry, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {

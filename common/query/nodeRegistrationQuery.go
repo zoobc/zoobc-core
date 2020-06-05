@@ -25,6 +25,7 @@ type (
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
+		GetNodeRegistry() string
 		GetNodeRegistryAtHeight(height uint32) string
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
@@ -196,6 +197,12 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string 
 	return fmt.Sprintf("SELECT %s FROM %s where registration_status = 0 AND (id,height) in (SELECT id,MAX(height) "+
 		"FROM %s WHERE height <= %d GROUP BY id) ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
+}
+
+// GetNodeRegistry the full node registry
+func (nrq *NodeRegistrationQuery) GetNodeRegistry() string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE latest = 1",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 
 // GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.

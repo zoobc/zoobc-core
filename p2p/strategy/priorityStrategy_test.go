@@ -345,7 +345,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewPriorityStrategy(tt.args.peerServiceClient, nil,
-				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService)
+				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService, nil)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
 			}
@@ -841,7 +841,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				log.New(), nil, tt.args.nodeConfigurationService)
+				log.New(), nil, tt.args.nodeConfigurationService, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -911,7 +911,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService)
+				nil, nil, tt.args.nodeConfigurationService, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -959,7 +959,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService)
+				nil, nil, tt.args.nodeConfigurationService, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -1018,7 +1018,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService)
+				nil, nil, tt.args.nodeConfigurationService, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
@@ -1084,7 +1084,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService)
+				nil, nil, tt.args.nodeConfigurationService, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -1130,7 +1130,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService)
+				nil, nil, tt.args.nodeConfigurationService, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -1144,7 +1144,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 			UnresolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -1176,7 +1176,7 @@ func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 			ResolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32

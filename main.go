@@ -377,6 +377,7 @@ func initP2pInstance() {
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
 		nodeConfigurationService,
+		blockchainStatusService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		peerServiceClient,

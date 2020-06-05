@@ -579,3 +579,36 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistry(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GetNodeRegistry:success",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+				"registration_status, latest, height FROM node_registry WHERE latest = 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := nrq.GetNodeRegistry(); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetNodeRegistry() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"os"
 	"os/signal"
@@ -27,6 +28,7 @@ import (
 type (
 	// PriorityStrategy represent data service node as server
 	PriorityStrategy struct {
+		BlockchainStatusService  coreService.BlockchainStatusServiceInterface
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
@@ -50,8 +52,10 @@ func NewPriorityStrategy(
 	logger *log.Logger,
 	peerStrategyHelper PeerStrategyHelperInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	blockchainStatusService coreService.BlockchainStatusServiceInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
+		BlockchainStatusService:  blockchainStatusService,
 		NodeConfigurationService: nodeConfigurationService,
 		PeerServiceClient:        peerServiceClient,
 		NodeRegistrationService:  nodeRegistrationService,
@@ -75,7 +79,8 @@ func (ps *PriorityStrategy) Start() {
 		// TODO: find a more elegant way, such as using channels to signal when the node has build its primary peers
 		// wait until some peers are resolved
 		time.Sleep(5 * time.Second)
-		ps.UpdateNodeAddressThread()
+		go ps.UpdateNodeAddressThread()
+		go ps.SyncNodeAddressInfoTableThread()
 	}()
 }
 
@@ -548,6 +553,44 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 			return
 		}
 	}
+}
+
+func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
+	// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
+	// to have as many priority peers as possible to download the bc from
+	if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
+		ps.Logger.Error(err)
+	}
+
+	ticker := time.NewTicker(time.Duration(2) * time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-ticker.C:
+			// wait until bc has finished downloading and sync nodeAddressInfo table again (only once)
+			if ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
+				if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
+					ps.Logger.Error(err)
+				} else {
+					ticker.Stop()
+					return
+				}
+			}
+		case <-sigs:
+			ticker.Stop()
+			return
+		}
+	}
+}
+
+func (ps *PriorityStrategy) getRegistryAndSyncAddressInfoTable() error {
+	if nodeRegistry, err := ps.NodeRegistrationService.GetNodeRegistry(); err != nil {
+		ps.Logger.Fatal(err)
+	} else if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
+		return err
+	}
+	return nil
 }
 
 // UpdateBlacklistedStatusThread to periodically check blacklisting time of black listed peer,
