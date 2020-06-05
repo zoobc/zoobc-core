@@ -948,6 +948,19 @@ func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(blo
 	return 0, nil
 }
 
+type (
+	mockPushBlockFeeScaleServiceNoAdjust struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockPushBlockFeeScaleServiceNoAdjust) GetCurrentPhase(
+	blockTimestamp int64,
+	isPostTransaction bool,
+) (phase model.FeeVotePhase, canAdjust bool, err error) {
+	return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -970,6 +983,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		BlocksmithService       BlocksmithServiceInterface
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
+		FeeScaleService         fee.FeeScaleServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1067,6 +1081,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
 				),
+				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
 			args: args{
@@ -1132,6 +1147,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1198,6 +1214,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1264,6 +1281,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1326,6 +1344,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       tt.fields.BlocksmithService,
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
+				FeeScaleService:         tt.fields.FeeScaleService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1875,6 +1894,13 @@ type (
 		fee.FeeScaleServiceInterface
 	}
 )
+
+func (*mockAddGenesisFeeScaleServiceCache) GetCurrentPhase(
+	blockTimestamp int64,
+	isPostTransaction bool,
+) (phase model.FeeVotePhase, canAdjust bool, err error) {
+	return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
+}
 
 func (*mockAddGenesisFeeScaleServiceCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
 	*feeScale = model.FeeScale{

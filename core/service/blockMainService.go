@@ -659,7 +659,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	if adjust {
 		// fetch vote-reveals
-		voteInfos := []model.FeeVoteInfo{} // mocked - fetch from database later
+		voteInfos := []*model.FeeVoteInfo{} // todo: andy-shi88 : mocked - fetch from database later
 		// select vote
 		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
 		// insert new fee-scale
