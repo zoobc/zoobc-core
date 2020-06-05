@@ -1467,7 +1467,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				NodeRegistrationUtils:        tt.fields.NodeRegistrationUtils,
 			}
 
-			if err := nrs.ValidateNodeAddressInfo(tt.args.nodeAddressInfo); err != nil {
+			if _, err := nrs.ValidateNodeAddressInfo(tt.args.nodeAddressInfo); err != nil {
 				if tt.wantErr {
 					errorMsg := err.Error()
 					errCasted, ok := err.(blocker.Blocker)

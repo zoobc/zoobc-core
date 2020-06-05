@@ -503,13 +503,13 @@ func (ns *NativeStrategy) ValidateRequest(context.Context) bool {
 
 // STEF TODO implement this method
 // GetNodeAddressesInfo request a list of node addresses from peers
-func (ns *NativeStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error) {
+func (ns *NativeStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error) {
 	return nil, nil
 }
 
 // STEF TODO implement this method
 // ReceiveNodeAddressInfo receive a node address info from a peer (server side of SendNodeAddressInfo client api call)
-func (ns *NativeStrategy) SendNodeAddressInfo(peer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) error {
+func (ns *NativeStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
 	return nil
 }
 

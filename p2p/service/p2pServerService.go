@@ -132,8 +132,8 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// validate node address info message and signature
-		if err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-			// TODO: blacklist peers that send invalid data
+		if _, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
+			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry)
 			return nil, err
 		}
 		// update db and rebroadcast message if nodeAddressInfo is new

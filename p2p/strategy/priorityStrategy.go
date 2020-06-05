@@ -71,9 +71,12 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-	if ps.NodeConfigurationService.IsMyAddressDynamic() {
-		go ps.UpdateNodeAddressThread()
-	}
+	go func() {
+		// TODO: find a more elegant way, such as using channels to signal when the node has build its primary peers
+		// wait until some peers are resolved
+		time.Sleep(5 * time.Second)
+		ps.UpdateNodeAddressThread()
+	}()
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -404,6 +407,7 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 			}
 		}
 	}
+	//AAAAAAAAAAAAAAAA
 }
 
 // resolvePeer send request to a peer and add to resolved peer if get response
@@ -504,27 +508,39 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 	}
 }
 
+// TODO update unit test
 // GetMorePeersThread to periodically request more peers from another node in Peers list
 func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	ticker := time.NewTicker(time.Duration(constant.UpdateNodeAddressGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	currentAddr, _ := ps.NodeConfigurationService.GetMyAddress()
 	for {
 		select {
 		case <-ticker.C:
-			// get ip address from internet
-			ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress()
-			newAddr := ipAddr.String()
-			currentAddr, err := ps.NodeConfigurationService.GetMyAddress()
-			if err != nil {
-				ps.Logger.Error(err)
-			} else if ipAddr != nil && err == nil && currentAddr != newAddr {
+			if !ps.NodeConfigurationService.IsMyAddressDynamic() {
 				if err := ps.UpdateOwnNodeAddressInfo(
-					newAddr,
+					currentAddr,
 					ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
 					ps.NodeConfigurationService.GetNodeSecretPhrase(),
 				); err != nil {
 					ps.Logger.Error(err)
+				} else {
+					// break the loop if address is static (from config file) and has been updated
+					ticker.Stop()
+					return
+				}
+			} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil {
+				// get ip address from internet
+				newAddr := ipAddr.String()
+				if ipAddr != nil && err == nil && currentAddr != newAddr {
+					if err := ps.UpdateOwnNodeAddressInfo(
+						newAddr,
+						ps.NodeConfigurationService.GetHost().GetInfo().GetPort(),
+						ps.NodeConfigurationService.GetNodeSecretPhrase(),
+					); err != nil {
+						ps.Logger.Error(err)
+					}
 				}
 			}
 		case <-sigs:
@@ -892,19 +908,20 @@ func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
 	}
 }
 
-// GetNodeAddressesInfo request a list of node addresses from peers
-func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error) {
+// SyncNodeAddressInfoTable synchronize node_address_info table by downloading and merging all addresses from peers
+// Note: the node will try to rebroadcast every node address that is updated (new or updated version of an existing one)
+func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error) {
 	resolvedPeers := ps.NodeConfigurationService.GetHost().GetResolvedPeers()
 	if len(resolvedPeers) < 1 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "GetNodeAddressesInfo: No resolved peers found")
+		return nil, blocker.NewBlocker(blocker.AppErr, "SyncNodeAddressInfoTable: No resolved peers found")
 	}
 	var (
 		finished          bool
-		nodeAddressesInfo = make([]*model.NodeAddressInfo, 0)
+		nodeAddressesInfo = make(map[int64]*model.NodeAddressInfo, 0)
 		mutex             = &sync.Mutex{}
 	)
 
-	// Copy map to not interfere with it
+	// Copy map to not interfere with original
 	peers := make(map[string]*model.Peer)
 	for key, value := range resolvedPeers {
 		peers[key] = value
@@ -921,12 +938,31 @@ func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.Node
 
 		// validate downloaded address list
 		for _, nodeAddressInfo := range res.NodeAddressesInfo {
-			if err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-				ps.Logger.Warnf("Received invalid node address info message from peer %s:%d. Error: %s", peer.Info.Address, peer.Info.Port,
-					err.Error())
+			if found, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
+				if found {
+					ps.Logger.Warnf("Received invalid node address info message from peer %s:%d. Error: %s",
+						peer.Info.Address,
+						peer.Info.Port,
+						err)
+				} else {
+					ps.Logger.Warnf("NodeID %d not found in db. skipping node address %s:%d send by peer %s:%d. %s",
+						nodeAddressInfo.NodeID,
+						nodeAddressInfo.Address,
+						nodeAddressInfo.Port,
+						peer.Info.Address,
+						peer.Info.Port,
+						err)
+				}
 				continue
 			}
-			nodeAddressesInfo = append(nodeAddressesInfo, nodeAddressInfo)
+			// only keep most updated version of nodeAddressInfo for same nodeID (eg. if already downloaded an outdated record)
+			curNodeAddressInfo, ok := nodeAddressesInfo[nodeAddressInfo.NodeID]
+			if !ok || (ok && curNodeAddressInfo.BlockHeight < nodeAddressInfo.BlockHeight) {
+				nodeAddressesInfo[nodeAddressInfo.NodeID] = nodeAddressInfo
+				if err := ps.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
+					ps.Logger.Error(err)
+				}
+			}
 		}
 		// all address info have been fetched
 		if len(nodeAddressesInfo) == len(nodeRegistrations) {
@@ -936,7 +972,7 @@ func (ps *PriorityStrategy) GetNodeAddressesInfo(nodeRegistrations []*model.Node
 	return nodeAddressesInfo, nil
 }
 
-// ReceiveNodeAddressInfo receive a node address info from a peer (server side of SendNodeAddressInfo client api call)
+// ReceiveNodeAddressInfo receive a node address info from a peer
 func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
 	// add it to nodeAddressInfo table
 	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
@@ -948,7 +984,9 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 		for _, peer := range ps.GetResolvedPeers() {
 			go func(peer *model.Peer) {
 				if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
-					ps.Logger.Warnf("Received invalid node address info message from peer %s:%d. Error: %s", peer.Info.Address, peer.Info.Port,
+					ps.Logger.Warnf("Cannot send node address info message to peer %s:%d. Error: %s",
+						peer.Info.Address,
+						peer.Info.Port,
 						err.Error())
 				}
 			}(peer)

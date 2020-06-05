@@ -1547,11 +1547,11 @@ type (
 	}
 )
 
-func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error {
+func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (bool, error) {
 	if psMock.validateAddressInfoSuccess {
-		return nil
+		return true, nil
 	}
-	return errors.New("MockedError")
+	return true, errors.New("MockedError")
 }
 
 func (psMock *psMockNodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
@@ -1585,6 +1585,7 @@ func (*mockPeerServiceClientSuccess) GetNodeAddressesInfo(
 	return &model.GetNodeAddressesInfoResponse{
 		NodeAddressesInfo: []*model.NodeAddressInfo{
 			{
+				NodeID:      int64(111),
 				Address:     "127.0.0.1",
 				Port:        3000,
 				Signature:   make([]byte, 64),
@@ -1595,7 +1596,7 @@ func (*mockPeerServiceClientSuccess) GetNodeAddressesInfo(
 	}, nil
 }
 
-func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
+func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
@@ -1631,7 +1632,7 @@ func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*model.NodeAddressInfo
+		want    map[int64]*model.NodeAddressInfo
 		wantErr bool
 	}{
 		{
@@ -1663,7 +1664,7 @@ func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 				PeerServiceClient:  &mockPeerServiceClientFail{},
 				Logger:             log.New(),
 			},
-			want: make([]*model.NodeAddressInfo, 0),
+			want: make(map[int64]*model.NodeAddressInfo, 0),
 		},
 		{
 			name: "GetNodeAddressesInfo:fail-{ErrorValidatingNodeAddressInfo}",
@@ -1681,7 +1682,7 @@ func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 				NodeRegistrationService: &psMockNodeRegistrationService{},
 				Logger:                  log.New(),
 			},
-			want: make([]*model.NodeAddressInfo, 0),
+			want: make(map[int64]*model.NodeAddressInfo, 0),
 		},
 		{
 			name: "GetNodeAddressesInfo:success",
@@ -1701,8 +1702,9 @@ func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 				},
 				Logger: log.New(),
 			},
-			want: []*model.NodeAddressInfo{
-				{
+			want: map[int64]*model.NodeAddressInfo{
+				int64(111): {
+					NodeID:      int64(111),
 					Address:     "127.0.0.1",
 					Port:        3000,
 					Signature:   make([]byte, 64),
@@ -1728,7 +1730,7 @@ func TestPriorityStrategy_GetNodeAddressesInfo(t *testing.T) {
 				Logger:                   tt.fields.Logger,
 				PeerStrategyHelper:       tt.fields.PeerStrategyHelper,
 			}
-			got, err := ps.GetNodeAddressesInfo(tt.args.nodeRegistrations)
+			got, err := ps.SyncNodeAddressInfoTable(tt.args.nodeRegistrations)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("PriorityStrategy.GetNodeAddressesInfo() error = %v, wantErr %v", err, tt.wantErr)
 				return

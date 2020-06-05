@@ -26,7 +26,7 @@ type (
 		DisconnectPeer(peer *model.Peer)
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		ValidateRequest(ctx context.Context) bool
-		GetNodeAddressesInfo(nodeRegistrations []*model.NodeRegistration) ([]*model.NodeAddressInfo, error)
+		SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error)
 		ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error
 		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error
 	}

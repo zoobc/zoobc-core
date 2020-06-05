@@ -43,7 +43,7 @@ type (
 			port uint32,
 			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
 		UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error)
-		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) error
+		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -520,7 +520,7 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 // ValidateNodeAddressInfo validate message data against:
 // - main blocks: block height and hash
 // - node registry: nodeID and message signature (use node public key in registry to validate the signature)
-func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (bool, error) {
 	var (
 		block            model.Block
 		nodeRegistration model.NodeRegistration
@@ -532,9 +532,9 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	err := nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+			return false, blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
 		}
-		return err
+		return true, err
 	}
 
 	// validate the message signature
@@ -544,7 +544,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		nodeAddressInfo.GetSignature(),
 		nodeRegistration.GetNodePublicKey(),
 	) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+		return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
 
 	// validate block height
@@ -552,33 +552,33 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	err = nrs.BlockQuery.Scan(&block, blockRow)
 	if err != nil || nodeAddressInfo.GetBlockHeight() <= block.GetHeight() {
 		if err == sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+			return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
 		}
-		return err
+		return true, err
 	}
 	// validate block hash
 	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+		return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
 
 	// in case node address info for nodeID exists, validate that its height is lower than the one in the message
 	qry, args = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs([]int64{nodeAddressInfo.GetNodeID()})
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
-		return err
+		return true, err
 	}
 	defer rows.Close()
 	prevAddressInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
 	if err != nil {
-		return err
+		return true, err
 	}
 	if len(prevAddressInfo) > 0 {
 		if prevAddressInfo[0].BlockHeight >= nodeAddressInfo.BlockHeight {
-			return blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
+			return true, blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
 		}
 	}
 
-	return nil
+	return true, nil
 }
 
 // GenerateNodeAddressInfo generate a nodeAddressInfo signed message
