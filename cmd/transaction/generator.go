@@ -531,7 +531,7 @@ func GenerateTxFeeVoteRevealPhase(tx *model.Transaction, voteInfo *model.FeeVote
 			Body: txBody,
 		}).GetBodyBytes()
 	)
-
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteReveal"])
 	tx.TransactionBody = &model.Transaction_FeeVoteRevealTransactionBody{
 		FeeVoteRevealTransactionBody: txBody,
 	}

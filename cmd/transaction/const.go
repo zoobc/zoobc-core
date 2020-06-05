@@ -66,12 +66,8 @@ var (
 	nonce             int64
 	minSignature      uint32
 
-	// fee vote commitment
-	voteHashHex   string
-	voteHashBytes string
-
-	// fee vote reveal
-	recentBlockHash   string
+	// fee vote
 	recentBlockHeight uint32
 	feeVote           int64
+	dbPath, dBName    string
 )

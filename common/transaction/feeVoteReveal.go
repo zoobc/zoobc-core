@@ -61,6 +61,20 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseReveal {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidPhasePeriod")
 	}
+
+	// must match the previously submitted in CommitmentVote
+	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return err
+	}
+	err = tx.FeeVoteCommitVoteQuery.Scan(&commitVote, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "CommitVoteNotFound")
+		}
+		return err
+	}
 	// VoteObject.Signature must be a valid signature from node-owner on bytes(VoteInfo)
 	err = tx.SignatureInterface.VerifySignature(
 		tx.GetFeeVoteInfoBytes(),
@@ -91,19 +105,6 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	err = tx.FeeScaleService.IsInPhasePeriod(recentBlock.GetTimestamp())
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	// must match the previously submitted in CommitmentVote
-	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return err
-	}
-	err = tx.FeeVoteCommitVoteQuery.Scan(&commitVote, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "CommitVoteNotFound")
-		}
-		return err
 	}
 
 	// sender must be as node owner

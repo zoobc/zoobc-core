@@ -1,18 +1,25 @@
 package transaction
 
 import (
-	"encoding/hex"
+	"database/sql"
 	"fmt"
 	"os"
-	"strings"
+	"path"
 	"time"
+
+	"github.com/zoobc/zoobc-core/cmd/helper"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -100,7 +107,8 @@ func init() {
 		int32(model.SignatureType_DefaultSignature),
 		"signature-type that provide type of signature want to use to generate the account",
 	)
-
+	txCmd.PersistentFlags().StringVarP(&dbPath, "db-path", "p", "resource", "db-path is database path location")
+	txCmd.PersistentFlags().StringVarP(&dBName, "db-name", "n", "zoobc.db", "db-name is database name {name}.db")
 	/*
 		SendMoney Command
 	*/
@@ -188,15 +196,12 @@ func init() {
 	/*
 		Fee Vote Commitment Command
 	*/
-	feeVoteCommitmentCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
-	feeVoteCommitmentCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
-		"eg: --vote-hash-bytes='1, 222, 54, 12, 32'")
+	feeVoteCommitmentCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
 
 	/*
 		Fee Vote Reveal Command
 	*/
-	feeVoteRevealCmd.Flags().StringVarP(&recentBlockHash, "recent-block-hash", "b", "", "recent-block-hash string format with 'comma' as separator")
-	feeVoteRevealCmd.Flags().Uint32VarP(&recentBlockHeight, "recent-block-height", "i", 0,
+	feeVoteRevealCmd.Flags().Uint32VarP(&recentBlockHeight, "recent-block-height", "b", 0,
 		"recent-block-height which is the recent block hash reference")
 	feeVoteRevealCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
 
@@ -472,9 +477,11 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
-			err      error
-			voteHash []byte
-			tx       = GenerateBasicTransaction(
+			err         error
+			feeVoteInfo model.FeeVoteInfo
+			sqliteDB    *sql.DB
+			// voteHash    []byte
+			tx = GenerateBasicTransaction(
 				senderAddress,
 				senderSeed,
 				senderSignatureType,
@@ -483,22 +490,56 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 				fee,
 				recipientAccountAddress)
 		)
-		// parsing vote hash
-		if voteHashHex != "" {
-			voteHash, err = hex.DecodeString(voteHashHex)
-			if err != nil {
-				panic(fmt.Sprintln("failed decode voteHash Hex, ", err.Error()))
-			}
-		} else if voteHashBytes != "" {
-			voteHash, err = helper.ParseBytesArgument(voteHashBytes, ", ")
-			if err != nil {
-				panic("failed to parse vote hash bytes")
-			}
-		} else {
-			panic("Please provide the vote hash in hex or bytes string")
+
+		dbInstance := database.NewSqliteDB()
+		dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
+		err = dbInstance.InitializeDB(dbPath, dBName)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		sqliteDB, err = dbInstance.OpenDB(
+			dbPath,
+			dBName,
+			constant.SQLMaxOpenConnetion,
+			constant.SQLMaxIdleConnections,
+			constant.SQLMaxConnectionLifetime,
+		)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
 		}
 
-		tx = GenerateTxFeeVoteCommitment(tx, voteHash)
+		lastBlock, err := commonUtil.GetLastBlock(
+			query.NewQueryExecutor(sqliteDB),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+		)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		feeVoteInfo = model.FeeVoteInfo{
+			RecentBlockHeight: lastBlock.GetHeight(),
+			RecentBlockHash:   lastBlock.GetBlockHash(),
+			FeeVote:           feeVote,
+		}
+		fb := (&transaction.FeeVoteRevealTransaction{
+			Body: &model.FeeVoteRevealTransactionBody{
+				FeeVoteInfo: &feeVoteInfo,
+			},
+		}).GetFeeVoteInfoBytes()
+
+		digest := sha3.New256()
+		_, err = digest.Write(fb)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("GetLast block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		tx = GenerateTxFeeVoteCommitment(tx, digest.Sum([]byte{}))
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
@@ -522,21 +563,50 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 				fee,
 				recipientAccountAddress)
 		)
-		recentBlockHash = strings.ReplaceAll(recentBlockHash, " ", "")
-		if recentBlockHash != "" {
-			feeVoteInfo.RecentBlockHash, err = helper.ParseBytesArgument(recentBlockHash, ",")
-			if err != nil {
-				_ = feeVoteRevealCmd.Help()
-				logrus.Error("failed to parse recent block hash\n")
-				os.Exit(1)
-			}
-		} else {
-			_ = feeVoteRevealCmd.Help()
-			logrus.Error("Required recent block hash\n")
-			os.Exit(1)
-		}
 
 		if recentBlockHeight != 0 {
+			var (
+				dbInstance = database.NewSqliteDB()
+				sqliteDB   *sql.DB
+				row        *sql.Row
+				block      model.Block
+				blockQuery = query.NewBlockQuery(&chaintype.MainChain{})
+			)
+			dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
+			err = dbInstance.InitializeDB(dbPath, dBName)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				os.Exit(1)
+			}
+			sqliteDB, err = dbInstance.OpenDB(
+				dbPath,
+				dBName,
+				constant.SQLMaxOpenConnetion,
+				constant.SQLMaxIdleConnections,
+				constant.SQLMaxConnectionLifetime,
+			)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				os.Exit(1)
+			}
+			row, err = query.NewQueryExecutor(sqliteDB).ExecuteSelectRow(
+				blockQuery.GetBlockByHeight(recentBlockHeight),
+				false,
+			)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				return
+			}
+			err = blockQuery.Scan(&block, row)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				return
+			}
+			feeVoteInfo.RecentBlockHash = block.GetBlockHash()
 			feeVoteInfo.RecentBlockHeight = recentBlockHeight
 		}
 
@@ -550,11 +620,10 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 			fb,
 			model.SignatureType_DefaultSignature,
 			senderSeed,
-			true,
 		)
 		if err != nil {
 			_ = feeVoteRevealCmd.Help()
-			logrus.Error("failed to sign fee vote info, check seed")
+			logrus.Error("Failed to sign fee vote info, check seed")
 			return
 		}
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)

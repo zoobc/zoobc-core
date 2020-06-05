@@ -66,14 +66,26 @@ func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote)
 }
 
 func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error {
-	return row.Scan(
-		&vote.VoteInfo.RecentBlockHash,
-		&vote.VoteInfo.RecentBlockHeight,
-		&vote.VoteInfo.FeeVote,
-		&vote.VoterAddress,
-		&vote.VoterSignature,
-		&vote.BlockHeight,
+	var (
+		voterAddress   string
+		blockHeight    uint32
+		voterSignature []byte
+		feeVoteInfo    model.FeeVoteInfo
 	)
+	err := row.Scan(
+		&feeVoteInfo.RecentBlockHash,
+		&feeVoteInfo.RecentBlockHeight,
+		&feeVoteInfo.FeeVote,
+		&voterAddress,
+		&voterSignature,
+		&blockHeight,
+	)
+	vote.VoterAddress = voterAddress
+	vote.BlockHeight = blockHeight
+	vote.VoterSignature = voterSignature
+	vote.VoteInfo = &feeVoteInfo
+	fmt.Println(vote)
+	return err
 }
 
 // Rollback delete records `WHERE block_height > "block_height"`
