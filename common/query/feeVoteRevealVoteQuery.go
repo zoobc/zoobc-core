@@ -37,14 +37,17 @@ func NewFeeVoteRevealVoteQuery() *FeeVoteRevealVoteQuery {
 func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
 	return fvr.TableName
 }
+
+// GetFeeVoteRevealByAccountAddress represents getting fee_vote_reveal by account address
 func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (qry string, args []interface{}) {
 	return fmt.Sprintf(
-		"SELECT (%s) FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+		"SELECT %s FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 		strings.Join(fvr.Fields, ", "),
 		fvr.getTableName(),
 	), []interface{}{accountAddress}
 }
 
+// InsertRevealVote represents insert new record to fee_vote_reveal
 func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRevealVote) (qry string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
@@ -54,6 +57,7 @@ func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRev
 	), fvr.ExtractModel(revealVote)
 }
 
+// ExtractModel extracting model.FeeVoteRevealVote values
 func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote) []interface{} {
 	return []interface{}{
 		revealVote.VoteInfo.GetRecentBlockHash(),
@@ -65,6 +69,7 @@ func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote)
 	}
 }
 
+// Scan build model.FeeVoteRevealVote from sql.Row
 func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error {
 	var (
 		voterAddress   string
@@ -84,7 +89,6 @@ func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.
 	vote.BlockHeight = blockHeight
 	vote.VoterSignature = voterSignature
 	vote.VoteInfo = &feeVoteInfo
-	fmt.Println(vote)
 	return err
 }
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -31,8 +30,8 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddress(t *testing.T) {
 			args: args{
 				accountAddress: "ABSCasjkdahsdasd",
 			},
-			want: "SELECT (recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height)" +
-				" FROM fee_vote_reveal_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+				"FROM fee_vote_reveal_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 			want1: []interface{}{"ABSCasjkdahsdasd"},
 		},
 	}
