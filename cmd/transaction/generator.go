@@ -537,6 +537,40 @@ func GenerateTxFeeVoteRevealPhase(tx *model.Transaction, voteInfo *model.FeeVote
 	}
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
 
+// GenerateTxLiquidPayment return liquid payment transaction based on provided basic transaction & ammunt
+func GenerateTxLiquidPayment(tx *model.Transaction, sendAmount int64, completeMinutes uint64) *model.Transaction {
+	txBody := &model.LiquidPaymentTransactionBody{
+		Amount:          sendAmount,
+		CompleteMinutes: completeMinutes,
+	}
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["liquidPayment"])
+	tx.TransactionBody = &model.Transaction_LiquidPaymentTransactionBody{
+		LiquidPaymentTransactionBody: txBody,
+	}
+	txBodyBytes := (&transaction.LiquidPaymentTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+// GenerateTxLiquidPaymentStop return liquid payment stop transaction based on provided basic transaction & ammunt
+func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *model.Transaction {
+	txBody := &model.LiquidPaymentStopTransactionBody{
+		TransactionID: transactionID,
+	}
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["liquidPaymentStop"])
+	tx.TransactionBody = &model.Transaction_LiquidPaymentStopTransactionBody{
+		LiquidPaymentStopTransactionBody: txBody,
+	}
+	txBodyBytes := (&transaction.LiquidPaymentStopTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
 	return tx
 }

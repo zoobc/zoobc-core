@@ -7,10 +7,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/zoobc/zoobc-core/cmd/helper"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -83,6 +82,16 @@ var (
 		Use:   "fee-vote-reveal",
 		Short: "transaction sub command used to generate 'fee vote reveal phase' transaction",
 		Long:  "transaction sub command used to generate 'fee vote reveal phase' transaction. part of fee vote do this after commitment vote",
+	}
+	liquidPaymentCmd = &cobra.Command{
+		Use:   "liquid-payment",
+		Short: "transaction sub command used to generate 'liquid payment' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment' transaction whose payment is based on at what time the payment is stopped",
+	}
+	liquidPaymentStopCmd = &cobra.Command{
+		Use:   "liquid-payment-stop",
+		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
 	}
 )
 
@@ -205,6 +214,16 @@ func init() {
 		"recent-block-height which is the recent block hash reference")
 	feeVoteRevealCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
 
+	/*
+		liquidPaymentCmd
+	*/
+	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send with liquid payment")
+	liquidPaymentCmd.Flags().Uint64Var(&completeMinutes, "complete-minutes", 0, "In how long the span we want to send the liquid payment (in minutes)")
+
+	/*
+		liquidPaymentStopCmd
+	*/
+	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -235,6 +254,10 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(feeVoteCommitmentCmd)
 	feeVoteRevealCmd.Run = txGeneratorCommandsInstance.feeVoteRevealProcess()
 	txCmd.AddCommand(feeVoteRevealCmd)
+	liquidPaymentCmd.Run = txGeneratorCommandsInstance.LiquidPaymentProcess()
+	txCmd.AddCommand(liquidPaymentCmd)
+	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
+	txCmd.AddCommand(liquidPaymentStopCmd)
 	return txCmd
 }
 
@@ -629,5 +652,39 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
 
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, 0), outputType)
+	}
+}
+
+// LiquidPaymentProcess for generate TX LiquidPayment type
+func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// LiquidPaymentStopProcess for generate TX LiquidPaymentStop type
+func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }

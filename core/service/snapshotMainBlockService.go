@@ -358,11 +358,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		err = ss.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
-			err = ss.QueryExecutor.RollbackTx()
+			rollbackErr := ss.QueryExecutor.RollbackTx()
 			if err != nil {
-				ss.Logger.Warnf("Failed to run RollbackTX DB: %s", err.Error())
+				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
 			}
-			break
+			return err
 		}
 	}
 

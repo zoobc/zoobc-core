@@ -316,7 +316,9 @@ func init() {
 	proto.RegisterType((*GetMempoolTransactionsResponse)(nil), "model.GetMempoolTransactionsResponse")
 }
 
-func init() { proto.RegisterFile("model/mempool.proto", fileDescriptor_22ea31ac6d427b7b) }
+func init() {
+	proto.RegisterFile("model/mempool.proto", fileDescriptor_22ea31ac6d427b7b)
+}
 
 var fileDescriptor_22ea31ac6d427b7b = []byte{
 	// 452 bytes of a gzipped FileDescriptorProto
