@@ -442,9 +442,6 @@ var (
 	mockTimestampValidateRightPhaseExistVote              int64  = 3
 	mockBlockHightValidate                                uint32 = 1
 	mockFeeValidate                                       int64  = 10
-	mockValidateLastBlock                                        = model.Block{
-		Timestamp: mockTimestampValidateWrongPhase,
-	}
 )
 
 func (*mockFeeScaleServiceValidateFail) GetCurrentPhase(
