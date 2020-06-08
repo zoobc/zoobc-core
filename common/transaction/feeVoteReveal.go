@@ -24,7 +24,6 @@ type (
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -48,10 +47,6 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		qry            string
 		err            error
 	)
-
-	if tx.Fee <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "FeeNotEnough")
-	}
 
 	// check the transaction submitted on reveal-phase
 	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
@@ -84,7 +79,6 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
-	// RecentBlockHash must be within the timeframe of current voting period.
 	row, err = tx.QueryExecutor.ExecuteSelectRow(
 		tx.BlockQuery.GetBlockByHeight(tx.Body.GetFeeVoteInfo().GetRecentBlockHeight()),
 		dbTx,
@@ -101,10 +95,6 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 	if res := bytes.Compare(tx.Body.GetFeeVoteInfo().GetRecentBlockHash(), recentBlock.GetBlockHash()); res != 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidRecentBlock")
-	}
-	err = tx.FeeScaleService.IsInPhasePeriod(recentBlock.GetTimestamp())
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
 	// sender must be as node owner
@@ -133,12 +123,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 			return err
 		}
 		// check account balance sender
-		qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+		err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return err

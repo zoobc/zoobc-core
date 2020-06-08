@@ -375,7 +375,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:          ts.Executor,
 				AccountBalanceHelper:   accountBalanceHelper,
 				AccountLedgerHelper:    accountLedgerHelper,
-				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
 				FeeVoteCommitVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),

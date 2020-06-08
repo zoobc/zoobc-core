@@ -3,7 +3,6 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -21,9 +20,7 @@ type (
 	mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod struct {
 		fee.FeeScaleService
 	}
-	mockedFeeScaleFeeVoteRevealTXValidateTimeNotInRange struct {
-		fee.FeeScaleService
-	}
+
 	mockFeeScaleFeeVoteRevealTXValidateSuccess struct {
 		fee.FeeScaleService
 	}
@@ -67,9 +64,9 @@ type (
 		query.FeeVoteRevealVoteQuery
 	}
 
-	// mockAccountBalanceQuery
-	mockAccountBalanceQueryFeeVoteRevealTXValidateFound struct {
-		query.AccountBalanceQuery
+	// mockAccountBalanceHelper
+	mockAccountBalanceHelperValidateSuccess struct {
+		AccountBalanceHelper
 	}
 )
 
@@ -81,12 +78,6 @@ func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetCurrentPhase(int64, bool) 
 }
 func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) IsInPhasePeriod(int64) error {
 	return nil
-}
-func (*mockedFeeScaleFeeVoteRevealTXValidateTimeNotInRange) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
-	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
-}
-func (*mockedFeeScaleFeeVoteRevealTXValidateTimeNotInRange) IsInPhasePeriod(int64) error {
-	return fmt.Errorf("TimeNotInPhasePeriodRange")
 }
 
 func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
@@ -176,10 +167,7 @@ func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVoteRe
 	return sql.ErrNoRows
 }
 
-func (*mockAccountBalanceQueryFeeVoteRevealTXValidateFound) GetAccountBalanceByAccountAddress(string) (str string, args []interface{}) {
-	return "", []interface{}{}
-}
-func (*mockAccountBalanceQueryFeeVoteRevealTXValidateFound) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(accountBalance *model.AccountBalance, _ string, _ bool) error {
 	accountBalance.SpendableBalance = 100
 	return nil
 }
@@ -194,7 +182,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -211,13 +198,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{
-			name: "wantErr:FeeNotEnough",
-			fields: fields{
-				Fee: 0,
-			},
-			wantErr: true,
-		},
 		{
 			name: "WantErr:InvalidPhasePeriod",
 			fields: fields{
@@ -257,27 +237,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
 						RecentBlockHash:   []byte{1, 2, 3, 4, 5, 6, 7, 8},
-						RecentBlockHeight: 100,
-						FeeVote:           10,
-					},
-					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-				},
-				BlockQuery:             &mockBlockQueryFeeVoteRevealVoteTXValidateFound{},
-				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
-				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "WantErr:TimeNotInPhasePeriodRange",
-			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
-				FeeScaleService:    &mockedFeeScaleFeeVoteRevealTXValidateTimeNotInRange{},
-				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
-				Body: &model.FeeVoteRevealTransactionBody{
-					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -375,7 +334,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 				FeeVoteRevealVoteQuery: &mockVoteRevealQueryFeeVoteRevealTXValidateNotFound{},
 				NodeRegistrationQuery:  &mockNodeRegistrationQueryFeeVoteRevealTXValidateFound{},
-				AccountBalanceQuery:    &mockAccountBalanceQueryFeeVoteRevealTXValidateFound{},
+				AccountBalanceHelper:   &mockAccountBalanceHelperValidateSuccess{},
 			},
 			wantErr: false,
 		},
@@ -392,7 +351,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
 				BlockQuery:             tt.fields.BlockQuery,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
@@ -445,7 +403,6 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -477,7 +434,6 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
 				BlockQuery:             tt.fields.BlockQuery,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
@@ -503,7 +459,6 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -535,7 +490,6 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
 				BlockQuery:             tt.fields.BlockQuery,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
@@ -561,7 +515,6 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -600,7 +553,6 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
 				BlockQuery:             tt.fields.BlockQuery,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
@@ -635,7 +587,6 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -675,7 +626,6 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
 				BlockQuery:             tt.fields.BlockQuery,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,

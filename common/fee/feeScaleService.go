@@ -1,7 +1,6 @@
 package fee
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -18,7 +17,6 @@ type (
 			blockTimestamp int64,
 			isPostTransaction bool,
 		) (phase model.FeeVotePhase, canAdjust bool, err error)
-		IsInPhasePeriod(timestamp int64) error
 	}
 
 	FeeScaleService struct {
@@ -115,31 +113,4 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	}
 	// same month, year, over the commit phase
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
-}
-
-/*
-IsInPhasePeriod calculate timestamp of recent block + constant.CommitPhaseEndDay,
-Comparing with last block timestamp.
-*/
-func (fss *FeeScaleService) IsInPhasePeriod(timestamp int64) error {
-	var (
-		err       error
-		lastBlock *model.Block
-	)
-	if timestamp <= 0 {
-		return fmt.Errorf("InvalidTimestamp")
-	}
-
-	lastBlock, err = util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
-	if err != nil {
-		return err
-	}
-
-	recentBlockTime := time.Unix(timestamp, 0)
-	recentBlockTime.AddDate(0, 0, constant.CommitPhaseEndDay)
-
-	if time.Unix(lastBlock.GetTimestamp(), 0).Month() != recentBlockTime.Month() {
-		return fmt.Errorf("TimeNotInPhasePeriodRange")
-	}
-	return nil
 }
