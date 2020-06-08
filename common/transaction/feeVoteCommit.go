@@ -106,6 +106,7 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		accountBalance   model.AccountBalance
 		feeVotePhase     model.FeeVotePhase
 		nodeRegistration model.NodeRegistration
+		lastBlock        *model.Block
 	)
 
 	// Checking length hash of fee vote
@@ -114,7 +115,11 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	}
 
 	// check is period to submit commit vote or not
-	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	lastBlock, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
+	if err != nil {
+		return err
+	}
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(lastBlock.Timestamp, true)
 	if err != nil {
 		return err
 	}
@@ -190,10 +195,10 @@ func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) (err err
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-	// isCanAdjust means given time is having different month & year with last block time or not.
+	// canAdjust means given time is having different month & year with last block time or not.
 	// duplicate vote happen when isCanAdjust is false
-	_, isCanAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
-	if !isCanAdjust {
+	_, canAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
+	if !canAdjust {
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
 	}
 
@@ -245,9 +250,18 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
-	// TODO: check vote phase based on new block timestamp
-
+func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
+	// check vote phase based on new block timestamp
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	if err != nil {
+		return true, err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseCommmit {
+		return true, nil
+	}
 	// check duplicate vote on mempool
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
@@ -257,7 +271,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(selectedTransactions 
 		}
 	}
 	// check duplicate on previous vote
-	err := tx.checkDuplicateVoteCommit(false)
+	err = tx.checkDuplicateVoteCommit(false)
 	if err != nil {
 		return true, nil
 	}

@@ -25,7 +25,10 @@ type (
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
 		GetTransactionBody(transaction *model.Transaction)
-		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
+		SkipMempoolTransaction(
+			selectedTransactions []*model.Transaction,
+			blockTimestamp int64,
+		) (bool, error)
 		Escrowable() (EscrowTypeAction, bool)
 	}
 	// TypeActionSwitcher assert transaction to TypeAction / EscrowTypeAction

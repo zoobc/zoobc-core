@@ -192,7 +192,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 		if err != nil {
 			return nil, err
 		}
-		toRemove, err := txType.SkipMempoolTransaction(selectedTransactions)
+		toRemove, err := txType.SkipMempoolTransaction(selectedTransactions, blockTimestamp)
 		if err != nil {
 			return nil, err
 		}
