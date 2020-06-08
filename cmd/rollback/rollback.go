@@ -104,7 +104,7 @@ func rollbackBlockChain() RunCommand {
 				if err != nil {
 					fmt.Println("Failed to run RollbackTX DB")
 				}
-				break
+				return
 			}
 		}
 		err = queryExecutor.CommitTx()
