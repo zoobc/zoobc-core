@@ -89,7 +89,7 @@ jobs:
                   name: GENERATING GENESIS
                   command: |
                     if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" ]]; then
-                      go run cmd/main.go genesis generate -e ${CIRLE_BRANCH} -o dist \
+                      go run cmd/main.go genesis generate -e ${CIRCLE_BRANCH} -o dist \
                       && cp ./dist/generated/genesis/genesis.go ./common/constant/genesis.go
                     fi
             - run:
