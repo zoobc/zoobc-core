@@ -56,4 +56,9 @@ var (
 	RecentBlockHashLength uint32 = 4
 	RecentBlockHeight     uint32 = 4
 	VoterSignatureLength  uint32 = 4
+
+	// Liquid Transaction
+
+	LiquidPaymentCompleteMinutesLength uint32 = 8
+	TransactionID                      uint32 = 8
 )

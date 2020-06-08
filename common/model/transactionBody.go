@@ -15,3 +15,5 @@ func (*ApprovalEscrowTransactionBody) isTransaction_TransactionBody()         {}
 func (*MultiSignatureTransactionBody) isTransaction_TransactionBody()         {}
 func (*FeeVoteCommitTransactionBody) isTransaction_TransactionBody()          {}
 func (*FeeVoteRevealTransactionBody) isTransaction_TransactionBody()          {}
+func (*LiquidPaymentTransactionBody) isTransaction_TransactionBody()          {}
+func (*LiquidPaymentStopTransactionBody) isTransaction_TransactionBody()      {}

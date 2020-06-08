@@ -1,7 +1,10 @@
 package transaction
 
 import (
+	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -50,7 +53,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	)
 
 	switch buf[0] {
-	case 0:
+	case 0: // Empty Transaction
 		switch buf[1] {
 		case 0:
 			return &TXEmpty{}, nil
@@ -241,6 +244,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	// Multi Signature
 	case 5:
 		switch buf[1] {
+		// MultiSignatureTransaction
 		case 0:
 			// initialize service for pending_tx, pending_sig and multisig_info
 			typeSwitcher := &TypeSwitcher{
@@ -290,6 +294,49 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			}, nil
 		default:
 			return nil, nil
+		}
+	case 6:
+		switch buf[1] {
+		case 0: // LiquidPayment Transaction
+			transactionBody, err = new(LiquidPaymentTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &LiquidPaymentTransaction{
+				ID:                            tx.GetID(),
+				Body:                          transactionBody.(*model.LiquidPaymentTransactionBody),
+				Fee:                           tx.GetFee(),
+				SenderAddress:                 tx.GetSenderAccountAddress(),
+				RecipientAddress:              tx.GetRecipientAccountAddress(),
+				Height:                        tx.GetHeight(),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+				QueryExecutor:                 ts.Executor,
+				AccountBalanceHelper:          accountBalanceHelper,
+				AccountLedgerHelper:           accountLedgerHelper,
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+			}, nil
+		case 1: // LiquidPaymentStop Transaction
+			transactionBody, err = new(LiquidPaymentStopTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &LiquidPaymentStopTransaction{
+				ID:                            tx.GetID(),
+				Body:                          transactionBody.(*model.LiquidPaymentStopTransactionBody),
+				Fee:                           tx.GetFee(),
+				SenderAddress:                 tx.GetSenderAccountAddress(),
+				RecipientAddress:              tx.GetRecipientAccountAddress(),
+				Height:                        tx.GetHeight(),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+				QueryExecutor:                 ts.Executor,
+				AccountBalanceHelper:          accountBalanceHelper,
+				AccountLedgerHelper:           accountLedgerHelper,
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher:            ts,
+			}, nil
+		default:
+			return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[1]))
 		}
 	// Fee Voting
 	case 7:
@@ -342,6 +389,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			return nil, nil
 		}
 	default:
-		return nil, nil
+		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[0]))
 	}
 }

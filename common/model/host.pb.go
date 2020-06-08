@@ -231,7 +231,9 @@ func init() {
 	proto.RegisterMapType((map[string]*Peer)(nil), "model.GetHostPeersResponse.UnresolvedPeersEntry")
 }
 
-func init() { proto.RegisterFile("model/host.proto", fileDescriptor_2105bc76e5d5e738) }
+func init() {
+	proto.RegisterFile("model/host.proto", fileDescriptor_2105bc76e5d5e738)
+}
 
 var fileDescriptor_2105bc76e5d5e738 = []byte{
 	// 500 bytes of a gzipped FileDescriptorProto

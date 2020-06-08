@@ -375,6 +375,7 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,		-- block_height when the fee scale apply
 				"latest" INTEGER,
 				PRIMARY KEY("block_height")
+			)
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_reveal_vote" (
@@ -385,6 +386,20 @@ func (m *Migration) Init() error {
 				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"amount" INTEGER,
+				"applied_time" INTEGER,
+				"complete_minutes" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("id", "block_height")
 			)
 			`,
 		}

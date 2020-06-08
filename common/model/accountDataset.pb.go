@@ -313,7 +313,9 @@ func init() {
 	proto.RegisterType((*GetAccountDatasetRequest)(nil), "model.GetAccountDatasetRequest")
 }
 
-func init() { proto.RegisterFile("model/accountDataset.proto", fileDescriptor_8f6e88b2db5bd817) }
+func init() {
+	proto.RegisterFile("model/accountDataset.proto", fileDescriptor_8f6e88b2db5bd817)
+}
 
 var fileDescriptor_8f6e88b2db5bd817 = []byte{
 	// 399 bytes of a gzipped FileDescriptorProto

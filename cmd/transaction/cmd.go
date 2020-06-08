@@ -68,6 +68,16 @@ var (
 		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
 		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash of vote object ",
 	}
+	liquidPaymentCmd = &cobra.Command{
+		Use:   "liquid-payment",
+		Short: "transaction sub command used to generate 'liquid payment' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment' transaction whose payment is based on at what time the payment is stopped",
+	}
+	liquidPaymentStopCmd = &cobra.Command{
+		Use:   "liquid-payment-stop",
+		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
+	}
 )
 
 func init() {
@@ -182,6 +192,16 @@ func init() {
 	feeVoteCommitmentCmd.Flags().StringVar(&voteHashHex, "vote-hash-hex", "", "the hex string proof of owenership bytes")
 	feeVoteCommitmentCmd.Flags().StringVar(&voteHashBytes, "vote-hash-bytes", "", "vote hash bytes separated by `, `."+
 		"eg: --vote-hash-bytes='1, 222, 54, 12, 32'")
+	/*
+		liquidPaymentCmd
+	*/
+	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send with liquid payment")
+	liquidPaymentCmd.Flags().Uint64Var(&completeMinutes, "complete-minutes", 0, "In how long the span we want to send the liquid payment (in minutes)")
+
+	/*
+		liquidPaymentStopCmd
+	*/
+	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -210,7 +230,10 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(multiSigCmd)
 	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentmentProcess()
 	txCmd.AddCommand(feeVoteCommitmentCmd)
-
+	liquidPaymentCmd.Run = txGeneratorCommandsInstance.LiquidPaymentProcess()
+	txCmd.AddCommand(liquidPaymentCmd)
+	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
+	txCmd.AddCommand(liquidPaymentStopCmd)
 	return txCmd
 }
 
@@ -485,5 +508,39 @@ func (*TXGeneratorCommands) feeVoteCommitmentmentProcess() RunCommand {
 		} else {
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 		}
+	}
+}
+
+// LiquidPaymentProcess for generate TX LiquidPayment type
+func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+	}
+}
+
+// LiquidPaymentStopProcess for generate TX LiquidPaymentStop type
+func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
 	}
 }
