@@ -166,7 +166,7 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 		if accountAddress != signaturePubKeyAddress {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"invalidAccountAddrressOrSignaturePublicKey",
+				"invalidAccountAddressOrSignaturePublicKey",
 			)
 		}
 		sig, err := bitcoinSignature.GetSignatureFromBytes(signature[signatureFirstBytesIndex:])

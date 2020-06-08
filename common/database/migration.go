@@ -377,6 +377,31 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("block_height")
 			)
 			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_reveal_vote" (
+				"voter_address" VARCHAR(255), -- sender account address as voter
+				"recent_block_hash" BLOB, 
+				"recent_block_height" INTEGER,
+				"fee_vote" INTEGER, -- fee value voted
+				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
+				"block_height" INTEGER, -- height when revealed
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"amount" INTEGER,
+				"applied_time" INTEGER,
+				"complete_minutes" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("id", "block_height")
+			)
+			`,
 		}
 		return nil
 	}

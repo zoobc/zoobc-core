@@ -274,6 +274,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					nil,
 					nil,
+					nil,
 				),
 			},
 			args: args{

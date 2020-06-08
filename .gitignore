@@ -28,3 +28,4 @@ release/
 github.token
 *.back
 *.bak
+dist/

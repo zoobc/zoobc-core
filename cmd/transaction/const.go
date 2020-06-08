@@ -16,6 +16,9 @@ var (
 		"approvalEscrow":         {4, 0, 0, 0},
 		"multiSignature":         {5, 0, 0, 0},
 		"feeVoteCommit":          {7, 0, 0, 0},
+		"feeVoteReveal":          {7, 1, 0, 0},
+		"liquidPayment":          {6, 0, 0, 0},
+		"liquidPaymentStop":      {6, 1, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -68,4 +71,6 @@ var (
 	// fee vote
 	voteHashHex   string
 	voteHashBytes string
+	// liquidPayment
+	completeMinutes uint64
 )

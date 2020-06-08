@@ -244,6 +244,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
 	if err != nil {
+		rollbackErr := mps.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
+		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
@@ -485,7 +489,6 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-
 	for _, mempool := range mempoolsBackup {
 		var (
 			tx     *model.Transaction
@@ -493,16 +496,27 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		)
 		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 
@@ -519,7 +533,10 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 	}
