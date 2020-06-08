@@ -24,7 +24,7 @@
     "Smithing": true
   },
   {
-    "AccountBalance": 100000000000,
+    "AccountBalance": 0,
     "AccountAddress": "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
     "NodeSeed": "spree uplifted stapling quotable disfigure lair deduct untying timothy maggot cryptic unrigged",
     "NodePublicKeyB64": "Keu41kYXmVloKfr4MwdFWeq1ZKMtRZhGNMmTRgbyNNw=",
@@ -32,7 +32,7 @@
     "Smithing": true
   },
   {
-    "AccountBalance": 100000000000,
+    "AccountBalance": 0,
     "AccountAddress": "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
     "NodeSeed": "merge plug donor drop cancel inherit extra toss cabbage awkward destroy rail",
     "NodePublicKeyB64": "WyTkRmVeuva6BE6OraK7rcpR81yNeJTcKaDQXq6mPs8=",

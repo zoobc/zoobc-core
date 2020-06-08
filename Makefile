@@ -6,6 +6,9 @@ VERSION ?= latest
 BINARY_CORE := zoobc
 BINARY_CLI := zoomd
 GITHUB_TOKEN ?= $(shell cat github.token)
+genesis := false
+gen-target:= alpha
+gen-output := resource
 
 .PHONY: test
 test: go-fmt golangci-lint
@@ -30,8 +33,17 @@ go-fmt:
 	$(info    running go-fmt...)
 	go fmt `go list ./... | egrep -v 'common/model|common/service|vendor'`
 
+.PHONY: generate-gen
+generate-gen:
+	$(info generating new genesis file and replace old genesis file ...)
+	go run cmd/main.go genesis generate -e ${gen-target} -o ${gen-output}
+	mv ./${gen-output}/generated/genesis/genesis.go ./common/constant/genesis.go
+
 .PHONY: build
 build:
+ifdef genesis
+	$(MAKE) generate-gen
+endif
 	$(info    build core with host os as target...)
 	mkdir -p release
 	go build -o release/$(BINARY_CORE)-$(VERSION)
