@@ -137,7 +137,13 @@ func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVo
 func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) GetVoteCommitByAccountAddress(string) (qStr string, args []interface{}) {
 	return "", []interface{}{}
 }
-func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) Scan(vote *model.FeeVoteCommitmentVote, row *sql.Row) error {
+func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) Scan(vote *model.FeeVoteCommitmentVote, _ *sql.Row) error {
+	body, _ := GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   []byte{},
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	vote.VoteHash = body.GetVoteHash()
 	return nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -70,6 +71,17 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		}
 		return err
 	}
+
+	digest := sha3.New256()
+	_, err = digest.Write(tx.GetFeeVoteInfoBytes())
+	if err != nil {
+		return err
+	}
+
+	if res := bytes.Compare(commitVote.GetVoteHash(), digest.Sum([]byte{})); res != 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "NotMatchVoteHashed")
+	}
+
 	// VoteObject.Signature must be a valid signature from node-owner on bytes(VoteInfo)
 	err = tx.SignatureInterface.VerifySignature(
 		tx.GetFeeVoteInfoBytes(),
