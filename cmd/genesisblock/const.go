@@ -22,4 +22,16 @@ var (
 	wellKnownPeers         string
 	deploymentName         string
 	kvFileCustomConfigFile string
+
+	/*
+		ENV Target
+	*/
+	envTarget      string
+	output         string
+	envTargetValue = map[string]uint32{
+		"develop": 0,
+		"staging": 1,
+		"alpha":   2,
+		"local":   3,
+	}
 )
