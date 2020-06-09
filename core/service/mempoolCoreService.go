@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -232,7 +231,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 
 	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
+		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
@@ -245,6 +244,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
 	if err != nil {
+		rollbackErr := mps.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
+		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
@@ -288,7 +291,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
+		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
 		ID:                      receivedTx.ID,
 		TransactionBytes:        receivedTxBytes,
 		ArrivalTimestamp:        time.Now().Unix(),
@@ -486,7 +489,6 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-
 	for _, mempool := range mempoolsBackup {
 		var (
 			tx     *model.Transaction
@@ -494,16 +496,27 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		)
 		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
 		if err != nil {
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 
@@ -520,7 +533,10 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
 			return err
 		}
 	}

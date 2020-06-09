@@ -16,14 +16,14 @@
 
 Table of Contents:
 
--   [Environments](#environments)
--   [Install](#install)
--   [Build](#build)
--   [Run](#run)
--   [Tests](#tests)
--   [Swagger](#swagger)
--   [Contributing](#contributing)
--   [GRPC web proxy for browser](#grpc-web-proxy-for-browser)
+- [Environments](#environments)
+- [Install](#install)
+- [Build](#build)
+- [Run](#run)
+- [Tests](#tests)
+- [Swagger](#swagger)
+- [Contributing](#contributing)
+- [GRPC web proxy for browser](#grpc-web-proxy-for-browser)
 
 ### Environments
 
@@ -52,16 +52,15 @@ Table of Contents:
 To make use of the `Makefile` please rename `github.token.example` to `github.token` and place your github token there. This is required since we are accessing private repository for one of our dependencies.
 
 -   Core
-
-    note: For cross compilation please install and activate docker.
-
+    > note: For cross compilation please install and activate docker.
     For:
 
     -   host: `go build -o zoobc`
     -   darwin: `make VERSION=v1.10.1 core-darwin`
     -   linux (386 & amd64): `make VERSION=v1.10.1 core-linux`
     -   windows (32 & 64bit): `make VERSION=v1.10.1 core-windows`
-
+    > With genesis replacement, you can add argument `genesis=true` and what your target is {develop,staging,alhpa(default),local}, like:
+    `make build genesis=true gen-target=develop gen-output=dist` for the local target you need create `local.preRegisteredNodes.json`.
 -   CMD
 
     For:

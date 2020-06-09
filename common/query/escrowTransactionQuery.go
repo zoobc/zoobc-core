@@ -20,6 +20,7 @@ type (
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
+		GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string
 		GetEscrowTransactionsByTransactionIdsAndStatus(
 			transactionIds []string, status model.EscrowStatus,
 		) string
@@ -111,6 +112,12 @@ func (et *EscrowTransactionQuery) GetEscrowTransactions(fields map[string]interf
 	}
 
 	return qStr, args
+}
+
+// GetExpiredEscrowTransactionsAtCurrentBlock fetch provided block height expired escrow transaction
+func (et *EscrowTransactionQuery) GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE timeout + block_height = %d AND latest = true AND status = %d",
+		strings.Join(et.Fields, ", "), et.getTableName(), blockHeight, model.EscrowStatus_Pending)
 }
 
 // ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
