@@ -43,6 +43,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		commitVote     model.FeeVoteCommitmentVote
 		revealVote     model.FeeVoteRevealVote
 		nodeReg        model.NodeRegistration
+		canAdjust      bool
 		args           []interface{}
 		row            *sql.Row
 		qry            string
@@ -50,7 +51,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	)
 
 	// check the transaction submitted on reveal-phase
-	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	feeVotePhase, canAdjust, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
 	if err != nil {
 		return err
 	}
@@ -134,20 +135,21 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		if err != sql.ErrNoRows {
 			return err
 		}
-		// check account balance sender
-		err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
-			}
-			return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
-		}
-		if accountBalance.GetSpendableBalance() < tx.Fee {
-			return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
-		}
-		return nil
+	} else if canAdjust {
+		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
+	// check account balance sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if accountBalance.GetSpendableBalance() < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
+	}
+	return nil
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction

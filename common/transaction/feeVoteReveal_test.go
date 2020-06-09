@@ -24,6 +24,9 @@ type (
 	mockFeeScaleFeeVoteRevealTXValidateSuccess struct {
 		fee.FeeScaleService
 	}
+	mockFeeScaleFeeVoteRevealTXValidateDuplicated struct {
+		fee.FeeScaleService
+	}
 
 	mockSignatureFeeVoteRevealTXValidateInvalid struct {
 		crypto.Signature
@@ -76,8 +79,8 @@ func (*mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod) GetCurrentPhase(in
 func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
 }
-func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) IsInPhasePeriod(int64) error {
-	return nil
+func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
+	return model.FeeVotePhase_FeeVotePhaseReveal, true, nil
 }
 
 func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
@@ -302,7 +305,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 			fields: fields{
 				Fee:                1,
 				Timestamp:          12345678,
-				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
+				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateDuplicated{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
