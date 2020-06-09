@@ -327,7 +327,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	// check previouds vote
 	err = tx.checkPreviousVote(false)
 	if err != nil {
-		return true, err
+		return true, nil
 	}
 	return false, nil
 }
