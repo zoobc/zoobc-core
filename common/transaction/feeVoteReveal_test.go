@@ -3,7 +3,6 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -103,7 +102,6 @@ func (*mockQueryExecutorFeeVoteRevealTXValidateSuccess) ExecuteSelectRow(qry str
 		dbCon, mockDB, _ = sqlmock.New()
 		mockedRow        *sqlmock.Rows
 	)
-	fmt.Println("qry -->", qry)
 	switch {
 	case strings.Contains(qry, "FROM main_block"):
 		mockedBlock := GetFixturesForBlock(100, 12345678)
