@@ -124,8 +124,8 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
-	// check duplicated reveal to database, once per node owner
-	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddress(tx.SenderAddress)
+	// check duplicated reveal to database, once per node owner per period
+	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(tx.SenderAddress, recentBlock.GetHeight())
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return err

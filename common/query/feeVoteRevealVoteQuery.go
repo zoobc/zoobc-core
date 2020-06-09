@@ -10,7 +10,7 @@ import (
 
 type (
 	FeeVoteRevealVoteQueryInterface interface {
-		GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{})
+		GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(accountAddress string, blockHeight uint32) (string, []interface{})
 		InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{})
 		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
 	}
@@ -38,13 +38,16 @@ func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
 	return fvr.TableName
 }
 
-// GetFeeVoteRevealByAccountAddress represents getting fee_vote_reveal by account address
-func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (qry string, args []interface{}) {
+// GetFeeVoteRevealByAccountAddressAndRecentBlockHeight represents getting fee_vote_reveal by account address
+func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
+	accountAddress string,
+	blockHeight uint32,
+) (qry string, args []interface{}) {
 	return fmt.Sprintf(
-		"SELECT %s FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+		"SELECT %s FROM %s WHERE voter_address = ? AND recent_block_height = ? ORDER BY block_height DESC LIMIT 1",
 		strings.Join(fvr.Fields, ", "),
 		fvr.getTableName(),
-	), []interface{}{accountAddress}
+	), []interface{}{accountAddress, blockHeight}
 }
 
 // InsertRevealVote represents insert new record to fee_vote_reveal

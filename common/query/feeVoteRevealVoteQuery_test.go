@@ -9,13 +9,14 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddress(t *testing.T) {
+func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
 		accountAddress string
+		blockHeight    uint32
 	}
 	tests := []struct {
 		name   string
@@ -29,10 +30,11 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddress(t *testing.T) {
 			fields: fields(*NewFeeVoteRevealVoteQuery()),
 			args: args{
 				accountAddress: "ABSCasjkdahsdasd",
+				blockHeight:    100,
 			},
 			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
-				"FROM fee_vote_reveal_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
-			want1: []interface{}{"ABSCasjkdahsdasd"},
+				"FROM fee_vote_reveal_vote WHERE voter_address = ? AND recent_block_height = ? ORDER BY block_height DESC LIMIT 1",
+			want1: []interface{}{"ABSCasjkdahsdasd", uint32(100)},
 		},
 	}
 	for _, tt := range tests {
@@ -41,7 +43,7 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddress(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			got, got1 := fvr.GetFeeVoteRevealByAccountAddress(tt.args.accountAddress)
+			got, got1 := fvr.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(tt.args.accountAddress, tt.args.blockHeight)
 			if got != tt.want {
 				t.Errorf("GetFeeVoteRevealByAccountAddress() got = %v, want %v", got, tt.want)
 				return
