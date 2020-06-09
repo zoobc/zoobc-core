@@ -63,7 +63,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -90,7 +89,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyConfirmFail{},
 			},
@@ -109,7 +107,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyConfirmSuccess{},
 				AccountLedgerHelper:        &mockAccountLedgerHelperApplyConfirmFail{},
@@ -129,7 +126,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyConfirmSuccess{},
 				AccountLedgerHelper:        &mockAccountLedgerHelperApplyConfirmSuccess{},
@@ -150,7 +146,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyConfirmSuccess{},
 				AccountLedgerHelper:        &mockAccountLedgerHelperApplyConfirmSuccess{},
@@ -172,7 +167,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -212,7 +206,6 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -235,7 +228,6 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyUnconfirmedFail{},
 			},
@@ -251,7 +243,6 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperApplyUnconfirmedSuccess{},
 			},
@@ -268,7 +259,6 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -308,7 +298,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -331,7 +320,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperUndoApplyUnconfirmedFail{},
 			},
@@ -347,7 +335,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				AccountBalanceHelper:       &mockAccountBalanceHelperUndoApplyUnconfirmedSuccess{},
 			},
@@ -364,7 +351,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -560,11 +546,15 @@ func (*mockAccountBalanceHelperValidateFail) GetBalanceByAccountID(accountBalanc
 	return errors.New("MockedError")
 }
 
-func (*mockAccountBalanceHelperValidateNotEnoughSpendable) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (*mockAccountBalanceHelperValidateNotEnoughSpendable) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
 	accountBalance.SpendableBalance = mockFeeValidate - 1
 	return nil
 }
-func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
 	accountBalance.SpendableBalance = mockFeeValidate + 1
 	return nil
 }
@@ -579,7 +569,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -790,7 +779,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -814,7 +802,6 @@ func TestFeeVoteCommitTransaction_GetAmount(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -843,7 +830,6 @@ func TestFeeVoteCommitTransaction_GetAmount(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -867,7 +853,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -898,7 +883,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -928,7 +912,6 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -959,7 +942,6 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -983,7 +965,6 @@ func TestFeeVoteCommitTransaction_GetTransactionBody(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -1019,7 +1000,6 @@ func TestFeeVoteCommitTransaction_GetTransactionBody(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -1041,7 +1021,6 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
@@ -1072,7 +1051,6 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
@@ -1249,7 +1227,6 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
-				AccountBalanceQuery:        tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,

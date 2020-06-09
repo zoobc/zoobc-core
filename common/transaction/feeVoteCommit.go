@@ -21,7 +21,6 @@ type FeeVoteCommitTransaction struct {
 	Timestamp                  int64
 	Body                       *model.FeeVoteCommitTransactionBody
 	FeeScaleService            fee.FeeScaleServiceInterface
-	AccountBalanceQuery        query.AccountBalanceQueryInterface
 	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 	BlockQuery                 query.BlockQueryInterface
 	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface

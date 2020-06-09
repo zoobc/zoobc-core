@@ -360,7 +360,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceHelper:       accountBalanceHelper,
 				AccountLedgerHelper:        accountLedgerHelper,
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeScaleService: fee.NewFeeScaleService(

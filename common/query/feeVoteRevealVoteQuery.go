@@ -10,8 +10,8 @@ import (
 
 type (
 	FeeVoteRevealVoteQueryInterface interface {
-		GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{})
-		InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{})
+		GetFeeVoteRevealByAccountAddress(accountAddress string) (qStr string, args []interface{})
+		InsertRevealVote(revealVote *model.FeeVoteRevealVote) (qStr string, args []interface{})
 		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
 	}
 	FeeVoteRevealVoteQuery struct {
@@ -37,7 +37,7 @@ func NewFeeVoteRevealVoteQuery() *FeeVoteCommitmentVoteQuery {
 func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
 	return fvr.TableName
 }
-func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (string, []interface{}) {
+func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddress string) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 		"SELECT (%s) FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
 		strings.Join(fvr.Fields, ", "),
@@ -45,7 +45,7 @@ func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddress(accountAddre
 	), []interface{}{accountAddress}
 }
 
-func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{}) {
+func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRevealVote) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
 		fvr.getTableName(),

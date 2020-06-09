@@ -153,9 +153,9 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 			return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
 		}
 		return nil
-	} else {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
+
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction

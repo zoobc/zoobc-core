@@ -12,7 +12,7 @@ type (
 	// FeeVoteCommitmentVoteQueryInterface interface that implemented by FeeVoteCommitmentVoteQuery
 	FeeVoteCommitmentVoteQueryInterface interface {
 		GetVoteCommitByAccountAddress(accountAddress string) (qStr string, args []interface{})
-		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (str string, args []interface{})
+		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
 		ExtractModel(voteCommit *model.FeeVoteCommitmentVote) []interface{}
 		Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error
 		Rollback(height uint32) (multiQueries [][]interface{})
@@ -42,7 +42,7 @@ func (fsvc *FeeVoteCommitmentVoteQuery) getTableName() string {
 
 // InsertCommitVote to build insert query for `fee_vote_commitment_vote` table
 func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (
-	str string, args []interface{},
+	qStr string, args []interface{},
 ) {
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
