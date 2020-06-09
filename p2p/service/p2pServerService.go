@@ -112,7 +112,6 @@ func (ps *P2PServerService) GetNodeAddressesInfo(
 	ctx context.Context,
 	req *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
-	// STEF not sure if we should validate this request. ask @alhiee
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// get a slice of node address info by node IDs
 		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(req.NodeIDs); err == nil {

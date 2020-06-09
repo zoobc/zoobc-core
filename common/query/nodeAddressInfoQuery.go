@@ -14,7 +14,7 @@ type (
 		InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{})
 		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64) (str string, args []interface{})
-		GetNodeAddressInfoByNodeIDs(nodeIDs []int64) (str string, args []interface{})
+		GetNodeAddressInfoByNodeIDs(nodeIDs []int64) string
 		GetNodeIDByAddressPort(address string, port uint32) (str string, args []interface{})
 		ExtractModel(pa *model.NodeAddressInfo) []interface{}
 		BuildModel(peerAddresss []*model.NodeAddressInfo, rows *sql.Rows) ([]*model.NodeAddressInfo, error)
@@ -85,14 +85,14 @@ func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(nodeID int64) (st
 }
 
 // GetNodeAddressInfoByID returns query string to get peerAddress by node ID
-func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64) (str string, args []interface{}) {
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64) string {
 	b := make([]string, len(nodeIDs))
 	for i, v := range nodeIDs {
 		b[i] = strconv.Itoa(int(v))
 	}
-	nodeIDsStr := strings.Join(b, ",")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (?)",
-		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{nodeIDsStr}
+	nodeIDsStr := strings.Join(b, ", ")
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s)",
+		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr)
 }
 
 // GetNodeIDByAddressPort returns query string to get peerAddress by node ID
@@ -116,7 +116,7 @@ func (paq *NodeAddressInfoQuery) ExtractModel(pa *model.NodeAddressInfo) []inter
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that
 // the result of build model will be correctly mapped based on the modelQuery.Fields order.
 func (paq *NodeAddressInfoQuery) BuildModel(
-	peerAddresses []*model.NodeAddressInfo,
+	nodeAddressesInfo []*model.NodeAddressInfo,
 	rows *sql.Rows,
 ) ([]*model.NodeAddressInfo, error) {
 	for rows.Next() {
@@ -132,9 +132,9 @@ func (paq *NodeAddressInfoQuery) BuildModel(
 		if err != nil {
 			return nil, err
 		}
-		peerAddresses = append(peerAddresses, &pa)
+		nodeAddressesInfo = append(nodeAddressesInfo, &pa)
 	}
-	return peerAddresses, nil
+	return nodeAddressesInfo, nil
 }
 
 // Scan represents `sql.Scan`

@@ -201,6 +201,10 @@ func (p2pNssMock *p2pMockNodeConfigurationService) GetHost() *model.Host {
 			Address:       "127.0.0.1",
 			Port:          3000,
 		},
+		ResolvedPeers:    make(map[string]*model.Peer),
+		BlacklistedPeers: make(map[string]*model.Peer),
+		KnownPeers:       make(map[string]*model.Peer),
+		UnresolvedPeers:  make(map[string]*model.Peer),
 	}
 }
 
@@ -241,13 +245,12 @@ func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressesInfoFromDb(nodeIDs [
 		}
 		return []*model.NodeAddressInfo{
 			{
-				NodeID:           111,
-				Address:          "192.168.1.1",
-				Port:             8080,
-				Signature:        make([]byte, 64),
-				BlockHash:        make([]byte, 32),
-				BlockHeight:      100,
-				UpdatedTimestamp: 1234567890,
+				NodeID:      111,
+				Address:     "192.168.1.1",
+				Port:        8080,
+				Signature:   make([]byte, 64),
+				BlockHash:   make([]byte, 32),
+				BlockHeight: 100,
 			},
 		}, nil
 	}
@@ -264,13 +267,12 @@ func (p2pNr *p2pMockNodeRegistraionService) GenerateNodeAddressInfo(
 			return p2pNr.nodeAddresesInfo, nil
 		}
 		return &model.NodeAddressInfo{
-			NodeID:           111,
-			Address:          "192.168.1.1",
-			Port:             8080,
-			Signature:        make([]byte, 64),
-			BlockHash:        make([]byte, 32),
-			BlockHeight:      100,
-			UpdatedTimestamp: 1234567890,
+			NodeID:      111,
+			Address:     "192.168.1.1",
+			Port:        8080,
+			Signature:   make([]byte, 64),
+			BlockHash:   make([]byte, 32),
+			BlockHeight: 100,
 		}, nil
 	}
 	return nil, errors.New("MockedError")
@@ -901,8 +903,10 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 		{
 			name: "Host:RemoveUnresolvedPeer fails",
 			args: args{
-				nodeConfigurationService: nil,
-				peerToRemove:             nil,
+				nodeConfigurationService: &p2pMockNodeConfigurationService{
+					host: priorityStrategyGoodHostInstance,
+				},
+				peerToRemove: nil,
 			},
 			wantNotContain: nil,
 			wantErr:        true,
@@ -1825,6 +1829,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 		nodeAddress      string
 		port             uint32
 		nodeSecretPhrase string
+		forceBroadcast   bool
 	}
 	peers := make(map[string]*model.Peer)
 	peers[p2pP1.Info.Address] = p2pP1
@@ -1897,7 +1902,9 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 				Logger:                   tt.fields.Logger,
 				PeerStrategyHelper:       tt.fields.PeerStrategyHelper,
 			}
-			if err := ps.UpdateOwnNodeAddressInfo(tt.args.nodeAddress, tt.args.port, tt.args.nodeSecretPhrase); (err != nil) != tt.wantErr {
+			if err := ps.UpdateOwnNodeAddressInfo(tt.args.nodeAddress, tt.args.port,
+				tt.args.nodeSecretPhrase, tt.args.forceBroadcast); (err != nil) != tt.
+				wantErr {
 				t.Errorf("PriorityStrategy.UpdateOwnNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -13,7 +13,7 @@ const (
 	SecondsToUpdatePeersConnection int64 = 15 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 10
-	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
+	// UpdateNodeAddressGap, interval of peer thread to update node dynamic address
 	UpdateNodeAddressGap uint = 600
 	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
 	UpdateBlacklistedStatusGap uint = 60

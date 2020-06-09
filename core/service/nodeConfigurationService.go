@@ -81,9 +81,5 @@ func (nss *NodeConfigurationService) GetHost() *model.Host {
 }
 
 func (nss *NodeConfigurationService) SetHost(myHost *model.Host) {
-	// override whatever host address we have with myAddress to make sure host and node addresses are consistent
-	if host != nil && host.Info.Address != "" {
-		myHost.Info.Address = host.Info.Address
-	}
 	host = myHost
 }

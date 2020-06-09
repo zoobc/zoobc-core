@@ -3,19 +3,18 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"math/big"
-	"sort"
-	"sync"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
+	"math/big"
+	"sort"
+	"sync"
 )
 
 type (
@@ -469,8 +468,8 @@ func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 
 // GetNodeAddressesInfoFromDb returns a list of node address info messages given a list of nodeIDs
 func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
-	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
 	}
@@ -578,8 +577,8 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	}
 
 	// in case node address info for nodeID exists, validate that its height is lower than the one in the message
-	qry, args = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs([]int64{nodeAddressInfo.GetNodeID()})
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs([]int64{nodeAddressInfo.GetNodeID()})
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return true, err
 	}
@@ -603,17 +602,36 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 	nodeAddress string,
 	port uint32,
 	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
+	var (
+		safeBlockHeight uint32
+		safeBlock       model.Block
+	)
 	lastBlock, err := commonUtils.GetLastBlock(nrs.QueryExecutor, nrs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, err
+	}
+	// get a rollback-safe block for node address info message, to make sure evey peer can validate it
+	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first 720 blocks
+	if lastBlock.GetHeight() < constant.MinRollbackBlocks {
+		safeBlockHeight = 0
+	} else {
+		safeBlockHeight = lastBlock.GetHeight() - constant.MinRollbackBlocks
+	}
+	rows, err := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(safeBlockHeight), false)
+	if err != nil {
+		return nil, err
+	}
+	err = nrs.BlockQuery.Scan(&safeBlock, rows)
+	if err != nil {
+		return nil, err
 	}
 
 	nodeAddressInfo := &model.NodeAddressInfo{
 		NodeID:      nodeID,
 		Address:     nodeAddress,
 		Port:        port,
-		BlockHeight: lastBlock.GetHeight(),
-		BlockHash:   lastBlock.GetBlockHash(),
+		BlockHeight: safeBlock.GetHeight(),
+		BlockHash:   safeBlock.GetBlockHash(),
 	}
 	nodeAddressInfoBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	nodeAddressInfo.Signature = nrs.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)

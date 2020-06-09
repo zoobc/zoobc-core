@@ -419,11 +419,10 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 		nodeIDs []int64
 	}
 	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  string
-		wantArgs []interface{}
+		name    string
+		fields  fields
+		args    args
+		wantStr string
 	}{
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success",
@@ -434,10 +433,8 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
-			wantArgs: []interface{}{
-				"1,2,3,4,5,6,7,100,2,3,4,6,7",
-			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN (?)",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN " +
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7)",
 		},
 	}
 	for _, tt := range tests {
@@ -446,12 +443,9 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := paq.GetNodeAddressInfoByNodeIDs(tt.args.nodeIDs)
+			gotStr := paq.GetNodeAddressInfoByNodeIDs(tt.args.nodeIDs)
 			if gotStr != tt.wantStr {
 				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs() gotStr = %v, want %v", gotStr, tt.wantStr)
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
