@@ -41,7 +41,7 @@ func (fsq *FeeScaleQuery) getTableName() string {
 	return fsq.TableName
 }
 
-// GetFeeScale return the latest fee scale
+// GetLatestFeeScale return the latest fee scale
 func (fsq *FeeScaleQuery) GetLatestFeeScale() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE latest = true",
 		strings.Join(fsq.Fields, ", "), fsq.getTableName())

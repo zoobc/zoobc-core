@@ -5,11 +5,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -25,7 +25,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
 
 	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
-	feeVoteCommitTransactionBody, feeVoteCommitTransactionBodyBytes := GetFixtureForFeeVoteCommitTransaction()
+	feeVoteCommitTransactionBody, feeVoteCommitTransactionBodyBytes := GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   []byte{},
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	feeVoteRevealBody := GetFixtureForFeeVoteRevealTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   []byte{},
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
+	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
 
 	type fields struct {
 		Executor query.ExecutorInterface
@@ -366,6 +377,104 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+			},
+		},
+		{
+			name: "wantFeeVoteRevealTransaction",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_FeeVoteRevealTransactionBody{
+						FeeVoteRevealTransactionBody: feeVoteRevealBody,
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
+					TransactionBodyBytes: (&FeeVoteRevealTransaction{
+						Body: feeVoteRevealBody,
+					}).GetBodyBytes(),
+				},
+			},
+			want: &FeeVoteRevealTransaction{
+				Body:                   feeVoteRevealBody,
+				Height:                 5,
+				SenderAddress:          "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:          &query.Executor{},
+				AccountBalanceHelper:   NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:    NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
+				SignatureInterface:     crypto.NewSignature(),
+				FeeVoteCommitVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					&query.Executor{},
+				),
+			},
+		},
+		{
+			name: "wantLiquidPayment",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 0, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentBytes,
+				},
+			},
+			want: &LiquidPaymentTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+			},
+		},
+		{
+			name: "wantLiquidPaymentStop",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentStopBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 1, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentStopBytes,
+				},
+			},
+			want: &LiquidPaymentStopTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentStopBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
 			},
 		},
 	}

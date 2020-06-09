@@ -23,6 +23,7 @@ Command line interface to as a utility tools to develop the zoobc system.
 - `go run main {command} {subcommand} --help` to see to see available subcommands and flags of subcommand
 
 ## Transaction Commands
+
 ### Transaction general flag
 
 - `--output` to provide generated ouput type. Example: `--ouput bytes`
@@ -91,6 +92,7 @@ go run main.go generate transaction remove-account-dataset --timestamp 125789400
 ```
 
 ### Transaction Multi Signatures
+
 ```bash
 Flags:
       --address-signatures stringToString   address:signature list --address1='signature1' --address2='signature2' (default [])
@@ -101,11 +103,14 @@ Flags:
       --transaction-hash string             hash of transaction being signed by address-signature list hex
       --unsigned-transaction string         hex string of the unsigned transaction bytes
 ```
+
 For the multi signature transaction let say want to send money with multisig account, need to do this steps:
+
 1. Generate transaction send money, make sure with argument `--hash`. It will be `--unsigned-transaction` value on multi signature generator.
 2. Sign the transaction to get the transaction hash, and it will be `--transcation-has` and the last the `signature-hex` will be as `--address-signatures` value on multi signature generator. <br>
 
 So the completed comment it will be:
+
 ```bash
 go run main.go generate transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
 ```
@@ -114,10 +119,16 @@ go run main.go generate transaction  multi-signature --sender-seed="execute beac
 ### Transaction Fee Vote Commitment Vote 
 
 ```bash
- go run main.go generate transaction fee-vote-commmit --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --vote-hash-bytes='1, 222, 54, 12, 120'
+ go run main.go generate transaction fee-vote-commit --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" -f 10
+```
+
+### Transaction Fee Vote Reveal Vote
+```bash
+go run main.go generate transaction fee-vote-reveal -f 5 -b 4 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good"
 ```
 
 ## Block Commands
+
 ### Block Generating Fake Blocks
 
 ```bash
@@ -125,6 +136,7 @@ go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecr
 ```
 
 ## Account Commands
+
 ### Account Generate Using Ed25519 Algorithm
 
 ```bash
@@ -146,26 +158,30 @@ go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWn
 ```
 
 ## Other Commands
+
 ```bash
 go run main.go genesis generate
 ```
+
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ```bash
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db
 
 ```
+
 ```bash
 go run main.go genesis generate -w
 ```
+
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
-
-
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db, plus n random nodes registrations
+
 ```bash
 go run main.go genesis generate -w -n 10
 ```
+
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ### Generate Proof of Ownership Node Registry
@@ -204,3 +220,13 @@ go run main.go generate scrambledNodes --db-name zoobc_2.db --height 11153
 ```
 go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --sender-full-address "n56.alpha.proofofparticipation.network:8001"
 ```
+
+### Transaction Liquid Payment
+
+```
+go run main.go generate transaction liquid-payment --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient omtchrWztGDKzBftKfEarsed913s41ReV7qpMOHsFdC8 --amount 5000000000 --complete-minutes 3
+```
+
+### Transaction Liquid Payment Stop
+
+go run main.go generate transaction liquid-payment-stop --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --transaction-id "4032174520571320308"

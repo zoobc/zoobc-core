@@ -292,6 +292,35 @@ func GetFixturesForApprovalEscrowTransaction() (
 	return txBody, sa.GetBodyBytes()
 }
 
+func GetFixturesForLiquidPaymentTransaction() (
+	txBody *model.LiquidPaymentTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentTransactionBody{
+		Amount:          100,
+		CompleteMinutes: 200,
+	}
+
+	sa := LiquidPaymentTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixturesForLiquidPaymentStopTransaction() (
+	txBody *model.LiquidPaymentStopTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentStopTransactionBody{
+		TransactionID: 123,
+	}
+
+	sa := LiquidPaymentStopTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,
 	sender, recipient string,
@@ -371,12 +400,16 @@ func GetFixturesForBlock(height uint32, id int64) *model.Block {
 	}
 }
 
-func GetFixtureForFeeVoteCommitTransaction() (
-	txBody *model.FeeVoteCommitTransactionBody,
-	txBodyBytes []byte,
-) {
+func GetFixtureForFeeVoteCommitTransaction(
+	feeVoteInfo *model.FeeVoteInfo,
+	seed string,
+) (txBody *model.FeeVoteCommitTransactionBody, txBodyBytes []byte) {
+	revealBody := GetFixtureForFeeVoteRevealTransaction(feeVoteInfo, seed)
 	digest := sha3.New256()
-	_, _ = digest.Write([]byte("zoobcVote"))
+	_, _ = digest.Write((&FeeVoteRevealTransaction{
+		Body: revealBody,
+	}).GetFeeVoteInfoBytes())
+
 	txBody = &model.FeeVoteCommitTransactionBody{
 		VoteHash: digest.Sum([]byte{}),
 	}
@@ -385,4 +418,25 @@ func GetFixtureForFeeVoteCommitTransaction() (
 		Body: txBody,
 	}
 	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixtureForFeeVoteRevealTransaction(
+	voteInfo *model.FeeVoteInfo,
+	seed string,
+) (body *model.FeeVoteRevealTransactionBody) {
+	tx := &FeeVoteRevealTransaction{
+		Body: &model.FeeVoteRevealTransactionBody{
+			FeeVoteInfo: voteInfo,
+		},
+	}
+
+	feeVoteSigned, _ := (&crypto.Signature{}).Sign(
+		tx.GetFeeVoteInfoBytes(),
+		model.SignatureType_DefaultSignature,
+		seed,
+	)
+
+	tx.Body.VoterSignature = feeVoteSigned
+
+	return tx.Body
 }

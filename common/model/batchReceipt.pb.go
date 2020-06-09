@@ -119,7 +119,9 @@ func init() {
 	proto.RegisterType((*BatchReceipt)(nil), "model.BatchReceipt")
 }
 
-func init() { proto.RegisterFile("model/batchReceipt.proto", fileDescriptor_f3d73f8c2557fbad) }
+func init() {
+	proto.RegisterFile("model/batchReceipt.proto", fileDescriptor_f3d73f8c2557fbad)
+}
 
 var fileDescriptor_f3d73f8c2557fbad = []byte{
 	// 255 bytes of a gzipped FileDescriptorProto

@@ -582,6 +582,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest " +
 		"FROM pending_transaction WHERE block_height = ? AND status = ? AND latest = ?":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
+	case "SELECT id, sender_address, recipient_address, amount, applied_time, complete_minutes, status," +
+		" block_height, latest FROM liquid_payment_transaction WHERE applied_time+(complete_minutes*60) <= ? AND status = ? AND latest = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewLiquidPaymentTransactionQuery().Fields))
 	// which is escrow expiration process
 	default:
 		mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
@@ -1080,6 +1083,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
+					query.NewLiquidPaymentTransactionQuery(),
 				),
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
@@ -1145,6 +1149,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
+					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
@@ -1212,6 +1217,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
+					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
@@ -1279,6 +1285,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
+					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
@@ -1972,6 +1979,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
 					query.NewPendingTransactionQuery(),
+					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
 			},

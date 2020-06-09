@@ -17,8 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -29,6 +27,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -228,6 +227,7 @@ func init() {
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
 		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	defaultSignatureType = crypto.NewEd25519Signature()
@@ -627,6 +627,7 @@ func startMainchain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
@@ -722,6 +723,7 @@ func startSpinechain() {
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(

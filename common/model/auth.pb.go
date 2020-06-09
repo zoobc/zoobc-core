@@ -53,7 +53,9 @@ func init() {
 	proto.RegisterEnum("model.RequestType", RequestType_name, RequestType_value)
 }
 
-func init() { proto.RegisterFile("model/auth.proto", fileDescriptor_50b87fa4d1f0d790) }
+func init() {
+	proto.RegisterFile("model/auth.proto", fileDescriptor_50b87fa4d1f0d790)
+}
 
 var fileDescriptor_50b87fa4d1f0d790 = []byte{
 	// 167 bytes of a gzipped FileDescriptorProto

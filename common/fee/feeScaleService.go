@@ -6,12 +6,10 @@ import (
 
 	"github.com/montanaflynn/stats"
 
-	"github.com/zoobc/zoobc-core/common/util"
-
 	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
