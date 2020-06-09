@@ -168,3 +168,80 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestFeeVoteRevealVoteQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewFeeVoteRevealVoteQuery()),
+			args: args{
+				fromHeight: 100,
+				toHeight:   170,
+			},
+			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+				"FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fvr := &FeeVoteRevealVoteQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := fvr.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFeeVoteRevealVoteQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewFeeVoteRevealVoteQuery()),
+			args: args{
+				fromHeight: 100,
+				toHeight:   170,
+			},
+			want: "DELETE FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fvr := &FeeVoteRevealVoteQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := fvr.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

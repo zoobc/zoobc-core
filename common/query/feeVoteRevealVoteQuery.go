@@ -101,3 +101,15 @@ func (fvr *FeeVoteRevealVoteQuery) Rollback(height uint32) (multiQueries [][]int
 		},
 	}
 }
+
+// SelectDataForSnapshot select only the block at snapshot block_height
+func (fvr *FeeVoteRevealVoteQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		strings.Join(fvr.Fields, ", "), fvr.getTableName(), fromHeight, toHeight)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (fvr *FeeVoteRevealVoteQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		fvr.getTableName(), fromHeight, toHeight)
+}
