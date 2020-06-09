@@ -58,7 +58,7 @@ func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddressAndRecentBloc
 // blockHeight limit are inclusive
 func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealsInPeriod(
 	lowerBlockHeight, upperBlockHeight uint32,
-) (string, []interface{}) {
+) (qry string, args []interface{}) {
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE block_height between ? AND ? ORDER BY fee_vote ASC",
 		strings.Join(fvr.Fields, ", "),
