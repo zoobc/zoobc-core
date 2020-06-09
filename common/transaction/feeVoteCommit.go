@@ -146,14 +146,9 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	qry, qryArgs = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
@@ -254,7 +249,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
 	blockTimestamp int64,
 ) (bool, error) {
-	// check vote phase based on new block timestamp
+	// check tx is still valid for commit vote phase based on new block timestamp
 	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
 	if err != nil {
 		return true, err
@@ -265,8 +260,8 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	// check duplicate vote on mempool
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
-		isSameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if isSameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+		sameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
+		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
 			return true, nil
 		}
 	}

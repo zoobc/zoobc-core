@@ -286,7 +286,26 @@ func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
+	// check tx is still valid for reveal vote phase based on new block timestamp
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	if err != nil {
+		return true, err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseReveal {
+		return true, nil
+	}
+	// check duplicate vote on mempool
+	for _, selectedTx := range selectedTransactions {
+		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
+		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
+		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+			return true, nil
+		}
+	}
 	return false, nil
 }
 

@@ -424,14 +424,14 @@ type (
 		query.NodeRegistrationQuery
 	}
 
-	mockAccountBalanceQueryValidateFail struct {
-		query.AccountBalanceQuery
+	mockAccountBalanceHelperValidateFail struct {
+		AccountBalanceHelper
 	}
-	mockAccountBalanceQueryValidateLessThanFeeFail struct {
-		query.AccountBalanceQuery
+	mockAccountBalanceHelperValidateNotEnoughSpendable struct {
+		AccountBalanceHelper
 	}
-	mockAccountBalanceQueryValidateSucess struct {
-		query.AccountBalanceQuery
+	mockAccountBalanceHelperValidateSuccess struct {
+		AccountBalanceHelper
 	}
 )
 
@@ -540,36 +540,6 @@ func (*mockNodeRegistrationQueryValidateSuccess) Scan(nr *model.NodeRegistration
 	return nil
 }
 
-func (*mockAccountBalanceQueryValidateFail) GetAccountBalanceByAccountAddress(accountAddress string) (
-	str string, args []interface{},
-) {
-	return "mockQuery", nil
-}
-
-func (*mockAccountBalanceQueryValidateFail) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	return errors.New("MockedError")
-}
-func (*mockAccountBalanceQueryValidateLessThanFeeFail) GetAccountBalanceByAccountAddress(accountAddress string) (
-	str string, args []interface{},
-) {
-	return "mockQuery", nil
-}
-
-func (*mockAccountBalanceQueryValidateLessThanFeeFail) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance.SpendableBalance = mockFeeValidate - 1
-	return nil
-}
-func (*mockAccountBalanceQueryValidateSucess) GetAccountBalanceByAccountAddress(accountAddress string) (
-	str string, args []interface{},
-) {
-	return "mockQuery", nil
-}
-
-func (*mockAccountBalanceQueryValidateSucess) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance.SpendableBalance = mockFeeValidate + 1
-	return nil
-}
-
 func (*mockFeeScaleServiceValidateSuccess) GetCurrentPhase(
 	blockTimestamp int64,
 	isPostTransaction bool,
@@ -584,6 +554,19 @@ func (*mockFeeScaleServiceValidateSuccess) GetCurrentPhase(
 	default:
 		return model.FeeVotePhase_FeeVotePhaseReveal, false, errors.New("mockErrorInvalidCase")
 	}
+}
+
+func (*mockAccountBalanceHelperValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+	return errors.New("MockedError")
+}
+
+func (*mockAccountBalanceHelperValidateNotEnoughSpendable) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+	accountBalance.SpendableBalance = mockFeeValidate - 1
+	return nil
+}
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+	accountBalance.SpendableBalance = mockFeeValidate + 1
+	return nil
 }
 
 func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
@@ -753,7 +736,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
-				AccountBalanceQuery:        &mockAccountBalanceQueryValidateFail{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperValidateFail{},
 			},
 			args: args{
 				dbTx: false,
@@ -770,8 +753,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperValidateNotEnoughSpendable{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				AccountBalanceQuery:        &mockAccountBalanceQueryValidateLessThanFeeFail{},
 			},
 			args: args{
 				dbTx: false,
@@ -788,8 +771,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				AccountBalanceQuery:        &mockAccountBalanceQueryValidateSucess{},
 			},
 			args: args{
 				dbTx: false,
