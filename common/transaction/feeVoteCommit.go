@@ -18,7 +18,6 @@ type FeeVoteCommitTransaction struct {
 	Fee                        int64
 	SenderAddress              string
 	Height                     uint32
-	Timestamp                  int64
 	Body                       *model.FeeVoteCommitTransactionBody
 	FeeScaleService            fee.FeeScaleServiceInterface
 	NodeRegistrationQuery      query.NodeRegistrationQueryInterface

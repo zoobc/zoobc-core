@@ -60,7 +60,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -164,7 +163,6 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -256,7 +254,6 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -295,7 +292,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -348,7 +344,6 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -566,7 +561,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -599,7 +593,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		}, {
 			name: "wantFail:getLastBlock",
 			fields: fields{
-				Timestamp:     1,
 				Body:          mockFeeVoteCommitTxBody,
 				BlockQuery:    &mockBlockQueryGetLastBlockValidateFail{},
 				QueryExecutor: &mockQueryExecutorValidateSuccess{},
@@ -612,7 +605,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:getCurrentPhaseFirst",
 			fields: fields{
-				Timestamp:       1,
 				Body:            mockFeeVoteCommitTxBody,
 				QueryExecutor:   &mockQueryExecutorValidateSuccess{},
 				BlockQuery:      &mockBlockQueryGetLastBlockValidateSuccess{},
@@ -626,7 +618,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:notCommitPeriod",
 			fields: fields{
-				Timestamp:       mockTimestampValidateWrongPhase,
 				Body:            mockFeeVoteCommitTxBody,
 				QueryExecutor:   &mockQueryExecutorValidateSuccess{},
 				BlockQuery:      &mockBlockQueryGetLastBlockValidateWrongPhase{},
@@ -640,7 +631,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetVoteCommitByAccountAddress",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateFail{},
 				BlockQuery:                 &mockBlockQueryGetLastBlockValidateSuccess{},
@@ -655,7 +645,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:DuplicatedVote",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhaseExistVote,
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
@@ -670,7 +659,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddress",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -686,7 +674,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -702,7 +689,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -718,7 +704,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetAccountBalanceByAccountAddress",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
@@ -735,7 +720,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetAccountBalanceByAccountAddressNotEnoughSpandable",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Fee:                        mockFeeValidate,
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
@@ -753,7 +737,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantSucess",
 			fields: fields{
-				Timestamp:                  mockTimestampValidateRightPhase,
 				Fee:                        mockFeeValidate,
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
@@ -776,7 +759,6 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -799,7 +781,6 @@ func TestFeeVoteCommitTransaction_GetAmount(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -827,7 +808,6 @@ func TestFeeVoteCommitTransaction_GetAmount(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -850,7 +830,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -880,7 +859,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -909,7 +887,6 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -939,7 +916,6 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -962,7 +938,6 @@ func TestFeeVoteCommitTransaction_GetTransactionBody(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -997,7 +972,6 @@ func TestFeeVoteCommitTransaction_GetTransactionBody(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -1018,7 +992,6 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
@@ -1048,7 +1021,6 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
@@ -1127,7 +1099,6 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 		Fee                        int64
 		SenderAddress              string
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
 		AccountBalanceQuery        query.AccountBalanceQueryInterface
@@ -1224,7 +1195,6 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 				Fee:                        tt.fields.Fee,
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
-				Timestamp:                  tt.fields.Timestamp,
 				Body:                       tt.fields.Body,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,

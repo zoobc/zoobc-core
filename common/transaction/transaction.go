@@ -354,7 +354,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Fee:                        tx.Fee,
 				SenderAddress:              tx.SenderAccountAddress,
 				Height:                     tx.Height,
-				Timestamp:                  tx.Timestamp,
 				Body:                       transactionBody.(*model.FeeVoteCommitTransactionBody),
 				QueryExecutor:              ts.Executor,
 				AccountBalanceHelper:       accountBalanceHelper,

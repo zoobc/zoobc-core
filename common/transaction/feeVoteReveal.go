@@ -300,7 +300,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	}
 	// check duplicate vote on mempool
 	for _, selectedTx := range selectedTransactions {
-		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
+		// if we find another fee reveal tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
 		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
 			return true, nil
