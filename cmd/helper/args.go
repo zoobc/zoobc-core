@@ -1,6 +1,8 @@
 package helper
 
 import (
+	"os"
+	"path"
 	"strconv"
 	"strings"
 )
@@ -19,4 +21,12 @@ func ParseBytesArgument(argsBytesString, separated string) ([]byte, error) {
 		parsedByte = append(parsedByte, byte(byteValue))
 	}
 	return parsedByte, nil
+}
+
+func GetAbsDBPath() string {
+	wd, _ := os.Getwd()
+	if strings.Contains(wd, "zoobc-core/") {
+		return path.Join(wd, "../")
+	}
+	return wd
 }

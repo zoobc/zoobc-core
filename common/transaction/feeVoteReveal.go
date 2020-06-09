@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -24,7 +25,6 @@ type (
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
@@ -43,39 +43,55 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		commitVote     model.FeeVoteCommitmentVote
 		revealVote     model.FeeVoteRevealVote
 		nodeReg        model.NodeRegistration
+		canAdjust      bool
 		args           []interface{}
 		row            *sql.Row
 		qry            string
 		err            error
 	)
 
-	if tx.Fee <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "FeeNotEnough")
-	}
-
 	// check the transaction submitted on reveal-phase
-	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	feeVotePhase, canAdjust, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
 	if err != nil {
 		return err
 	}
 	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseReveal {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidPhasePeriod")
 	}
+
+	// must match the previously submitted in CommitmentVote
+	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return err
+	}
+	err = tx.FeeVoteCommitVoteQuery.Scan(&commitVote, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, "CommitVoteNotFound")
+		}
+		return err
+	}
+
+	digest := sha3.New256()
+	_, err = digest.Write(tx.GetFeeVoteInfoBytes())
+	if err != nil {
+		return err
+	}
+
+	if res := bytes.Compare(commitVote.GetVoteHash(), digest.Sum([]byte{})); res != 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "NotMatchVoteHashed")
+	}
+
 	// VoteObject.Signature must be a valid signature from node-owner on bytes(VoteInfo)
-	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
-	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
-	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
-	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	err = tx.SignatureInterface.VerifySignature(
-		buff.Bytes(),
+		tx.GetFeeVoteInfoBytes(),
 		tx.Body.GetVoterSignature(),
 		tx.SenderAddress,
 	)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
-	// RecentBlockHash must be within the timeframe of current voting period.
 	row, err = tx.QueryExecutor.ExecuteSelectRow(
 		tx.BlockQuery.GetBlockByHeight(tx.Body.GetFeeVoteInfo().GetRecentBlockHeight()),
 		dbTx,
@@ -91,24 +107,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "BlockNotFound")
 	}
 	if res := bytes.Compare(tx.Body.GetFeeVoteInfo().GetRecentBlockHash(), recentBlock.GetBlockHash()); res != 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "")
-	}
-	err = tx.FeeScaleService.IsInPhasePeriod(recentBlock.GetTimestamp())
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-	// must match the previously submitted in CommitmentVote
-	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return err
-	}
-	err = tx.FeeVoteCommitVoteQuery.Scan(&commitVote, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, "CommitVoteNotFound")
-		}
-		return err
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidRecentBlock")
 	}
 
 	// sender must be as node owner
@@ -125,8 +124,8 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
-	// check duplicated reveal to database, once per node owner
-	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddress(tx.SenderAddress)
+	// check duplicated reveal to database, once per node owner per period
+	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(tx.SenderAddress, recentBlock.GetHeight())
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return err
@@ -136,26 +135,21 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		if err != sql.ErrNoRows {
 			return err
 		}
-		// check account balance sender
-		qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
-			}
-			return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
-		}
-		if accountBalance.GetSpendableBalance() < tx.Fee {
-			return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
-		}
-		return nil
-	} else {
+	} else if canAdjust {
 		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
+	// check account balance sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if accountBalance.GetSpendableBalance() < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
+	}
+	return nil
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction
@@ -207,7 +201,7 @@ func (tx *FeeVoteRevealTransaction) ApplyConfirmed(blockTimestamp int64) error {
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
-func (tx *FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
+func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
 		buff    = bytes.NewBuffer(txBodyBytes)
 		chunked []byte
@@ -272,6 +266,16 @@ func (tx *FeeVoteRevealTransaction) GetTransactionBody(transaction *model.Transa
 	}
 }
 
+// GetFeeVoteInfoBytes will build bytes from model.FeeVoteInfo
+func (tx *FeeVoteRevealTransaction) GetFeeVoteInfoBytes() []byte {
+	buff := bytes.NewBuffer([]byte{})
+	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
+	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
+	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
+	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
+	return buff.Bytes()
+}
+
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
 func (*FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
@@ -281,6 +285,8 @@ func (*FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 	return 0
 }
+
+// GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 	return 0, nil
 }

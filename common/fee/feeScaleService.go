@@ -1,7 +1,6 @@
 package fee
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -18,7 +17,6 @@ type (
 			blockTimestamp int64,
 			isPostTransaction bool,
 		) (phase model.FeeVotePhase, canAdjust bool, err error)
-		IsInPhasePeriod(timestamp int64) error
 	}
 
 	FeeScaleService struct {
@@ -75,16 +73,24 @@ func (fss *FeeScaleService) GetLatestFeeScale(feeScale *model.FeeScale) error {
 // GetCurrentPhase require 2 parameters the blockTimestamp (when pushBlock) or currentTimestamp (when postTransaction)
 // and isPostTransaction parameter when set true will not update the cache, and blockTimestamp need to be filled with
 // node's current timestamp instead
+// todo: @andy-shi88 discard `isPostTransaction` parameter as there is no way to flag that in validate function with current state
+// of the code
 func (fss *FeeScaleService) GetCurrentPhase(
 	blockTimestamp int64,
 	isPostTransaction bool,
 ) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	// check if lastBlockstimestamp is 0
-	if fss.lastBlockTimestamp == 0 {
+	if fss.lastBlockTimestamp == 0 || blockTimestamp < fss.lastBlockTimestamp {
+		if blockTimestamp == constant.MainchainGenesisBlockTimestamp { // genesis exception
+			return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
+		}
 		lastBlock, err := util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
-
 		if err != nil {
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, err
+		}
+		if lastBlock.Timestamp == constant.MainchainGenesisBlockTimestamp { // genesis exception
+			fss.lastBlockTimestamp = blockTimestamp
+			return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
 		}
 		fss.lastBlockTimestamp = lastBlock.Timestamp
 	}
@@ -107,31 +113,4 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	}
 	// same month, year, over the commit phase
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
-}
-
-/*
-IsInPhasePeriod calculate timestamp of recent block + constant.CommitPhaseEndDay,
-Comparing with last block timestamp.
-*/
-func (fss *FeeScaleService) IsInPhasePeriod(timestamp int64) error {
-	var (
-		err       error
-		lastBlock *model.Block
-	)
-	if timestamp != 0 {
-		return fmt.Errorf("InvalidTimestamp")
-	}
-
-	lastBlock, err = util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
-	if err != nil {
-		return err
-	}
-
-	recentBlockTime := time.Unix(timestamp, 0)
-	recentBlockTime.AddDate(0, 0, constant.CommitPhaseEndDay)
-
-	if time.Unix(lastBlock.GetTimestamp(), 0).Month() != recentBlockTime.Month() {
-		return fmt.Errorf("TimeNotInPhasePeriodRange")
-	}
-	return nil
 }
