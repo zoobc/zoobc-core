@@ -530,6 +530,7 @@ func startMainchain() {
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
 		observerInstance,
 		blocksmithStrategyMain,
 		loggerCoreService,

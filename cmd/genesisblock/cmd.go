@@ -395,6 +395,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		nil,
+		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
 		nil,

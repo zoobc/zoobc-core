@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -246,4 +248,63 @@ func TestFeeVoteRevealVoteQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 		})
 	}
+}
+
+var (
+	mockFeeVoteRevealVoteQuery                    = NewFeeVoteRevealVoteQuery()
+	mockFeeVoteRevealVoteQueryBuildModelRowResult = []*model.FeeVoteRevealVote{
+		{
+			VoteInfo: &model.FeeVoteInfo{
+				RecentBlockHash:   make([]byte, 32),
+				RecentBlockHeight: 100,
+				FeeVote:           constant.OneZBC,
+			},
+			VoterSignature: make([]byte, 68),
+			VoterAddress:   "ABC",
+			BlockHeight:    120,
+		},
+		{
+			VoteInfo: &model.FeeVoteInfo{
+				RecentBlockHash:   make([]byte, 32),
+				RecentBlockHeight: 105,
+				FeeVote:           constant.OneZBC,
+			},
+			VoterSignature: make([]byte, 72),
+			VoterAddress:   "CBA",
+			BlockHeight:    130,
+		},
+	}
+)
+
+func TestFeeVoteRevealVoteQuery_BuildModel(t *testing.T) {
+	t.Run("FeeVoteRevealVote:BuildModel", func(t *testing.T) {
+		var err error
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockFeeVoteRevealVoteQuery.Fields).
+			AddRow(
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetRecentBlockHash(),
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetRecentBlockHeight(),
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetFeeVote(),
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoterAddress(),
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoterSignature(),
+				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetBlockHeight(),
+			).AddRow(
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetRecentBlockHash(),
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetRecentBlockHeight(),
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetFeeVote(),
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoterAddress(),
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoterSignature(),
+			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetBlockHeight(),
+		))
+		rows, _ := db.Query("")
+		var result []*model.FeeVoteRevealVote
+		result, err = mockFeeVoteRevealVoteQuery.BuildModel(result, rows)
+		if err != nil {
+			t.Errorf("error calling FeeVoteRevealVoteQuery.BuildModel - %v", err)
+		}
+		if !reflect.DeepEqual(result, mockFeeVoteRevealVoteQueryBuildModelRowResult) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", result, mockAccountBalance)
+		}
+	})
 }

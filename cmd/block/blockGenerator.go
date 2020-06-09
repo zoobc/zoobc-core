@@ -184,6 +184,7 @@ func initialize(
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
 		observerInstance,
 		blocksmithStrategy,
 		log.New(),
