@@ -119,7 +119,7 @@ go run main.go generate transaction  multi-signature --sender-seed="execute beac
 ### Transaction Fee Vote Commitment Vote 
 
 ```bash
- go run main.go generate transaction fee-vote-commmit --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --vote-hash-bytes='1, 222, 54, 12, 120'
+ go run main.go generate transaction fee-vote-commit --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" -f 10
 ```
 
 ### Transaction Fee Vote Reveal Vote
