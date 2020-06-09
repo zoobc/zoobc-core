@@ -13,7 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
@@ -302,7 +302,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 		}
 		defer conn.Close()
 
-		c := rpc_service.NewTransactionServiceClient(conn)
+		c := rpcService.NewTransactionServiceClient(conn)
 
 		response, err := c.PostTransaction(context.Background(), &model.PostTransactionRequest{
 			TransactionBytes: signedTxBytes,
@@ -514,6 +514,26 @@ func GenerateTxFeeVoteCommitment(
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommit"])
 	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
 		FeeVoteCommitTransactionBody: txBody,
+	}
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+func GenerateTxFeeVoteRevealPhase(tx *model.Transaction, voteInfo *model.FeeVoteInfo, voteInfoSigned []byte) *model.Transaction {
+
+	var (
+		txBody = &model.FeeVoteRevealTransactionBody{
+			FeeVoteInfo:    voteInfo,
+			VoterSignature: voteInfoSigned,
+		}
+		txBodyBytes = (&transaction.FeeVoteRevealTransaction{
+			Body: txBody,
+		}).GetBodyBytes()
+	)
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteReveal"])
+	tx.TransactionBody = &model.Transaction_FeeVoteRevealTransactionBody{
+		FeeVoteRevealTransactionBody: txBody,
 	}
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
