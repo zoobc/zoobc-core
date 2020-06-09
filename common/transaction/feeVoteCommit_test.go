@@ -411,18 +411,22 @@ type (
 	mockAccountBalanceHelperValidateNotEnoughSpendable struct {
 		AccountBalanceHelper
 	}
-	mockAccountBalanceHelperValidateSuccess struct {
+	mockFeeVoteCommitAccountBalanceHelperValidateSuccess struct {
 		AccountBalanceHelper
 	}
 )
 
 var (
-	mockFeeVoteCommitTxBody, mockFeeVoteCommitTxBodyBytes        = GetFixtureForFeeVoteCommitTransaction()
-	mockTimestampValidateWrongPhase                       int64  = 1
-	mockTimestampValidateRightPhase                       int64  = 2
-	mockTimestampValidateRightPhaseExistVote              int64  = 3
-	mockBlockHightValidate                                uint32 = 1
-	mockFeeValidate                                       int64  = 10
+	mockFeeVoteCommitTxBody, mockFeeVoteCommitTxBodyBytes = GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   []byte{},
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	mockTimestampValidateWrongPhase          int64  = 1
+	mockTimestampValidateRightPhase          int64  = 2
+	mockTimestampValidateRightPhaseExistVote int64  = 3
+	mockBlockHightValidate                   uint32 = 1
+	mockFeeValidate                          int64  = 10
 )
 
 func (*mockFeeScaleServiceValidateFail) GetCurrentPhase(
@@ -547,7 +551,7 @@ func (*mockAccountBalanceHelperValidateNotEnoughSpendable) GetBalanceByAccountID
 	accountBalance.SpendableBalance = mockFeeValidate - 1
 	return nil
 }
-func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(
+func (*mockFeeVoteCommitAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate + 1
@@ -743,7 +747,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
-				AccountBalanceHelper:       &mockAccountBalanceHelperValidateSuccess{},
+				AccountBalanceHelper:       &mockFeeVoteCommitAccountBalanceHelperValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{

@@ -3,6 +3,7 @@ package transaction
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
@@ -102,7 +103,7 @@ func (*mockQueryExecutorFeeVoteRevealTXValidateSuccess) ExecuteSelectRow(qry str
 		dbCon, mockDB, _ = sqlmock.New()
 		mockedRow        *sqlmock.Rows
 	)
-
+	fmt.Println("qry -->", qry)
 	switch {
 	case strings.Contains(qry, "FROM main_block"):
 		mockedBlock := GetFixturesForBlock(100, 12345678)
@@ -124,11 +125,11 @@ func (*mockQueryExecutorFeeVoteRevealTXValidateSuccess) ExecuteSelectRow(qry str
 			mockedBlock.TotalCoinBase,
 			mockedBlock.Version,
 		)
+		mockDB.ExpectQuery(regexp.QuoteMeta(qry)).WillReturnRows(mockedRow)
+		return dbCon.QueryRow(qry), nil
 	default:
-
+		return nil, nil
 	}
-	mockDB.ExpectQuery(regexp.QuoteMeta(qry)).WillReturnRows(mockedRow)
-	return dbCon.QueryRow(qry), nil
 }
 
 func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateNotFound) GetVoteCommitByAccountAddress(string) (qStr string, args []interface{}) {

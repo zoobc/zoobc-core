@@ -41,9 +41,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		feeVotePhase   model.FeeVotePhase
 		recentBlock    model.Block
 		commitVote     model.FeeVoteCommitmentVote
-		revealVote     model.FeeVoteRevealVote
 		nodeReg        model.NodeRegistration
-		canAdjust      bool
 		args           []interface{}
 		row            *sql.Row
 		qry            string
@@ -51,7 +49,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	)
 
 	// check the transaction submitted on reveal-phase
-	feeVotePhase, canAdjust, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
 	if err != nil {
 		return err
 	}
@@ -125,18 +123,9 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 
 	// check duplicated reveal to database, once per node owner per period
-	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(tx.SenderAddress, recentBlock.GetHeight())
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	err = tx.checkPreviousVote(dbTx)
 	if err != nil {
 		return err
-	}
-	err = tx.FeeVoteRevealVoteQuery.Scan(&revealVote, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-	} else if canAdjust {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
 	// check account balance sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
@@ -150,6 +139,29 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
+}
+
+func (tx *FeeVoteRevealTransaction) checkPreviousVote(dbTx bool) error {
+	var (
+		revealVote model.FeeVoteRevealVote
+		qry, args  = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
+			tx.SenderAddress,
+			tx.Body.GetFeeVoteInfo().GetRecentBlockHeight(),
+		)
+		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	)
+	if err != nil {
+		return err
+	}
+	err = tx.FeeVoteRevealVoteQuery.Scan(&revealVote, row)
+	if err != nil {
+		// it means don't have previous vote
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction
@@ -311,6 +323,11 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
 			return true, nil
 		}
+	}
+	// check previouds vote
+	err = tx.checkPreviousVote(false)
+	if err != nil {
+		return true, err
 	}
 	return false, nil
 }
