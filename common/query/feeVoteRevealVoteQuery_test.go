@@ -308,3 +308,22 @@ func TestFeeVoteRevealVoteQuery_BuildModel(t *testing.T) {
 		}
 	})
 }
+
+func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealsInPeriod(t *testing.T) {
+	t.Run("FeeVoteRevealVoteQuery:success", func(t *testing.T) {
+		qry, args := mockFeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(0, 720)
+		expectQry := "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+			"FROM fee_vote_reveal_vote WHERE block_height between ? AND ? ORDER BY fee_vote ASC"
+		expectArgs := []interface{}{
+			uint32(0),
+			uint32(720),
+		}
+		if qry != expectQry {
+			t.Errorf("expected: %s\tgot: %s\n", expectQry, qry)
+		}
+		if !reflect.DeepEqual(args, expectArgs) {
+			t.Errorf("expeact-args: %v\tgot:%v\n", expectArgs, args)
+		}
+
+	})
+}
