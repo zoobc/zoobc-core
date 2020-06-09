@@ -137,3 +137,19 @@ func (fsq *FeeScaleQuery) Rollback(height uint32) (multiQueries [][]interface{})
 		},
 	}
 }
+
+// SelectDataForSnapshot select only the block at snapshot block_height (fromHeight is unused)
+func (fsq *FeeScaleQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		strings.Join(fsq.Fields, ","), fsq.getTableName(), fromHeight, toHeight)
+}
+
+// TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
+func (fsq *FeeScaleQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	// do not delete genesis block
+	if fromHeight == 0 {
+		fromHeight++
+	}
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+		fsq.getTableName(), fromHeight, toHeight)
+}
