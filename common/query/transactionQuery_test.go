@@ -231,13 +231,6 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 }
 
 func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
-	var (
-		txIdsStr []string
-		txIds    = []int64{1, 2, 3, 4}
-	)
-	for _, txID := range txIds {
-		txIdsStr = append(txIdsStr, fmt.Sprintf("%d", txID))
-	}
 
 	type fields struct {
 		Fields    []string
@@ -257,12 +250,16 @@ func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
-			args:   args{txIds: txIds},
-			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE multisig_child = false AND id in (%s)",
-				strings.Join(mockTransactionQuery.Fields, ", "),
-				strings.Join(txIdsStr, ","),
-			),
-			wantArgs: []interface{}{},
+			args:   args{txIds: []int64{1, 2, 3, 4}},
+			wantStr: "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, multisig_child " +
+				"FROM \"transaction\" WHERE multisig_child = false AND id IN(?, ?, ?, ?)",
+			wantArgs: []interface{}{
+				int64(1),
+				int64(2),
+				int64(3),
+				int64(4),
+			},
 		},
 	}
 	for _, tt := range tests {

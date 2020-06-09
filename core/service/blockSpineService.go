@@ -150,9 +150,9 @@ func (bs *BlockSpineService) ChainWriteLock(actionType int) {
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -441,7 +441,7 @@ func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
 
 }
 
-// GetLastBlock return the last pushed block
+// GetBlockByHeight return the last pushed block
 func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
@@ -454,7 +454,7 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 	return block, nil
 }
 
-// GetGenesis return the genesis block
+// GetGenesisBlock return the genesis block
 func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	var (
 		genesisBlock model.Block
@@ -504,7 +504,7 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 	return nil
 }
 
-// GetPayloadBytes compute and return the block's payload hash
+// GetPayloadHashAndLength compute and return the block's payload hash
 func (bs *BlockSpineService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
 	var (
 		digest = sha3.New256()
@@ -653,7 +653,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block))
 	}
 	return nil
 }
@@ -716,7 +716,8 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 
@@ -727,7 +728,8 @@ func (bs *BlockSpineService) ReceiveBlock(
 				if err != nil {
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
-						bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 					bs.Logger.Info("pushing back popped off block")
@@ -762,6 +764,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 		}
 		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
+			bs.Logger.Errorf("receiveBlock pushBlock fail: %v", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		return nil

@@ -219,7 +219,7 @@ func (ss *SpineBlockManifestService) InsertSpineBlockManifest(spineBlockManifest
 	return nil
 }
 
-// GetBodyBytes translate tx body to bytes representation
+// GetSpineBlockManifestBytes translate tx body to bytes representation
 func (ss *SpineBlockManifestService) GetSpineBlockManifestBytes(spineBlockManifest *model.SpineBlockManifest) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(spineBlockManifest.ID)))

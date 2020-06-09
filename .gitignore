@@ -25,4 +25,7 @@ accounts.txt
 .editorconfig
 .manual
 release/
+dist/
 github.token
+*.back
+*.bak

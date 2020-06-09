@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -471,8 +471,12 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
 				},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+					nil,
+					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 					nil,
 				),
 			},
@@ -980,8 +984,12 @@ func TestMempoolService_ReceivedTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockActionTypeSwitcherSuccess{},
 				Observer:           observer.NewObserver(),
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
+					nil,
+					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
+					nil,
 					nil,
 				),
 			},

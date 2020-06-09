@@ -222,8 +222,8 @@ func (*mockQueryExecutorFailExecuteSelectReceipt) ExecuteSelect(
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key AND " +
-		"block_height BETWEEN 280 AND 1000) " +
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
+		"reference_block_height BETWEEN 280 AND 1000 " +
 		"GROUP BY recipient_public_key":
 		return nil, errors.New("mockError")
 	}
@@ -252,8 +252,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key AND " +
-		"block_height BETWEEN 280 AND 1000) " +
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
+		"reference_block_height BETWEEN 280 AND 1000 " +
 		"GROUP BY recipient_public_key":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key",
@@ -466,8 +466,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key AND " +
-		"block_height BETWEEN 280 AND 1000) " +
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
+		"reference_block_height BETWEEN 280 AND 1000 " +
 		"GROUP BY recipient_public_key":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key",

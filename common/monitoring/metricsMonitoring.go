@@ -4,11 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 	"math"
+	"net/http"
 	"reflect"
+	"sync"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -36,6 +39,9 @@ var (
 	apiRunningGaugeVector            *prometheus.GaugeVec
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
+
+	badgerMetrics     map[string]prometheus.Gauge
+	badgerMetricsLock sync.Mutex
 )
 
 const (
@@ -63,6 +69,10 @@ const (
 	P2pGetNextBlocksClient              = "P2pGetNextBlocksClient"
 	P2pRequestFileDownloadClient        = "P2pRequestFileDownloadClient"
 )
+
+func Handler() http.Handler {
+	return promhttp.Handler()
+}
 
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
@@ -388,4 +398,24 @@ func SetDatabaseStats(dbStat sql.DBStats) {
 	dbStatGaugeVector.WithLabelValues("OpenConnections").Set(float64(dbStat.OpenConnections))
 	dbStatGaugeVector.WithLabelValues("ConnectionsInUse").Set(float64(dbStat.InUse))
 	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
+}
+
+func SetBadgerMetrics(metrics map[string]float64) {
+	if badgerMetrics == nil {
+		badgerMetrics = make(map[string]prometheus.Gauge)
+	}
+
+	for key, val := range metrics {
+		if _, ok := badgerMetrics[key]; !ok {
+			badgerMetricsLock.Lock()
+			if _, ok := badgerMetrics[key]; !ok {
+				badgerMetrics[key] = prometheus.NewGauge(prometheus.GaugeOpts{
+					Name: key,
+				})
+				prometheus.MustRegister(badgerMetrics[key])
+			}
+			badgerMetricsLock.Unlock()
+		}
+		badgerMetrics[key].Set(val)
+	}
 }

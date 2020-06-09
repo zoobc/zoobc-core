@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -335,10 +335,10 @@ func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
 
 func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
 
-func (*mockQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
+func (*mockQueryExecutorSuccess) ExecuteTransaction(string, ...interface{}) error {
 	return nil
 }
-func (*mockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) error {
+func (*mockQueryExecutorSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
 func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
@@ -577,6 +577,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockTransaction.GetSenderAccountAddress(),
 			mockTransaction.GetRecipientAccountAddress(),
 		))
+	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest " +
+		"FROM pending_transaction WHERE block_height = ? AND status = ? AND latest = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	// which is escrow expiration process
 	default:
 		mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
@@ -935,11 +938,7 @@ func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocks
 	return []string{}, nil
 }
 
-func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
-	totalReward, blockTimestamp int64,
-	height uint32,
-) error {
+func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([]string, int64, int64, uint32) error {
 	return nil
 }
 
@@ -1056,9 +1055,15 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1116,9 +1121,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{Executor: &mockQueryExecutorSuccess{}},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1176,9 +1185,15 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1236,9 +1251,15 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 			},
@@ -1900,9 +1921,15 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
 				TransactionCoreService: NewTransactionCoreService(
+					log.New(),
 					&mockQueryExecutorSuccess{},
+					&transaction.TypeSwitcher{
+						Executor: &mockQueryExecutorSuccess{},
+					},
+					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
+					query.NewPendingTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
 			},
@@ -4109,10 +4136,18 @@ func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	return make([]*model.MempoolTransaction, 0), nil
 }
 
+func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) error {
+	return nil
+}
+
 func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
 	height uint32,
 ) ([]*model.MempoolTransaction, error) {
 	return nil, errors.New("mockedError")
+}
+
+func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) error {
+	return errors.New("error BackupMempools")
 }
 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
@@ -4193,6 +4228,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 		"transaction_index FROM \"transaction\" WHERE block_id = ? ORDER BY transaction_index ASC":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(transactionQ.Fields))
+	case "SELECT sender_address, transaction_hash, transaction_bytes, status, block_height, latest FROM pending_transaction " +
+		"WHERE (block_height+?) = ? AND status = ? AND latest = ?":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mock.NewRows(query.NewPendingTransactionQuery().Fields))
 	}
 
 	return db.Query(qStr)
@@ -4315,27 +4353,37 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 
 func TestBlockService_PopOffToBlock(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlockPoolService        BlockPoolServiceInterface
-		TransactionCoreService  TransactionCoreServiceInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
+		RWMutex                     sync.RWMutex
+		Chaintype                   chaintype.ChainType
+		KVExecutor                  kvdb.KVExecutorInterface
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -4356,7 +4404,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4386,7 +4433,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4417,7 +4463,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4448,7 +4493,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4479,7 +4523,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4510,7 +4553,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4541,7 +4583,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:         nil,
 				PublishedReceiptQuery:   nil,
 				SkippedBlocksmithQuery:  nil,
 				Signature:               nil,
@@ -4584,38 +4625,48 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: false,
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ReceiptService:          tt.fields.ReceiptService,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockPoolService:        tt.fields.BlockPoolService,
-				TransactionCoreService:  tt.fields.TransactionCoreService,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
+				RWMutex:                     tt.fields.RWMutex,
+				Chaintype:                   tt.fields.Chaintype,
+				KVExecutor:                  tt.fields.KVExecutor,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				BlocksmithService:           tt.fields.BlocksmithService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				BlockPoolService:            tt.fields.BlockPoolService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
+				TransactionUtil:             tt.fields.TransactionUtil,
+				ReceiptUtil:                 tt.fields.ReceiptUtil,
+				PublishedReceiptUtil:        tt.fields.PublishedReceiptUtil,
+				TransactionCoreService:      tt.fields.TransactionCoreService,
+				CoinbaseService:             tt.fields.CoinbaseService,
+				ParticipationScoreService:   tt.fields.ParticipationScoreService,
+				PublishedReceiptService:     tt.fields.PublishedReceiptService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("BlockService.PopOffToBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("PopOffToBlock() got = \n%v, want \n%v", got, tt.want)
+				t.Errorf("BlockService.PopOffToBlock() = %v, want %v", got, tt.want)
 			}
 		})
 	}

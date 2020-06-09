@@ -11,7 +11,9 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/dgraph-io/badger"
+	"github.com/mohae/deepcopy"
+
+	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -217,9 +219,9 @@ func (bs *BlockService) ChainWriteLock(actionType int) {
 
 // ChainWriteUnlock unlocks the chain
 func (bs *BlockService) ChainWriteUnlock(actionType int) {
-	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
-	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
 	bs.Unlock()
+	monitoring.DecrementStatusLockCounter(bs.Chaintype, actionType)
+	monitoring.SetBlockchainStatus(bs.Chaintype, constant.BlockchainStatusIdle)
 }
 
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
@@ -408,8 +410,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
-	// Respecting Expiring escrow before push block process
+	/*
+		Expiring Process: expiring the the transactions that affected by current block height.
+		Respecting Expiring escrow and multi signature transaction before push block process
+	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
@@ -604,10 +613,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				if broadcast {
+					// create copy of the block to avoid reference update on block pool
+					b := deepcopy.Copy(block)
+					blockToBroadcast, ok := b.(*model.Block)
+					if !ok {
+						return blocker.NewBlocker(blocker.AppErr, "FailCopyingBlock")
+					}
 					// add transactionIDs and remove transaction before broadcast
-					block.TransactionIDs = transactionIDs
-					block.Transactions = []*model.Transaction{}
-					bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
+					blockToBroadcast.TransactionIDs = transactionIDs
+					blockToBroadcast.Transactions = []*model.Transaction{}
+					bs.Observer.Notify(observer.BroadcastBlock, blockToBroadcast, bs.Chaintype)
 				}
 				return nil
 			}
@@ -638,8 +653,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet
 func (bs *BlockService) ScanBlockPool() error {
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockScanBlockPool)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockScanBlockPool)
 	previousBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -651,14 +666,15 @@ func (bs *BlockService) ScanBlockPool() error {
 		if err == nil {
 			err := bs.ValidateBlock(block, previousBlock)
 			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", err)
+				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
 				)
 			}
 			err = bs.PushBlock(previousBlock, block, true, true)
+
 			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", err)
+				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 				return blocker.NewBlocker(
 					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 				)
@@ -1087,7 +1103,7 @@ func (bs *BlockService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", err)
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block))
 	}
 	return nil
 }
@@ -1279,10 +1295,8 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		mempoolsBackupBytes *bytes.Buffer
-		mempoolsBackup      []*model.MempoolTransaction
-		publishedReceipts   []*model.PublishedReceipt
-		err                 error
+		publishedReceipts []*model.PublishedReceipt
+		err               error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1328,72 +1342,17 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	// Backup existing transactions from mempool before rollback
-	mempoolsBackup, err = bs.MempoolService.GetMempoolTransactionsWantToBackup(commonBlock.Height)
-	if err != nil {
-		return nil, err
-	}
-	bs.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
-	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, dQuery := range derivedQueries {
-		queries := dQuery.Rollback(commonBlock.Height)
-		err = bs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = bs.QueryExecutor.RollbackTx()
-			return nil, err
-		}
-	}
-
-	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-
-	for _, mempool := range mempoolsBackup {
-		var (
-			tx     *model.Transaction
-			txType transaction.TypeAction
-		)
-		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
-		if err != nil {
-			return nil, err
-		}
-		txType, err = bs.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return nil, err
-		}
-
-		err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
-		if err != nil {
-			return nil, err
-		}
-
-		/*
-			mempoolsBackupBytes format is
-			[...{4}byteSize,{bytesSize}transactionBytes]
-		*/
-		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
-		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
-		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
-	}
-	err = bs.QueryExecutor.CommitTx()
-	if err != nil {
-		return nil, err
-	}
-	//
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
 	//  rollback. Something like this:
 	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
 	//  - delete all snapshots referenced by them
 	//
-	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(bs.GetChainType())
-		err = bs.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
-		if err != nil {
-			return nil, err
-		}
-	}
+
 	// remove peer memoization
 	bs.NodeRegistrationService.ResetScrambledNodes()
 	// clear block pool
@@ -1478,8 +1437,8 @@ func (bs *BlockService) WillSmith(
 
 // ProcessCompletedBlock to process block that already having all needed transactions
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -1498,6 +1457,8 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			}
 			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
+				bs.Logger.Warnf("ProcessCompletedBlock:blockValidationFail: %v\n",
+					blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
 				return status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
 			lastBlocks, err := bs.PopOffToBlock(previousBlock)
@@ -1507,9 +1468,12 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 
 			err = bs.PushBlock(previousBlock, block, true, true)
 			if err != nil {
+				bs.Logger.Warn("Push ProcessCompletedBlock:fail ",
+					blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 				errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 				if errPushBlock != nil {
-					bs.Logger.Errorf("pushing back popped off block fail: %v", errPushBlock)
+					bs.Logger.Errorf("ProcessCompletedBlock pushing back popped off block fail: %v",
+						blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
 				bs.Logger.Info("pushing back popped off block")
@@ -1524,10 +1488,12 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock)
 	if err != nil {
+		bs.Logger.Warnf("ProcessCompletedBlock2:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, lastBlock))
 		return status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
+		bs.Logger.Errorf("ProcessCompletedBlock2 push Block fail: %v", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, lastBlock))
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
