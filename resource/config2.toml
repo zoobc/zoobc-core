@@ -23,8 +23,7 @@ smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-#logLevels=["fatal", "error", "panic", "warn"]
-logLevels=["warn"]
+logLevels=["fatal", "error", "panic"]
 
 apiCertFile="./resource/network.crt"
 apiKeyFile="./resource/network.key"

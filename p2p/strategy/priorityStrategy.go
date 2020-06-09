@@ -72,16 +72,14 @@ func NewPriorityStrategy(
 func (ps *PriorityStrategy) Start() {
 	// start p2p process threads
 	go ps.UpdateNodeAddressThread()
-	// give time to the node to write its address to db if not already there
-	time.Sleep(500 * time.Millisecond)
+	// wait until we are sure node address (myAddress) has been written to db
+	time.Sleep(time.Duration(500) * time.Millisecond)
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-	// STEF FIXME!
-	// TODO: find a more elegant way, such as using channels to signal when the node has build its primary peers
-	// wait until some peers are resolved
-	time.Sleep(5 * time.Second)
+	// wait until we are quite sure there are some connected peers
+	time.Sleep(time.Duration(5000) * time.Millisecond)
 	go ps.SyncNodeAddressInfoTableThread()
 }
 
@@ -417,7 +415,6 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 			}
 		}
 	}
-	//AAAAAAAAAAAAAAAA
 }
 
 // resolvePeer send request to a peer and add to resolved peer if get response
@@ -594,7 +591,9 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 	for {
 		select {
 		case <-ticker.C:
-			// wait until bc has finished downloading and sync nodeAddressInfo table again (only once)
+			// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have all updated addresses
+			// note: when bc is full downloaded the node should be able to validate all address info
+			// messages
 			if ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
 				if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
 					ps.Logger.Error(err)
@@ -1098,8 +1097,13 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		nodePublicKey   = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		resolvedPeers   = ps.GetResolvedPeers()
 	)
-	if nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey); nr != nil && err == nil {
+	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+	if nr != nil && err == nil {
 		nodeAddrInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.NodeID})
+		if err != nil {
+			return err
+		}
+		nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
 		if err != nil {
 			return err
 		}
@@ -1107,10 +1111,6 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			(len(nodeAddrInfo) > 0 &&
 				(nodeAddress != nodeAddrInfo[0].GetAddress() ||
 					port != nodeAddrInfo[0].GetPort())) {
-			nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
-			if err != nil {
-				return err
-			}
 			updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
 			if err != nil {
 				return err
@@ -1125,9 +1125,11 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		// broadcast, if node addressInfo has been updated
 		if updated || forceBroadcast {
 			// node address has changed, update 'host' configuration variable
-			ps.NodeConfigurationService.SetMyAddress(nodeAddress)
+			if updated {
+				ps.NodeConfigurationService.SetMyAddress(nodeAddress)
+			}
 			for _, peer := range resolvedPeers {
-				go func(peer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) {
+				go func() {
 					ps.Logger.Debugf("Broadcasting node addresses %s:%d  to %s:%d",
 						nodeAddressInfo.Address,
 						nodeAddressInfo.Port,
@@ -1139,7 +1141,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 							peer.Info.Port,
 							err)
 					}
-				}(peer, nodeAddressInfo)
+				}()
 			}
 		}
 	}
