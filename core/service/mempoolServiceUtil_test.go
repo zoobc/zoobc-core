@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -217,6 +220,24 @@ func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, t
 	return nil, errors.New("mockExecutorValidateMempoolTransactionFail : mocked Err")
 }
 
+type (
+	mockValidateMempoolTransactionScaleServiceSuccessCache struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockValidateMempoolTransactionScaleServiceSuccessCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
+
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -327,12 +348,14 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolServiceUtil{
-				QueryExecutor:          tt.fields.QueryExecutor,
-				MempoolQuery:           tt.fields.MempoolQuery,
-				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
-				TransactionQuery:       tt.fields.TransactionQuery,
-				TransactionUtil:        &transaction.Util{},
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				TransactionUtil: &transaction.Util{
+					FeeScaleService: &mockValidateMempoolTransactionScaleServiceSuccessCache{},
+				},
 				TransactionCoreService: tt.fields.TransactionCoreService,
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {

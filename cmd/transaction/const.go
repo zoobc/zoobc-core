@@ -17,6 +17,8 @@ var (
 		"multiSignature":         {5, 0, 0, 0},
 		"liquidPayment":          {6, 0, 0, 0},
 		"liquidPaymentStop":      {6, 1, 0, 0},
+		"feeVoteCommit":          {7, 0, 0, 0},
+		"feeVoteReveal":          {7, 1, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -66,6 +68,10 @@ var (
 	nonce             int64
 	minSignature      uint32
 
+	// fee vote
+	recentBlockHeight uint32
+	feeVote           int64
+	dbPath, dBName    string
 	// liquidPayment
 	completeMinutes uint64
 )

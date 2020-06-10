@@ -28,7 +28,10 @@ type (
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
 		GetTransactionBody(transaction *model.Transaction)
-		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
+		SkipMempoolTransaction(
+			selectedTransactions []*model.Transaction,
+			blockTimestamp int64,
+		) (bool, error)
 		Escrowable() (EscrowTypeAction, bool)
 	}
 	// TypeActionSwitcher assert transaction to TypeAction / EscrowTypeAction
@@ -43,11 +46,15 @@ type (
 
 // GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
-	buf := util.ConvertUint32ToBytes(tx.GetTransactionType())
-	// TODO OPTIMIZATION: initiate accountBalanceHelper and accountLedgerHelper once only in the instance lifecycle
-	accountBalanceHelper := NewAccountBalanceHelper(query.NewAccountBalanceQuery(), ts.Executor)
-	accountLedgerHelper := NewAccountLedgerHelper(query.NewAccountLedgerQuery(), ts.Executor)
-	transactionHelper := NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
+	var (
+		buf                  = util.ConvertUint32ToBytes(tx.GetTransactionType())
+		accountBalanceHelper = NewAccountBalanceHelper(query.NewAccountBalanceQuery(), ts.Executor)
+		accountLedgerHelper  = NewAccountLedgerHelper(query.NewAccountLedgerQuery(), ts.Executor)
+		transactionHelper    = NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
+		transactionBody      model.TransactionBodyInterface
+		err                  error
+	)
+
 	switch buf[0] {
 	case 0: // Empty Transaction
 		switch buf[1] {
@@ -56,16 +63,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	case 1: // SendMoney Transaction
+	// Send Money
+	case 1:
 		switch buf[1] {
 		case 0:
-			sendMoneyBody, err := new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
+			transactionBody, err = new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
 			return &SendMoney{
 				ID:                  tx.GetID(),
-				Body:                sendMoneyBody.(*model.SendMoneyTransactionBody),
+				Body:                transactionBody.(*model.SendMoneyTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
 				RecipientAddress:    tx.GetRecipientAccountAddress(),
@@ -77,18 +85,19 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, constant.OneZBC/100,
+					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
+				NormalFee:           fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			}, nil
 		default:
 			return nil, nil
 		}
-	case 2: // NodeRegistration Transaction
+	// Node Registry
+	case 2:
 		switch buf[1] {
-		case 0: // NodeRegistration Transaction
-			nodeRegistrationBody, err := (&NodeRegistration{
+		case 0:
+			transactionBody, err = (&NodeRegistration{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			}).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
@@ -96,7 +105,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			}
 			return &NodeRegistration{
 				ID:                      tx.ID, // assign tx ID to nodeID
-				Body:                    nodeRegistrationBody.(*model.NodeRegistrationTransactionBody),
+				Body:                    transactionBody.(*model.NodeRegistrationTransactionBody),
 				Fee:                     tx.Fee,
 				SenderAddress:           tx.GetSenderAccountAddress(),
 				Height:                  tx.GetHeight(),
@@ -109,8 +118,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Escrow:                  tx.GetEscrow(),
 			}, nil
-		case 1: // UpdateNodeRegistration Transaction
-			nodeRegistrationBody, err := (&UpdateNodeRegistration{
+		case 1:
+			transactionBody, err = (&UpdateNodeRegistration{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			}).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
@@ -118,7 +127,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			}
 			return &UpdateNodeRegistration{
 				ID:                    tx.GetID(),
-				Body:                  nodeRegistrationBody.(*model.UpdateNodeRegistrationTransactionBody),
+				Body:                  transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
 				Height:                tx.GetHeight(),
@@ -130,14 +139,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
 			}, nil
-		case 2: // RemoveNodeRegistration Transaction
-			removeNodeRegistrationBody, err := new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+		case 2:
+			transactionBody, err = new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
 				ID:                    tx.GetID(),
-				Body:                  removeNodeRegistrationBody.(*model.RemoveNodeRegistrationTransactionBody),
+				Body:                  transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
 				Height:                tx.GetHeight(),
@@ -147,14 +156,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
 			}, nil
-		case 3: // ClaimNodeRegistration Transaction
-			claimNodeRegistrationBody, err := new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
+		case 3:
+			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
 				ID:                    tx.GetID(),
-				Body:                  claimNodeRegistrationBody.(*model.ClaimNodeRegistrationTransactionBody),
+				Body:                  transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
 				Fee:                   tx.Fee,
 				SenderAddress:         tx.GetSenderAccountAddress(),
 				Height:                tx.GetHeight(),
@@ -169,16 +178,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	case 3: // AccountDataset Transaction
+	// Account Dataset
+	case 3:
 		switch buf[1] {
-		case 0: // SetupAccountDataset Transaction
-			setupAccountDatasetTransactionBody, err := new(SetupAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+		case 0:
+			transactionBody, err = new(SetupAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
 			return &SetupAccountDataset{
 				ID:                  tx.GetID(),
-				Body:                setupAccountDatasetTransactionBody.(*model.SetupAccountDatasetTransactionBody),
+				Body:                transactionBody.(*model.SetupAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
 				Height:              tx.GetHeight(),
@@ -188,14 +198,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
 			}, nil
-		case 1: // RemoveAccountDataset Transaction
-			removeAccountDatasetTransactionBody, err := new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
+		case 1:
+			transactionBody, err = new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
 			return &RemoveAccountDataset{
 				ID:                  tx.GetID(),
-				Body:                removeAccountDatasetTransactionBody.(*model.RemoveAccountDatasetTransactionBody),
+				Body:                transactionBody.(*model.RemoveAccountDatasetTransactionBody),
 				Fee:                 tx.Fee,
 				SenderAddress:       tx.GetSenderAccountAddress(),
 				Height:              tx.GetHeight(),
@@ -208,16 +218,17 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	case 4: // Escrow Transaction
+	// Excrow
+	case 4:
 		switch buf[1] {
-		case 0: // ApprovalEscrowTransaction Transaction
-			approvalEscrowTransactionBody, err := new(ApprovalEscrowTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+		case 0:
+			transactionBody, err = new(ApprovalEscrowTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
 			return &ApprovalEscrowTransaction{
 				ID:                  tx.GetID(),
-				Body:                approvalEscrowTransactionBody.(*model.ApprovalEscrowTransactionBody),
+				Body:                transactionBody.(*model.ApprovalEscrowTransactionBody),
 				Fee:                 tx.GetFee(),
 				SenderAddress:       tx.GetSenderAccountAddress(),
 				Height:              tx.GetHeight(),
@@ -233,9 +244,11 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	case 5: // NewMultisig Transaction
+	// Multi Signature
+	case 5:
 		switch buf[1] {
-		case 0: // MultiSignatureTransaction
+		// MultiSignatureTransaction
+		case 0:
 			// initialize service for pending_tx, pending_sig and multisig_info
 			typeSwitcher := &TypeSwitcher{
 				Executor: ts.Executor,
@@ -259,13 +272,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Signature:               &crypto.Signature{},
 			}
 			multisigUtil := NewMultisigTransactionUtil()
-			multiSigTransactionBody, err := new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			transactionBody, err = new(MultiSignatureTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
 			return &MultiSignatureTransaction{
 				ID:                       tx.ID,
-				Body:                     multiSigTransactionBody.(*model.MultiSignatureTransactionBody),
+				Body:                     transactionBody.(*model.MultiSignatureTransactionBody),
 				Fee:                      tx.GetFee(),
 				SenderAddress:            tx.GetSenderAccountAddress(),
 				NormalFee:                fee.NewConstantFeeModel(constant.OneZBC / 100),
@@ -285,16 +298,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	case 6: // LiquidPayment Transaction
+	case 6:
 		switch buf[1] {
 		case 0: // LiquidPayment Transaction
-			liquidPaymentTransactionBody, err := new(LiquidPaymentTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			transactionBody, err = new(LiquidPaymentTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
 			return &LiquidPaymentTransaction{
 				ID:                            tx.GetID(),
-				Body:                          liquidPaymentTransactionBody.(*model.LiquidPaymentTransactionBody),
+				Body:                          transactionBody.(*model.LiquidPaymentTransactionBody),
 				Fee:                           tx.GetFee(),
 				SenderAddress:                 tx.GetSenderAccountAddress(),
 				RecipientAddress:              tx.GetRecipientAccountAddress(),
@@ -306,13 +319,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 			}, nil
 		case 1: // LiquidPaymentStop Transaction
-			liquidPaymentStopTransactionBody, err := new(LiquidPaymentStopTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			transactionBody, err = new(LiquidPaymentStopTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}
 			return &LiquidPaymentStopTransaction{
 				ID:                            tx.GetID(),
-				Body:                          liquidPaymentStopTransactionBody.(*model.LiquidPaymentStopTransactionBody),
+				Body:                          transactionBody.(*model.LiquidPaymentStopTransactionBody),
 				Fee:                           tx.GetFee(),
 				SenderAddress:                 tx.GetSenderAccountAddress(),
 				RecipientAddress:              tx.GetRecipientAccountAddress(),
@@ -327,6 +340,61 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			}, nil
 		default:
 			return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[1]))
+		}
+	// Fee Voting
+	case 7:
+		switch buf[1] {
+		case 0:
+			transactionBody, err = new(FeeVoteCommitTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &FeeVoteCommitTransaction{
+				ID:                         tx.ID,
+				Fee:                        tx.Fee,
+				SenderAddress:              tx.SenderAccountAddress,
+				Height:                     tx.Height,
+				Body:                       transactionBody.(*model.FeeVoteCommitTransactionBody),
+				QueryExecutor:              ts.Executor,
+				AccountBalanceHelper:       accountBalanceHelper,
+				AccountLedgerHelper:        accountLedgerHelper,
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
+				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					ts.Executor,
+				),
+			}, nil
+		case 1:
+			transactionBody, err = new(FeeVoteRevealTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &FeeVoteRevealTransaction{
+				ID:                     tx.GetID(),
+				Fee:                    tx.GetFee(),
+				SenderAddress:          tx.GetSenderAccountAddress(),
+				Height:                 tx.GetHeight(),
+				Timestamp:              tx.GetTimestamp(),
+				Body:                   transactionBody.(*model.FeeVoteRevealTransactionBody),
+				QueryExecutor:          ts.Executor,
+				AccountBalanceHelper:   accountBalanceHelper,
+				AccountLedgerHelper:    accountLedgerHelper,
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				FeeVoteCommitVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
+				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
+				SignatureInterface:     crypto.NewSignature(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(chaintype.GetChainType(0)),
+					ts.Executor,
+				),
+			}, nil
+		default:
+			return nil, nil
 		}
 	default:
 		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[0]))

@@ -51,6 +51,14 @@ var (
 	MultiSigInfoMinSignature       uint32 = 4
 	MultiSigTransactionHash        uint32 = 32
 
+	// FeeVote part
+	FeeVote               uint32 = 8
+	RecentBlockHashLength uint32 = 4
+	RecentBlockHeight     uint32 = 4
+	VoterSignatureLength  uint32 = 4
+
+	// Liquid Transaction
+
 	LiquidPaymentCompleteMinutesLength uint32 = 8
 	TransactionID                      uint32 = 8
 )

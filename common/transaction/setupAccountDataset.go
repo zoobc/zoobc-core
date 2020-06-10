@@ -27,7 +27,10 @@ type SetupAccountDataset struct {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SetupAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *SetupAccountDataset) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
 	return false, nil
 }
 

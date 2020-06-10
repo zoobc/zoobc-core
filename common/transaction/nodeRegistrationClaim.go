@@ -31,7 +31,10 @@ type ClaimNodeRegistration struct {
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
-func (tx *ClaimNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *ClaimNodeRegistration) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
 	authorizedType := map[model.TransactionType]bool{
 		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
 		model.TransactionType_UpdateNodeRegistrationTransaction: true,

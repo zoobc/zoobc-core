@@ -36,7 +36,10 @@ type (
 )
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SendMoney) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *SendMoney) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
 	return false, nil
 }
 

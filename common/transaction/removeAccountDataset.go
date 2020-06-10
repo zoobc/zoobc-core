@@ -27,7 +27,10 @@ type RemoveAccountDataset struct {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *RemoveAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *RemoveAccountDataset) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
 	return false, nil
 }
 
