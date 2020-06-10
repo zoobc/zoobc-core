@@ -18,6 +18,10 @@ type (
 		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
 		ExtractModel(voteCommit *model.FeeVoteCommitmentVote) []interface{}
 		Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error
+		BuildModel(
+			feeVoteCommitmentVotes []*model.FeeVoteCommitmentVote,
+			rows *sql.Rows,
+		) ([]*model.FeeVoteCommitmentVote, error)
 		Rollback(height uint32) (multiQueries [][]interface{})
 	}
 	// FeeVoteCommitmentVoteQuery struct that have string  query for FeeVoteCommitmentVotes
@@ -82,6 +86,30 @@ func (*FeeVoteCommitmentVoteQuery) Scan(voteCommit *model.FeeVoteCommitmentVote,
 		&voteCommit.BlockHeight,
 	)
 	return err
+}
+
+// BuildModel will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+func (*FeeVoteCommitmentVoteQuery) BuildModel(
+	feeVoteCommitmentVotes []*model.FeeVoteCommitmentVote,
+	rows *sql.Rows,
+) ([]*model.FeeVoteCommitmentVote, error) {
+	for rows.Next() {
+		var (
+			feeCommit model.FeeVoteCommitmentVote
+			err       error
+		)
+		err = rows.Scan(
+			&feeCommit.VoteHash,
+			&feeCommit.VoterAddress,
+			&feeCommit.BlockHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		feeVoteCommitmentVotes = append(feeVoteCommitmentVotes, &feeCommit)
+	}
+	return feeVoteCommitmentVotes, nil
 }
 
 // Rollback delete records `WHERE block_height > "block_height"`

@@ -85,9 +85,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, constant.OneZBC/100,
+					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
+				NormalFee:           fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 			}, nil
 		default:

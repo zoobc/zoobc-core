@@ -445,3 +445,245 @@ func TestNewFeeScaleService(t *testing.T) {
 		})
 	}
 }
+
+var (
+	mockMedianLowerConstraintsPassed = []*model.FeeVoteInfo{
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 3), // i:4
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 1), // i:2 less than 0.5 than previous
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 2), // i:3
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/10, // i:1
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/30, // i:0
+		},
+	}
+	mockMedianHigherConstraintsPassed = []*model.FeeVoteInfo{
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 3), // i:4
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 1), // i:2 more than 2.0 than previous
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 2), // i:3
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+		},
+	}
+	mockMedianWithinConstraintsEven = []*model.FeeVoteInfo{
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 3), // i:4
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+		},
+	}
+	mockMedianWithinConstraintsOdd = []*model.FeeVoteInfo{
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+		},
+		{
+			RecentBlockHash:   nil,
+			RecentBlockHeight: 0,
+			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+		},
+	}
+)
+
+func TestFeeScaleService_SelectVote(t *testing.T) {
+	previousScale := constant.OneZBC
+	type fields struct {
+		lastBlockTimestamp  int64
+		lastFeeScale        model.FeeScale
+		FeeScaleQuery       query.FeeScaleQueryInterface
+		MainchainBlockQuery query.BlockQueryInterface
+		Executor            query.ExecutorInterface
+	}
+	type args struct {
+		votes                []*model.FeeVoteInfo
+		originalSendMoneyFee int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   int64
+	}{
+		{
+			name: "EmptyVotes",
+			fields: fields{
+				lastBlockTimestamp: 0,
+				lastFeeScale: model.FeeScale{
+					FeeScale: previousScale,
+					Latest:   true,
+				},
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
+			},
+			args: args{
+				votes:                []*model.FeeVoteInfo{},
+				originalSendMoneyFee: SendMoneyFeeConstant,
+			},
+			want: previousScale,
+		},
+		{
+			name: "MedianPassLowerConstraints",
+			fields: fields{
+				lastBlockTimestamp: 0,
+				lastFeeScale: model.FeeScale{
+					FeeScale: previousScale,
+					Latest:   true,
+				},
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
+			},
+			args: args{
+				votes:                mockMedianLowerConstraintsPassed,
+				originalSendMoneyFee: SendMoneyFeeConstant,
+			},
+			want: previousScale / 2,
+		},
+		{
+			name: "MedianPassHigherConstraints",
+			fields: fields{
+				lastBlockTimestamp: 0,
+				lastFeeScale: model.FeeScale{
+					FeeScale: previousScale,
+					Latest:   true,
+				},
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
+			},
+			args: args{
+				votes:                mockMedianHigherConstraintsPassed,
+				originalSendMoneyFee: SendMoneyFeeConstant,
+			},
+			want: previousScale * 2,
+		},
+		{
+			name: "WithinConstraints - Even number of votes",
+			fields: fields{
+				lastBlockTimestamp: 0,
+				lastFeeScale: model.FeeScale{
+					FeeScale: previousScale,
+					Latest:   true,
+				},
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
+			},
+			args: args{
+				votes:                mockMedianWithinConstraintsEven,
+				originalSendMoneyFee: SendMoneyFeeConstant,
+			},
+			want: 199999650,
+		},
+		{
+			name: "WithinConstraints - Odd number of votes",
+			fields: fields{
+				lastBlockTimestamp: 0,
+				lastFeeScale: model.FeeScale{
+					FeeScale: previousScale,
+					Latest:   true,
+				},
+				FeeScaleQuery:       nil,
+				MainchainBlockQuery: nil,
+				Executor:            nil,
+			},
+			args: args{
+				votes:                mockMedianWithinConstraintsOdd,
+				originalSendMoneyFee: SendMoneyFeeConstant,
+			},
+			want: 199999600,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fss := &FeeScaleService{
+				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
+				lastFeeScale:        tt.fields.lastFeeScale,
+				FeeScaleQuery:       tt.fields.FeeScaleQuery,
+				MainchainBlockQuery: tt.fields.MainchainBlockQuery,
+				Executor:            tt.fields.Executor,
+			}
+			if got := fss.SelectVote(tt.args.votes, tt.args.originalSendMoneyFee); got != tt.want {
+				t.Errorf("SelectVote() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

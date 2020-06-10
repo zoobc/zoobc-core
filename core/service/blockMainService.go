@@ -73,6 +73,7 @@ type (
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
 		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
 		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
 		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		BlockPoolService            BlockPoolServiceInterface
@@ -104,6 +105,7 @@ func NewBlockMainService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
@@ -136,6 +138,7 @@ func NewBlockMainService(
 		AccountBalanceQuery:         accountBalanceQuery,
 		ParticipationScoreQuery:     participationScoreQuery,
 		NodeRegistrationQuery:       nodeRegistrationQuery,
+		FeeVoteRevealVoteQuery:      feeVoteRevealVoteQuery,
 		BlocksmithStrategy:          blocksmithStrategy,
 		Observer:                    obsr,
 		Logger:                      logger,
@@ -655,6 +658,57 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+	// adjust fee if end of fee-vote period
+	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
+	if err != nil {
+		return err
+	}
+	if adjust {
+		// fetch vote-reveals
+		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
+			var (
+				result         []*model.FeeVoteInfo
+				queryResult    []*model.FeeVoteRevealVote
+				err            error
+				latestFeeScale model.FeeScale
+			)
+			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
+			if err != nil {
+				return result, err
+			}
+			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
+			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+			if err != nil {
+				return result, err
+			}
+			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
+			if err != nil {
+				return result, err
+			}
+			for _, vote := range queryResult {
+				result = append(result, vote.VoteInfo)
+			}
+			return result, nil
+		}()
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			return err
+		}
+		// select vote
+		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
+		// insert new fee-scale
+		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    vote,
+			BlockHeight: block.Height,
+			Latest:      true,
+		})
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			return err
+		}
+	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
@@ -672,6 +726,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }

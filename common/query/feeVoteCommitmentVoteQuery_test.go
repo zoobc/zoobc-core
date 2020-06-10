@@ -225,3 +225,45 @@ func TestFeeVoteCommitmentVoteQuery_Rollback(t *testing.T) {
 		})
 	}
 }
+
+var (
+	mockFeeVoteCommitmentVoteQueryBuildModelRowResult = []*model.FeeVoteCommitmentVote{
+		{
+			VoteHash:     make([]byte, 32),
+			VoterAddress: "abc",
+			BlockHeight:  100,
+		},
+		{
+			VoteHash:     make([]byte, 32),
+			VoterAddress: "cba",
+			BlockHeight:  120,
+		},
+	}
+)
+
+func TestFeeVoteCommitmentVoteQuery_BuildModel(t *testing.T) {
+	t.Run("TestFeeVoteCommitmentVoteQuery_BuildModel:success", func(t *testing.T) {
+		var err error
+		db, mock, _ := sqlmock.New()
+		defer db.Close()
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockFeeVoteCommitmentVoteQuery.Fields).
+			AddRow(
+				mockFeeVoteCommitmentVoteQueryBuildModelRowResult[0].VoteHash,
+				mockFeeVoteCommitmentVoteQueryBuildModelRowResult[0].VoterAddress,
+				mockFeeVoteCommitmentVoteQueryBuildModelRowResult[0].BlockHeight,
+			).AddRow(
+			mockFeeVoteCommitmentVoteQueryBuildModelRowResult[1].VoteHash,
+			mockFeeVoteCommitmentVoteQueryBuildModelRowResult[1].VoterAddress,
+			mockFeeVoteCommitmentVoteQueryBuildModelRowResult[1].BlockHeight,
+		))
+		rows, _ := db.Query("")
+		var result []*model.FeeVoteCommitmentVote
+		result, err = mockFeeVoteCommitmentVoteQuery.BuildModel(result, rows)
+		if err != nil {
+			t.Errorf("error calling FeeVoteCommitmentVoteQuery.BuildModel - %v", err)
+		}
+		if !reflect.DeepEqual(result, mockFeeVoteCommitmentVoteQueryBuildModelRowResult) {
+			t.Errorf("arguments returned wrong: get: %v\nwant: %v", result, mockAccountBalance)
+		}
+	})
+}

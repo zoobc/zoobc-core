@@ -11,8 +11,12 @@ import (
 type (
 	FeeVoteRevealVoteQueryInterface interface {
 		GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(accountAddress string, blockHeight uint32) (string, []interface{})
+		GetFeeVoteRevealsInPeriod(
+			lowerBlockHeight, upperBlockHeight uint32,
+		) (string, []interface{})
 		InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{})
 		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
+		BuildModel(votes []*model.FeeVoteRevealVote, rows *sql.Rows) ([]*model.FeeVoteRevealVote, error)
 	}
 	FeeVoteRevealVoteQuery struct {
 		Fields    []string
@@ -48,6 +52,18 @@ func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddressAndRecentBloc
 		strings.Join(fvr.Fields, ", "),
 		fvr.getTableName(),
 	), []interface{}{accountAddress, blockHeight}
+}
+
+// GetFeeVoteRevealsInPeriod select reveals within block-height range
+// blockHeight limit are inclusive
+func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealsInPeriod(
+	lowerBlockHeight, upperBlockHeight uint32,
+) (qry string, args []interface{}) {
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height between ? AND ? ORDER BY fee_vote ASC",
+		strings.Join(fvr.Fields, ", "),
+		fvr.getTableName(),
+	), []interface{}{lowerBlockHeight, upperBlockHeight}
 }
 
 // InsertRevealVote represents insert new record to fee_vote_reveal
@@ -93,6 +109,35 @@ func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.
 	vote.VoterSignature = voterSignature
 	vote.VoteInfo = &feeVoteInfo
 	return err
+}
+
+func (fvr *FeeVoteRevealVoteQuery) BuildModel(
+	votes []*model.FeeVoteRevealVote, rows *sql.Rows,
+) ([]*model.FeeVoteRevealVote, error) {
+	for rows.Next() {
+		var (
+			revealVote = model.FeeVoteRevealVote{
+				VoteInfo:       &model.FeeVoteInfo{},
+				VoterSignature: nil,
+				VoterAddress:   "",
+				BlockHeight:    0,
+			}
+			err error
+		)
+		err = rows.Scan(
+			&revealVote.VoteInfo.RecentBlockHash,
+			&revealVote.VoteInfo.RecentBlockHeight,
+			&revealVote.VoteInfo.FeeVote,
+			&revealVote.VoterAddress,
+			&revealVote.VoterSignature,
+			&revealVote.BlockHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
+		votes = append(votes, &revealVote)
+	}
+	return votes, nil
 }
 
 // Rollback delete records `WHERE block_height > "block_height"`
