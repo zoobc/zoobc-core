@@ -3,6 +3,9 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -11,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -41,9 +43,8 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		feeVotePhase   model.FeeVotePhase
 		recentBlock    model.Block
 		commitVote     model.FeeVoteCommitmentVote
-		revealVote     model.FeeVoteRevealVote
 		nodeReg        model.NodeRegistration
-		canAdjust      bool
+		lastFeeScale   model.FeeScale
 		args           []interface{}
 		row            *sql.Row
 		qry            string
@@ -51,7 +52,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	)
 
 	// check the transaction submitted on reveal-phase
-	feeVotePhase, canAdjust, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
 	if err != nil {
 		return err
 	}
@@ -59,8 +60,16 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidPhasePeriod")
 	}
 
+	// get last fee scale height
+	err = tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	// must match the previously submitted in CommitmentVote
-	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddressAndHeight(
+		tx.SenderAddress,
+		lastFeeScale.BlockHeight,
+	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return err
@@ -125,18 +134,9 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 
 	// check duplicated reveal to database, once per node owner per period
-	qry, args = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(tx.SenderAddress, recentBlock.GetHeight())
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	err = tx.checkDuplicateVoteReveal(dbTx)
 	if err != nil {
 		return err
-	}
-	err = tx.FeeVoteRevealVoteQuery.Scan(&revealVote, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-	} else if canAdjust {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 	}
 	// check account balance sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
@@ -150,6 +150,29 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
+}
+
+func (tx *FeeVoteRevealTransaction) checkDuplicateVoteReveal(dbTx bool) error {
+	var (
+		revealVote model.FeeVoteRevealVote
+		qry, args  = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
+			tx.SenderAddress,
+			tx.Body.GetFeeVoteInfo().GetRecentBlockHeight(),
+		)
+		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	)
+	if err != nil {
+		return err
+	}
+	err = tx.FeeVoteRevealVoteQuery.Scan(&revealVote, row)
+	if err != nil {
+		// it means don't have previous vote
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return err
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedFeeVoteReveal")
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction
@@ -292,7 +315,34 @@ func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
+	// check tx is still valid for reveal vote phase based on new block timestamp
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	if err != nil {
+		return true, err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseReveal {
+		return true, nil
+	}
+	// check duplicate vote on mempool
+	for _, selectedTx := range selectedTransactions {
+		// if we find another fee reveal tx in currently selected transactions, filter current one out of selection
+		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
+		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+			return true, nil
+		}
+	}
+	// check previouds vote
+	err = tx.checkDuplicateVoteReveal(false)
+	if err != nil {
+		if strings.Contains(err.Error(), string(blocker.ValidationErr)) {
+			return true, nil
+		}
+		return true, err
+	}
 	return false, nil
 }
 

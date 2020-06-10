@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -83,13 +84,14 @@ func TestFeeVoteCommitmentVoteQuery_InsertCommitVote(t *testing.T) {
 	}
 }
 
-func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddress(t *testing.T) {
+func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddressAndHeight(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
 		accountAddress string
+		height         uint32
 	}
 	tests := []struct {
 		name     string
@@ -103,10 +105,12 @@ func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddress(t *testing.T) 
 			fields: fields(*mockFeeVoteCommitmentVoteQuery),
 			args: args{
 				accountAddress: mockFeeVoteCommitmentVote.GetVoterAddress(),
+				height:         mockFeeVoteCommitmentVote.GetBlockHeight(),
 			},
-			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_vote_commitment_vote WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1",
+			wantQStr: "SELECT vote_hash,voter_address,block_height FROM fee_vote_commitment_vote WHERE voter_address = ? AND block_height>= ?",
 			wantArgs: []interface{}{
 				mockFeeVoteCommitmentVote.GetVoterAddress(),
+				mockFeeVoteCommitmentVote.GetBlockHeight(),
 			},
 		},
 	}
@@ -116,12 +120,12 @@ func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddress(t *testing.T) 
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQStr, gotArgs := fsvc.GetVoteCommitByAccountAddress(tt.args.accountAddress)
+			gotQStr, gotArgs := fsvc.GetVoteCommitByAccountAddressAndHeight(tt.args.accountAddress, tt.args.height)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
+				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddressAndHeight() gotQStr = %v, want %v", gotQStr, tt.wantQStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddressAndHeight() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

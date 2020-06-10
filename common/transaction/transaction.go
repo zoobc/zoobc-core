@@ -28,7 +28,10 @@ type (
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
 		GetBodyBytes() []byte
 		GetTransactionBody(transaction *model.Transaction)
-		SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error)
+		SkipMempoolTransaction(
+			selectedTransactions []*model.Transaction,
+			blockTimestamp int64,
+		) (bool, error)
 		Escrowable() (EscrowTypeAction, bool)
 	}
 	// TypeActionSwitcher assert transaction to TypeAction / EscrowTypeAction
@@ -351,14 +354,18 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Fee:                        tx.Fee,
 				SenderAddress:              tx.SenderAccountAddress,
 				Height:                     tx.Height,
-				Timestamp:                  tx.Timestamp,
 				Body:                       transactionBody.(*model.FeeVoteCommitTransactionBody),
 				QueryExecutor:              ts.Executor,
 				AccountBalanceHelper:       accountBalanceHelper,
 				AccountLedgerHelper:        accountLedgerHelper,
-				AccountBalanceQuery:        query.NewAccountBalanceQuery(),
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					ts.Executor,
+				),
 			}, nil
 		case 1:
 			transactionBody, err = new(FeeVoteRevealTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())

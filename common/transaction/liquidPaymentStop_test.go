@@ -1106,6 +1106,7 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
+		blockTimestamp       int64
 	}
 	tests := []struct {
 		name    string
@@ -1136,7 +1137,7 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.blockTimestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("LiquidPaymentStop.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return

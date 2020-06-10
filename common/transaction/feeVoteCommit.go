@@ -3,12 +3,15 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 // FeeVoteCommitTransaction is Transaction Type that implemented TypeAction
@@ -17,10 +20,10 @@ type FeeVoteCommitTransaction struct {
 	Fee                        int64
 	SenderAddress              string
 	Height                     uint32
-	Timestamp                  int64
 	Body                       *model.FeeVoteCommitTransactionBody
-	AccountBalanceQuery        query.AccountBalanceQueryInterface
+	FeeScaleService            fee.FeeScaleServiceInterface
 	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+	BlockQuery                 query.BlockQueryInterface
 	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 	AccountBalanceHelper       AccountBalanceHelperInterface
 	AccountLedgerHelper        AccountLedgerHelperInterface
@@ -56,8 +59,8 @@ func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 		VoterAddress: tx.SenderAddress,
 		BlockHeight:  tx.Height,
 	}
-	qry, args := tx.FeeVoteCommitmentVoteQuery.InsertCommitVote(voteCommit)
-	err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
+	qry, qryArgs := tx.FeeVoteCommitmentVoteQuery.InsertCommitVote(voteCommit)
+	err = tx.QueryExecutor.ExecuteTransaction(qry, qryArgs...)
 	if err != nil {
 		return err
 	}
@@ -71,7 +74,7 @@ func (tx *FeeVoteCommitTransaction) ApplyUnconfirmed() error {
 		err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
 	)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	return nil
 }
@@ -96,26 +99,41 @@ Validate to validating Transaction FeeVoteCommitTransaction type
 */
 func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	var (
-		accountBalance model.AccountBalance
-		row            *sql.Row
-		err            error
+		row              *sql.Row
+		err              error
+		qry              string
+		qryArgs          []interface{}
+		accountBalance   model.AccountBalance
+		feeVotePhase     model.FeeVotePhase
+		nodeRegistration model.NodeRegistration
+		lastBlock        *model.Block
 	)
 
-	// Checking existing fee vote hash
+	// Checking length hash of fee vote
 	if len(tx.Body.GetVoteHash()) != sha3.New256().Size() {
-		return blocker.NewBlocker(blocker.ValidationErr, "fee vote hash required")
+		return blocker.NewBlocker(blocker.ValidationErr, "FeeVoteHashRequired")
 	}
 
-	// TODO: check is period to submit commit vote or not
-	// TODO: check duplicated vote
-	var (
-		qry              string
-		args             []interface{}
-		nodeRegistration model.NodeRegistration
-	)
+	// check is period to submit commit vote or not
+	lastBlock, err = util.GetLastBlock(tx.QueryExecutor, tx.BlockQuery)
+	if err != nil {
+		return err
+	}
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(lastBlock.Timestamp, true)
+	if err != nil {
+		return err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseCommmit {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidFeeCommitVotePeriod")
+	}
+	// check duplicate vote
+	err = tx.checkDuplicateVoteCommit(dbTx)
+	if err != nil {
+		return err
+	}
 	// check the sender account is owner of node registration
-	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	qry, qryArgs = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -128,19 +146,48 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	qry, args = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "balance not enough")
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
+}
+
+func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) error {
+	var (
+		err          error
+		row          *sql.Row
+		qry          string
+		qryArgs      []interface{}
+		voteCommit   model.FeeVoteCommitmentVote
+		lastFeeScale model.FeeScale
+	)
+	// get last fee scale height
+	err = tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	// get previous vote based on sender account address and lastest fee scale height
+	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddressAndHeight(
+		tx.SenderAddress,
+		lastFeeScale.BlockHeight,
+	)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
+	if err != nil {
+		// it means don't have vote commit for current phase
+		if err == sql.ErrNoRows {
+			return nil
+		}
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
 }
 
 // GetAmount return Amount from TransactionBody
@@ -188,7 +235,34 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
+	// check tx is still valid for commit vote phase based on new block timestamp
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	if err != nil {
+		return true, err
+	}
+	if feeVotePhase != model.FeeVotePhase_FeeVotePhaseCommmit {
+		return true, nil
+	}
+	// check duplicate vote on mempool
+	for _, selectedTx := range selectedTransactions {
+		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
+		sameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
+		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+			return true, nil
+		}
+	}
+	// check duplicate on previous vote
+	err = tx.checkDuplicateVoteCommit(false)
+	if err != nil {
+		if strings.Contains(err.Error(), string(blocker.ValidationErr)) {
+			return true, nil
+		}
+		return true, err
+	}
 	return false, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -79,10 +80,15 @@ func (*mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod) GetCurrentPhase(in
 func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
 }
+func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
 func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	return model.FeeVotePhase_FeeVotePhaseReveal, true, nil
 }
-
+func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
 func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
 	return errors.New("invalid")
 }
@@ -102,7 +108,6 @@ func (*mockQueryExecutorFeeVoteRevealTXValidateSuccess) ExecuteSelectRow(qry str
 		dbCon, mockDB, _ = sqlmock.New()
 		mockedRow        *sqlmock.Rows
 	)
-
 	switch {
 	case strings.Contains(qry, "FROM main_block"):
 		mockedBlock := GetFixturesForBlock(100, 12345678)
@@ -124,11 +129,11 @@ func (*mockQueryExecutorFeeVoteRevealTXValidateSuccess) ExecuteSelectRow(qry str
 			mockedBlock.TotalCoinBase,
 			mockedBlock.Version,
 		)
+		mockDB.ExpectQuery(regexp.QuoteMeta(qry)).WillReturnRows(mockedRow)
+		return dbCon.QueryRow(qry), nil
 	default:
-
+		return nil, nil
 	}
-	mockDB.ExpectQuery(regexp.QuoteMeta(qry)).WillReturnRows(mockedRow)
-	return dbCon.QueryRow(qry), nil
 }
 
 func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateNotFound) GetVoteCommitByAccountAddress(string) (qStr string, args []interface{}) {
