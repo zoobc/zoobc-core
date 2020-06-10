@@ -374,6 +374,10 @@ type (
 	mockFeeVoteCommitmentVoteQueryValidateFail struct {
 		query.FeeVoteCommitmentVoteQuery
 	}
+
+	mockFeeVoteCommitmentVoteQueryValidateDupicated struct {
+		query.FeeVoteCommitmentVoteQuery
+	}
 	mockFeeVoteCommitmentVoteQueryValidateSuccess struct {
 		query.FeeVoteCommitmentVoteQuery
 	}
@@ -445,7 +449,9 @@ func (*mockFeeVoteCommitmentVoteQueryValidateFail) Scan(voteCommit *model.FeeVot
 }
 
 func (*mockFeeVoteCommitmentVoteQueryValidateSuccess) Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error {
-	voteCommit.BlockHeight = mockBlockHightValidate
+	return sql.ErrNoRows
+}
+func (*mockFeeVoteCommitmentVoteQueryValidateDupicated) Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error {
 	return nil
 }
 
@@ -541,6 +547,10 @@ func (*mockFeeScaleServiceValidateSuccess) GetCurrentPhase(
 	}
 }
 
+func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
+
 func (*mockAccountBalanceHelperValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
 	return errors.New("MockedError")
 }
@@ -633,7 +643,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "wantFail:scan_GetVoteCommitByAccountAddress",
+			name: "wantFail:scan_GetVoteCommitByAccountAddressAndHeight",
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateFail{},
@@ -650,7 +660,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:DuplicatedVote",
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
-				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
+				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateDupicated{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateDuplicated{},
@@ -1096,6 +1106,12 @@ func (*mockFeeScaleServiceSkipMempoolSuccess) GetCurrentPhase(
 	return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
 }
 
+func (*mockFeeScaleServiceSkipMempoolSuccess) GetLatestFeeScale(
+	feeScale *model.FeeScale,
+) error {
+	return nil
+}
+
 func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 
 	type fields struct {
@@ -1176,7 +1192,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 				selectedTransactions: []*model.Transaction{},
 			},
 			want:    true,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "wantSuccess",

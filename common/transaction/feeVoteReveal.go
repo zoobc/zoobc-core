@@ -3,6 +3,9 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -11,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -42,6 +44,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		recentBlock    model.Block
 		commitVote     model.FeeVoteCommitmentVote
 		nodeReg        model.NodeRegistration
+		lastFeeScale   model.FeeScale
 		args           []interface{}
 		row            *sql.Row
 		qry            string
@@ -57,8 +60,16 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidPhasePeriod")
 	}
 
+	// get last fee scale height
+	err = tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	// must match the previously submitted in CommitmentVote
-	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
+	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddressAndHeight(
+		tx.SenderAddress,
+		lastFeeScale.BlockHeight,
+	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return err
@@ -123,7 +134,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 
 	// check duplicated reveal to database, once per node owner per period
-	err = tx.checkPreviousVote(dbTx)
+	err = tx.checkDuplicateVoteReveal(dbTx)
 	if err != nil {
 		return err
 	}
@@ -141,7 +152,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	return nil
 }
 
-func (tx *FeeVoteRevealTransaction) checkPreviousVote(dbTx bool) error {
+func (tx *FeeVoteRevealTransaction) checkDuplicateVoteReveal(dbTx bool) error {
 	var (
 		revealVote model.FeeVoteRevealVote
 		qry, args  = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
@@ -325,9 +336,12 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 		}
 	}
 	// check previouds vote
-	err = tx.checkPreviousVote(false)
+	err = tx.checkDuplicateVoteReveal(false)
 	if err != nil {
-		return true, nil
+		if strings.Contains(err.Error(), string(blocker.ValidationErr)) {
+			return true, nil
+		}
+		return true, err
 	}
 	return false, nil
 }

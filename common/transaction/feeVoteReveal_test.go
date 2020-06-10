@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -79,10 +80,15 @@ func (*mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod) GetCurrentPhase(in
 func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
 }
+func (*mockFeeScaleFeeVoteRevealTXValidateSuccess) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
 func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetCurrentPhase(int64, bool) (phase model.FeeVotePhase, canAdjust bool, err error) {
 	return model.FeeVotePhase_FeeVotePhaseReveal, true, nil
 }
-
+func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
 func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
 	return errors.New("invalid")
 }

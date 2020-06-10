@@ -3,13 +3,15 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"strings"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 // FeeVoteCommitTransaction is Transaction Type that implemented TypeAction
@@ -154,48 +156,35 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	return nil
 }
 
-func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) (err error) {
+func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) error {
 	var (
-		row        *sql.Row
-		qry        string
-		qryArgs    []interface{}
-		voteCommit model.FeeVoteCommitmentVote
-		block      model.Block
+		err          error
+		row          *sql.Row
+		qry          string
+		qryArgs      []interface{}
+		voteCommit   model.FeeVoteCommitmentVote
+		lastFeeScale model.FeeScale
 	)
-
-	// get previous vote based on sender account address
-	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	// get last fee scale height
+	err = tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
+	// get previous vote based on sender account address and lastest fee scale height
+	qry, qryArgs = tx.FeeVoteCommitmentVoteQuery.GetVoteCommitByAccountAddressAndHeight(
+		tx.SenderAddress,
+		lastFeeScale.BlockHeight,
+	)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
 	if err != nil {
-		// it means don't have previous vote
+		// it means don't have vote commit for current phase
 		if err == sql.ErrNoRows {
 			return nil
 		}
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
-
-	// check vote phase for previous vote
-	qry = tx.BlockQuery.GetBlockByHeight(voteCommit.GetBlockHeight())
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	err = tx.BlockQuery.Scan(&block, row)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	// canAdjust means given time is having different month & year with last block time or not.
-	// duplicate vote happen when isCanAdjust is false
-	_, canAdjust, _ := tx.FeeScaleService.GetCurrentPhase(block.Timestamp, true)
-	if !canAdjust {
-		return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
-	}
-
-	return nil
+	return blocker.NewBlocker(blocker.ValidationErr, "DuplicatedCommitVote")
 }
 
 // GetAmount return Amount from TransactionBody
@@ -266,7 +255,10 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	// check duplicate on previous vote
 	err = tx.checkDuplicateVoteCommit(false)
 	if err != nil {
-		return true, nil
+		if strings.Contains(err.Error(), string(blocker.ValidationErr)) {
+			return true, nil
+		}
+		return true, err
 	}
 	return false, nil
 }

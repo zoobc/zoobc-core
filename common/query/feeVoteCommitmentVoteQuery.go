@@ -11,7 +11,10 @@ import (
 type (
 	// FeeVoteCommitmentVoteQueryInterface interface that implemented by FeeVoteCommitmentVoteQuery
 	FeeVoteCommitmentVoteQueryInterface interface {
-		GetVoteCommitByAccountAddress(accountAddress string) (qStr string, args []interface{})
+		GetVoteCommitByAccountAddressAndHeight(
+			accountAddress string,
+			height uint32,
+		) (qStr string, args []interface{})
 		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
 		ExtractModel(voteCommit *model.FeeVoteCommitmentVote) []interface{}
 		Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error
@@ -52,12 +55,14 @@ func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVote(voteCommit *model.FeeVo
 	), fsvc.ExtractModel(voteCommit)
 }
 
-// GetVoteCommitByAccountAddress to get vote commit by account address & block height
-func (fsvc *FeeVoteCommitmentVoteQuery) GetVoteCommitByAccountAddress(accountAddress string) (
+// GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height
+func (fsvc *FeeVoteCommitmentVoteQuery) GetVoteCommitByAccountAddressAndHeight(
+	accountAddress string, height uint32,
+) (
 	qStr string, args []interface{},
 ) {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE voter_address = ? ORDER BY block_height DESC LIMIT 1`,
-		strings.Join(fsvc.Fields, ","), fsvc.getTableName()), []interface{}{accountAddress}
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE voter_address = ? AND block_height>= ?`,
+		strings.Join(fsvc.Fields, ","), fsvc.getTableName()), []interface{}{accountAddress, height}
 }
 
 // ExtractModel to  extract FeeVoteCommitmentVote model to []interface
