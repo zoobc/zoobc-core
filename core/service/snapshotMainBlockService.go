@@ -17,27 +17,31 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath               string
-		chainType                  chaintype.ChainType
-		TransactionUtil            transaction.UtilInterface
-		TypeActionSwitcher         transaction.TypeActionSwitcher
-		Logger                     *log.Logger
-		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
-		QueryExecutor              query.ExecutorInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
-		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetQueryInterface
-		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
-		PendingTransactionQuery    query.PendingTransactionQueryInterface
-		PendingSignatureQuery      query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
-		BlockQuery                 query.BlockQueryInterface
-		SnapshotQueries            map[string]query.SnapshotQuery
-		BlocksmithSafeQuery        map[string]bool
-		DerivedQueries             []query.DerivedQuery
+		SnapshotPath                  string
+		chainType                     chaintype.ChainType
+		TransactionUtil               transaction.UtilInterface
+		TypeActionSwitcher            transaction.TypeActionSwitcher
+		Logger                        *log.Logger
+		SnapshotBasicChunkStrategy    SnapshotChunkStrategyInterface
+		QueryExecutor                 query.ExecutorInterface
+		AccountBalanceQuery           query.AccountBalanceQueryInterface
+		NodeRegistrationQuery         query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery       query.ParticipationScoreQueryInterface
+		AccountDatasetQuery           query.AccountDatasetQueryInterface
+		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery         query.PublishedReceiptQueryInterface
+		PendingTransactionQuery       query.PendingTransactionQueryInterface
+		PendingSignatureQuery         query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
+		BlockQuery                    query.BlockQueryInterface
+		SnapshotQueries               map[string]query.SnapshotQuery
+		BlocksmithSafeQuery           map[string]bool
+		FeeScaleQuery                 query.FeeScaleQueryInterface
+		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
+		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+		DerivedQueries                []query.DerivedQuery
 	}
 )
 
@@ -56,6 +60,10 @@ func NewSnapshotMainBlockService(
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	feeScaleQuery query.FeeScaleQueryInterface,
+	feeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface,
+	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
+	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
@@ -64,27 +72,31 @@ func NewSnapshotMainBlockService(
 	typeSwitcher transaction.TypeActionSwitcher,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		SnapshotPath:               snapshotPath,
-		chainType:                  &chaintype.MainChain{},
-		Logger:                     logger,
-		SnapshotBasicChunkStrategy: snapshotChunkStrategy,
-		QueryExecutor:              queryExecutor,
-		AccountBalanceQuery:        accountBalanceQuery,
-		NodeRegistrationQuery:      nodeRegistrationQuery,
-		AccountDatasetQuery:        accountDatasetQuery,
-		ParticipationScoreQuery:    participationScoreQuery,
-		EscrowTransactionQuery:     escrowTransactionQuery,
-		PublishedReceiptQuery:      publishedReceiptQuery,
-		PendingTransactionQuery:    pendingTransactionQuery,
-		PendingSignatureQuery:      pendingSignatureQuery,
-		MultisignatureInfoQuery:    multisignatureInfoQuery,
-		SkippedBlocksmithQuery:     skippedBlocksmithQuery,
-		BlockQuery:                 blockQuery,
-		SnapshotQueries:            snapshotQueries,
-		BlocksmithSafeQuery:        blocksmithSafeQueries,
-		DerivedQueries:             derivedQueries,
-		TransactionUtil:            transactionUtil,
-		TypeActionSwitcher:         typeSwitcher,
+		SnapshotPath:                  snapshotPath,
+		chainType:                     &chaintype.MainChain{},
+		Logger:                        logger,
+		SnapshotBasicChunkStrategy:    snapshotChunkStrategy,
+		QueryExecutor:                 queryExecutor,
+		AccountBalanceQuery:           accountBalanceQuery,
+		NodeRegistrationQuery:         nodeRegistrationQuery,
+		AccountDatasetQuery:           accountDatasetQuery,
+		ParticipationScoreQuery:       participationScoreQuery,
+		EscrowTransactionQuery:        escrowTransactionQuery,
+		PublishedReceiptQuery:         publishedReceiptQuery,
+		PendingTransactionQuery:       pendingTransactionQuery,
+		PendingSignatureQuery:         pendingSignatureQuery,
+		MultisignatureInfoQuery:       multisignatureInfoQuery,
+		SkippedBlocksmithQuery:        skippedBlocksmithQuery,
+		FeeScaleQuery:                 feeScaleQuery,
+		FeeVoteCommitmentVoteQuery:    feeVoteCommitmentVoteQuery,
+		FeeVoteRevealVoteQuery:        feeVoteRevealVoteQuery,
+		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
+		BlockQuery:                    blockQuery,
+		SnapshotQueries:               snapshotQueries,
+		BlocksmithSafeQuery:           blocksmithSafeQueries,
+		DerivedQueries:                derivedQueries,
+		TransactionUtil:               transactionUtil,
+		TypeActionSwitcher:            typeSwitcher,
 	}
 }
 
@@ -149,6 +161,14 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
 			case "skippedBlocksmith":
 				snapshotPayload.SkippedBlocksmiths, err = ss.SkippedBlocksmithQuery.BuildModel([]*model.SkippedBlocksmith{}, rows)
+			case "feeScale":
+				snapshotPayload.FeeScale, err = ss.FeeScaleQuery.BuildModel([]*model.FeeScale{}, rows)
+			case "feeVoteCommit":
+				snapshotPayload.FeeVoteCommitmentVote, err = ss.FeeVoteCommitmentVoteQuery.BuildModel([]*model.FeeVoteCommitmentVote{}, rows)
+			case "feeVoteReveal":
+				snapshotPayload.FeeVoteRevealVote, err = ss.FeeVoteRevealVoteQuery.BuildModel([]*model.FeeVoteRevealVote{}, rows)
+			case "liquidPaymentTransaction":
+				snapshotPayload.LiquidPayment, err = ss.LiquidPaymentTransactionQuery.BuildModels(rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -338,6 +358,32 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					append(
 						[]interface{}{qry}, args...),
 				)
+			}
+		case "feeScale":
+			for _, rec := range payload.FeeScale {
+				qryArgs := ss.FeeScaleQuery.InsertFeeScale(rec)
+				queries = append(queries, qryArgs...)
+			}
+		case "feeVoteCommit":
+			for _, rec := range payload.FeeVoteCommitmentVote {
+				qry, args := ss.FeeVoteCommitmentVoteQuery.InsertCommitVote(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "feeVoteReveal":
+			for _, rec := range payload.FeeVoteRevealVote {
+				qry, args := ss.FeeVoteRevealVoteQuery.InsertRevealVote(rec)
+				queries = append(queries,
+					append(
+						[]interface{}{qry}, args...),
+				)
+			}
+		case "liquidPaymentTransaction":
+			for _, rec := range payload.LiquidPayment {
+				qryArgs := ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransaction(rec)
+				queries = append(queries, qryArgs...)
 			}
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
