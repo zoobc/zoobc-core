@@ -27,7 +27,6 @@ func NewNodeRegistrationUtils() *NodeRegistrationUtils {
 func (nru *NodeRegistrationUtils) GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(nodeAddressMessage.GetNodeID())))
-
 	addressLengthBytes := util.ConvertUint32ToBytes(uint32(len([]byte(
 		nodeAddressMessage.Address,
 	))))

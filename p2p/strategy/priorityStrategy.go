@@ -71,9 +71,6 @@ func NewPriorityStrategy(
 // Start method to start threads which mean goroutines for PriorityStrategy
 func (ps *PriorityStrategy) Start() {
 	// start p2p process threads
-	go ps.UpdateNodeAddressThread()
-	// wait until we are sure node address (myAddress) has been written to db
-	time.Sleep(time.Duration(500) * time.Millisecond)
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
@@ -81,6 +78,7 @@ func (ps *PriorityStrategy) Start() {
 	// wait until we are quite sure there are some connected peers
 	time.Sleep(time.Duration(5000) * time.Millisecond)
 	go ps.SyncNodeAddressInfoTableThread()
+	go ps.UpdateNodeAddressThread()
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -537,6 +535,11 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		ps.Logger.Warnf("Cannot get address from node. %s", err)
 	}
 	for {
+		// start updating and broadcasting own address when finished downloading the bc,
+		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
+		if !ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
+			continue
+		}
 		var (
 			host         = ps.NodeConfigurationService.GetHost()
 			secretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
@@ -1099,22 +1102,15 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 	)
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 	if nr != nil && err == nil {
-		nodeAddrInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.NodeID})
-		if err != nil {
+		if nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(
+			nr.GetNodeID(),
+			nodeAddress,
+			port,
+			nodeSecretPhrase); err != nil {
 			return err
 		}
-		nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(nr.GetNodeID(), nodeAddress, port, nodeSecretPhrase)
-		if err != nil {
+		if updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo); err != nil {
 			return err
-		}
-		if len(nodeAddrInfo) == 0 ||
-			(len(nodeAddrInfo) > 0 &&
-				(nodeAddress != nodeAddrInfo[0].GetAddress() ||
-					port != nodeAddrInfo[0].GetPort())) {
-			updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
-			if err != nil {
-				return err
-			}
 		}
 		if len(resolvedPeers) == 0 {
 			return blocker.NewBlocker(blocker.P2PPeerError,
