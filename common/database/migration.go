@@ -388,7 +388,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
-			`}
+			`,
 			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
 				"vote_hash" BLOB,		-- hash of fee vote object
