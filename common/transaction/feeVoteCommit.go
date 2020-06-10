@@ -176,6 +176,9 @@ func (tx *FeeVoteCommitTransaction) checkDuplicateVoteCommit(dbTx bool) error {
 		lastFeeScale.BlockHeight,
 	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
 	err = tx.FeeVoteCommitmentVoteQuery.Scan(&voteCommit, row)
 	if err != nil {
 		// it means don't have vote commit for current phase

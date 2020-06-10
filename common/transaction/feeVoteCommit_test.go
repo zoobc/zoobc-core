@@ -426,11 +426,10 @@ var (
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")
-	mockTimestampValidateWrongPhase          int64  = 1
-	mockTimestampValidateRightPhase          int64  = 2
-	mockTimestampValidateRightPhaseExistVote int64  = 3
-	mockBlockHightValidate                   uint32 = 1
-	mockFeeValidate                          int64  = 10
+	mockTimestampValidateWrongPhase          int64 = 1
+	mockTimestampValidateRightPhase          int64 = 2
+	mockTimestampValidateRightPhaseExistVote int64 = 3
+	mockFeeValidate                          int64 = 10
 )
 
 func (*mockFeeScaleServiceValidateFail) GetCurrentPhase(
