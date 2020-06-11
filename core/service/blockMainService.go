@@ -714,7 +714,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 
-	// Delete pruneable data
+	// Delete prunable data
 	if block.GetHeight() > (2 * constant.MinRollbackBlocks) {
 		saveHeight := block.GetHeight() - (2 * constant.MinRollbackBlocks)
 		for _, pQuery := range bs.PruneQuery {
