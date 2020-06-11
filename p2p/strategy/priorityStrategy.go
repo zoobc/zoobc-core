@@ -154,20 +154,25 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		}
 	}
 
-	// metrics monitoring
-	if monitoring.IsMonitoringActive() {
-		for _, peer := range priorityPeers {
-			priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
-			if unresolvedPeers[priorityNodeAddress] != nil {
-				unresolvedPriorityPeersCount++
-			}
-			if resolvedPeers[priorityNodeAddress] != nil {
-				resolvedPriorityPeersCount++
-			}
+	for _, peer := range priorityPeers {
+		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
+		if unresolvedPeers[priorityNodeAddress] != nil {
+			unresolvedPriorityPeersCount++
+		}
+		if resolvedPeers[priorityNodeAddress] != nil {
+			resolvedPriorityPeersCount++
 		}
 	}
-	monitoring.SetResolvedPriorityPeersCount(resolvedPriorityPeersCount)
-	monitoring.SetUnresolvedPriorityPeersCount(unresolvedPriorityPeersCount)
+	// STEF TODO: use a constant instead of 5
+	//  if resolved priority peers are too low it's probably because the node has an outdated list of node addresses
+	if resolvedPriorityPeersCount < 5 {
+		go ps.getRegistryAndSyncAddressInfoTable()
+	}
+	// metrics monitoring
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetResolvedPriorityPeersCount(resolvedPriorityPeersCount)
+		monitoring.SetUnresolvedPriorityPeersCount(unresolvedPriorityPeersCount)
+	}
 }
 
 // GetPriorityPeers, to get a list peer should connect if host in scramble node
