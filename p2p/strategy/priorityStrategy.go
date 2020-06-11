@@ -70,6 +70,7 @@ func NewPriorityStrategy(
 
 // Start method to start threads which mean goroutines for PriorityStrategy
 func (ps *PriorityStrategy) Start() {
+	go ps.UpdateNodeAddressThread()
 	// start p2p process threads
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
@@ -78,7 +79,6 @@ func (ps *PriorityStrategy) Start() {
 	// wait until we are quite sure there are some connected peers
 	time.Sleep(time.Duration(5000) * time.Millisecond)
 	go ps.SyncNodeAddressInfoTableThread()
-	go ps.UpdateNodeAddressThread()
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -535,11 +535,6 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		ps.Logger.Warnf("Cannot get address from node. %s", err)
 	}
 	for {
-		// start updating and broadcasting own address when finished downloading the bc,
-		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
-		if !ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
-			continue
-		}
 		var (
 			host         = ps.NodeConfigurationService.GetHost()
 			secretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
