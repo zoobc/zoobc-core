@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -19,7 +21,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -979,53 +980,6 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
 	return db.QueryRow(qStr), nil
-}
-func TestReceiptService_PruningNodeReceipts(t *testing.T) {
-	type fields struct {
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
-		BatchReceiptQuery       query.BatchReceiptQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlockQuery              query.BlockQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		Signature               crypto.SignatureInterface
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "WantSuccess",
-			fields: fields{
-				NodeReceiptQuery: query.NewNodeReceiptQuery(),
-				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				BlockQuery:       query.NewBlockQuery(chaintype.GetChainType(0)),
-				QueryExecutor:    &mockExecutorPruningNodeReceiptsSuccess{},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rs := &ReceiptService{
-				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockQuery:              tt.fields.BlockQuery,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				Signature:               tt.fields.Signature,
-			}
-			if err := rs.PruningNodeReceipts(); (err != nil) != tt.wantErr {
-				t.Errorf("PruningNodeReceipts() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
 }
 
 type (
