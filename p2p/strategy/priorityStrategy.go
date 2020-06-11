@@ -70,7 +70,6 @@ func NewPriorityStrategy(
 
 // Start method to start threads which mean goroutines for PriorityStrategy
 func (ps *PriorityStrategy) Start() {
-	go ps.UpdateNodeAddressThread()
 	// start p2p process threads
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
@@ -79,6 +78,7 @@ func (ps *PriorityStrategy) Start() {
 	// wait until we are quite sure there are some connected peers
 	time.Sleep(time.Duration(5000) * time.Millisecond)
 	go ps.SyncNodeAddressInfoTableThread()
+	go ps.UpdateNodeAddressThread()
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -535,6 +535,11 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		ps.Logger.Warnf("Cannot get address from node. %s", err)
 	}
 	for {
+		// start updating and broadcasting own address when finished downloading the bc,
+		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
+		if !ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
+			continue
+		}
 		var (
 			host         = ps.NodeConfigurationService.GetHost()
 			secretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
@@ -550,21 +555,18 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 				ticker.Stop()
 				return
 			}
-		} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil {
-			// get ip address from internet
-			newAddr := ipAddr.String()
-			if ipAddr != nil && err == nil && currentAddr != newAddr {
-				if err := ps.UpdateOwnNodeAddressInfo(
-					newAddr,
-					host.GetInfo().GetPort(),
-					secretPhrase,
-					false,
-				); err != nil {
-					ps.Logger.Error(err)
-				}
-			} else {
+			// get node's public ip address from external source internet and check if differs from current one
+		} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil && ipAddr != nil {
+			if err = ps.UpdateOwnNodeAddressInfo(
+				ipAddr.String(),
+				host.GetInfo().GetPort(),
+				secretPhrase,
+				false,
+			); err != nil {
 				ps.Logger.Error(err)
 			}
+		} else {
+			ps.Logger.Error("Cannot get node address from external source")
 		}
 		select {
 		case <-ticker.C:
@@ -1095,6 +1097,10 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		nodePublicKey   = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		resolvedPeers   = ps.GetResolvedPeers()
 	)
+	// first update the host address to the newest
+	if ps.GetHostInfo().Address != nodeAddress {
+		ps.NodeConfigurationService.SetMyAddress(nodeAddress)
+	}
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 	if nr != nil && err == nil {
 		if nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(
@@ -1115,10 +1121,6 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		}
 		// broadcast, if node addressInfo has been updated
 		if updated || forceBroadcast {
-			// node address has changed, update 'host' configuration variable
-			if updated {
-				ps.NodeConfigurationService.SetMyAddress(nodeAddress)
-			}
 			for _, peer := range resolvedPeers {
 				go func() {
 					ps.Logger.Debugf("Broadcasting node addresses %s:%d  to %s:%d",
