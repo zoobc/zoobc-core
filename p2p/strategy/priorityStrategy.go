@@ -44,6 +44,10 @@ type (
 	}
 )
 
+var (
+	peerResolved = make(chan bool)
+)
+
 func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
@@ -75,8 +79,8 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-	// wait until we are quite sure there are some connected peers
-	time.Sleep(time.Duration(20) * time.Second)
+	// wait until there is at least one connected (resolved) peer we can communicate to
+	<-peerResolved
 	go ps.UpdateNodeAddressThread()
 	go ps.SyncNodeAddressInfoTableThread()
 }
@@ -154,22 +158,17 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		}
 	}
 
-	for _, peer := range priorityPeers {
-		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
-		if unresolvedPeers[priorityNodeAddress] != nil {
-			unresolvedPriorityPeersCount++
-		}
-		if resolvedPeers[priorityNodeAddress] != nil {
-			resolvedPriorityPeersCount++
-		}
-	}
-	// STEF TODO: use a constant instead of 5
-	//  if resolved priority peers are too low it's probably because the node has an outdated list of node addresses
-	if resolvedPriorityPeersCount < 5 {
-		go ps.getRegistryAndSyncAddressInfoTable()
-	}
-	// metrics monitoring
 	if monitoring.IsMonitoringActive() {
+		for _, peer := range priorityPeers {
+			priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
+			if unresolvedPeers[priorityNodeAddress] != nil {
+				unresolvedPriorityPeersCount++
+			}
+			if resolvedPeers[priorityNodeAddress] != nil {
+				resolvedPriorityPeersCount++
+			}
+		}
+		// metrics monitoring
 		monitoring.SetResolvedPriorityPeersCount(resolvedPriorityPeersCount)
 		monitoring.SetUnresolvedPriorityPeersCount(unresolvedPriorityPeersCount)
 	}
@@ -528,8 +527,8 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	if myAddressDynamic {
 		timeInterval = constant.UpdateNodeAddressGap
 	} else {
-		// TODO: move timeInterval to constants
-		timeInterval = 60
+		// if can't connect to any resolved peers, wait till we hopefully get some more from the network
+		timeInterval = constant.ResolvePeersGap * 10
 	}
 	ticker := time.NewTicker(time.Duration(timeInterval) * time.Second)
 	sigs := make(chan os.Signal, 1)
@@ -704,6 +703,7 @@ func (ps *PriorityStrategy) AddToResolvedPeer(peer *model.Peer) error {
 
 	host.ResolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	ps.NodeConfigurationService.SetHost(host)
+	peerResolved <- true
 	return nil
 }
 
