@@ -496,7 +496,7 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 		if prevNodeAddressInfo.GetAddress() == nodeAddressMessage.GetAddress() &&
 			prevNodeAddressInfo.GetPort() == nodeAddressMessage.GetPort() {
 			nrs.Logger.Warnf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
-			return false, err
+			return false, nil
 		}
 		err = nrs.QueryExecutor.BeginTx()
 		if err != nil {

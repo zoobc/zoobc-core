@@ -76,9 +76,9 @@ func (ps *PriorityStrategy) Start() {
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
 	// wait until we are quite sure there are some connected peers
-	time.Sleep(time.Duration(5000) * time.Millisecond)
-	go ps.SyncNodeAddressInfoTableThread()
+	time.Sleep(time.Duration(20) * time.Second)
 	go ps.UpdateNodeAddressThread()
+	go ps.SyncNodeAddressInfoTableThread()
 }
 
 func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
@@ -518,7 +518,6 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 	}
 }
 
-// TODO update unit test
 // GetMorePeersThread to periodically request more peers from another node in Peers list
 func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	var (
@@ -529,9 +528,8 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	if myAddressDynamic {
 		timeInterval = constant.UpdateNodeAddressGap
 	} else {
-		// fixed two seconds time interval if node address is static (written in config file)
-		// note: in this case, as soon as there are resolved peers, broadcast the address and end the goroutine
-		timeInterval = 2
+		// TODO: move timeInterval to constants
+		timeInterval = 60
 	}
 	ticker := time.NewTicker(time.Duration(timeInterval) * time.Second)
 	sigs := make(chan os.Signal, 1)
