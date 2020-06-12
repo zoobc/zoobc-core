@@ -17,27 +17,28 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath               string
-		chainType                  chaintype.ChainType
-		TransactionUtil            transaction.UtilInterface
-		TypeActionSwitcher         transaction.TypeActionSwitcher
-		Logger                     *log.Logger
-		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
-		QueryExecutor              query.ExecutorInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
-		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetQueryInterface
-		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
-		PendingTransactionQuery    query.PendingTransactionQueryInterface
-		PendingSignatureQuery      query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
-		BlockQuery                 query.BlockQueryInterface
-		SnapshotQueries            map[string]query.SnapshotQuery
-		BlocksmithSafeQuery        map[string]bool
-		DerivedQueries             []query.DerivedQuery
+		SnapshotPath                   string
+		chainType                      chaintype.ChainType
+		TransactionUtil                transaction.UtilInterface
+		TypeActionSwitcher             transaction.TypeActionSwitcher
+		Logger                         *log.Logger
+		SnapshotBasicChunkStrategy     SnapshotChunkStrategyInterface
+		QueryExecutor                  query.ExecutorInterface
+		AccountBalanceQuery            query.AccountBalanceQueryInterface
+		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery        query.ParticipationScoreQueryInterface
+		AccountDatasetQuery            query.AccountDatasetQueryInterface
+		EscrowTransactionQuery         query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery          query.PublishedReceiptQueryInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
+		BlockQuery                     query.BlockQueryInterface
+		SnapshotQueries                map[string]query.SnapshotQuery
+		BlocksmithSafeQuery            map[string]bool
+		DerivedQueries                 []query.DerivedQuery
 	}
 )
 
@@ -330,6 +331,18 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			for _, rec := range payload.MultiSignatureInfos {
 				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
 				queries = append(queries, qryArgs...)
+				var participants []*model.MultiSignatureParticipant
+				for k, address := range rec.GetAddresses() {
+					participants = append(participants, &model.MultiSignatureParticipant{
+						MultiSignatureAddress: rec.GetMultisigAddress(),
+						AccountAddress:        address,
+						AccountAddressIndex:   uint32(k),
+						BlockHeight:           rec.GetBlockHeight(),
+						Latest:                rec.GetLatest(),
+					})
+				}
+				participantQ := ss.MultiSignatureParticipantQuery.InsertMultisignatureParticipants(participants)
+				queries = append(queries, participantQ...)
 			}
 		case "skippedBlocksmith":
 			for _, rec := range payload.SkippedBlocksmiths {
@@ -359,7 +372,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		if err != nil {
 			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
 			rollbackErr := ss.QueryExecutor.RollbackTx()
-			if err != nil {
+			if rollbackErr != nil {
 				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
 			}
 			return err
