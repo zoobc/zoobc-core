@@ -191,6 +191,9 @@ type (
 	}
 )
 
+func (p2pNssMock *p2pMockNodeConfigurationService) SetMyAddress(nodeAddress string) {
+}
+
 func (p2pNssMock *p2pMockNodeConfigurationService) GetHost() *model.Host {
 	if p2pNssMock.host != nil {
 		return p2pNssMock.host

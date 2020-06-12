@@ -151,8 +151,8 @@ func (nrs *NodeRegistrationService) GetRegisteredNodes() ([]*model.NodeRegistrat
 	}
 	defer rows.Close()
 	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nodeRegistry) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	if err != nil {
+		return nil, err
 	}
 
 	return nodeRegistry, nil
@@ -166,8 +166,8 @@ func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*mode
 	}
 	defer rows.Close()
 	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nodeRegistry) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	if err != nil {
+		return nil, err
 	}
 
 	return nodeRegistry, nil

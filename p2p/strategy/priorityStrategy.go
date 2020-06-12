@@ -44,10 +44,6 @@ type (
 	}
 )
 
-var (
-	peerResolved = make(chan bool)
-)
-
 func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
@@ -79,9 +75,8 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
-	// wait until there is at least one connected (resolved) peer we can communicate to
-	<-peerResolved
 	go ps.UpdateNodeAddressThread()
+	// wait until there is at least one connected (resolved) peer we can communicate to before sync the address info table
 	go ps.SyncNodeAddressInfoTableThread()
 }
 
@@ -538,6 +533,7 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	}
 	for {
 		// start updating and broadcasting own address when finished downloading the bc,
+		// unless the address info table is empty (meaning that this node is the first starting the network)
 		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
 		if !ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
 			continue
@@ -587,6 +583,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 		ps.Logger.Error(err)
 	}
 
+	// first sync cycle: wait until the blockchain is fully downloaded, then sync
 	ticker := time.NewTicker(time.Duration(2) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -601,7 +598,9 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 					ps.Logger.Error(err)
 				} else {
 					ticker.Stop()
-					return
+					// long sync life cycle: after first cycle is complete,
+					// sync every hour to make sure node has an updated address info table
+					ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Second)
 				}
 			}
 		case <-sigs:
@@ -706,7 +705,6 @@ func (ps *PriorityStrategy) AddToResolvedPeer(peer *model.Peer) error {
 
 	host.ResolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	ps.NodeConfigurationService.SetHost(host)
-	peerResolved <- true
 	return nil
 }
 
@@ -1104,7 +1102,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		resolvedPeers   = ps.GetResolvedPeers()
 	)
 	// first update the host address to the newest
-	if ps.GetHostInfo().Address != nodeAddress {
+	if ps.GetHostInfo().GetAddress() != nodeAddress {
 		ps.NodeConfigurationService.SetMyAddress(nodeAddress)
 	}
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
