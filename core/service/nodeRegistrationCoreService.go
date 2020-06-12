@@ -3,6 +3,10 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"math/big"
+	"sort"
+	"sync"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -12,9 +16,6 @@ import (
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
-	"math/big"
-	"sort"
-	"sync"
 )
 
 type (
@@ -23,7 +24,8 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
-		GetNodeRegistry() ([]*model.NodeRegistration, error)
+		GetRegisteredNodes() ([]*model.NodeRegistration, error)
+		GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
@@ -141,8 +143,23 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 	return nodeRegistrations, nil
 }
 
-func (nrs *NodeRegistrationService) GetNodeRegistry() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistry()
+func (nrs *NodeRegistrationService) GetRegisteredNodes() ([]*model.NodeRegistration, error) {
+	qry := nrs.NodeRegistrationQuery.GetActiveNodeRegistrations()
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistry) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return nodeRegistry, nil
+}
+
+func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error) {
+	qry := nrs.NodeRegistrationQuery.GetActiveNodeRegistrationsWithNodeAddress()
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -485,7 +502,7 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) 
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
 // NOTE: nodeAddressInfo is supposed to have been already validated
-func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (bool, error) {
+func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
 	// check if already exist and if new one is more recent
 	nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressMessage.NodeID})
 	if err != nil {
@@ -495,8 +512,8 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 		prevNodeAddressInfo := nodeAddressesInfo[0]
 		if prevNodeAddressInfo.GetAddress() == nodeAddressMessage.GetAddress() &&
 			prevNodeAddressInfo.GetPort() == nodeAddressMessage.GetPort() {
-			nrs.Logger.Warnf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
-			return false, nil
+			nrs.Logger.Debugf("node address info for node %d already up to date", nodeAddressMessage.NodeID)
+			return false, err
 		}
 		err = nrs.QueryExecutor.BeginTx()
 		if err != nil {

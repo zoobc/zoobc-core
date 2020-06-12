@@ -611,11 +611,14 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 	}
 }
 
+// getRegistryAndSyncAddressInfoTable synchronize node address info table with the network
 func (ps *PriorityStrategy) getRegistryAndSyncAddressInfoTable() error {
-	if nodeRegistry, err := ps.NodeRegistrationService.GetNodeRegistry(); err != nil {
-		ps.Logger.Fatal(err)
-	} else if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
+	if nodeRegistry, err := ps.NodeRegistrationService.GetRegisteredNodes(); err != nil {
 		return err
+	} else {
+		if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
+			return err
+		}
 	}
 	return nil
 }
