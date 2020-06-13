@@ -35,7 +35,7 @@ func NewMultisignatureInfoQuery() *MultisignatureInfoQuery {
 			"nonce",
 			"block_height",
 			"latest",
-			"addresses",
+			"addresses", // multisignature_participant
 		},
 		TableName: "multisignature_info",
 	}
@@ -81,7 +81,7 @@ func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model
 		multisigInfo.BlockHeight,
 	)
 	queries = append(queries,
-		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)...),
+		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)[:len(msi.Fields)-1]...),
 		[]interface{}{
 			updateQuery, multisigInfo.MultisigAddress,
 		},
@@ -99,12 +99,12 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&multisigInfo.Latest,
 		&addresses,
 	)
-	multisigInfo.Addresses = strings.Split(addresses, ", ")
+	multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
 }
 
 func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{} {
-	addresses := strings.Join(multisigInfo.Addresses, ", ")
+	addresses := strings.Join(multisigInfo.Addresses, ",")
 	return []interface{}{
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
@@ -131,7 +131,7 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Latest,
 			&addresses,
 		)
-		multisigInfo.Addresses = strings.Split(addresses, ", ")
+		multisigInfo.Addresses = strings.Split(addresses, ",")
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +166,8 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
 			") ORDER BY block_height",
 		strings.Join(msi.Fields[:len(msi.Fields)-1], ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC) as addresses",
+		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
+			"ORDER BY account_address_index ASC) as addresses",
 		msi.getTableName(),
 		msi.getTableName(),
 		fromHeight,

@@ -331,7 +331,8 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			for _, rec := range payload.MultiSignatureInfos {
 				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
 				queries = append(queries, qryArgs...)
-				var participants []*model.MultiSignatureParticipant
+
+				var participants = make([]*model.MultiSignatureParticipant, len(rec.GetAddresses()))
 				for k, address := range rec.GetAddresses() {
 					participants = append(participants, &model.MultiSignatureParticipant{
 						MultiSignatureAddress: rec.GetMultisigAddress(),

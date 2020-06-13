@@ -36,7 +36,7 @@ func getBuildModelSuccessMockRows() *sql.Rows {
 		int64(10),
 		uint32(12),
 		true,
-		"addresses",
+		"address_1,address_2",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -89,7 +89,7 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 					Nonce:             10,
 					BlockHeight:       12,
 					Latest:            true,
-					Addresses:         []string{"addresses"},
+					Addresses:         []string{"address_1", "address_2"},
 				},
 			},
 			wantErr: false,
@@ -155,7 +155,7 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 				&mockExtractMultisignatureInfoMultisig.Nonce,
 				&mockExtractMultisignatureInfoMultisig.BlockHeight,
 				&mockExtractMultisignatureInfoMultisig.Latest,
-				strings.Join(mockExtractMultisignatureInfoMultisig.Addresses, ", "),
+				strings.Join(mockExtractMultisignatureInfoMultisig.Addresses, ","),
 			},
 		},
 	}
@@ -268,7 +268,7 @@ func TestMultisignatureInfoQuery_InsertMultisignatureInfo(t *testing.T) {
 					"INSERT OR REPLACE INTO multisignature_info (multisig_address, minimum_signatures, nonce, block_height, latest) " +
 						"VALUES(? , ? , ? , ? , ? )",
 				}, mockMultisigInfoQueryInstance.ExtractModel(
-					mockInsertMultisignatureInfoMultisig)...),
+					mockInsertMultisignatureInfoMultisig)[:len(NewMultisignatureInfoQuery().Fields)-1]...),
 				{
 					"UPDATE multisignature_info SET latest = false WHERE multisig_address = ? AND " +
 						"block_height != 0 AND latest = true", mockInsertMultisignatureInfoMultisig.MultisigAddress,
@@ -513,7 +513,8 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
-				"SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC" +
+				"SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant " +
+				"GROUP BY multisig_address, block_height ORDER BY account_address_index ASC" +
 				") as addresses FROM multisignature_info " +
 				"WHERE (multisig_address, block_height) IN (" +
 				"SELECT t2.multisig_address, MAX(t2.block_height) " +
