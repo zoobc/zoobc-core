@@ -324,7 +324,14 @@ func TestAccountBalanceQuery_InsertAccountBalances(t *testing.T) {
 			fields: fields(*NewAccountBalanceQuery()),
 			args: args{
 				accountBalances: []*model.AccountBalance{
-					mockAccountBalance,
+					{
+						AccountAddress:   "BCZ",
+						BlockHeight:      0,
+						SpendableBalance: 0,
+						Balance:          0,
+						PopRevenue:       0,
+						Latest:           true,
+					},
 				},
 			},
 			wantStr: "INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) " +
