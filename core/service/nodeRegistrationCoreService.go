@@ -181,11 +181,14 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 	defer rows.Close()
 
 	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nodeRegistrations) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	if err != nil {
+		return nil, err
 	}
 
-	return nodeRegistrations[0], nil
+	if len(nodeRegistrations) > 0 {
+		return nodeRegistrations[0], nil
+	}
+	return nil, nil
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)

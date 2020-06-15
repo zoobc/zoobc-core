@@ -3,6 +3,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -16,6 +17,7 @@ type (
 		GetHost() *model.Host
 		SetHost(myHost *model.Host)
 		GetNodeSecretPhrase() string
+		GetNodePublicKey() []byte
 	}
 )
 
@@ -46,6 +48,14 @@ func NewNodeConfigurationService(
 
 func (nss *NodeConfigurationService) GetNodeSecretPhrase() string {
 	return secretPhrase
+}
+
+func (nss *NodeConfigurationService) GetNodePublicKey() []byte {
+	if sp := nss.GetNodeSecretPhrase(); sp == "" {
+		return []byte{}
+	} else {
+		return crypto.NewEd25519Signature().GetPublicKeyFromSeed(nss.GetNodeSecretPhrase())
+	}
 }
 
 func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string) {

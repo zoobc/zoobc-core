@@ -28,6 +28,6 @@ type (
 		ValidateRequest(ctx context.Context) bool
 		SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error)
 		ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error
-		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string, forceBroadcast bool) error
+		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, forceBroadcast bool) error
 	}
 )

@@ -602,6 +602,8 @@ func startMainchain() {
 		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 		if err != nil {
+			loggerCoreService.Fatal(err)
+		} else if node == nil {
 			// no nodes registered with current node public key
 			loggerCoreService.Error(
 				"Current node is not in node registry and won't be able to smith until registered!",
