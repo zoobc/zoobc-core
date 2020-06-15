@@ -26,6 +26,7 @@ type (
 		)
 		GetPendingTransactionsExpireByHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
+		InsertPendingTransactions(pendingTXs []*model.PendingTransaction) (str string, args []interface{})
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
@@ -139,6 +140,28 @@ func (ptq *PendingTransactionQuery) InsertPendingTransaction(pendingTx *model.Pe
 		},
 	)
 	return queries
+}
+
+// InsertPendingTransactions represents query builder to insert multiple record in single query
+func (ptq *PendingTransactionQuery) InsertPendingTransactions(pendingTXs []*model.PendingTransaction) (str string, args []interface{}) {
+	if len(pendingTXs) > 0 {
+		str = fmt.Sprintf(
+			"INSERT OR REPLACE INTO %s (%s) VALUES ",
+			ptq.getTableName(),
+			strings.Join(ptq.Fields, ", "),
+		)
+		for k, pendingTX := range pendingTXs {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(ptq.Fields)-1),
+			)
+			if k < len(pendingTXs)-1 {
+				str += ","
+			}
+			args = append(args, ptq.ExtractModel(pendingTX)...)
+		}
+	}
+	return str, args
 }
 
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {

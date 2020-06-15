@@ -422,3 +422,53 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestBlockQuery_InsertBlocks(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		blocks []*model.Block
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewBlockQuery(&chaintype.MainChain{})),
+			args: args{
+				blocks: []*model.Block{
+					mockBlock,
+				},
+			},
+			wantStr: "INSERT INTO main_block " +
+				"(id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+				"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewBlockQuery(&chaintype.MainChain{}).ExtractModel(mockBlock),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			gotStr, gotArgs := bq.InsertBlocks(tt.args.blocks)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertBlocks() gotStr = %v, want %v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertBlocks() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

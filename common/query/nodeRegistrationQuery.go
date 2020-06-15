@@ -14,6 +14,7 @@ import (
 type (
 	NodeRegistrationQueryInterface interface {
 		InsertNodeRegistration(nodeRegistration *model.NodeRegistration) (str string, args []interface{})
+		InsertNodeRegistrations(nodeRegistrations []*model.NodeRegistration) (str string, args []interface{})
 		UpdateNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
@@ -69,6 +70,28 @@ func (nrq *NodeRegistrationQuery) InsertNodeRegistration(nodeRegistration *model
 		strings.Join(nrq.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(nrq.Fields)-1)),
 	), nrq.ExtractModel(nodeRegistration)
+}
+
+// InsertNodeRegistrations represents query builder to insert multiple record in single query
+func (nrq *NodeRegistrationQuery) InsertNodeRegistrations(nodeRegistrations []*model.NodeRegistration) (str string, args []interface{}) {
+	if len(nodeRegistrations) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			nrq.getTableName(),
+			strings.Join(nrq.Fields, ", "),
+		)
+		for k, nodeReg := range nodeRegistrations {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(nrq.Fields)-1),
+			)
+			if k < len(nodeRegistrations)-1 {
+				str += ","
+			}
+			args = append(args, nrq.ExtractModel(nodeReg)...)
+		}
+	}
+	return str, args
 }
 
 // UpdateNodeRegistration returns a slice of two queries.

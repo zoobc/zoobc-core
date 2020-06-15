@@ -15,6 +15,7 @@ type (
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		InsertPendingSignature(pendingSig *model.PendingSignature) [][]interface{}
+		InsertPendingSignatures(pendingSigs []*model.PendingSignature) (str string, args []interface{})
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
@@ -82,6 +83,28 @@ func (psq *PendingSignatureQuery) InsertPendingSignature(pendingSig *model.Pendi
 		},
 	)
 	return queries
+}
+
+// InsertPendingSignatures represents query builder to insert multiple record in single query
+func (psq *PendingSignatureQuery) InsertPendingSignatures(pendingSigs []*model.PendingSignature) (str string, args []interface{}) {
+	if len(pendingSigs) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			psq.getTableName(),
+			strings.Join(psq.Fields, ", "),
+		)
+		for k, pendingSig := range pendingSigs {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(psq.Fields)-1),
+			)
+			if k < len(pendingSigs)-1 {
+				str += ","
+			}
+			args = append(args, psq.ExtractModel(pendingSig)...)
+		}
+	}
+	return str, args
 }
 
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {

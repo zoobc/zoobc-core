@@ -19,6 +19,7 @@ type (
 	AccountDatasetQueryInterface interface {
 		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{})
 		InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{})
+		InsertAccountDatasets(datasets []*model.AccountDataset) (str string, args []interface{})
 		RemoveAccountDataset(dataset *model.AccountDataset) [][]interface{}
 		GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
@@ -55,6 +56,28 @@ func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDatas
 		fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
 	), adq.ExtractModel(dataset)
 
+}
+
+// InsertAccountDatasets represents query builder to insert multiple record in single query
+func (adq *AccountDatasetQuery) InsertAccountDatasets(datasets []*model.AccountDataset) (str string, args []interface{}) {
+	if len(datasets) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			adq.getTableName(),
+			strings.Join(adq.Fields, ", "),
+		)
+		for k, dataset := range datasets {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(adq.Fields)-1),
+			)
+			if k < len(datasets)-1 {
+				str += ","
+			}
+			args = append(args, adq.ExtractModel(dataset)...)
+		}
+	}
+	return str, args
 }
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
