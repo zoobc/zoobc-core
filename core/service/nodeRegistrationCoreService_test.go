@@ -1068,12 +1068,6 @@ type (
 	mockNodeRegistrationQueryInsertNextNodeAdmissionTimestampSuccess struct {
 		query.NodeRegistrationQuery
 	}
-	mockNodeAdmissionTimestampQueryInsertNextNodeAdmissionTimestampFail struct {
-		query.NodeAdmissionTimestampQuery
-	}
-	mockNodeAdmissionTimestampQueryInsertNextNodeAdmissionTimestampSuccess struct {
-		query.NodeAdmissionTimestampQuery
-	}
 )
 
 func (*mockQueryExecutorInsertNextNodeAdmissionTimestampFail) ExecuteSelect(

@@ -406,7 +406,7 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
 				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
-				"block_height" INTEGER,		-- block height when the next node addmission timestamp set
+				"block_height" INTEGER,		-- block height when the next node admission timestamp set
 				"latest" INTEGER,
 				PRIMARY KEY("block_height")
 			)

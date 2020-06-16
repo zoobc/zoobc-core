@@ -561,7 +561,7 @@ func startMainchain() {
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
-		// genesis next node addmission timestamp will be inserted in the very beginning
+		// genesis next node admission timestamp will be inserted in the very beginning
 		if err := service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
