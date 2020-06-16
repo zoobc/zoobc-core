@@ -208,6 +208,7 @@ func init() {
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+		query.NewNodeAdmissionTimestampQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
