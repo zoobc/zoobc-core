@@ -19,6 +19,8 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
+	sendAddressInfoToPeer            prometheus.Counter
+	getAddressInfoTableFromPeer      prometheus.Counter
 	receiptCounter                   prometheus.Counter
 	unresolvedPeersCounter           prometheus.Gauge
 	resolvedPeersCounter             prometheus.Gauge
@@ -77,6 +79,18 @@ func Handler() http.Handler {
 
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
+
+	sendAddressInfoToPeer = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zoobc_send_address_info_request",
+		Help: "send address info req",
+	})
+	prometheus.MustRegister(sendAddressInfoToPeer)
+
+	getAddressInfoTableFromPeer = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zoobc_get_address_info_table_request",
+		Help: "get address info table req",
+	})
+	prometheus.MustRegister(getAddressInfoTableFromPeer)
 
 	receiptCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "zoobc_receipts",
@@ -206,6 +220,22 @@ func SetNodePublicKey(pk []byte) {
 
 func IsMonitoringActive() bool {
 	return isMonitoringActive
+}
+
+func IncrementSendAddressInfoToPeer() {
+	if !isMonitoringActive {
+		return
+	}
+
+	sendAddressInfoToPeer.Inc()
+}
+
+func IncrementGetAddressInfoTableFromPeer() {
+	if !isMonitoringActive {
+		return
+	}
+
+	getAddressInfoTableFromPeer.Inc()
 }
 
 func IncrementReceiptCounter() {

@@ -235,6 +235,7 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 			"GetNodeAddressesInfo client: peer %s:%d returned an empty node address list",
 			destPeer.GetInfo().Address, destPeer.GetInfo().Port))
 	}
+	monitoring.IncrementGetAddressInfoTableFromPeer()
 
 	return res, err
 }
@@ -317,6 +318,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 	if err != nil {
 		return nil, err
 	}
+	monitoring.IncrementSendAddressInfoToPeer()
 	return res, err
 }
 

@@ -16,8 +16,7 @@ const (
 	// UpdateNodeAddressGap, interval of peer thread to update node dynamic address
 	UpdateNodeAddressGap uint = 3600
 	// SyncNodeAddressGap, interval of peer thread to sync node address info table
-	//STEF change this to 3600
-	SyncNodeAddressGap uint = 1
+	SyncNodeAddressGap uint = 1800 // every 30 min
 	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
 	UpdateBlacklistedStatusGap uint = 60
 	// BlacklistingPeriod, how long a peer in blaclisting status
