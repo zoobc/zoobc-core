@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -400,6 +401,14 @@ func (m *Migration) Init() error {
 				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height", "voter_address")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
+				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
+				"block_height" INTEGER,		-- block height when the next node addmission timestamp set
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
 			)
 			`,
 		}

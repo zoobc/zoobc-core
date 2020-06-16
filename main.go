@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
+
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -156,6 +157,7 @@ func init() {
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
 	)
@@ -558,7 +560,13 @@ func startMainchain() {
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
-
+		// genesis next node addmission timestamp will be inserted in the very beginning
+		if err := service.AddGenesisNextNodeAdmission(
+			queryExecutor,
+			mainchain.GetGenesisBlockTimestamp(),
+		); err != nil {
+			loggerCoreService.Fatal(err)
+		}
 		if err := mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}

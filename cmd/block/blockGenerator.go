@@ -5,13 +5,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -153,6 +153,7 @@ func initialize(
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(chainType),
+		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
 	)
