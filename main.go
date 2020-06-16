@@ -164,6 +164,7 @@ func init() {
 		crypto.NewSignature(),
 		service.NewNodeRegistrationUtils(),
 	)
+
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		query.NewBatchReceiptQuery(),
@@ -465,6 +466,10 @@ func startNodeMonitoring() {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
 		}
 	}()
+	// populate node address info counter when node starts
+	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
+		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+	}
 }
 
 func startMainchain() {

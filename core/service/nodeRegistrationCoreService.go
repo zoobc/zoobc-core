@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math/big"
 	"sort"
 	"sync"
@@ -547,6 +548,11 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 	err = nrs.QueryExecutor.CommitTx()
 	if err != nil {
 		return false, err
+	}
+	if monitoring.IsMonitoringActive() {
+		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
+			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+		}
 	}
 	return true, nil
 }

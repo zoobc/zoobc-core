@@ -22,6 +22,7 @@ var (
 	sendAddressInfoToPeer            prometheus.Counter
 	getAddressInfoTableFromPeer      prometheus.Counter
 	receiptCounter                   prometheus.Counter
+	nodeAddressInfoCounter           prometheus.Gauge
 	unresolvedPeersCounter           prometheus.Gauge
 	resolvedPeersCounter             prometheus.Gauge
 	unresolvedPriorityPeersCounter   prometheus.Gauge
@@ -97,6 +98,12 @@ func SetMonitoringActive(isActive bool) {
 		Help: "receipts counter",
 	})
 	prometheus.MustRegister(receiptCounter)
+
+	nodeAddressInfoCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count",
+		Help: "nodeAddressInfo counter",
+	})
+	prometheus.MustRegister(nodeAddressInfoCounter)
 
 	unresolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_unresolved_peers",
@@ -244,6 +251,14 @@ func IncrementReceiptCounter() {
 	}
 
 	receiptCounter.Inc()
+}
+
+func SetNodeAddressInfoCount(count int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	nodeAddressInfoCounter.Set(float64(count))
 }
 
 func SetUnresolvedPeersCount(count int) {
