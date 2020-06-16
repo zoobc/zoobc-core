@@ -124,10 +124,10 @@ func (ipu *IPUtil) DiscoverNodeAddress() (ip *net.IP, err error) {
 			return nil, err
 		}
 		if !ipu.IsPublicIP(ip) {
-			err = errors.New(fmt.Sprintf("Automatically discovered node address %s is not a public IP. "+
+			err = fmt.Errorf("automatically discovered node address %s is not a public IP. "+
 				"Your server might be behind a firewall or on a local area network. Note that, "+
 				"to be able to actively participate to network activities, generate blocks and keep a high participation score,"+
-				"your node must be accessible by other nodes, thus a public IP is required.", ip.String()))
+				"your node must be accessible by other nodes, thus a public IP is required", ip.String())
 		}
 	}
 	return ip, err

@@ -620,10 +620,8 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 func (ps *PriorityStrategy) getRegistryAndSyncAddressInfoTable() error {
 	if nodeRegistry, err := ps.NodeRegistrationService.GetRegisteredNodes(); err != nil {
 		return err
-	} else {
-		if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
-			return err
-		}
+	} else if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
+		return err
 	}
 	return nil
 }
@@ -1022,7 +1020,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 	}
 	var (
 		finished               bool
-		nodeAddressesInfo      = make(map[int64]*model.NodeAddressInfo, 0)
+		nodeAddressesInfo      = make(map[int64]*model.NodeAddressInfo)
 		mutex                  = &sync.Mutex{}
 		syncMyAddressWithPeers bool
 		myAddressInfo          *model.NodeAddressInfo
@@ -1044,15 +1042,13 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		} else if len(myAddressesInfo) > 0 {
 			myAddressInfo = myAddressesInfo[0]
 			syncMyAddressWithPeers = true
-		} else {
+		} else if myAddress, err := ps.NodeConfigurationService.GetMyAddress(); err == nil {
 			// in case we current node is registered but its address isn't in node_address_info table (that shouldn't happen at this point),
 			// try generating a new node address info, update node db and broadcast the address
-			if myAddress, err := ps.NodeConfigurationService.GetMyAddress(); err == nil {
-				if myPort, err := ps.NodeConfigurationService.GetMyPeerPort(); err == nil {
-					if err = ps.UpdateOwnNodeAddressInfo(myAddress, myPort, true); err != nil {
-						ps.Logger.Errorf("Cannot update own address info. "+
-							"Other nodes might not be able to add it to their priority peers: %s", err)
-					}
+			if myPort, err := ps.NodeConfigurationService.GetMyPeerPort(); err == nil {
+				if err = ps.UpdateOwnNodeAddressInfo(myAddress, myPort, true); err != nil {
+					ps.Logger.Errorf("Cannot update own address info. "+
+						"Other nodes might not be able to add it to their priority peers: %s", err)
 				}
 			}
 		}
@@ -1175,19 +1171,20 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		// broadcast, if node addressInfo has been updated
 		if updated || forceBroadcast {
 			for _, peer := range resolvedPeers {
-				go func() {
+				go func(peer *model.Peer) {
+					peerInfo := peer.GetInfo()
 					ps.Logger.Debugf("Broadcasting node addresses %s:%d  to %s:%d",
 						nodeAddressInfo.Address,
 						nodeAddressInfo.Port,
-						peer.Info.Address,
-						peer.Info.Port)
+						peerInfo.Address,
+						peerInfo.Port)
 					if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
 						ps.Logger.Warnf("Could not send updated node address info to peer %s:%d. %s",
-							peer.Info.Address,
-							peer.Info.Port,
+							peerInfo.Address,
+							peerInfo.Port,
 							err)
 					}
-				}()
+				}(peer)
 			}
 		}
 	}

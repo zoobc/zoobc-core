@@ -53,9 +53,8 @@ func (nss *NodeConfigurationService) GetNodeSecretPhrase() string {
 func (nss *NodeConfigurationService) GetNodePublicKey() []byte {
 	if sp := nss.GetNodeSecretPhrase(); sp == "" {
 		return []byte{}
-	} else {
-		return crypto.NewEd25519Signature().GetPublicKeyFromSeed(nss.GetNodeSecretPhrase())
 	}
+	return crypto.NewEd25519Signature().GetPublicKeyFromSeed(nss.GetNodeSecretPhrase())
 }
 
 func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string) {

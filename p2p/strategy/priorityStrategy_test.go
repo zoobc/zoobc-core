@@ -147,15 +147,6 @@ var (
 			Address: "127.0.0.2",
 		},
 	}
-	p2pChunk1Bytes = []byte{
-		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-	}
-	p2pChunk2Bytes = []byte{
-		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-	}
-	p2pChunk2InvalidBytes = []byte{
-		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0,
-	}
 )
 
 type (
@@ -181,9 +172,6 @@ type (
 	}
 	p2pMockPeerServiceClient struct {
 		client.PeerServiceClient
-		noFailedDownloads bool
-		downloadErr       bool
-		returnInvalidData bool
 	}
 	p2pMockNodeConfigurationService struct {
 		coreService.NodeConfigurationService
@@ -362,7 +350,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 
 func TestNewPriorityStrategy(t *testing.T) {
 	type args struct {
-		host                     *model.Host
 		peerServiceClient        client.PeerServiceClientInterface
 		queryExecutor            query.ExecutorInterface
 		logger                   *log.Logger
@@ -1722,7 +1709,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 			fields: fields{
 				NodeConfigurationService: &p2pMockNodeConfigurationService{
 					host: &model.Host{
-						ResolvedPeers: make(map[string]*model.Peer, 0),
+						ResolvedPeers: make(map[string]*model.Peer),
 					},
 				},
 			},
@@ -1744,7 +1731,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				NodeRegistrationService: &psMockNodeRegistrationService{},
 				Logger:                  log.New(),
 			},
-			want: make(map[int64]*model.NodeAddressInfo, 0),
+			want: make(map[int64]*model.NodeAddressInfo),
 		},
 		{
 			name: "GetNodeAddressesInfo:fail-{ErrorValidatingNodeAddressInfo}",
@@ -1762,7 +1749,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				NodeRegistrationService: &psMockNodeRegistrationService{},
 				Logger:                  log.New(),
 			},
-			want: make(map[int64]*model.NodeAddressInfo, 0),
+			want: make(map[int64]*model.NodeAddressInfo),
 		},
 		{
 			name: "GetNodeAddressesInfo:success",

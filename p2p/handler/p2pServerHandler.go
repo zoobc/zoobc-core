@@ -38,7 +38,6 @@ func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 
 	return ss.Service.GetNodeAddressesInfo(ctx, req)
-	return nil, nil
 }
 
 // SendNodeAddressInfo receive a NodeAddressInfo sent by a peer

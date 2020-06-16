@@ -1190,7 +1190,7 @@ func (nrMock *nodeRegistrationUtilsMock) GetUnsignedNodeAddressInfoBytes(nodeAdd
 	return nrMock.nodeAddressInfoBytes
 }
 
-func (nrMock *validateNodeAddressInfoSignatureMock) VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool {
+func (nrMock *validateNodeAddressInfoSignatureMock) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
 	return nrMock.isValid
 }
 
