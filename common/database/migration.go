@@ -367,7 +367,7 @@ func (m *Migration) Init() error {
 				"account_address_index" INTEGER, -- index / position of participants
 				"latest" INTEGER,
 				"block_height" INTEGER,
-				PRIMARY KEY("multisig_address", "account_address")
+				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
 		}
