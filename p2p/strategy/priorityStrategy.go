@@ -574,6 +574,9 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 }
 
 func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
+	// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
+	rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
+	time.Sleep(time.Duration(rndTimer) * time.Millisecond)
 	// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
 	// to have as many priority peers as possible to download the bc from
 	if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
@@ -585,7 +588,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 		bootstrapTicker = time.NewTicker(time.Duration(2) * time.Second)
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
-		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Second)
+		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Millisecond)
 	)
 	// make sure to not trigger the second ticker until the first cycle is concluded
 	ticker.Stop()
@@ -602,7 +605,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 					ps.Logger.Error(err)
 				} else {
 					bootstrapTicker.Stop()
-					ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Second)
+					ticker = time.NewTicker(time.Duration(int64(constant.SyncNodeAddressGap)*1000+rndTimer) * time.Millisecond)
 				}
 			}
 		case <-ticker.C:
@@ -1099,12 +1102,24 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		}
 		if syncMyAddressWithPeers && !myAddressFound {
 			// send myAddressInfo to the peer that is missing it
-			if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, myAddressInfo); err != nil {
-				ps.Logger.Warnf("Could not send node address info to peer %s:%d. %s",
-					peer.Info.Address,
-					peer.Info.Port,
-					err)
-			}
+			go func(peer *model.Peer, myAddressInfo *model.NodeAddressInfo) {
+				// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
+				rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
+				time.Sleep(time.Duration(rndTimer) * time.Millisecond)
+				peerInfo := peer.GetInfo()
+				ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+					myAddressInfo.Address,
+					myAddressInfo.Port,
+					peerInfo.Address,
+					peerInfo.Port,
+					time.Now().Unix())
+				if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, myAddressInfo); err != nil {
+					ps.Logger.Warnf("Could not send node address info to peer %s:%d. %s",
+						peer.Info.Address,
+						peer.Info.Port,
+						err)
+				}
+			}(peer, myAddressInfo)
 		}
 		// all address info have been fetched
 		if len(nodeAddressesInfo) == len(nodeRegistrations) {
@@ -1125,6 +1140,16 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 		// re-broadcast updated node address info
 		for _, peer := range ps.GetResolvedPeers() {
 			go func(peer *model.Peer) {
+				// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
+				rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
+				time.Sleep(time.Duration(rndTimer) * time.Millisecond)
+				peerInfo := peer.GetInfo()
+				ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+					nodeAddressInfo.Address,
+					nodeAddressInfo.Port,
+					peerInfo.Address,
+					peerInfo.Port,
+					time.Now().Unix())
 				if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
 					ps.Logger.Warnf("Cannot send node address info message to peer %s:%d. Error: %s",
 						peer.Info.Address,
@@ -1172,16 +1197,20 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		if updated || forceBroadcast {
 			for _, peer := range resolvedPeers {
 				go func(peer *model.Peer) {
+					// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
+					rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
+					time.Sleep(time.Duration(rndTimer) * time.Millisecond)
 					peerInfo := peer.GetInfo()
-					ps.Logger.Debugf("Broadcasting node addresses %s:%d  to %s:%d",
+					ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
 						nodeAddressInfo.Address,
 						nodeAddressInfo.Port,
 						peerInfo.Address,
-						peerInfo.Port)
+						peerInfo.Port,
+						time.Now().Unix())
 					if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
-						ps.Logger.Warnf("Could not send updated node address info to peer %s:%d. %s",
-							peerInfo.Address,
-							peerInfo.Port,
+						ps.Logger.Warnf("Could not send node address info to peer %s:%d. %s",
+							peer.Info.Address,
+							peer.Info.Port,
 							err)
 					}
 				}(peer)
