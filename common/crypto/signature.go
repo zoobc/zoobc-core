@@ -3,6 +3,8 @@ package crypto
 import (
 	"bytes"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -230,8 +232,11 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 				return nil, nil, "", "", err
 			}
 		}
-		publicKeyString = ed25519Signature.GetPublicKeyString(publicKey)
-		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
+		publicKeyString, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, publicKey)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		address, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}

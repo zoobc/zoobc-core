@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	constant2 "github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -99,7 +100,7 @@ func (s *Peer2PeerService) StartP2P(
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request
 		var (
-			ownerAddress = crypto.NewEd25519Signature().GetAddressFromSeed(nodeSecretPhrase)
+			ownerAddress = crypto.NewEd25519Signature().GetAddressFromSeed(constant2.PrefixZoobcNormalAccount, nodeSecretPhrase)
 			grpcServer   = grpc.NewServer(
 				grpc.UnaryInterceptor(interceptor.NewServerInterceptor(
 					s.Logger,

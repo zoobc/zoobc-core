@@ -1319,7 +1319,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			want: 245,
+			want: 289,
 		},
 	}
 	for _, tt := range tests {

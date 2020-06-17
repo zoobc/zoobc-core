@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/lib/address"
 
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
@@ -316,7 +317,12 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
 	}
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
-	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
+	nodeAddress, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodeKey.PublicKey)
+	if err != nil {
+		loggerCoreService.Fatal(errors.New("FailToEncodeNodePublicKey"))
+	}
+
+	log.Printf("nodePublicKey: %s", nodeAddress)
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
 	log.Printf("myAddress: %s", myAddress)

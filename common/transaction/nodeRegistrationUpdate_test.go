@@ -920,7 +920,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 				Body:                  txBody,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			want: 199,
+			want: 221,
 		},
 	}
 	for _, tt := range tests {

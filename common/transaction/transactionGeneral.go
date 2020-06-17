@@ -24,7 +24,6 @@ type (
 	UtilInterface interface {
 		GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error)
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
-		ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte
 		GetTransactionID(transactionHash []byte) (int64, error)
 		ValidateTransaction(
 			tx *model.Transaction,
@@ -255,17 +254,6 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	return &transaction, nil
 }
 
-// ReadAccountAddress to read the sender or recipient address from transaction bytes
-// depend on their account types.
-func (*Util) ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte {
-	switch accountType {
-	case 0:
-		return transactionBuffer.Next(int(constant.AccountAddress)) // zoobc account address length
-	default:
-		return transactionBuffer.Next(int(constant.AccountAddress)) // default to zoobc account address
-	}
-}
-
 // GetTransactionID calculate and returns a transaction ID given a transaction model
 func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 	if len(transactionHash) == 0 {
@@ -403,7 +391,7 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, 
 		buff.WriteString(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return sig.GetAddressFromPublicKey(hashed[:])
+	return sig.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, hashed[:])
 
 }
 

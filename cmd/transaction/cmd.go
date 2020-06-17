@@ -412,7 +412,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 // SetupAccountDatasetProcess for generate TX SetupAccountDataset type
 func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcNormalAccount, senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,
@@ -440,7 +440,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 // RemoveAccountDatasetProcess for generate TX RemoveAccountDataset type
 func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcNormalAccount, senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,

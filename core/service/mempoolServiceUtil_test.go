@@ -281,7 +281,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
@@ -301,7 +301,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
@@ -321,7 +321,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
