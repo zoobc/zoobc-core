@@ -431,7 +431,7 @@ func TestMerkleTreeQuery_BuildTree(t *testing.T) {
 	}
 }
 
-func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
+func TestMerkleTreeQuery_PruneData(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -461,13 +461,13 @@ func TestMerkleTreeQuery_RemoveMerkleTrees(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			got, args := mrQ.RemoveMerkleTrees(tt.args.blockHeight, tt.args.limit)
+			got, args := mrQ.PruneData(tt.args.blockHeight, tt.args.limit)
 			if got != tt.want {
-				t.Errorf("RemoveMerkleTrees() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("PruneData() = \n%v, want \n%v", got, tt.want)
 				return
 			}
 			if !reflect.DeepEqual(args, []interface{}{tt.args.blockHeight, tt.args.limit}) {
-				t.Errorf("RemoveMerkleTrees() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
+				t.Errorf("PruneData() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
 			}
 		})
 	}

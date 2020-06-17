@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -16,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -30,7 +31,6 @@ type (
 		ValidateReceipt(
 			receipt *model.BatchReceipt,
 		) error
-		PruningNodeReceipts() error
 		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		GenerateBatchReceiptWithReminder(
 			ct chaintype.ChainType,
@@ -428,64 +428,6 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
-}
-
-/*
-PruningNodeReceipts will pruning the receipts that was expired by block_height + minimum rollback block, affected:
-	1. NodeReceipt
-	2. MerkleTree
-*/
-func (rs *ReceiptService) PruningNodeReceipts() error {
-	var (
-		removeReceiptArgs, removeMerkleArgs []interface{}
-		removeReceiptQ, removeMerkleQ       string
-		err, rollbackErr                    error
-		lastBlock                           model.Block
-		row                                 *sql.Row
-	)
-
-	row, _ = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock(), false)
-	err = rs.BlockQuery.Scan(&lastBlock, row)
-	if err != nil {
-		return err
-	}
-
-	limiter := lastBlock.GetHeight() - (2 * constant.MinRollbackBlocks)
-	if lastBlock.GetHeight() > 2*constant.MinRollbackBlocks {
-		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-			limiter,
-			constant.PruningChunkedSize,
-		)
-		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-			limiter,
-			constant.PruningChunkedSize,
-		)
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
-		if err != nil {
-			rollbackErr = rs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				return rollbackErr
-			}
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
-		if err != nil {
-			rollbackErr = rs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				return rollbackErr
-			}
-			return err
-		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // GetPublishedReceiptsByHeight that handling database connection to get published receipts by height
