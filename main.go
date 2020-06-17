@@ -56,6 +56,7 @@ var (
 	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
+	maxAPIRequestPerSecond                          uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
@@ -254,6 +255,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	peerPort = viper.GetUint32("peerPort")
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
+	maxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
@@ -423,6 +425,7 @@ func startServices() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
+		maxAPIRequestPerSecond,
 	)
 }
 
