@@ -12,6 +12,10 @@ type (
 		SelectDataForSnapshot(fromHeight, toHeight uint32) string
 		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 	}
+	// PruneQuery represent query to delete the prunable data from manage table
+	PruneQuery interface {
+		PruneData(blockHeight, limit uint32) (qStr string, args []interface{})
+	}
 )
 
 // GetDerivedQuery func to get the whole queries has has rollback method
@@ -91,4 +95,18 @@ func GetBlocksmithSafeQuery(ct chaintype.ChainType) (snapshotQuery map[string]bo
 		snapshotQuery = map[string]bool{}
 	}
 	return snapshotQuery
+}
+
+// GetPruneQuery func to get all query that have PruneData method. Query to delete prunable data
+func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		pruneQuery = []PruneQuery{
+			NewNodeReceiptQuery(),
+			NewMerkleTreeQuery(),
+		}
+	default:
+		pruneQuery = []PruneQuery{}
+	}
+	return pruneQuery
 }
