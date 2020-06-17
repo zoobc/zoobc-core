@@ -17,28 +17,27 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath                   string
-		chainType                      chaintype.ChainType
-		TransactionUtil                transaction.UtilInterface
-		TypeActionSwitcher             transaction.TypeActionSwitcher
-		Logger                         *log.Logger
-		SnapshotBasicChunkStrategy     SnapshotChunkStrategyInterface
-		QueryExecutor                  query.ExecutorInterface
-		AccountBalanceQuery            query.AccountBalanceQueryInterface
-		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery        query.ParticipationScoreQueryInterface
-		AccountDatasetQuery            query.AccountDatasetQueryInterface
-		EscrowTransactionQuery         query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery          query.PublishedReceiptQueryInterface
-		PendingTransactionQuery        query.PendingTransactionQueryInterface
-		PendingSignatureQuery          query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
-		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
-		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
-		BlockQuery                     query.BlockQueryInterface
-		SnapshotQueries                map[string]query.SnapshotQuery
-		BlocksmithSafeQuery            map[string]bool
-		DerivedQueries                 []query.DerivedQuery
+		SnapshotPath               string
+		chainType                  chaintype.ChainType
+		TransactionUtil            transaction.UtilInterface
+		TypeActionSwitcher         transaction.TypeActionSwitcher
+		Logger                     *log.Logger
+		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
+		QueryExecutor              query.ExecutorInterface
+		AccountBalanceQuery        query.AccountBalanceQueryInterface
+		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
+		AccountDatasetQuery        query.AccountDatasetQueryInterface
+		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
+		PendingTransactionQuery    query.PendingTransactionQueryInterface
+		PendingSignatureQuery      query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
+		BlockQuery                 query.BlockQueryInterface
+		SnapshotQueries            map[string]query.SnapshotQuery
+		BlocksmithSafeQuery        map[string]bool
+		DerivedQueries             []query.DerivedQuery
 	}
 )
 
@@ -261,63 +260,69 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 		switch qryRepoName {
 		case "block":
-			qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetBlocks()) > 0 {
+				qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "accountBalance":
-			qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetAccountBalances()) > 0 {
+				qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "nodeRegistration":
-			qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetNodeRegistrations()) > 0 {
+				qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "accountDataset":
-			qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetAccountDatasets()) > 0 {
+				qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "participationScore":
-			qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(payload.GetParticipationScores())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetParticipationScores()) > 0 {
+				qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(payload.GetParticipationScores())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "publishedReceipt":
-			qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetPublishedReceipts()) > 0 {
+				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "escrowTransaction":
-			qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetEscrowTransactions()) > 0 {
+				qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "pendingTransaction":
-			qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(payload.GetPendingTransactions())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetPendingTransactions()) > 0 {
+				qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(payload.GetPendingTransactions())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "pendingSignature":
-			qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(payload.GetPendingSignatures())
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetPendingSignatures()) > 0 {
+				qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(payload.GetPendingSignatures())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 
 		case "multisignatureInfo":
-			for _, rec := range payload.MultiSignatureInfos {
-				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
-				queries = append(queries, qryArgs...)
-
-				var participants = make([]*model.MultiSignatureParticipant, len(rec.GetAddresses()))
-				for k, address := range rec.GetAddresses() {
-					participants = append(participants, &model.MultiSignatureParticipant{
-						MultiSignatureAddress: rec.GetMultisigAddress(),
-						AccountAddress:        address,
-						AccountAddressIndex:   uint32(k),
-						BlockHeight:           rec.GetBlockHeight(),
-						Latest:                rec.GetLatest(),
-					})
-				}
-				participantQ := ss.MultiSignatureParticipantQuery.InsertMultisignatureParticipants(participants)
-				queries = append(queries, participantQ...)
+			if len(payload.GetMultiSignatureInfos()) > 0 {
+				musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(payload.GetMultiSignatureInfos())
+				queries = append(queries, musigQ...)
 			}
 		case "skippedBlocksmith":
-			qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(payload.GetSkippedBlocksmiths())
-			queries = append(queries, append([]interface{}{qry}, args...))
-
+			if len(payload.GetSkippedBlocksmiths()) > 0 {
+				qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(payload.GetSkippedBlocksmiths())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}

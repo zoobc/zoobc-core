@@ -15,6 +15,7 @@ type (
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{}
+		InsertMultiSignatureInfos(multiSignatureInfos []*model.MultiSignatureInfo) [][]interface{}
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
@@ -89,6 +90,60 @@ func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model
 	return queries
 }
 
+// InsertMultiSignatureInfos represents query builder to insert multiple records into multisignature_info and multisignature_participant table
+// without updating the version
+func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfos []*model.MultiSignatureInfo) [][]interface{} {
+	var (
+		participantQueryInterface      = NewMultiSignatureParticipantQuery()
+		queries                        [][]interface{}
+		musigInfoArgs, participantArgs []interface{}
+		musigFieldsLength              = len(msi.Fields) - 1
+		musigInfoQ                     = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			msi.getTableName(),
+			strings.Join(msi.Fields[:musigFieldsLength], ", "),
+		)
+		participantQ = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES",
+			participantQueryInterface.getTableName(),
+			strings.Join(participantQueryInterface.Fields, ", "),
+		)
+	)
+
+	if len(multiSignatureInfos) > 0 {
+		for m, musig := range multiSignatureInfos {
+			musigInfoQ += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", musigFieldsLength-1),
+			)
+			if m < len(multiSignatureInfos)-1 {
+				musigInfoQ += ","
+			}
+			musigInfoArgs = append(musigInfoArgs, msi.ExtractModel(musig)[:musigFieldsLength]...)
+
+			for a, address := range musig.GetAddresses() {
+				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
+				if a < len(musig.GetAddresses())-1 {
+					participantQ += ","
+				}
+				participantArgs = append(participantArgs, participantQueryInterface.ExtractModel(&model.MultiSignatureParticipant{
+					MultiSignatureAddress: musig.GetMultisigAddress(),
+					AccountAddress:        address,
+					AccountAddressIndex:   uint32(a),
+					BlockHeight:           musig.GetBlockHeight(),
+					Latest:                musig.GetLatest(),
+				})...)
+			}
+		}
+
+		queries = append(
+			queries,
+			append([]interface{}{musigInfoQ}, musigInfoArgs...),
+			append([]interface{}{participantQ}, participantArgs...),
+		)
+	}
+	return queries
+}
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
 	var addresses string
 	err := row.Scan(

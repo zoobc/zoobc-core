@@ -3,9 +3,11 @@ package snapshot
 import "github.com/spf13/cobra"
 
 var (
-	snapshotHeight uint32
-	dbPath, dbName string
-	snapshotFile   string
+	snapshotHeight       uint32
+	dbPath, dbName       string
+	refDBPath, refDBName string
+	snapshotFile         string
+	dump                 bool
 
 	snapshotCmd = &cobra.Command{
 		Use:   "snapshot",

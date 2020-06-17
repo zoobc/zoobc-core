@@ -22,9 +22,10 @@ import (
 )
 
 func init() {
-	snapshotCmd.Flags().StringVarP(&dbPath, "db-path", "p", "resource", "Database path target")
-	snapshotCmd.Flags().StringVarP(&dbName, "db-name", "n", "zoobc.db", "Database name target")
-	snapshotCmd.Flags().StringVarP(&snapshotFile, "file", "f", "resource/snapshot", "Snapshot file location")
+	snapshotCmd.PersistentFlags().StringVarP(&dbPath, "db-path", "p", "resource", "Database path target")
+	snapshotCmd.PersistentFlags().StringVarP(&dbName, "db-name", "n", "zoobc.db", "Database name target")
+	snapshotCmd.PersistentFlags().StringVarP(&snapshotFile, "file", "f", "resource/snapshot", "Snapshot file location")
+	snapshotCmd.PersistentFlags().BoolVarP(&dump, "dump", "d", true, "Dump result out")
 	/*
 		New snapshot file
 	*/
@@ -33,6 +34,8 @@ func init() {
 	/*
 		Storing payload
 	*/
+	importSnapshotCommand.Flags().StringVar(&refDBPath, "ref-db-path", "resource", "Database manifest reference path target")
+	importSnapshotCommand.Flags().StringVar(&refDBName, "ref-db-name", "zoobc.db", "Database name manifest reference target")
 }
 
 func Commands() *cobra.Command {
@@ -49,17 +52,14 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 		var (
 			snapshotFileInfo *model.SnapshotFileInfo
 			sqliteInstance   = database.NewSqliteDB()
+			snapshotService  *service.SnapshotService
 			mainChain        = &chaintype.MainChain{}
+			executor         *query.Executor
 			sqliteDB         *sql.DB
 			logger           = logrus.New()
 			err              error
 		)
 
-		err = sqliteInstance.InitializeDB(dbPath, dbName)
-		if err != nil {
-			logger.Errorf("Snapshot Failed: %s", err.Error())
-			os.Exit(0)
-		}
 		sqliteDB, err = sqliteInstance.OpenDB(
 			dbPath,
 			dbName,
@@ -77,7 +77,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor := query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB)
 		snapshotMainService := service.NewSnapshotMainBlockService(
 			snapshotFile,
 			executor,
@@ -103,7 +103,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			&transaction.Util{},
 			&transaction.TypeSwitcher{Executor: executor},
 		)
-		snapshotService := service.NewSnapshotService(
+		snapshotService = service.NewSnapshotService(
 			service.NewSpineBlockManifestService(
 				executor,
 				query.NewSpineBlockManifestQuery(),
@@ -128,6 +128,57 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			os.Exit(0)
 		}
 
+		if dump {
+			_ = sqliteInstance.CloseDB()
+
+			dbPath = snapshotFile
+			dbName = "dump.db"
+			err = sqliteInstance.InitializeDB(dbPath, dbName)
+			if err != nil {
+				logger.Errorf("Snapshot Failed: %s", err.Error())
+				os.Exit(0)
+			}
+			sqliteDB, err = sqliteInstance.OpenDB(
+				dbPath,
+				dbName,
+				constant.SQLMaxOpenConnetion,
+				constant.SQLMaxIdleConnections,
+				constant.SQLMaxConnectionLifetime,
+			)
+			if err != nil {
+				logger.Errorf("Snapshot Failed: %s", err.Error())
+				os.Exit(0)
+			}
+			executor = query.NewQueryExecutor(sqliteDB)
+			migration := database.Migration{
+				Query: executor,
+			}
+			err = migration.Init()
+			if err != nil {
+				logger.Errorf("Snapshot Failed: %s", err.Error())
+				os.Exit(0)
+			}
+
+			err = migration.Apply()
+			if err != nil {
+				logger.Errorf("Snapshot Failed: %s", err.Error())
+				os.Exit(0)
+			}
+
+			snapshotService = service.NewSnapshotService(
+				service.NewSpineBlockManifestService(
+					executor,
+					query.NewSpineBlockManifestQuery(),
+					query.NewBlockQuery(&chaintype.SpineChain{}),
+					logger,
+				),
+				service.NewBlockchainStatusService(true, logger),
+				map[int32]service.SnapshotBlockServiceInterface{
+					(&chaintype.MainChain{}).GetTypeInt(): snapshotMainService,
+				},
+				logger,
+			)
+		}
 		_, err = snapshotService.SpineBlockManifestService.CreateSpineBlockManifest(
 			snapshotFileInfo.SnapshotFileHash,
 			snapshotFileInfo.Height,
@@ -151,10 +202,15 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			mainChain          = &chaintype.MainChain{}
 			spineBlockManifest *model.SpineBlockManifest
 			sqliteDB           *sql.DB
+			executor           *query.Executor
 			logger             = logrus.New()
 			err                error
 		)
 
+		if dump {
+			dbPath = snapshotFile
+			dbName = "dump.db"
+		}
 		err = sqliteInstance.InitializeDB(dbPath, dbName)
 		if err != nil {
 			logger.Errorf("Snapshot Failed: %s", err.Error())
@@ -177,7 +233,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor := query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB)
 		snapshotMainService := service.NewSnapshotMainBlockService(
 			snapshotFile,
 			executor,

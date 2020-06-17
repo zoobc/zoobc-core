@@ -232,10 +232,12 @@ var (
 	mockInsertMultisignatureInfoMultisig = &model.MultiSignatureInfo{
 		MinimumSignatures: 0,
 		Nonce:             0,
-		Addresses:         nil,
-		MultisigAddress:   "",
-		BlockHeight:       0,
-		Latest:            true,
+		Addresses: []string{
+			"A", "B", "C",
+		},
+		MultisigAddress: "MSG_",
+		BlockHeight:     0,
+		Latest:          true,
 	}
 	// InsertMultisignatureInfo mocks
 )
@@ -571,6 +573,56 @@ func TestMultisignatureInfoQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := msi.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("MultisignatureInfoQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMultisignatureInfoQuery_InsertMultiSignatureInfos(t *testing.T) {
+	musigQ := NewMultisignatureInfoQuery()
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		multiSignatureInfos []*model.MultiSignatureInfo
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   [][]interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewMultisignatureInfoQuery()),
+			args: args{
+				multiSignatureInfos: []*model.MultiSignatureInfo{
+					mockInsertMultisignatureInfoMultisig,
+				},
+			},
+			want: [][]interface{}{
+				append([]interface{}{
+					"INSERT INTO multisignature_info (multisig_address, minimum_signatures, nonce, block_height, latest) VALUES (?, ?, ?, ?, ?)",
+				},
+					musigQ.ExtractModel(mockInsertMultisignatureInfoMultisig)[:len(musigQ.Fields)-1]...,
+				),
+				{
+					"INSERT INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
+						"VALUES(?, ?, ?, ?, ?),(?, ?, ?, ?, ?),(?, ?, ?, ?, ?)",
+					"MSG_", "A", uint32(0), true, uint32(0), "MSG_", "B", uint32(1), true, uint32(0), "MSG_", "C", uint32(2), true, uint32(0),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := msi.InsertMultiSignatureInfos(tt.args.multiSignatureInfos); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("InsertMultiSignatureInfos() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
