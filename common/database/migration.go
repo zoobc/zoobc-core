@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -303,7 +304,6 @@ func (m *Migration) Init() error {
 				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info
 				"minimum_signatures" INTEGER,		-- account address of the respective signature
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
-				"addresses" TEXT,			-- list of addresses / participants of the multisig account
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
 				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("multisig_address", "block_height")
@@ -400,6 +400,15 @@ func (m *Migration) Init() error {
 				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height", "voter_address")
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
+				"multisig_address" VARCHAR(255), -- address of multisig account / hash of multisignature_info
+				"account_address" VARCHAR(255), --  exists in addresses / participants of the multisig account
+				"account_address_index" INTEGER, -- index / position of participants
+				"latest" INTEGER,
+				"block_height" INTEGER,
+				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
 		}

@@ -303,3 +303,63 @@ func TestAccountBalanceQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		}
 	})
 }
+
+func TestAccountBalanceQuery_InsertAccountBalances(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountBalances []*model.AccountBalance
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewAccountBalanceQuery()),
+			args: args{
+				accountBalances: []*model.AccountBalance{
+					{
+						AccountAddress:   "BCZ",
+						BlockHeight:      0,
+						SpendableBalance: 0,
+						Balance:          0,
+						PopRevenue:       0,
+						Latest:           true,
+					},
+				},
+			},
+			wantStr: "INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) " +
+				"VALUES (?, ?, ?, ?, ?, ?)",
+			wantArgs: []interface{}{
+				"BCZ",
+				uint32(0),
+				int64(0),
+				int64(0),
+				int64(0),
+				true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := q.InsertAccountBalances(tt.args.accountBalances)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertAccountBalances() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertAccountBalances() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

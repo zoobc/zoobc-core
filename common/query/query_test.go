@@ -39,6 +39,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewFeeScaleQuery(),
 				NewFeeVoteCommitmentVoteQuery(),
 				NewFeeVoteRevealVoteQuery(),
+				NewMultiSignatureParticipantQuery(),
 			},
 		},
 		{

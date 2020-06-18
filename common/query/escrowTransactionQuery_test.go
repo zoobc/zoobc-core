@@ -562,3 +562,49 @@ func TestEscrowTransactionQuery_GetExpiredEscrowTransactionsAtCurrentBlock(t *te
 		}
 	})
 }
+
+func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		escrows []*model.Escrow
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewEscrowTransactionQuery()),
+			args: args{
+				escrows: []*model.Escrow{
+					mockEscrow,
+				},
+			},
+			wantStr: "INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission," +
+				"timeout,status,block_height,latest,instruction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewEscrowTransactionQuery().ExtractModel(mockEscrow),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := et.InsertEscrowTransactions(tt.args.escrows)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertEscrowTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

@@ -3314,8 +3314,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				fmt.Println(tt.want.ReferenceBlockHash)
-				fmt.Println(got.ReferenceBlockHash)
 				t.Errorf("ReceiveBlock() got = \n%v want \n%v", got, tt.want)
 			}
 		})

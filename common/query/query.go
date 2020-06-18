@@ -38,6 +38,7 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewFeeScaleQuery(),
 			NewFeeVoteCommitmentVoteQuery(),
 			NewFeeVoteRevealVoteQuery(),
+			NewMultiSignatureParticipantQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:

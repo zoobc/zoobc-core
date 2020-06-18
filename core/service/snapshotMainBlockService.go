@@ -271,93 +271,77 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
-	dummyArgs := make([]interface{}, 0)
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
-		qry := snapshotQuery.TrimDataBeforeSnapshot(0, height)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, dummyArgs...),
+		var (
+			qry  = snapshotQuery.TrimDataBeforeSnapshot(0, height)
+			args []interface{}
 		)
+		queries = append(queries, []interface{}{qry})
 
 		switch qryRepoName {
 		case "block":
-			for _, rec := range payload.Blocks {
-				qry, args := ss.BlockQuery.InsertBlock(rec)
-				if highestBlock == nil || highestBlock.Height < rec.Height {
-					highestBlock = rec
-				}
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetBlocks()) > 0 {
+				qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "accountBalance":
-			for _, rec := range payload.AccountBalances {
-				qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetAccountBalances()) > 0 {
+				qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "nodeRegistration":
-			for _, rec := range payload.NodeRegistrations {
-				qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetNodeRegistrations()) > 0 {
+				qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "accountDataset":
-			for _, rec := range payload.AccountDatasets {
-				qry, args := ss.AccountDatasetQuery.InsertAccountDataset(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetAccountDatasets()) > 0 {
+				qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "participationScore":
-			for _, rec := range payload.ParticipationScores {
-				qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetParticipationScores()) > 0 {
+				qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(payload.GetParticipationScores())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "publishedReceipt":
-			for _, rec := range payload.PublishedReceipts {
-				qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetPublishedReceipts()) > 0 {
+				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "escrowTransaction":
-			for _, rec := range payload.EscrowTransactions {
-				qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetEscrowTransactions()) > 0 {
+				qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "pendingTransaction":
-			for _, rec := range payload.PendingTransactions {
-				qryArgs := ss.PendingTransactionQuery.InsertPendingTransaction(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetPendingTransactions()) > 0 {
+				qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(payload.GetPendingTransactions())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "pendingSignature":
-			for _, rec := range payload.PendingSignatures {
-				qryArgs := ss.PendingSignatureQuery.InsertPendingSignature(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetPendingSignatures()) > 0 {
+				qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(payload.GetPendingSignatures())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
+
 		case "multisignatureInfo":
-			for _, rec := range payload.MultiSignatureInfos {
-				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetMultiSignatureInfos()) > 0 {
+				musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(payload.GetMultiSignatureInfos())
+				queries = append(queries, musigQ...)
 			}
 		case "skippedBlocksmith":
-			for _, rec := range payload.SkippedBlocksmiths {
-				qry, args := ss.SkippedBlocksmithQuery.InsertSkippedBlocksmith(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetSkippedBlocksmiths()) > 0 {
+				qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(payload.GetSkippedBlocksmiths())
+				queries = append(queries, append([]interface{}{qry}, args...))
 			}
 		case "feeScale":
 			for _, rec := range payload.FeeScale {
@@ -405,7 +389,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		if err != nil {
 			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
 			rollbackErr := ss.QueryExecutor.RollbackTx()
-			if err != nil {
+			if rollbackErr != nil {
 				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
 			}
 			return err
