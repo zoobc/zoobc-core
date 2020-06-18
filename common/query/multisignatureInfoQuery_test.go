@@ -34,9 +34,9 @@ func getBuildModelSuccessMockRows() *sql.Rows {
 		"multisig_address",
 		uint32(1),
 		int64(10),
-		"addresses",
 		uint32(12),
 		true,
+		"address_1,address_2",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -87,9 +87,9 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 					MultisigAddress:   "multisig_address",
 					MinimumSignatures: 1,
 					Nonce:             10,
-					Addresses:         []string{"addresses"},
 					BlockHeight:       12,
 					Latest:            true,
+					Addresses:         []string{"address_1", "address_2"},
 				},
 			},
 			wantErr: false,
@@ -153,9 +153,9 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 				&mockExtractMultisignatureInfoMultisig.MultisigAddress,
 				&mockExtractMultisignatureInfoMultisig.MinimumSignatures,
 				&mockExtractMultisignatureInfoMultisig.Nonce,
-				strings.Join(mockExtractMultisignatureInfoMultisig.Addresses, ", "),
 				&mockExtractMultisignatureInfoMultisig.BlockHeight,
 				&mockExtractMultisignatureInfoMultisig.Latest,
+				strings.Join(mockExtractMultisignatureInfoMultisig.Addresses, ","),
 			},
 		},
 	}
@@ -199,8 +199,9 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 				currentHeight:   0,
 				limit:           constant.MinRollbackBlocks,
 			},
-			wantStr: "SELECT multisig_address, minimum_signatures, nonce, addresses, block_height, latest FROM " +
-				"multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
+			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
+				"SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC" +
+				") as addresses FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{"A", uint32(0)},
 		},
 	}
@@ -216,7 +217,8 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 				tt.args.limit,
 			)
 			if gotStr != tt.wantStr {
-				t.Errorf("GetMultisignatureInfoByAddress() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("GetMultisignatureInfoByAddress() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("GetMultisignatureInfoByAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
@@ -263,10 +265,10 @@ func TestMultisignatureInfoQuery_InsertMultisignatureInfo(t *testing.T) {
 			},
 			want: [][]interface{}{
 				append([]interface{}{
-					"INSERT OR REPLACE INTO multisignature_info (multisig_address, minimum_signatures, " +
-						"nonce, addresses, block_height, latest) VALUES(? , ? , ? , ? , ? , ? )",
+					"INSERT OR REPLACE INTO multisignature_info (multisig_address, minimum_signatures, nonce, block_height, latest) " +
+						"VALUES(? , ? , ? , ? , ? )",
 				}, mockMultisigInfoQueryInstance.ExtractModel(
-					mockInsertMultisignatureInfoMultisig)...),
+					mockInsertMultisignatureInfoMultisig)[:len(NewMultisignatureInfoQuery().Fields)-1]...),
 				{
 					"UPDATE multisignature_info SET latest = false WHERE multisig_address = ? AND " +
 						"block_height != 0 AND latest = true", mockInsertMultisignatureInfoMultisig.MultisigAddress,
@@ -281,7 +283,7 @@ func TestMultisignatureInfoQuery_InsertMultisignatureInfo(t *testing.T) {
 			}
 			got := msi.InsertMultisignatureInfo(tt.args.multisigInfo)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("InsertMultisignatureInfo() got = %v, want %v", got, tt.want)
+				t.Errorf("InsertMultisignatureInfo() got = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -355,9 +357,9 @@ func getNumberScanSuccessMockRow() *sql.Row {
 		"multisig_address",
 		uint32(123),
 		int64(10),
-		"addresses",
 		uint32(12),
 		true,
+		"addresses",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")
@@ -457,9 +459,9 @@ var (
 			"multisig_address",
 			"minimum_signatures",
 			"nonce",
-			"addresses",
 			"block_height",
 			"latest",
+			"addresses",
 		},
 		TableName: "multisignature_info",
 	}
@@ -510,10 +512,14 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "SELECT multisig_address,minimum_signatures,nonce,addresses,block_height," +
-				"latest FROM multisignature_info WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, " +
-				"MAX(t2.block_height) FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
-				"multisig_address) ORDER BY block_height",
+			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
+				"SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant " +
+				"GROUP BY multisig_address, block_height ORDER BY account_address_index ASC" +
+				") as addresses FROM multisignature_info " +
+				"WHERE (multisig_address, block_height) IN (" +
+				"SELECT t2.multisig_address, MAX(t2.block_height) " +
+				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2.multisig_address" +
+				") ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -523,7 +529,7 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				TableName: tt.fields.TableName,
 			}
 			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
