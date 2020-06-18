@@ -45,10 +45,11 @@ func (paq *NodeAddressInfoQuery) getTableName() string {
 	return paq.TableName
 }
 
-// InsertNodeAddressInfo inserts a new peer address into DB
+// InsertNodeAddressInfo inserts a new peer address into DB. if an old ip/port peer is found with different nodeId,
+// replace the old entry with the new one.
 func (paq *NodeAddressInfoQuery) InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{}) {
 	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		paq.getTableName(),
 		strings.Join(paq.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(paq.Fields)-1)),

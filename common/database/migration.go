@@ -382,7 +382,8 @@ func (m *Migration) Init() error {
 				"block_height"	INTEGER,		-- last blockchain height when broadcasting the address
 				"block_hash"	BLOB,			-- hash of last block when broadcasting the address
 				"signature"		BLOB,			-- signature of above fields (signed using node private key)
-				PRIMARY KEY("node_id")			-- primary key
+				PRIMARY KEY("node_id"),			-- primary key
+				UNIQUE(address, port)			-- address + port must be unique too
 			)
 			`,
 			`

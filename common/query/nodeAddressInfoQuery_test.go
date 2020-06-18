@@ -51,7 +51,8 @@ func TestNodeAddressInfoQuery_InsertNodeAddressInfo(t *testing.T) {
 				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			},
-			wantStr: "INSERT INTO node_address_info (node_id, address, port, block_height, block_hash, signature) VALUES(? , ? , ? , ? , ? , ? )",
+			wantStr: "INSERT OR REPLACE INTO node_address_info (node_id, address, port, block_height, block_hash, signature) " +
+				"VALUES(? , ? , ? , ? , ? , ? )",
 		},
 	}
 	for _, tt := range tests {
