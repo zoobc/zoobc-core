@@ -12,7 +12,10 @@ type (
 	// NodeAdmissionTimestampQueryInterface methods must have
 	NodeAdmissionTimestampQueryInterface interface {
 		GetNextNodeAdmision() string
-		InsertNextNodeAdmission(nextNodeAdmission *model.NodeAdmissionTimestamp) [][]interface{}
+		InsertNextNodeAdmission(nodeAdmissionTimestamp *model.NodeAdmissionTimestamp) [][]interface{}
+		InsertNextNodeAdmissions(
+			nodeAdmissionTimestamps []*model.NodeAdmissionTimestamp,
+		) (str string, args []interface{})
 		ExtractModel(nextNodeAdmission *model.NodeAdmissionTimestamp) []interface{}
 		BuildModel(
 			nodeAdmissionTimestamps []*model.NodeAdmissionTimestamp,
@@ -51,7 +54,7 @@ func (natq *NodeAdmissionTimestampQuery) GetNextNodeAdmision() string {
 
 // InsertNextNodeAdmission insert next timestamp node admission
 func (natq *NodeAdmissionTimestampQuery) InsertNextNodeAdmission(
-	nextNodeAdmission *model.NodeAdmissionTimestamp,
+	nodeAdmissionTimestamp *model.NodeAdmissionTimestamp,
 ) [][]interface{} {
 	return [][]interface{}{
 		{
@@ -74,9 +77,34 @@ func (natq *NodeAdmissionTimestampQuery) InsertNextNodeAdmission(
 					fmt.Sprintf("? %s", strings.Repeat(", ?", len(natq.Fields)-1)),
 				),
 			},
-			natq.ExtractModel(nextNodeAdmission)...,
+			natq.ExtractModel(nodeAdmissionTimestamp)...,
 		),
 	}
+}
+
+// InsertNextNodeAdmissions represents query builder to insert multiple record in single query
+// note: this query only use for inserting snapshot (applaying some lastest version of this table).
+func (natq *NodeAdmissionTimestampQuery) InsertNextNodeAdmissions(
+	nodeAdmissionTimestamps []*model.NodeAdmissionTimestamp,
+) (str string, args []interface{}) {
+	if len(nodeAdmissionTimestamps) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			natq.getTableName(),
+			strings.Join(natq.Fields, ", "),
+		)
+		for k, nodeReg := range nodeAdmissionTimestamps {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(natq.Fields)-1),
+			)
+			if k < len(nodeAdmissionTimestamps)-1 {
+				str += ","
+			}
+			args = append(args, natq.ExtractModel(nodeReg)...)
+		}
+	}
+	return str, args
 }
 
 // ExtractModel extract the model struct fields to the order of NodeAdmissionTimestampQuery.Fields

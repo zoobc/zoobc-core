@@ -217,3 +217,128 @@ func TestNodeAdmissionTimestampQuery_Scan(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeAdmissionTimestampQuery_InsertNextNodeAdmissions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nodeAdmissionTimestamps []*model.NodeAdmissionTimestamp
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*NewNodeAdmissionTimestampQuery()),
+			args: args{
+				nodeAdmissionTimestamps: []*model.NodeAdmissionTimestamp{
+					&mockNextAdmission,
+				},
+			},
+			wantStr: "INSERT INTO node_admission_timestamp (timestamp, block_height, latest) VALUES (?, ?, ?)",
+			wantArgs: []interface{}{
+				mockNextAdmission.Timestamp,
+				mockNextAdmission.BlockHeight,
+				mockNextAdmission.Latest,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			natq := &NodeAdmissionTimestampQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := natq.InsertNextNodeAdmissions(tt.args.nodeAdmissionTimestamps)
+			if gotStr != tt.wantStr {
+				t.Errorf("NodeAdmissionTimestampQuery.InsertNextNodeAdmissions() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("NodeAdmissionTimestampQuery.InsertNextNodeAdmissions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestNodeAdmissionTimestampQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSucess",
+			fields: fields(*NewNodeAdmissionTimestampQuery()),
+			args: args{
+				fromHeight: 1,
+				toHeight:   2,
+			},
+			want: "SELECT timestamp,block_height,latest FROM node_admission_timestamp " +
+				"WHERE block_height >= 1 AND block_height <= 2",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			natq := &NodeAdmissionTimestampQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := natq.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("NodeAdmissionTimestampQuery.SelectDataForSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeAdmissionTimestampQuery_TrimDataBeforeSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*NewNodeAdmissionTimestampQuery()),
+			args: args{
+				fromHeight: 1,
+				toHeight:   2,
+			},
+			want: "DELETE FROM node_admission_timestamp WHERE block_height >= 1 AND block_height <= 2",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			natq := &NodeAdmissionTimestampQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := natq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("NodeAdmissionTimestampQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
