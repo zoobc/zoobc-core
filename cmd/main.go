@@ -10,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/rollback"
 	"github.com/zoobc/zoobc-core/cmd/scramblednodes"
 	"github.com/zoobc/zoobc-core/cmd/signature"
+	"github.com/zoobc/zoobc-core/cmd/snapshot"
 	"github.com/zoobc/zoobc-core/cmd/transaction"
 )
 
@@ -36,6 +37,7 @@ func main() {
 	rootCmd.AddCommand(rollback.Commands())
 	rootCmd.AddCommand(parserCmd)
 	rootCmd.AddCommand(signature.Commands())
+	rootCmd.AddCommand(snapshot.Commands())
 	generateCmd.AddCommand(account.Commands())
 	generateCmd.AddCommand(transaction.Commands())
 	generateCmd.AddCommand(block.Commands())

@@ -402,3 +402,49 @@ func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishedReceiptQuery_InsertPublishedReceipts(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		receipts []*model.PublishedReceipt
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPublishedReceiptQuery()),
+			args: args{
+				receipts: []*model.PublishedReceipt{
+					mockPublishedReceipt,
+				},
+			},
+			wantStr: "INSERT INTO published_receipt (sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, published_index) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewPublishedReceiptQuery().ExtractModel(mockPublishedReceipt),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prq := &PublishedReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := prq.InsertPublishedReceipts(tt.args.receipts)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPublishedReceipts() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPublishedReceipts() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
