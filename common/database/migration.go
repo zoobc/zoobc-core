@@ -400,6 +400,7 @@ func (m *Migration) Init() error {
 				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height", "voter_address")
+			)
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
