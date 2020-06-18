@@ -376,8 +376,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 				queries = append(queries, qryArgs...)
 			}
 		case "nodeAdmissionTimestamp":
-			qry, args := ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(payload.NodeAdmissionTimestamp)
-			queries = append(queries, append([]interface{}{qry}, args...))
+			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
+				qry, args := ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(payload.GetNodeAdmissionTimestamp())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
+
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}

@@ -36,7 +36,7 @@ var (
 				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			NodeAddress:        "172.104.34.10:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
 			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
@@ -45,7 +45,7 @@ var (
 				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
 			NodeAddress:        "45.79.39.58:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
 			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
@@ -54,7 +54,7 @@ var (
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			NodeAddress:        "85.90.246.90:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 	}
 )
