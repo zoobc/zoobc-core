@@ -87,6 +87,7 @@ type (
 		CoinbaseService             CoinbaseServiceInterface
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
 	}
 )
 
@@ -122,6 +123,7 @@ func NewBlockMainService(
 	participationScoreService ParticipationScoreServiceInterface,
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
+	pruneQuery []query.PruneQuery,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -155,6 +157,7 @@ func NewBlockMainService(
 		ParticipationScoreService:   participationScoreService,
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
+		PruneQuery:                  pruneQuery,
 	}
 }
 
@@ -728,6 +731,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+
+	// Delete prunable data
+	if block.GetHeight() > (2 * constant.MinRollbackBlocks) {
+		saveHeight := block.GetHeight() - (2 * constant.MinRollbackBlocks)
+		for _, pQuery := range bs.PruneQuery {
+			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
+			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
+			if err != nil {
+				rollbackErr := bs.QueryExecutor.RollbackTx()
+				if rollbackErr != nil {
+					bs.Logger.Warnf("PruneDataRollbackErr:%v", rollbackErr)
+				}
+				return err
+			}
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err

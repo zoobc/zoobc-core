@@ -58,6 +58,7 @@ var (
 	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
+	maxAPIRequestPerSecond                          uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
@@ -267,6 +268,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	peerPort = viper.GetUint32("peerPort")
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
+	maxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
@@ -410,6 +412,7 @@ func initObserverListeners() {
 func startServices() {
 	p2pServiceInstance.StartP2P(
 		myAddress,
+		ownerAccountAddress,
 		peerPort,
 		nodeSecretPhrase,
 		queryExecutor,
@@ -436,6 +439,7 @@ func startServices() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
+		maxAPIRequestPerSecond,
 	)
 }
 
@@ -553,6 +557,7 @@ func startMainchain() {
 		mainchainParticipationScoreService,
 		mainchainPublishedReceiptService,
 		feeScaleService,
+		query.GetPruneQuery(mainchain),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -769,13 +774,6 @@ func startScheduler() {
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
-	// scheduler to pruning receipts that was expired
-	if err := schedulerInstance.AddJob(
-		constant.PruningNodeReceiptPeriod,
-		receiptService.PruningNodeReceipts,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
 	// scheduler to remove block uncomplete queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(

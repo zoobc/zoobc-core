@@ -5,8 +5,9 @@ package model
 
 import (
 	fmt "fmt"
-	proto "github.com/golang/protobuf/proto"
 	math "math"
+
+	proto "github.com/golang/protobuf/proto"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -102,25 +103,26 @@ func (m *SnapshotFileInfo) GetFileChunksHashes() [][]byte {
 
 // SnapshotPayload snapshot data
 type SnapshotPayload struct {
-	Blocks                 []*Block                  `protobuf:"bytes,1,rep,name=Blocks,proto3" json:"Blocks,omitempty"`
-	AccountBalances        []*AccountBalance         `protobuf:"bytes,2,rep,name=AccountBalances,proto3" json:"AccountBalances,omitempty"`
-	NodeRegistrations      []*NodeRegistration       `protobuf:"bytes,3,rep,name=NodeRegistrations,proto3" json:"NodeRegistrations,omitempty"`
-	AccountDatasets        []*AccountDataset         `protobuf:"bytes,4,rep,name=AccountDatasets,proto3" json:"AccountDatasets,omitempty"`
-	ParticipationScores    []*ParticipationScore     `protobuf:"bytes,5,rep,name=ParticipationScores,proto3" json:"ParticipationScores,omitempty"`
-	PublishedReceipts      []*PublishedReceipt       `protobuf:"bytes,6,rep,name=PublishedReceipts,proto3" json:"PublishedReceipts,omitempty"`
-	EscrowTransactions     []*Escrow                 `protobuf:"bytes,7,rep,name=EscrowTransactions,proto3" json:"EscrowTransactions,omitempty"`
-	PendingTransactions    []*PendingTransaction     `protobuf:"bytes,8,rep,name=PendingTransactions,proto3" json:"PendingTransactions,omitempty"`
-	PendingSignatures      []*PendingSignature       `protobuf:"bytes,9,rep,name=PendingSignatures,proto3" json:"PendingSignatures,omitempty"`
-	MultiSignatureInfos    []*MultiSignatureInfo     `protobuf:"bytes,10,rep,name=MultiSignatureInfos,proto3" json:"MultiSignatureInfos,omitempty"`
-	SkippedBlocksmiths     []*SkippedBlocksmith      `protobuf:"bytes,11,rep,name=SkippedBlocksmiths,proto3" json:"SkippedBlocksmiths,omitempty"`
-	FeeScale               []*FeeScale               `protobuf:"bytes,12,rep,name=FeeScale,proto3" json:"FeeScale,omitempty"`
-	FeeVoteCommitmentVote  []*FeeVoteCommitmentVote  `protobuf:"bytes,13,rep,name=FeeVoteCommitmentVote,proto3" json:"FeeVoteCommitmentVote,omitempty"`
-	FeeVoteRevealVote      []*FeeVoteRevealVote      `protobuf:"bytes,14,rep,name=FeeVoteRevealVote,proto3" json:"FeeVoteRevealVote,omitempty"`
-	LiquidPayment          []*LiquidPayment          `protobuf:"bytes,15,rep,name=LiquidPayment,proto3" json:"LiquidPayment,omitempty"`
-	NodeAdmissionTimestamp []*NodeAdmissionTimestamp `protobuf:"bytes,16,rep,name=NodeAdmissionTimestamp,proto3" json:"NodeAdmissionTimestamp,omitempty"`
-	XXX_NoUnkeyedLiteral   struct{}                  `json:"-"`
-	XXX_unrecognized       []byte                    `json:"-"`
-	XXX_sizecache          int32                     `json:"-"`
+	Blocks                     []*Block                     `protobuf:"bytes,1,rep,name=Blocks,proto3" json:"Blocks,omitempty"`
+	AccountBalances            []*AccountBalance            `protobuf:"bytes,2,rep,name=AccountBalances,proto3" json:"AccountBalances,omitempty"`
+	NodeRegistrations          []*NodeRegistration          `protobuf:"bytes,3,rep,name=NodeRegistrations,proto3" json:"NodeRegistrations,omitempty"`
+	AccountDatasets            []*AccountDataset            `protobuf:"bytes,4,rep,name=AccountDatasets,proto3" json:"AccountDatasets,omitempty"`
+	ParticipationScores        []*ParticipationScore        `protobuf:"bytes,5,rep,name=ParticipationScores,proto3" json:"ParticipationScores,omitempty"`
+	PublishedReceipts          []*PublishedReceipt          `protobuf:"bytes,6,rep,name=PublishedReceipts,proto3" json:"PublishedReceipts,omitempty"`
+	EscrowTransactions         []*Escrow                    `protobuf:"bytes,7,rep,name=EscrowTransactions,proto3" json:"EscrowTransactions,omitempty"`
+	PendingTransactions        []*PendingTransaction        `protobuf:"bytes,8,rep,name=PendingTransactions,proto3" json:"PendingTransactions,omitempty"`
+	PendingSignatures          []*PendingSignature          `protobuf:"bytes,9,rep,name=PendingSignatures,proto3" json:"PendingSignatures,omitempty"`
+	MultiSignatureInfos        []*MultiSignatureInfo        `protobuf:"bytes,10,rep,name=MultiSignatureInfos,proto3" json:"MultiSignatureInfos,omitempty"`
+	SkippedBlocksmiths         []*SkippedBlocksmith         `protobuf:"bytes,11,rep,name=SkippedBlocksmiths,proto3" json:"SkippedBlocksmiths,omitempty"`
+	FeeScale                   []*FeeScale                  `protobuf:"bytes,12,rep,name=FeeScale,proto3" json:"FeeScale,omitempty"`
+	FeeVoteCommitmentVote      []*FeeVoteCommitmentVote     `protobuf:"bytes,13,rep,name=FeeVoteCommitmentVote,proto3" json:"FeeVoteCommitmentVote,omitempty"`
+	FeeVoteRevealVote          []*FeeVoteRevealVote         `protobuf:"bytes,14,rep,name=FeeVoteRevealVote,proto3" json:"FeeVoteRevealVote,omitempty"`
+	LiquidPayment              []*LiquidPayment             `protobuf:"bytes,15,rep,name=LiquidPayment,proto3" json:"LiquidPayment,omitempty"`
+	NodeAdmissionTimestamp     []*NodeAdmissionTimestamp    `protobuf:"bytes,16,rep,name=NodeAdmissionTimestamp,proto3" json:"NodeAdmissionTimestamp,omitempty"`
+	MultiSignatureParticipants []*MultiSignatureParticipant `protobuf:"bytes,16,rep,name=MultiSignatureParticipants,proto3" json:"MultiSignatureParticipants,omitempty"`
+	XXX_NoUnkeyedLiteral       struct{}                     `json:"-"`
+	XXX_unrecognized           []byte                       `json:"-"`
+	XXX_sizecache              int32                        `json:"-"`
 }
 
 func (m *SnapshotPayload) Reset()         { *m = SnapshotPayload{} }
@@ -256,6 +258,12 @@ func (m *SnapshotPayload) GetLiquidPayment() []*LiquidPayment {
 func (m *SnapshotPayload) GetNodeAdmissionTimestamp() []*NodeAdmissionTimestamp {
 	if m != nil {
 		return m.NodeAdmissionTimestamp
+	}
+}
+
+func (m *SnapshotPayload) GetMultiSignatureParticipants() []*MultiSignatureParticipant {
+	if m != nil {
+		return m.MultiSignatureParticipants
 	}
 	return nil
 }

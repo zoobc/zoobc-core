@@ -816,3 +816,89 @@ func TestP2PServerHandler_RequestBlockTransactions(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockRequestDownloadFileError struct {
+		service2.P2PServerServiceInterface
+	}
+	mockRequestDownloadFileSuccess struct {
+		service2.P2PServerServiceInterface
+	}
+)
+
+func (*mockRequestDownloadFileError) RequestDownloadFile(ctx context.Context, fileChunkNames []string) (*model.FileDownloadResponse, error) {
+	return nil, errors.New("Error RequestDownloadFile")
+}
+
+func (*mockRequestDownloadFileSuccess) RequestDownloadFile(ctx context.Context, fileChunkNames []string) (*model.FileDownloadResponse, error) {
+	return &model.FileDownloadResponse{}, nil
+}
+
+func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
+	type fields struct {
+		Service service2.P2PServerServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.FileDownloadRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.FileDownloadResponse
+		wantErr bool
+	}{
+		{
+			name: "RequestFileDownload:NotContainAnyFileName",
+			args: args{
+				req: &model.FileDownloadRequest{
+					FileChunkNames: []string{},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "RequestFileDownload:Error",
+			args: args{
+				req: &model.FileDownloadRequest{
+					FileChunkNames: []string{"mockName"},
+				},
+			},
+			fields: fields{
+				Service: &mockRequestDownloadFileError{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "RequestFileDownload:Success",
+			args: args{
+				req: &model.FileDownloadRequest{
+					FileChunkNames: []string{"mockName"},
+				},
+			},
+			fields: fields{
+				Service: &mockRequestDownloadFileSuccess{},
+			},
+			want:    &model.FileDownloadResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ss := &P2PServerHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := ss.RequestFileDownload(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("P2PServerHandler.RequestFileDownload() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("P2PServerHandler.RequestFileDownload() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
