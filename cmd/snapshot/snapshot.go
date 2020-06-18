@@ -31,11 +31,6 @@ func init() {
 	*/
 	newSnapshotCommand.Flags().Uint32VarP(&snapshotHeight, "height", "b", 0, "Block height target to snapshot")
 
-	/*
-		Storing payload
-	*/
-	importSnapshotCommand.Flags().StringVar(&refDBPath, "ref-db-path", "resource", "Database manifest reference path target")
-	importSnapshotCommand.Flags().StringVar(&refDBName, "ref-db-name", "zoobc.db", "Database name manifest reference target")
 }
 
 func Commands() *cobra.Command {

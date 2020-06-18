@@ -214,3 +214,42 @@ go run main.go generate scrambledNodes --db-name zoobc_2.db --height 11153
 ```
 go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --sender-full-address "n56.alpha.proofofparticipation.network:8001"
 ```
+## Snapshot
+Snapshot command aim to generate new snapshot files, and also import snapshot, get payload and store payload into database. This command for developer who want to test integration of snapshot is working well or not.
+There are sub commands:
+1. New<br>
+Aim to generate new snapshot files, based on latest state of block chain, and store manifest into database, actually will stored to new database named `dump.db` same path with snapshot path target. if you want store to the real database just set `--dump false`.
+    ```bash
+    Snapshot sub command that aim to generating new snapshot file based on database target
+
+    Usage:
+      zoobc snapshot new [flags]
+
+    Flags:
+      -b, --height uint32   Block height target to snapshot
+      -h, --help            help for new
+
+    Global Flags:
+      -n, --db-name string   Database name target (default "zoobc.db")
+      -p, --db-path string   Database path target (default "resource")
+      -d, --dump             Dump result out (default true)
+      -f, --file string      Snapshot file location (default "resource/snapshot")
+
+    ```
+2. Import
+Aim to import payload from snapshot files and will store into database, actually will store into `dump.db` as default which if `dump.db` is available, better do `snpashot new` before doing this command.
+    ```bash
+    Snapshot sub command simulation for import from snapshot file and storing snapshot payload into a database target
+
+    Usage:
+      zoobc snapshot import [flags]
+
+    Flags:
+      -h, --help   help for import
+
+    Global Flags:
+      -n, --db-name string   Database name target (default "zoobc.db")
+      -p, --db-path string   Database path target (default "resource")
+      -d, --dump             Dump result out (default true)
+      -f, --file string      Snapshot file location (default "resource/snapshot")
+```

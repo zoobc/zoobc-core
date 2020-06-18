@@ -99,7 +99,7 @@ func (psq *PendingSignatureQuery) InsertPendingSignatures(pendingSigs []*model.P
 				strings.Repeat(", ?", len(psq.Fields)-1),
 			)
 			if k < len(pendingSigs)-1 {
-				str += ","
+				str += ", "
 			}
 			args = append(args, psq.ExtractModel(pendingSig)...)
 		}
