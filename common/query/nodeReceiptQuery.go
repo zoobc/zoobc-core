@@ -17,7 +17,7 @@ type (
 		GetReceiptByRoot(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
-		RemoveReceipts(blockHeight, limit uint32) (string, []interface{})
+		PruneData(blockHeight, limit uint32) (string, []interface{})
 		ExtractModel(receipt *model.Receipt) []interface{}
 		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
 		Scan(receipt *model.Receipt, row *sql.Row) error
@@ -159,8 +159,8 @@ func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr stri
 	return query, values
 }
 
-// RemoveReceipts handle query for remove by reference_block_height with limit
-func (rq *NodeReceiptQuery) RemoveReceipts(blockHeight, limit uint32) (qStr string, args []interface{}) {
+// PruneData handle query for remove by reference_block_height with limit
+func (rq *NodeReceiptQuery) PruneData(blockHeight, limit uint32) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"DELETE FROM %s WHERE reference_block_height IN("+
 				"SELECT reference_block_height FROM %s "+

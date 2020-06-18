@@ -21,6 +21,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
+
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -554,6 +555,7 @@ func startMainchain() {
 		mainchainParticipationScoreService,
 		mainchainPublishedReceiptService,
 		feeScaleService,
+		query.GetPruneQuery(mainchain),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -764,13 +766,6 @@ func startScheduler() {
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
-	// scheduler to pruning receipts that was expired
-	if err := schedulerInstance.AddJob(
-		constant.PruningNodeReceiptPeriod,
-		receiptService.PruningNodeReceipts,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
 	// scheduler to remove block uncomplete queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
