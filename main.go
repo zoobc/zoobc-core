@@ -399,6 +399,7 @@ func initObserverListeners() {
 func startServices() {
 	p2pServiceInstance.StartP2P(
 		myAddress,
+		ownerAccountAddress,
 		peerPort,
 		nodeSecretPhrase,
 		queryExecutor,
