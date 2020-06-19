@@ -262,8 +262,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:           ts.Executor,
 			}
 			multisignatureInfoHelper := &MultisignatureInfoHelper{
-				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
-				QueryExecutor:           ts.Executor,
+				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
+				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
+				QueryExecutor:                  ts.Executor,
 			}
 			signatureInfoHelper := &SignatureInfoHelper{
 				PendingSignatureQuery:   query.NewPendingSignatureQuery(),

@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math/big"
 	"sort"
 	"sync"
@@ -13,7 +12,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
@@ -30,7 +31,8 @@ type (
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
-		GetNodeAdmittanceCycle() uint32
+		GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error)
+		InsertNextNodeAdmissionTimestamp(lastAdmissionTimestamp int64, blockHeight uint32, dbTx bool) error
 		BuildScrambledNodes(block *model.Block) error
 		ResetScrambledNodes()
 		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
@@ -57,7 +59,8 @@ type (
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
 		BlockQuery                   query.BlockQueryInterface
-		NodeAdmittanceCycle          uint32
+		NodeAdmissionTimestampQuery  query.NodeAdmissionTimestampQueryInterface
+		NextNodeAdmission            *model.NodeAdmissionTimestamp
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
 		ScrambledNodesLock           sync.RWMutex
@@ -76,24 +79,25 @@ func NewNodeRegistrationService(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	blockQuery query.BlockQueryInterface,
+	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
 	logger *log.Logger,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
 	nodeRegistrationUtils NodeRegistrationUtilsInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
-		QueryExecutor:           queryExecutor,
-		NodeAddressInfoQuery:    nodeAddressInfoQuery,
-		AccountBalanceQuery:     accountBalanceQuery,
-		NodeRegistrationQuery:   nodeRegistrationQuery,
-		ParticipationScoreQuery: participationScoreQuery,
-		BlockQuery:              blockQuery,
-		NodeAdmittanceCycle:     constant.NodeAdmittanceCycle,
-		Logger:                  logger,
-		ScrambledNodes:          map[uint32]*model.ScrambledNodes{},
-		BlockchainStatusService: blockchainStatusService,
-		Signature:               signature,
-		NodeRegistrationUtils:   nodeRegistrationUtils,
+		QueryExecutor:               queryExecutor,
+		NodeAddressInfoQuery:        nodeAddressInfoQuery,
+		AccountBalanceQuery:         accountBalanceQuery,
+		NodeRegistrationQuery:       nodeRegistrationQuery,
+		ParticipationScoreQuery:     participationScoreQuery,
+		BlockQuery:                  blockQuery,
+		Logger:                      logger,
+		ScrambledNodes:              map[uint32]*model.ScrambledNodes{},
+		BlockchainStatusService:     blockchainStatusService,
+		Signature:                   signature,
+		NodeRegistrationUtils:       nodeRegistrationUtils,
+		NodeAdmissionTimestampQuery: nodeAdmissionTimestampQuery,
 	}
 }
 
@@ -244,12 +248,76 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 	return nil
 }
 
-// GetNodeAdmittanceCycle get the offset, in number of blocks, when we accept and expel nodes from registry
-func (nrs *NodeRegistrationService) GetNodeAdmittanceCycle() uint32 {
-	if nrs.NodeAdmittanceCycle == 0 {
-		return constant.NodeAdmittanceCycle
+// GetNextNodeAdmissionTimestamp get the next node admission timestamp
+func (nrs *NodeRegistrationService) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
+	if nrs.NextNodeAdmission == nil || blockHeight <= nrs.NextNodeAdmission.BlockHeight {
+		var (
+			err               error
+			row               *sql.Row
+			nextNodeAdmission model.NodeAdmissionTimestamp
+		)
+		row, err = nrs.QueryExecutor.ExecuteSelectRow(
+			nrs.NodeAdmissionTimestampQuery.GetNextNodeAdmision(),
+			false,
+		)
+		if err != nil {
+			return 0, err
+		}
+		err = nrs.NodeAdmissionTimestampQuery.Scan(&nextNodeAdmission, row)
+		if err != nil {
+			return 0, err
+		}
+		nrs.NextNodeAdmission = &nextNodeAdmission
 	}
-	return nrs.NodeAdmittanceCycle
+	return nrs.NextNodeAdmission.Timestamp, nil
+}
+
+// InsertNextNodeAdmissionTimestamp set new next node admission timestamp
+func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
+	lastAdmissionTimestamp int64,
+	blockHeight uint32,
+	dbTx bool,
+) error {
+	var (
+		rows              *sql.Rows
+		err               error
+		delayAdmission    int64
+		nextNodeAdmission *model.NodeAdmissionTimestamp
+		activeBlocksmiths []*model.Blocksmith
+		insertQueries     [][]interface{}
+	)
+
+	// get all registered nodes
+	rows, err = nrs.QueryExecutor.ExecuteSelect(
+		nrs.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(blockHeight),
+		dbTx,
+	)
+	if err != nil {
+		return err
+	}
+	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	if err != nil {
+		return err
+	}
+	// calculate next delay node admission timestamp
+	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
+	delayAdmission = util.MinInt64(
+		util.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
+		constant.NodeAdmissionMaxDelay,
+	)
+	nextNodeAdmission = &model.NodeAdmissionTimestamp{
+		Timestamp:   lastAdmissionTimestamp + delayAdmission,
+		BlockHeight: blockHeight,
+		Latest:      true,
+	}
+	insertQueries = nrs.NodeAdmissionTimestampQuery.InsertNextNodeAdmission(nextNodeAdmission)
+	err = nrs.QueryExecutor.ExecuteTransactions(insertQueries)
+	if err != nil {
+		return err
+	}
+
+	nrs.NextNodeAdmission = nextNodeAdmission
+	return nil
 }
 
 func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint32) error {

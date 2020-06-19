@@ -13,6 +13,7 @@ type (
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
+		InsertPublishedReceipts(receipts []*model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
@@ -57,6 +58,28 @@ func (prq *PublishedReceiptQuery) InsertPublishedReceipt(publishedReceipt *model
 		strings.Join(prq.Fields, ", "),
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(prq.Fields)-1)),
 	), prq.ExtractModel(publishedReceipt)
+}
+
+// InsertPublishedReceipts represents query builder to insert multiple record in single query
+func (prq *PublishedReceiptQuery) InsertPublishedReceipts(receipts []*model.PublishedReceipt) (str string, args []interface{}) {
+	if len(receipts) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			prq.getTableName(),
+			strings.Join(prq.Fields, ", "),
+		)
+		for k, receipt := range receipts {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(prq.Fields)-1),
+			)
+			if k < len(receipts)-1 {
+				str += ","
+			}
+			args = append(args, prq.ExtractModel(receipt)...)
+		}
+	}
+	return str, args
 }
 
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {

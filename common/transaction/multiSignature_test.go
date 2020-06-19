@@ -46,6 +46,11 @@ var (
 	// multisignatureInfoHelper mocks
 )
 
+func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) GetMultisignatureInfoByAddress(
+	string, uint32, uint32,
+) (str string, args []interface{}) {
+	return "", []interface{}{}
+}
 func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) Scan(*model.MultiSignatureInfo, *sql.Row) error {
 	return errors.New("mockedError")
 }
@@ -60,9 +65,9 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
-		strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
 		mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
+		strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
 	))
 	row := db.QueryRow("")
 	return row, nil
@@ -151,8 +156,9 @@ func TestMultisignatureInfoHelper_InsertMultisignatureInfo(t *testing.T) {
 		multisigInfoSuccess model.MultiSignatureInfo
 	)
 	type fields struct {
-		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
-		QueryExecutor           query.ExecutorInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		QueryExecutor                  query.ExecutorInterface
 	}
 	type args struct {
 		multisigInfo *model.MultiSignatureInfo
@@ -166,8 +172,9 @@ func TestMultisignatureInfoHelper_InsertMultisignatureInfo(t *testing.T) {
 		{
 			name: "InsertMultisignatureInfo - success",
 			fields: fields{
-				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
-				QueryExecutor:           &multisignatureInfoHelperInsertMultisignatureInfoExecutorSuccess{},
+				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
+				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
+				QueryExecutor:                  &multisignatureInfoHelperInsertMultisignatureInfoExecutorSuccess{},
 			},
 			args: args{
 				multisigInfo: &multisigInfoSuccess,
@@ -177,8 +184,9 @@ func TestMultisignatureInfoHelper_InsertMultisignatureInfo(t *testing.T) {
 		{
 			name: "InsertMultisignatureInfo - fail",
 			fields: fields{
-				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
-				QueryExecutor:           &multisignatureInfoHelperInsertMultisignatureInfoExecutorFail{},
+				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
+				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
+				QueryExecutor:                  &multisignatureInfoHelperInsertMultisignatureInfoExecutorFail{},
 			},
 			args: args{
 				multisigInfo: &multisigInfoSuccess,
@@ -189,8 +197,9 @@ func TestMultisignatureInfoHelper_InsertMultisignatureInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msi := &MultisignatureInfoHelper{
-				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
-				QueryExecutor:           tt.fields.QueryExecutor,
+				MultisignatureInfoQuery:        tt.fields.MultisignatureInfoQuery,
+				MultiSignatureParticipantQuery: tt.fields.MultiSignatureParticipantQuery,
+				QueryExecutor:                  tt.fields.QueryExecutor,
 			}
 			if err := msi.InsertMultisignatureInfo(tt.args.multisigInfo); (err != nil) != tt.wantErr {
 				t.Errorf("InsertMultisignatureInfo() error = %v, wantErr %v", err, tt.wantErr)

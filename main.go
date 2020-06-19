@@ -59,6 +59,7 @@ var (
 	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
+	maxAPIRequestPerSecond                          uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
@@ -160,6 +161,7 @@ func init() {
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
 		crypto.NewSignature(),
@@ -213,6 +215,7 @@ func init() {
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+		query.NewNodeAdmissionTimestampQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
@@ -275,6 +278,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	peerPort = viper.GetUint32("peerPort")
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
+	maxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
@@ -425,6 +429,7 @@ func initObserverListeners() {
 func startServices() {
 	p2pServiceInstance.StartP2P(
 		myAddress,
+		ownerAccountAddress,
 		peerPort,
 		nodeSecretPhrase,
 		queryExecutor,
@@ -452,6 +457,7 @@ func startServices() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
+		maxAPIRequestPerSecond,
 	)
 }
 
@@ -582,7 +588,13 @@ func startMainchain() {
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
-
+		// genesis next node admission timestamp will be inserted in the very beginning
+		if err := service.AddGenesisNextNodeAdmission(
+			queryExecutor,
+			mainchain.GetGenesisBlockTimestamp(),
+		); err != nil {
+			loggerCoreService.Fatal(err)
+		}
 		if err := mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}

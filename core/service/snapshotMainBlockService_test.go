@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -235,6 +236,10 @@ type (
 		query.LiquidPaymentTransactionQueryInterface
 		success bool
 	}
+	mockSnapshotNodeAdmissionTimestampQuery struct {
+		query.NodeAdmissionTimestampQueryInterface
+		success bool
+	}
 )
 
 func (msfsq *mockSnapshotFeeScaleQuery) BuildModel([]*model.FeeScale, *sql.Rows) ([]*model.FeeScale, error) {
@@ -265,6 +270,15 @@ func (mslpt *mockSnapshotLiquidPaymentTransactionQuery) BuildModels(*sql.Rows) (
 		return []*model.LiquidPayment{}, nil
 	}
 	return nil, errors.New("mockedError")
+}
+
+func (msnat *mockSnapshotNodeAdmissionTimestampQuery) BuildModel(
+	[]*model.NodeAdmissionTimestamp, *sql.Rows,
+) ([]*model.NodeAdmissionTimestamp, error) {
+	if msnat.success {
+		return []*model.NodeAdmissionTimestamp{}, nil
+	}
+	return nil, errors.New("mockError")
 }
 
 var (
@@ -543,6 +557,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
 		BlockQuery                    query.BlockQueryInterface
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
@@ -586,6 +601,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				FeeVoteCommitmentVoteQuery:    &mockSnapshotFeeVoteCommitmentQuery{success: true},
 				FeeVoteRevealVoteQuery:        &mockSnapshotFeeVoteRevealQuery{success: true},
 				LiquidPaymentTransactionQuery: &mockSnapshotLiquidPaymentTransactionQuery{success: true},
+				NodeAdmissionTimestampQuery:   &mockSnapshotNodeAdmissionTimestampQuery{success: true},
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
@@ -631,6 +647,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				FeeVoteCommitmentVoteQuery:    tt.fields.FeeVoteCommitmentVoteQuery,
 				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
+				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
 				DerivedQueries:                tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
@@ -677,6 +694,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		BlockQuery                    query.BlockQueryInterface
+		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
@@ -722,6 +740,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				FeeVoteCommitmentVoteQuery:    &mockSnapshotFeeVoteCommitmentQuery{success: true},
 				FeeVoteRevealVoteQuery:        &mockSnapshotFeeVoteRevealQuery{success: true},
 				LiquidPaymentTransactionQuery: &mockSnapshotLiquidPaymentTransactionQuery{success: true},
+				NodeAdmissionTimestampQuery:   &mockSnapshotNodeAdmissionTimestampQuery{success: true},
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
@@ -763,6 +782,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				FeeVoteCommitmentVoteQuery:    &mockSnapshotFeeVoteCommitmentQuery{success: true},
 				FeeVoteRevealVoteQuery:        &mockSnapshotFeeVoteRevealQuery{success: true},
 				LiquidPaymentTransactionQuery: &mockSnapshotLiquidPaymentTransactionQuery{success: true},
+				NodeAdmissionTimestampQuery:   &mockSnapshotNodeAdmissionTimestampQuery{success: true},
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
@@ -799,6 +819,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				FeeVoteCommitmentVoteQuery:    tt.fields.FeeVoteCommitmentVoteQuery,
 				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
+				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -857,6 +878,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
 		BlockQuery                    query.BlockQueryInterface
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
@@ -897,6 +919,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				FeeVoteRevealVoteQuery:        query.NewFeeVoteRevealVoteQuery(),
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				BlockQuery:                    query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeAdmissionTimestampQuery:   query.NewNodeAdmissionTimestampQuery(),
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
@@ -930,6 +953,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				BlockQuery:                    tt.fields.BlockQuery,
+				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
 				SnapshotQueries:               tt.fields.SnapshotQueries,
 				BlocksmithSafeQuery:           tt.fields.BlocksmithSafeQuery,
 				DerivedQueries:                tt.fields.DerivedQueries,

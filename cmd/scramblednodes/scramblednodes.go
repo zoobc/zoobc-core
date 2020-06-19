@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
@@ -102,6 +103,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
 			query.NewBlockQuery(&chaintype.MainChain{}),
+			query.NewNodeAdmissionTimestampQuery(),
 			nil,
 			nil,
 			nil,

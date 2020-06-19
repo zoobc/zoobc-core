@@ -13,6 +13,7 @@ type (
 	SkippedBlocksmithQueryInterface interface {
 		GetSkippedBlocksmithsByBlockHeight(blockHeight uint32) (qStr string)
 		InsertSkippedBlocksmith(skippedBlocksmith *model.SkippedBlocksmith) (qStr string, args []interface{})
+		InsertSkippedBlocksmiths(skippedBlockSmiths []*model.SkippedBlocksmith) (str string, args []interface{})
 		ExtractModel(skippedBlocksmith *model.SkippedBlocksmith) []interface{}
 		BuildModel(skippedBlocksmiths []*model.SkippedBlocksmith, rows *sql.Rows) ([]*model.SkippedBlocksmith, error)
 		Scan(skippedBlocksmith *model.SkippedBlocksmith, rows *sql.Row) error
@@ -62,6 +63,29 @@ func (sbq *SkippedBlocksmithQuery) InsertSkippedBlocksmith(
 			fmt.Sprintf("? %s", strings.Repeat(", ?", len(sbq.Fields)-1)),
 		),
 		sbq.ExtractModel(skippedBlocksmith)
+}
+
+// InsertSkippedBlocksmiths represents query builder to insert multiple record in single query
+func (sbq *SkippedBlocksmithQuery) InsertSkippedBlocksmiths(skippedBlocksmiths []*model.SkippedBlocksmith) (str string, args []interface{}) {
+	if len(skippedBlocksmiths) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			sbq.getTableName(),
+			strings.Join(sbq.Fields, ", "),
+		)
+		for k, skippedBlocksmith := range skippedBlocksmiths {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(sbq.Fields)-1),
+			)
+			if k < len(skippedBlocksmiths)-1 {
+				str += ","
+			}
+			args = append(args, sbq.ExtractModel(skippedBlocksmith)...)
+		}
+	}
+	return str, args
+
 }
 
 func (*SkippedBlocksmithQuery) ExtractModel(skippedModel *model.SkippedBlocksmith) []interface{} {
