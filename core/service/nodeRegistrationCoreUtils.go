@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -15,7 +14,6 @@ type (
 
 	// NodeRegistrationUtils nodeRegistration helper service methods
 	NodeRegistrationUtils struct {
-		Logger *log.Logger
 	}
 )
 

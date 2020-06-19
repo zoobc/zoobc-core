@@ -595,6 +595,7 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 		err := nrs.QueryExecutor.ExecuteTransactions(qryArgs)
 		if err != nil {
 			_ = nrs.QueryExecutor.RollbackTx()
+			nrs.Logger.Error(err)
 			return false, err
 		}
 		err = nrs.QueryExecutor.CommitTx()
@@ -611,6 +612,7 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *mo
 	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
 		_ = nrs.QueryExecutor.RollbackTx()
+		nrs.Logger.Error(err)
 		return false, err
 	}
 	err = nrs.QueryExecutor.CommitTx()

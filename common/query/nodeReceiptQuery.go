@@ -52,7 +52,7 @@ func (rq *NodeReceiptQuery) getTableName() string {
 	return rq.TableName
 }
 
-// GetReceipts get a set of pas that satisfies the params from DB
+// GetReceipts get a set of receipts that satisfies the params from DB
 func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
 
 	query := fmt.Sprintf(

@@ -512,7 +512,7 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 	}
 }
 
-// GetMorePeersThread to periodically request more peers from another node in Peers list
+// UpdateNodeAddressThread to periodically update node own's dynamic address and broadcast it
 func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	var (
 		timeInterval uint
@@ -588,7 +588,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 		bootstrapTicker = time.NewTicker(time.Duration(2) * time.Second)
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
-		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Millisecond)
+		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Second)
 	)
 	// make sure to not trigger the second ticker until the first cycle is concluded
 	ticker.Stop()
@@ -605,7 +605,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 					ps.Logger.Error(err)
 				} else {
 					bootstrapTicker.Stop()
-					ticker = time.NewTicker(time.Duration(int64(constant.SyncNodeAddressGap)*1000+rndTimer) * time.Millisecond)
+					ticker = time.NewTicker(time.Duration(int64(constant.SyncNodeAddressGap)*1000*60+rndTimer) * time.Millisecond)
 				}
 			}
 		case <-ticker.C:

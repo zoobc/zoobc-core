@@ -16,7 +16,7 @@ const (
 	// UpdateNodeAddressGap, interval of peer thread to update node dynamic address
 	UpdateNodeAddressGap uint = 3600
 	// SyncNodeAddressGap, interval of peer thread to sync node address info table
-	SyncNodeAddressGap uint = 1800 // every 30 min
+	SyncNodeAddressGap uint = 30 // every 30 min
 	// SyncNodeAddressDelay, delay in millis to execute send/get address info api call,
 	// to make sure even if many nodes start at the same time they won't execute requests at the same time
 	SyncNodeAddressDelay int = 10000
