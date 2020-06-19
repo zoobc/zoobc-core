@@ -590,7 +590,25 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		return err
 	}
-	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+	lastNextNodeAdmissionTimestamp, err := bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp(block.Height)
+	if err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
+	if block.Timestamp >= lastNextNodeAdmissionTimestamp && block.Height != 0 {
+		// insert new next node admission timestamp
+		if err := bs.NodeRegistrationService.InsertNextNodeAdmissionTimestamp(
+			lastNextNodeAdmissionTimestamp,
+			block.Height,
+			true,
+		); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
 		if err := bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
@@ -802,7 +820,7 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 	return nil
 }
 
-// expelNodes seelct and expel nodes from node registry
+// expelNodes select and expel nodes from node registry
 func (bs *BlockService) expelNodes(block *model.Block) error {
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {

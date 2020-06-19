@@ -158,6 +158,7 @@ func init() {
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
 	)
@@ -208,6 +209,7 @@ func init() {
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+		query.NewNodeAdmissionTimestampQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
@@ -564,7 +566,13 @@ func startMainchain() {
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
-
+		// genesis next node admission timestamp will be inserted in the very beginning
+		if err := service.AddGenesisNextNodeAdmission(
+			queryExecutor,
+			mainchain.GetGenesisBlockTimestamp(),
+		); err != nil {
+			loggerCoreService.Fatal(err)
+		}
 		if err := mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}

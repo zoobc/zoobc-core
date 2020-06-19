@@ -403,6 +403,14 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
+				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
+				"block_height" INTEGER,		-- block height when the next node admission timestamp set
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
 				"multisig_address" VARCHAR(255), -- address of multisig account / hash of multisignature_info
 				"account_address" VARCHAR(255), --  exists in addresses / participants of the multisig account

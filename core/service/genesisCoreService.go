@@ -2,6 +2,8 @@ package service
 
 import (
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -9,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 var transactionUtil = &transaction.Util{}
@@ -132,6 +133,38 @@ func GetGenesisNodeRegistrationTx(
 		return nil, err
 	}
 	return genesisTx, nil
+}
+
+// AddGenesisNextNodeAdmission create genesis next node admission timestamp
+func AddGenesisNextNodeAdmission(executor query.ExecutorInterface, genesisBlockTimestamp int64) error {
+	var (
+		err           error
+		nodeAdmission = &model.NodeAdmissionTimestamp{
+			Timestamp:   genesisBlockTimestamp + constant.NodeAdmissionGenesisDelay,
+			BlockHeight: 0,
+			Latest:      true,
+		}
+		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+	)
+	err = executor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = executor.ExecuteTransactions(insertQueries)
+	if err != nil {
+
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
+
+	}
+	err = executor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // AddGenesisAccount create genesis account into `account` and `account_balance` table

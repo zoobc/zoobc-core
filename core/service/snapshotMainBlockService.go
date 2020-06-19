@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -35,12 +36,13 @@ type (
 		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
 		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
 		BlockQuery                    query.BlockQueryInterface
-		SnapshotQueries               map[string]query.SnapshotQuery
-		BlocksmithSafeQuery           map[string]bool
 		FeeScaleQuery                 query.FeeScaleQueryInterface
 		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
+		SnapshotQueries               map[string]query.SnapshotQuery
+		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
 	}
 )
@@ -64,6 +66,7 @@ func NewSnapshotMainBlockService(
 	feeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface,
 	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
 	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
+	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
@@ -91,6 +94,7 @@ func NewSnapshotMainBlockService(
 		FeeVoteCommitmentVoteQuery:    feeVoteCommitmentVoteQuery,
 		FeeVoteRevealVoteQuery:        feeVoteRevealVoteQuery,
 		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
+		NodeAdmissionTimestampQuery:   nodeAdmissionTimestampQuery,
 		BlockQuery:                    blockQuery,
 		SnapshotQueries:               snapshotQueries,
 		BlocksmithSafeQuery:           blocksmithSafeQueries,
@@ -169,6 +173,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.FeeVoteRevealVote, err = ss.FeeVoteRevealVoteQuery.BuildModel([]*model.FeeVoteRevealVote{}, rows)
 			case "liquidPaymentTransaction":
 				snapshotPayload.LiquidPayment, err = ss.LiquidPaymentTransactionQuery.BuildModels(rows)
+			case "nodeAdmissionTimestamp":
+				snapshotPayload.NodeAdmissionTimestamp, err = ss.NodeAdmissionTimestampQuery.BuildModel([]*model.NodeAdmissionTimestamp{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -369,6 +375,12 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 				qryArgs := ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransaction(rec)
 				queries = append(queries, qryArgs...)
 			}
+		case "nodeAdmissionTimestamp":
+			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
+				qry, args := ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(payload.GetNodeAdmissionTimestamp())
+				queries = append(queries, append([]interface{}{qry}, args...))
+			}
+
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}
