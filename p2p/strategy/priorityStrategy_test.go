@@ -378,7 +378,7 @@ func TestNewPriorityStrategy(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := NewPriorityStrategy(tt.args.peerServiceClient, nil,
-				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService, nil)
+				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService, nil, nil)
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
 			}
@@ -874,7 +874,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				log.New(), nil, tt.args.nodeConfigurationService, nil)
+				log.New(), nil, tt.args.nodeConfigurationService, nil, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -946,7 +946,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil)
+				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -994,7 +994,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil)
+				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -1053,7 +1053,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil)
+				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
@@ -1119,7 +1119,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil)
+				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -1165,7 +1165,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil)
+				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -1179,7 +1179,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 			UnresolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -1211,7 +1211,7 @@ func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 			ResolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
@@ -1577,6 +1577,7 @@ type (
 		validateAddressInfoSuccess bool
 		currentNode                *model.NodeRegistration
 		currentNodeAddressInfo     *model.NodeAddressInfo
+		prevNodeAddressInfo        *model.NodeAddressInfo
 	}
 	psMockPeerStrategyHelper struct {
 		PeerStrategyHelperInterface
@@ -1620,6 +1621,16 @@ func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodePublicKey(
 func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
 	if psMock.currentNodeAddressInfo != nil {
 		return []*model.NodeAddressInfo{psMock.currentNodeAddressInfo}, nil
+	}
+	return nil, nil
+}
+
+func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
+	address string,
+	port uint32,
+) (*model.NodeAddressInfo, error) {
+	if psMock.prevNodeAddressInfo != nil {
+		return psMock.currentNodeAddressInfo, nil
 	}
 	return nil, nil
 }

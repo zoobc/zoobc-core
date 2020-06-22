@@ -25,7 +25,7 @@ type UpdateNodeRegistration struct {
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	AuthPoown             auth.NodeAuthValidationInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
 	EscrowQuery           query.EscrowTransactionQueryInterface
 }

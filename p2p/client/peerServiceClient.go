@@ -3,7 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/util"
 	"math"
 	"sync"
 	"time"
@@ -27,6 +30,7 @@ type (
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
 		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
+		GetNodeProofOfOrigin(destPeer *model.Peer, nodePublicKey []byte) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
@@ -78,6 +82,7 @@ type (
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
+		NodeAuthValidation       auth.NodeAuthValidationInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -93,6 +98,7 @@ func NewPeerServiceClient(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAuthValidation auth.NodeAuthValidationInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log
@@ -125,6 +131,7 @@ func NewPeerServiceClient(
 		Logger:                   logger,
 		NodeConfigurationService: nodeConfigurationService,
 		PeerConnections:          make(map[string]*grpc.ClientConn),
+		NodeAuthValidation:       nodeAuthValidation,
 	}
 }
 
@@ -293,6 +300,47 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	if err != nil {
 		return nil, err
 	}
+	return res, err
+}
+
+// GetNodeProofOfOrigin get a cryptographic prove of a node authenticity and origin
+func (psc *PeerServiceClient) GetNodeProofOfOrigin(
+	destPeer *model.Peer,
+	nodePublicKey []byte,
+) (*model.ProofOfOrigin, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	// generate the otp
+	challenge, err := util.GenerateRandomBytes(int(util.GetSecureRandom()))
+	if err != nil {
+		return nil, err
+	}
+	// send the challenge
+	res, err := p2pClient.GetNodeProofOfOrigin(ctx, &model.GetNodeProofOfOriginRequest{
+		ChallengeMessage: challenge,
+		Timestamp:        time.Now().Unix() + constant.ProofOfOriginExpirationOffset,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// validate response: message signature = challenge+timestamp
+	if err := psc.NodeAuthValidation.ValidateProofOfOrigin(res, nodePublicKey, challenge); err != nil {
+		return nil, err
+	}
+
 	return res, err
 }
 

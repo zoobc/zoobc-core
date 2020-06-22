@@ -8,25 +8,35 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"time"
 )
 
 type (
-	ProofOfOwnershipValidationInterface interface {
+	NodeAuthValidationInterface interface {
 		ValidateProofOfOwnership(
 			poown *model.ProofOfOwnership,
 			nodePublicKey []byte,
 			queryExecutor query.ExecutorInterface,
 			blockQuery query.BlockQueryInterface,
 		) error
+		ValidateProofOfOrigin(
+			poorig *model.ProofOfOrigin,
+			nodePublicKey,
+			challengeResponse []byte,
+		) error
 	}
 
 	// Signature object handle signing and verifying different signature
-	ProofOfOwnershipValidation struct {
+	NodeAuthValidation struct {
 	}
 )
 
+func NewNodeAuthValidation() *NodeAuthValidation {
+	return &NodeAuthValidation{}
+}
+
 // ValidateProofOfOwnership validates a proof of ownership message
-func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
+func (*NodeAuthValidation) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
 	queryExecutor query.ExecutorInterface,
@@ -58,5 +68,30 @@ func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 	if !bytes.Equal(poownBlockRef.BlockHash, message.BlockHash) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
+	return nil
+}
+
+// ValidateProofOfOrigin validates a proof of origin message
+func (*NodeAuthValidation) ValidateProofOfOrigin(
+	poorig *model.ProofOfOrigin,
+	nodePublicKey,
+	challengeResponse []byte,
+) error {
+	if poorig.Timestamp > time.Now().Unix() {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOriginExpired")
+	}
+
+	if !bytes.Equal(challengeResponse, poorig.MessageBytes) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidChallengeResponse")
+	}
+
+	if !crypto.NewSignature().VerifyNodeSignature(
+		util.GetProofOfOriginUnsignedBytes(poorig),
+		poorig.Signature,
+		nodePublicKey,
+	) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+	}
+
 	return nil
 }

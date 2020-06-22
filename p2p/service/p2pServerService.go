@@ -20,6 +20,7 @@ type (
 	P2PServerServiceInterface interface {
 		GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error)
 		SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error)
+		GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error)
 		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error)
 		SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error)
@@ -141,6 +142,15 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		return &model.Empty{}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+// GetNodeProofOfOrigin generate a proof of origin to be returned to the peer that requested it
+func (ps *P2PServerService) GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		return ps.PeerExplorer.GenerateProofOfOrigin(req.ChallengeMessage, req.Timestamp, ps.NodeSecretPhrase), nil
+
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }

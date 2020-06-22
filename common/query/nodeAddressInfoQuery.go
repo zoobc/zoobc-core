@@ -15,7 +15,7 @@ type (
 		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64) (str string, args []interface{})
 		GetNodeAddressInfoByNodeIDs(nodeIDs []int64) string
-		GetNodeIDByAddressPort(address string, port uint32) (str string, args []interface{})
+		GetNodeAddressInfoByAddressPort(address string, port uint32) (str string, args []interface{})
 		ExtractModel(pa *model.NodeAddressInfo) []interface{}
 		BuildModel(peerAddresss []*model.NodeAddressInfo, rows *sql.Rows) ([]*model.NodeAddressInfo, error)
 		Scan(pa *model.NodeAddressInfo, row *sql.Row) error
@@ -96,9 +96,9 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64) st
 		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr)
 }
 
-// GetNodeIDByAddressPort returns query string to get peerAddress by node ID
-func (paq *NodeAddressInfoQuery) GetNodeIDByAddressPort(address string, port uint32) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ?",
+// GetNodeAddressInfoByAddressPort returns query string to get peerAddress by node ID
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(address string, port uint32) (str string, args []interface{}) {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? LIMIT 1",
 		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port}
 }
 

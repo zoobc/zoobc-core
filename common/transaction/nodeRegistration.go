@@ -26,7 +26,7 @@ type NodeRegistration struct {
 	BlockQuery              query.BlockQueryInterface
 	ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	QueryExecutor           query.ExecutorInterface
-	AuthPoown               auth.ProofOfOwnershipValidationInterface
+	AuthPoown               auth.NodeAuthValidationInterface
 	AccountLedgerQuery      query.AccountLedgerQueryInterface
 	EscrowQuery             query.EscrowTransactionQueryInterface
 }

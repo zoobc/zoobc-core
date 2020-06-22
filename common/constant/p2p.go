@@ -41,4 +41,6 @@ const (
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
 	// download spine blocks and snapshot (if present) timeout
 	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
+	// ProofOfOriginExpirationOffset expiration offset in seconds for proof of origin response
+	ProofOfOriginExpirationOffset = 10
 )

@@ -211,3 +211,10 @@ func (ss *P2PServerHandler) RequestFileDownload(
 	}
 	return res, err
 }
+
+func (ss *P2PServerHandler) GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
+	res, err := ss.Service.GetNodeProofOfOrigin(ctx, req)
+	return res, err
+}

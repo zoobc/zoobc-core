@@ -420,7 +420,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -618,7 +618,7 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -723,7 +723,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
@@ -791,7 +791,7 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -857,7 +857,7 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -907,7 +907,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -956,7 +956,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -1115,7 +1115,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -1162,7 +1162,7 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -1212,7 +1212,7 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction

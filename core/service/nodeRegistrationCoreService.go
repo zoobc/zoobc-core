@@ -42,6 +42,7 @@ type (
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
 		GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
+		GetNodeAddressInfoFromDbByAddressPort(address string, port uint32) (*model.NodeAddressInfo, error)
 		GenerateNodeAddressInfo(
 			nodeID int64,
 			nodeAddress string,
@@ -570,6 +571,29 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) 
 	}
 
 	return nodeAddressesInfo, nil
+}
+
+// GetNodeAddressInfoFromDbByAddressPort returns a node address info given and address and port pairs
+func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(address string, port uint32) (*model.NodeAddressInfo, error) {
+	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByAddressPort(address, port)
+	rows, err := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var (
+		nodeAddressInfo model.NodeAddressInfo
+	)
+
+	err = nrs.NodeAddressInfoQuery.Scan(&nodeAddressInfo, rows)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &nodeAddressInfo, nil
 }
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db

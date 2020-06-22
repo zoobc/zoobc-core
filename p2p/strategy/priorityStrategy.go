@@ -41,6 +41,7 @@ type (
 		MaxResolvedPeers         int32
 		Logger                   *log.Logger
 		PeerStrategyHelper       PeerStrategyHelperInterface
+		Signature                crypto.SignatureInterface
 	}
 )
 
@@ -53,6 +54,7 @@ func NewPriorityStrategy(
 	peerStrategyHelper PeerStrategyHelperInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	blockchainStatusService coreService.BlockchainStatusServiceInterface,
+	signature crypto.SignatureInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
 		BlockchainStatusService:  blockchainStatusService,
@@ -65,6 +67,7 @@ func NewPriorityStrategy(
 		MaxResolvedPeers:         constant.MaxResolvedPeers,
 		Logger:                   logger,
 		PeerStrategyHelper:       peerStrategyHelper,
+		Signature:                signature,
 	}
 }
 
@@ -264,7 +267,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				return false
 			}
 
-			// STEF this validates always the local node's host against scramble nodes
+			// this validates always the local node's host against scramble nodes
 			// Check host in scramble nodes
 			if ps.ValidateScrambleNode(scrambledNodes, host.GetInfo()) {
 				var (
@@ -1131,6 +1134,17 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 
 // ReceiveNodeAddressInfo receive a node address info from a peer
 func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+	// check if this node address/port are already in db and belong to some other node (compare nodeIDs)
+	prevNodeAddressInfo, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+		nodeAddressInfo.GetAddress(),
+		nodeAddressInfo.GetPort())
+	if err != nil {
+		return err
+	}
+	if prevNodeAddressInfo != nil && prevNodeAddressInfo.GetNodeID() != nodeAddressInfo.GetNodeID() {
+		// STEF TODO: send a challenge to that address to make sure that node is the rightful owner
+	}
+
 	// add it to nodeAddressInfo table
 	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
 	if err != nil {
@@ -1218,4 +1232,22 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		}
 	}
 	return nil
+}
+
+// GenerateProofOfOrigin generate a proof of origin message from a challenge request and sign it
+func (ps *PriorityStrategy) GenerateProofOfOrigin(
+	challenge []byte,
+	timestamp int64,
+	nodeSecretPhrase string,
+) *model.ProofOfOrigin {
+	poorig := &model.ProofOfOrigin{
+		MessageBytes: challenge,
+		Timestamp:    timestamp,
+	}
+
+	poorig.Signature = ps.Signature.SignByNode(
+		util.GetProofOfOriginUnsignedBytes(poorig),
+		nodeSecretPhrase,
+	)
+	return poorig
 }

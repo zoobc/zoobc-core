@@ -84,92 +84,6 @@ func (m *Node) GetPort() uint32 {
 	return 0
 }
 
-// NodeAddressInfo represent the node address unmanaged table holding the list of priority peers addresses
-type NodeAddressInfo struct {
-	// NodeID from node_registry
-	NodeID int64 `protobuf:"varint,1,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
-	// Address public ip or domain name
-	Address string `protobuf:"bytes,2,opt,name=Address,proto3" json:"Address,omitempty"`
-	// Port p2p communication port
-	Port uint32 `protobuf:"varint,3,opt,name=Port,proto3" json:"Port,omitempty"`
-	// BlockHeight last main block height at which nodeAddressInfo message was generated
-	BlockHeight uint32 `protobuf:"varint,4,opt,name=BlockHeight,proto3" json:"BlockHeight,omitempty"`
-	// BlockHash main block hash referring to above blockHeigh
-	BlockHash []byte `protobuf:"bytes,5,opt,name=BlockHash,proto3" json:"BlockHash,omitempty"`
-	// Signature signature of above fields (signed by the node and verifiable with node's public key at above block height)
-	Signature            []byte   `protobuf:"bytes,6,opt,name=Signature,proto3" json:"Signature,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *NodeAddressInfo) Reset()         { *m = NodeAddressInfo{} }
-func (m *NodeAddressInfo) String() string { return proto.CompactTextString(m) }
-func (*NodeAddressInfo) ProtoMessage()    {}
-func (*NodeAddressInfo) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{1}
-}
-
-func (m *NodeAddressInfo) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NodeAddressInfo.Unmarshal(m, b)
-}
-func (m *NodeAddressInfo) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NodeAddressInfo.Marshal(b, m, deterministic)
-}
-func (m *NodeAddressInfo) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NodeAddressInfo.Merge(m, src)
-}
-func (m *NodeAddressInfo) XXX_Size() int {
-	return xxx_messageInfo_NodeAddressInfo.Size(m)
-}
-func (m *NodeAddressInfo) XXX_DiscardUnknown() {
-	xxx_messageInfo_NodeAddressInfo.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NodeAddressInfo proto.InternalMessageInfo
-
-func (m *NodeAddressInfo) GetNodeID() int64 {
-	if m != nil {
-		return m.NodeID
-	}
-	return 0
-}
-
-func (m *NodeAddressInfo) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-func (m *NodeAddressInfo) GetPort() uint32 {
-	if m != nil {
-		return m.Port
-	}
-	return 0
-}
-
-func (m *NodeAddressInfo) GetBlockHeight() uint32 {
-	if m != nil {
-		return m.BlockHeight
-	}
-	return 0
-}
-
-func (m *NodeAddressInfo) GetBlockHash() []byte {
-	if m != nil {
-		return m.BlockHash
-	}
-	return nil
-}
-
-func (m *NodeAddressInfo) GetSignature() []byte {
-	if m != nil {
-		return m.Signature
-	}
-	return nil
-}
-
 type NodeKey struct {
 	ID                   int64    `protobuf:"varint,1,opt,name=ID,proto3" json:"ID,omitempty"`
 	PublicKey            []byte   `protobuf:"bytes,2,opt,name=PublicKey,proto3" json:"PublicKey,omitempty"`
@@ -183,7 +97,7 @@ func (m *NodeKey) Reset()         { *m = NodeKey{} }
 func (m *NodeKey) String() string { return proto.CompactTextString(m) }
 func (*NodeKey) ProtoMessage()    {}
 func (*NodeKey) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{2}
+	return fileDescriptor_2fd0ed838ddec1c4, []int{1}
 }
 
 func (m *NodeKey) XXX_Unmarshal(b []byte) error {
@@ -235,7 +149,7 @@ func (m *GenerateNodeKeyRequest) Reset()         { *m = GenerateNodeKeyRequest{}
 func (m *GenerateNodeKeyRequest) String() string { return proto.CompactTextString(m) }
 func (*GenerateNodeKeyRequest) ProtoMessage()    {}
 func (*GenerateNodeKeyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{3}
+	return fileDescriptor_2fd0ed838ddec1c4, []int{2}
 }
 
 func (m *GenerateNodeKeyRequest) XXX_Unmarshal(b []byte) error {
@@ -267,7 +181,7 @@ func (m *GenerateNodeKeyResponse) Reset()         { *m = GenerateNodeKeyResponse
 func (m *GenerateNodeKeyResponse) String() string { return proto.CompactTextString(m) }
 func (*GenerateNodeKeyResponse) ProtoMessage()    {}
 func (*GenerateNodeKeyResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{4}
+	return fileDescriptor_2fd0ed838ddec1c4, []int{3}
 }
 
 func (m *GenerateNodeKeyResponse) XXX_Unmarshal(b []byte) error {
@@ -295,161 +209,31 @@ func (m *GenerateNodeKeyResponse) GetNodePublicKey() []byte {
 	return nil
 }
 
-type GetNodeAddressesInfoRequest struct {
-	NodeIDs              []int64  `protobuf:"varint,1,rep,packed,name=NodeIDs,proto3" json:"NodeIDs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *GetNodeAddressesInfoRequest) Reset()         { *m = GetNodeAddressesInfoRequest{} }
-func (m *GetNodeAddressesInfoRequest) String() string { return proto.CompactTextString(m) }
-func (*GetNodeAddressesInfoRequest) ProtoMessage()    {}
-func (*GetNodeAddressesInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{5}
-}
-
-func (m *GetNodeAddressesInfoRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetNodeAddressesInfoRequest.Unmarshal(m, b)
-}
-func (m *GetNodeAddressesInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetNodeAddressesInfoRequest.Marshal(b, m, deterministic)
-}
-func (m *GetNodeAddressesInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetNodeAddressesInfoRequest.Merge(m, src)
-}
-func (m *GetNodeAddressesInfoRequest) XXX_Size() int {
-	return xxx_messageInfo_GetNodeAddressesInfoRequest.Size(m)
-}
-func (m *GetNodeAddressesInfoRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetNodeAddressesInfoRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetNodeAddressesInfoRequest proto.InternalMessageInfo
-
-func (m *GetNodeAddressesInfoRequest) GetNodeIDs() []int64 {
-	if m != nil {
-		return m.NodeIDs
-	}
-	return nil
-}
-
-type GetNodeAddressesInfoResponse struct {
-	NodeAddressesInfo    []*NodeAddressInfo `protobuf:"bytes,1,rep,name=NodeAddressesInfo,proto3" json:"NodeAddressesInfo,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
-}
-
-func (m *GetNodeAddressesInfoResponse) Reset()         { *m = GetNodeAddressesInfoResponse{} }
-func (m *GetNodeAddressesInfoResponse) String() string { return proto.CompactTextString(m) }
-func (*GetNodeAddressesInfoResponse) ProtoMessage()    {}
-func (*GetNodeAddressesInfoResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{6}
-}
-
-func (m *GetNodeAddressesInfoResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GetNodeAddressesInfoResponse.Unmarshal(m, b)
-}
-func (m *GetNodeAddressesInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GetNodeAddressesInfoResponse.Marshal(b, m, deterministic)
-}
-func (m *GetNodeAddressesInfoResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GetNodeAddressesInfoResponse.Merge(m, src)
-}
-func (m *GetNodeAddressesInfoResponse) XXX_Size() int {
-	return xxx_messageInfo_GetNodeAddressesInfoResponse.Size(m)
-}
-func (m *GetNodeAddressesInfoResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_GetNodeAddressesInfoResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_GetNodeAddressesInfoResponse proto.InternalMessageInfo
-
-func (m *GetNodeAddressesInfoResponse) GetNodeAddressesInfo() []*NodeAddressInfo {
-	if m != nil {
-		return m.NodeAddressesInfo
-	}
-	return nil
-}
-
-type SendNodeAddressInfoRequest struct {
-	NodeAddressInfoMessage *NodeAddressInfo `protobuf:"bytes,1,opt,name=NodeAddressInfoMessage,proto3" json:"NodeAddressInfoMessage,omitempty"`
-	XXX_NoUnkeyedLiteral   struct{}         `json:"-"`
-	XXX_unrecognized       []byte           `json:"-"`
-	XXX_sizecache          int32            `json:"-"`
-}
-
-func (m *SendNodeAddressInfoRequest) Reset()         { *m = SendNodeAddressInfoRequest{} }
-func (m *SendNodeAddressInfoRequest) String() string { return proto.CompactTextString(m) }
-func (*SendNodeAddressInfoRequest) ProtoMessage()    {}
-func (*SendNodeAddressInfoRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_2fd0ed838ddec1c4, []int{7}
-}
-
-func (m *SendNodeAddressInfoRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SendNodeAddressInfoRequest.Unmarshal(m, b)
-}
-func (m *SendNodeAddressInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SendNodeAddressInfoRequest.Marshal(b, m, deterministic)
-}
-func (m *SendNodeAddressInfoRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SendNodeAddressInfoRequest.Merge(m, src)
-}
-func (m *SendNodeAddressInfoRequest) XXX_Size() int {
-	return xxx_messageInfo_SendNodeAddressInfoRequest.Size(m)
-}
-func (m *SendNodeAddressInfoRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SendNodeAddressInfoRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SendNodeAddressInfoRequest proto.InternalMessageInfo
-
-func (m *SendNodeAddressInfoRequest) GetNodeAddressInfoMessage() *NodeAddressInfo {
-	if m != nil {
-		return m.NodeAddressInfoMessage
-	}
-	return nil
-}
-
 func init() {
 	proto.RegisterType((*Node)(nil), "model.Node")
-	proto.RegisterType((*NodeAddressInfo)(nil), "model.NodeAddressInfo")
 	proto.RegisterType((*NodeKey)(nil), "model.NodeKey")
 	proto.RegisterType((*GenerateNodeKeyRequest)(nil), "model.GenerateNodeKeyRequest")
 	proto.RegisterType((*GenerateNodeKeyResponse)(nil), "model.GenerateNodeKeyResponse")
-	proto.RegisterType((*GetNodeAddressesInfoRequest)(nil), "model.GetNodeAddressesInfoRequest")
-	proto.RegisterType((*GetNodeAddressesInfoResponse)(nil), "model.GetNodeAddressesInfoResponse")
-	proto.RegisterType((*SendNodeAddressInfoRequest)(nil), "model.SendNodeAddressInfoRequest")
 }
 
 func init() { proto.RegisterFile("model/node.proto", fileDescriptor_2fd0ed838ddec1c4) }
 
 var fileDescriptor_2fd0ed838ddec1c4 = []byte{
-	// 398 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x53, 0x4d, 0x6f, 0x9c, 0x30,
-	0x10, 0x95, 0x97, 0xcd, 0x46, 0x3b, 0x49, 0xfa, 0xe1, 0x03, 0xb5, 0xda, 0x3d, 0x20, 0xab, 0x07,
-	0x54, 0xa9, 0x20, 0xb5, 0x87, 0x1e, 0xab, 0x46, 0x2b, 0xa5, 0xab, 0x55, 0xa3, 0xc8, 0xdc, 0x7a,
-	0x03, 0x3c, 0x05, 0x5a, 0xc0, 0x29, 0x86, 0x43, 0xfa, 0xbf, 0xfa, 0xff, 0x22, 0x1b, 0x08, 0x9b,
-	0x25, 0xb9, 0x20, 0xcf, 0x7b, 0x9e, 0xf7, 0x86, 0x37, 0x00, 0xaf, 0x2a, 0x25, 0xb1, 0x0c, 0x6b,
-	0x25, 0x31, 0xb8, 0x6d, 0x54, 0xab, 0xe8, 0x89, 0x45, 0xf8, 0x6f, 0x58, 0x5e, 0x2b, 0x89, 0xf4,
-	0x05, 0x2c, 0x76, 0x5b, 0x46, 0x3c, 0xe2, 0x3b, 0x62, 0xb1, 0xdb, 0xd2, 0xf7, 0x70, 0x11, 0xe5,
-	0x71, 0x83, 0xf2, 0x9b, 0x94, 0x0d, 0x6a, 0xcd, 0x16, 0x1e, 0xf1, 0xd7, 0xe2, 0x31, 0x48, 0x19,
-	0x9c, 0x8e, 0xbc, 0x63, 0xf9, 0xb1, 0xa4, 0x14, 0x96, 0x37, 0xaa, 0x69, 0xd9, 0xd2, 0x23, 0xfe,
-	0x85, 0xb0, 0x67, 0xfe, 0x9f, 0xc0, 0x4b, 0x63, 0x36, 0xdc, 0xd9, 0xd5, 0xbf, 0x14, 0x75, 0x61,
-	0x65, 0xa0, 0x07, 0xef, 0xa1, 0x3a, 0x54, 0x5e, 0x3c, 0xad, 0xec, 0x4c, 0xca, 0xd4, 0x83, 0xb3,
-	0xcb, 0x52, 0xa5, 0x7f, 0xbe, 0x63, 0x91, 0xe5, 0xa3, 0xe9, 0x21, 0x44, 0x37, 0xb0, 0xee, 0xcb,
-	0x58, 0xe7, 0xec, 0xc4, 0x23, 0xfe, 0xb9, 0x98, 0x00, 0xc3, 0x46, 0x45, 0x56, 0xc7, 0x6d, 0xd7,
-	0x20, 0x5b, 0xf5, 0xec, 0x03, 0xc0, 0xf7, 0x70, 0x6a, 0xa6, 0xda, 0xe3, 0xdd, 0x2c, 0xa6, 0x0d,
-	0xac, 0x6f, 0xba, 0xa4, 0x2c, 0xd2, 0x3d, 0xde, 0xd9, 0x41, 0xcf, 0xc5, 0x04, 0x98, 0x51, 0x23,
-	0x44, 0x39, 0x64, 0x63, 0xcf, 0x9c, 0x81, 0x7b, 0x85, 0x35, 0x36, 0x71, 0x8b, 0x83, 0xa8, 0xc0,
-	0xbf, 0x1d, 0xea, 0x96, 0x7f, 0x85, 0x37, 0x33, 0x46, 0xdf, 0xaa, 0x5a, 0xa3, 0xd9, 0x86, 0x81,
-	0x26, 0x2b, 0x62, 0xad, 0x1e, 0x83, 0xfc, 0x0b, 0xbc, 0xbb, 0xc2, 0xf6, 0x20, 0x61, 0xb4, 0x19,
-	0x0f, 0xfa, 0x26, 0xd2, 0x3e, 0x5c, 0xcd, 0x88, 0xe7, 0xf8, 0x8e, 0x18, 0x4b, 0x2e, 0x61, 0xf3,
-	0x74, 0xe3, 0x60, 0xbf, 0x85, 0xd7, 0x33, 0xd2, 0x6a, 0x9c, 0x7d, 0x72, 0x03, 0xfb, 0x1d, 0x05,
-	0x47, 0x7b, 0x15, 0xf3, 0x06, 0x5e, 0xc2, 0xdb, 0x08, 0x6b, 0x79, 0x7c, 0x73, 0x98, 0xee, 0x1a,
-	0xdc, 0x23, 0xe6, 0x07, 0x6a, 0x1d, 0x67, 0x68, 0xdf, 0xf5, 0x79, 0xa3, 0x67, 0xba, 0x2e, 0x3f,
-	0xfc, 0xf4, 0xb3, 0xa2, 0xcd, 0xbb, 0x24, 0x48, 0x55, 0x15, 0xfe, 0x53, 0x2a, 0x49, 0xfb, 0xe7,
-	0xc7, 0x54, 0x35, 0x18, 0xa6, 0xaa, 0xaa, 0x54, 0x1d, 0x5a, 0xcd, 0x64, 0x65, 0x7f, 0x89, 0xcf,
-	0xf7, 0x01, 0x00, 0x00, 0xff, 0xff, 0x99, 0x63, 0x51, 0x75, 0x26, 0x03, 0x00, 0x00,
+	// 244 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x90, 0xc1, 0x4b, 0xc3, 0x30,
+	0x14, 0xc6, 0x49, 0x57, 0x1d, 0x7b, 0x38, 0x91, 0x1c, 0x34, 0x07, 0x0f, 0xa5, 0x78, 0x28, 0x82,
+	0xeb, 0xc1, 0x3f, 0x40, 0x94, 0x81, 0x8c, 0x82, 0x8c, 0xec, 0xe6, 0x6d, 0x4d, 0x3e, 0xdc, 0x64,
+	0xed, 0x9b, 0x49, 0x7a, 0x98, 0x7f, 0xbd, 0x34, 0x6e, 0x8c, 0xb1, 0x4b, 0x78, 0xf9, 0x7d, 0xf0,
+	0x7e, 0xbc, 0x8f, 0x6e, 0x1a, 0xb6, 0xd8, 0x94, 0x2d, 0x5b, 0x4c, 0xb6, 0x8e, 0x03, 0xcb, 0x8b,
+	0x48, 0xf2, 0x6f, 0x4a, 0x3f, 0xd8, 0x42, 0x5e, 0x53, 0x32, 0x9b, 0x2a, 0x91, 0x89, 0x62, 0xa0,
+	0x93, 0xd9, 0x54, 0x3e, 0xd0, 0x78, 0xb1, 0x5a, 0x3a, 0xd8, 0x57, 0x6b, 0x1d, 0xbc, 0x57, 0x49,
+	0x26, 0x8a, 0x91, 0x3e, 0x85, 0x52, 0xd1, 0xf0, 0x90, 0x0f, 0x62, 0x7e, 0xf8, 0x4a, 0x49, 0xe9,
+	0x9c, 0x5d, 0x50, 0x69, 0x26, 0x8a, 0xb1, 0x8e, 0x73, 0x5e, 0xd1, 0xb0, 0x77, 0x55, 0xd8, 0x9d,
+	0xe9, 0xee, 0x69, 0x34, 0xef, 0xea, 0xcd, 0xda, 0x54, 0xd8, 0x45, 0xd5, 0x95, 0x3e, 0x82, 0x7e,
+	0xd9, 0x02, 0xb0, 0x7b, 0x47, 0x9c, 0x73, 0x45, 0xb7, 0xef, 0x68, 0xe1, 0x96, 0x01, 0xfb, 0xa5,
+	0x1a, 0x3f, 0x1d, 0x7c, 0xc8, 0x5f, 0xe8, 0xee, 0x2c, 0xf1, 0x5b, 0x6e, 0x3d, 0xfa, 0xab, 0x7a,
+	0x74, 0x54, 0x89, 0xa8, 0x3a, 0x85, 0x6f, 0x8f, 0x9f, 0xc5, 0xd7, 0x3a, 0xac, 0xba, 0x7a, 0x62,
+	0xb8, 0x29, 0x7f, 0x99, 0x6b, 0xf3, 0xff, 0x3e, 0x19, 0x76, 0x28, 0x0d, 0x37, 0x0d, 0xb7, 0x65,
+	0xec, 0xaf, 0xbe, 0x8c, 0x6d, 0x3e, 0xff, 0x05, 0x00, 0x00, 0xff, 0xff, 0x70, 0x0f, 0x26, 0x03,
+	0x61, 0x01, 0x00, 0x00,
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -79,6 +80,7 @@ var (
 	wellknownPeers                                  []string
 	smithing, isNodePreSeed, isDebugMode            bool
 	nodeRegistrationService                         service.NodeRegistrationServiceInterface
+	nodeAuthValidationService                       auth.NodeAuthValidationInterface
 	mainchainProcessor                              smith.BlockchainProcessorInterface
 	spinechainProcessor                             smith.BlockchainProcessorInterface
 	loggerAPIService                                *log.Logger
@@ -244,6 +246,8 @@ func init() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
+	nodeAuthValidationService = auth.NewNodeAuthValidation()
+
 	defaultSignatureType = crypto.NewEd25519Signature()
 
 	// initialize Observer
@@ -380,6 +384,7 @@ func initP2pInstance() {
 		query.NewMerkleTreeQuery(),
 		receiptService,
 		nodeConfigurationService,
+		nodeAuthValidationService,
 		loggerP2PService,
 	)
 
@@ -393,6 +398,7 @@ func initP2pInstance() {
 		p2pStrategy.NewPeerStrategyHelper(),
 		nodeConfigurationService,
 		blockchainStatusService,
+		crypto.NewSignature(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		peerServiceClient,

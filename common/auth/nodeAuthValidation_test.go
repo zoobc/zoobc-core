@@ -87,7 +87,7 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		p       *ProofOfOwnershipValidation
+		p       *NodeAuthValidation
 		args    args
 		wantErr bool
 	}{
@@ -144,12 +144,12 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &ProofOfOwnershipValidation{}
+			p := &NodeAuthValidation{}
 			err := p.ValidateProofOfOwnership(tt.args.poown, tt.args.nodePublicKey,
 				tt.args.queryExecutor, tt.args.blockQuery)
 			if err != nil {
 				if !tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				}
 			}
 		})

@@ -178,56 +178,6 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 	}
 }
 
-func TestNodeAddressInfoQuery_GetNodeIDByAddressPort(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	type args struct {
-		address string
-		port    uint32
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  string
-		wantArgs []interface{}
-	}{
-		{
-			name: "GetNodeAddressInfoByNodeID:success",
-			args: args{
-				address: "192.168.1.2",
-				port:    8080,
-			},
-			fields: fields{
-				Fields:    NewNodeAddressInfoQuery().Fields,
-				TableName: NewNodeAddressInfoQuery().TableName,
-			},
-			wantArgs: []interface{}{
-				"192.168.1.2",
-				uint32(8080),
-			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id = ? AND port = ?",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			paq := &NodeAddressInfoQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			gotStr, gotArgs := paq.GetNodeIDByAddressPort(tt.args.address, tt.args.port)
-			if gotStr != tt.wantStr {
-				t.Errorf("NodeAddressInfoQuery.GetNodeIDByAddressPort() gotStr = %v, want %v", gotStr, tt.wantStr)
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("NodeAddressInfoQuery.GetNodeIDByAddressPort() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
-			}
-		})
-	}
-}
-
 func TestNodeAddressInfoQuery_ExtractModel(t *testing.T) {
 	type fields struct {
 		Fields    []string
@@ -448,6 +398,57 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 			gotStr := paq.GetNodeAddressInfoByNodeIDs(tt.args.nodeIDs)
 			if gotStr != tt.wantStr {
 				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+		})
+	}
+}
+
+func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		address string
+		port    uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name: "GetNodeAddressInfoByAddressPort:success",
+			args: args{
+				port:    8001,
+				address: "127.0.0.1",
+			},
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			wantArgs: []interface{}{
+				"127.0.0.1",
+				uint32(8001),
+			},
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id = ? " +
+				"AND port = ? LIMIT 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paq := &NodeAddressInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := paq.GetNodeAddressInfoByAddressPort(tt.args.address, tt.args.port)
+			if gotStr != tt.wantStr {
+				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByAddressPort() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByAddressPort() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
