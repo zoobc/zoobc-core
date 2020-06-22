@@ -218,7 +218,7 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 			"SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
 			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
 			") ORDER BY block_height",
-		strings.Join(msi.Fields[:len(msi.Fields)-1], ", "),
+		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index ASC) as addresses",
 		msi.getTableName(),
