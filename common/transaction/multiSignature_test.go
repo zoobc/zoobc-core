@@ -61,7 +61,7 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	multisigInfoQuery := query.NewMultisignatureInfoQuery()
-	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(multisigInfoQuery.Fields).AddRow(
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "addresses")).AddRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
