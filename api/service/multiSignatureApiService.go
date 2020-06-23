@@ -176,10 +176,11 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 	subQ.GroupBy("multisig_address", "block_height")
 	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
 	subQ.As("addresses")
-	subStr, _ := subQ.SubBuild()
+	subStr, subArgs := subQ.SubBuild()
 
 	caseQuery = query.NewCaseQuery()
 	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
+	caseQuery.Args = append(caseQuery.Args, subArgs...)
 
 	caseQuery.Where(caseQuery.Equal("multisig_address", pendingTx.SenderAddress))
 	caseQuery.Where(caseQuery.Equal("latest", true))
@@ -221,10 +222,10 @@ func (ms *MultisigService) GetMultisignatureInfo(
 	subQ.GroupBy("multisig_address", "block_height")
 	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
 	subQ.As("addresses")
-	subStr, _ := subQ.SubBuild()
+	subStr, subArgs := subQ.SubBuild()
 
 	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
-
+	caseQuery.Args = append(caseQuery.Args, subArgs...)
 	if param.GetMultisigAddress() != "" {
 		caseQuery.Where(caseQuery.Equal("multisig_address", param.GetMultisigAddress()))
 	}

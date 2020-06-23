@@ -150,7 +150,8 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 
 // OrderBy represents `... ORDER BY column DESC|ASC`
 func (fq *CaseQuery) OrderBy(column string, order model.OrderBy) *CaseQuery {
-	fq.Query.WriteString(fmt.Sprintf("ORDER BY '%s' %s ", column, order.String()))
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY ? %s ", order.String()))
+	fq.Args = append(fq.Args, column)
 	return fq
 }
 
