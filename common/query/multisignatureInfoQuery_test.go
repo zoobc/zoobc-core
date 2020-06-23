@@ -29,7 +29,7 @@ func getBuildModelErrorMockRows() *sql.Rows {
 
 func getBuildModelSuccessMockRows() *sql.Rows {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
+	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
 	mockRow.AddRow(
 		"multisig_address",
 		uint32(1),
@@ -73,7 +73,7 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "BuildModel-RowsError",
+			name: "BuildModel",
 			fields: fields{
 				Fields:    mockMultisigInfoQueryInstance.Fields,
 				TableName: mockMultisigInfoQueryInstance.TableName,
@@ -354,7 +354,7 @@ func getNumberScanFailMockRow() *sql.Row {
 
 func getNumberScanSuccessMockRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
+	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
 	mockRow.AddRow(
 		"multisig_address",
 		uint32(123),
@@ -463,7 +463,6 @@ var (
 			"nonce",
 			"block_height",
 			"latest",
-			"addresses",
 		},
 		TableName: "multisignature_info",
 	}

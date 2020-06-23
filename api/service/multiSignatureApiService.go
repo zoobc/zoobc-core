@@ -4,10 +4,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/sirupsen/logrus"
-
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -172,10 +170,21 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		return nil, status.Error(codes.Internal, "server error")
 	}
 	// get multisig info if exist
+	// sub query for getting addresses from multisignature_participant
+	subQ := query.NewCaseQuery()
+	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
+	subQ.GroupBy("multisig_address", "block_height")
+	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
+	subQ.As("addresses")
+	subStr, subArgs := subQ.SubBuild()
+
 	caseQuery = query.NewCaseQuery()
-	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
+	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
+	caseQuery.Args = append(caseQuery.Args, subArgs...)
+
 	caseQuery.Where(caseQuery.Equal("multisig_address", pendingTx.SenderAddress))
 	caseQuery.Where(caseQuery.Equal("latest", true))
+
 	if pendingTx.Status == model.PendingTransactionStatus_PendingTransactionPending {
 		caseQuery.Where(caseQuery.GreaterEqual("block_height", validStartHeight))
 	}
@@ -207,7 +216,16 @@ func (ms *MultisigService) GetMultisignatureInfo(
 		totalRecords      uint32
 		err               error
 	)
-	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
+	// sub query for getting addresses from multisignature_participant
+	subQ := query.NewCaseQuery()
+	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
+	subQ.GroupBy("multisig_address", "block_height")
+	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
+	subQ.As("addresses")
+	subStr, subArgs := subQ.SubBuild()
+
+	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
+	caseQuery.Args = append(caseQuery.Args, subArgs...)
 	if param.GetMultisigAddress() != "" {
 		caseQuery.Where(caseQuery.Equal("multisig_address", param.GetMultisigAddress()))
 	}
