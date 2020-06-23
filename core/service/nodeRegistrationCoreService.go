@@ -14,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
@@ -302,8 +301,8 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	}
 	// calculate next delay node admission timestamp
 	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
-	delayAdmission = util.MinInt64(
-		util.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
+	delayAdmission = commonUtils.MinInt64(
+		commonUtils.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
 		constant.NodeAdmissionMaxDelay,
 	)
 	nextNodeAdmission = &model.NodeAdmissionTimestamp{
