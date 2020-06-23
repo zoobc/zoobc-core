@@ -28,21 +28,27 @@ type (
 
 	// Signature object handle signing and verifying different signature
 	NodeAuthValidation struct {
+		Signature crypto.SignatureInterface
 	}
 )
 
-func NewNodeAuthValidation() *NodeAuthValidation {
-	return &NodeAuthValidation{}
+func NewNodeAuthValidation(
+	signature crypto.SignatureInterface,
+) *NodeAuthValidation {
+	return &NodeAuthValidation{
+		Signature: signature,
+	}
 }
 
 // ValidateProofOfOwnership validates a proof of ownership message
-func (*NodeAuthValidation) ValidateProofOfOwnership(
+func (nav *NodeAuthValidation) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 ) error {
 
+	// TODO: use composition instead, such as per ValidateProofOfOrigin
 	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
@@ -72,7 +78,7 @@ func (*NodeAuthValidation) ValidateProofOfOwnership(
 }
 
 // ValidateProofOfOrigin validates a proof of origin message
-func (*NodeAuthValidation) ValidateProofOfOrigin(
+func (nav *NodeAuthValidation) ValidateProofOfOrigin(
 	poorig *model.ProofOfOrigin,
 	nodePublicKey,
 	challengeResponse []byte,
@@ -85,7 +91,7 @@ func (*NodeAuthValidation) ValidateProofOfOrigin(
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidChallengeResponse")
 	}
 
-	if !crypto.NewSignature().VerifyNodeSignature(
+	if !nav.Signature.VerifyNodeSignature(
 		util.GetProofOfOriginUnsignedBytes(poorig),
 		poorig.Signature,
 		nodePublicKey,

@@ -246,7 +246,9 @@ func init() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
-	nodeAuthValidationService = auth.NewNodeAuthValidation()
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 
 	defaultSignatureType = crypto.NewEd25519Signature()
 

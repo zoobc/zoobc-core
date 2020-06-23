@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -177,7 +178,14 @@ type (
 		coreService.NodeConfigurationService
 		host *model.Host
 	}
+	p2pMockSignature struct {
+		crypto.Signature
+	}
 )
+
+func (p2pSigMock *p2pMockSignature) SignByNode(payload []byte, nodeSeed string) []byte {
+	return make([]byte, 64)
+}
 
 func (p2pNssMock *p2pMockNodeConfigurationService) SetMyAddress(nodeAddress string) {
 }
@@ -2050,6 +2058,76 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 			if err := ps.UpdateOwnNodeAddressInfo(tt.args.nodeAddress, tt.args.port, tt.args.forceBroadcast); (err != nil) != tt.
 				wantErr {
 				t.Errorf("PriorityStrategy.UpdateOwnNodeAddressInfo() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestPriorityStrategy_GenerateProofOfOrigin(t *testing.T) {
+	type fields struct {
+		BlockchainStatusService  coreService.BlockchainStatusServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		PeerServiceClient        client.PeerServiceClientInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		QueryExecutor            query.ExecutorInterface
+		BlockQuery               query.BlockQueryInterface
+		ResolvedPeersLock        sync.RWMutex
+		UnresolvedPeersLock      sync.RWMutex
+		BlacklistedPeersLock     sync.RWMutex
+		MaxUnresolvedPeers       int32
+		MaxResolvedPeers         int32
+		Logger                   *log.Logger
+		PeerStrategyHelper       PeerStrategyHelperInterface
+		Signature                crypto.SignatureInterface
+	}
+	type args struct {
+		challenge        []byte
+		timestamp        int64
+		nodeSecretPhrase string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *model.ProofOfOrigin
+	}{
+		{
+			name: "GenerateProofOfOrigin:success",
+			args: args{
+				challenge:        make([]byte, 32),
+				timestamp:        int64(1562117271),
+				nodeSecretPhrase: "shhhhh",
+			},
+			fields: fields{
+				Signature: &p2pMockSignature{},
+			},
+			want: &model.ProofOfOrigin{
+				MessageBytes: make([]byte, 32),
+				Timestamp:    int64(1562117271),
+				Signature:    make([]byte, 64),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &PriorityStrategy{
+				BlockchainStatusService:  tt.fields.BlockchainStatusService,
+				NodeConfigurationService: tt.fields.NodeConfigurationService,
+				PeerServiceClient:        tt.fields.PeerServiceClient,
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockQuery:               tt.fields.BlockQuery,
+				ResolvedPeersLock:        tt.fields.ResolvedPeersLock,
+				UnresolvedPeersLock:      tt.fields.UnresolvedPeersLock,
+				BlacklistedPeersLock:     tt.fields.BlacklistedPeersLock,
+				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
+				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
+				Logger:                   tt.fields.Logger,
+				PeerStrategyHelper:       tt.fields.PeerStrategyHelper,
+				Signature:                tt.fields.Signature,
+			}
+			if got := ps.GenerateProofOfOrigin(tt.args.challenge, tt.args.timestamp, tt.args.nodeSecretPhrase); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("PriorityStrategy.GenerateProofOfOrigin() = %v, want %v", got, tt.want)
 			}
 		})
 	}
