@@ -1075,12 +1075,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		)
 		for _, nodeAddressInfo := range res.NodeAddressesInfo {
 			if found, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-				if found {
-					ps.Logger.Warnf("Received invalid node address info message from peer %s:%d. Error: %s",
-						peer.Info.Address,
-						peer.Info.Port,
-						err)
-				} else {
+				if !found {
 					ps.Logger.Warnf("NodeID %d not found in db. skipping node address %s:%d send by peer %s:%d. %s",
 						nodeAddressInfo.NodeID,
 						nodeAddressInfo.Address,
@@ -1132,18 +1127,19 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 	return nodeAddressesInfo, nil
 }
 
-// ReceiveNodeAddressInfo receive a node address info from a peer
+// ReceiveNodeAddressInfo receive a node address info from a peer and save it to db
 func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	// check if this node address/port are already in db and belong to some other node (compare nodeIDs)
-	prevNodeAddressInfo, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
-		nodeAddressInfo.GetAddress(),
-		nodeAddressInfo.GetPort())
-	if err != nil {
-		return err
-	}
-	if prevNodeAddressInfo != nil && prevNodeAddressInfo.GetNodeID() != nodeAddressInfo.GetNodeID() {
-		// STEF TODO: send a challenge to that address to make sure that node is the rightful owner
-	}
+	// STEF TODO: probably this logic will go away..
+	// // check if this node address/port are already in db and belong to some other node (compare nodeIDs)
+	// prevNodeAddressInfo, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+	// 	nodeAddressInfo.GetAddress(),
+	// 	nodeAddressInfo.GetPort())
+	// if err != nil {
+	// 	return err
+	// }
+	// if prevNodeAddressInfo != nil && prevNodeAddressInfo.GetNodeID() != nodeAddressInfo.GetNodeID() {
+	// 	// STEF TODO: send a challenge to that address to make sure that node is the rightful owner
+	// }
 
 	// add it to nodeAddressInfo table
 	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)

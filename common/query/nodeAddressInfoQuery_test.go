@@ -369,6 +369,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 	}
 	type args struct {
 		nodeIDs []int64
+		status  model.NodeAddressStatus
 	}
 	tests := []struct {
 		name    string
@@ -377,16 +378,30 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 		wantStr string
 	}{
 		{
-			name: "GetNodeAddressInfoByNodeIDs:success",
+			name: "GetNodeAddressInfoByNodeIDs:success-{statusPending}",
 			args: args{
 				nodeIDs: []int64{1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7},
+				status:  model.NodeAddressStatus_NodeAddressPending,
 			},
 			fields: fields{
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status = 0",
+		},
+		{
+			name: "GetNodeAddressInfoByNodeIDs:success-{statusConfirmed}",
+			args: args{
+				nodeIDs: []int64{1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7},
+				status:  model.NodeAddressStatus_NodeAddressConfirmed,
+			},
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN " +
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status = 1",
 		},
 	}
 	for _, tt := range tests {
@@ -395,7 +410,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr := paq.GetNodeAddressInfoByNodeIDs(tt.args.nodeIDs)
+			gotStr := paq.GetNodeAddressInfoByNodeIDs(tt.args.nodeIDs, tt.args.status)
 			if gotStr != tt.wantStr {
 				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}

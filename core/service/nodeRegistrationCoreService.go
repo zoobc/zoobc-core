@@ -40,7 +40,10 @@ type (
 		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
-		GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error)
+		GetNodeAddressesInfoFromDb(
+			nodeIDs []int64,
+			addressStatus model.NodeAddressStatus,
+		) ([]*model.NodeAddressInfo, error)
 		GetNodeAddressInfoFromDbByAddressPort(address string, port uint32) (*model.NodeAddressInfo, error)
 		GenerateNodeAddressInfo(
 			nodeID int64,
@@ -556,8 +559,11 @@ func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 }
 
 // GetNodeAddressesInfoFromDb returns a list of node address info messages given a list of nodeIDs
-func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
-	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs)
+func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
+	nodeIDs []int64,
+	addressStatus model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatus)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -598,6 +604,11 @@ func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(addres
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
 // NOTE: nodeAddressInfo is supposed to have been already validated
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
+	// first check if another confirmed address with same node exist
+	nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressMessage.NodeID})
+	if err != nil {
+		return false, err
+	}
 	// check if already exist and if new one is more recent
 	nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressMessage.NodeID})
 	if err != nil {
@@ -694,14 +705,34 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
 
-	// in case node address info for nodeID exists, validate that its height is lower than the one in the message
-	qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs([]int64{nodeAddressInfo.GetNodeID()})
+	// in case address for this node exists and it's confirmed, don't validate
+	qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(
+		[]int64{nodeAddressInfo.GetNodeID()},
+		model.NodeAddressStatus_NodeAddressConfirmed)
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return true, err
 	}
 	defer rows.Close()
-	prevAddressInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	confirmedAddressInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	if err != nil {
+		return true, err
+	}
+	if len(confirmedAddressInfo) > 0 &&
+		confirmedAddressInfo[0].GetAddress() == nodeAddressInfo.GetAddress() &&
+		confirmedAddressInfo[0].GetPort() == nodeAddressInfo.GetPort() {
+		return false, blocker.NewBlocker(blocker.ValidationErr, "AddressAlreadyConfirmed")
+	}
+	// in case a pending node address info for nodeID exists, validate if its height is lower than the one in the message
+	qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(
+		[]int64{nodeAddressInfo.GetNodeID()},
+		model.NodeAddressStatus_NodeAddressPending)
+	rows1, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return true, err
+	}
+	defer rows1.Close()
+	prevAddressInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows1)
 	if err != nil {
 		return true, err
 	}

@@ -376,14 +376,14 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`CREATE TABLE IF NOT EXISTS "node_address_info" (
-				"node_id"		INTEGER,		-- node_id relative to this node address
-				"address"		VARCHAR(255),	-- peer/node address
-				"port"			INTEGER,		-- peer rpc port
-				"block_height"	INTEGER,		-- last blockchain height when broadcasting the address
-				"block_hash"	BLOB,			-- hash of last block when broadcasting the address
-				"signature"		BLOB,			-- signature of above fields (signed using node private key)
-				PRIMARY KEY("node_id"),			-- primary key
-				UNIQUE(address, port)			-- address + port must be unique too
+				"node_id"		INTEGER,					-- node_id relative to this node address
+				"address"		VARCHAR(255),				-- peer/node address
+				"port"			INTEGER,					-- peer rpc port
+				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
+				"signature"		BLOB,						-- signature of above fields (signed using node private key)
+				"status" 		INTEGER,					-- pending or confirmed
+				PRIMARY KEY("node_id","address","port"),	-- primary key
 			)
 			`,
 			`

@@ -14,7 +14,7 @@ type (
 		InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{})
 		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64) (str string, args []interface{})
-		GetNodeAddressInfoByNodeIDs(nodeIDs []int64) string
+		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatus model.NodeAddressStatus) string
 		GetNodeAddressInfoByAddressPort(address string, port uint32) (str string, args []interface{})
 		ExtractModel(pa *model.NodeAddressInfo) []interface{}
 		BuildModel(peerAddresss []*model.NodeAddressInfo, rows *sql.Rows) ([]*model.NodeAddressInfo, error)
@@ -86,14 +86,14 @@ func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(nodeID int64) (st
 }
 
 // GetNodeAddressInfoByID returns query string to get peerAddress by node ID
-func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64) string {
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatus model.NodeAddressStatus) string {
 	b := make([]string, len(nodeIDs))
 	for i, v := range nodeIDs {
 		b[i] = strconv.Itoa(int(v))
 	}
 	nodeIDsStr := strings.Join(b, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s)",
-		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s) AND status = %d",
+		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr, uint32(addressStatus))
 }
 
 // GetNodeAddressInfoByAddressPort returns query string to get peerAddress by node ID
