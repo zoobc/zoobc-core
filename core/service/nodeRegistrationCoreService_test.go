@@ -1395,7 +1395,8 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx b
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN (1111)":
+	case "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN (1111) " +
+		"AND status IN (1, 0)":
 		sqlRows = sqlmock.NewRows([]string{
 			"node_id",
 			"address",
@@ -1403,6 +1404,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx b
 			"block_height",
 			"block_hash",
 			"signature",
+			"status",
 		},
 		)
 		sqlRows.AddRow(
@@ -1412,6 +1414,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx b
 			uint32(10),
 			make([]byte, 32),
 			make([]byte, 64),
+			model.NodeAddressStatus_NodeAddressPending,
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlRows)
 	default:
@@ -1441,6 +1444,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 	}
 	type args struct {
 		nodeAddressInfo *model.NodeAddressInfo
+		validateNotInDb bool
 	}
 
 	nodePublicKey := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
@@ -1452,9 +1456,16 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		BlockHeight: uint32(10),
 		BlockHash:   validBlockHash,
 	}
+	nodeAddressInfo1 := &model.NodeAddressInfo{
+		NodeID:      int64(1111),
+		Address:     "192.168.1.2",
+		Port:        uint32(8080),
+		BlockHeight: uint32(10),
+		BlockHash:   validBlockHash,
+	}
 	nodeAddressInfoValid := &model.NodeAddressInfo{
 		NodeID:      int64(1111),
-		Address:     "192.168.1.1",
+		Address:     "192.168.1.2",
 		Port:        uint32(8080),
 		BlockHeight: uint32(11),
 		BlockHash:   validBlockHash,
@@ -1471,6 +1482,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 			name: "ValidateNodeAddressInfo:fail-{NodeIDNotFound}",
 			args: args{
 				nodeAddressInfo: nodeAddressInfo,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -1486,6 +1498,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 			name: "ValidateNodeAddressInfo:fail-{InvalidSignature}",
 			args: args{
 				nodeAddressInfo: nodeAddressInfo,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -1507,6 +1520,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 			name: "ValidateNodeAddressInfo:fail-{InvalidBlockHeight}",
 			args: args{
 				nodeAddressInfo: nodeAddressInfo,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -1530,6 +1544,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 			name: "ValidateNodeAddressInfo:fail-{InvalidBlockHash}",
 			args: args{
 				nodeAddressInfo: nodeAddressInfo,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -1552,7 +1567,8 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		{
 			name: "ValidateNodeAddressInfo:fail-{OutdatedNodeAddressInfo}",
 			args: args{
-				nodeAddressInfo: nodeAddressInfo,
+				nodeAddressInfo: nodeAddressInfo1,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
@@ -1577,6 +1593,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 			name: "ValidateNodeAddressInfo:success",
 			args: args{
 				nodeAddressInfo: nodeAddressInfoValid,
+				validateNotInDb: true,
 			},
 			fields: fields{
 				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),

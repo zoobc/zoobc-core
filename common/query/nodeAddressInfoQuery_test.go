@@ -36,6 +36,7 @@ func TestNodeAddressInfoQuery_InsertNodeAddressInfo(t *testing.T) {
 					Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Status: model.NodeAddressStatus_NodeAddressConfirmed,
 				},
 			},
 			fields: fields{
@@ -50,9 +51,10 @@ func TestNodeAddressInfoQuery_InsertNodeAddressInfo(t *testing.T) {
 				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				model.NodeAddressStatus_NodeAddressConfirmed,
 			},
-			wantStr: "INSERT OR REPLACE INTO node_address_info (node_id, address, port, block_height, block_hash, signature) " +
-				"VALUES(? , ? , ? , ? , ? , ? )",
+			wantStr: "INSERT OR REPLACE INTO node_address_info (node_id, address, port, block_height, block_hash, signature, status) " +
+				"VALUES(? , ? , ? , ? , ? , ? , ? )",
 		},
 	}
 	for _, tt := range tests {
@@ -87,7 +89,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 		want   [][]interface{}
 	}{
 		{
-			name: "UpdateNodeAddressInfo:success",
+			name: "UpdatePendingNodeAddressInfo:success",
 			args: args{
 				peerAddress: &model.NodeAddressInfo{
 					NodeID:      111,
@@ -97,6 +99,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 					BlockHash:   []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Status: model.NodeAddressStatus_NodeAddressConfirmed,
 				},
 			},
 			fields: fields{
@@ -105,7 +108,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 			},
 			want: [][]interface{}{
 				append([]interface{}{"UPDATE node_address_info SET address = ?, " +
-					"port = ?, block_height = ?, block_hash = ?, signature = ? WHERE" +
+					"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
 					" node_id = ?"},
 					"192.168.1.2",
 					uint32(8080),
@@ -113,6 +116,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					model.NodeAddressStatus_NodeAddressConfirmed,
 					int64(111),
 				),
 			},
@@ -125,7 +129,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				TableName: tt.fields.TableName,
 			}
 			if got := paq.UpdateNodeAddressInfo(tt.args.peerAddress); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got, tt.want)
+				t.Errorf("NodeAddressInfoQuery.UpdatePendingNodeAddressInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -138,6 +142,7 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 	}
 	type args struct {
 		nodeID int64
+		status []model.NodeAddressStatus
 	}
 	tests := []struct {
 		name     string
@@ -150,6 +155,7 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 			name: "DeleteNodeAddressInfo:success",
 			args: args{
 				nodeID: 111,
+				status: []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
 			},
 			fields: fields{
 				Fields:    NewNodeAddressInfoQuery().Fields,
@@ -157,8 +163,9 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 			},
 			wantArgs: []interface{}{
 				int64(111),
+				"1",
 			},
-			wantStr: "DELETE FROM node_address_info WHERE node_id = ?",
+			wantStr: "DELETE FROM node_address_info WHERE node_id = ? AND status IN (?)",
 		},
 	}
 	for _, tt := range tests {
@@ -167,7 +174,7 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := paq.DeleteNodeAddressInfoByNodeID(tt.args.nodeID)
+			gotStr, gotArgs := paq.DeleteNodeAddressInfoByNodeID(tt.args.nodeID, tt.args.status)
 			if gotStr != tt.wantStr {
 				t.Errorf("NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
@@ -207,6 +214,7 @@ func TestNodeAddressInfoQuery_ExtractModel(t *testing.T) {
 					BlockHash:   []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Status: model.NodeAddressStatus_NodeAddressConfirmed,
 				},
 			},
 			want: []interface{}{
@@ -217,6 +225,7 @@ func TestNodeAddressInfoQuery_ExtractModel(t *testing.T) {
 				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				model.NodeAddressStatus_NodeAddressConfirmed,
 			},
 		},
 	}
@@ -249,6 +258,7 @@ func (*mockQueryExecutorNodeAddressInfoBuildModel) ExecuteSelect(query string, t
 		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		model.NodeAddressStatus_NodeAddressPending,
 	))
 	return db.Query("")
 }
@@ -263,6 +273,7 @@ func (*mockQueryExecutorNodeAddressInfoBuildModel) ExecuteSelectRow(qStr string,
 		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+		model.NodeAddressStatus_NodeAddressPending,
 	))
 	return db.QueryRow("")
 }
@@ -369,7 +380,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 	}
 	type args struct {
 		nodeIDs []int64
-		status  model.NodeAddressStatus
+		status  []model.NodeAddressStatus
 	}
 	tests := []struct {
 		name    string
@@ -381,27 +392,40 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 			name: "GetNodeAddressInfoByNodeIDs:success-{statusPending}",
 			args: args{
 				nodeIDs: []int64{1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7},
-				status:  model.NodeAddressStatus_NodeAddressPending,
+				status:  []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
 			},
 			fields: fields{
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status = 0",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (0)",
 		},
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success-{statusConfirmed}",
 			args: args{
 				nodeIDs: []int64{1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7},
-				status:  model.NodeAddressStatus_NodeAddressConfirmed,
+				status:  []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
 			},
 			fields: fields{
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status = 1",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1)",
+		},
+		{
+			name: "GetNodeAddressInfoByNodeIDs:success-{allAddressStatus}",
+			args: args{
+				nodeIDs: []int64{1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7},
+				status:  []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending},
+			},
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1, 0)",
 		},
 	}
 	for _, tt := range tests {
@@ -426,6 +450,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 	type args struct {
 		address string
 		port    uint32
+		status  []model.NodeAddressStatus
 	}
 	tests := []struct {
 		name     string
@@ -439,6 +464,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 			args: args{
 				port:    8001,
 				address: "127.0.0.1",
+				status:  []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
 			},
 			fields: fields{
 				Fields:    NewNodeAddressInfoQuery().Fields,
@@ -447,9 +473,10 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 			wantArgs: []interface{}{
 				"127.0.0.1",
 				uint32(8001),
+				"1",
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature FROM node_address_info WHERE node_id = ? " +
-				"AND port = ? LIMIT 1",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id = ? " +
+				"AND port = ? AND status IN (?)",
 		},
 	}
 	for _, tt := range tests {
@@ -458,7 +485,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := paq.GetNodeAddressInfoByAddressPort(tt.args.address, tt.args.port)
+			gotStr, gotArgs := paq.GetNodeAddressInfoByAddressPort(tt.args.address, tt.args.port, tt.args.status)
 			if gotStr != tt.wantStr {
 				t.Errorf("NodeAddressInfoQuery.GetNodeAddressInfoByAddressPort() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}

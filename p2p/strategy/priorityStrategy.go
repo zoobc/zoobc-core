@@ -1038,12 +1038,15 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		peers[key] = value
 	}
 
-	// if current node is registered, sync it back to its peers, in case they don't know its address
+	// if current node is registered, broadcast it back to its peers, in case they don't know its address
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(ps.NodeConfigurationService.GetNodePublicKey())
 	if err != nil {
 		return nil, err
 	} else if nr != nil && nr.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
-		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.GetNodeID()}); err != nil {
+		// STEF: not sure about this.. for now we only syncronize pending node addresses because confirmed ones are 'updated' during node
+		// scrambling only
+		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.GetNodeID()},
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}); err != nil {
 			return nil, err
 		} else if len(myAddressesInfo) > 0 {
 			myAddressInfo = myAddressesInfo[0]
@@ -1142,7 +1145,7 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 	// }
 
 	// add it to nodeAddressInfo table
-	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo)
+	updated, err := ps.NodeRegistrationService.UpdatePendingNodeAddressInfo(nodeAddressInfo)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1194,7 +1197,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			nodeSecretPhrase); err != nil {
 			return err
 		}
-		if updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo); err != nil {
+		if updated, err = ps.NodeRegistrationService.UpdatePendingNodeAddressInfo(nodeAddressInfo); err != nil {
 			return err
 		}
 		if len(resolvedPeers) == 0 {

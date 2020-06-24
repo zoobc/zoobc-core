@@ -108,14 +108,15 @@ func NewP2PServerService(
 	}
 }
 
-// GetNodeAddressesInfo responds to the request of peers a node address info
+// GetNodeAddressesInfo responds to the request of peers a (pending) node address info
+// STEF note: for now we only sync pending node address info because every node is responsible of confirming its own peers' addresses
 func (ps *P2PServerService) GetNodeAddressesInfo(
 	ctx context.Context,
 	req *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		// get a slice of node address info by node IDs
-		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(req.NodeIDs); err == nil {
+		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(req.NodeIDs,
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}); err == nil {
 			return &model.GetNodeAddressesInfoResponse{
 				NodeAddressesInfo: nodeAddressesInfo,
 			}, nil

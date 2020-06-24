@@ -231,7 +231,7 @@ func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
 	return nil, nil
 }
 
-func (p2pNr *p2pMockNodeRegistraionService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
+func (p2pNr *p2pMockNodeRegistraionService) UpdatePendingNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
 	return p2pNr.addressInfoUpdated, nil
 }
 
@@ -254,7 +254,8 @@ func (p2pNr *p2pMockNodeRegistraionService) GetNodeRegistrationByNodePublicKey(n
 	return nil, errors.New("MockedError")
 }
 
-func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressesInfoFromDb(nodeIDs []int64,
+	addressStatus []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
 	if p2pNr.successGetNodeAddressesInfoFromDb {
 		if len(p2pNr.nodeAddressesInfo) > 0 {
 			return p2pNr.nodeAddressesInfo, nil
@@ -1608,14 +1609,16 @@ func (psMock *psMockNodeRegistrationService) GenerateNodeAddressInfo(
 	}, nil
 }
 
-func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (bool, error) {
+func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(
+	nodeAddressMessage *model.NodeAddressInfo,
+) (bool, error) {
 	if psMock.validateAddressInfoSuccess {
 		return true, nil
 	}
 	return true, errors.New("MockedError")
 }
 
-func (psMock *psMockNodeRegistrationService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
+func (psMock *psMockNodeRegistrationService) UpdatePendingNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
 	return true, nil
 }
 
@@ -1626,7 +1629,8 @@ func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodePublicKey(
 	return nil, nil
 }
 
-func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64) ([]*model.NodeAddressInfo, error) {
+func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64,
+	addressStatus []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
 	if psMock.currentNodeAddressInfo != nil {
 		return []*model.NodeAddressInfo{psMock.currentNodeAddressInfo}, nil
 	}
@@ -1636,9 +1640,10 @@ func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs 
 func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 	address string,
 	port uint32,
-) (*model.NodeAddressInfo, error) {
+	nodeAddressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
 	if psMock.prevNodeAddressInfo != nil {
-		return psMock.currentNodeAddressInfo, nil
+		return []*model.NodeAddressInfo{psMock.currentNodeAddressInfo}, nil
 	}
 	return nil, nil
 }

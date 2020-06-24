@@ -13,9 +13,12 @@ type (
 	NodeAddressInfoQueryInterface interface {
 		InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{})
 		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
-		DeleteNodeAddressInfoByNodeID(nodeID int64) (str string, args []interface{})
-		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatus model.NodeAddressStatus) string
-		GetNodeAddressInfoByAddressPort(address string, port uint32) (str string, args []interface{})
+		DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{})
+		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) string
+		GetNodeAddressInfoByAddressPort(
+			address string, port uint32,
+			addressStatuses []model.NodeAddressStatus,
+		) (str string, args []interface{})
 		ExtractModel(pa *model.NodeAddressInfo) []interface{}
 		BuildModel(peerAddresss []*model.NodeAddressInfo, rows *sql.Rows) ([]*model.NodeAddressInfo, error)
 		Scan(pa *model.NodeAddressInfo, row *sql.Row) error
@@ -36,6 +39,7 @@ func NewNodeAddressInfoQuery() *NodeAddressInfoQuery {
 			"block_height",
 			"block_hash",
 			"signature",
+			"status",
 		},
 		TableName: "node_address_info",
 	}
@@ -67,7 +71,8 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 			" port = ?,"+
 			" block_height = ?,"+
 			" block_hash = ?,"+
-			" signature = ?"+
+			" signature = ?,"+
+			" status = ?"+
 			" WHERE node_id = ?", paq.getTableName())
 	// move NodeID at the bottom of the values array
 	values := append(paq.ExtractModel(peerAddress)[1:], peerAddress.NodeID)
@@ -78,28 +83,46 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 }
 
 // DeleteNodeAddressInfoByNodeID returns the query string and parameters to be executed to delete a peerAddress record
-func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(nodeID int64) (str string, args []interface{}) {
+func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{}) {
+	c := make([]string, len(addressStatuses))
+	for i, v := range addressStatuses {
+		c[i] = strconv.Itoa(int(v))
+	}
+	addrStatusesStr := strings.Join(c, ", ")
 	return fmt.Sprintf(
-		"DELETE FROM %s WHERE node_id = ?",
+		"DELETE FROM %s WHERE node_id = ? AND status IN (?)",
 		paq.getTableName(),
-	), []interface{}{nodeID}
+	), []interface{}{nodeID, addrStatusesStr}
 }
 
-// GetNodeAddressInfoByID returns query string to get peerAddress by node ID
-func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatus model.NodeAddressStatus) string {
+// GetNodeAddressInfoByID returns query string to get peerAddress by node ID and address statuses
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) string {
 	b := make([]string, len(nodeIDs))
 	for i, v := range nodeIDs {
 		b[i] = strconv.Itoa(int(v))
 	}
 	nodeIDsStr := strings.Join(b, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s) AND status = %d",
-		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr, uint32(addressStatus))
+	c := make([]string, len(addressStatuses))
+	for i, v := range addressStatuses {
+		c[i] = strconv.Itoa(int(v))
+	}
+	addrStatusesStr := strings.Join(c, ", ")
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s) AND status IN (%s)",
+		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr, addrStatusesStr)
 }
 
 // GetNodeAddressInfoByAddressPort returns query string to get peerAddress by node ID
-func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(address string, port uint32) (str string, args []interface{}) {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? LIMIT 1",
-		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port}
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(
+	address string, port uint32,
+	addressStatuses []model.NodeAddressStatus,
+) (str string, args []interface{}) {
+	c := make([]string, len(addressStatuses))
+	for i, v := range addressStatuses {
+		c[i] = strconv.Itoa(int(v))
+	}
+	addrStatusesStr := strings.Join(c, ", ")
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? AND status IN (?)",
+		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port, addrStatusesStr}
 }
 
 // ExtractModel extract the model struct fields to the order of NodeAddressInfoQuery.Fields
@@ -111,6 +134,7 @@ func (paq *NodeAddressInfoQuery) ExtractModel(pa *model.NodeAddressInfo) []inter
 		pa.BlockHeight,
 		pa.BlockHash,
 		pa.Signature,
+		pa.Status,
 	}
 }
 
@@ -129,6 +153,7 @@ func (paq *NodeAddressInfoQuery) BuildModel(
 			&pa.BlockHeight,
 			&pa.BlockHash,
 			&pa.Signature,
+			&pa.Status,
 		)
 		if err != nil {
 			return nil, err
@@ -147,6 +172,7 @@ func (paq *NodeAddressInfoQuery) Scan(pa *model.NodeAddressInfo, row *sql.Row) e
 		&pa.BlockHeight,
 		&pa.BlockHash,
 		&pa.Signature,
+		&pa.Status,
 	)
 	if err != nil {
 		return err
