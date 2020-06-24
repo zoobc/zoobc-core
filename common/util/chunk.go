@@ -5,22 +5,32 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/zoobc/zoobc-core/common/storage"
+
 	"golang.org/x/crypto/sha3"
 )
 
 type (
-	ChunkInterface interface {
+	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
+		AssignShard(
+			shards map[uint64][][]byte,
+			nodeIDs []int64,
+		) (map[int64][]uint64, error)
 	}
 
-	Chunk struct {
-		chunkSize int
+	ChunkUtil struct {
+		nodeShardCacheStorage storage.CacheStorageInterface
+		logger                *logrus.Logger
+		chunkSize             int
 	}
 )
 
 // ShardChunk accept chunks and number of shard identification bits
 // return the mapped chunks to their respective shard
-func (c *Chunk) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte {
+func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte {
 	var (
 		shards  = make(map[uint64][][]byte)
 		bitMask = (1 << shardBitLength) - 1
@@ -44,7 +54,7 @@ func (c *Chunk) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byt
 }
 
 // AssignShard assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
-func (c *Chunk) AssignShard(
+func (c *ChunkUtil) AssignShard(
 	shards map[uint64][][]byte,
 	nodeIDs []int64,
 ) (map[int64][]uint64, error) {
@@ -83,6 +93,11 @@ func (c *Chunk) AssignShard(
 			nodeShards[nodeOrders[i].nodeID] = append(nodeShards[nodeOrders[i].nodeID], shardNumber)
 		}
 	}
-	// todo: cache nodeShards
+	go func() {
+		err := c.nodeShardCacheStorage.SetItem(nodeShards)
+		if err != nil {
+			c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
+		}
+	}()
 	return nodeShards, nil
 }

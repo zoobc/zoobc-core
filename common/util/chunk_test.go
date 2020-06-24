@@ -6,6 +6,8 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 // var (
@@ -50,7 +52,7 @@ func TestChunk_ShardChunk(t *testing.T) {
 		fmt.Printf("data prepared in: %v ms\n", time.Since(startPrepareData).Milliseconds())
 		fmt.Printf("start sharding data\n")
 		startSharding := time.Now()
-		chunk := &Chunk{
+		chunk := &ChunkUtil{
 			chunkSize: sha256.Size,
 		}
 		var chunks []byte
@@ -73,8 +75,9 @@ func TestChunk_AssignShard(t *testing.T) {
 		mockChunks := generateRandom32Bytes(n)
 		fmt.Printf("data prepared in: %v ms\n", time.Since(startPrepareData).Milliseconds())
 		fmt.Printf("start sharding data\n")
-		chunk := &Chunk{
-			chunkSize: sha256.Size,
+		chunk := &ChunkUtil{
+			chunkSize:             sha256.Size,
+			nodeShardCacheStorage: storage.NewNodeShardCacheStorage(),
 		}
 		var chunks []byte
 		for _, mockChunk := range mockChunks {
