@@ -7,19 +7,19 @@ import (
 )
 
 type (
-	nodeShardCacheStorage struct {
+	NodeShardCacheStorage struct {
 		sync.RWMutex
 		nodeShards map[int64][]uint64
 	}
 )
 
-func NewNodeShardCacheStorage() *nodeShardCacheStorage {
-	return &nodeShardCacheStorage{
+func NewNodeShardCacheStorage() *NodeShardCacheStorage {
+	return &NodeShardCacheStorage{
 		nodeShards: make(map[int64][]uint64),
 	}
 }
 
-func (n *nodeShardCacheStorage) SetItem(item interface{}) error {
+func (n *NodeShardCacheStorage) SetItem(item interface{}) error {
 	var (
 		ok bool
 	)
@@ -32,7 +32,7 @@ func (n *nodeShardCacheStorage) SetItem(item interface{}) error {
 	return nil
 }
 
-func (n *nodeShardCacheStorage) GetItem(item interface{}) error {
+func (n *NodeShardCacheStorage) GetItem(item interface{}) error {
 	n.RLock()
 	var (
 		ok      bool
@@ -49,7 +49,7 @@ func (n *nodeShardCacheStorage) GetItem(item interface{}) error {
 	return nil
 }
 
-func (n *nodeShardCacheStorage) GetSize() int64 {
+func (n *NodeShardCacheStorage) GetSize() int64 {
 	var result int64
 	for _, uint64s := range n.nodeShards {
 		result += 8
@@ -58,7 +58,7 @@ func (n *nodeShardCacheStorage) GetSize() int64 {
 	return result
 }
 
-func (n *nodeShardCacheStorage) ClearCache() error {
+func (n *NodeShardCacheStorage) ClearCache() error {
 	n.nodeShards = make(map[int64][]uint64)
 	return nil
 }

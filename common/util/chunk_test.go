@@ -32,7 +32,7 @@ var generateRandomNodeIDs = func(n int) []int64 {
 
 func TestChunk_ShardChunk(t *testing.T) {
 	t.Run("6 shardBit-n", func(t *testing.T) {
-		const n = 1000000
+		const n = 100000
 		startPrepareData := time.Now()
 		fmt.Printf("preparing %d random data\n", n)
 		mockChunks := generateRandom32Bytes(n)
@@ -56,7 +56,7 @@ func TestChunk_ShardChunk(t *testing.T) {
 
 func TestChunk_AssignShard(t *testing.T) {
 	t.Run("assignShard - 1000 nodes", func(t *testing.T) {
-		const n = 1000000
+		const n = 100000
 		startPrepareData := time.Now()
 		fmt.Printf("preparing %d random data\n", n)
 		mockChunks := generateRandom32Bytes(n)
