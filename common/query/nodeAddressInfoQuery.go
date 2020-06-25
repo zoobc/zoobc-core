@@ -83,7 +83,10 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 }
 
 // DeleteNodeAddressInfoByNodeID returns the query string and parameters to be executed to delete a peerAddress record
-func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{}) {
+func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(
+	nodeID int64,
+	addressStatuses []model.NodeAddressStatus,
+) (str string, args []interface{}) {
 	c := make([]string, len(addressStatuses))
 	for i, v := range addressStatuses {
 		c[i] = strconv.Itoa(int(v))

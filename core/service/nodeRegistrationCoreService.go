@@ -24,7 +24,6 @@ type (
 	NodeRegistrationServiceInterface interface {
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
-		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
 		GetRegisteredNodes() ([]*model.NodeRegistration, error)
 		GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
@@ -136,21 +135,6 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 	if err != nil {
 		return nil, err
 	}
-	return nodeRegistrations, nil
-}
-
-func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(height)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nodeRegistrations) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
-	}
-
 	return nodeRegistrations, nil
 }
 
@@ -383,7 +367,7 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	block *model.Block,
 ) ([]*model.NodeRegistration, error) {
 	// get node registry list: only registered nodes that already have a confirmed or pending address
-	nodeRegistries, err := nrs.NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses()
+	nodeRegistries, err := nrs.NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses(block.GetHeight())
 	if err != nil {
 		return nil, err
 	}

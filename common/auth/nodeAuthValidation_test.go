@@ -22,7 +22,7 @@ type (
 	}
 )
 
-func (navMock *nodeAuthMockSignature) VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool {
+func (navMock *nodeAuthMockSignature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
 	return navMock.success
 }
 

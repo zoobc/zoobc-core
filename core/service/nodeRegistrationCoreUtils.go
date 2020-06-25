@@ -55,6 +55,7 @@ func (nru *NodeRegistrationUtils) GetUnsignedNodeAddressInfoBytes(nodeAddressMes
 // GetRegisteredNodesWithConsolidatedAddresses returns registered nodes that have relative node address info records,
 // selecting pending addresses, when available, over confirmed ones
 func (nru *NodeRegistrationUtils) GetRegisteredNodesWithConsolidatedAddresses(height uint32) ([]*model.NodeRegistration, error) {
+	// get all registry with addresses, grouped by nodeID and ordered by status
 	rows, err := nru.QueryExecutor.ExecuteSelect(
 		nru.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(height),
 		false,
@@ -64,11 +65,25 @@ func (nru *NodeRegistrationUtils) GetRegisteredNodesWithConsolidatedAddresses(he
 		return nil, err
 	}
 	defer rows.Close()
-	nodeRegistries, err := nru.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	nodeRegistries, err := nru.NodeRegistrationQuery.BuildModelWithAddressInfo([]*model.NodeRegistration{}, rows)
 	if err != nil {
 		nru.Logger.Error(err.Error())
 		return nil, err
 	}
 
-	return nodeRegistries, nil
+	mapRegistries := make(map[int64]*model.NodeRegistration)
+	// consolidate the registry into a list of unique node Ids, preferring pending addresses rather than confirmed when present
+	for _, nr := range nodeRegistries {
+		if prevNr, ok := mapRegistries[nr.GetNodeID()]; ok &&
+			prevNr.GetNodeAddressInfo().GetStatus() == model.NodeAddressStatus_NodeAddressPending {
+			continue
+		}
+		mapRegistries[nr.GetNodeID()] = nr
+	}
+	// rebuild the registry array
+	var res []*model.NodeRegistration
+	for _, nr := range mapRegistries {
+		res = append(res, nr)
+	}
+	return res, nil
 }

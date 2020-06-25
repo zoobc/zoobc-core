@@ -32,6 +32,7 @@ type (
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
+		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
 		// STEF ExtractNodeAddress must be moved in ipUtils or some other util package
@@ -242,11 +243,15 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height 
 		"registration_status",
 		"latest",
 		"height",
+		// TODO: add these fields when dropping address field from node_registry table
+		// "t2.address AS ai_Address",
+		// "t2.port AS ai_Port",
+		"t2.status as ai_status",
 	}
 	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
 		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) "+
 		"FROM %s AS t1 WHERE t1.height <= %d GROUP BY t1.id) "+
-		"ORDER BY height DESC",
+		"GROUP BY t1.id ORDER BY t2.status",
 		strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
 }
 
@@ -329,6 +334,43 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 			return nil, err
 		}
 		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
+		nodeRegistrations = append(nodeRegistrations, &nr)
+	}
+	return nodeRegistrations, nil
+}
+
+// BuildModelWithAddressInfo will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+// note: this is to be used with queries that join node_address_info table
+func (nrq *NodeRegistrationQuery) BuildModelWithAddressInfo(
+	nodeRegistrations []*model.NodeRegistration,
+	rows *sql.Rows,
+) ([]*model.NodeRegistration, error) {
+	for rows.Next() {
+		var (
+			fullNodeAddress     string
+			nr                  model.NodeRegistration
+			nrAddressInfoStatus model.NodeAddressStatus
+		)
+		err := rows.Scan(
+			&nr.NodeID,
+			&nr.NodePublicKey,
+			&nr.AccountAddress,
+			&nr.RegistrationHeight,
+			&fullNodeAddress,
+			&nr.LockedBalance,
+			&nr.RegistrationStatus,
+			&nr.Latest,
+			&nr.Height,
+			&nrAddressInfoStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
+		nr.NodeAddressInfo = &model.NodeAddressInfo{
+			Status: nrAddressInfoStatus,
+		}
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations, nil

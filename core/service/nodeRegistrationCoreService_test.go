@@ -589,81 +589,6 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 	}
 }
 
-func TestNodeRegistrationService_GetNodeRegistryAtHeight(t *testing.T) {
-	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	}
-	type args struct {
-		height uint32
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*model.NodeRegistration
-		wantErr bool
-	}{
-		{
-			name: "GetNodeRegistryAtHeight:success",
-			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				height: 1,
-			},
-			want: []*model.NodeRegistration{
-				{
-					NodeID:             int64(1),
-					NodePublicKey:      nrsNodePubKey1,
-					AccountAddress:     nrsAddress1,
-					RegistrationHeight: 10,
-					NodeAddress: &model.NodeAddress{
-						Address: "10.10.10.10",
-					},
-					LockedBalance:      100000000,
-					RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
-					Latest:             true,
-					Height:             200,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "GetNodeRegistryAtHeight:fail-{NoNodeRegistered}",
-			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				height: 1,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-			}
-			got, err := nrs.GetNodeRegistryAtHeight(tt.args.height)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeRegistrationService.GetNodeRegistryAtHeight() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 type (
 	executorBuildScrambleNodesSuccess struct {
 		query.Executor
@@ -671,7 +596,47 @@ type (
 	executorBuildScrambleNodesFail struct {
 		query.Executor
 	}
+	nrsMockNodeRegistrationUtils struct {
+		NodeRegistrationUtils
+		getRegisteredNodesWithConsolidatedAddressesFail bool
+	}
 )
+
+func (nrsMock *nrsMockNodeRegistrationUtils) GetRegisteredNodesWithConsolidatedAddresses(height uint32) ([]*model.NodeRegistration, error) {
+	if nrsMock.getRegisteredNodesWithConsolidatedAddressesFail {
+		return nil, errors.New("MockedError")
+	}
+	return []*model.NodeRegistration{
+		{
+			NodeID:             0,
+			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
+			AccountAddress:     "accountA",
+			RegistrationHeight: 0,
+			NodeAddress: &model.NodeAddress{
+				Address: "127.0.0.1",
+				Port:    3000,
+			},
+			LockedBalance:      0,
+			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
+			Latest:             true,
+			Height:             0,
+		},
+		{
+			NodeID:             0,
+			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78},
+			AccountAddress:     "accountB",
+			RegistrationHeight: 0,
+			NodeAddress: &model.NodeAddress{
+				Address: "127.0.0.1",
+				Port:    3002,
+			},
+			LockedBalance:      0,
+			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
+			Latest:             true,
+			Height:             0,
+		},
+	}, nil
+}
 
 func (*executorBuildScrambleNodesSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
@@ -699,6 +664,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		NodeRegistrationUtils NodeRegistrationUtilsInterface
 		Logger                *log.Logger
 	}
 	type args struct {
@@ -722,6 +688,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 					},
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				NodeRegistrationUtils: &nrsMockNodeRegistrationUtils{},
 				Logger:                log.New(),
 			},
 			args: args{
@@ -740,7 +707,10 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 					},
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
+				NodeRegistrationUtils: &nrsMockNodeRegistrationUtils{
+					getRegisteredNodesWithConsolidatedAddressesFail: true,
+				},
+				Logger: log.New(),
 			},
 			args: args{
 				block: &model.Block{
@@ -756,6 +726,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 			nrs := &NodeRegistrationService{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				NodeRegistrationUtils: tt.fields.NodeRegistrationUtils,
 				ScrambledNodes:        map[uint32]*model.ScrambledNodes{},
 				Logger:                tt.fields.Logger,
 			}
