@@ -382,23 +382,11 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 func (nrs *NodeRegistrationService) sortNodeRegistries(
 	block *model.Block,
 ) ([]*model.NodeRegistration, error) {
-	var nodeRegistries []*model.NodeRegistration
-	// get node registry list
-	rows, err := nrs.QueryExecutor.ExecuteSelect(
-		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(block.GetHeight()),
-		false,
-	)
+	// get node registry list: only registered nodes that already have a confirmed or pending address
+	nodeRegistries, err := nrs.NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses()
 	if err != nil {
-		nrs.Logger.Error(err.Error())
 		return nil, err
 	}
-	defer rows.Close()
-	nodeRegistries, err = nrs.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
-	if err != nil {
-		nrs.Logger.Error(err.Error())
-		return nil, err
-	}
-
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {
 		ni, nj := nodeRegistries[i], nodeRegistries[j]
@@ -418,7 +406,7 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	return nodeRegistries, nil
 }
 
-// BuildScrambleNodes,  buil sorted scramble nodes based on node registry
+// BuildScrambleNodes,  build sorted scramble nodes based on node registry
 func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
 	var (
 		nodeRegistries  []*model.NodeRegistration

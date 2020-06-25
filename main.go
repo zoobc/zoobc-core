@@ -167,7 +167,11 @@ func init() {
 		loggerCoreService,
 		blockchainStatusService,
 		crypto.NewSignature(),
-		service.NewNodeRegistrationUtils(),
+		service.NewNodeRegistrationUtils(
+			queryExecutor,
+			query.NewNodeRegistrationQuery(),
+			loggerCoreService,
+		),
 	)
 
 	receiptService = service.NewReceiptService(
