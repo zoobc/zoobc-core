@@ -22,13 +22,26 @@ type (
 	}
 
 	ChunkUtil struct {
+		chunkHashSize         int
 		nodeShardCacheStorage storage.CacheStorageInterface
 		logger                *logrus.Logger
-		chunkSize             int
 	}
 )
 
-// ShardChunk accept chunks and number of shard identification bits
+func NewChunkUtil(
+	chunkHashSize int,
+	nodeShardCacheStorage storage.CacheStorageInterface,
+	logger *logrus.Logger,
+) *ChunkUtil {
+	return &ChunkUtil{
+		chunkHashSize:         chunkHashSize,
+		nodeShardCacheStorage: nodeShardCacheStorage,
+		logger:                logger,
+	}
+}
+
+// ShardChunk accept chunks and
+// number of shard identification bits
 // return the mapped chunks to their respective shard
 func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte {
 	var (
@@ -37,18 +50,18 @@ func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][
 	)
 	shardByteLength := int(math.Ceil(float64(shardBitLength) / 8))
 	byteMasking := make([]byte, 8-shardByteLength)
-	for i := 0; i < len(chunks); i += c.chunkSize {
+	for i := 0; i < len(chunks); i += c.chunkHashSize {
 		var (
-			chunkShardByte = make([]byte, c.chunkSize)
-			chunkByte      = make([]byte, c.chunkSize)
+			chunkShardByte = make([]byte, c.chunkHashSize)
+			chunkByte      = make([]byte, c.chunkHashSize)
 		)
 		// check if chunkShardByte in which shard
-		copy(chunkByte, chunks[i:i+c.chunkSize])          // prepare copy of chunk
+		copy(chunkByte, chunks[i:i+c.chunkHashSize])      // prepare copy of chunk
 		copy(chunkShardByte, chunks[i:i+shardByteLength]) // prepare a copy of the shard identity slice
 		chunkShardByte = append(chunkShardByte, byteMasking...)
 		shardByteUint64 := ConvertBytesToUint64(chunkShardByte)
 		shardNumber := shardByteUint64 & uint64(bitMask) // msb masking
-		shards[shardNumber] = append(shards[shardNumber], chunks[i:i+c.chunkSize])
+		shards[shardNumber] = append(shards[shardNumber], chunks[i:i+c.chunkHashSize])
 	}
 	return shards
 }

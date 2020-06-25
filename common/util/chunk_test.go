@@ -40,7 +40,7 @@ func TestChunk_ShardChunk(t *testing.T) {
 		fmt.Printf("start sharding data\n")
 		startSharding := time.Now()
 		chunk := &ChunkUtil{
-			chunkSize: sha256.Size,
+			chunkHashSize: sha256.Size,
 		}
 		var chunks []byte
 		for _, mockChunk := range mockChunks {
@@ -63,7 +63,7 @@ func TestChunk_AssignShard(t *testing.T) {
 		fmt.Printf("data prepared in: %v ms\n", time.Since(startPrepareData).Milliseconds())
 		fmt.Printf("start sharding data\n")
 		chunk := &ChunkUtil{
-			chunkSize:             sha256.Size,
+			chunkHashSize:         sha256.Size,
 			nodeShardCacheStorage: storage.NewNodeShardCacheStorage(),
 			logger:                logrus.New(),
 		}
