@@ -150,9 +150,9 @@ issues:
           linters:
               - govet
         - path: "(.+)_test.go"
-              text: "G404: Use of weak random number generator (math/rand instead of crypto/rand)"
-              linters:
-                  - gosec
+          text: "G404: Use of weak random number generator"
+          linters:
+              - gosec
         - path: "(.+)_test.go"
           text: "copylocks: literal copies lock value"
           linters:
