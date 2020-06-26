@@ -23,16 +23,20 @@ type (
 		NotEqual(column string, value interface{}) string
 		Between(column string, start, end interface{}) string
 		NotBetween(column string, start, end interface{}) string
+		GroupBy(column ...string) *CaseQuery
 		OrderBy(column string, order model.OrderBy) *CaseQuery
 		Limit(limit uint32) *CaseQuery
 		Paginate(limit, currentPage uint32) *CaseQuery
+		QueryString() string
 		Build() (query string, args []interface{})
+		SubBuild() (query string, args []interface{})
+		As(alias string) *CaseQuery
 	}
 	// CaseQuery would be as swap `Query` and `Args` those can save the query and args values
-	// until `Done` called
 	CaseQuery struct {
 		Query *bytes.Buffer
 		Args  []interface{}
+		Alias string
 	}
 )
 
@@ -146,7 +150,14 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 
 // OrderBy represents `... ORDER BY column DESC|ASC`
 func (fq *CaseQuery) OrderBy(column string, order model.OrderBy) *CaseQuery {
-	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order.String()))
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY ? %s ", order.String()))
+	fq.Args = append(fq.Args, column)
+	return fq
+}
+
+// GroupBy represents `... GROUP BY column, column ...`
+func (fq *CaseQuery) GroupBy(column ...string) *CaseQuery {
+	fq.Query.WriteString(fmt.Sprintf("GROUP BY %s ", strings.Join(column, ", ")))
 	return fq
 }
 
@@ -175,8 +186,38 @@ func (fq *CaseQuery) Paginate(limit, currentPage uint32) *CaseQuery {
 	return fq
 }
 
+// QueryString allow to get buffer as string, sub query separated by comma
+func (fq *CaseQuery) QueryString() string {
+	var query = fq.Query.String()
+	if len(fq.Alias) > 0 {
+		query += fmt.Sprintf(" AS %s ", fq.Alias)
+	}
+	return query
+}
+
 // Build should be called in the end of `CaseQuery` circular.
-// And build buffer query string into string
+// And build buffer query string into string, sub query separated by comma
 func (fq *CaseQuery) Build() (query string, args []interface{}) {
-	return fq.Query.String(), fq.Args
+	query = fq.Query.String()
+	if len(fq.Alias) > 0 {
+		query += fmt.Sprintf(" AS %s ", fq.Alias)
+	}
+	args = fq.Args
+	return query, args
+}
+
+// SubBuild represents sub query builder without break the struct values,
+// make sure call this method in separate declaration of CaseQuery
+func (fq *CaseQuery) SubBuild() (query string, args []interface{}) {
+	query = fmt.Sprintf("(%s)", fq.Query.String())
+	if len(fq.Alias) > 0 {
+		query += fmt.Sprintf("AS %s", fq.Alias)
+	}
+	return query, fq.Args
+}
+
+// As represents AS ..., and it will join with query string on Build
+func (fq *CaseQuery) As(alias string) *CaseQuery {
+	fq.Alias = alias
+	return fq
 }

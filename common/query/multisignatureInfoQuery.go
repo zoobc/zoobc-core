@@ -36,7 +36,6 @@ func NewMultisignatureInfoQuery() *MultisignatureInfoQuery {
 			"nonce",
 			"block_height",
 			"latest",
-			"addresses", // multisignature_participant
 		},
 		TableName: "multisignature_info",
 	}
@@ -58,7 +57,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	}
 	query := fmt.Sprintf(
 		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-		strings.Join(msi.Fields[:len(msi.Fields)-1], ", "),
+		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC) as addresses",
 		msi.getTableName(),
 	)
@@ -73,8 +72,8 @@ func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model
 	var queries [][]interface{}
 	insertQuery := fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		msi.getTableName(),
-		strings.Join(msi.Fields[:len(msi.Fields)-1], ", "),
-		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(msi.Fields)-2)),
+		strings.Join(msi.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(msi.Fields)-1)),
 	)
 	updateQuery := fmt.Sprintf("UPDATE %s SET latest = false WHERE multisig_address = ? "+
 		"AND block_height != %d AND latest = true",
@@ -82,7 +81,7 @@ func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model
 		multisigInfo.BlockHeight,
 	)
 	queries = append(queries,
-		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)[:len(msi.Fields)-1]...),
+		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)...),
 		[]interface{}{
 			updateQuery, multisigInfo.MultisigAddress,
 		},
@@ -97,11 +96,10 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 		participantQueryInterface      = NewMultiSignatureParticipantQuery()
 		queries                        [][]interface{}
 		musigInfoArgs, participantArgs []interface{}
-		musigFieldsLength              = len(msi.Fields) - 1
 		musigInfoQ                     = fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES ",
 			msi.getTableName(),
-			strings.Join(msi.Fields[:musigFieldsLength], ", "),
+			strings.Join(msi.Fields, ", "),
 		)
 		participantQ = fmt.Sprintf(
 			"INSERT INTO %s (%s) VALUES",
@@ -114,12 +112,12 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 		for m, musig := range multiSignatureInfos {
 			musigInfoQ += fmt.Sprintf(
 				"(?%s)",
-				strings.Repeat(", ?", musigFieldsLength-1),
+				strings.Repeat(", ?", len(msi.Fields)-1),
 			)
 			if m < len(multiSignatureInfos)-1 {
 				musigInfoQ += ","
 			}
-			musigInfoArgs = append(musigInfoArgs, msi.ExtractModel(musig)[:musigFieldsLength]...)
+			musigInfoArgs = append(musigInfoArgs, msi.ExtractModel(musig)...)
 
 			for a, address := range musig.GetAddresses() {
 				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
@@ -144,6 +142,9 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 	}
 	return queries
 }
+
+// Scan will build model from *sql.Row that expect has addresses column
+// which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
 	var addresses string
 	err := row.Scan(
@@ -158,18 +159,19 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 	return err
 }
 
+// ExtractModel will get values exclude addresses, perfectly used while inserting new record.
 func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{} {
-	addresses := strings.Join(multisigInfo.Addresses, ",")
 	return []interface{}{
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
 		&multisigInfo.Nonce,
 		&multisigInfo.BlockHeight,
 		&multisigInfo.Latest,
-		addresses,
 	}
 }
 
+// BuildModel will build model from *sql.Rows that expect has addresses column
+// which is result from sub query of multisignature_participant
 func (msi *MultisignatureInfoQuery) BuildModel(
 	mss []*model.MultiSignatureInfo, rows *sql.Rows,
 ) ([]*model.MultiSignatureInfo, error) {
@@ -220,7 +222,7 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 			"SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
 			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
 			") ORDER BY block_height",
-		strings.Join(msi.Fields[:len(msi.Fields)-1], ", "),
+		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index ASC) as addresses",
 		msi.getTableName(),
