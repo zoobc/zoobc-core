@@ -70,6 +70,7 @@ func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	for _, nr := range nodeRegistrations {
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   nr.NodePublicKey,
+			NodeID:          nr.NodeID,
 			PublicKeyAction: util.GetAddRemoveSpineKeyAction(nr.RegistrationStatus),
 			MainBlockHeight: nr.Height, // (node registration) transaction's height
 			Height:          spineHeight,
