@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"reflect"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -9,6 +10,8 @@ import (
 type (
 	NodeShardCacheStorage struct {
 		sync.RWMutex
+		// representation of sorted NodeIDs hashed
+		lastChange [32]byte
 		nodeShards map[int64][]uint64
 	}
 )
@@ -19,34 +22,45 @@ func NewNodeShardCacheStorage() *NodeShardCacheStorage {
 	}
 }
 
-func (n *NodeShardCacheStorage) SetItem(item interface{}) error {
-	var (
-		ok bool
-	)
+// SetItem setter of NodeShardCacheStorage
+func (n *NodeShardCacheStorage) SetItem(lastChange, item interface{}) error {
 	n.Lock()
 	defer n.Unlock()
-	n.nodeShards, ok = item.(map[int64][]uint64)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType")
+
+	if last, ok := lastChange.([32]byte); ok {
+		n.lastChange = last
+	} else {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongType lastChange")
+	}
+	if nodeShards, ok := item.(map[int64][]uint64); ok {
+		n.nodeShards = nodeShards
+	} else {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
+
 	}
 	return nil
 }
 
-func (n *NodeShardCacheStorage) GetItem(item interface{}) error {
+// GetItem getter of NodShardCacheStorage
+func (n *NodeShardCacheStorage) GetItem(lastChange, item interface{}) error {
 	n.RLock()
+	defer n.RUnlock()
+
 	var (
-		ok      bool
 		mapCopy map[int64][]uint64
 	)
-	mapCopy, ok = item.(map[int64][]uint64)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType")
+	if last, ok := lastChange.([32]byte); ok {
+		if reflect.DeepEqual(last, n.lastChange) {
+			mapCopy, ok = item.(map[int64][]uint64)
+			if !ok {
+				return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
+			}
+			for i, uint64s := range n.nodeShards {
+				mapCopy[i] = uint64s
+			}
+		}
 	}
-	for i, uint64s := range n.nodeShards {
-		mapCopy[i] = uint64s
-	}
-	n.RUnlock()
-	return nil
+	return blocker.NewBlocker(blocker.ValidationErr, "WrongType lastChange")
 }
 
 func (n *NodeShardCacheStorage) GetSize() int64 {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
@@ -54,7 +53,7 @@ func TestChunk_ShardChunk(t *testing.T) {
 	})
 }
 
-func TestChunk_AssignShard(t *testing.T) {
+func TestChunk_GetShardAssigment(t *testing.T) {
 	t.Run("assignShard - 1000 nodes", func(t *testing.T) {
 		const n = 100000
 		startPrepareData := time.Now()
@@ -76,7 +75,7 @@ func TestChunk_AssignShard(t *testing.T) {
 		fmt.Printf("time sharding chunks: %v ms\n", time.Since(startSharding).Milliseconds())
 		nodeIDs := generateRandomNodeIDs(1000)
 		startAssignChunk := time.Now()
-		shard, err := chunk.AssignShard(shards, nodeIDs)
+		shard, err := chunk.GetShardAssigment(shards, nodeIDs)
 		if err != nil {
 			t.Errorf("error-assigning-shard: %v", err)
 		}
