@@ -251,7 +251,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height 
 	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
 		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) "+
 		"FROM %s AS t1 WHERE t1.height <= %d GROUP BY t1.id) "+
-		"GROUP BY t1.id ORDER BY t2.status",
+		"GROUP BY id ORDER BY t2.status",
 		strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
 }
 

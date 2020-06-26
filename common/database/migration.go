@@ -383,7 +383,7 @@ func (m *Migration) Init() error {
 				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
 				"signature"		BLOB,						-- signature of above fields (signed using node private key)
 				"status" 		INTEGER,					-- pending or confirmed
-				PRIMARY KEY("node_id","address","port"),	-- primary key
+				PRIMARY KEY("node_id","address","port")		-- primary key
 			)
 			`,
 			`

@@ -564,7 +564,7 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 				"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id " +
 				"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) " +
 				"FROM node_registry AS t1 WHERE t1.height <= 10 GROUP BY t1.id) " +
-				"GROUP BY t1.id ORDER BY t2.status",
+				"GROUP BY id ORDER BY t2.status",
 		},
 	}
 	for _, tt := range tests {
