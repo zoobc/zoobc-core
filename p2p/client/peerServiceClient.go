@@ -30,7 +30,7 @@ type (
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
 		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
-		GetNodeProofOfOrigin(destPeer *model.Peer, nodePublicKey []byte) (*model.ProofOfOrigin, error)
+		GetNodeProofOfOrigin(destPeer *model.Peer) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
@@ -306,10 +306,15 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 // GetNodeProofOfOrigin get a cryptographic prove of a node authenticity and origin
 func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 	destPeer *model.Peer,
-	nodePublicKey []byte,
 ) (*model.ProofOfOrigin, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+
+	if destPeer.Info.GetID() == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
+			"Cannot get proof of origin from an unregistered node: %s:%d",
+			destPeer.GetInfo().Address, destPeer.GetInfo().Port))
+	}
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -336,8 +341,13 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 	if err != nil {
 		return nil, err
 	}
+
 	// validate response: message signature = challenge+timestamp
-	if err := psc.NodeAuthValidation.ValidateProofOfOrigin(res, nodePublicKey, challenge); err != nil {
+	nr, err := psc.NodeRegistrationService.GetNodeRegistrationByNodeID(destPeer.Info.GetID())
+	if err != nil {
+		return nil, err
+	}
+	if err := psc.NodeAuthValidation.ValidateProofOfOrigin(res, nr.GetNodePublicKey(), challenge); err != nil {
 		return nil, err
 	}
 

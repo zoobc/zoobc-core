@@ -13,6 +13,7 @@ type (
 	NodeAddressInfoQueryInterface interface {
 		InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{})
 		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
+		ConfirmNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{})
 		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) string
 		GetNodeAddressInfoByAddressPort(
@@ -78,6 +79,28 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 	values := append(paq.ExtractModel(peerAddress)[1:], peerAddress.NodeID)
 	queries = append(queries,
 		append([]interface{}{qryUpdate}, values...),
+	)
+	return queries
+}
+
+// ConfirmNodeAddressInfo returns a slice of queries/query parameters containing the insert/delete queries to be executed.
+func (paq *NodeAddressInfoQuery) ConfirmNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) [][]interface{} {
+	var (
+		queries [][]interface{}
+	)
+	qryDeleteOld := fmt.Sprintf(
+		"DELETE FROM %s WHERE node_id = ? AND status = ?",
+		paq.getTableName(),
+	)
+	qryInsertReplace := fmt.Sprintf(
+		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
+		paq.getTableName(),
+		strings.Join(paq.Fields, ", "),
+		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(paq.Fields)-1)),
+	)
+	queries = append(queries,
+		append([]interface{}{qryDeleteOld}, nodeAddressInfo.GetNodeID(), uint32(model.NodeAddressStatus_NodeAddressPending)),
+		append([]interface{}{qryInsertReplace}, paq.ExtractModel(nodeAddressInfo)...),
 	)
 	return queries
 }

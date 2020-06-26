@@ -495,3 +495,68 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nodeAddressInfo *model.NodeAddressInfo
+	}
+	nodeAddressInfo := &model.NodeAddressInfo{
+		Address:     "127.0.0.1",
+		Port:        3000,
+		NodeID:      111,
+		Status:      model.NodeAddressStatus_NodeAddressPending,
+		BlockHeight: 10,
+		Signature:   make([]byte, 64),
+		BlockHash:   make([]byte, 32),
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   [][]interface{}
+	}{
+		{
+			name: "GetNodeAddressInfoByAddressPort:success",
+			args: args{
+				nodeAddressInfo: nodeAddressInfo,
+			},
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			want: [][]interface{}{
+				[]interface{}{
+					"DELETE FROM node_address_info WHERE node_id = ? AND status = ?",
+					int64(111),
+					uint32(model.NodeAddressStatus_NodeAddressPending),
+				},
+				[]interface{}{
+					"INSERT OR REPLACE INTO node_address_info (node_id, address, port, block_height, block_hash, signature, status) " +
+						"VALUES(? , ? , ? , ? , ? , ? , ? )",
+					nodeAddressInfo.NodeID,
+					nodeAddressInfo.Address,
+					nodeAddressInfo.Port,
+					nodeAddressInfo.BlockHeight,
+					nodeAddressInfo.BlockHash,
+					nodeAddressInfo.Signature,
+					nodeAddressInfo.Status,
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paq := &NodeAddressInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := paq.ConfirmNodeAddressInfo(tt.args.nodeAddressInfo); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeAddressInfoQuery.ConfirmNodeAddressInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

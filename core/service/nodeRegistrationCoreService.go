@@ -27,6 +27,7 @@ type (
 		GetRegisteredNodes() ([]*model.NodeRegistration, error)
 		GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
+		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error)
@@ -52,8 +53,10 @@ type (
 			nodeAddress string,
 			port uint32,
 			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
-		UpdatePendingNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error)
+		UpdatePendingNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (updated bool, err error)
+		DeletePendingNodeAddressInfo(nodeID int64) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
+		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -170,6 +173,25 @@ func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*mode
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
 	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, nodePublicKey)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(nodeRegistrations) > 0 {
+		return nodeRegistrations[0], nil
+	}
+	return nil, nil
+}
+
+func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
+	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeID)
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -345,6 +367,7 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 				Address:       nodeInfo.GetAddress(),
 				Port:          nodeInfo.GetPort(),
 				SharedAddress: nodeInfo.GetAddress(),
+				AddressStatus: node.GetNodeAddressInfo().GetStatus(),
 			},
 		}
 		index := key
@@ -639,6 +662,25 @@ func (nrs *NodeRegistrationService) UpdatePendingNodeAddressInfo(nodeAddressInfo
 	return true, nil
 }
 
+func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeId int64) error {
+	qry, args := nrs.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+		nodeId,
+		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
+	// start db transaction here
+	err := nrs.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
+	if err != nil {
+		if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			nrs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
+	return nrs.QueryExecutor.CommitTx()
+}
+
 // ValidateNodeAddressInfo validate message data against:
 // - main blocks: block height and hash
 // - node registry: nodeID and message signature (use node public key in registry to validate the signature)
@@ -747,4 +789,27 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 	nodeAddressInfoBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	nodeAddressInfo.Signature = nrs.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
 	return nodeAddressInfo, nil
+}
+
+// ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
+func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error {
+	queries := nrs.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
+	executor := nrs.QueryExecutor
+	err := executor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = executor.ExecuteTransactions(queries)
+	if err != nil {
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
+		return err
+	}
+	err = executor.CommitTx()
+	if err != nil {
+		return err
+	}
+	return nil
 }

@@ -1629,6 +1629,13 @@ func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodePublicKey(
 	return nil, nil
 }
 
+func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
+	if psMock.currentNode != nil {
+		return psMock.currentNode, nil
+	}
+	return nil, nil
+}
+
 func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64,
 	addressStatus []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
 	if psMock.currentNodeAddressInfo != nil {

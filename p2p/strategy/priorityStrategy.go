@@ -419,8 +419,47 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
-	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer)
-	if err != nil {
+	var (
+		responseError, errNodeAddressInfo error
+		nodeAddressesInfo                 []*model.NodeAddressInfo
+	)
+
+	// if address is pending ask for a proof of origin, else ask for peer info
+	if destPeer.GetInfo().GetAddressStatus() == model.NodeAddressStatus_NodeAddressPending {
+		_, responseError = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
+		if responseError == nil {
+			if nodeAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
+				[]int64{destPeer.GetInfo().GetID()},
+				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
+			); errNodeAddressInfo == nil {
+				// confirm pending peer address (and override previous one)
+				errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(nodeAddressesInfo[0])
+			}
+		} else {
+			// if peer doesn't answer with its pending address, or answers with an invalid proof of origin,
+			// try challenging the peer at its confirmed address
+			nodeAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
+				[]int64{destPeer.GetInfo().GetID()},
+				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
+			)
+			if errNodeAddressInfo == nil && len(nodeAddressesInfo) > 0 {
+				// update peer info
+				confirmedNodeAddressInfo := nodeAddressesInfo[0]
+				destPeer.Info.Address = confirmedNodeAddressInfo.GetAddress()
+				destPeer.Info.Port = confirmedNodeAddressInfo.GetPort()
+				destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+				_, responseError = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
+				if responseError == nil {
+					// pending address failed the challenge and confirmed succeeded, so delete pending address
+					_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(confirmedNodeAddressInfo.GetNodeID())
+				}
+			}
+		}
+	} else {
+		_, responseError = ps.PeerServiceClient.GetPeerInfo(destPeer)
+	}
+
+	if responseError != nil || errNodeAddressInfo != nil {
 		// TODO: add mechanism to blacklist failing peers
 		// will add into unresolved peer list if want to keep
 		// sotherwise remove permanently
@@ -439,11 +478,11 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	if destPeer != nil {
 		destPeer.ResolvingTime = time.Now().UTC().Unix()
 	}
-	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
+	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
 
-	if err = ps.AddToResolvedPeer(destPeer); err != nil {
+	if err := ps.AddToResolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
 	}
 }
@@ -1043,8 +1082,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 	if err != nil {
 		return nil, err
 	} else if nr != nil && nr.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
-		// STEF: not sure about this.. for now we only syncronize pending node addresses because confirmed ones are 'updated' during node
-		// scrambling only
+		// STEF: for now we only synchronize pending node addresses because confirmed ones are 'updated' during node scrambling only
 		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.GetNodeID()},
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}); err != nil {
 			return nil, err
