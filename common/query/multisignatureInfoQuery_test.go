@@ -3,7 +3,6 @@ package query
 import (
 	"database/sql"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -155,7 +154,6 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 				&mockExtractMultisignatureInfoMultisig.Nonce,
 				&mockExtractMultisignatureInfoMultisig.BlockHeight,
 				&mockExtractMultisignatureInfoMultisig.Latest,
-				strings.Join(mockExtractMultisignatureInfoMultisig.Addresses, ","),
 			},
 		},
 	}
@@ -270,7 +268,7 @@ func TestMultisignatureInfoQuery_InsertMultisignatureInfo(t *testing.T) {
 					"INSERT OR REPLACE INTO multisignature_info (multisig_address, minimum_signatures, nonce, block_height, latest) " +
 						"VALUES(? , ? , ? , ? , ? )",
 				}, mockMultisigInfoQueryInstance.ExtractModel(
-					mockInsertMultisignatureInfoMultisig)[:len(NewMultisignatureInfoQuery().Fields)-1]...),
+					mockInsertMultisignatureInfoMultisig)...),
 				{
 					"UPDATE multisignature_info SET latest = false WHERE multisig_address = ? AND " +
 						"block_height != 0 AND latest = true", mockInsertMultisignatureInfoMultisig.MultisigAddress,
@@ -604,7 +602,7 @@ func TestMultisignatureInfoQuery_InsertMultiSignatureInfos(t *testing.T) {
 				append([]interface{}{
 					"INSERT INTO multisignature_info (multisig_address, minimum_signatures, nonce, block_height, latest) VALUES (?, ?, ?, ?, ?)",
 				},
-					musigQ.ExtractModel(mockInsertMultisignatureInfoMultisig)[:len(musigQ.Fields)-1]...,
+					musigQ.ExtractModel(mockInsertMultisignatureInfoMultisig)...,
 				),
 				{
 					"INSERT INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +

@@ -81,7 +81,7 @@ func (msi *MultisignatureInfoQuery) InsertMultisignatureInfo(multisigInfo *model
 		multisigInfo.BlockHeight,
 	)
 	queries = append(queries,
-		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)[:len(msi.Fields)-1]...),
+		append([]interface{}{insertQuery}, msi.ExtractModel(multisigInfo)...),
 		[]interface{}{
 			updateQuery, multisigInfo.MultisigAddress,
 		},
@@ -117,7 +117,7 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 			if m < len(multiSignatureInfos)-1 {
 				musigInfoQ += ","
 			}
-			musigInfoArgs = append(musigInfoArgs, msi.ExtractModel(musig)[:len(msi.Fields)-1]...)
+			musigInfoArgs = append(musigInfoArgs, msi.ExtractModel(musig)...)
 
 			for a, address := range musig.GetAddresses() {
 				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
@@ -142,6 +142,9 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 	}
 	return queries
 }
+
+// Scan will build model from *sql.Row that expect has addresses column
+// which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
 	var addresses string
 	err := row.Scan(
@@ -156,18 +159,19 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 	return err
 }
 
+// ExtractModel will get values exclude addresses, perfectly used while inserting new record.
 func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{} {
-	addresses := strings.Join(multisigInfo.Addresses, ",")
 	return []interface{}{
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
 		&multisigInfo.Nonce,
 		&multisigInfo.BlockHeight,
 		&multisigInfo.Latest,
-		addresses,
 	}
 }
 
+// BuildModel will build model from *sql.Rows that expect has addresses column
+// which is result from sub query of multisignature_participant
 func (msi *MultisignatureInfoQuery) BuildModel(
 	mss []*model.MultiSignatureInfo, rows *sql.Rows,
 ) ([]*model.MultiSignatureInfo, error) {
