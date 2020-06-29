@@ -684,22 +684,23 @@ func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeId int64) e
 // ValidateNodeAddressInfo validate message data against:
 // - main blocks: block height and hash
 // - node registry: nodeID and message signature (use node public key in registry to validate the signature)
-func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (bool, error) {
+func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
-		block                  model.Block
-		nodeRegistration       model.NodeRegistration
-		prevPendingAddressInfo *model.NodeAddressInfo
+		block             model.Block
+		nodeRegistration  model.NodeRegistration
+		nodeAddressesInfo []*model.NodeAddressInfo
 	)
 
 	// validate nodeID
 	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
 	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
-	err := nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	err = nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return false, blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+			err = blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+			return
 		}
-		return true, err
+		return
 	}
 
 	// validate the message signature
@@ -709,7 +710,8 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		nodeAddressInfo.GetSignature(),
 		nodeRegistration.GetNodePublicKey(),
 	) {
-		return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+		return
 	}
 
 	// validate block height
@@ -717,35 +719,36 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	err = nrs.BlockQuery.Scan(&block, blockRow)
 	if err != nil || nodeAddressInfo.GetBlockHeight() <= block.GetHeight() {
 		if err == sql.ErrNoRows {
-			return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+			err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+			return
 		}
-		return true, err
+		return
 	}
 	// validate block hash
 	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
-		return true, blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+		return
 	}
 
-	nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressInfo.GetNodeID()},
+	nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressInfo.GetNodeID()},
 		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending})
 	if err != nil {
-		return true, err
+		return
 	}
 	for _, nai := range nodeAddressesInfo {
 		if nodeAddressInfo.GetAddress() == nai.GetAddress() &&
 			nodeAddressInfo.GetPort() == nai.GetPort() {
 			// in case address for this node exists
-			return true, blocker.NewBlocker(blocker.ValidationErr, "AddressAlreadyUpdatedForNode")
+			found = nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending
+			err = blocker.NewBlocker(blocker.ValidationErr, "AddressAlreadyUpdatedForNode")
+			return
 		}
 		if nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending && nai.BlockHeight >= nodeAddressInfo.BlockHeight {
-			prevPendingAddressInfo = nai
+			found = true
+			err = blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
+			return
 		}
 	}
-
-	if prevPendingAddressInfo != nil && prevPendingAddressInfo.BlockHeight >= nodeAddressInfo.BlockHeight {
-		return true, blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
-	}
-
 	return true, nil
 }
 
