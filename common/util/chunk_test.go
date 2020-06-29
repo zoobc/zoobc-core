@@ -70,9 +70,6 @@ func TestChunk_GetShardAssigment(t *testing.T) {
 		for _, mockChunk := range mockChunks {
 			chunks = append(chunks, mockChunk...)
 		}
-		// startSharding := time.Now()
-		// shards := chunk.ShardChunk(chunks, 6)
-		// fmt.Printf("time sharding chunks: %v ms\n", time.Since(startSharding).Milliseconds())
 		nodeIDs := generateRandomNodeIDs(1000)
 		startAssignChunk := time.Now()
 		shard, err := chunk.GetShardAssigment(chunks, 6, nodeIDs)
