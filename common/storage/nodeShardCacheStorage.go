@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"reflect"
+	"bytes"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -50,7 +50,7 @@ func (n *NodeShardCacheStorage) GetItem(lastChange, item interface{}) error {
 		mapCopy map[int64][]uint64
 	)
 	if last, ok := lastChange.([32]byte); ok {
-		if reflect.DeepEqual(last, n.lastChange) {
+		if bytes.Equal(last[:], n.lastChange[:]) {
 			mapCopy, ok = item.(map[int64][]uint64)
 			if !ok {
 				return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
