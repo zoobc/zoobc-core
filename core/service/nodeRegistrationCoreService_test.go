@@ -1367,7 +1367,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx b
 	defer db.Close()
 	switch qe {
 	case "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN (1111) " +
-		"AND status IN (1, 0)":
+		"AND status IN (2, 1)":
 		sqlRows = sqlmock.NewRows([]string{
 			"node_id",
 			"address",

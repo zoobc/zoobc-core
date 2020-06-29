@@ -163,7 +163,7 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 			},
 			wantArgs: []interface{}{
 				int64(111),
-				"1",
+				"2",
 			},
 			wantStr: "DELETE FROM node_address_info WHERE node_id = ? AND status IN (?)",
 		},
@@ -316,6 +316,7 @@ func TestNodeAddressInfoQuery_BuildModel(t *testing.T) {
 					BlockHash:   []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					Status: model.NodeAddressStatus_NodeAddressPending,
 				},
 			},
 		},
@@ -399,7 +400,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (0)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1)",
 		},
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success-{statusConfirmed}",
@@ -412,7 +413,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2)",
 		},
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success-{allAddressStatus}",
@@ -425,7 +426,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1, 0)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2, 1)",
 		},
 	}
 	for _, tt := range tests {
@@ -473,7 +474,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 			wantArgs: []interface{}{
 				"127.0.0.1",
 				uint32(8001),
-				"1",
+				"2",
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id = ? " +
 				"AND port = ? AND status IN (?)",
