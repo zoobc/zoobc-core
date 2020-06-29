@@ -46,13 +46,15 @@ func NewMultisigService(
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureQuery query.MultisignatureInfoQueryInterface,
+	multiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface,
 ) *MultisigService {
 	return &MultisigService{
-		Executor:                executor,
-		BlockService:            blockService,
-		PendingTransactionQuery: pendingTransactionQuery,
-		PendingSignatureQuery:   pendingSignatureQuery,
-		MultisignatureInfoQuery: multisignatureQuery,
+		Executor:                       executor,
+		BlockService:                   blockService,
+		PendingTransactionQuery:        pendingTransactionQuery,
+		PendingSignatureQuery:          pendingSignatureQuery,
+		MultisignatureInfoQuery:        multisignatureQuery,
+		MultiSignatureParticipantQuery: multiSignatureParticipantQuery,
 	}
 }
 
