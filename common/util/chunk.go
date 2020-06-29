@@ -67,27 +67,37 @@ func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][
 // GetShardAssigment assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
 // nodeIDs could be sorted
 func (c *ChunkUtil) GetShardAssigment(
-	shards map[uint64][][]byte,
+	chunks []byte, shardBitLength int,
 	nodeIDs []int64,
-) (map[int64][]uint64, error) {
+) (storage.ShardMap, error) {
 	type nodeOrder struct {
 		nodeID int64
 		hash   []byte
 	}
 	var (
 		shardRedundancy = int(math.Ceil(math.Sqrt(float64(len(nodeIDs)))))
-		nodeShards      = make(map[int64][]uint64)
-		err             error
+		shardMap        = storage.ShardMap{
+			NodeShards:  make(map[int64][]uint64),
+			ShardChunks: make(map[uint64][][]byte),
+		}
+		err error
 	)
+	lastChange := sha3.Sum256(chunks)
+	err = c.nodeShardCacheStorage.GetItem(lastChange, &shardMap)
+	if err == nil {
+		return shardMap, nil
+	}
+	shards := c.ShardChunk(chunks, shardBitLength)
+	shardMap.ShardChunks = shards // set new cache
 	for shardNumber := range shards {
 		var nodeOrders = make([]nodeOrder, len(nodeIDs))
 		for i := 0; i < len(nodeIDs); i++ { // todo: split hashing to multiple goroutines
 			digest := sha3.New256()
 			if _, err := digest.Write(ConvertUint64ToBytes(uint64(nodeIDs[i]))); err != nil {
-				return nil, err
+				return shardMap, err
 			}
 			if _, err := digest.Write(ConvertUint64ToBytes(shardNumber)); err != nil {
-				return nil, err
+				return shardMap, err
 			}
 			nodeOrders[i] = nodeOrder{
 				nodeID: nodeIDs[i],
@@ -103,18 +113,13 @@ func (c *ChunkUtil) GetShardAssigment(
 			return res < 0
 		})
 		for i := 0; i < shardRedundancy; i++ {
-			nodeShards[nodeOrders[i].nodeID] = append(nodeShards[nodeOrders[i].nodeID], shardNumber)
+			shardMap.NodeShards[nodeOrders[i].nodeID] = append(shardMap.NodeShards[nodeOrders[i].nodeID], shardNumber)
 		}
 	}
 
-	var joinedNodeIDs uint64
-	for _, v := range nodeIDs {
-		joinedNodeIDs += uint64(v)
-	}
-
-	err = c.nodeShardCacheStorage.SetItem(sha3.Sum256(ConvertUint64ToBytes(joinedNodeIDs)), nodeShards)
+	err = c.nodeShardCacheStorage.SetItem(lastChange, shardMap)
 	if err != nil {
 		c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
 	}
-	return nodeShards, err
+	return shardMap, err
 }
