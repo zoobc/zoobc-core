@@ -12,10 +12,9 @@ import (
 type (
 	NodeShardCacheStorage struct {
 		sync.RWMutex
-		// representation of sorted NodeIDs hashed
+		// representation of sorted chunk_hashes hashed
 		lastChange [32]byte
-		// NodeShards map[int64][]uint64
-		shardMap ShardMap
+		shardMap   ShardMap
 	}
 	ShardMap struct {
 		NodeShards  map[int64][]uint64
