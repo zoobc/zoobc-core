@@ -53,7 +53,7 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 	var (
 		coinbaseSigmoidMin float64 = 1 / (1 + math.Exp(-constant.CoinbaseSigmoidStart))
 		coinbaseSigmoidMax float64 = 1 / (1 + math.Exp(-constant.CoinbaseSigmoidEnd))
-		//t is ranges from 0.0 at the genesis, to 1.0 after CoinbaseTime
+		// t is ranges from 0.0 at the genesis, to 1.0 after CoinbaseTime
 		t float64 = util.MinFloat64(
 			1.0,
 			float64(blockTimestamp-cbs.Chaintype.GetGenesisBlockTimestamp())/float64(constant.CoinbaseTime),
@@ -71,7 +71,7 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 	blocksmiths []*model.Blocksmith,
-	blockTimestamp int64,
+	blockTimestamp,
 	previousBlockTimestamp int64,
 ) ([]string, error) {
 	var (
@@ -99,7 +99,7 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 		return res < 0
 	})
 
-	// get number of rewards recepients
+	// get number of rewards recipients
 	numRewards = (blockTimestamp - previousBlockTimestamp) * constant.CoinbaseNumberRewardsPerSecond
 	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
 	numRewards = util.MinInt64(numRewards, int64(len(blocksmiths)))

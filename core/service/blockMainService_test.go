@@ -979,7 +979,7 @@ type (
 
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
 	blocksmiths []*model.Blocksmith,
-	blockTimestamp int64,
+	blockTimestamp,
 	previousBlockTimestamp int64,
 ) ([]string, error) {
 	return []string{}, nil
