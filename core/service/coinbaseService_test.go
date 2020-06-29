@@ -192,7 +192,7 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 				blockTimesatamp:         (&chaintype.MainChain{}).GetGenesisBlockTimestamp() + 15,
 				previousBlockTimesatamp: (&chaintype.MainChain{}).GetGenesisBlockTimestamp(),
 			},
-			want: 86041924,
+			want: 5234176702,
 		},
 	}
 	for _, tt := range tests {
@@ -240,37 +240,6 @@ func TestNewCoinbaseService(t *testing.T) {
 				tt.args.chaintype,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewCoinbaseService() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestCoinbaseService_GetTotalDistribution(t *testing.T) {
-	type fields struct {
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		Chaintype             chaintype.ChainType
-	}
-	type args struct {
-		blockTimestamp int64
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   int64
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cbs := &CoinbaseService{
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				Chaintype:             tt.fields.Chaintype,
-			}
-			if got := cbs.GetTotalDistribution(tt.args.blockTimestamp); got != tt.want {
-				t.Errorf("CoinbaseService.GetTotalDistribution() = %v, want %v", got, tt.want)
 			}
 		})
 	}
