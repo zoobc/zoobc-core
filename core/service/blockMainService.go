@@ -563,6 +563,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		totalReward := block.TotalFee + block.TotalCoinBase
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
 			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+			block.Timestamp,
+			previousBlock.Timestamp,
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -1093,7 +1095,7 @@ func (bs *BlockService) GenerateBlock(
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
-	totalCoinbase = bs.CoinbaseService.GetCoinbase()
+	totalCoinbase = bs.CoinbaseService.GetCoinbase(timestamp, previousBlock.Timestamp)
 	if !empty {
 		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
