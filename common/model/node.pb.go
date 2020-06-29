@@ -90,7 +90,7 @@ func (m *Node) GetAddressStatus() NodeAddressStatus {
 	if m != nil {
 		return m.AddressStatus
 	}
-	return NodeAddressStatus_NodeAddressPending
+	return NodeAddressStatus_Unset
 }
 
 type NodeKey struct {

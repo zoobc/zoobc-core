@@ -329,10 +329,11 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 	}()
 
 	// generate the otp
-	challenge, err := util.GenerateRandomBytes(int(util.GetSecureRandom()))
+	challenge, err := util.GenerateRandomBytes(64)
 	if err != nil {
 		return nil, err
 	}
+
 	// send the challenge
 	res, err := p2pClient.GetNodeProofOfOrigin(ctx, &model.GetNodeProofOfOriginRequest{
 		ChallengeMessage: challenge,
@@ -347,11 +348,12 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 	if err != nil {
 		return nil, err
 	}
-	if err := psc.NodeAuthValidation.ValidateProofOfOrigin(res, nr.GetNodePublicKey(), challenge); err != nil {
+	err = psc.NodeAuthValidation.ValidateProofOfOrigin(res, nr.GetNodePublicKey(), challenge)
+	if err != nil {
 		return nil, err
 	}
 
-	return res, err
+	return res, nil
 }
 
 // SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)

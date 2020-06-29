@@ -83,7 +83,7 @@ func (nav *NodeAuthValidation) ValidateProofOfOrigin(
 	nodePublicKey,
 	challengeResponse []byte,
 ) error {
-	if poorig.Timestamp > time.Now().Unix() {
+	if poorig.Timestamp < time.Now().Unix() {
 		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOriginExpired")
 	}
 

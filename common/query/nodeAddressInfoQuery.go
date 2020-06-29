@@ -92,6 +92,7 @@ func (paq *NodeAddressInfoQuery) ConfirmNodeAddressInfo(nodeAddressInfo *model.N
 		"DELETE FROM %s WHERE node_id = ? AND status = ?",
 		paq.getTableName(),
 	)
+	nodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	qryInsertReplace := fmt.Sprintf(
 		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		paq.getTableName(),

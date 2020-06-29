@@ -78,6 +78,7 @@ func (ps *PriorityStrategy) Start() {
 	go ps.GetMorePeersThread()
 	go ps.UpdateBlacklistedStatusThread()
 	go ps.ConnectPriorityPeersThread()
+	time.Sleep(2 * time.Second)
 	go ps.UpdateNodeAddressThread()
 	// wait until there is at least one connected (resolved) peer we can communicate to before sync the address info table
 	go ps.SyncNodeAddressInfoTableThread()
@@ -359,6 +360,8 @@ func (ps *PriorityStrategy) ResolvePeers() {
 	// collecting unresolved peers that are priority
 	for _, unresolvedPeer := range unresolvedPeers {
 		if priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] != nil && resolvedPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] == nil {
+			// copy peer info from priority peer, to no loose nodeId and peer address status
+			unresolvedPeer.Info = priorityPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)].GetInfo()
 			priorityUnresolvedPeers[p2pUtil.GetFullAddressPeer(unresolvedPeer)] = unresolvedPeer
 		}
 	}
@@ -422,18 +425,28 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	var (
 		responseError, errNodeAddressInfo error
 		nodeAddressesInfo                 []*model.NodeAddressInfo
+		poorig                            *model.ProofOfOrigin
 	)
 
 	// if address is pending ask for a proof of origin, else ask for peer info
 	if destPeer.GetInfo().GetAddressStatus() == model.NodeAddressStatus_NodeAddressPending {
-		_, responseError = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
-		if responseError == nil {
+		poorig, responseError = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
+		if responseError == nil && poorig != nil {
 			if nodeAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
 				[]int64{destPeer.GetInfo().GetID()},
 				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
 			); errNodeAddressInfo == nil {
 				// confirm pending peer address (and override previous one)
-				errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(nodeAddressesInfo[0])
+				if len(nodeAddressesInfo) > 0 {
+					errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(nodeAddressesInfo[0])
+					destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+				} else if nodeAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
+					[]int64{destPeer.GetInfo().GetID()},
+					[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
+				); errNodeAddressInfo == nil && len(nodeAddressesInfo) > 0 {
+					// this is an extra safe for the edge case where destPeer reports a different address status from what is in db
+					destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+				}
 			}
 		} else {
 			// if peer doesn't answer with its pending address, or answers with an invalid proof of origin,
@@ -1170,20 +1183,18 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 
 // ReceiveNodeAddressInfo receive a node address info from a peer and save it to db
 func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	// STEF TODO: probably this logic will go away..
-	// // check if this node address/port are already in db and belong to some other node (compare nodeIDs)
-	// prevNodeAddressInfo, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
-	// 	nodeAddressInfo.GetAddress(),
-	// 	nodeAddressInfo.GetPort())
-	// if err != nil {
-	// 	return err
-	// }
-	// if prevNodeAddressInfo != nil && prevNodeAddressInfo.GetNodeID() != nodeAddressInfo.GetNodeID() {
-	// 	// STEF TODO: send a challenge to that address to make sure that node is the rightful owner
-	// }
+	// skip if received address is own address
+	myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
+	myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
+	if errAddr == nil &&
+		errPort == nil &&
+		nodeAddressInfo.GetAddress() == myAddress &&
+		nodeAddressInfo.GetPort() == myPort {
+		return nil
+	}
 
 	// add it to nodeAddressInfo table
-	updated, err := ps.NodeRegistrationService.UpdatePendingNodeAddressInfo(nodeAddressInfo)
+	updated, err := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -1235,7 +1246,11 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			nodeSecretPhrase); err != nil {
 			return err
 		}
-		if updated, err = ps.NodeRegistrationService.UpdatePendingNodeAddressInfo(nodeAddressInfo); err != nil {
+		// set status to 'confirmed' when updating own address
+		if updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(
+			nodeAddressInfo,
+			model.NodeAddressStatus_NodeAddressConfirmed,
+		); err != nil {
 			return err
 		}
 		if len(resolvedPeers) == 0 {

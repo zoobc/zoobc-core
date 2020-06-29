@@ -53,7 +53,7 @@ type (
 			nodeAddress string,
 			port uint32,
 			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
-		UpdatePendingNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (updated bool, err error)
+		UpdateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo, status model.NodeAddressStatus) (updated bool, err error)
 		DeletePendingNodeAddressInfo(nodeID int64) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
@@ -427,12 +427,18 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 	}
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
+		var (
+			addressStatus model.NodeAddressStatus
+		)
+		if node.GetNodeAddressInfo() != nil {
+			addressStatus = node.GetNodeAddressInfo().GetStatus()
+		}
 		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
 		// note that we already have the address in node struct: see GetNodeRegistryAtHeightWithNodeAddress
 		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
 		// Checking port of address,
 		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
-		fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
+		fullAddress = p2pUtil.GetFullAddressPeer(&model.Peer{
 			Info: nodeInfo,
 		})
 		peer := &model.Peer{
@@ -441,10 +447,11 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 				Address:       nodeInfo.GetAddress(),
 				Port:          nodeInfo.GetPort(),
 				SharedAddress: nodeInfo.GetAddress(),
+				AddressStatus: addressStatus,
 			},
 		}
 		index := key
-		newIndexNodes[fullAddresss] = &index
+		newIndexNodes[fullAddress] = &index
 		newAddressNodes = append(newAddressNodes, peer)
 	}
 
@@ -599,20 +606,22 @@ func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 	return nodeAddressesInfo, nil
 }
 
-// UpdatePendingNodeAddressInfo updates or adds (in case new) a node address info record to db
-// NOTE: nodeAddressInfo is supposed to have been already validated
-func (nrs *NodeRegistrationService) UpdatePendingNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (updated bool, err error) {
+// UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
+func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
+	nodeAddressInfo *model.NodeAddressInfo,
+	status model.NodeAddressStatus,
+) (updated bool, err error) {
 	// validate first
 	pendingAddressInfoFound, err := nrs.ValidateNodeAddressInfo(nodeAddressInfo)
 	if err != nil {
 		return false, err
 	}
-	nodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressPending
+	nodeAddressInfo.Status = status
 	if pendingAddressInfoFound {
 		// check if already exist and if new one is more recent
 		nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb(
 			[]int64{nodeAddressInfo.NodeID},
-			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
+			[]model.NodeAddressStatus{status},
 		)
 		if err != nil {
 			return false, err

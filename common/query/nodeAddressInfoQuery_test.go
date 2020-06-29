@@ -89,7 +89,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 		want   [][]interface{}
 	}{
 		{
-			name: "UpdatePendingNodeAddressInfo:success",
+			name: "UpdateNodeAddressInfo:success",
 			args: args{
 				peerAddress: &model.NodeAddressInfo{
 					NodeID:      111,
@@ -129,7 +129,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				TableName: tt.fields.TableName,
 			}
 			if got := paq.UpdateNodeAddressInfo(tt.args.peerAddress); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeAddressInfoQuery.UpdatePendingNodeAddressInfo() = %v, want %v", got, tt.want)
+				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -543,7 +543,7 @@ func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
 					nodeAddressInfo.BlockHeight,
 					nodeAddressInfo.BlockHash,
 					nodeAddressInfo.Signature,
-					nodeAddressInfo.Status,
+					model.NodeAddressStatus_NodeAddressConfirmed,
 				},
 			},
 		},

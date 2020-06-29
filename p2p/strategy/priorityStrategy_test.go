@@ -231,7 +231,7 @@ func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
 	return nil, nil
 }
 
-func (p2pNr *p2pMockNodeRegistraionService) UpdatePendingNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
+func (p2pNr *p2pMockNodeRegistraionService) UpdateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
 	return p2pNr.addressInfoUpdated, nil
 }
 
@@ -1618,7 +1618,10 @@ func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(
 	return true, errors.New("MockedError")
 }
 
-func (psMock *psMockNodeRegistrationService) UpdatePendingNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (updated bool, err error) {
+func (psMock *psMockNodeRegistrationService) UpdateNodeAddressInfo(
+	nodeAddressMessage *model.NodeAddressInfo,
+	status model.NodeAddressStatus,
+) (updated bool, err error) {
 	return true, nil
 }
 
