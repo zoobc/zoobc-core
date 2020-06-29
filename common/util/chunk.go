@@ -6,16 +6,14 @@ import (
 	"sort"
 
 	"github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/storage"
-
 	"golang.org/x/crypto/sha3"
 )
 
 type (
 	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
-		AssignShard(
+		GetShardAssigment(
 			shards map[uint64][][]byte,
 			nodeIDs []int64,
 		) (map[int64][]uint64, error)
@@ -66,8 +64,9 @@ func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][
 	return shards
 }
 
-// AssignShard assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
-func (c *ChunkUtil) AssignShard(
+// GetShardAssigment assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
+// nodeIDs could be sorted
+func (c *ChunkUtil) GetShardAssigment(
 	shards map[uint64][][]byte,
 	nodeIDs []int64,
 ) (map[int64][]uint64, error) {
@@ -76,8 +75,9 @@ func (c *ChunkUtil) AssignShard(
 		hash   []byte
 	}
 	var (
-		nodeShards      = make(map[int64][]uint64)
 		shardRedundancy = int(math.Ceil(math.Sqrt(float64(len(nodeIDs)))))
+		nodeShards      = make(map[int64][]uint64)
+		err             error
 	)
 	for shardNumber := range shards {
 		var nodeOrders = make([]nodeOrder, len(nodeIDs))
@@ -106,11 +106,15 @@ func (c *ChunkUtil) AssignShard(
 			nodeShards[nodeOrders[i].nodeID] = append(nodeShards[nodeOrders[i].nodeID], shardNumber)
 		}
 	}
-	go func() {
-		err := c.nodeShardCacheStorage.SetItem(nodeShards)
-		if err != nil {
-			c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
-		}
-	}()
-	return nodeShards, nil
+
+	var joinedNodeIDs uint64
+	for _, v := range nodeIDs {
+		joinedNodeIDs += uint64(v)
+	}
+
+	err = c.nodeShardCacheStorage.SetItem(sha3.Sum256(ConvertUint64ToBytes(joinedNodeIDs)), nodeShards)
+	if err != nil {
+		c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
+	}
+	return nodeShards, err
 }
