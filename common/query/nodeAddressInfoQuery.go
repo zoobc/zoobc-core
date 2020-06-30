@@ -16,6 +16,7 @@ type (
 		ConfirmNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{})
 		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) string
+		GetNodeAddressInfo() string
 		GetNodeAddressInfoByAddressPort(
 			address string, port uint32,
 			addressStatuses []model.NodeAddressStatus,
@@ -138,6 +139,12 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64, ad
 		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr, addrStatusesStr)
 }
 
+// GetNodeAddressInfo returns query string to get contents of node_address_info table
+func (paq *NodeAddressInfoQuery) GetNodeAddressInfo() string {
+	return fmt.Sprintf("SELECT %s FROM %s GROUP BY node_id ORDER BY status ASC",
+		strings.Join(paq.Fields, ", "), paq.getTableName())
+}
+
 // GetNodeAddressInfoByAddressPort returns query string to get peerAddress by node ID
 func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(
 	address string, port uint32,
@@ -148,7 +155,7 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(
 		c[i] = strconv.Itoa(int(v))
 	}
 	addrStatusesStr := strings.Join(c, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? AND status IN (?)",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? AND status IN (?) ORDER BY status ASC",
 		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port, addrStatusesStr}
 }
 

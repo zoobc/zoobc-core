@@ -77,13 +77,15 @@ type (
 	}
 	// P2PServerService represent of P2P server service
 	P2PServerService struct {
-		NodeRegistrationService coreService.NodeRegistrationServiceInterface
-		FileService             coreService.FileServiceInterface
-		PeerExplorer            strategy.PeerExplorerStrategyInterface
-		BlockServices           map[int32]coreService.BlockServiceInterface
-		MempoolServices         map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase        string
-		Observer                *observer.Observer
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		FileService              coreService.FileServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
+		PeerExplorer             strategy.PeerExplorerStrategyInterface
+		BlockServices            map[int32]coreService.BlockServiceInterface
+		MempoolServices          map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase         string
+		Observer                 *observer.Observer
 	}
 )
 
@@ -91,6 +93,8 @@ type (
 func NewP2PServerService(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	fileService coreService.FileServiceInterface,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAddressInfoServiceInterface coreService.NodeAddressInfoServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
@@ -98,25 +102,29 @@ func NewP2PServerService(
 	observer *observer.Observer,
 ) *P2PServerService {
 	return &P2PServerService{
-		NodeRegistrationService: nodeRegistrationService,
-		FileService:             fileService,
-		PeerExplorer:            peerExplorer,
-		BlockServices:           blockServices,
-		MempoolServices:         mempoolServices,
-		NodeSecretPhrase:        nodeSecretPhrase,
-		Observer:                observer,
+		NodeRegistrationService:  nodeRegistrationService,
+		FileService:              fileService,
+		NodeConfigurationService: nodeConfigurationService,
+		NodeAddressInfoService:   nodeAddressInfoServiceInterface,
+		PeerExplorer:             peerExplorer,
+		BlockServices:            blockServices,
+		MempoolServices:          mempoolServices,
+		NodeSecretPhrase:         nodeSecretPhrase,
+		Observer:                 observer,
 	}
 }
 
 // GetNodeAddressesInfo responds to the request of peers a (pending) node address info
-// STEF note: for now we only sync pending node address info because every node is responsible of confirming its own peers' addresses
+// note: since we can return one address per nodeID and node addresses can have more than one state,
+// 'confirmed' addresses will be preferred over 'pending' when a node has both versions, when retrieving addresses from a peer
 func (ps *P2PServerService) GetNodeAddressesInfo(
 	ctx context.Context,
 	req *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		if nodeAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(req.NodeIDs,
-			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}); err == nil {
+		if nodeAddressesInfo, err := ps.NodeAddressInfoService.GetAddressInfoTableWithConsolidatedAddresses(
+			model.NodeAddressStatus_NodeAddressConfirmed,
+		); err == nil {
 			return &model.GetNodeAddressesInfoResponse{
 				NodeAddressesInfo: nodeAddressesInfo,
 			}, nil
@@ -132,14 +140,26 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 		nodeAddressInfo = req.NodeAddressInfoMessage
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
+		// if node receives own address don't do anything
+		myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
+		myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
+		if errAddr == nil && errPort == nil && myAddress == nodeAddressInfo.GetAddress() && myPort == nodeAddressInfo.GetPort() {
+			return &model.Empty{}, nil
+		}
 		// validate node address info message and signature
 		if _, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry)
-			return nil, err
-		}
-		// update db and rebroadcast message if nodeAddressInfo is new
-		err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo)
-		if err != nil {
+			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
+			//  or address is already in db or peer sent an old, but valid addressinfo)
+			// if validation failed because we already have this address in db, don't return errors (that behaviour could be exploited)
+			// errorMsg := err.Error()
+			// errCasted, ok := err.(blocker.Blocker)
+			// if ok {
+			// 	errorMsg = errCasted.Message
+			// }
+			// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
+			// 	// blacklist peer!
+			// }
+		} else if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 		return &model.Empty{}, nil

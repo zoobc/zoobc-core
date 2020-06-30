@@ -13,9 +13,9 @@ const (
 	SecondsToUpdatePeersConnection int64 = 15 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 10
-	// UpdateNodeAddressGap, interval of peer thread to update node dynamic address
+	// UpdateNodeAddressGap, interval in seconds of peer thread to update node dynamic address
 	UpdateNodeAddressGap uint = 3600
-	// SyncNodeAddressGap, interval of peer thread to sync node address info table
+	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
 	SyncNodeAddressGap uint = 30 // every 30 min
 	// SyncNodeAddressDelay, delay in millis to execute send/get address info api call,
 	// to make sure even if many nodes start at the same time they won't execute requests at the same time

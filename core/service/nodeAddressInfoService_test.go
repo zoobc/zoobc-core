@@ -111,14 +111,15 @@ func (*nrcuMockQueryExecutor) ExecuteSelect(qe string, tx bool, args ...interfac
 	return rows, nil
 }
 
-func TestNodeRegistrationUtils_GetRegisteredNodesWithConsolidatedAddresses(t *testing.T) {
+func TestNodeAddressInfoService_GetRegisteredNodesWithConsolidatedAddresses(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		Logger                *log.Logger
 	}
 	type args struct {
-		height uint32
+		height          uint32
+		preferredStatus model.NodeAddressStatus
 	}
 	tests := []struct {
 		name    string
@@ -128,65 +129,119 @@ func TestNodeRegistrationUtils_GetRegisteredNodesWithConsolidatedAddresses(t *te
 		wantErr bool
 	}{
 		{
-			name: "GetRegisteredNodesWithConsolidatedAddresses",
+			name: "GetRegisteredNodesWithConsolidatedAddresses:preferPending",
 			fields: fields{
 				Logger:                log.New(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &nrcuMockQueryExecutor{},
 			},
 			args: args{
-				height: 10,
+				height:          10,
+				preferredStatus: model.NodeAddressStatus_NodeAddressPending,
 			},
 			want: []*model.NodeRegistration{
 				{
-					NodeID:             int64(111),
-					NodePublicKey:      []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-					AccountAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					RegistrationHeight: uint32(0),
+					NodeID:         int64(111),
+					NodePublicKey:  []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					NodeAddress: &model.NodeAddress{
 						Address: "127.0.0.2",
 						Port:    uint32(4000),
 					},
-					LockedBalance:      10000000000,
-					RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
-					Latest:             true,
-					Height:             uint32(11),
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(11),
 					NodeAddressInfo: &model.NodeAddressInfo{
 						Status: model.NodeAddressStatus_NodeAddressPending,
 					},
 				},
 				{
-					NodeID:             int64(222),
-					NodePublicKey:      []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
-					AccountAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjAAA",
-					RegistrationHeight: uint32(0),
+					NodeID:         int64(222),
+					NodePublicKey:  []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjAAA",
 					NodeAddress: &model.NodeAddress{
 						Address: "127.0.0.3",
 						Port:    uint32(5000),
 					},
-					LockedBalance:      10000000000,
-					RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
-					Latest:             true,
-					Height:             uint32(8),
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(8),
 					NodeAddressInfo: &model.NodeAddressInfo{
 						Status: model.NodeAddressStatus_NodeAddressPending,
 					},
 				},
 				{
-					NodeID:             int64(333),
-					NodePublicKey:      []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
-					AccountAddress:     "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjBBB",
-					RegistrationHeight: uint32(0),
+					NodeID:         int64(333),
+					NodePublicKey:  []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjBBB",
 					NodeAddress: &model.NodeAddress{
 						Address: "127.0.0.4",
 						Port:    uint32(6000),
 					},
-					LockedBalance:      10000000000,
-					RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
-					Latest:             true,
-					Height:             uint32(18),
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(18),
 					NodeAddressInfo: &model.NodeAddressInfo{
 						Status: model.NodeAddressStatus_NodeAddressPending,
+					},
+				},
+			},
+		},
+		{
+			name: "GetRegisteredNodesWithConsolidatedAddresses:preferConfirmed",
+			fields: fields{
+				Logger:                log.New(),
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         &nrcuMockQueryExecutor{},
+			},
+			args: args{
+				height:          10,
+				preferredStatus: model.NodeAddressStatus_NodeAddressConfirmed,
+			},
+			want: []*model.NodeRegistration{
+				{
+					NodeID:         int64(111),
+					NodePublicKey:  []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.1",
+						Port:    uint32(3000),
+					},
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(10),
+					NodeAddressInfo: &model.NodeAddressInfo{
+						Status: model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
+				{
+					NodeID:         int64(222),
+					NodePublicKey:  []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjAAA",
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.3",
+						Port:    uint32(5000),
+					},
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(8),
+					NodeAddressInfo: &model.NodeAddressInfo{
+						Status: model.NodeAddressStatus_NodeAddressPending,
+					},
+				},
+				{
+					NodeID:         int64(333),
+					NodePublicKey:  []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3},
+					AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjBBB",
+					NodeAddress: &model.NodeAddress{
+						Address: "127.0.0.4",
+						Port:    uint32(7000),
+					},
+					LockedBalance: int64(10000000000),
+					Latest:        true,
+					Height:        uint32(20),
+					NodeAddressInfo: &model.NodeAddressInfo{
+						Status: model.NodeAddressStatus_NodeAddressConfirmed,
 					},
 				},
 			},
@@ -194,19 +249,29 @@ func TestNodeRegistrationUtils_GetRegisteredNodesWithConsolidatedAddresses(t *te
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nru := &NodeRegistrationUtils{
+			nru := &NodeAddressInfoService{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				Logger:                tt.fields.Logger,
 			}
-			got, err := nru.GetRegisteredNodesWithConsolidatedAddresses(tt.args.height)
+			got, err := nru.GetRegisteredNodesWithConsolidatedAddresses(tt.args.height, tt.args.preferredStatus)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("NodeAddressInfoService.GetRegisteredNodesWithConsolidatedAddresses() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses() = %v, want %v", got, tt.want)
+			var found bool
+			for _, gotNai := range got {
+				for _, wantNai := range tt.want {
+					if reflect.DeepEqual(gotNai, wantNai) {
+						found = true
+						break
+					}
+				}
 			}
+			if !found {
+				t.Errorf("NodeAddressInfoService.GetRegisteredNodesWithConsolidatedAddresses() = %v, want %v", got, tt.want)
+			}
+
 		})
 	}
 }

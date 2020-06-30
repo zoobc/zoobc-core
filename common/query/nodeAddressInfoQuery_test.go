@@ -477,7 +477,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 				"2",
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id = ? " +
-				"AND port = ? AND status IN (?)",
+				"AND port = ? AND status IN (?) ORDER BY status ASC",
 		},
 	}
 	for _, tt := range tests {
@@ -557,6 +557,39 @@ func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
 			}
 			if got := paq.ConfirmNodeAddressInfo(tt.args.nodeAddressInfo); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeAddressInfoQuery.ConfirmNodeAddressInfo() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeAddressInfoQuery_GetNodeAddressInfo(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GetNodeAddressInfo",
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			want: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info GROUP BY node_id ORDER BY " +
+				"status ASC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paq := &NodeAddressInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := paq.GetNodeAddressInfo(); got != tt.want {
+				t.Errorf("GetNodeAddressInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}

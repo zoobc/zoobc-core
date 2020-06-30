@@ -596,13 +596,15 @@ type (
 	executorBuildScrambleNodesFail struct {
 		query.Executor
 	}
-	nrsMockNodeRegistrationUtils struct {
-		NodeRegistrationUtils
+	nrsMockNodeAddressInfoService struct {
+		NodeAddressInfoService
 		getRegisteredNodesWithConsolidatedAddressesFail bool
 	}
 )
 
-func (nrsMock *nrsMockNodeRegistrationUtils) GetRegisteredNodesWithConsolidatedAddresses(height uint32) ([]*model.NodeRegistration, error) {
+func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidatedAddresses(
+	height uint32,
+	preferredStatus model.NodeAddressStatus) ([]*model.NodeRegistration, error) {
 	if nrsMock.getRegisteredNodesWithConsolidatedAddressesFail {
 		return nil, errors.New("MockedError")
 	}
@@ -662,10 +664,10 @@ func (*executorBuildScrambleNodesFail) ExecuteSelect(qStr string, tx bool, args 
 func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		NodeRegistrationUtils NodeRegistrationUtilsInterface
-		Logger                *log.Logger
+		QueryExecutor          query.ExecutorInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		NodeAddressInfoService NodeAddressInfoServiceInterface
+		Logger                 *log.Logger
 	}
 	type args struct {
 		block *model.Block
@@ -687,9 +689,9 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 						Db: db,
 					},
 				},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeRegistrationUtils: &nrsMockNodeRegistrationUtils{},
-				Logger:                log.New(),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				NodeAddressInfoService: &nrsMockNodeAddressInfoService{},
+				Logger:                 log.New(),
 			},
 			args: args{
 				block: &model.Block{
@@ -707,7 +709,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 					},
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeRegistrationUtils: &nrsMockNodeRegistrationUtils{
+				NodeAddressInfoService: &nrsMockNodeAddressInfoService{
 					getRegisteredNodesWithConsolidatedAddressesFail: true,
 				},
 				Logger: log.New(),
@@ -724,11 +726,11 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				NodeRegistrationUtils: tt.fields.NodeRegistrationUtils,
-				ScrambledNodes:        map[uint32]*model.ScrambledNodes{},
-				Logger:                tt.fields.Logger,
+				QueryExecutor:          tt.fields.QueryExecutor,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				NodeAddressInfoService: tt.fields.NodeAddressInfoService,
+				ScrambledNodes:         map[uint32]*model.ScrambledNodes{},
+				Logger:                 tt.fields.Logger,
 			}
 			errResult := nrs.BuildScrambledNodes(tt.args.block)
 			if (errResult != nil) != tt.wantErr {
@@ -1252,13 +1254,13 @@ type (
 		crypto.SignatureInterface
 		isValid bool
 	}
-	nodeRegistrationUtilsMock struct {
-		NodeRegistrationUtilsInterface
+	nodeAddressInfoServiceMock struct {
+		NodeAddressInfoServiceInterface
 		nodeAddressInfoBytes []byte
 	}
 )
 
-func (nrMock *nodeRegistrationUtilsMock) GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte {
+func (nrMock *nodeAddressInfoServiceMock) GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte {
 	return nrMock.nodeAddressInfoBytes
 }
 
@@ -1411,7 +1413,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
 		Signature                    crypto.SignatureInterface
-		NodeRegistrationUtils        NodeRegistrationUtilsInterface
+		NodeAddressInfoService       NodeAddressInfoServiceInterface
 	}
 	type args struct {
 		nodeAddressInfo *model.NodeAddressInfo
@@ -1479,7 +1481,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: false,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1503,7 +1505,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1527,7 +1529,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1552,7 +1554,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1577,7 +1579,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1600,7 +1602,7 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
 				Signature:                    tt.fields.Signature,
-				NodeRegistrationUtils:        tt.fields.NodeRegistrationUtils,
+				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
 			}
 
 			if _, err := nrs.ValidateNodeAddressInfo(tt.args.nodeAddressInfo); err != nil {
@@ -1639,7 +1641,7 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
 		Signature                    crypto.SignatureInterface
-		NodeRegistrationUtils        NodeRegistrationUtilsInterface
+		NodeAddressInfoService       NodeAddressInfoServiceInterface
 	}
 	type args struct {
 		nodeID           int64
@@ -1668,7 +1670,7 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeRegistrationUtils: &nodeRegistrationUtilsMock{
+				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
 				Logger: log.New(),
@@ -1699,7 +1701,7 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
 				Signature:                    tt.fields.Signature,
-				NodeRegistrationUtils:        tt.fields.NodeRegistrationUtils,
+				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
 			}
 			got, err := nrs.GenerateNodeAddressInfo(tt.args.nodeID, tt.args.nodeAddress, tt.args.port, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {

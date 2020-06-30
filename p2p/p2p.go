@@ -33,6 +33,8 @@ type (
 			mempoolServices map[int32]coreService.MempoolServiceInterface,
 			fileService coreService.FileServiceInterface,
 			nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+			nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
 		)
 		// exposed api list
@@ -93,12 +95,16 @@ func (s *Peer2PeerService) StartP2P(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	fileService coreService.FileServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
 		nodeRegistrationService,
 		fileService,
+		nodeConfigurationService,
+		nodeAddressInfoService,
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,

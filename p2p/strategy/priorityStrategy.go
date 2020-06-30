@@ -578,7 +578,7 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		timeInterval = constant.UpdateNodeAddressGap
 	} else {
 		// if can't connect to any resolved peers, wait till we hopefully get some more from the network
-		timeInterval = constant.ResolvePeersGap * 10
+		timeInterval = constant.ResolvePeersGap * 2
 	}
 	ticker := time.NewTicker(time.Duration(timeInterval) * time.Second)
 	sigs := make(chan os.Signal, 1)
@@ -629,9 +629,7 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 }
 
 func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
-	// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
-	rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
-	time.Sleep(time.Duration(rndTimer) * time.Millisecond)
+	ps.rndDelay()
 	// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
 	// to have as many priority peers as possible to download the bc from
 	if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
@@ -640,33 +638,28 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 
 	var (
 		// first sync cycle: wait until the blockchain is fully downloaded, then sync
-		bootstrapTicker = time.NewTicker(time.Duration(2) * time.Second)
+		bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap*2) * time.Second)
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
-		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Second)
+		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
 	)
 	// make sure to not trigger the second ticker until the first cycle is concluded
 	ticker.Stop()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
+		// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have all updated addresses
+		// note: when bc is full downloaded the node should be able to validate all address info messages
+		err := ps.getRegistryAndSyncAddressInfoTable()
+		if err == nil && ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
+			bootstrapTicker.Stop()
+			ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
+		}
 		select {
 		case <-bootstrapTicker.C:
-			// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have all updated addresses
-			// note: when bc is full downloaded the node should be able to validate all address info
-			// messages
-			if ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
-				if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
-					ps.Logger.Error(err)
-				} else {
-					bootstrapTicker.Stop()
-					ticker = time.NewTicker(time.Duration(int64(constant.SyncNodeAddressGap)*1000*60+rndTimer) * time.Millisecond)
-				}
-			}
+			continue
 		case <-ticker.C:
-			if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
-				ps.Logger.Error(err)
-			}
+			continue
 		case <-sigs:
 			bootstrapTicker.Stop()
 			return
@@ -874,6 +867,23 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		monitoring.SetUnresolvedPeersCount(len(host.UnresolvedPeers))
 	}()
 	peer.UnresolvingTime = time.Now().UTC().Unix()
+	// in case it doesn't have a nodeID, check if this unresolved peer is in address info table and assign proper id and address status
+	if peer.GetInfo() != nil && peer.Info.ID == 0 {
+		if nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+			peer.Info.Address,
+			peer.Info.Port,
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending, model.NodeAddressStatus_NodeAddressConfirmed},
+		); err == nil {
+			// the record set is ordered by status, so excluding records with 'unset' status,
+			// we get pending addresses first and if not present, confirmed
+			for _, nai := range nais {
+				if nai.GetStatus() != model.NodeAddressStatus_Unset {
+					peer.Info.ID = nai.GetNodeID()
+					peer.Info.AddressStatus = nai.GetStatus()
+				}
+			}
+		}
+	}
 	host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
 	ps.NodeConfigurationService.SetHost(host)
 	return nil
@@ -1082,6 +1092,8 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		mutex                  = &sync.Mutex{}
 		syncMyAddressWithPeers bool
 		myAddressInfo          *model.NodeAddressInfo
+		curNodeRegistration    *model.NodeRegistration
+		err                    error
 	)
 
 	// Copy map to not interfere with original
@@ -1091,13 +1103,13 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 	}
 
 	// if current node is registered, broadcast it back to its peers, in case they don't know its address
-	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(ps.NodeConfigurationService.GetNodePublicKey())
-	if err != nil {
+	if curNodeRegistration, err = ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(ps.NodeConfigurationService.
+		GetNodePublicKey()); err != nil {
 		return nil, err
-	} else if nr != nil && nr.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
-		// STEF: for now we only synchronize pending node addresses because confirmed ones are 'updated' during node scrambling only
-		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{nr.GetNodeID()},
-			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}); err != nil {
+	} else if curNodeRegistration != nil {
+		// node own address is always 'confirmed'
+		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{curNodeRegistration.GetNodeID()},
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed}); err != nil {
 			return nil, err
 		} else if len(myAddressesInfo) > 0 {
 			myAddressInfo = myAddressesInfo[0]
@@ -1202,10 +1214,12 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 		// re-broadcast updated node address info
 		for _, peer := range ps.GetResolvedPeers() {
 			go func(peer *model.Peer) {
-				// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
-				rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
-				time.Sleep(time.Duration(rndTimer) * time.Millisecond)
+				ps.rndDelay()
 				peerInfo := peer.GetInfo()
+				// don't broadcast to peer with same address to be broadcast
+				if peerInfo.Address == nodeAddressInfo.Address && peerInfo.Port == nodeAddressInfo.Port {
+					return
+				}
 				ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
 					nodeAddressInfo.Address,
 					nodeAddressInfo.Port,
@@ -1263,9 +1277,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		if updated || forceBroadcast {
 			for _, peer := range resolvedPeers {
 				go func(peer *model.Peer) {
-					// introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
-					rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
-					time.Sleep(time.Duration(rndTimer) * time.Millisecond)
+					ps.rndDelay()
 					peerInfo := peer.GetInfo()
 					ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
 						nodeAddressInfo.Address,
@@ -1302,4 +1314,10 @@ func (ps *PriorityStrategy) GenerateProofOfOrigin(
 		nodeSecretPhrase,
 	)
 	return poorig
+}
+
+// rndDelay introduce a delay of 0 to 10 seconds (steps are in millis) to avoid sending all requests at once
+func (ps *PriorityStrategy) rndDelay() {
+	rndTimer := util.GetFastRandom(util.GetFastRandomSeed(), constant.SyncNodeAddressDelay)
+	time.Sleep(time.Duration(rndTimer) * time.Millisecond)
 }

@@ -97,6 +97,7 @@ var (
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
 	nodeConfigurationService                        service.NodeConfigurationServiceInterface
+	nodeAddressInfoService                          service.NodeAddressInfoServiceInterface
 	feeScaleService                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
@@ -156,6 +157,14 @@ func init() {
 	transactionUtil = &transaction.Util{
 		FeeScaleService: feeScaleService,
 	}
+
+	nodeAddressInfoService = service.NewNodeAddressInfoService(
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewNodeAddressInfoQuery(),
+		loggerCoreService,
+	)
+
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
@@ -167,11 +176,7 @@ func init() {
 		loggerCoreService,
 		blockchainStatusService,
 		crypto.NewSignature(),
-		service.NewNodeRegistrationUtils(
-			queryExecutor,
-			query.NewNodeRegistrationQuery(),
-			loggerCoreService,
-		),
+		nodeAddressInfoService,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -449,6 +454,8 @@ func startServices() {
 		mempoolServices,
 		fileService,
 		nodeRegistrationService,
+		nodeConfigurationService,
+		nodeAddressInfoService,
 		observerInstance,
 	)
 	api.Start(

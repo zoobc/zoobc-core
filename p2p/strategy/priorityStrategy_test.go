@@ -778,6 +778,7 @@ func TestPriorityStrategy_GetAnyUnresolvedPeer(t *testing.T) {
 func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		QueryExecutor            query.ExecutorInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
@@ -799,6 +800,7 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 				NodeConfigurationService: &p2pMockNodeConfigurationService{
 					host: priorityStrategyGoodHostInstance,
 				},
+				NodeRegistrationService: &mockNodeRegistrationService{},
 			},
 			args: args{
 				peer: &model.Peer{
@@ -816,6 +818,7 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
 				QueryExecutor:            tt.fields.QueryExecutor,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
@@ -1190,7 +1193,9 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 			UnresolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
+	mockNodeRegistrationService := &p2pMockNodeRegistraionService{}
+	ps := NewPriorityStrategy(nil, mockNodeRegistrationService, nil, nil, nil,
+		nil, mockNodeConfigurationService, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -1258,6 +1263,13 @@ func (*mockNodeRegistrationService) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
 	return mockGoodScrambledNodes, nil
+}
+
+func (*mockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
+	address string,
+	port uint32,
+	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
+	return nil, nil
 }
 
 func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {

@@ -207,7 +207,7 @@ func TestNodeAuthValidation_ValidateProofOfOrigin(t *testing.T) {
 			args: args{
 				poorig: &model.ProofOfOrigin{
 					MessageBytes: make([]byte, 32),
-					Timestamp:    time.Now().Unix() + 10,
+					Timestamp:    time.Now().Unix() - 1,
 					Signature:    []byte{},
 				},
 				nodePublicKey:     nodePubKey1,
@@ -223,7 +223,7 @@ func TestNodeAuthValidation_ValidateProofOfOrigin(t *testing.T) {
 			args: args{
 				poorig: &model.ProofOfOrigin{
 					MessageBytes: make([]byte, 32),
-					Timestamp:    time.Now().Unix() - 10,
+					Timestamp:    time.Now().Unix() + 10,
 					Signature:    []byte{},
 				},
 				nodePublicKey:     nodePubKey1,
@@ -239,7 +239,7 @@ func TestNodeAuthValidation_ValidateProofOfOrigin(t *testing.T) {
 			args: args{
 				poorig: &model.ProofOfOrigin{
 					MessageBytes: make([]byte, 32),
-					Timestamp:    time.Now().Unix() - 10,
+					Timestamp:    time.Now().Unix() + 10,
 					Signature:    []byte{},
 				},
 				nodePublicKey:     nodePubKey1,
@@ -251,11 +251,11 @@ func TestNodeAuthValidation_ValidateProofOfOrigin(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "ValidateProofOfOrigin:fail-{Success}",
+			name: "ValidateProofOfOrigin:{Success}",
 			args: args{
 				poorig: &model.ProofOfOrigin{
 					MessageBytes: make([]byte, 32),
-					Timestamp:    time.Now().Unix() - 10,
+					Timestamp:    time.Now().Unix() + 10,
 					Signature:    []byte{},
 				},
 				nodePublicKey:     nodePubKey1,

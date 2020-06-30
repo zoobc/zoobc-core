@@ -76,7 +76,7 @@ type (
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
 		Signature                    crypto.SignatureInterface
-		NodeRegistrationUtils        NodeRegistrationUtilsInterface
+		NodeAddressInfoService       NodeAddressInfoServiceInterface
 	}
 )
 
@@ -91,7 +91,7 @@ func NewNodeRegistrationService(
 	logger *log.Logger,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
-	nodeRegistrationUtils NodeRegistrationUtilsInterface,
+	nodeAddressInfoService NodeAddressInfoServiceInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:               queryExecutor,
@@ -104,7 +104,7 @@ func NewNodeRegistrationService(
 		ScrambledNodes:              map[uint32]*model.ScrambledNodes{},
 		BlockchainStatusService:     blockchainStatusService,
 		Signature:                   signature,
-		NodeRegistrationUtils:       nodeRegistrationUtils,
+		NodeAddressInfoService:      nodeAddressInfoService,
 		NodeAdmissionTimestampQuery: nodeAdmissionTimestampQuery,
 	}
 }
@@ -389,8 +389,11 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 func (nrs *NodeRegistrationService) sortNodeRegistries(
 	block *model.Block,
 ) ([]*model.NodeRegistration, error) {
-	// get node registry list: only registered nodes that already have a confirmed or pending address
-	nodeRegistries, err := nrs.NodeRegistrationUtils.GetRegisteredNodesWithConsolidatedAddresses(block.GetHeight())
+	// get node registry list: only registered nodes that already have a confirmed or pending address (preferring pending addr over confirmed)
+	nodeRegistries, err := nrs.NodeAddressInfoService.GetRegisteredNodesWithConsolidatedAddresses(
+		block.GetHeight(),
+		model.NodeAddressStatus_NodeAddressPending,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -693,6 +696,7 @@ func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeId int64) e
 // ValidateNodeAddressInfo validate message data against:
 // - main blocks: block height and hash
 // - node registry: nodeID and message signature (use node public key in registry to validate the signature)
+// Validation also fails if there is already a nodeAddressInfo record in db with same nodeID, address, port
 func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
 		block             model.Block
@@ -713,7 +717,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	}
 
 	// validate the message signature
-	unsignedBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	unsignedBytes := nrs.NodeAddressInfoService.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	if !nrs.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		nodeAddressInfo.GetSignature(),
@@ -726,11 +730,8 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 	// validate block height
 	blockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()), false)
 	err = nrs.BlockQuery.Scan(&block, blockRow)
-	if err != nil || nodeAddressInfo.GetBlockHeight() <= block.GetHeight() {
-		if err == sql.ErrNoRows {
-			err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
-			return
-		}
+	if err != nil {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
 		return
 	}
 	// validate block hash
@@ -748,7 +749,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		if nodeAddressInfo.GetAddress() == nai.GetAddress() &&
 			nodeAddressInfo.GetPort() == nai.GetPort() {
 			// in case address for this node exists
-			found = nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending
+			found = true
 			err = blocker.NewBlocker(blocker.ValidationErr, "AddressAlreadyUpdatedForNode")
 			return
 		}
@@ -798,7 +799,7 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 		BlockHeight: safeBlock.GetHeight(),
 		BlockHash:   safeBlock.GetBlockHash(),
 	}
-	nodeAddressInfoBytes := nrs.NodeRegistrationUtils.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	nodeAddressInfoBytes := nrs.NodeAddressInfoService.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	nodeAddressInfo.Signature = nrs.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
 	return nodeAddressInfo, nil
 }

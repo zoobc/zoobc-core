@@ -52,6 +52,10 @@ type (
 		nodeaddressesInfo []*model.NodeAddressInfo
 		coreService.NodeRegistrationServiceInterface
 	}
+	p2pSrvMockNodeAddressInfoService struct {
+		nodeaddressesInfo []*model.NodeAddressInfo
+		coreService.NodeAddressInfoService
+	}
 	mockPeerExplorerStrategySuccess struct {
 		strategy.PriorityStrategy
 	}
@@ -69,6 +73,12 @@ type (
 		coreService.BlockService
 	}
 )
+
+func (mockNais *p2pSrvMockNodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
+	preferredStatus model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	return mockNais.nodeaddressesInfo, nil
+}
 
 func (mock *mockNodeRegistrationServiceGetNodeAddressesInfoSuccess) GetNodeAddressesInfoFromDb(
 	nodeIDs []int64, addressStatus []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
@@ -140,7 +150,9 @@ func TestNewP2PServerService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewP2PServerService(tt.args.nodeRegistrationService, tt.args.fileService, tt.args.peerExplorer, tt.args.blockServices,
+			if got := NewP2PServerService(tt.args.nodeRegistrationService, tt.args.fileService, nil,
+				nil, tt.args.peerExplorer,
+				tt.args.blockServices,
 				tt.args.mempoolServices,
 				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
@@ -1863,6 +1875,7 @@ func TestP2PServerService_RequestDownloadFile(t *testing.T) {
 func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 	type fields struct {
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		NodeAddressInfoService  coreService.NodeAddressInfoServiceInterface
 		FileService             coreService.FileServiceInterface
 		PeerExplorer            strategy.PeerExplorerStrategyInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
@@ -1904,7 +1917,7 @@ func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 			name: "success",
 			fields: fields{
 				PeerExplorer: &mockPeerExplorerStrategySuccess{},
-				NodeRegistrationService: &mockNodeRegistrationServiceGetNodeAddressesInfoSuccess{
+				NodeAddressInfoService: &p2pSrvMockNodeAddressInfoService{
 					nodeaddressesInfo: nodeAddressesInfo,
 				},
 			},
@@ -1923,6 +1936,7 @@ func TestP2PServerService_GetNodeAddressesInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &P2PServerService{
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
 				FileService:             tt.fields.FileService,
 				PeerExplorer:            tt.fields.PeerExplorer,
 				BlockServices:           tt.fields.BlockServices,
