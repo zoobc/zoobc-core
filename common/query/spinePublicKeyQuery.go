@@ -30,6 +30,7 @@ func NewSpinePublicKeyQuery() *SpinePublicKeyQuery {
 	return &SpinePublicKeyQuery{
 		Fields: []string{
 			"node_public_key",
+			"node_id",
 			"public_key_action",
 			"main_block_height",
 			"latest",
@@ -80,6 +81,7 @@ func (spkq *SpinePublicKeyQuery) GetSpinePublicKeysByBlockHeight(height uint32) 
 func (spkq *SpinePublicKeyQuery) ExtractModel(spk *model.SpinePublicKey) []interface{} {
 	return []interface{}{
 		spk.NodePublicKey,
+		spk.NodeID,
 		spk.PublicKeyAction,
 		spk.MainBlockHeight,
 		spk.Latest,
@@ -100,6 +102,7 @@ func (spkq *SpinePublicKeyQuery) BuildModel(
 		)
 		err = rows.Scan(
 			&spk.NodePublicKey,
+			&spk.NodeID,
 			&spk.PublicKeyAction,
 			&spk.MainBlockHeight,
 			&spk.Latest,
@@ -126,6 +129,7 @@ func (spkq *SpinePublicKeyQuery) BuildBlocksmith(
 		)
 		err := rows.Scan(
 			&blocksmith.NodePublicKey,
+			&blocksmith.NodeID,
 			&blockID,
 			&nodeStatus,
 			&latest,
@@ -167,6 +171,7 @@ func (spkq *SpinePublicKeyQuery) Rollback(height uint32) (multiQueries [][]inter
 func (spkq *SpinePublicKeyQuery) Scan(spk *model.SpinePublicKey, row *sql.Row) error {
 	err := row.Scan(
 		&spk.NodePublicKey,
+		&spk.NodeID,
 		&spk.PublicKeyAction,
 		&spk.MainBlockHeight,
 		&spk.Latest,

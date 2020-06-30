@@ -889,8 +889,18 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		if mainchainGenesisEntry.NodePublicKey == nil {
 			continue
 		}
+		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
+			mainchainGenesisEntry.AccountAddress,
+			mainchainGenesisEntry.NodeAddress,
+			mainchainGenesisEntry.LockedBalance,
+			mainchainGenesisEntry.NodePublicKey,
+		)
+		if err != nil {
+			return nil
+		}
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
+			NodeID:          genesisNodeRegistrationTx.ID,
 			PublicKeyAction: model.SpinePublicKeyAction_AddKey,
 			MainBlockHeight: 0,
 			Height:          0,

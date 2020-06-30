@@ -50,6 +50,7 @@ var (
 		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
 	}
 	mockSpinePublicKey = &model.SpinePublicKey{
+		NodeID:          1,
 		NodePublicKey:   nrsNodePubKey1,
 		MainBlockHeight: 1,
 		PublicKeyAction: model.SpinePublicKeyAction_AddKey,
@@ -444,12 +445,13 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 				mockSpineBlockData.GetTotalCoinBase(),
 				mockSpineBlockData.GetVersion(),
 			))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
+				mockSpinePublicKey.NodeID,
 				mockSpinePublicKey.PublicKeyAction,
 				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,
@@ -1807,11 +1809,11 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string,
 
 	switch qStr {
 
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 0 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
@@ -1938,11 +1940,11 @@ func (*mockSpineQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx 
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
@@ -3361,11 +3363,11 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, arg
 				mockSpineGoodCommonBlock.GetVersion(),
 			),
 		)
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 1000 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -3792,12 +3794,14 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 0":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key " +
+		"WHERE height = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
+				mockSpinePublicKey.NodeID,
 				mockSpinePublicKey.PublicKeyAction,
 				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,

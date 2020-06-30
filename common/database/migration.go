@@ -420,6 +420,10 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
+			`
+			ALTER TABLE "spine_public_key"
+				ADD COLUMN "node_id" INTEGER AFTER "node_public_key"
+			`,
 		}
 		return nil
 	}
