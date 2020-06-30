@@ -48,7 +48,7 @@ func (cbs *CoinbaseService) GetCoinbase(blockTimesatamp, previousBlockTimesatamp
 	return cbs.GetTotalDistribution(blockTimesatamp) - cbs.GetTotalDistribution(previousBlockTimesatamp)
 }
 
-// GetTotalDistribution get number of token that should be distribtuted by given timestamp
+// GetTotalDistribution get number of token that should be distributed by given timestamp
 func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 	var (
 		coinbaseSigmoidMin float64 = 1 / (1 + math.Exp(-constant.CoinbaseSigmoidStart))
