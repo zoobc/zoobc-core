@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -46,7 +47,8 @@ func (ss *SnapshotScheduler) DeleteChunks(chainType chaintype.ChainType) error {
 			spineBlockManifest *model.SpineBlockManifest
 			spinePublicKeys    []*model.SpinePublicKey
 			nodeIDs            []int64
-			// chunksHashed       [][]byte
+			chunksHashed       [][]byte
+			shardMap           storage.ShardMap
 		)
 		block, err = ss.BlockCoreService.GetLastBlock()
 		if err != nil {
@@ -70,10 +72,18 @@ func (ss *SnapshotScheduler) DeleteChunks(chainType chaintype.ChainType) error {
 			return err
 		}
 		if spineBlockManifest != nil {
-			_, err = ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), sha256.Size)
+			chunksHashed, err = ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), sha256.Size)
 			if err != nil {
 				ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 				return err
+			}
+			for _, chunkHashed := range chunksHashed {
+				// ShardAssignment
+				shardMap, err = ss.SnapshotChunkUtil.GetShardAssigment(chunkHashed, constant.ShardBitLength, nodeIDs)
+				if err != nil {
+					return err
+				}
+				return nil
 			}
 
 		}

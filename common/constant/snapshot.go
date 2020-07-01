@@ -13,4 +13,6 @@ const (
 	SnapshotChunkSize int = int(100 * 1024) // 10 KB
 	// DownloadSnapshotNumberOfRetries number of times to retry downloading failed snapshot file chunks from other peers
 	DownloadSnapshotNumberOfRetries uint32 = 5
+
+	ShardBitLength = 8
 )
