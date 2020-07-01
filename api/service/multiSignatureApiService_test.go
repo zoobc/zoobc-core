@@ -578,13 +578,14 @@ func TestNewMultisigService(t *testing.T) {
 				PendingSignatureQuery:          nil,
 				MultiSignatureParticipantQuery: nil,
 				Logger:                         nil,
-				Logger:                         nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewMultisigService(tt.args.executor, tt.args.blockService, tt.args.pendingTransactionQuery, tt.args.pendingSignatureQuery, tt.args.multisignatureQuery, tt.args.multiSignatureParticipantQuery); !reflect.DeepEqual(got, tt.want) {
+			if got := NewMultisigService(tt.args.executor, tt.args.blockService, tt.args.pendingTransactionQuery,
+				tt.args.pendingSignatureQuery, tt.args.multisignatureQuery,
+				tt.args.multiSignatureParticipantQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewMultisigService() = %v, want %v", got, tt.want)
 			}
 		})
