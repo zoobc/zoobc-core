@@ -43,7 +43,7 @@ func (bsf *BlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height ui
 	return spinePublicKeys, nil
 }
 
-// GetSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
+// BuildSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
 func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	fromTimestamp,
 	toTimestamp int64,
@@ -81,7 +81,7 @@ func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	return spinePublicKeys, nil
 }
 
-// insertSpinePublicKeys insert all spine block publicKeys into spinePublicKey table
+// InsertSpinePublicKeys insert all spine block publicKeys into spinePublicKey table
 // Note: at this stage the spine pub keys have already been parsed into their model struct
 func (bsf *BlockSpinePublicKeyService) InsertSpinePublicKeys(block *model.Block) error {
 	queries := make([][]interface{}, 0)
