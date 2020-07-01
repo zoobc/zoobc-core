@@ -197,9 +197,10 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 				currentHeight:   0,
 				limit:           constant.MinRollbackBlocks,
 			},
-			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
-				"SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC" +
-				") as addresses FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
+			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, " +
+				"(SELECT GROUP_CONCAT(account_address, ',') FROM " +
+				"multisignature_participant GROUP BY multisig_address, block_height ORDER BY account_address_index DESC) as addresses " +
+				"FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{"A", uint32(0)},
 		},
 	}
