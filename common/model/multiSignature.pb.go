@@ -1242,7 +1242,7 @@ func file_model_multiSignature_proto_init() {
 	if File_model_multiSignature_proto != nil {
 		return
 	}
-
+	file_model_pagination_proto_init()
 	if !protoimpl.UnsafeEnabled {
 		file_model_multiSignature_proto_msgTypes[0].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*MultiSignatureInfo); i {
