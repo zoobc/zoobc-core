@@ -72,7 +72,7 @@ func TestChunk_GetShardAssigment(t *testing.T) {
 		}
 		nodeIDs := generateRandomNodeIDs(1000)
 		startAssignChunk := time.Now()
-		shard, err := chunk.GetShardAssigment(chunks, 6, nodeIDs)
+		shard, err := chunk.GetShardAssigment(chunks, 6, nodeIDs, false)
 		if err != nil {
 			t.Errorf("error-assigning-shard: %v", err)
 		}

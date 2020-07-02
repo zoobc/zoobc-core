@@ -73,7 +73,7 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks(filePath string) error {
 		}
 		if spineBlockManifest != nil {
 
-			shardMap, err = ss.SnapshotChunkUtil.GetShardAssigment(spineBlockManifest[0].GetFileChunkHashes(), sha256.Size, nodeIDs)
+			shardMap, err = ss.SnapshotChunkUtil.GetShardAssigment(spineBlockManifest[0].GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 			if err != nil {
 				ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 				return err
