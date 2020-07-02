@@ -62,7 +62,6 @@ func (*mockSpineBlockManifestSuccess) GetLastSpineBlockManifest(
 }
 func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 	type fields struct {
-		Logger                    *logrus.Logger
 		SpineBlockManifestService service.SpineBlockManifestServiceInterface
 		FileService               service.FileServiceInterface
 	}
@@ -79,7 +78,6 @@ func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 		{
 			name: "WantErr:SpineBlockManifest",
 			fields: fields{
-				Logger:                    logrus.New(),
 				SpineBlockManifestService: &mockSpineBlockManifestErr{},
 			},
 			wantErr: true,
@@ -87,7 +85,6 @@ func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 		{
 			name: "WantErr:SpineBlockManifestParseFail",
 			fields: fields{
-				Logger:                    logrus.New(),
 				SpineBlockManifestService: &mockSpineBlockManifestSuccess{},
 				FileService: service.NewFileService(
 					logrus.New(),
@@ -101,7 +98,6 @@ func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotScheduler{
-				Logger:                    tt.fields.Logger,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				FileService:               tt.fields.FileService,
 			}

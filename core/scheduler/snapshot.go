@@ -2,8 +2,8 @@ package scheduler
 
 import (
 	"crypto/sha256"
+	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -12,7 +12,6 @@ import (
 
 type (
 	SnapshotScheduler struct {
-		Logger                    *logrus.Logger
 		SpineBlockManifestService service.SpineBlockManifestServiceInterface
 		FileService               service.FileServiceInterface
 	}
@@ -31,30 +30,26 @@ func (ss *SnapshotScheduler) CheckChunksIntegrity(chainType chaintype.ChainType,
 
 	spineBlockManifest, err = ss.SpineBlockManifestService.GetLastSpineBlockManifest(chainType, model.SpineBlockManifestType_Snapshot)
 	if err != nil {
-		ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
 	}
 	// NOTE: Need to check this meanwhile err checked
 	if spineBlockManifest == nil {
-		ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, "SpineBlockManifest is nil"))
 		return blocker.NewBlocker(blocker.SchedulerError, "SpineBlockManifest is nil")
 	}
 
 	chunksHashed, err = ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), sha256.Size)
 	if err != nil {
-		ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
 	}
 	if len(chunksHashed) != 0 {
 		for _, chunkHashed := range chunksHashed {
 			_, err = ss.FileService.ReadFileByHash(filePath, chunkHashed)
 			if err != nil {
-				ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 				// Could be requesting a missing chunk p2p
+				fmt.Println(err) // TODO: Will update when p2p finish
 			}
 		}
 	}
-	ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, "Failed parsing File Chunk Hashes from Spine Block Manifest"))
 	return blocker.NewBlocker(blocker.SchedulerError, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 
 }

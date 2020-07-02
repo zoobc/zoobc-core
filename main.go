@@ -84,6 +84,7 @@ var (
 	loggerAPIService                                *log.Logger
 	loggerCoreService                               *log.Logger
 	loggerP2PService                                *log.Logger
+	loggerScheduler                                 *log.Logger
 	spinechainSynchronizer, mainchainSynchronizer   blockchainsync.BlockchainSyncServiceInterface
 	spineBlockManifestService                       service.SpineBlockManifestServiceInterface
 	snapshotService                                 service.SnapshotServiceInterface
@@ -242,7 +243,7 @@ func init() {
 
 	// initialize Observer
 	observerInstance = observer.NewObserver()
-	schedulerInstance = util.NewScheduler()
+	schedulerInstance = util.NewScheduler(loggerScheduler)
 	initP2pInstance()
 }
 
@@ -344,6 +345,9 @@ func initLogInstance() {
 		panic(err)
 	}
 	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels); err != nil {
+		panic(err)
+	}
+	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels); err != nil {
 		panic(err)
 	}
 }
@@ -786,13 +790,6 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.BlockPoolScanPeriod,
 		mainchainBlockService.ScanBlockPool,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
-	}
-	// scheduler to remove block uncomplete queue that already waiting transactions too long
-	if err := schedulerInstance.AddJob(
-		constant.CheckTimedOutBlock,
-		blockIncompleteQueueService.PruneTimeoutBlockQueue,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
