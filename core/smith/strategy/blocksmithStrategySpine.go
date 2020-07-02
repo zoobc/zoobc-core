@@ -202,9 +202,9 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 
 func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
-		currentTime                                 = time.Now().Unix()
-		ct                                          = &chaintype.MainChain{}
-		prevRoundBegin, prevRoundExpired, remainder int64
+		currentTime                      = time.Now().Unix()
+		ct                               = &chaintype.MainChain{}
+		prevRoundBegin, prevRoundExpired int64
 	)
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
@@ -219,6 +219,7 @@ func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBl
 
 		return blocker.NewBlocker(blocker.SmithingPending, "NUmberOfBlockSmithsLessThanWhatIsNeeded")
 	}
+	remainder := modTimeSinceLastBlock % timeForOneRound
 	nearestRoundBeginning := currentTime - remainder
 	if timeRound > 0 { // if more than one round has passed, calculate previous round start-expiry time for overlap
 		prevRoundStart := nearestRoundBeginning - timeForOneRound
