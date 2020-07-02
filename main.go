@@ -768,14 +768,14 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to generate receipt markle root
+	// scheduler to generate receipt merkle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,
 		blockIncompleteQueueService.PruneTimeoutBlockQueue,
@@ -789,16 +789,9 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
-	// scheduler to remove block uncomplete queue that already waiting transactions too long
-	if err := schedulerInstance.AddJob(
-		constant.CheckTimedOutBlock,
-		blockIncompleteQueueService.PruneTimeoutBlockQueue,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
-	}
 }
 
-func startBlockchainSyncronizers() {
+func startBlockchainSynchronizers() {
 	blockchainOrchestrator := blockchainsync.NewBlockchainOrchestratorService(
 		spinechainSynchronizer,
 		mainchainSynchronizer,
@@ -847,7 +840,7 @@ func main() {
 	startServices()
 	initObserverListeners()
 	startScheduler()
-	go startBlockchainSyncronizers()
+	go startBlockchainSynchronizers()
 
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
