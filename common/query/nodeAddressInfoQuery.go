@@ -90,7 +90,7 @@ func (paq *NodeAddressInfoQuery) ConfirmNodeAddressInfo(nodeAddressInfo *model.N
 		queries [][]interface{}
 	)
 	qryDeleteOld := fmt.Sprintf(
-		"DELETE FROM %s WHERE node_id = ? AND status = ?",
+		"DELETE FROM %s WHERE node_id = ? AND status != ?",
 		paq.getTableName(),
 	)
 	nodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
@@ -155,7 +155,7 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(
 		c[i] = strconv.Itoa(int(v))
 	}
 	addrStatusesStr := strings.Join(c, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND port = ? AND status IN (?) ORDER BY status ASC",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE address = ? AND port = ? AND status IN (?) ORDER BY status ASC",
 		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port, addrStatusesStr}
 }
 

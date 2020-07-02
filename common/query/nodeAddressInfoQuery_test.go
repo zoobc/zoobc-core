@@ -476,8 +476,8 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 				uint32(8001),
 				"2",
 			},
-			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id = ? " +
-				"AND port = ? AND status IN (?) ORDER BY status ASC",
+			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, " +
+				"status FROM node_address_info WHERE address = ? AND port = ? AND status IN (?) ORDER BY status ASC",
 		},
 	}
 	for _, tt := range tests {
@@ -531,7 +531,7 @@ func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
 			},
 			want: [][]interface{}{
 				[]interface{}{
-					"DELETE FROM node_address_info WHERE node_id = ? AND status = ?",
+					"DELETE FROM node_address_info WHERE node_id = ? AND status != ?",
 					int64(111),
 					uint32(model.NodeAddressStatus_NodeAddressPending),
 				},

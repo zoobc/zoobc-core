@@ -88,6 +88,7 @@ type (
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		PruneQuery                  []query.PruneQuery
+		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
 
@@ -124,6 +125,7 @@ func NewBlockMainService(
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
 	pruneQuery []query.PruneQuery,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -158,6 +160,7 @@ func NewBlockMainService(
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
 		PruneQuery:                  pruneQuery,
+		BlockchainStatusService:     blockchainStatusService,
 	}
 }
 
@@ -768,6 +771,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }

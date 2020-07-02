@@ -187,7 +187,7 @@ func (p2pSigMock *p2pMockSignature) SignByNode(payload []byte, nodeSeed string) 
 	return make([]byte, 64)
 }
 
-func (p2pNssMock *p2pMockNodeConfigurationService) SetMyAddress(nodeAddress string) {
+func (p2pNssMock *p2pMockNodeConfigurationService) SetMyAddress(nodeAddress string, port uint32) {
 }
 
 func (p2pNssMock *p2pMockNodeConfigurationService) GetNodeSecretPhrase() string {
@@ -229,6 +229,18 @@ func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
 	nodeAddressInfo *model.NodeAddressInfo,
 ) (*model.Empty, error) {
 	return nil, nil
+}
+
+func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressInfoFromDbByAddressPort(
+	address string,
+	port uint32,
+	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
+	return []*model.NodeAddressInfo{
+		&model.NodeAddressInfo{
+			NodeID: int64(111),
+			Status: model.NodeAddressStatus_NodeAddressPending,
+		},
+	}, nil
 }
 
 func (p2pNr *p2pMockNodeRegistraionService) UpdateNodeAddressInfo(
@@ -1604,7 +1616,8 @@ type (
 	}
 	psMockPeerStrategyHelper struct {
 		PeerStrategyHelperInterface
-		peer *model.Peer
+		peer    *model.Peer
+		counter int
 	}
 )
 
@@ -1627,7 +1640,7 @@ func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(
 	nodeAddressMessage *model.NodeAddressInfo,
 ) (bool, error) {
 	if psMock.validateAddressInfoSuccess {
-		return true, nil
+		return false, nil
 	}
 	return true, errors.New("MockedError")
 }
@@ -1672,17 +1685,10 @@ func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPo
 	return nil, nil
 }
 
+// GetRandomPeerWithoutRepetition spy on method instead of mock it, so we can mock other service methods while returning real values for this
 func (psMock *psMockPeerStrategyHelper) GetRandomPeerWithoutRepetition(peers map[string]*model.Peer, mutex *sync.Mutex) *model.Peer {
-	if psMock.peer != nil {
-		return psMock.peer
-	}
-	return &model.Peer{
-		Info: &model.Node{
-			SharedAddress: "127.0.0.1",
-			Address:       "127.0.0.1",
-			Port:          3000,
-		},
-	}
+	realService := NewPeerStrategyHelper()
+	return realService.GetRandomPeerWithoutRepetition(peers, mutex)
 }
 
 func (*mockPeerServiceClientFail) GetNodeAddressesInfo(

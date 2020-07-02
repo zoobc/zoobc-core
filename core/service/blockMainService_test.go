@@ -975,7 +975,12 @@ type (
 	mockPushBlockPublishedReceiptServiceSuccess struct {
 		PublishedReceiptService
 	}
+	mockBlockchainStatusService struct {
+		BlockchainStatusService
+	}
 )
+
+func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
 	return []string{}, nil
@@ -1025,6 +1030,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
 		FeeScaleService         fee.FeeScaleServiceInterface
+		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1057,6 +1063,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1098,6 +1105,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1137,6 +1145,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1178,6 +1187,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1219,6 +1229,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1255,6 +1266,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         tt.fields.FeeScaleService,
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1849,6 +1861,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		Logger                  *log.Logger
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
+		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1885,6 +1898,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
 		},
@@ -1909,6 +1923,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)

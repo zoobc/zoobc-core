@@ -9,7 +9,7 @@ import (
 
 type (
 	NodeConfigurationServiceInterface interface {
-		SetMyAddress(nodeAddress string)
+		SetMyAddress(nodeAddress string, port uint32)
 		GetMyAddress() (string, error)
 		GetMyPeerPort() (uint32, error)
 		SetIsMyAddressDynamic(nodeAddressDynamic bool)
@@ -57,9 +57,10 @@ func (nss *NodeConfigurationService) GetNodePublicKey() []byte {
 	return crypto.NewEd25519Signature().GetPublicKeyFromSeed(nss.GetNodeSecretPhrase())
 }
 
-func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string) {
+func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string, nodePort uint32) {
 	if host != nil {
 		host.Info.Address = nodeAddress
+		host.Info.Port = nodePort
 	}
 }
 

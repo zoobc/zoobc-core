@@ -53,7 +53,10 @@ type (
 			nodeAddress string,
 			port uint32,
 			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
-		UpdateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo, status model.NodeAddressStatus) (updated bool, err error)
+		UpdateNodeAddressInfo(
+			nodeAddressInfo *model.NodeAddressInfo,
+			updatedStatus model.NodeAddressStatus,
+		) (updated bool, err error)
 		DeletePendingNodeAddressInfo(nodeID int64) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
@@ -487,7 +490,7 @@ func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
 	nrs.ScrambledNodesLock.RLock()
 	scrambleNodeExist := nrs.ScrambledNodes[nearestHeight]
 	nrs.ScrambledNodesLock.RUnlock()
-	if scrambleNodeExist == nil {
+	if scrambleNodeExist == nil || blockHeight < constant.ScrambleNodesSafeHeight {
 		err = nrs.BuildScrambledNodesAtHeight(nearestHeight)
 		if err != nil {
 			return nil, err
@@ -612,26 +615,30 @@ func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 	nodeAddressInfo *model.NodeAddressInfo,
-	status model.NodeAddressStatus,
+	updatedStatus model.NodeAddressStatus,
 ) (updated bool, err error) {
+	var (
+		addressAlreadyUpdated bool
+		nodeAddressesInfo     []*model.NodeAddressInfo
+	)
 	// validate first
-	pendingAddressInfoFound, err := nrs.ValidateNodeAddressInfo(nodeAddressInfo)
-	if err != nil {
+	addressAlreadyUpdated, err = nrs.ValidateNodeAddressInfo(nodeAddressInfo)
+	if err != nil || addressAlreadyUpdated {
 		return false, err
 	}
-	nodeAddressInfo.Status = status
-	if pendingAddressInfoFound {
-		// check if already exist and if new one is more recent
-		nodeAddressesInfo, err := nrs.GetNodeAddressesInfoFromDb(
-			[]int64{nodeAddressInfo.NodeID},
-			[]model.NodeAddressStatus{status},
-		)
-		if err != nil {
-			return false, err
-		}
-		// double check that the record has been found to avoid panic
-		if len(nodeAddressesInfo) == 0 {
-			return false, blocker.NewBlocker(blocker.ValidationErr, "PreviousNodeIDNotFound")
+
+	nodeAddressInfo.Status = updatedStatus
+	// if a node with same id and status already exist, update
+	if nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb(
+		[]int64{nodeAddressInfo.NodeID},
+		[]model.NodeAddressStatus{nodeAddressInfo.Status},
+	); err != nil {
+		return false, err
+	}
+	if len(nodeAddressesInfo) > 0 && nodeAddressesInfo[0].GetBlockHeight() <= nodeAddressInfo.GetBlockHeight() {
+		// check if new address info is more recent than previous
+		if nodeAddressInfo.GetBlockHeight() > nodeAddressesInfo[0].GetBlockHeight() {
+			return
 		}
 		err = nrs.QueryExecutor.BeginTx()
 		if err != nil {
@@ -740,17 +747,16 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		return
 	}
 
-	nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressInfo.GetNodeID()},
-		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending})
-	if err != nil {
+	if nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressInfo.GetNodeID()},
+		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending}); err != nil {
 		return
 	}
+
 	for _, nai := range nodeAddressesInfo {
 		if nodeAddressInfo.GetAddress() == nai.GetAddress() &&
 			nodeAddressInfo.GetPort() == nai.GetPort() {
 			// in case address for this node exists
 			found = true
-			err = blocker.NewBlocker(blocker.ValidationErr, "AddressAlreadyUpdatedForNode")
 			return
 		}
 		if nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending && nai.BlockHeight >= nodeAddressInfo.BlockHeight {
@@ -759,7 +765,7 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 			return
 		}
 	}
-	return true, nil
+	return false, nil
 }
 
 // GenerateNodeAddressInfo generate a nodeAddressInfo signed message
