@@ -150,7 +150,7 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 		if alreadyUpdated, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
 			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
 			//  or address is already in db or peer sent an old, but valid addressinfo)
-			// if validation failed because we already have this address in db, don't return errors (that behaviour could be exploited)
+			// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
 			// errorMsg := err.Error()
 			// errCasted, ok := err.(blocker.Blocker)
 			// if ok {

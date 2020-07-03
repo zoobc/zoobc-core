@@ -530,12 +530,12 @@ func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			want: [][]interface{}{
-				[]interface{}{
+				{
 					"DELETE FROM node_address_info WHERE node_id = ? AND status != ?",
 					int64(111),
 					uint32(model.NodeAddressStatus_NodeAddressPending),
 				},
-				[]interface{}{
+				{
 					"INSERT OR REPLACE INTO node_address_info (node_id, address, port, block_height, block_hash, signature, status) " +
 						"VALUES(? , ? , ? , ? , ? , ? , ? )",
 					nodeAddressInfo.NodeID,

@@ -236,7 +236,7 @@ func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressInfoFromDbByAddressPor
 	port uint32,
 	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
 	return []*model.NodeAddressInfo{
-		&model.NodeAddressInfo{
+		{
 			NodeID: int64(111),
 			Status: model.NodeAddressStatus_NodeAddressPending,
 		},
@@ -1616,8 +1616,6 @@ type (
 	}
 	psMockPeerStrategyHelper struct {
 		PeerStrategyHelperInterface
-		peer    *model.Peer
-		counter int
 	}
 )
 

@@ -720,9 +720,9 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 	return true, nil
 }
 
-func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeId int64) error {
+func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeID int64) error {
 	qry, args := nrs.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
-		nodeId,
+		nodeID,
 		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
 	// start db transaction here
 	err := nrs.QueryExecutor.BeginTx()

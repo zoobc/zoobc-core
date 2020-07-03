@@ -487,9 +487,9 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 					poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(tmpDestPeer)
 					if errPoorig == nil && poorig != nil {
 						// previous confirmed address is re-confirmed and pending address failed validation, so remove pending address
-						errNodeAddressInfo = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
+						_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
 						// remove also unresolved peer who failed validation and change it with the new, confirmed, peer
-						ps.RemoveUnresolvedPeer(destPeer)
+						_ = ps.RemoveUnresolvedPeer(destPeer)
 						destPeer = tmpDestPeer
 						// this is an extra safe for the edge case where destPeer reports a different address status from what is in db
 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
@@ -628,14 +628,15 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
 		// check if node address info is empty
 		nrAddresses, _ := ps.NodeRegistrationService.GetRegisteredNodesWithNodeAddress()
-		if nrAddresses != nil && len(nrAddresses) > 0 && !ps.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
+		if len(nrAddresses) > 0 && !ps.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
 			continue
 		}
 		var (
 			host = ps.NodeConfigurationService.GetHost()
+			err  error
 		)
 		if !ps.NodeConfigurationService.IsMyAddressDynamic() {
-			if err := ps.UpdateOwnNodeAddressInfo(
+			if err = ps.UpdateOwnNodeAddressInfo(
 				currentAddr,
 				host.GetInfo().GetPort(),
 				true,
@@ -643,13 +644,12 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 				// break the loop if address is static (from config file)
 				ticker.Stop()
 				return
-			} else {
-				errCasted, ok := err.(blocker.Blocker)
-				if ok && errCasted.Message == "AddressAlreadyUpdatedForNode" {
-					// break the loop if address is static (from config file)
-					ticker.Stop()
-					return
-				}
+			}
+			errCasted, ok := err.(blocker.Blocker)
+			if ok && errCasted.Message == "AddressAlreadyUpdatedForNode" {
+				// break the loop if address is static (from config file)
+				ticker.Stop()
+				return
 			}
 			// get node's public ip address from external source internet and check if differs from current one
 		} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil && ipAddr != nil {
