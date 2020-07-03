@@ -496,6 +496,11 @@ func startNodeMonitoring() {
 	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
 		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
 	}
+	if cna, err := nodeRegistrationService.CountNodesAddressByStatus(); err == nil {
+		for status, counter := range cna {
+			monitoring.SetNodeAddressStatusCount(counter, status)
+		}
+	}
 }
 
 func startMainchain() {

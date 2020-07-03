@@ -60,6 +60,7 @@ type (
 		DeletePendingNodeAddressInfo(nodeID int64) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
+		CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error)
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -172,6 +173,39 @@ func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*mode
 	}
 
 	return nodeRegistry, nil
+}
+
+// CountNodesAddressByStatus return a map with a count of nodes addresses in db for every node address status
+func (nrs *NodeRegistrationService) CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error) {
+	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfo()
+	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	addressStatusCounter := make(map[model.NodeAddressStatus]int)
+	for _, nai := range nodeAddressesInfo {
+		addressStatus := nai.GetStatus()
+		// init map key to avoid npe
+		if _, ok := addressStatusCounter[addressStatus]; !ok {
+			addressStatusCounter[addressStatus] = 0
+		}
+		addressStatusCounter[addressStatus]++
+	}
+	for status, counter := range addressStatusCounter {
+		monitoring.SetNodeAddressStatusCount(counter, status)
+	}
+
+	return addressStatusCounter, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
@@ -677,6 +711,11 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
 			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
 		}
+		if cna, err := nrs.CountNodesAddressByStatus(); err == nil {
+			for status, counter := range cna {
+				monitoring.SetNodeAddressStatusCount(counter, status)
+			}
+		}
 	}
 	return true, nil
 }
@@ -830,5 +869,16 @@ func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddress
 	if err != nil {
 		return err
 	}
+	if monitoring.IsMonitoringActive() {
+		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
+			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+		}
+		if cna, err := nrs.CountNodesAddressByStatus(); err == nil {
+			for status, counter := range cna {
+				monitoring.SetNodeAddressStatusCount(counter, status)
+			}
+		}
+	}
+
 	return nil
 }

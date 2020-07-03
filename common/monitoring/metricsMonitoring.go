@@ -23,6 +23,8 @@ var (
 	getAddressInfoTableFromPeer      prometheus.Counter
 	receiptCounter                   prometheus.Counter
 	nodeAddressInfoCounter           prometheus.Gauge
+	confirmedAddressCounter          prometheus.Gauge
+	pendingAddressCounter            prometheus.Gauge
 	unresolvedPeersCounter           prometheus.Gauge
 	resolvedPeersCounter             prometheus.Gauge
 	unresolvedPriorityPeersCounter   prometheus.Gauge
@@ -106,6 +108,18 @@ func SetMonitoringActive(isActive bool) {
 		Help: "nodeAddressInfo counter",
 	})
 	prometheus.MustRegister(nodeAddressInfoCounter)
+
+	confirmedAddressCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count_status_confirmed",
+		Help: "confirmed addresses by node counter",
+	})
+	prometheus.MustRegister(confirmedAddressCounter)
+
+	pendingAddressCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count_status_pending",
+		Help: "pending addresses by node counter",
+	})
+	prometheus.MustRegister(pendingAddressCounter)
 
 	unresolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_unresolved_peers",
@@ -261,6 +275,21 @@ func SetNodeAddressInfoCount(count int) {
 	}
 
 	nodeAddressInfoCounter.Set(float64(count))
+}
+
+func SetNodeAddressStatusCount(count int, status model.NodeAddressStatus) {
+	if !isMonitoringActive {
+		return
+	}
+
+	switch status {
+	case model.NodeAddressStatus_NodeAddressPending:
+		pendingAddressCounter.Set(float64(count))
+	case model.NodeAddressStatus_NodeAddressConfirmed:
+		confirmedAddressCounter.Set(float64(count))
+	default:
+		return
+	}
 }
 
 func SetUnresolvedPeersCount(count int) {
