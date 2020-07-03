@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"crypto/sha256"
+	"fmt"
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -31,8 +32,37 @@ type (
 	}
 )
 
+// CheckChunksIntegrity checking availability of snapshot read files from last manifest
 func (ss *SnapshotScheduler) CheckChunksIntegrity(chainType chaintype.ChainType, filePath string) error {
-	panic("implement me")
+	var (
+		spineBlockManifest *model.SpineBlockManifest
+		chunksHashed       [][]byte
+		err                error
+	)
+
+	spineBlockManifest, err = ss.SpineBlockManifestService.GetLastSpineBlockManifest(chainType, model.SpineBlockManifestType_Snapshot)
+	if err != nil {
+		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
+	}
+	// NOTE: Need to check this meanwhile err checked
+	if spineBlockManifest == nil {
+		return blocker.NewBlocker(blocker.SchedulerError, "SpineBlockManifest is nil")
+	}
+
+	chunksHashed, err = ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), sha256.Size)
+	if err != nil {
+		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
+	}
+	if len(chunksHashed) != 0 {
+		for _, chunkHashed := range chunksHashed {
+			_, err = ss.FileService.ReadFileByHash(filePath, chunkHashed)
+			if err != nil {
+				// Could be requesting a missing chunk p2p
+				fmt.Println(err) // TODO: Will update when p2p finish
+			}
+		}
+	}
+	return blocker.NewBlocker(blocker.SchedulerError, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 }
 
 // DeleteUnmaintainedChunks deleting chunks in previous manifest that might be not unmaintained since new one already there
@@ -52,13 +82,11 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks(filePath string) error {
 
 		block, err = ss.BlockCoreService.GetLastBlock()
 		if err != nil {
-			ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 			return err
 		}
 
 		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.GetHeight() - 1)
 		if err != nil {
-			ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 			return err
 		}
 
@@ -68,28 +96,24 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks(filePath string) error {
 
 		spineBlockManifest, err = ss.SpineBlockManifestService.GetSpineBlockManifestBySpineBlockHeight(block.GetHeight() - 1)
 		if err != nil {
-			ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 			return err
 		}
 		if spineBlockManifest != nil {
 
 			shardMap, err = ss.SnapshotChunkUtil.GetShardAssigment(spineBlockManifest[0].GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 			if err != nil {
-				ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 				return err
 			}
 
 			for _, shardChunk := range shardMap.ShardChunks {
 				err = ss.FileService.DeleteFilesByHash(filePath, shardChunk)
 				if err != nil {
-					ss.Logger.Warn(blocker.NewBlocker(blocker.SchedulerError, err.Error()))
 					return err
 				}
 			}
 		}
 
 	}
-	// No need to deleting
 
 	return nil
 }
