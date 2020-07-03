@@ -12,4 +12,5 @@ var (
 	OneFeePerByteTransaction int64 = 10000
 	// TransactionTimeOffset use to put time offset for transaction timestamp when validate transaction
 	TransactionTimeOffset = 10 * time.Second
+	CompleteMinutesUnit   = 60 // 60 seconds
 )

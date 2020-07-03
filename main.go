@@ -21,12 +21,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
+
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -85,13 +87,14 @@ var (
 	spinechainSynchronizer, mainchainSynchronizer   blockchainsync.BlockchainSyncServiceInterface
 	spineBlockManifestService                       service.SpineBlockManifestServiceInterface
 	snapshotService                                 service.SnapshotServiceInterface
-	transactionUtil                                 = &transaction.Util{}
+	transactionUtil                                 transaction.UtilInterface
 	receiptUtil                                     = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                       service.TransactionCoreServiceInterface
 	fileService                                     service.FileServiceInterface
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
+	feeScaleService                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	defaultSignatureType                            *crypto.Ed25519Signature
@@ -145,13 +148,17 @@ func init() {
 
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
-
+	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
+	transactionUtil = &transaction.Util{
+		FeeScaleService: feeScaleService,
+	}
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
 	)
@@ -198,6 +205,11 @@ func init() {
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		query.NewFeeScaleQuery(),
+		query.NewFeeVoteCommitmentVoteQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+		query.NewNodeAdmissionTimestampQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
@@ -219,10 +231,11 @@ func init() {
 		&transaction.TypeSwitcher{
 			Executor: queryExecutor,
 		},
-		&transaction.Util{},
+		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
 		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	defaultSignatureType = crypto.NewEd25519Signature()
@@ -511,6 +524,7 @@ func startMainchain() {
 		receiptService,
 		queryExecutor,
 	)
+
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
 		kvExecutor,
@@ -527,6 +541,7 @@ func startMainchain() {
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
 		observerInstance,
 		blocksmithStrategyMain,
 		loggerCoreService,
@@ -541,6 +556,8 @@ func startMainchain() {
 		mainchainCoinbaseService,
 		mainchainParticipationScoreService,
 		mainchainPublishedReceiptService,
+		feeScaleService,
+		query.GetPruneQuery(mainchain),
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -549,7 +566,13 @@ func startMainchain() {
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
-
+		// genesis next node admission timestamp will be inserted in the very beginning
+		if err := service.AddGenesisNextNodeAdmission(
+			queryExecutor,
+			mainchain.GetGenesisBlockTimestamp(),
+		); err != nil {
+			loggerCoreService.Fatal(err)
+		}
 		if err := mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}
@@ -619,10 +642,11 @@ func startMainchain() {
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
 			},
-			&transaction.Util{},
+			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
@@ -714,10 +738,11 @@ func startSpinechain() {
 			&transaction.TypeSwitcher{
 				Executor: queryExecutor,
 			},
-			&transaction.Util{},
+			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
 			query.NewPendingTransactionQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
 		),
 	}
 	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(
@@ -749,13 +774,6 @@ func startScheduler() {
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
-	// scheduler to pruning receipts that was expired
-	if err := schedulerInstance.AddJob(
-		constant.PruningNodeReceiptPeriod,
-		receiptService.PruningNodeReceipts,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
 	// scheduler to remove block uncomplete queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(

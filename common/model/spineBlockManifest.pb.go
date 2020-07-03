@@ -154,7 +154,9 @@ func init() {
 	proto.RegisterType((*SpineBlockManifest)(nil), "model.SpineBlockManifest")
 }
 
-func init() { proto.RegisterFile("model/spineBlockManifest.proto", fileDescriptor_28f5b9e6a17937ec) }
+func init() {
+	proto.RegisterFile("model/spineBlockManifest.proto", fileDescriptor_28f5b9e6a17937ec)
+}
 
 var fileDescriptor_28f5b9e6a17937ec = []byte{
 	// 306 bytes of a gzipped FileDescriptorProto

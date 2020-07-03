@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -359,6 +360,55 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"amount" INTEGER,
+				"applied_time" INTEGER,
+				"complete_minutes" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("id", "block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
+				"vote_hash" BLOB,		-- hash of fee vote object
+				"voter_address" VARCHAR(255), -- sender account address of commit vote
+				"block_height" INTEGER,	-- height when commit vote inserted
+				PRIMARY KEY("vote_hash", "block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_scale" (
+				"fee_scale" INTEGER,		-- current fee scale
+				"block_height" INTEGER,		-- block_height when the fee scale apply
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_reveal_vote" (
+				"recent_block_hash" BLOB, 
+				"recent_block_height" INTEGER,
+				"fee_vote" INTEGER, -- fee value voted
+				"voter_address" VARCHAR(255), -- sender account address as voter
+				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
+				"block_height" INTEGER, -- height when revealed
+				PRIMARY KEY("block_height", "voter_address")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
+				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
+				"block_height" INTEGER,		-- block height when the next node admission timestamp set
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_participant" (

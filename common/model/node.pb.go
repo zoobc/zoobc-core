@@ -216,7 +216,9 @@ func init() {
 	proto.RegisterType((*GenerateNodeKeyResponse)(nil), "model.GenerateNodeKeyResponse")
 }
 
-func init() { proto.RegisterFile("model/node.proto", fileDescriptor_2fd0ed838ddec1c4) }
+func init() {
+	proto.RegisterFile("model/node.proto", fileDescriptor_2fd0ed838ddec1c4)
+}
 
 var fileDescriptor_2fd0ed838ddec1c4 = []byte{
 	// 244 bytes of a gzipped FileDescriptorProto

@@ -739,7 +739,9 @@ func init() {
 	proto.RegisterType((*GetMultisignatureInfoResponse)(nil), "model.GetMultisignatureInfoResponse")
 }
 
-func init() { proto.RegisterFile("model/multiSignature.proto", fileDescriptor_136af44c597c17ae) }
+func init() {
+	proto.RegisterFile("model/multiSignature.proto", fileDescriptor_136af44c597c17ae)
+}
 
 var fileDescriptor_136af44c597c17ae = []byte{
 	// 773 bytes of a gzipped FileDescriptorProto

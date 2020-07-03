@@ -1,12 +1,13 @@
 package transaction
 
 import (
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -181,10 +182,8 @@ func GetFixturesForSetupAccountDataset() (
 	txBodyBytes []byte,
 ) {
 	txBody = &model.SetupAccountDatasetTransactionBody{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "Welcome",
+		Property: "Admin",
+		Value:    "Welcome",
 	}
 
 	sa := SetupAccountDataset{
@@ -198,10 +197,8 @@ func GetFixturesForRemoveAccountDataset() (
 	txBodyBytes []byte,
 ) {
 	txBody = &model.RemoveAccountDatasetTransactionBody{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "Good bye",
+		Property: "Admin",
+		Value:    "Good bye",
 	}
 
 	ra := RemoveAccountDataset{
@@ -292,6 +289,35 @@ func GetFixturesForApprovalEscrowTransaction() (
 	return txBody, sa.GetBodyBytes()
 }
 
+func GetFixturesForLiquidPaymentTransaction() (
+	txBody *model.LiquidPaymentTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentTransactionBody{
+		Amount:          100,
+		CompleteMinutes: 200,
+	}
+
+	sa := LiquidPaymentTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixturesForLiquidPaymentStopTransaction() (
+	txBody *model.LiquidPaymentStopTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.LiquidPaymentStopTransactionBody{
+		TransactionID: 123,
+	}
+
+	sa := LiquidPaymentStopTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,
 	sender, recipient string,
@@ -369,4 +395,45 @@ func GetFixturesForBlock(height uint32, id int64) *model.Block {
 		TotalCoinBase:        1,
 		Version:              0,
 	}
+}
+
+func GetFixtureForFeeVoteCommitTransaction(
+	feeVoteInfo *model.FeeVoteInfo,
+	seed string,
+) (txBody *model.FeeVoteCommitTransactionBody, txBodyBytes []byte) {
+	revealBody := GetFixtureForFeeVoteRevealTransaction(feeVoteInfo, seed)
+	digest := sha3.New256()
+	_, _ = digest.Write((&FeeVoteRevealTransaction{
+		Body: revealBody,
+	}).GetFeeVoteInfoBytes())
+
+	txBody = &model.FeeVoteCommitTransactionBody{
+		VoteHash: digest.Sum([]byte{}),
+	}
+
+	sa := FeeVoteCommitTransaction{
+		Body: txBody,
+	}
+	return txBody, sa.GetBodyBytes()
+}
+
+func GetFixtureForFeeVoteRevealTransaction(
+	voteInfo *model.FeeVoteInfo,
+	seed string,
+) (body *model.FeeVoteRevealTransactionBody) {
+	tx := &FeeVoteRevealTransaction{
+		Body: &model.FeeVoteRevealTransactionBody{
+			FeeVoteInfo: voteInfo,
+		},
+	}
+
+	feeVoteSigned, _ := (&crypto.Signature{}).Sign(
+		tx.GetFeeVoteInfoBytes(),
+		model.SignatureType_DefaultSignature,
+		seed,
+	)
+
+	tx.Body.VoterSignature = feeVoteSigned
+
+	return tx.Body
 }

@@ -16,6 +16,7 @@ type SetupAccountDataset struct {
 	ID                  int64
 	Fee                 int64
 	SenderAddress       string
+	RecipientAddress    string
 	Height              uint32
 	Body                *model.SetupAccountDatasetTransactionBody
 	Escrow              *model.Escrow
@@ -27,7 +28,10 @@ type SetupAccountDataset struct {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SetupAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *SetupAccountDataset) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	blockTimestamp int64,
+) (bool, error) {
 	return false, nil
 }
 
@@ -53,8 +57,8 @@ func (tx *SetupAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 
 	// This is Default mode, Dataset will be active as soon as block creation
 	dataset = &model.AccountDataset{
-		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
-		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+		SetterAccountAddress:    tx.SenderAddress,
+		RecipientAccountAddress: tx.RecipientAddress,
 		Property:                tx.Body.GetProperty(),
 		Value:                   tx.Body.GetValue(),
 		Height:                  tx.Height,
@@ -144,21 +148,23 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 		accountDataset model.AccountDataset
 		row            *sql.Row
 		err            error
+		qry            string
+		qryArgs        []interface{}
 	)
 
 	// Recipient required while property set as AccountDatasetEscrowApproval
 	_, ok := model.AccountDatasetProperty_value[tx.Body.GetProperty()]
-	if ok && tx.Body.GetRecipientAccountAddress() == "" {
+	if ok && tx.RecipientAddress == "" {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientRequired")
 	}
 
 	// check existing account_dataset
-	accDatasetQ, accDatasetArgs := tx.AccountDatasetQuery.GetLatestAccountDataset(
-		tx.Body.GetSetterAccountAddress(),
-		tx.Body.GetRecipientAccountAddress(),
+	qry, qryArgs = tx.AccountDatasetQuery.GetLatestAccountDataset(
+		tx.SenderAddress,
+		tx.RecipientAddress,
 		tx.Body.GetProperty(),
 	)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -173,8 +179,8 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "AlreadyExists")
 	}
 	// check account balance sender
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	qry, qryArgs = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -193,6 +199,8 @@ func (tx *SetupAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+// GetMinimumFee return minimum fee of transaction
+// TODO: need to calculate the minimum fee
 func (*SetupAccountDataset) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
@@ -205,53 +213,36 @@ func (tx *SetupAccountDataset) GetSize() uint32 {
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
-		buffer = bytes.NewBuffer(txBodyBytes)
-		txBody model.SetupAccountDatasetTransactionBody
+		err          error
+		chunkedBytes []byte
+		dataLength   uint32
+		txBody       model.SetupAccountDatasetTransactionBody
+		buffer       = bytes.NewBuffer(txBodyBytes)
 	)
-
-	setterAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	// get length of property dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
 	if err != nil {
 		return nil, err
 	}
-	setterAccountAddressLength := util.ConvertBytesToUint32(setterAccountAddressLengthBytes)
-	setterAccountAddress, err := util.ReadTransactionBytes(buffer, int(setterAccountAddressLength))
+	dataLength = util.ConvertBytesToUint32(chunkedBytes)
+	// get property of dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(dataLength))
 	if err != nil {
 		return nil, err
 	}
-	txBody.SetterAccountAddress = string(setterAccountAddress)
-
-	recipientAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	txBody.Property = string(chunkedBytes)
+	// get length of value property dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
 	if err != nil {
 		return nil, err
 	}
-	recipientAccountAddressLength := util.ConvertBytesToUint32(recipientAccountAddressLengthBytes)
-	recipientAccountAddress, err := util.ReadTransactionBytes(buffer, int(recipientAccountAddressLength))
+	dataLength = util.ConvertBytesToUint32(chunkedBytes)
+	// get value property of dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(dataLength))
 	if err != nil {
 		return nil, err
 	}
-	txBody.RecipientAccountAddress = string(recipientAccountAddress)
-
-	propertyLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
-	if err != nil {
-		return nil, err
-	}
-	propertyLength := util.ConvertBytesToUint32(propertyLengthBytes)
-	property, err := util.ReadTransactionBytes(buffer, int(propertyLength))
-	if err != nil {
-		return nil, err
-	}
-	txBody.Property = string(property)
-
-	valueLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
-	if err != nil {
-		return nil, err
-	}
-	valueLength := util.ConvertBytesToUint32(valueLengthBytes)
-	value, err := util.ReadTransactionBytes(buffer, int(valueLength))
-	if err != nil {
-		return nil, err
-	}
-	txBody.Value = string(value)
+	txBody.Value = string(chunkedBytes)
 
 	return &txBody, nil
 }
@@ -259,12 +250,6 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 // GetBodyBytes translate tx body to bytes representation
 func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetSetterAccountAddress())))))
-	buffer.Write([]byte(tx.Body.GetSetterAccountAddress()))
-
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetRecipientAccountAddress())))))
-	buffer.Write([]byte(tx.Body.GetRecipientAccountAddress()))
-
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))
 
@@ -274,6 +259,7 @@ func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 	return buffer.Bytes()
 }
 
+// GetTransactionBody return transaction body of SetupAccountDataset transactions
 func (tx *SetupAccountDataset) GetTransactionBody(transaction *model.Transaction) {
 	transaction.TransactionBody = &model.Transaction_SetupAccountDatasetTransactionBody{
 		SetupAccountDatasetTransactionBody: tx.Body,
@@ -285,7 +271,6 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
-
 	return nil, false
 }
 

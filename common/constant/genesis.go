@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 1070983609761144356
+	MainchainGenesisBlockID int64 = 4817516973176269931
 )
 
 type (
@@ -23,7 +23,7 @@ var (
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1562117271)
+	MainchainGenesisBlockTimestamp = int64(1587256630)
 	MainchainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)
@@ -36,7 +36,7 @@ var (
 				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			NodeAddress:        "172.104.34.10:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
 			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
@@ -45,7 +45,7 @@ var (
 				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
 			NodeAddress:        "45.79.39.58:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
 			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
@@ -54,7 +54,7 @@ var (
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			NodeAddress:        "85.90.246.90:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 	}
 )
