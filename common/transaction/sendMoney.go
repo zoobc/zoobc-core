@@ -540,19 +540,19 @@ func (tx *SendMoney) EscrowApproval(
 
 	default:
 		tx.Escrow.Status = model.EscrowStatus_Expired
-		// approver balance
-		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+		// sender balance
+		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
 			tx.Escrow.GetCommission()+tx.Escrow.GetAmount(),
 			map[string]interface{}{
 				"account_address": tx.Escrow.GetSenderAddress(),
 				"block_height":    tx.Height,
 			},
 		)
-		queries = append(queries, approverBalanceQ...)
+		queries = append(queries, senderBalanceQ...)
 
 		// approver ledger
 		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetApproverAddress(),
+			AccountAddress: tx.Escrow.GetSenderAddress(),
 			BalanceChange:  tx.Escrow.GetCommission() + tx.Escrow.GetAmount(),
 			BlockHeight:    tx.Height,
 			TransactionID:  tx.ID,
