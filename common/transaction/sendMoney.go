@@ -550,8 +550,8 @@ func (tx *SendMoney) EscrowApproval(
 		)
 		queries = append(queries, senderBalanceQ...)
 
-		// approver ledger
-		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		// sender ledger
+		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 			AccountAddress: tx.Escrow.GetSenderAddress(),
 			BalanceChange:  tx.Escrow.GetCommission() + tx.Escrow.GetAmount(),
 			BlockHeight:    tx.Height,
@@ -559,7 +559,7 @@ func (tx *SendMoney) EscrowApproval(
 			Timestamp:      uint64(blockTimestamp),
 			EventType:      model.EventType_EventApprovalEscrowTransaction,
 		})
-		queries = append(queries, append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...))
+		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
 	}
 
 	// Insert Escrow
