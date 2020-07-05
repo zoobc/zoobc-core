@@ -414,7 +414,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		Expiring Process: expiring the the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
-	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
+	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
