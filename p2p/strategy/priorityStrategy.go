@@ -623,14 +623,6 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	}
 
 	for {
-		// start updating and broadcasting own address when finished downloading the bc,
-		// unless the address info table is empty (meaning that this node is the first starting the network)
-		// otherwise all new node address info will contain the genesis block, which is a predictable behavior and can be exploited
-		// check if node address info is empty
-		nrAddresses, _ := ps.NodeRegistrationService.GetRegisteredNodesWithNodeAddress()
-		if len(nrAddresses) > 0 && !ps.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
-			continue
-		}
 		var (
 			host = ps.NodeConfigurationService.GetHost()
 			err  error
@@ -1255,9 +1247,10 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		nodeSecretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
 		nodePublicKey    = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		resolvedPeers    = ps.GetResolvedPeers()
+		hostInfo         = ps.GetHostInfo()
 	)
 	// first update the host address to the newest
-	if ps.GetHostInfo().GetAddress() != nodeAddress {
+	if hostInfo.GetAddress() != nodeAddress {
 		ps.NodeConfigurationService.SetMyAddress(nodeAddress, port)
 	}
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
@@ -1270,10 +1263,13 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			return err
 		}
 		// set status to 'confirmed' when updating own address
-		updated, _ = ps.NodeRegistrationService.UpdateNodeAddressInfo(
+		updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(
 			nodeAddressInfo,
 			model.NodeAddressStatus_NodeAddressConfirmed,
 		)
+		if err != nil {
+			ps.Logger.Debugf("cannot update nodeAddressInfo: %s", err)
+		}
 		// broadcast, if node addressInfo has been updated
 		if updated || forceBroadcast {
 			if len(resolvedPeers) == 0 {

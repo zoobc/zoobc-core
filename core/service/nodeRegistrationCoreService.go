@@ -669,10 +669,10 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 	); err != nil {
 		return false, err
 	}
-	if len(nodeAddressesInfo) > 0 && nodeAddressesInfo[0].GetBlockHeight() <= nodeAddressInfo.GetBlockHeight() {
+	if len(nodeAddressesInfo) > 0 {
 		// check if new address info is more recent than previous
-		if nodeAddressInfo.GetBlockHeight() > nodeAddressesInfo[0].GetBlockHeight() {
-			return
+		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
+			return false, nil
 		}
 		err = nrs.QueryExecutor.BeginTx()
 		if err != nil {
