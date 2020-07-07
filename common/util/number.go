@@ -34,22 +34,6 @@ func MaxInt64(x, y int64) int64 {
 	return y
 }
 
-// MinFloat64 returns the smallest float64 number supplied
-func MinFloat64(x, y float64) float64 {
-	if x < y {
-		return x
-	}
-	return y
-}
-
-// MaxFloat64 returns the largest float64 number supplied
-func MaxFloat64(x, y float64) float64 {
-	if x > y {
-		return x
-	}
-	return y
-}
-
 // GetNextStep returns the next step of an interval, given current one and the interval
 func GetNextStep(curStep, interval int64) int64 {
 	rate := math.Ceil(float64(curStep) / float64(interval))

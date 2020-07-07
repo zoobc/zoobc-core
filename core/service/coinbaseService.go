@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"sort"
 
+	"github.com/montanaflynn/stats"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -54,10 +56,12 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 		coinbaseSigmoidMin float64 = 1 / (1 + math.Exp(-constant.CoinbaseSigmoidStart))
 		coinbaseSigmoidMax float64 = 1 / (1 + math.Exp(-constant.CoinbaseSigmoidEnd))
 		// t is ranges from 0.0 at the genesis, to 1.0 after CoinbaseTime
-		t float64 = util.MinFloat64(
-			1.0,
-			float64(blockTimestamp-cbs.Chaintype.GetGenesisBlockTimestamp())/float64(constant.CoinbaseTime),
-		)
+		// err occur only when the length input is 0
+		t, _ = stats.Min(stats.Float64Data{
+			1,
+			float64(blockTimestamp-cbs.Chaintype.GetGenesisBlockTimestamp()) / float64(constant.CoinbaseTime),
+		})
+
 		// x ranges from CoinbaseSigmoidStart at the genesis, to CoinbaseSigmoidEnd after coinbaseTime,
 		x float64 = (t * (constant.CoinbaseSigmoidEnd - constant.CoinbaseSigmoidStart)) + constant.CoinbaseSigmoidStart
 		// y is ranges from 0.0 at the genesis, to 1.0 after coinbaseTime,
