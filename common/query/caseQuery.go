@@ -72,6 +72,14 @@ func (fq *CaseQuery) Where(query ...string) *CaseQuery {
 	return fq
 }
 
+func (fq *CaseQuery) FirstWhere(query ...string) *CaseQuery {
+	fq.Query.WriteString(fmt.Sprintf(
+		"WHERE %s ",
+		strings.Join(query, ""),
+	))
+	return fq
+}
+
 // And represents `expressionFoo AND expressionBar`
 func (fq *CaseQuery) And(query ...string) *CaseQuery {
 	if !strings.Contains(fq.Query.String(), "WHERE") {
