@@ -18,7 +18,7 @@ monitoringPort=9095
 cpuProfilingPort=6065
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
+ownerAccountAddress = "ZBC_6U4T7CVD_DEITASZG_RXZT4M73_A3EFPAMX_IKQ2A5GE_ITZJOSKM_DNAASSHP"
 
 smithing=true
 proofOfOwnershipReqTimeoutSec = 2

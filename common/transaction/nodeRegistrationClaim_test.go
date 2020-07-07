@@ -334,7 +334,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 	}{
 		{
 			name: "GetSize:success",
-			want: 220,
+			want: 264,
 		},
 	}
 	for _, tt := range tests {
