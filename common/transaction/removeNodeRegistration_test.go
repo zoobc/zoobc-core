@@ -657,7 +657,7 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction

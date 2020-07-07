@@ -13,6 +13,17 @@ const (
 	SecondsToUpdatePeersConnection int64 = 15 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 10
+	// UpdateNodeAddressGap, interval in seconds of peer thread to update node dynamic address
+	UpdateNodeAddressGap uint = 3600
+	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
+	SyncNodeAddressGap uint = 30 // every 30 min
+	// ScrambleNodesSafeHeight height before which scramble nodes are always recalculated (
+	// this is to allow first nodes that bootstrap the network to update their priority peers till every node has exchanged all peer
+	// node addresses)
+	ScrambleNodesSafeHeight uint32 = 10
+	// SyncNodeAddressDelay, delay in millis to execute send/get address info api call,
+	// to make sure even if many nodes start at the same time they won't execute requests at the same time
+	SyncNodeAddressDelay int = 10000
 	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
 	UpdateBlacklistedStatusGap uint = 60
 	// BlacklistingPeriod, how long a peer in blaclisting status
@@ -34,4 +45,6 @@ const (
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
 	// download spine blocks and snapshot (if present) timeout
 	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
+	// ProofOfOriginExpirationOffset expiration offset in seconds for proof of origin response
+	ProofOfOriginExpirationOffset = 10
 )

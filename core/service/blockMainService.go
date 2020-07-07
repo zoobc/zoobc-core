@@ -88,6 +88,7 @@ type (
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		PruneQuery                  []query.PruneQuery
+		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
 
@@ -124,6 +125,7 @@ func NewBlockMainService(
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
 	pruneQuery []query.PruneQuery,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -158,6 +160,7 @@ func NewBlockMainService(
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
 		PruneQuery:                  pruneQuery,
+		BlockchainStatusService:     blockchainStatusService,
 	}
 }
 
@@ -668,6 +671,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
 	}
+
 	// if genesis
 	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// insert initial fee scale
@@ -754,6 +758,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
@@ -768,6 +773,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }

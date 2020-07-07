@@ -87,9 +87,7 @@ func init() {
 	proto.RegisterType((*ParticipationScore)(nil), "model.ParticipationScore")
 }
 
-func init() {
-	proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193)
-}
+func init() { proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193) }
 
 var fileDescriptor_4eacd5198105d193 = []byte{
 	// 177 bytes of a gzipped FileDescriptorProto

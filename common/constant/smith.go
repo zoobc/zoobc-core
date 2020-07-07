@@ -21,15 +21,15 @@ var (
 	// CheckTimedOutBlock to use in scheduler to check timedout block while waiting transaction
 	CheckTimedOutBlock        = 30 * time.Second
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
-	// SpineChainSmithingPeriod one spine block every 5 min (300 seconds)
-	// @iltoga reduce to 60 for testing locally (300 in production)
+	// SpineChainSmithingPeriod intervals between spine blocks in seconds
+	// reduce to 60 for testing locally (300 in production)
 	SpineChainSmithingPeriod = int64(300)
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)
 	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
 	// 0 will set node to always create empty block
-	EmptyBlockSkippedBlocksmithLimit = int64(2)
+	EmptyBlockSkippedBlocksmithLimit = int64(2) // 10 in production
 	/*
 		Mainchain smithing
 	*/

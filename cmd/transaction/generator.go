@@ -234,7 +234,7 @@ func GenerateBasicTransaction(
 	} else {
 		switch model.SignatureType(senderSignatureType) {
 		case model.SignatureType_DefaultSignature:
-			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
