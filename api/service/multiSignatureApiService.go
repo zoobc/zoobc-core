@@ -190,7 +190,6 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		caseQuery.Where(caseQuery.GreaterEqual("block_height", validStartHeight))
 	}
 	selectMultisigInfoQuery, args := caseQuery.Build()
-
 	multisigInfoRow, _ := ms.Executor.ExecuteSelectRow(selectMultisigInfoQuery, false, args...)
 	err = ms.MultisignatureInfoQuery.Scan(multisigInfo, multisigInfoRow)
 	if err != nil {
