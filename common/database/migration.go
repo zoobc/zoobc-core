@@ -375,20 +375,6 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("id", "block_height")
 			)
 			`,
-			`CREATE TABLE IF NOT EXISTS "node_address_info" (
-				"node_id"		INTEGER,					-- node_id relative to this node address
-				"address"		VARCHAR(255),				-- peer/node address
-				"port"			INTEGER,					-- peer rpc port
-				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
-				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
-				"signature"		BLOB,						-- signature of above fields (signed using node private key)
-				"status" 		INTEGER,					-- pending or confirmed
-				PRIMARY KEY("node_id","address","port")		-- primary key
-			)
-			`,
-			`
-			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
-			`,
 			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
 				"vote_hash" BLOB,		-- hash of fee vote object
@@ -433,6 +419,20 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,
 				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
+			`,
+			`CREATE TABLE IF NOT EXISTS "node_address_info" (
+				"node_id"		INTEGER,					-- node_id relative to this node address
+				"address"		VARCHAR(255),				-- peer/node address
+				"port"			INTEGER,					-- peer rpc port
+				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
+				"signature"		BLOB,						-- signature of above fields (signed using node private key)
+				"status" 		INTEGER,					-- pending or confirmed
+				PRIMARY KEY("node_id","address","port")		-- primary key
+			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
 			`,
 		}
 		return nil
