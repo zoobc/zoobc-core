@@ -420,6 +420,20 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
+			`CREATE TABLE IF NOT EXISTS "node_address_info" (
+				"node_id"		INTEGER,					-- node_id relative to this node address
+				"address"		VARCHAR(255),				-- peer/node address
+				"port"			INTEGER,					-- peer rpc port
+				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
+				"signature"		BLOB,						-- signature of above fields (signed using node private key)
+				"status" 		INTEGER,					-- pending or confirmed
+				PRIMARY KEY("node_id","address","port")		-- primary key
+			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			`,
 			`
 			ALTER TABLE "spine_public_key"
 				ADD COLUMN "node_id" INTEGER AFTER "node_public_key"

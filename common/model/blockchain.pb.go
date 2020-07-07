@@ -274,9 +274,7 @@ func init() {
 	proto.RegisterType((*GetCommonMilestoneBlockIdsResponse)(nil), "model.GetCommonMilestoneBlockIdsResponse")
 }
 
-func init() {
-	proto.RegisterFile("model/blockchain.proto", fileDescriptor_c2ffcbd1121992b1)
-}
+func init() { proto.RegisterFile("model/blockchain.proto", fileDescriptor_c2ffcbd1121992b1) }
 
 var fileDescriptor_c2ffcbd1121992b1 = []byte{
 	// 327 bytes of a gzipped FileDescriptorProto

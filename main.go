@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -16,6 +15,10 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/auth"
+
+	"github.com/zoobc/lib/address"
 
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
@@ -50,6 +53,7 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeAddressDynamic                              bool
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -74,11 +78,11 @@ var (
 	blockIncompleteQueueService                     service.BlockIncompleteQueueServiceInterface
 	receiptService                                  service.ReceiptServiceInterface
 	peerServiceClient                               client.PeerServiceClientInterface
-	p2pHost                                         *model.Host
 	peerExplorer                                    p2pStrategy.PeerExplorerStrategyInterface
 	wellknownPeers                                  []string
 	smithing, isNodePreSeed, isDebugMode            bool
 	nodeRegistrationService                         service.NodeRegistrationServiceInterface
+	nodeAuthValidationService                       auth.NodeAuthValidationInterface
 	mainchainProcessor                              smith.BlockchainProcessorInterface
 	spinechainProcessor                             smith.BlockchainProcessorInterface
 	loggerAPIService                                *log.Logger
@@ -95,6 +99,8 @@ var (
 	mainchain                                       = &chaintype.MainChain{}
 	spinechain                                      = &chaintype.SpineChain{}
 	blockchainStatusService                         service.BlockchainStatusServiceInterface
+	nodeConfigurationService                        service.NodeConfigurationServiceInterface
+	nodeAddressInfoService                          service.NodeAddressInfoServiceInterface
 	feeScaleService                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
@@ -148,13 +154,23 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	nodeConfigurationService = service.NewNodeConfigurationService(nodeAddressDynamic, nodeSecretPhrase, loggerCoreService)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
 		FeeScaleService: feeScaleService,
 	}
+
+	nodeAddressInfoService = service.NewNodeAddressInfoService(
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewNodeAddressInfoQuery(),
+		loggerCoreService,
+	)
+
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
@@ -162,7 +178,10 @@ func init() {
 		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
+		crypto.NewSignature(),
+		nodeAddressInfoService,
 	)
+
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		query.NewBatchReceiptQuery(),
@@ -239,6 +258,10 @@ func init() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
+
 	defaultSignatureType = crypto.NewEd25519Signature()
 
 	// initialize Observer
@@ -258,12 +281,16 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 
 	myAddress = viper.GetString("myAddress")
 	if myAddress == "" {
-		ipAddr, err := util.GetOutboundIP()
-		if err != nil {
-			myAddress = "127.0.0.1"
-		} else {
-			myAddress = ipAddr.String()
+		ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress()
+		if ipAddr == nil {
+			// panic if we can't set an IP address for the node
+			panic(err)
+		} else if err != nil {
+			// notify user that something went wrong in net address discovery process and its node might not behave properly on the network
+			log.Print(err)
 		}
+		myAddress = ipAddr.String()
+		nodeAddressDynamic = true
 		viper.Set("myAddress", myAddress)
 	}
 	peerPort = viper.GetUint32("peerPort")
@@ -322,15 +349,23 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
 	}
 	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
-	log.Printf("nodePublicKey: %s", base64.StdEncoding.EncodeToString(nodeKey.PublicKey))
+	nodeAddress, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodeKey.PublicKey)
+	if err != nil {
+		loggerCoreService.Fatal(errors.New("FailToEncodeNodePublicKey"))
+	}
+
+	log.Printf("nodePublicKey: %s", nodeAddress)
 	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
-	log.Printf("myAddress: %s", myAddress)
+	if nodeAddressDynamic {
+		log.Printf("myAddress: %s (%s)", myAddress, "automatically discovered")
+	} else {
+		log.Printf("myAddress: %s (%s)", myAddress, "set in configuration file")
+	}
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
 }
-
 func initLogInstance() {
 	var (
 		err       error
@@ -358,7 +393,7 @@ func initP2pInstance() {
 	if err != nil {
 		loggerCoreService.Fatal("Initialize P2P Err : ", err.Error())
 	}
-	p2pHost = p2pUtil.NewHost(myAddress, peerPort, knownPeersResult)
+	nodeConfigurationService.SetHost(p2pUtil.NewHost(myAddress, peerPort, knownPeersResult))
 
 	// initialize peer client service
 	nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
@@ -366,29 +401,35 @@ func initP2pInstance() {
 		queryExecutor,
 		query.NewNodeReceiptQuery(),
 		nodePublicKey,
+		nodeRegistrationService,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		receiptService,
-		p2pHost,
+		nodeConfigurationService,
+		nodeAuthValidationService,
 		loggerP2PService,
 	)
 
 	// peer discovery strategy
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
-		p2pHost,
 		peerServiceClient,
 		nodeRegistrationService,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		loggerP2PService,
+		p2pStrategy.NewPeerStrategyHelper(),
+		nodeConfigurationService,
+		blockchainStatusService,
+		crypto.NewSignature(),
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
-		p2pHost,
 		peerServiceClient,
 		peerExplorer,
 		loggerP2PService,
 		transactionUtil,
 		fileService,
+		nodeRegistrationService,
+		nodeConfigurationService,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -423,6 +464,9 @@ func startServices() {
 		blockServices,
 		mempoolServices,
 		fileService,
+		nodeRegistrationService,
+		nodeConfigurationService,
+		nodeAddressInfoService,
 		observerInstance,
 	)
 	api.Start(
@@ -459,6 +503,15 @@ func startNodeMonitoring() {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
 		}
 	}()
+	// populate node address info counter when node starts
+	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
+		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+	}
+	if cna, err := nodeRegistrationService.CountNodesAddressByStatus(); err == nil {
+		for status, counter := range cna {
+			monitoring.SetNodeAddressStatusCount(counter, status)
+		}
+	}
 }
 
 func startMainchain() {
@@ -562,6 +615,7 @@ func startMainchain() {
 		mainchainPublishedReceiptService,
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
+		blockchainStatusService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
 
@@ -603,6 +657,8 @@ func startMainchain() {
 		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 		if err != nil {
+			loggerCoreService.Fatal(err)
+		} else if node == nil {
 			// no nodes registered with current node public key
 			loggerCoreService.Error(
 				"Current node is not in node registry and won't be able to smith until registered!",
@@ -695,6 +751,7 @@ func startSpinechain() {
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
+		blockchainStatusService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
