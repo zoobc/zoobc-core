@@ -44,6 +44,7 @@ type (
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlocksmithService         BlocksmithServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 )
 
@@ -60,6 +61,7 @@ func NewBlockSpineService(
 	megablockQuery query.SpineBlockManifestQueryInterface,
 	blocksmithService BlocksmithServiceInterface,
 	snapshotMainblockService SnapshotBlockServiceInterface,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:          ct,
@@ -84,6 +86,7 @@ func NewBlockSpineService(
 		),
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
+		BlockchainStatusService:  blockchainStatusService,
 	}
 }
 
@@ -356,6 +359,8 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }

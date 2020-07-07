@@ -9,7 +9,7 @@ snapshotPath = "./resource/snapshots"
 # Peer
 peerPort=8003
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3003
 apiHTTPPort=3033
@@ -22,4 +22,6 @@ ownerAccountAddress = "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb"
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["fatal", "error", "panic", "warn"]
+#logLevels=["fatal", "error", "panic"]
+logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
+
