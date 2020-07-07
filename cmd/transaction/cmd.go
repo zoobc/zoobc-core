@@ -9,6 +9,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -18,7 +20,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -412,7 +413,6 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 // SetupAccountDatasetProcess for generate TX SetupAccountDataset type
 func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcNormalAccount, senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,
@@ -429,7 +429,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			println("--recipient is required while property as AccountDatasetEscrowApproval")
 			return
 		}
-		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+		tx = GenerateTxSetupAccountDataset(tx, property, value)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
@@ -440,7 +440,6 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 // RemoveAccountDatasetProcess for generate TX RemoveAccountDataset type
 func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcNormalAccount, senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,
@@ -450,7 +449,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+		tx = GenerateTxRemoveAccountDataset(tx, property, value)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

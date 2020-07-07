@@ -1,11 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -109,7 +109,6 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		fmt.Println(t.Name())
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &SpineBlockManifestService{
 				QueryExecutor:           tt.fields.QueryExecutor,

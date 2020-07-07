@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -303,7 +304,6 @@ func (m *Migration) Init() error {
 				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info
 				"minimum_signatures" INTEGER,		-- account address of the respective signature
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
-				"addresses" TEXT,			-- list of addresses / participants of the multisig account
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
 				"latest" INTEGER,			-- latest flag for pending signature
 				PRIMARY KEY("multisig_address", "block_height")
@@ -401,6 +401,38 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height", "voter_address")
 			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
+				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
+				"block_height" INTEGER,		-- block height when the next node admission timestamp set
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
+				"multisig_address" VARCHAR(255), -- address of multisig account / hash of multisignature_info
+				"account_address" VARCHAR(255), --  exists in addresses / participants of the multisig account
+				"account_address_index" INTEGER, -- index / position of participants
+				"latest" INTEGER,
+				"block_height" INTEGER,
+				PRIMARY KEY("multisig_address", "account_address", "block_height")
+			)
+			`,
+			`CREATE TABLE IF NOT EXISTS "node_address_info" (
+				"node_id"		INTEGER,					-- node_id relative to this node address
+				"address"		VARCHAR(255),				-- peer/node address
+				"port"			INTEGER,					-- peer rpc port
+				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
+				"signature"		BLOB,						-- signature of above fields (signed using node private key)
+				"status" 		INTEGER,					-- pending or confirmed
+				PRIMARY KEY("node_id","address","port")		-- primary key
+			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
 			`,
 		}
 		return nil

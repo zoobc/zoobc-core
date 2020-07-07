@@ -115,14 +115,14 @@ So the completed comment it will be:
 go run main.go generate transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
 ```
 
-
-### Transaction Fee Vote Commitment Vote 
+### Transaction Fee Vote Commitment Vote
 
 ```bash
  go run main.go generate transaction fee-vote-commit --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" -f 10
 ```
 
 ### Transaction Fee Vote Reveal Vote
+
 ```bash
 go run main.go generate transaction fee-vote-reveal -f 5 -b 4 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good"
 ```
@@ -158,7 +158,9 @@ go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWn
 ```
 
 ## Other Commands
+
 ### Genesis
+
 ```bash
 Usage:
   zoobc genesis generate [flags]
@@ -178,6 +180,7 @@ Flags:
 ```bash
 go run main.go genesis generate -e {local,staging,develop,alpa} -o dist
 ```
+
 It will generate files such as genesis.go consul script and more, you can check these inside `${-o}/generated/genesis` directory.
 
 ```bash
@@ -244,4 +247,53 @@ go run main.go generate transaction liquid-payment --sender-seed "concur vocalis
 
 ### Transaction Liquid Payment Stop
 
+```
 go run main.go generate transaction liquid-payment-stop --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --transaction-id "4032174520571320308"
+```
+
+## Snapshot
+
+Snapshot command aim to generate new snapshot files, and also import snapshot, get payload and store payload into database. This command for developer who want to test integration of snapshot is working well or not.
+There are sub commands:
+
+1.  New<br>
+    Aim to generate new snapshot files, based on latest state of block chain, and store manifest into database, actually will stored to new database named `dump.db` same path with snapshot path target. if you want store to the real database just set `--dump false`.
+
+    ````bash
+    Snapshot sub command that aim to generating new snapshot file based on database target
+
+        Usage:
+          zoobc snapshot new [flags]
+
+        Flags:
+          -b, --height uint32   Block height target to snapshot
+          -h, --help            help for new
+
+        Global Flags:
+          -n, --db-name string   Database name target (default "zoobc.db")
+          -p, --db-path string   Database path target (default "resource")
+          -d, --dump             Dump result out (default true)
+          -f, --file string      Snapshot file location (default "resource/snapshot")
+
+        ```
+
+    ````
+
+2.  Import
+    Aim to import payload from snapshot files and will store into database, actually will store into `dump.db` as default which if `dump.db` is available, better do `snpashot new` before doing this command.
+
+    ```bash
+    Snapshot sub command simulation for import from snapshot file and storing snapshot payload into a database target
+
+        Usage:
+          zoobc snapshot import [flags]
+
+        Flags:
+          -h, --help   help for import
+
+        Global Flags:
+          -n, --db-name string   Database name target (default "zoobc.db")
+          -p, --db-path string   Database path target (default "resource")
+          -d, --dump             Dump result out (default true)
+          -f, --file string      Snapshot file location (default "resource/snapshot")
+    ```

@@ -14,6 +14,10 @@ import (
 	badger "github.com/dgraph-io/badger/v2"
 	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -28,9 +32,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type (
@@ -86,6 +87,8 @@ type (
 		CoinbaseService             CoinbaseServiceInterface
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
+		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
 
@@ -121,6 +124,8 @@ func NewBlockMainService(
 	participationScoreService ParticipationScoreServiceInterface,
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
+	pruneQuery []query.PruneQuery,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -154,6 +159,8 @@ func NewBlockMainService(
 		ParticipationScoreService:   participationScoreService,
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
+		PruneQuery:                  pruneQuery,
+		BlockchainStatusService:     blockchainStatusService,
 	}
 }
 
@@ -586,7 +593,25 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		return err
 	}
-	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+	lastNextNodeAdmissionTimestamp, err := bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp(block.Height)
+	if err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
+	if block.Timestamp >= lastNextNodeAdmissionTimestamp && block.Height != 0 {
+		// insert new next node admission timestamp
+		if err := bs.NodeRegistrationService.InsertNextNodeAdmissionTimestamp(
+			lastNextNodeAdmissionTimestamp,
+			block.Height,
+			true,
+		); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
 		if err := bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
@@ -644,6 +669,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
 	}
+
 	// if genesis
 	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// insert initial fee scale
@@ -709,10 +735,28 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+
+	// Delete prunable data
+	if block.GetHeight() > (2 * constant.MinRollbackBlocks) {
+		saveHeight := block.GetHeight() - (2 * constant.MinRollbackBlocks)
+		for _, pQuery := range bs.PruneQuery {
+			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
+			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
+			if err != nil {
+				rollbackErr := bs.QueryExecutor.RollbackTx()
+				if rollbackErr != nil {
+					bs.Logger.Warnf("PruneDataRollbackErr:%v", rollbackErr)
+				}
+				return err
+			}
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
@@ -727,6 +771,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
 
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
@@ -781,7 +826,7 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 	return nil
 }
 
-// expelNodes seelct and expel nodes from node registry
+// expelNodes select and expel nodes from node registry
 func (bs *BlockService) expelNodes(block *model.Block) error {
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {

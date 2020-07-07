@@ -535,3 +535,114 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeight(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "GetNodeRegistryAtHeightWithNodeAddress:success",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			args: args{
+				height: 10,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
+				"locked_balance, registration_status, latest, height, t2.status as ai_status " +
+				"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id " +
+				"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) " +
+				"FROM node_registry AS t1 WHERE t1.height <= 10 GROUP BY t1.id) " +
+				"GROUP BY id ORDER BY t2.status",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := nrq.GetNodeRegistryAtHeightWithNodeAddress(tt.args.height); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GetActiveNodeRegistrations:success",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+				"latest, height FROM node_registry WHERE registration_status = 0 AND latest = 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := nrq.GetActiveNodeRegistrations(); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetActiveNodeRegistrations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistrationQuery_GetActiveNodeRegistrationsWithNodeAddress(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   string
+	}{
+		{
+			name: "GetActiveNodeRegistrationsWithNodeAddress:success",
+			fields: fields{
+				TableName: NewNodeRegistrationQuery().TableName,
+				Fields:    NewNodeRegistrationQuery().Fields,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
+				"locked_balance, registration_status, latest, height FROM node_registry INNER JOIN node_address_info AS t2 ON " +
+				"id = t2.node_id WHERE registration_status = 0 ORDER BY height DESC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := nrq.GetActiveNodeRegistrationsWithNodeAddress(); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetActiveNodeRegistrationsWithNodeAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

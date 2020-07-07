@@ -30,3 +30,4 @@ github.token
 *.back
 *.bak
 dist/
+local.preRegisteredNodes.json

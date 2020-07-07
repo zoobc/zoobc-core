@@ -18,6 +18,7 @@ type (
 	// EscrowTransactionQueryInterface methods must have
 	EscrowTransactionQueryInterface interface {
 		InsertEscrowTransaction(escrow *model.Escrow) [][]interface{}
+		InsertEscrowTransactions(escrows []*model.Escrow) (str string, args []interface{})
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
 		GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string
@@ -82,6 +83,30 @@ func (et *EscrowTransactionQuery) InsertEscrowTransaction(escrow *model.Escrow) 
 			et.ExtractModel(escrow)...,
 		),
 	}
+}
+
+// InsertEscrowTransactions represents query builder to insert multiple record in single query
+func (et *EscrowTransactionQuery) InsertEscrowTransactions(escrows []*model.Escrow) (str string, args []interface{}) {
+	if len(escrows) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			et.getTableName(),
+			strings.Join(et.Fields, ","),
+		)
+		for k, escrow := range escrows {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(et.Fields)-1),
+			)
+
+			if k < len(escrows)-1 {
+				str += ","
+			}
+			args = append(args, et.ExtractModel(escrow)...)
+		}
+	}
+
+	return str, args
 }
 
 // GetLatestEscrowTransactionByID represents getting latest escrow by id

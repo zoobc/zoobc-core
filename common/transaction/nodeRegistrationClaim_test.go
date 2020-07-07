@@ -17,7 +17,7 @@ import (
 type (
 	mockAuthPoownClaimNR struct {
 		success bool
-		auth.ProofOfOwnershipValidation
+		auth.NodeAuthValidation
 	}
 	mockExecutorValidateSuccessClaimNR struct {
 		query.Executor
@@ -189,7 +189,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -263,10 +263,10 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 			err := tx.Validate(false)
 			if err != nil {
 				if !tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				if err.Error() != tt.errText {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
 				}
 			}
 		})
@@ -283,7 +283,7 @@ func TestClaimNodeRegistration_GetAmount(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -325,7 +325,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -368,7 +368,7 @@ func TestClaimNodeRegistration_GetBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -414,7 +414,7 @@ func TestClaimNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -466,7 +466,7 @@ func TestClaimNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -530,7 +530,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
@@ -584,7 +584,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				if (err == nil) != tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 			}
@@ -603,7 +603,7 @@ func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -722,7 +722,7 @@ func TestClaimNodeRegistration_GetTransactionBody(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -772,7 +772,7 @@ func TestClaimNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction

@@ -11,14 +11,15 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -27,7 +28,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -131,6 +131,10 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 	}, nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
+	return mockBlockPushBlock.Timestamp + 1, nil
+}
+
 func (*mockNodeRegistrationServiceFail) AddParticipationScore(
 	nodeID, scoreDelta int64,
 	height uint32,
@@ -149,6 +153,11 @@ func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.Node
 func (*mockNodeRegistrationServiceFail) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	return nil
 }
+
+func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
+	return mockBlockPushBlock.Timestamp + 1, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
 	return 1
 }
@@ -876,6 +885,35 @@ var (
 			Score:         new(big.Int).SetInt64(3000),
 		},
 	}
+	mockPreviousBlockPushBlock = model.Block{
+		ID:                   0,
+		Timestamp:            10000,
+		CumulativeDifficulty: "10000",
+		Version:              1,
+		PreviousBlockHash:    []byte{},
+		BlockSeed:            []byte{},
+		BlocksmithPublicKey:  bcsNodePubKey1,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Transactions:         []*model.Transaction{},
+		PayloadHash:          []byte{},
+		BlockSignature:       []byte{},
+	}
+	mockBlockPushBlock = model.Block{
+		ID:                  1,
+		Timestamp:           12000,
+		Version:             1,
+		PreviousBlockHash:   []byte{},
+		BlockSeed:           []byte{},
+		BlocksmithPublicKey: bcsNodePubKey1,
+		TotalAmount:         0,
+		TotalFee:            0,
+		TotalCoinBase:       0,
+		Transactions:        []*model.Transaction{},
+		PayloadHash:         []byte{},
+		BlockSignature:      []byte{},
+	}
 )
 
 type (
@@ -937,7 +975,12 @@ type (
 	mockPushBlockPublishedReceiptServiceSuccess struct {
 		PublishedReceiptService
 	}
+	mockBlockchainStatusService struct {
+		BlockchainStatusService
+	}
 )
+
+func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
 	return []string{}, nil
@@ -987,6 +1030,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
 		FeeScaleService         fee.FeeScaleServiceInterface
+		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1019,39 +1063,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                  1,
-					Timestamp:           12000,
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					BlockSignature:      []byte{},
-				},
-				broadcast: false,
-				persist:   false,
+				previousBlock: &mockPreviousBlockPushBlock,
+				block:         &mockBlockPushBlock,
+				broadcast:     false,
+				persist:       false,
 			},
 			wantErr: true,
 		},
@@ -1087,39 +1105,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                  1,
-					Timestamp:           12000,
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					BlockSignature:      []byte{},
-				},
-				broadcast: false,
-				persist:   true,
+				previousBlock: &mockPreviousBlockPushBlock,
+				block:         &mockBlockPushBlock,
+				broadcast:     false,
+				persist:       true,
 			},
 			wantErr: false,
 		},
@@ -1153,39 +1145,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                  1,
-					Timestamp:           12000,
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					BlockSignature:      []byte{},
-				},
-				broadcast: false,
-				persist:   true,
+				previousBlock: &mockPreviousBlockPushBlock,
+				block:         &mockBlockPushBlock,
+				broadcast:     false,
+				persist:       true,
 			},
 			wantErr: false,
 		},
@@ -1221,39 +1187,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                  1,
-					Timestamp:           12000,
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					BlockSignature:      []byte{},
-				},
-				broadcast: true,
-				persist:   true,
+				previousBlock: &mockPreviousBlockPushBlock,
+				block:         &mockBlockPushBlock,
+				broadcast:     true,
+				persist:       true,
 			},
 			wantErr: false,
 		},
@@ -1289,39 +1229,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
-				previousBlock: &model.Block{
-					ID:                   0,
-					Timestamp:            10000,
-					CumulativeDifficulty: "10000",
-					Version:              1,
-					PreviousBlockHash:    []byte{},
-					BlockSeed:            []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Transactions:         []*model.Transaction{},
-					PayloadHash:          []byte{},
-					BlockSignature:       []byte{},
-				},
-				block: &model.Block{
-					ID:                  1,
-					Timestamp:           12000,
-					Version:             1,
-					PreviousBlockHash:   []byte{},
-					BlockSeed:           []byte{},
-					BlocksmithPublicKey: bcsNodePubKey1,
-					TotalAmount:         0,
-					TotalFee:            0,
-					TotalCoinBase:       0,
-					Transactions:        []*model.Transaction{},
-					PayloadHash:         []byte{},
-					BlockSignature:      []byte{},
-				},
-				broadcast: false,
-				persist:   true,
+				previousBlock: &mockPreviousBlockPushBlock,
+				block:         &mockBlockPushBlock,
+				broadcast:     false,
+				persist:       true,
 			},
 			wantErr: true,
 		},
@@ -1352,6 +1266,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         tt.fields.FeeScaleService,
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1946,6 +1861,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		Logger                  *log.Logger
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
+		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1982,6 +1898,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
 		},
@@ -2006,6 +1923,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -3314,8 +3232,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				fmt.Println(tt.want.ReferenceBlockHash)
-				fmt.Println(got.ReferenceBlockHash)
 				t.Errorf("ReceiveBlock() got = \n%v want \n%v", got, tt.want)
 			}
 		})
@@ -3631,7 +3547,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    9165797427928801321,
+			want:    1906526980477206254,
 		},
 	}
 	for _, tt := range tests {

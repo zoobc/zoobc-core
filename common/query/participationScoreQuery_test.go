@@ -107,3 +107,47 @@ func TestParticipationScoreQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		}
 	})
 }
+
+func TestParticipationScoreQuery_InsertParticipationScores(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		scores []*model.ParticipationScore
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewParticipationScoreQuery()),
+			args: args{
+				scores: []*model.ParticipationScore{
+					mockParticipationScore,
+				},
+			},
+			wantStr:  "INSERT INTO participation_score (node_id, score, latest, height) VALUES (?, ?, ?, ?)",
+			wantArgs: NewParticipationScoreQuery().ExtractModel(mockParticipationScore),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &ParticipationScoreQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ps.InsertParticipationScores(tt.args.scores)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertParticipationScores() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertParticipationScores() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
