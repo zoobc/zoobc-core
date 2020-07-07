@@ -55,7 +55,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		effectiveBalanceToLock, lockedBalance int64
 		nodePublicKey                         []byte
-		// STEF TODO: remove nodeAddress from nodeRegistration
+		// TODO: @iltoga remove nodeAddress from nodeRegistration
 		nodeAddress *model.NodeAddress
 		nodeReg     model.NodeRegistration
 		queries     [][]interface{}

@@ -35,7 +35,7 @@ type (
 		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
-		// STEF ExtractNodeAddress must be moved in ipUtils or some other util package
+		// TODO: @iltoga ExtractNodeAddress must be moved in ipUtils or some other util package
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
 	}
