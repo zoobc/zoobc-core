@@ -225,7 +225,7 @@ func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry
 			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 			publicKey  = privateKey[32:]
 		)
-		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, publicKey)
+		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
 	}
 	var (
 		nodeSeed       = util.GetSecureRandomSeed()

@@ -84,7 +84,7 @@ func TestEd25519Signature_GetAddressFromSeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			if got := es.GetAddressFromSeed(constant.PrefixZoobcNormalAccount, tt.args.seed); got != tt.want {
+			if got := es.GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, tt.args.seed); got != tt.want {
 				t.Errorf("Ed25519Signature.GetAddressFromSeed() = %v, want %v", got, tt.want)
 			}
 		})
@@ -124,7 +124,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			got, err := es.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, tt.args.publicKey)
+			got, err := es.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, tt.args.publicKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Ed25519Signature.GetAddressFromPublicKey() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -1,6 +1,6 @@
 package constant
 
 const (
-	PrefixZoobcNormalAccount = "ZBC"
-	PrefixZoobcNodeAccount   = "ZNK"
+	PrefixZoobcDefaultAccount = "ZBC"
+	PrefixZoobcNodeAccount    = "ZNK"
 )

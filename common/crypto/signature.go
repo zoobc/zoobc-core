@@ -236,7 +236,7 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if err != nil {
 			return nil, nil, "", "", err
 		}
-		address, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, publicKey)
+		address, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}

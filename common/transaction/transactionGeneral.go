@@ -391,7 +391,7 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, 
 		buff.WriteString(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return sig.GetAddressFromPublicKey(constant.PrefixZoobcNormalAccount, hashed[:])
+	return sig.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, hashed[:])
 
 }
 
