@@ -2,7 +2,6 @@ package genesisblock
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -105,7 +104,7 @@ func init() {
 //   AccountBalance (for funded accounts only): the balance of that account at genesis block
 //   NodeSeed (this should be set only for testing nodes): it will be copied into cluster_config.json to
 //       automatically deploy new nodes that are already registered
-//   NodeAccountAddress (mandatory): base64 encoded node public key to be registered
+//   NodeAccountAddress (mandatory): node public key string format
 //   NodeAddress (optional): if known, the node address that will be registered and put in cluster_config.json too
 //   LockedBalance (optional): account's locked balance
 //   ParticipationScore (optional): set custom initial participation score (mainly for testing the smith process and POP algorithm).
@@ -317,7 +316,8 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 				bcEntry.NodeAddress = nr.NodeAddress.Address
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
-			bcEntry.NodeAccountAddress = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
+			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
+
 			err := func() error {
 				// get the participation score for this node registration
 				qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
@@ -528,17 +528,6 @@ func getRootPath() string {
 		return path.Join(wd, "../")
 	}
 	return wd
-}
-
-func (ge *genesisEntry) FormatPubKeyByteString() string {
-	if ge.NodeAccountAddress == "" {
-		return ""
-	}
-	pubKey, err := base64.StdEncoding.DecodeString(ge.NodeAccountAddress)
-	if err != nil {
-		log.Fatalf("Error decoding node public key: %s", err)
-	}
-	return util.RenderByteArrayAsString(pubKey)
 }
 
 func (ge *genesisEntry) HasParticipationScore() bool {
