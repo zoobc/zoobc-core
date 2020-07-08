@@ -1,6 +1,8 @@
 package p2p
 
 import (
+	"bytes"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -341,14 +343,24 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 		}
 
 		// save downloaded chunks to storage as soon as possible to avoid keeping in memory large arrays
-		for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
-			fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
-			err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
-			if err != nil {
-				s.Logger.Errorf("failed saving file to storage: %s", err)
-				return nil, err
-			}
+		chunks := fileDownloadResponse.GetFileChunks()
+		fileHash, err := s.FileService.HashPayload(bytes.Join(chunks, []byte{}))
+		if err != nil {
+			return nil, err
 		}
+
+		_, err = s.FileService.SaveSnapshotFile(string(fileHash), chunks)
+		if err != nil {
+			return nil, err
+		}
+		// for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
+		// 	fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
+		// 	err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
+		// 	if err != nil {
+		// 		s.Logger.Errorf("failed saving file to storage: %s", err)
+		// 		return nil, err
+		// 	}
+		// }
 
 		// set next files to download = previous files that failed to download
 		fileChunksToDownload = fileDownloadResponse.GetFailed()

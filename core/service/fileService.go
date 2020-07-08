@@ -31,6 +31,8 @@ type (
 		EncodePayload(v interface{}) (b []byte, err error)
 		DecodePayload(b []byte, v interface{}) error
 		GetEncoderHandler() codec.Handle
+		SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes [][]byte, err error)
+		DeleteSnapshotDir(dir string) error
 	}
 
 	FileService struct {
@@ -123,6 +125,37 @@ func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) 
 	return nil
 }
 
+// SaveSnapshotFile saving snapshot chunks into a directory named as file hashes
+//	- dir could be file hashes to string
+func (fs *FileService) SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes [][]byte, err error) {
+
+	var (
+		hashed []byte
+		path   = filepath.Join(fs.snapshotPath, dir)
+	)
+
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		err = os.MkdirAll(path, os.ModePerm)
+		if err != nil {
+			return nil, err
+		}
+	}
+	for _, chunk := range chunks {
+		hashed, err = fs.HashPayload(chunk)
+		if err != nil {
+			return nil, err
+		}
+		fileHashes = append(fileHashes, hashed)
+
+		fileName := fs.GetFileNameFromBytes(chunk)
+		err = ioutil.WriteFile(filepath.Join(path, fileName), chunk, 0644)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return fileHashes, nil
+}
+
 func (fs *FileService) HashPayload(b []byte) ([]byte, error) {
 	hasher := sha3.New256()
 	_, err := hasher.Write(b)
@@ -157,4 +190,11 @@ func (fs *FileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) e
 		}
 	}
 	return nil
+}
+
+// DeleteSnapshotDir deleting specific snapshot directory which named as file hashes
+func (fs *FileService) DeleteSnapshotDir(dir string) error {
+
+	return os.RemoveAll(filepath.Join(fs.snapshotPath, dir))
+
 }
