@@ -164,6 +164,7 @@ func startGrpcServer(
 			query.NewPendingTransactionQuery(),
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
+			query.NewMultiSignatureParticipantQuery(),
 		)})
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
