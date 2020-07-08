@@ -1486,7 +1486,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-	// cache last block	state
+	// cache last block state
 	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), commonBlock)
 	if err != nil {
 		return nil, err

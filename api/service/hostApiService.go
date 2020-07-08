@@ -66,7 +66,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	}
 
 	// check existing main chaintype
-	if chainStatuses[0] == nil {
+	if len(chainStatuses) == 0 || chainStatuses[0] == nil {
 		return nil, status.Error(codes.InvalidArgument, "mainLastBlockIsNil")
 	}
 	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(chainStatuses[0].GetHeight())
