@@ -211,6 +211,7 @@ func initialize(
 		nil,
 		feeScaleService,
 		query.GetPruneQuery(chainType),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}

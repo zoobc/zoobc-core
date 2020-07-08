@@ -9,6 +9,10 @@ import (
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	log "github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -17,14 +21,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 )
 
 func startGrpcServer(
@@ -43,6 +45,7 @@ func startGrpcServer(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateCache storage.CacheStorageInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -117,7 +120,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateCache),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -201,6 +204,7 @@ func Start(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateCache storage.CacheStorageInterface,
 ) {
 	startGrpcServer(
 		grpcPort,
@@ -220,6 +224,7 @@ func Start(
 		receiptService,
 		transactionCoreService,
 		maxAPIRequestPerSecond,
+		blockStateCache,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

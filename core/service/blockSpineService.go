@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -44,6 +45,7 @@ type (
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlocksmithService         BlocksmithServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 	}
 )
 
@@ -60,6 +62,7 @@ func NewBlockSpineService(
 	megablockQuery query.SpineBlockManifestQueryInterface,
 	blocksmithService BlocksmithServiceInterface,
 	snapshotMainblockService SnapshotBlockServiceInterface,
+	blockStateCache storage.CacheStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:          ct,
@@ -84,6 +87,7 @@ func NewBlockSpineService(
 		),
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
+		BlockStateCache:          blockStateCache,
 	}
 }
 
@@ -346,6 +350,11 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
+		return err
+	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), block)
+	if err != nil {
 		return err
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
@@ -844,6 +853,17 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return nil, err
 	}
+
+	err = bs.PopulateBlockData(commonBlock)
+	if err != nil {
+		return nil, err
+	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), commonBlock)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		// post rollback action:
 		// - clean snapshot data
