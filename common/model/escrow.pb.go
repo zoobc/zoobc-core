@@ -375,9 +375,7 @@ func init() {
 	proto.RegisterType((*GetEscrowTransactionRequest)(nil), "model.GetEscrowTransactionRequest")
 }
 
-func init() {
-	proto.RegisterFile("model/escrow.proto", fileDescriptor_c4ffdfca00fa52ba)
-}
+func init() { proto.RegisterFile("model/escrow.proto", fileDescriptor_c4ffdfca00fa52ba) }
 
 var fileDescriptor_c4ffdfca00fa52ba = []byte{
 	// 520 bytes of a gzipped FileDescriptorProto

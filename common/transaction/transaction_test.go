@@ -171,7 +171,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:               &auth.ProofOfOwnershipValidation{},
+				AuthPoown:               &auth.NodeAuthValidation{},
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
@@ -203,7 +203,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
@@ -259,7 +259,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
@@ -271,7 +271,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockSetupAccountDatasetBody.GetSetterAccountAddress(),
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
@@ -283,7 +283,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &SetupAccountDataset{
 				Body:                mockSetupAccountDatasetBody,
 				Height:              5,
-				SenderAddress:       mockSetupAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -298,8 +298,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
 						RemoveAccountDatasetTransactionBody: mockRemoveAccountDatasetBody,
 					},
@@ -310,7 +310,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &RemoveAccountDataset{
 				Body:                mockRemoveAccountDatasetBody,
 				Height:              5,
-				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				RecipientAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -325,7 +326,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_ApprovalEscrowTransactionBody{
 						ApprovalEscrowTransactionBody: approvalEscrowBody,
@@ -336,7 +337,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &ApprovalEscrowTransaction{
 				ID:                  0,
-				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				Body:                approvalEscrowBody,
 				Height:              5,
 				QueryExecutor:       &query.Executor{},

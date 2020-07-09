@@ -98,11 +98,14 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,
+			query.NewNodeAddressInfoQuery(),
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
 			query.NewBlockQuery(&chaintype.MainChain{}),
 			query.NewNodeAdmissionTimestampQuery(),
+			nil,
+			nil,
 			nil,
 			nil,
 		)

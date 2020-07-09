@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -124,7 +123,6 @@ func (p2pMfs *p2pMockFileService) SaveBytesToFile(fileBasePath, filename string,
 
 func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 	type fields struct {
-		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
 		Logger            *log.Logger
@@ -269,7 +267,6 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Peer2PeerService{
-				Host:              tt.fields.Host,
 				PeerExplorer:      tt.fields.PeerExplorer,
 				PeerServiceClient: tt.fields.PeerServiceClient,
 				Logger:            tt.fields.Logger,

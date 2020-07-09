@@ -1,16 +1,17 @@
 package transaction
 
 import (
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 var (
-	senderAddress1 = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+	senderAddress1 = "ZNK_TE5DFSAH_HVWOLTBQ_Y6IRKY35_JMYS25TB_3NIPF5DE_Q2IPMJMQ_2WDWZB5Q"
 	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 	nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -181,10 +182,8 @@ func GetFixturesForSetupAccountDataset() (
 	txBodyBytes []byte,
 ) {
 	txBody = &model.SetupAccountDatasetTransactionBody{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "Welcome",
+		Property: "Admin",
+		Value:    "Welcome",
 	}
 
 	sa := SetupAccountDataset{
@@ -198,10 +197,8 @@ func GetFixturesForRemoveAccountDataset() (
 	txBodyBytes []byte,
 ) {
 	txBody = &model.RemoveAccountDatasetTransactionBody{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "Good bye",
+		Property: "Admin",
+		Value:    "Good bye",
 	}
 
 	ra := RemoveAccountDataset{

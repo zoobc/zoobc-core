@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/zoobc/zoobc-core/cmd/noderegistry"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -16,7 +18,6 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"google.golang.org/grpc"
 )
 
 // GenerateTxSendMoney return send money transaction based on provided basic transaction & ammunt
@@ -173,13 +174,11 @@ others specific field for setup account dataset transaction
 */
 func GenerateTxSetupAccountDataset(
 	tx *model.Transaction,
-	senderAccountAddress, recipientAccountAddress, property, value string,
+	property, value string,
 ) *model.Transaction {
 	txBody := &model.SetupAccountDatasetTransactionBody{
-		SetterAccountAddress:    senderAccountAddress,
-		RecipientAccountAddress: recipientAccountAddress,
-		Property:                property,
-		Value:                   value,
+		Property: property,
+		Value:    value,
 	}
 	txBodyBytes := (&transaction.SetupAccountDataset{
 		Body: txBody,
@@ -200,13 +199,11 @@ others specific field for remove account dataset transaction
 */
 func GenerateTxRemoveAccountDataset(
 	tx *model.Transaction,
-	senderAccountAddress, recipientAccountAddress, property, value string,
+	property, value string,
 ) *model.Transaction {
 	txBody := &model.RemoveAccountDatasetTransactionBody{
-		SetterAccountAddress:    senderAccountAddress,
-		RecipientAccountAddress: recipientAccountAddress,
-		Property:                property,
-		Value:                   value,
+		Property: property,
+		Value:    value,
 	}
 	txBodyBytes := (&transaction.RemoveAccountDataset{
 		Body: txBody,
@@ -237,7 +234,7 @@ func GenerateBasicTransaction(
 	} else {
 		switch model.SignatureType(senderSignatureType) {
 		case model.SignatureType_DefaultSignature:
-			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
+			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, senderSeed)
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())

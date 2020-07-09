@@ -149,6 +149,7 @@ func initialize(
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
@@ -156,6 +157,8 @@ func initialize(
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
+		nil,
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
@@ -211,6 +214,7 @@ func initialize(
 		nil,
 		feeScaleService,
 		query.GetPruneQuery(chainType),
+		nil,
 	)
 
 	migration = database.Migration{Query: queryExecutor}
