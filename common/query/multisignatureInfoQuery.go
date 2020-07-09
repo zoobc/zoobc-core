@@ -64,7 +64,6 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 		msi.getTableName(),
 	)
 	return query, []interface{}{
-		multisigAddress,
 		blockHeight,
 		multisigAddress,
 	}
