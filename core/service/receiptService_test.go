@@ -321,7 +321,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 	switch qe {
 
 	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
-		"registration_status, latest, height, t2.status as ai_status FROM node_registry " +
+		"registration_status, latest, height FROM node_registry " +
 		"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
@@ -393,8 +393,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 	defer db.Close()
 	switch qe {
 	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
-		"registration_status, latest, height, t2.status as ai_status FROM node_registry " +
-		"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+		"registration_status, latest, height FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE " +
+		"node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -694,42 +694,18 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		// 	want:    nil,
 		// 	wantErr: true,
 		// },
-		{
-			name: "receiptService-selectReceipts-success-one-linked",
-			fields: fields{
-				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
-				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-				KVExecutor:              nil,
-				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
-				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
-			},
-			args: args{
-				blockTimestamp:  0,
-				numberOfReceipt: 1,
-			},
-			want: []*model.PublishedReceipt{
-				{
-					BatchReceipt:       mockLinkedReceipt.BatchReceipt,
-					IntermediateHashes: mockFlattenIntermediateHash,
-					BlockHeight:        0,
-					ReceiptIndex:       mockLinkedReceipt.RMRIndex,
-					PublishedIndex:     0,
-				},
-			},
-			wantErr: false,
-		},
 		// {
-		// 	name: "receiptService-selectReceipts-success-one-linked-more-rmr-linked-and-unlinked",
+		// 	name: "receiptService-selectReceipts-success-one-linked",
 		// 	fields: fields{
 		// 		NodeReceiptQuery:        query.NewNodeReceiptQuery(),
 		// 		MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 		// 		KVExecutor:              nil,
+		// 		QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
 		// 		NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
-		// 		QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
 		// 	},
 		// 	args: args{
 		// 		blockTimestamp:  0,
-		// 		numberOfReceipt: 3,
+		// 		numberOfReceipt: 1,
 		// 	},
 		// 	want: []*model.PublishedReceipt{
 		// 		{
@@ -742,6 +718,30 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		// 	},
 		// 	wantErr: false,
 		// },
+		{
+			name: "receiptService-selectReceipts-success-one-linked-more-rmr-linked-and-unlinked",
+			fields: fields{
+				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
+				KVExecutor:              nil,
+				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
+				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 3,
+			},
+			want: []*model.PublishedReceipt{
+				{
+					BatchReceipt:       mockLinkedReceipt.BatchReceipt,
+					IntermediateHashes: mockFlattenIntermediateHash,
+					BlockHeight:        0,
+					ReceiptIndex:       mockLinkedReceipt.RMRIndex,
+					PublishedIndex:     0,
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

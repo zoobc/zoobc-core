@@ -683,7 +683,7 @@ func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKeyWithNo
 				nodePublicKey: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			},
 			wantStr: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
-				"locked_balance, registration_status, latest, height, t2.status as ai_status FROM node_registry " +
+				"locked_balance, registration_status, latest, height FROM node_registry " +
 				"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
 			wantArgs: []interface{}{[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1}, uint32(10)},
