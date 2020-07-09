@@ -56,7 +56,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 		blockHeight = currentHeight - limit
 	}
 	query := fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
+		"SELECT %s, %s FROM %s WHERE block_height >= ? AND latest = true",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') "+
 			"FROM multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height "+
