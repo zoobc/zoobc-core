@@ -143,6 +143,9 @@ func (fs *FileService) SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes
 	for _, chunk := range chunks {
 		hashed, err = fs.HashPayload(chunk)
 		if err != nil {
+			if e := fs.DeleteSnapshotDir(path); e != nil {
+				fs.Logger.Error(e)
+			}
 			return nil, err
 		}
 		fileHashes = append(fileHashes, hashed)
@@ -150,6 +153,9 @@ func (fs *FileService) SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes
 		fileName := fs.GetFileNameFromBytes(chunk)
 		err = ioutil.WriteFile(filepath.Join(path, fileName), chunk, 0644)
 		if err != nil {
+			if e := fs.DeleteSnapshotDir(path); e != nil {
+				fs.Logger.Error(e)
+			}
 			return nil, err
 		}
 	}

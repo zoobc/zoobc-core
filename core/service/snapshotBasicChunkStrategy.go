@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"encoding/base64"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -50,43 +51,11 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 	}
 
 	chunks = util.SplitByteSliceByChunkSize(encodedPayload, ss.ChunkSize)
-	fileChunkHashes, err = ss.FileService.SaveSnapshotFile(string(fullHash), chunks)
+	fileChunkHashes, err = ss.FileService.SaveSnapshotFile(base64.URLEncoding.EncodeToString(fullHash), chunks)
 	if err != nil {
 		return nil, nil, err
 	}
-	// for _, fileChunk := range fileChunks {
-	// 	fileChunkHash, err := ss.FileService.HashPayload(fileChunk)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	//
-	// 	fileChunkHashes = append(fileChunkHashes, fileChunkHash)
-	//
-	// 	fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
-	// 	err = ss.FileService.SaveBytesToFile(filePath, fileName, fileChunk)
-	// 	if err != nil {
-	// 		// try remove saved files if saving a chunk file fails
-	// 		if err1 := ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes); err1 != nil {
-	// 			return nil, nil, err1
-	// 		}
-	// 		return nil, nil, err
-	// 	}
-	//
-	// 	// make extra sure that the file created is not corrupted
-	// 	filePathName := filepath.Join(filePath, fileName)
-	// 	fileBytes, err := ioutil.ReadFile(filePathName)
-	// 	if err != nil {
-	// 		return nil, nil, err
-	// 	}
-	// 	if !ss.FileService.VerifyFileChecksum(fileBytes, fileChunkHash) {
-	// 		// try remove saved files if file chunk validation fails
-	// 		err = ss.FileService.DeleteFilesByHash(filePath, fileChunkHashes)
-	// 		if err != nil {
-	// 			return nil, nil, err
-	// 		}
-	// 		return nil, nil, blocker.NewBlocker(blocker.ValidationErr, "InvalidFileHash")
-	// 	}
-	// }
+
 	return fullHash, fileChunkHashes, nil
 }
 
@@ -122,13 +91,5 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, f
 // DeleteFileByChunkHashes take in the concatenated file hashes (file name) and delete them.
 func (ss *SnapshotBasicChunkStrategy) DeleteFileByChunkHashes(fileChunkHashes []byte, filePath string) error {
 	return ss.FileService.DeleteSnapshotDir(string(fileChunkHashes))
-	// fileChunks, err := ss.FileService.ParseFileChunkHashes(fileChunkHashes, sha3.New256().Size())
-	// if err != nil {
-	// 	return err
-	// }
-	// err = ss.FileService.DeleteFilesByHash(filePath, fileChunks)
-	// if err != nil {
-	// 	return err
-	// }
-	// return nil
+
 }

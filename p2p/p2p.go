@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"bytes"
+	"encoding/base64"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -47,7 +48,7 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
-		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
+		DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) (failed []string, err error)
 	}
 	Peer2PeerService struct {
 		Host              *model.Host
@@ -283,12 +284,12 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRetryCount uint32) ([]string, error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) ([]string, error) {
 	var (
 		peer          *model.Peer
 		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
 		peerKey       string
-		retryCount    uint32
+		maxRetryCount uint32
 	)
 	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
 	if len(resolvedPeers) < 1 {
@@ -296,8 +297,8 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 	}
 	// convert the slice to a map to make it easier to find elements in it
 	fileChunkNamesMap := make(map[string]string)
-	for _, s := range fileChunksNames {
-		fileChunkNamesMap[s] = s
+	for _, name := range fileChunksNames {
+		fileChunkNamesMap[name] = name
 	}
 	fileChunksToDownload := fileChunksNames
 	r := util.GetFastRandomSeed()
@@ -306,6 +307,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 
 		// randomly select one of the resolved peers to download files from
 		// (no need for secure random here. we just want to get a quick pseudo random index)
+		// TODO: Will update since use snapshot shard node
 		randomIdx := int(util.GetFastRandom(r, len(resolvedPeers)))
 		if randomIdx != 0 {
 			randomIdx %= len(resolvedPeers)
@@ -321,7 +323,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 		}
 
 		// download the files
-		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload)
+		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload, fullHash)
 		if err != nil {
 			log.Warnf("error download: %v\nchunks: %v\npeer: %v\n", err, fileChunksToDownload, peer)
 			return nil, err
@@ -349,18 +351,10 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 			return nil, err
 		}
 
-		_, err = s.FileService.SaveSnapshotFile(string(fileHash), chunks)
+		_, err = s.FileService.SaveSnapshotFile(base64.URLEncoding.EncodeToString(fileHash), chunks)
 		if err != nil {
 			return nil, err
 		}
-		// for _, fileChunk := range fileDownloadResponse.GetFileChunks() {
-		// 	fileChunkComputedName := s.FileService.GetFileNameFromBytes(fileChunk)
-		// 	err = s.FileService.SaveBytesToFile(s.FileService.GetDownloadPath(), fileChunkComputedName, fileChunk)
-		// 	if err != nil {
-		// 		s.Logger.Errorf("failed saving file to storage: %s", err)
-		// 		return nil, err
-		// 	}
-		// }
 
 		// set next files to download = previous files that failed to download
 		fileChunksToDownload = fileDownloadResponse.GetFailed()

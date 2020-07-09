@@ -69,10 +69,7 @@ func (p2pMpe *p2pMockPeerExplorer) GetResolvedPeers() map[string]*model.Peer {
 	return peers
 }
 
-func (p2pMpsc *p2pMockPeerServiceClient) RequestDownloadFile(
-	destPeer *model.Peer,
-	fileChunkNames []string,
-) (*model.FileDownloadResponse, error) {
+func (p2pMpsc *p2pMockPeerServiceClient) RequestDownloadFile(destPeer *model.Peer, fileChunkNames []string, fullHash []byte) (*model.FileDownloadResponse, error) {
 	var (
 		failed           []string
 		downloadedChunks [][]byte
@@ -276,7 +273,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 				TransactionUtil:   tt.fields.TransactionUtil,
 				FileService:       tt.fields.FileService,
 			}
-			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fileChunksNames, tt.args.maxRetryCount)
+			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fileChunksNames, nil, tt.args.maxRetryCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Peer2PeerService.DownloadFilesFromPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
