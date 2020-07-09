@@ -19,7 +19,7 @@ import (
 type (
 	mockAuthPoown struct {
 		success bool
-		auth.ProofOfOwnershipValidation
+		auth.NodeAuthValidation
 	}
 	// validate mock
 	mockExecutorValidateFailExecuteSelectFail struct {
@@ -1062,7 +1062,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -1319,7 +1319,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			want: 245,
+			want: 289,
 		},
 	}
 	for _, tt := range tests {
@@ -1589,7 +1589,7 @@ func TestNodeRegistration_GetTransactionBody(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -1641,7 +1641,7 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction

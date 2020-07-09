@@ -13,17 +13,18 @@ type (
 	IPUtil struct {
 	}
 	IPUtilInterface interface {
-		GetPublicIP() (ip net.IP, err error)
-		GetPublicIPDYNDNS() (ip net.IP, err error)
+		GetPublicIP() (ip *net.IP, err error)
+		GetPublicIPDYNDNS() (ip *net.IP, err error)
 		IsDomain(address string) bool
-		IsPublicIP(ip net.IP) bool
+		IsPublicIP(ip *net.IP) bool
+		DiscoverNodeAddress() (ip *net.IP, err error)
 	}
 )
 
 // GetPublicIP allowing to get own external/public ip,
 // Work perfectly on server not on local machine / laptop / PC
 // more accurate if getting from request header https://golangcode.com/get-the-request-ip-addr/
-func (ipu *IPUtil) GetPublicIP() (net.IP, error) {
+func (ipu *IPUtil) GetPublicIP() (*net.IP, error) {
 	faces, err := net.Interfaces()
 	if err != nil {
 		return nil, err
@@ -54,14 +55,14 @@ func (ipu *IPUtil) GetPublicIP() (net.IP, error) {
 			if ip == nil {
 				continue // not an ipv4 address
 			}
-			return ip, nil
+			return &ip, nil
 		}
 	}
 	return nil, errors.New("fail caused the internet connection")
 }
 
 // GetPublicIPDYNDNS allowing to get own public ip via http://checkip.dyndns.org
-func (ipu *IPUtil) GetPublicIPDYNDNS() (net.IP, error) {
+func (ipu *IPUtil) GetPublicIPDYNDNS() (*net.IP, error) {
 	var (
 		err  error
 		bt   []byte
@@ -83,7 +84,7 @@ func (ipu *IPUtil) GetPublicIPDYNDNS() (net.IP, error) {
 	ipStr := rgx.FindAllString(string(bt), -1)
 	ip := net.ParseIP(ipStr[0])
 	if ip != nil {
-		return ip, nil
+		return &ip, nil
 	}
 	return nil, fmt.Errorf("invalid ip address")
 }
@@ -95,7 +96,7 @@ func (ipu *IPUtil) IsDomain(address string) bool {
 }
 
 // IsPublicIP make sure that ip is a public ip or not
-func (ipu *IPUtil) IsPublicIP(ip net.IP) bool {
+func (ipu *IPUtil) IsPublicIP(ip *net.IP) bool {
 	if ip.IsLoopback() || ip.IsLinkLocalMulticast() || ip.IsLinkLocalUnicast() {
 		return false
 	}
@@ -112,4 +113,22 @@ func (ipu *IPUtil) IsPublicIP(ip net.IP) bool {
 		}
 	}
 	return false
+}
+
+// IsPublicIP make sure that ip is a public ip or not
+func (ipu *IPUtil) DiscoverNodeAddress() (ip *net.IP, err error) {
+	// first try with an external service
+	if ip, err = ipu.GetPublicIPDYNDNS(); err != nil {
+		// then locally (and check if discovered address is public)
+		if ip, err = ipu.GetPublicIP(); err != nil {
+			return nil, err
+		}
+		if !ipu.IsPublicIP(ip) {
+			err = fmt.Errorf("automatically discovered node address %s is not a public IP. "+
+				"Your server might be behind a firewall or on a local area network. Note that, "+
+				"to be able to actively participate to network activities, generate blocks and keep a high participation score,"+
+				"your node must be accessible by other nodes, thus a public IP is required", ip.String())
+		}
+	}
+	return ip, err
 }

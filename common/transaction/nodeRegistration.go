@@ -26,7 +26,7 @@ type NodeRegistration struct {
 	BlockQuery              query.BlockQueryInterface
 	ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	QueryExecutor           query.ExecutorInterface
-	AuthPoown               auth.ProofOfOwnershipValidationInterface
+	AuthPoown               auth.NodeAuthValidationInterface
 	AccountLedgerQuery      query.AccountLedgerQueryInterface
 	EscrowQuery             query.EscrowTransactionQueryInterface
 }
@@ -228,6 +228,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	if tx.Body.Poown == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
 	}
+	// TODO: @iltoga remove nodeAddress from nodeRegistration
 	if tx.Body.GetNodeAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
 	}

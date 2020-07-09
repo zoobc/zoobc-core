@@ -17,13 +17,15 @@ monitoringPort=9092
 cpuProfilingPort=6062
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH"
+ownerAccountAddress = "ZBC_HJYRRTEP_QQYV5FCN_7IKBGOSQ_KI4RFFT2_QHZW7EWJ_CN56HL3F_EU2SGEHU"
 
 smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["fatal", "error", "panic", "warn"]
+#logLevels=["fatal", "error", "panic"]
+logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
+
 
 apiCertFile="./resource/network.crt"
 apiKeyFile="./resource/network.key"

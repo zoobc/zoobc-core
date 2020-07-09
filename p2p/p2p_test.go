@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/pkg/errors"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -121,7 +120,6 @@ func (p2pMfs *p2pMockFileService) SaveBytesToFile(fileBasePath, filename string,
 
 func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 	type fields struct {
-		Host              *model.Host
 		PeerExplorer      strategy.PeerExplorerStrategyInterface
 		PeerServiceClient client.PeerServiceClientInterface
 		Logger            *log.Logger
@@ -129,6 +127,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 		FileService       coreService.FileServiceInterface
 	}
 	type args struct {
+		fullHash        []byte
 		fileChunksNames []string
 		maxRetryCount   uint32
 	}
@@ -266,14 +265,13 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Peer2PeerService{
-				Host:              tt.fields.Host,
 				PeerExplorer:      tt.fields.PeerExplorer,
 				PeerServiceClient: tt.fields.PeerServiceClient,
 				Logger:            tt.fields.Logger,
 				TransactionUtil:   tt.fields.TransactionUtil,
 				FileService:       tt.fields.FileService,
 			}
-			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fileChunksNames, nil, tt.args.maxRetryCount)
+			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fullHash, tt.args.fileChunksNames, tt.args.maxRetryCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Peer2PeerService.DownloadFilesFromPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return
