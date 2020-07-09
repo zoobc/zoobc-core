@@ -183,7 +183,6 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
 	caseQuery.Args = append(caseQuery.Args, subArgs...)
 
-	caseQuery.FirstWhere(caseQuery.Equal("multisig_address", pendingTx.SenderAddress))
 	caseQuery.Where(caseQuery.Equal("latest", true))
 
 	if pendingTx.Status == model.PendingTransactionStatus_PendingTransactionPending {
