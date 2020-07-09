@@ -3,6 +3,7 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -61,7 +62,9 @@ func (fq *CaseQuery) Select(tableName string, columns ...string) *CaseQuery {
 
 // Where build buffer query string, can combine with `In(), NotIn() ...`
 func (fq *CaseQuery) Where(query ...string) *CaseQuery {
-	if !strings.Contains(fq.Query.String(), "WHERE") {
+	sliceWhere := strings.Split(fq.Query.String(), "WHERE")
+	if !strings.Contains(fq.Query.String(), "WHERE") ||
+		(len(sliceWhere) > 1 && regexp.MustCompile(`AS|FROM|JOIN`).MatchString(sliceWhere[len(sliceWhere)-1])) {
 		fq.Query.WriteString(fmt.Sprintf(
 			"WHERE %s ",
 			strings.Join(query, ""),
