@@ -289,17 +289,11 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...inte
 
 // mockQueryExecutorNotFound
 func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
+	db, _, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height  FROM node_registry WHERE node_public_key = ? AND height <= ? " +
-		"ORDER BY height DESC LIMIT 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
-			"Version"},
-		))
+	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 1":
+		return nil, errors.New("MockedError")
 	default:
 		return nil, errors.New("mockQueryExecutorNotFound - InvalidQuery")
 	}
@@ -359,10 +353,10 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "RegistrationStatus",
+			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "LockedBalance", "RegistrationStatus",
 			"Latest", "Height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
@@ -379,7 +373,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1":
 		for idx, arg := range args {
 			if idx == 0 {
@@ -387,30 +381,30 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				switch nodeID {
 				case "1":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
 				case "2":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, "10.10.10.2", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 				case "3":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, "10.10.10.3", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				case "4":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, mockGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, "10.10.10.3", 100000000,
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, mockGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, 100000000,
 						uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				}
 			}
 		}
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
 		"ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-			"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -543,22 +537,22 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].ReceiptIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+	case "SELECT id, node_public_key, account_address, registration_height, " +
 		"locked_balance, registration_status, latest, height " +
 		"FROM node_registry where registration_status = 0 AND (id,height) in " +
 		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 0 GROUP BY id) " +
 		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+	case "SELECT id, node_public_key, account_address, registration_height, " +
 		"locked_balance, registration_status, latest, height " +
 		"FROM node_registry where registration_status = 0 AND (id,height) in " +
 		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 1 GROUP BY id) " +
 		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
 	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +

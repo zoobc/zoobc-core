@@ -323,7 +323,6 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, arg
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
