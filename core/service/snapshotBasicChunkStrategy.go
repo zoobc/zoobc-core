@@ -60,23 +60,27 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 }
 
 // BuildSnapshotFromChunks rebuilds a whole snapshot file from its file chunks and parses the encoded file into a SnapshotPayload struct
-func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte,
-	filePath string) (*model.SnapshotPayload, error) {
+func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(snapshotHash []byte, fileChunkHashes [][]byte, filePath string) (*model.SnapshotPayload, error) {
 	var (
 		snapshotPayload *model.SnapshotPayload
 		buffer          = bytes.NewBuffer(make([]byte, 0))
 	)
 
 	for _, fileChunkHash := range fileChunkHashes {
-		chunkBytes, err := ss.FileService.ReadFileByHash(filePath, fileChunkHash)
+		chunk, err := ss.FileService.ReadFileFromDir(
+			base64.URLEncoding.EncodeToString(snapshotHash),
+			filePath,
+			ss.FileService.GetFileNameFromHash(fileChunkHash),
+		)
+		// chunkBytes, err := ss.FileService.ReadFileByHash(filePath, fileChunkHash)
 		if err != nil {
 			return nil, err
 		}
-		buffer.Write(chunkBytes)
+		buffer.Write(chunk)
 	}
 	b := buffer.Bytes()
 	payloadHash := sha3.Sum256(b)
-	if !bytes.Equal(payloadHash[:], fullHash) {
+	if !bytes.Equal(payloadHash[:], snapshotHash) {
 		return nil, blocker.NewBlocker(blocker.ValidationErr,
 			"Snapshot file payload hash different from the one in database")
 	}

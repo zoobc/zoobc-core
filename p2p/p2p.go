@@ -296,7 +296,7 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) ([]string, error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunksNames []string, retryCount uint32) ([]string, error) {
 	var (
 		peer          *model.Peer
 		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
@@ -335,7 +335,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fullHash []byte, fileChunksName
 		}
 
 		// download the files
-		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload, fullHash)
+		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, snapshotHash, fileChunksToDownload)
 		if err != nil {
 			log.Warnf("error download: %v\nchunks: %v\npeer: %v\n", err, fileChunksToDownload, peer)
 			return nil, err

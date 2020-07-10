@@ -205,7 +205,7 @@ func (ss *P2PServerHandler) RequestFileDownload(
 			"request does not contain any file name",
 		)
 	}
-	res, err := ss.Service.RequestDownloadFile(ctx, req.GetFileChunkNames())
+	res, err := ss.Service.RequestDownloadFile(ctx, req.GetSnapshotHash(), req.GetFileChunkNames())
 	if res != nil {
 		monitoring.IncrementSnapshotDownloadCounter(int32(len(res.FileChunks)), int32(len(res.Failed)))
 	}

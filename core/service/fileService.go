@@ -19,10 +19,13 @@ type (
 	FileServiceInterface interface {
 		GetDownloadPath() string
 		ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error)
+		// remove
 		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
 		ReadFileByName(filePath, fileName string) ([]byte, error)
 		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
 		SaveBytesToFile(fileBasePath, filename string, b []byte) error
+		//
+
 		GetFileNameFromHash(fileHash []byte) string
 		GetFileNameFromBytes(fileBytes []byte) string
 		GetHashFromFileName(fileName string) ([]byte, error)
@@ -33,6 +36,7 @@ type (
 		GetEncoderHandler() codec.Handle
 		SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes [][]byte, err error)
 		DeleteSnapshotDir(dir string) error
+		ReadFileFromDir(dir, filePath, fileName string) ([]byte, error)
 	}
 
 	FileService struct {
@@ -85,6 +89,16 @@ func (fs *FileService) ReadFileByName(filePath, fileName string) ([]byte, error)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.AppErr,
 			fmt.Sprintf("Cannot read file from storage. file : %s Error: %v", filePathName, err))
+	}
+	return chunkBytes, nil
+}
+
+func (fs *FileService) ReadFileFromDir(dir, filePath, fileName string) ([]byte, error) {
+
+	path := filepath.Join(dir, filePath, fileName)
+	chunkBytes, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
 	return chunkBytes, nil
 }

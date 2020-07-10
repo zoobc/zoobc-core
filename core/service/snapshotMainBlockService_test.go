@@ -509,8 +509,7 @@ func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotP
 	return snapshotFullHash, fileChunkHashes, nil
 }
 
-func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte,
-	filePath string) (*model.SnapshotPayload, error) {
+func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks(snapshotHash []byte, fileChunkHashes [][]byte, filePath string) (*model.SnapshotPayload, error) {
 	if !mocksbcs.success {
 		return nil, errors.New("BuildSnapshotFromChunksFailed")
 	}

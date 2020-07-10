@@ -3,13 +3,14 @@ package client
 import (
 	"context"
 	"fmt"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/util"
-	"math"
-	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -63,7 +64,7 @@ type (
 		// connection managements
 		DeleteConnection(destPeer *model.Peer) error
 		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
-		RequestDownloadFile(destPeer *model.Peer, fileChunkNames []string, fullHash []byte) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(destPeer *model.Peer, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
@@ -558,8 +559,8 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 
 func (psc *PeerServiceClient) RequestDownloadFile(
 	destPeer *model.Peer,
+	snapshotHash []byte,
 	fileChunkNames []string,
-	fullHash []byte,
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
@@ -576,7 +577,7 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 		cancelReq()
 	}()
 	res, err := p2pClient.RequestFileDownload(ctx, &model.FileDownloadRequest{
-		FullHash:       fullHash,
+		SnapshotHash:   snapshotHash,
 		FileChunkNames: fileChunkNames,
 	})
 	if err != nil {

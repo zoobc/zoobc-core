@@ -1860,7 +1860,7 @@ func TestP2PServerService_RequestDownloadFile(t *testing.T) {
 				NodeSecretPhrase: tt.fields.NodeSecretPhrase,
 				Observer:         tt.fields.Observer,
 			}
-			got, err := ps.RequestDownloadFile(tt.args.ctx, tt.args.fileChunkNames)
+			got, err := ps.RequestDownloadFile(tt.args.ctx, nil, tt.args.fileChunkNames)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("P2PServerService.RequestDownloadFile() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -68,7 +68,7 @@ func (p2pMpe *p2pMockPeerExplorer) GetResolvedPeers() map[string]*model.Peer {
 	return peers
 }
 
-func (p2pMpsc *p2pMockPeerServiceClient) RequestDownloadFile(destPeer *model.Peer, fileChunkNames []string, fullHash []byte) (*model.FileDownloadResponse, error) {
+func (p2pMpsc *p2pMockPeerServiceClient) RequestDownloadFile(destPeer *model.Peer, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error) {
 	var (
 		failed           []string
 		downloadedChunks [][]byte

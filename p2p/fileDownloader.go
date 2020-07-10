@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"bytes"
 	"fmt"
 	"sync"
 
@@ -52,6 +51,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 		hashSize                 = sha3.New256().Size()
 		wg                       sync.WaitGroup
 	)
+
 	fileChunkHashes, err := ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 			// TODO: for now download just one chunk per peer,
 			//  but in future we could download multiple chunks at once from one peer
 			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
-			failed, err := ss.P2pService.DownloadFilesFromPeer(bytes.Join(fileChunkHashes, []byte{}), []string{fileName}, constant.DownloadSnapshotNumberOfRetries)
+			failed, err := ss.P2pService.DownloadFilesFromPeer(spineBlockManifest.GetFileChunkHashes(), []string{fileName}, constant.DownloadSnapshotNumberOfRetries)
 			if err != nil {
 				ss.Logger.Error(err)
 			}
