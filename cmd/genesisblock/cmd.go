@@ -30,16 +30,17 @@ import (
 
 type (
 	genesisEntry struct {
-		AccountAddress     string
-		AccountSeed        string
-		AccountBalance     int64
-		NodeSeed           string
-		NodeAccountAddress string
-		NodePublicKey      []byte
-		NodeAddress        string
-		LockedBalance      int64
-		ParticipationScore int64
-		Smithing           bool
+		AccountAddress      string
+		AccountSeed         string
+		AccountBalance      int64
+		NodeSeed            string
+		NodeAccountAddress  string
+		NodePublicKey       []byte
+		NodePublicKeyString string
+		NodeAddress         string
+		LockedBalance       int64
+		ParticipationScore  int64
+		Smithing            bool
 	}
 	clusterConfigEntry struct {
 		NodePublicKey       string `json:"nodePublicKey"`
@@ -97,6 +98,15 @@ func init() {
 	genesisCmd.AddCommand(genesisGeneratorCmd)
 }
 
+func getNodePublicKeyString(nodePublicKey []byte) string {
+	var nodePubKeyStrArray []string
+	for _, bt := range nodePublicKey {
+		nodePubKeyStrArray = append(nodePubKeyStrArray, fmt.Sprintf("%v", bt))
+	}
+	resultStr := strings.Join(nodePubKeyStrArray, ", ")
+	return fmt.Sprintf("[]byte{%s}", resultStr)
+}
+
 // generateGenesisFiles generate genesis files starting from a source json file.
 // PreRegisteredNodes contains a list of known nodes-accountOwners' public keys to be included in genesis.
 // Data that can be pre-set for node registration and and account balance are:
@@ -148,6 +158,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 					log.Fatal(err)
 				}
 				bcState[i].NodePublicKey = pubKey
+				bcState[i].NodePublicKeyString = getNodePublicKeyString(pubKey)
 				found = true
 				break
 			}
@@ -157,6 +168,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 					log.Fatal(err)
 				}
 				prNode.NodePublicKey = pubKey
+				prNode.NodePublicKeyString = getNodePublicKeyString(pubKey)
 				bcState = append(bcState, prNode)
 			}
 		}
@@ -235,14 +247,15 @@ func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry
 	nodeAccountAddress, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
 
 	return genesisEntry{
-		AccountAddress:     accountAddress,
-		NodePublicKey:      nodePublicKey,
-		NodeAccountAddress: nodeAccountAddress,
-		NodeSeed:           nodeSeed,
-		ParticipationScore: constant.GenesisParticipationScore,
-		Smithing:           true,
-		LockedBalance:      0,
-		NodeAddress:        fmt.Sprintf("n%d.alpha.proofofparticipation.network", nodeIdx),
+		AccountAddress:      accountAddress,
+		NodePublicKey:       nodePublicKey,
+		NodePublicKeyString: getNodePublicKeyString(nodePublicKey),
+		NodeAccountAddress:  nodeAccountAddress,
+		NodeSeed:            nodeSeed,
+		ParticipationScore:  constant.GenesisParticipationScore,
+		Smithing:            true,
+		LockedBalance:       0,
+		NodeAddress:         fmt.Sprintf("n%d.alpha.proofofparticipation.network", nodeIdx),
 	}
 }
 
@@ -316,6 +329,8 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 				bcEntry.NodeAddress = nr.NodeAddress.Address
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
+
+			bcEntry.NodePublicKeyString = getNodePublicKeyString(nr.NodePublicKey)
 			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
 
 			err := func() error {
