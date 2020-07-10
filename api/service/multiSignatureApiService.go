@@ -179,6 +179,7 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 	// sub query for getting addresses from multisignature_participant
 	subQ := query.NewCaseQuery()
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
+	subQ.Where(subQ.Equal("multisig_address", pendingTx.SenderAddress))
 	subQ.GroupBy("multisig_address", "block_height")
 	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
 	subQ.As("addresses")
@@ -188,7 +189,6 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
 	caseQuery.Args = append(caseQuery.Args, subArgs...)
 
-	caseQuery.Where(caseQuery.Equal("multisig_address", pendingTx.SenderAddress))
 	caseQuery.Where(caseQuery.Equal("latest", true))
 
 	if pendingTx.Status == model.PendingTransactionStatus_PendingTransactionPending {
