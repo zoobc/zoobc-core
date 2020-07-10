@@ -81,7 +81,7 @@ func TestGetProofOfOwnershipSize(t *testing.T) {
 
 func TestParseProofOfOwnershipMessageBytes(t *testing.T) {
 	poownMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 		BlockHash:      make([]byte, constant.BlockHash),
 		BlockHeight:    0,
 	}

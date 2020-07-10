@@ -26,9 +26,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-func init() {
-	proto.RegisterFile("service/mempool.proto", fileDescriptor_d6a0248fdacf4dd2)
-}
+func init() { proto.RegisterFile("service/mempool.proto", fileDescriptor_d6a0248fdacf4dd2) }
 
 var fileDescriptor_d6a0248fdacf4dd2 = []byte{
 	// 230 bytes of a gzipped FileDescriptorProto
@@ -51,11 +49,11 @@ var fileDescriptor_d6a0248fdacf4dd2 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // MempoolServiceClient is the client API for MempoolService service.
 //
@@ -66,10 +64,10 @@ type MempoolServiceClient interface {
 }
 
 type mempoolServiceClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewMempoolServiceClient(cc grpc.ClientConnInterface) MempoolServiceClient {
+func NewMempoolServiceClient(cc *grpc.ClientConn) MempoolServiceClient {
 	return &mempoolServiceClient{cc}
 }
 

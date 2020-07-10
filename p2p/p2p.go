@@ -32,6 +32,9 @@ type (
 			blockServices map[int32]coreService.BlockServiceInterface,
 			mempoolServices map[int32]coreService.MempoolServiceInterface,
 			fileService coreService.FileServiceInterface,
+			nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+			nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
 		)
 		// exposed api list
@@ -45,34 +48,39 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
+
+		// internal p2p methods
 		DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error)
 	}
 	Peer2PeerService struct {
-		Host              *model.Host
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		PeerServiceClient client.PeerServiceClientInterface
-		Logger            *log.Logger
-		TransactionUtil   transaction.UtilInterface
-		FileService       coreService.FileServiceInterface
+		PeerExplorer             strategy.PeerExplorerStrategyInterface
+		PeerServiceClient        client.PeerServiceClientInterface
+		Logger                   *log.Logger
+		TransactionUtil          transaction.UtilInterface
+		FileService              coreService.FileServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 	}
 )
 
 // NewP2PService to initialize peer to peer service wrapper
 func NewP2PService(
-	host *model.Host,
 	peerServiceClient client.PeerServiceClientInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	logger *log.Logger,
 	transactionUtil transaction.UtilInterface,
 	fileService coreService.FileServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
-		Host:              host,
-		PeerServiceClient: peerServiceClient,
-		Logger:            logger,
-		PeerExplorer:      peerExplorer,
-		TransactionUtil:   transactionUtil,
-		FileService:       fileService,
+		PeerServiceClient:        peerServiceClient,
+		Logger:                   logger,
+		PeerExplorer:             peerExplorer,
+		TransactionUtil:          transactionUtil,
+		FileService:              fileService,
+		NodeRegistrationService:  nodeRegistrationService,
+		NodeConfigurationService: nodeConfigurationService,
 	}, nil
 }
 
@@ -86,11 +94,17 @@ func (s *Peer2PeerService) StartP2P(
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	fileService coreService.FileServiceInterface,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
+		nodeRegistrationService,
 		fileService,
+		nodeConfigurationService,
+		nodeAddressInfoService,
 		s.PeerExplorer,
 		blockServices,
 		mempoolServices,
@@ -116,7 +130,7 @@ func (s *Peer2PeerService) StartP2P(
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,
 		))
-		if err := grpcServer.Serve(p2pUtil.ServerListener(int(s.Host.GetInfo().GetPort()))); err != nil {
+		if err := grpcServer.Serve(p2pUtil.ServerListener(int(s.NodeConfigurationService.GetHost().GetInfo().GetPort()))); err != nil {
 			s.Logger.Fatal(err.Error())
 		}
 	}()
@@ -125,7 +139,7 @@ func (s *Peer2PeerService) StartP2P(
 
 // GetHostInfo exposed the p2p host information to the client
 func (s *Peer2PeerService) GetHostInfo() *model.Host {
-	return s.Host
+	return s.NodeConfigurationService.GetHost()
 }
 
 // GetResolvedPeers exposed current node resolved peer list

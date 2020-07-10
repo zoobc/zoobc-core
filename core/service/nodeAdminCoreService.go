@@ -98,6 +98,7 @@ func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 	if err != nil && os.IsNotExist(err) {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NodeKeysFileNotExist")
 	}
+
 	data := make([]*model.NodeKey, 0)
 	err = json.Unmarshal(file, &data)
 	if err != nil {
@@ -127,7 +128,6 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 		Seed:      seed,
 		PublicKey: publicKey,
 	}
-
 	nodeKeys := make([]*model.NodeKey, 0)
 
 	_, err := os.Stat(nas.FilePath)
