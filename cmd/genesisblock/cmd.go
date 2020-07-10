@@ -316,6 +316,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 				bcEntry.NodeAddress = nr.NodeAddress.Address
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
+
 			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
 
 			err := func() error {
@@ -528,6 +529,12 @@ func getRootPath() string {
 		return path.Join(wd, "../")
 	}
 	return wd
+}
+
+func (ge *genesisEntry) NodePublicKeyString() string {
+	var pubKey []byte
+	_ = address.DecodeZbcID(ge.NodeAccountAddress, pubKey)
+	return util.RenderByteArrayAsString(ge.NodePublicKey)
 }
 
 func (ge *genesisEntry) HasParticipationScore() bool {
