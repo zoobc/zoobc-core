@@ -17,6 +17,7 @@ type (
 			height uint32,
 			preferredStatus model.NodeAddressStatus) ([]*model.NodeRegistration, error)
 		GetAddressInfoTableWithConsolidatedAddresses(preferredStatus model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
+		GetAddressInfoByNodeID(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error)
 	}
 
 	// NodeAddressInfoService nodeRegistration helper service methods
@@ -132,4 +133,39 @@ func (nru *NodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
 		res = append(res, nai)
 	}
 	return res, nil
+}
+
+// GetAddressInfoByNodeID returns a single address info from relative node id,
+// preferring 'preferredStatus' address status over the others
+func (nru *NodeAddressInfoService) GetAddressInfoByNodeID(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error) {
+	// get a node address info given a node id
+	qry := nru.NodeAddressInfoQuery.GetNodeAddressInfoByNodeID(
+		nodeID,
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressPending,
+			model.NodeAddressStatus_NodeAddressConfirmed,
+		})
+	rows, err := nru.QueryExecutor.ExecuteSelect(qry, false)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	nodeAddressesInfo, err := nru.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	mapAddresses := make(map[int64]*model.NodeAddressInfo)
+	// select node address based on status preference
+	if len(nodeAddressesInfo) == 0 {
+		return nil, nil
+	}
+	for _, nai := range nodeAddressesInfo {
+		if prevNr, ok := mapAddresses[nai.GetNodeID()]; ok &&
+			prevNr.GetStatus() == preferredStatus {
+			continue
+		}
+		mapAddresses[nai.GetNodeID()] = nai
+	}
+	return mapAddresses[nodeID], nil
 }

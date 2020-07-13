@@ -594,3 +594,48 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfo(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeID(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nodeID          int64
+		addressStatuses []model.NodeAddressStatus
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "GetNodeAddressInfoByNodeID",
+			fields: fields{
+				Fields:    NewNodeAddressInfoQuery().Fields,
+				TableName: NewNodeAddressInfoQuery().TableName,
+			},
+			args: args{
+				nodeID: int64(111),
+				addressStatuses: []model.NodeAddressStatus{
+					model.NodeAddressStatus_NodeAddressPending,
+					model.NodeAddressStatus_NodeAddressConfirmed,
+				},
+			},
+			want: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id = 111 " +
+				"AND status IN (1, 2) ORDER BY status ASC",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			paq := &NodeAddressInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := paq.GetNodeAddressInfoByNodeID(tt.args.nodeID, tt.args.addressStatuses); got != tt.want {
+				t.Errorf("GetNodeAddressInfoByNodeID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
