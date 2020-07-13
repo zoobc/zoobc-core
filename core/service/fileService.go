@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"math"
 	"os"
@@ -19,13 +18,6 @@ type (
 	FileServiceInterface interface {
 		GetDownloadPath() string
 		ParseFileChunkHashes(fileHashes []byte, hashLength int) (fileHashesAry [][]byte, err error)
-		// remove
-		ReadFileByHash(filePath string, fileHash []byte) ([]byte, error)
-		ReadFileByName(filePath, fileName string) ([]byte, error)
-		DeleteFilesByHash(filePath string, fileHashes [][]byte) error
-		SaveBytesToFile(fileBasePath, filename string, b []byte) error
-		//
-
 		GetFileNameFromHash(fileHash []byte) string
 		GetFileNameFromBytes(fileBytes []byte) string
 		GetHashFromFileName(fileName string) ([]byte, error)
@@ -34,9 +26,9 @@ type (
 		EncodePayload(v interface{}) (b []byte, err error)
 		DecodePayload(b []byte, v interface{}) error
 		GetEncoderHandler() codec.Handle
-		SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes [][]byte, err error)
+		SaveSnapshotChunks(dir string, chunks [][]byte) (fileHashes [][]byte, err error)
 		DeleteSnapshotDir(dir string) error
-		ReadFileFromDir(dir, filePath, fileName string) ([]byte, error)
+		ReadFileFromDir(dir, fileName string) ([]byte, error)
 	}
 
 	FileService struct {
@@ -79,23 +71,10 @@ func (fs *FileService) VerifyFileChecksum(fileBytes, hash []byte) bool {
 	return bytes.Equal(computed[:], hash)
 }
 
-func (fs *FileService) ReadFileByHash(filePath string, fileHash []byte) ([]byte, error) {
-	return fs.ReadFileByName(filePath, fs.GetFileNameFromHash(fileHash))
-}
+// ReadFileFromDir allowing to io read file from dir which is base64 of snapshotHash
+func (fs *FileService) ReadFileFromDir(dir, fileName string) ([]byte, error) {
 
-func (fs *FileService) ReadFileByName(filePath, fileName string) ([]byte, error) {
-	filePathName := filepath.Join(filePath, fileName)
-	chunkBytes, err := ioutil.ReadFile(filePathName)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.AppErr,
-			fmt.Sprintf("Cannot read file from storage. file : %s Error: %v", filePathName, err))
-	}
-	return chunkBytes, nil
-}
-
-func (fs *FileService) ReadFileFromDir(dir, filePath, fileName string) ([]byte, error) {
-
-	path := filepath.Join(dir, filePath, fileName)
+	path := filepath.Join(fs.GetDownloadPath(), dir, fileName)
 	chunkBytes, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -125,27 +104,13 @@ func (fs *FileService) DecodePayload(b []byte, v interface{}) error {
 	return err
 }
 
-func (fs *FileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
-	// try to create folder if doesn't exist
-	if _, err := os.Stat(fileBasePath); os.IsNotExist(err) {
-		_ = os.MkdirAll(fileBasePath, os.ModePerm)
-	}
-
-	filePath := filepath.Join(fileBasePath, fileName)
-	err := ioutil.WriteFile(filePath, b, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// SaveSnapshotFile saving snapshot chunks into a directory named as file hashes
+// SaveSnapshotChunks saving snapshot chunks into a directory named as file hashes
 //	- dir could be file hashes to string
-func (fs *FileService) SaveSnapshotFile(dir string, chunks [][]byte) (fileHashes [][]byte, err error) {
+func (fs *FileService) SaveSnapshotChunks(dir string, chunks [][]byte) (fileHashes [][]byte, err error) {
 
 	var (
 		hashed []byte
-		path   = filepath.Join(fs.snapshotPath, dir)
+		path   = filepath.Join(fs.GetDownloadPath(), dir)
 	)
 
 	if _, err = os.Stat(path); os.IsNotExist(err) {
@@ -199,17 +164,6 @@ func (*FileService) GetFileNameFromHash(fileHash []byte) string {
 func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) string {
 	fileHash := sha3.Sum256(fileBytes)
 	return fs.GetFileNameFromHash(fileHash[:])
-}
-
-// DeleteFilesByHash remove a list of files by their hash/names
-func (fs *FileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) error {
-	for _, fileChunkHash := range fileHashes {
-		filePathName := filepath.Join(filePath, fs.GetFileNameFromHash(fileChunkHash))
-		if err := os.Remove(filePathName); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // DeleteSnapshotDir deleting specific snapshot directory which named as file hashes

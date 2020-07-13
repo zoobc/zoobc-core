@@ -1775,7 +1775,7 @@ var (
 	mockRequestDownloadFileName = "mockName"
 )
 
-func (*mockRequestDownloadFileFileServiceReadFileByNameFail) ReadFileByName(filePath, fileName string) ([]byte, error) {
+func (*mockRequestDownloadFileFileServiceReadFileByNameFail) ReadFileFromDir(dir, fileName string) ([]byte, error) {
 	return nil, errors.New("mock Error")
 }
 
@@ -1783,7 +1783,7 @@ func (*mockRequestDownloadFileFileServiceReadFileByNameFail) GetDownloadPath() s
 	return mockRequestDownloadFilePath
 }
 
-func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) ReadFileByName(filePath, fileName string) ([]byte, error) {
+func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) ReadFileFromDir(dir, fileName string) ([]byte, error) {
 	return []byte{1}, nil
 }
 func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) GetDownloadPath() string {

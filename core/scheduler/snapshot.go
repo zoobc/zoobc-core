@@ -44,11 +44,7 @@ func (ss *SnapshotScheduler) CheckChunksIntegrity(chainType chaintype.ChainType,
 	}
 	if len(chunksHashed) != 0 {
 		for _, chunkHashed := range chunksHashed {
-			_, err = ss.FileService.ReadFileFromDir(
-				base64.URLEncoding.EncodeToString(spineBlockManifest.GetFileChunkHashes()),
-				filePath,
-				ss.FileService.GetFileNameFromHash(chunkHashed),
-			)
+			_, err = ss.FileService.ReadFileFromDir(base64.URLEncoding.EncodeToString(spineBlockManifest.GetFileChunkHashes()), ss.FileService.GetFileNameFromHash(chunkHashed))
 			if err != nil {
 				// Could be requesting a missing chunk p2p
 				fmt.Println(err) // TODO: Will update when p2p finish

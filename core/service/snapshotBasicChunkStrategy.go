@@ -32,7 +32,6 @@ func NewSnapshotBasicChunkStrategy(
 // encoded snapshot payload's hash and the file chunks' hashes (to be included in a spine block manifest)
 func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 	snapshotPayload *model.SnapshotPayload,
-	filePath string,
 ) (fullHash []byte, fileChunkHashes [][]byte, err error) {
 	var (
 		encodedPayload []byte
@@ -51,7 +50,7 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 	}
 
 	chunks = util.SplitByteSliceByChunkSize(encodedPayload, ss.ChunkSize)
-	fileChunkHashes, err = ss.FileService.SaveSnapshotFile(base64.URLEncoding.EncodeToString(fullHash), chunks)
+	fileChunkHashes, err = ss.FileService.SaveSnapshotChunks(base64.URLEncoding.EncodeToString(fullHash), chunks)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,24 +59,20 @@ func (ss *SnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 }
 
 // BuildSnapshotFromChunks rebuilds a whole snapshot file from its file chunks and parses the encoded file into a SnapshotPayload struct
-func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(snapshotHash []byte, fileChunkHashes [][]byte, filePath string) (*model.SnapshotPayload, error) {
+func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(snapshotHash []byte, fileChunkHashes [][]byte) (*model.SnapshotPayload, error) {
 	var (
 		snapshotPayload *model.SnapshotPayload
 		buffer          = bytes.NewBuffer(make([]byte, 0))
 	)
 
 	for _, fileChunkHash := range fileChunkHashes {
-		chunk, err := ss.FileService.ReadFileFromDir(
-			base64.URLEncoding.EncodeToString(snapshotHash),
-			filePath,
-			ss.FileService.GetFileNameFromHash(fileChunkHash),
-		)
-		// chunkBytes, err := ss.FileService.ReadFileByHash(filePath, fileChunkHash)
+		chunk, err := ss.FileService.ReadFileFromDir(base64.URLEncoding.EncodeToString(snapshotHash), ss.FileService.GetFileNameFromHash(fileChunkHash))
 		if err != nil {
 			return nil, err
 		}
 		buffer.Write(chunk)
 	}
+
 	b := buffer.Bytes()
 	payloadHash := sha3.Sum256(b)
 	if !bytes.Equal(payloadHash[:], snapshotHash) {
@@ -93,7 +88,7 @@ func (ss *SnapshotBasicChunkStrategy) BuildSnapshotFromChunks(snapshotHash []byt
 }
 
 // DeleteFileByChunkHashes take in the concatenated file hashes (file name) and delete them.
-func (ss *SnapshotBasicChunkStrategy) DeleteFileByChunkHashes(fileChunkHashes []byte, filePath string) error {
-	return ss.FileService.DeleteSnapshotDir(string(fileChunkHashes))
+func (ss *SnapshotBasicChunkStrategy) DeleteFileByChunkHashes(concatenatedFileChunks []byte) error {
+	return ss.FileService.DeleteSnapshotDir(string(concatenatedFileChunks))
 
 }

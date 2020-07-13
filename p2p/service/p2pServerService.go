@@ -583,22 +583,12 @@ func (ps *P2PServerService) RequestDownloadFile(
 			failed     []string
 		)
 		for _, fileName := range fileChunkNames {
-			chunk, err := ps.FileService.ReadFileFromDir(
-				base64.URLEncoding.EncodeToString(snapshotHash),
-				ps.FileService.GetDownloadPath(),
-				fileName,
-			)
+			chunk, err := ps.FileService.ReadFileFromDir(base64.URLEncoding.EncodeToString(snapshotHash), fileName)
 			if err != nil {
 				failed = append(failed, fileName)
 			} else {
 				fileChunks = append(fileChunks, chunk)
 			}
-			// chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
-			// if err != nil {
-			// 	failed = append(failed, fileName)
-			// } else {
-			// 	fileChunks = append(fileChunks, chunkBytes)
-			// }
 		}
 		res := &model.FileDownloadResponse{
 			FileChunks: fileChunks,

@@ -296,12 +296,12 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunksNames []string, retryCount uint32) ([]string, error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunksNames []string, maxRetryCount uint32) ([]string, error) {
 	var (
 		peer          *model.Peer
 		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
 		peerKey       string
-		maxRetryCount uint32
+		retryCount    uint32
 	)
 	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
 	if len(resolvedPeers) < 1 {
@@ -363,7 +363,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunks
 			return nil, err
 		}
 
-		_, err = s.FileService.SaveSnapshotFile(base64.URLEncoding.EncodeToString(fileHash), chunks)
+		_, err = s.FileService.SaveSnapshotChunks(base64.URLEncoding.EncodeToString(fileHash), chunks)
 		if err != nil {
 			return nil, err
 		}

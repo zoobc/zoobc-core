@@ -69,7 +69,11 @@ func (ss *FileDownloader) DownloadSnapshot(
 			// TODO: for now download just one chunk per peer,
 			//  but in future we could download multiple chunks at once from one peer
 			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
-			failed, err := ss.P2pService.DownloadFilesFromPeer(spineBlockManifest.GetFileChunkHashes(), []string{fileName}, constant.DownloadSnapshotNumberOfRetries)
+			failed, err := ss.P2pService.DownloadFilesFromPeer(
+				spineBlockManifest.GetFileChunkHashes(),
+				[]string{fileName},
+				constant.DownloadSnapshotNumberOfRetries,
+			)
 			if err != nil {
 				ss.Logger.Error(err)
 			}
