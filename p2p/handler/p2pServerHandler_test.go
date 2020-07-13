@@ -826,11 +826,11 @@ type (
 	}
 )
 
-func (*mockRequestDownloadFileError) RequestDownloadFile(ctx context.Context, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error) {
+func (*mockRequestDownloadFileError) RequestDownloadFile(context.Context, []byte, []string) (*model.FileDownloadResponse, error) {
 	return nil, errors.New("Error RequestDownloadFile")
 }
 
-func (*mockRequestDownloadFileSuccess) RequestDownloadFile(ctx context.Context, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error) {
+func (*mockRequestDownloadFileSuccess) RequestDownloadFile(context.Context, []byte, []string) (*model.FileDownloadResponse, error) {
 	return &model.FileDownloadResponse{}, nil
 }
 
