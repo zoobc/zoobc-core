@@ -292,7 +292,6 @@ func (tx *FeeVoteRevealTransaction) GetTransactionBody(transaction *model.Transa
 // GetFeeVoteInfoBytes will build bytes from model.FeeVoteInfo
 func (tx *FeeVoteRevealTransaction) GetFeeVoteInfoBytes() []byte {
 	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
 	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
