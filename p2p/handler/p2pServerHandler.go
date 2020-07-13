@@ -31,6 +31,24 @@ func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 	return ss.Service.GetPeerInfo(ctx, req)
 }
 
+// GetNodeAddressesInfo return content of node_address_info table to requesting peer
+func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.
+	GetNodeAddressesInfoResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+
+	return ss.Service.GetNodeAddressesInfo(ctx, req)
+}
+
+// SendNodeAddressInfo receive a NodeAddressInfo sent by a peer
+func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+
+	// service method (P2PServerServiceInterface) to send a node address info message to a peer
+	return ss.Service.SendNodeAddressInfo(ctx, req)
+}
+
 // GetMorePeers contains info other peers
 func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)
@@ -191,5 +209,12 @@ func (ss *P2PServerHandler) RequestFileDownload(
 	if res != nil {
 		monitoring.IncrementSnapshotDownloadCounter(int32(len(res.FileChunks)), int32(len(res.Failed)))
 	}
+	return res, err
+}
+
+func (ss *P2PServerHandler) GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
+	res, err := ss.Service.GetNodeProofOfOrigin(ctx, req)
 	return res, err
 }

@@ -2,7 +2,6 @@ package genesisblock
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +11,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/zoobc/lib/address"
 
 	"github.com/spf13/cobra"
 
@@ -33,7 +34,7 @@ type (
 		AccountSeed        string
 		AccountBalance     int64
 		NodeSeed           string
-		NodePublicKeyB64   string
+		NodeAccountAddress string
 		NodePublicKey      []byte
 		NodeAddress        string
 		LockedBalance      int64
@@ -103,7 +104,7 @@ func init() {
 //   AccountBalance (for funded accounts only): the balance of that account at genesis block
 //   NodeSeed (this should be set only for testing nodes): it will be copied into cluster_config.json to
 //       automatically deploy new nodes that are already registered
-//   NodePublicKeyB64 (mandatory): base64 encoded node public key to be registered
+//   NodeAccountAddress (mandatory): node public key string format
 //   NodeAddress (optional): if known, the node address that will be registered and put in cluster_config.json too
 //   LockedBalance (optional): account's locked balance
 //   ParticipationScore (optional): set custom initial participation score (mainly for testing the smith process and POP algorithm).
@@ -135,13 +136,14 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		// which is are NodeSeed and Smithing
 		for _, prNode := range preRegisteredNodes {
 			found := false
+			var pubKey = make([]byte, 32)
 			for i, e := range bcState {
 				if prNode.AccountAddress != e.AccountAddress {
 					continue
 				}
 				bcState[i].NodeSeed = prNode.NodeSeed
 				bcState[i].Smithing = prNode.Smithing
-				pubKey, err := base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+				err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -150,10 +152,11 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 				break
 			}
 			if !found {
-				prNode.NodePublicKey, err = base64.StdEncoding.DecodeString(prNode.NodePublicKeyB64)
+				err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
 				if err != nil {
 					log.Fatal(err)
 				}
+				prNode.NodePublicKey = pubKey
 				bcState = append(bcState, prNode)
 			}
 		}
@@ -222,18 +225,19 @@ func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry
 			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 			publicKey  = privateKey[32:]
 		)
-		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(publicKey)
+		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
 	}
 	var (
 		nodeSeed       = util.GetSecureRandomSeed()
 		nodePrivateKey = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
 		nodePublicKey  = nodePrivateKey[32:]
 	)
+	nodeAccountAddress, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,
 		NodePublicKey:      nodePublicKey,
-		NodePublicKeyB64:   base64.StdEncoding.EncodeToString(nodePublicKey),
+		NodeAccountAddress: nodeAccountAddress,
 		NodeSeed:           nodeSeed,
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
@@ -312,7 +316,9 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 				bcEntry.NodeAddress = nr.NodeAddress.Address
 			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
-			bcEntry.NodePublicKeyB64 = base64.StdEncoding.EncodeToString(nr.NodePublicKey)
+
+			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
+
 			err := func() error {
 				// get the participation score for this node registration
 				qry, args := participationScoreQuery.GetParticipationScoreByNodeID(nr.NodeID)
@@ -414,6 +420,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		nil,
 		query.GetPruneQuery(&chaintype.MainChain{}),
+		nil,
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
@@ -429,7 +436,7 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		if genesisEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
 				NodeAddress:         genesisEntry.NodeAddress,
-				NodePublicKey:       genesisEntry.NodePublicKeyB64,
+				NodePublicKey:       genesisEntry.NodeAccountAddress,
 				NodeSeed:            genesisEntry.NodeSeed,
 				OwnerAccountAddress: genesisEntry.AccountAddress,
 				Smithing:            genesisEntry.Smithing,
@@ -524,15 +531,10 @@ func getRootPath() string {
 	return wd
 }
 
-func (ge *genesisEntry) FormatPubKeyByteString() string {
-	if ge.NodePublicKeyB64 == "" {
-		return ""
-	}
-	pubKey, err := base64.StdEncoding.DecodeString(ge.NodePublicKeyB64)
-	if err != nil {
-		log.Fatalf("Error decoding node public key: %s", err)
-	}
-	return util.RenderByteArrayAsString(pubKey)
+func (ge *genesisEntry) NodePublicKeyString() string {
+	var pubKey []byte
+	_ = address.DecodeZbcID(ge.NodeAccountAddress, pubKey)
+	return util.RenderByteArrayAsString(ge.NodePublicKey)
 }
 
 func (ge *genesisEntry) HasParticipationScore() bool {
@@ -552,5 +554,5 @@ func (ge *genesisEntry) HasNodeAddress() bool {
 }
 
 func (ge *genesisEntry) HasNodePublicKey() bool {
-	return ge.NodePublicKeyB64 != ""
+	return ge.NodeAccountAddress != ""
 }

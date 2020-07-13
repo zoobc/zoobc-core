@@ -30,8 +30,9 @@ require (
 	github.com/spf13/viper v1.6.2
 	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/ugorji/go/codec v1.1.7
+	github.com/zoobc/lib v0.0.0-20200611035436-693560334368
 	github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463
-	golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4
+	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
 	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
 	google.golang.org/genproto v0.0.0-20200306153348-d950eab6f860
 	google.golang.org/grpc v1.27.0

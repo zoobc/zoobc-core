@@ -26,9 +26,7 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-func init() {
-	proto.RegisterFile("service/host.proto", fileDescriptor_fc2df5144b0d0a79)
-}
+func init() { proto.RegisterFile("service/host.proto", fileDescriptor_fc2df5144b0d0a79) }
 
 var fileDescriptor_fc2df5144b0d0a79 = []byte{
 	// 232 bytes of a gzipped FileDescriptorProto
@@ -51,11 +49,11 @@ var fileDescriptor_fc2df5144b0d0a79 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConnInterface
+var _ grpc.ClientConn
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion6
+const _ = grpc.SupportPackageIsVersion4
 
 // HostServiceClient is the client API for HostService service.
 //
@@ -66,10 +64,10 @@ type HostServiceClient interface {
 }
 
 type hostServiceClient struct {
-	cc grpc.ClientConnInterface
+	cc *grpc.ClientConn
 }
 
-func NewHostServiceClient(cc grpc.ClientConnInterface) HostServiceClient {
+func NewHostServiceClient(cc *grpc.ClientConn) HostServiceClient {
 	return &hostServiceClient{cc}
 }
 
