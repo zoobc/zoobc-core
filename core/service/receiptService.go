@@ -385,7 +385,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		err                       error
 	)
 	// get sender address at height
-	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
+	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
 		receipt.SenderPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
@@ -396,7 +396,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	}
 
 	// get recipient address at height
-	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
+	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
 		receipt.RecipientPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
@@ -418,11 +418,18 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		scrambledNodes,
 	)
 	if err != nil {
-		return err
+		// search also for scrambledNodes that might not have a nodeAddress yet
+		if peers, err = p2pUtil.GetScrambledNodesByNodeID(
+			senderNodeRegistration.NodeID,
+			scrambledNodes,
+		); err != nil {
+			return err
+		}
 	}
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
-		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress ||
+			peer.GetInfo().ID == recipientNodeRegistration.NodeID {
 			// valid recipient and sender
 			return nil
 		}

@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -149,4 +150,40 @@ func GetPriorityPeersByNodeFullAddress(
 		addedPosition++
 	}
 	return priorityPeers, nil
+}
+
+// GetScrambledNodesByNodeID extract a list of scrambled nodes by nodeID
+func GetScrambledNodesByNodeID(
+	nodeID int64,
+	scrambledNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var (
+		peers = make(map[string]*model.Peer)
+	)
+	nodeIDStr := fmt.Sprintf("%d", nodeID)
+	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
+	if hostIndex == nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "nodeIDNotInScrambledList")
+	}
+	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+	addedPosition := 0
+	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+		var (
+			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
+			peer          = scrambledNodes.AddressNodes[peersPosition]
+			nodeIDPeer    = peer.GetInfo().ID
+		)
+		if nodeIDPeer == 0 {
+			return nil, blocker.NewBlocker(blocker.ValidationErr, "scrambledNodeWithoutNodeID")
+		}
+		nodeIDPeerStr := fmt.Sprintf("%d", peer.GetInfo().ID)
+		if peers[nodeIDPeerStr] != nil {
+			break
+		}
+		if nodeIDPeer != nodeID {
+			peers[nodeIDPeerStr] = peer
+		}
+		addedPosition++
+	}
+	return peers, nil
 }
