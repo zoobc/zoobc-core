@@ -213,6 +213,8 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			if err != nil {
 				break
 			}
+
+			refTransaction.Height = blockHeight
 			refTransaction.Escrow = escrow
 			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(&refTransaction)
 			if err != nil {
