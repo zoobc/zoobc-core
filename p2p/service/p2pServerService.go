@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -70,10 +72,7 @@ type (
 			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
-		RequestDownloadFile(
-			ctx context.Context,
-			fileChunkNames []string,
-		) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(ctx context.Context, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// P2PServerService represent of P2P server service
 	P2PServerService struct {
@@ -575,6 +574,7 @@ func (ps *P2PServerService) RequestBlockTransactions(
 
 func (ps *P2PServerService) RequestDownloadFile(
 	ctx context.Context,
+	snapshotHash []byte,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
@@ -583,11 +583,11 @@ func (ps *P2PServerService) RequestDownloadFile(
 			failed     []string
 		)
 		for _, fileName := range fileChunkNames {
-			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
+			chunk, err := ps.FileService.ReadFileFromDir(base64.URLEncoding.EncodeToString(snapshotHash), fileName)
 			if err != nil {
 				failed = append(failed, fileName)
 			} else {
-				fileChunks = append(fileChunks, chunkBytes)
+				fileChunks = append(fileChunks, chunk)
 			}
 		}
 		res := &model.FileDownloadResponse{

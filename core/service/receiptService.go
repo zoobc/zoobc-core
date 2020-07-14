@@ -385,7 +385,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		err                       error
 	)
 	// get sender address at height
-	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
+	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
 		receipt.SenderPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
@@ -396,7 +396,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	}
 
 	// get recipient address at height
-	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
+	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
 		receipt.RecipientPublicKey,
 		receipt.ReferenceBlockHeight,
 	)

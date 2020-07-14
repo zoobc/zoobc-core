@@ -166,7 +166,7 @@ func (ss *P2PServerHandler) SendTransaction(
 	)
 }
 
-// SendTransaction receive transaction from other node and calling TransactionReceived Event
+// SendBlockTransactions receive transaction from other node and calling TransactionReceived Event
 func (ss *P2PServerHandler) SendBlockTransactions(
 	ctx context.Context,
 	req *model.SendBlockTransactionsRequest,
@@ -192,7 +192,7 @@ func (ss *P2PServerHandler) RequestBlockTransactions(
 	)
 }
 
-// RequestDownloadFile receives an array of file names and return corresponding files.
+// RequestFileDownload receives an array of file names and return corresponding files.
 func (ss *P2PServerHandler) RequestFileDownload(
 	ctx context.Context,
 	req *model.FileDownloadRequest,
@@ -205,7 +205,7 @@ func (ss *P2PServerHandler) RequestFileDownload(
 			"request does not contain any file name",
 		)
 	}
-	res, err := ss.Service.RequestDownloadFile(ctx, req.GetFileChunkNames())
+	res, err := ss.Service.RequestDownloadFile(ctx, req.GetSnapshotHash(), req.GetFileChunkNames())
 	if res != nil {
 		monitoring.IncrementSnapshotDownloadCounter(int32(len(res.FileChunks)), int32(len(res.Failed)))
 	}

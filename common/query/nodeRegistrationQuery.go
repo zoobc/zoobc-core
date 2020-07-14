@@ -25,6 +25,7 @@ type (
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
+		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
@@ -41,8 +42,9 @@ type (
 	}
 
 	NodeRegistrationQuery struct {
-		Fields    []string
-		TableName string
+		Fields                  []string
+		JoinedAddressInfoFields []string
+		TableName               string
 	}
 )
 
@@ -58,6 +60,21 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 			"registration_status",
 			"latest",
 			"height",
+		},
+		JoinedAddressInfoFields: []string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"t2.address || ':' || t2.port AS node_address",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+			// TODO: add these fields when dropping address field from node_registry table
+			// "t2.address AS ai_Address",
+			// "t2.port AS ai_Port",
+			"t2.status as ai_status",
 		},
 		TableName: "node_registry",
 	}
@@ -181,6 +198,17 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{nodePublicKey, height}
 }
 
+// GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
+// by node public key at a given height (versioned)
+func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte,
+	height uint32) (str string, args []interface{}) {
+	joinedFields := nrq.JoinedAddressInfoFields[:len(nrq.JoinedAddressInfoFields)-1]
+	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
+			"WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+			strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName),
+		[]interface{}{nodePublicKey, height}
+}
+
 // GetNodeRegistrationByAccountAddress returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1",
@@ -233,46 +261,20 @@ func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
 // GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
 // Note: this query is to be used during node scrambling. Only nodes that have a peerAddress will be selected
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height uint32) string {
-	joinedFields := []string{
-		"id",
-		"node_public_key",
-		"account_address",
-		"registration_height",
-		"t2.address || ':' || t2.port AS node_address",
-		"locked_balance",
-		"registration_status",
-		"latest",
-		"height",
-		// TODO: add these fields when dropping address field from node_registry table
-		// "t2.address AS ai_Address",
-		// "t2.port AS ai_Port",
-		"t2.status as ai_status",
-	}
 	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
 		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) "+
 		"FROM %s AS t1 WHERE t1.height <= %d GROUP BY t1.id) "+
 		"GROUP BY id ORDER BY t2.status",
-		strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
+		strings.Join(nrq.JoinedAddressInfoFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
 }
 
 // GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
 // Note: this query is to be used during node scrambling. Only nodes that have a peerAddress will be selected
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsWithNodeAddress() string {
-	joinedFields := []string{
-		"id",
-		"node_public_key",
-		"account_address",
-		"registration_height",
-		"t2.address || ':' || t2.port AS node_address",
-		"locked_balance",
-		"registration_status",
-		"latest",
-		"height",
-	}
 	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
 		"WHERE registration_status = 0 "+
 		"ORDER BY height DESC",
-		strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName)
+		strings.Join(nrq.JoinedAddressInfoFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields

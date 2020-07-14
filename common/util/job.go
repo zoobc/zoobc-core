@@ -47,13 +47,11 @@ func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interfa
 			case <-time.NewTicker(period).C:
 				// Execute method and log the error value
 				values := jobFunction.Call(jobParams)
-				if len(values) > 0 {
+				if len(values) > 0 && !values[0].IsNil() {
 					rf := reflect.ValueOf(values[0]).Interface()
-					if rf != nil {
-						func() {
-							s.Logger.Error(rf)
-						}()
-					}
+					func() {
+						s.Logger.Error(rf)
+					}()
 				}
 			}
 		}

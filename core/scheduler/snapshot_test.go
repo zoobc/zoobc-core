@@ -41,7 +41,7 @@ func (*mockSpineBlockManifestSuccess) GetLastSpineBlockManifest(
 		logrus.New(),
 		new(codec.CborHandle),
 		"./testdata",
-	)).GenerateSnapshotChunks(&payload, "./testdata")
+	)).GenerateSnapshotChunks(&payload)
 	if err != nil {
 		return nil, err
 	}
