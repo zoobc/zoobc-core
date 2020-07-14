@@ -1100,7 +1100,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1140,7 +1140,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1182,7 +1182,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1224,7 +1224,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1893,7 +1893,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			wantErr: false,
 		},
@@ -4477,7 +4477,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4509,7 +4509,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4541,7 +4541,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4573,7 +4573,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,

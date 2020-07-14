@@ -353,7 +353,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), block)
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *block)
 	if err != nil {
 		return err
 	}
@@ -859,7 +859,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		return nil, err
 	}
 	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), commonBlock)
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
 	if err != nil {
 		return nil, err
 	}

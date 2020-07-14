@@ -247,7 +247,7 @@ func init() {
 	schedulerInstance = util.NewScheduler()
 	initP2pInstance()
 	// initialize block cache, to avoid nil service
-	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), &model.Block{})
+	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), model.Block{})
 }
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
@@ -588,7 +588,7 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 	}
 
-	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), lastBlockAtStart)
+	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), *lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
@@ -705,7 +705,7 @@ func startSpinechain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	blockSateCacheInstance = storage.NewBlockStateStorage(spinechain.GetTypeInt(), lastBlockAtStart)
+	blockSateCacheInstance = storage.NewBlockStateStorage(spinechain.GetTypeInt(), *lastBlockAtStart)
 
 	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
 		if err := spinechainBlockService.AddGenesis(); err != nil {

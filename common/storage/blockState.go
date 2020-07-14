@@ -12,17 +12,17 @@ type (
 	// BlockStateStorage represent last state of block
 	BlockStateStorage struct {
 		sync.RWMutex
-		blocks map[int32]*model.Block
+		blocks map[int32]model.Block
 	}
 )
 
 var blockStateStorageInstance *BlockStateStorage
 
 // NewBlockStateStorage returns BlockStateStorage instance
-func NewBlockStateStorage(chainTypeInt int32, block *model.Block) *BlockStateStorage {
+func NewBlockStateStorage(chainTypeInt int32, block model.Block) *BlockStateStorage {
 	if blockStateStorageInstance == nil {
 		blockStateStorageInstance = &BlockStateStorage{
-			blocks: map[int32]*model.Block{
+			blocks: map[int32]model.Block{
 				chainTypeInt: block,
 			},
 		}
@@ -39,7 +39,7 @@ func (bs *BlockStateStorage) SetItem(chaintypeInt, block interface{}) error {
 	var (
 		ok           bool
 		chainTypeInt int32
-		newBlock     *model.Block
+		newBlock     model.Block
 	)
 	// todo? : make sure integer of chaintype is existing chaintype
 	chainTypeInt, ok = chaintypeInt.(int32)
@@ -47,7 +47,7 @@ func (bs *BlockStateStorage) SetItem(chaintypeInt, block interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType  lastChange, expected int32")
 	}
 
-	newBlock, ok = (deepcopy.Copy(block)).(*model.Block)
+	newBlock, ok = (deepcopy.Copy(block)).(model.Block)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item or FailCopyingBlock")
 	}
@@ -75,12 +75,12 @@ func (bs *BlockStateStorage) GetItem(chaintypeInt, block interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
 	}
-
-	if bs.blocks[chainTypeInt] == nil {
+	// NOTE: when BlockHash is nil it means empty block
+	if bs.blocks[chainTypeInt].BlockHash == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "Chaintype not found")
 	}
 	// copy chache block value into reference variable requester
-	*blockCopy, ok = (deepcopy.Copy(*bs.blocks[chainTypeInt])).(model.Block)
+	*blockCopy, ok = (deepcopy.Copy(bs.blocks[chainTypeInt])).(model.Block)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
 	}
@@ -98,6 +98,6 @@ func (bs *BlockStateStorage) GetSize() int64 {
 
 // ClearCache cleaner of BlockStateStorage
 func (bs *BlockStateStorage) ClearCache() error {
-	bs.blocks = make(map[int32]*model.Block)
+	bs.blocks = make(map[int32]model.Block)
 	return nil
 }

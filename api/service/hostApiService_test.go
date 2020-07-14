@@ -76,7 +76,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 			name: "GetHostInfo:error-lastBlockIsNil",
 			fields: fields{
 				BlockServices:   make(map[int32]coreService.BlockServiceInterface),
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache: storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			wantErr: true,
 		},
@@ -85,7 +85,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 			fields: fields{
 				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceError{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
 			},
 			wantErr: true,
 		},
@@ -98,7 +98,12 @@ func TestHostService_GetHostInfo(t *testing.T) {
 					HostToReturn:          hostToReturn,
 					PriorityPeersToReturn: priorityPeersToReturn,
 				},
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), &model.Block{}),
+				BlockStateCache: storage.NewBlockStateStorage(
+					(&chaintype.MainChain{}).GetTypeInt(),
+					model.Block{
+						BlockHash: []byte{1},
+					},
+				),
 			},
 			want: &model.HostInfo{
 				Host: hostToReturn,
@@ -107,7 +112,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 						ChainType: int32(0),
 						Height:    0,
 						LastBlock: &model.Block{
-							Height: 0,
+							BlockHash: []byte{1},
 						},
 					},
 				},

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -66,7 +67,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	}
 
 	// check existing main chaintype
-	if len(chainStatuses) == 0 || chainStatuses[0] == nil {
+	if len(chainStatuses) == 0 || chainStatuses[(&chaintype.MainChain{}).GetTypeInt()] == nil {
 		return nil, status.Error(codes.InvalidArgument, "mainLastBlockIsNil")
 	}
 	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(chainStatuses[0].GetHeight())
