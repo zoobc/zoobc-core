@@ -1,9 +1,10 @@
 package p2p
 
 import (
-	"github.com/pkg/errors"
 	"reflect"
 	"testing"
+
+	"github.com/pkg/errors"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -89,7 +90,7 @@ func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) string {
 	return "testFileName"
 }
 
-func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error) {
+func (mp2p *mockP2pService) DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) (failed []string, err error) {
 	failed = make([]string, 0)
 	if mp2p.success {
 		return
