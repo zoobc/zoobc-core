@@ -155,11 +155,11 @@ func (nru *NodeAddressInfoService) GetAddressInfoByNodeID(nodeID int64, preferre
 		return nil, err
 	}
 
-	mapAddresses := make(map[int64]*model.NodeAddressInfo)
 	// select node address based on status preference
 	if len(nodeAddressesInfo) == 0 {
 		return nil, nil
 	}
+	mapAddresses := make(map[int64]*model.NodeAddressInfo)
 	for _, nai := range nodeAddressesInfo {
 		if prevNr, ok := mapAddresses[nai.GetNodeID()]; ok &&
 			prevNr.GetStatus() == preferredStatus {
