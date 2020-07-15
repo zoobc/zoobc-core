@@ -42,6 +42,9 @@ type (
 		Logger                   *log.Logger
 		PeerStrategyHelper       PeerStrategyHelperInterface
 		Signature                crypto.SignatureInterface
+		// PendingNodeAddresses map containing node full address -> timestamp of last time the node tried to connect to that address
+		NodeAddressesLastTryConnect     map[string]int64
+		NodeAddressesLastTryConnectLock sync.RWMutex
 	}
 )
 
@@ -57,17 +60,18 @@ func NewPriorityStrategy(
 	signature crypto.SignatureInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
-		BlockchainStatusService:  blockchainStatusService,
-		NodeConfigurationService: nodeConfigurationService,
-		PeerServiceClient:        peerServiceClient,
-		NodeRegistrationService:  nodeRegistrationService,
-		QueryExecutor:            queryExecutor,
-		BlockQuery:               blockQuery,
-		MaxUnresolvedPeers:       constant.MaxUnresolvedPeers,
-		MaxResolvedPeers:         constant.MaxResolvedPeers,
-		Logger:                   logger,
-		PeerStrategyHelper:       peerStrategyHelper,
-		Signature:                signature,
+		BlockchainStatusService:     blockchainStatusService,
+		NodeConfigurationService:    nodeConfigurationService,
+		PeerServiceClient:           peerServiceClient,
+		NodeRegistrationService:     nodeRegistrationService,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  blockQuery,
+		MaxUnresolvedPeers:          constant.MaxUnresolvedPeers,
+		MaxResolvedPeers:            constant.MaxResolvedPeers,
+		Logger:                      logger,
+		PeerStrategyHelper:          peerStrategyHelper,
+		Signature:                   signature,
+		NodeAddressesLastTryConnect: map[string]int64{},
 	}
 }
 
@@ -332,6 +336,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 func (ps *PriorityStrategy) ResolvePeersThread() {
 	go ps.ResolvePeers()
 	ticker := time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Second)
+	ticker1 := time.NewTicker(time.Duration(constant.ResolvePendingPeersGap) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
@@ -339,6 +344,8 @@ func (ps *PriorityStrategy) ResolvePeersThread() {
 		case <-ticker.C:
 			go ps.ResolvePeers()
 			go ps.UpdateResolvedPeers()
+		case <-ticker1.C:
+			go ps.resolvePendingAddresses()
 		case <-sigs:
 			ticker.Stop()
 			return
@@ -468,7 +475,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 				poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
 				if errPoorig == nil && poorig != nil {
 					if errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(
-						pendingAddressesInfo[0]); errNodeAddressInfo != nil {
+						pendingAddressesInfo[0]); errNodeAddressInfo == nil {
 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
 					}
 				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
@@ -532,6 +539,63 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 
 	if err := ps.AddToResolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
+	}
+}
+
+// resolvePendingAddresses get the list of pending addresses and resolve them
+func (ps *PriorityStrategy) resolvePendingAddresses() {
+	// get all pending nodeAddressInfo
+	nais, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{},
+		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
+	if err != nil {
+		return
+	}
+
+	for _, nai := range nais {
+		go func(nai *model.NodeAddressInfo) {
+			ps.rndDelay()
+			destPeer := &model.Peer{
+				Info: &model.Node{
+					ID:            nai.NodeID,
+					Address:       nai.Address,
+					SharedAddress: nai.Address,
+					Port:          nai.Port,
+				},
+			}
+			// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
+			if poorig, errPoorig := ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer); errPoorig != nil || poorig == nil {
+				fullAddress := fmt.Sprintf("%s:%d", nai.GetAddress(), nai.GetPort())
+				ps.NodeAddressesLastTryConnectLock.Lock()
+				defer ps.NodeAddressesLastTryConnectLock.Unlock()
+				if _, ok := ps.NodeAddressesLastTryConnect[fullAddress]; !ok {
+					ps.NodeAddressesLastTryConnect[fullAddress] = time.Now().Unix()
+					return
+				}
+				// delete expired pending node addresses
+				if time.Now().Unix() > ps.NodeAddressesLastTryConnect[fullAddress]+constant.UnresolvedPendingPeerExpirationTimeOffset {
+					if err := ps.NodeRegistrationService.DeletePendingNodeAddressInfo(nai.GetNodeID()); err != nil {
+						ps.Logger.Errorf("cannot delete pending address for node %d", nai.GetNodeID())
+						return
+					}
+					delete(ps.NodeAddressesLastTryConnect, fullAddress)
+					// remove unresolved/resolved peers with this node address, if there are any
+					if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
+						if err := ps.RemoveResolvedPeer(destPeer); err != nil {
+							ps.Logger.Error(err)
+						}
+					}
+					return
+				}
+			}
+			if errNodeAddressInfo := ps.NodeRegistrationService.ConfirmPendingNodeAddress(nai); errNodeAddressInfo != nil {
+				ps.Logger.Error(errNodeAddressInfo)
+				return
+			}
+			destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+			if err := ps.AddToResolvedPeer(destPeer); err != nil {
+				ps.Logger.Error(err)
+			}
+		}(nai)
 	}
 }
 

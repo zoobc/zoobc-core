@@ -575,7 +575,12 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
 	nodeIDs []int64,
 	addressStatuses []model.NodeAddressStatus,
 ) ([]*model.NodeAddressInfo, error) {
-	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+	var qry string
+	if len(nodeIDs) > 0 {
+		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+	} else {
+		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByStatus(addressStatuses)
+	}
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err

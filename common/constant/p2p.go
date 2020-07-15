@@ -13,6 +13,10 @@ const (
 	SecondsToUpdatePeersConnection int64 = 15 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 10
+	// ResolvePendingPeersGap, interval of peer thread trying to resolve a peer (in second)
+	ResolvePendingPeersGap uint = 60
+	// UnresolvedPendingPeerExpirationTimeOffset max time in seconds a node should try to connect to/resolve a pending node address (one hour)
+	UnresolvedPendingPeerExpirationTimeOffset int64 = 3600
 	// UpdateNodeAddressGap, interval in seconds of peer thread to update node dynamic address
 	UpdateNodeAddressGap uint = 3600
 	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
