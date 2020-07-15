@@ -78,6 +78,24 @@ run:
 
 issues:
     exclude-rules:
+        - text: "do not compare errors directly"
+          linters:
+              - goerr113
+        - text: "do not define dynamic errors"
+          linters:
+              - goerr113
+        - text: "Expect WriteFile permissions to be 0600 or less"
+          linters:
+              - gosec
+        - text: "is deeply nested"
+          linters:
+              - nestif
+        - text: "Top level comment should end in a period"
+          linters:
+              - godot
+        - text: "package should be "
+          linters:
+              - testpackage
         - text: "should be"
           linters:
               - stylecheck

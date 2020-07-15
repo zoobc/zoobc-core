@@ -185,7 +185,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	}
 
 	// encode and save snapshot payload to file/s
-	snapshotFileHash, fileChunkHashes, err = ss.SnapshotBasicChunkStrategy.GenerateSnapshotChunks(snapshotPayload, ss.SnapshotPath)
+	snapshotFileHash, fileChunkHashes, err = ss.SnapshotBasicChunkStrategy.GenerateSnapshotChunks(snapshotPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,6 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	snapshotPayload, err = ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(
 		snapshotFileInfo.GetSnapshotFileHash(),
 		snapshotFileInfo.GetFileChunksHashes(),
-		ss.SnapshotPath,
 	)
 	if err != nil {
 		return err
@@ -418,5 +417,5 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 // DeleteFileByChunkHashes delete the files included in the file chunk hashes.
 func (ss *SnapshotMainBlockService) DeleteFileByChunkHashes(fileChunkHashes []byte) error {
-	return ss.SnapshotBasicChunkStrategy.DeleteFileByChunkHashes(fileChunkHashes, ss.SnapshotPath)
+	return ss.SnapshotBasicChunkStrategy.DeleteFileByChunkHashes(fileChunkHashes)
 }

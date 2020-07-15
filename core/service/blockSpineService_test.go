@@ -828,6 +828,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlockStateCache           storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -873,7 +874,8 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -942,7 +944,8 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -992,6 +995,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				BlockStateCache:           tt.fields.BlockStateCache,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
@@ -1581,6 +1585,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlockStateCache           storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1617,7 +1622,8 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpineBlockManifestQuery: query.NewSpineBlockManifestQuery(),
 					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
 		},
@@ -1635,6 +1641,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				BlockStateCache:           tt.fields.BlockStateCache,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -2315,6 +2322,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlockStateCache           storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -2360,6 +2368,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2401,6 +2410,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2436,6 +2446,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2479,6 +2490,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2514,6 +2526,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -2554,6 +2567,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: false,
 			want:    nil,
@@ -2572,6 +2586,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				BlockStateCache:           tt.fields.BlockStateCache,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase,
