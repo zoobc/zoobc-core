@@ -942,17 +942,6 @@ func TestMultisigService_GetMultisigAddressByParticipantAddresses(t *testing.T) 
 			want:    nil,
 			wantErr: true,
 		},
-		{
-			name: "GetMultisigAddressByParticipantAddresses-MultiSignatureAddressesRows:success",
-			fields: fields{
-				Executor: &mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsSuccess{},
-			},
-			args: args{
-				param: mockGetMultisigAddressByParticipantAddressesExecutorCountFailParam,
-			},
-			want:    &model.GetMultisigAddressByParticipantAddressesResponse{},
-			wantErr: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
