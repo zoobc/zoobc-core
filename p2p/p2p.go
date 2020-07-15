@@ -179,7 +179,9 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
 				go func(p *model.Peer) {
-					_ = s.PeerServiceClient.SendBlock(p, b, chainType)
+					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
+						s.Logger.Errorf("SendBlockListener: %s", err)
+					}
 				}(peer)
 			}
 		},

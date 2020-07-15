@@ -463,7 +463,7 @@ func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress)
 func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 
 	var (
-		stringAddress string
+		stringAddress *string
 		err           error
 	)
 	err = row.Scan(
@@ -480,8 +480,10 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 	if err != nil {
 		return err
 	}
-	nodeAddress := nrq.BuildNodeAddress(stringAddress)
-	nr.NodeAddress = nodeAddress
+	if stringAddress != nil {
+		nodeAddress := nrq.BuildNodeAddress(*stringAddress)
+		nr.NodeAddress = nodeAddress
+	}
 	return nil
 }
 
