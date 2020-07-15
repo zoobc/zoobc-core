@@ -405,8 +405,6 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	if err != nil {
 		return err
 	}
-	recipientFullAddress := fmt.Sprintf(
-		"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
 	// get or build scrambled nodes at height
 	scrambledNodes, err := rs.NodeRegistrationService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
@@ -428,10 +426,17 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	}
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
-		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress ||
-			peer.GetInfo().ID == recipientNodeRegistration.NodeID {
+		if peer.GetInfo().ID == recipientNodeRegistration.NodeID {
 			// valid recipient and sender
 			return nil
+		}
+		if recipientNodeRegistration.NodeAddress != nil {
+			recipientFullAddress := fmt.Sprintf(
+				"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
+			if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+				// valid recipient and sender
+				return nil
+			}
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
