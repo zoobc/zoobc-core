@@ -421,6 +421,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 		nil,
 		query.GetPruneQuery(&chaintype.MainChain{}),
 		nil,
+		nil,
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
