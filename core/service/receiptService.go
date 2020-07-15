@@ -383,6 +383,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		senderNodeRegistration    model.NodeRegistration
 		recipientNodeRegistration model.NodeRegistration
 		err                       error
+		peers                     map[string]*model.Peer
 	)
 	// get sender address at height
 	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
@@ -410,12 +411,15 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	if err != nil {
 		return err
 	}
-	// get priority peer of sender from scrambledNodes
-	peers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(
-		fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
-		scrambledNodes,
-	)
-	if err != nil {
+
+	if recipientNodeRegistration.NodeAddress != nil {
+		// get priority peer of sender from scrambledNodes
+		peers, err = p2pUtil.GetPriorityPeersByNodeFullAddress(
+			fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
+			scrambledNodes,
+		)
+	}
+	if err != nil || recipientNodeRegistration.NodeAddress == nil {
 		// search also for scrambledNodes that might not have a nodeAddress yet
 		if peers, err = p2pUtil.GetScrambledNodesByNodeID(
 			senderNodeRegistration.NodeID,
@@ -424,6 +428,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 			return err
 		}
 	}
+
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
 		if peer.GetInfo().ID == recipientNodeRegistration.NodeID {
