@@ -825,3 +825,154 @@ func TestMultisigService_GetMultisignatureInfo(t *testing.T) {
 		})
 	}
 }
+
+var (
+	mockGetMultisigAddressByParticipantAddressesExecutorCountFailParam = &model.GetMultisigAddressByParticipantAddressesRequest{
+		Addresses: []string{"A", "B", "C"},
+		Pagination: &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+			Page:       1,
+			Limit:      1,
+		},
+	}
+)
+
+type (
+	mockGetMultisigAddressByParticipantAddressesExecutorCountFail struct {
+		query.Executor
+	}
+	mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsFail struct {
+		query.Executor
+	}
+	mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockGetMultisigAddressByParticipantAddressesExecutorCountFail) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsFail) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsFail) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsSuccess) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"Total"}).AddRow(1))
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsSuccess) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+		"mockedColumn"}).AddRow(1))
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func TestMultisigService_GetMultisigAddressByParticipantAddresses(t *testing.T) {
+	type fields struct {
+		Executor                       query.ExecutorInterface
+		BlockService                   coreService.BlockServiceInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		Logger                         *logrus.Logger
+	}
+	type args struct {
+		param *model.GetMultisigAddressByParticipantAddressesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisigAddressByParticipantAddressesResponse
+		wantErr bool
+	}{
+		{
+			name: "GetMultisigAddressByParticipantAddresses:Fail",
+			fields: fields{
+				Executor: &mockGetMultisigAddressByParticipantAddressesExecutorCountFail{},
+			},
+			args: args{
+				param: mockGetMultisigAddressByParticipantAddressesExecutorCountFailParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisigAddressByParticipantAddresses-MultiSignatureAddressesRows:Fail",
+			fields: fields{
+				Executor: &mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsFail{},
+			},
+			args: args{
+				param: mockGetMultisigAddressByParticipantAddressesExecutorCountFailParam,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisigAddressByParticipantAddresses-MultiSignatureAddressesRows:success",
+			fields: fields{
+				Executor: &mockGetMultisigAddressByParticipantAddressesExecutorMultiSignatureAddressesRowsSuccess{},
+			},
+			args: args{
+				param: mockGetMultisigAddressByParticipantAddressesExecutorCountFailParam,
+			},
+			want:    &model.GetMultisigAddressByParticipantAddressesResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ms := &MultisigService{
+				Executor:                       tt.fields.Executor,
+				BlockService:                   tt.fields.BlockService,
+				PendingTransactionQuery:        tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:          tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:        tt.fields.MultisignatureInfoQuery,
+				MultiSignatureParticipantQuery: tt.fields.MultiSignatureParticipantQuery,
+				Logger:                         tt.fields.Logger,
+			}
+			got, err := ms.GetMultisigAddressByParticipantAddresses(tt.args.param)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MultisigService.GetMultisigAddressByParticipantAddresses() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MultisigService.GetMultisigAddressByParticipantAddresses() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
