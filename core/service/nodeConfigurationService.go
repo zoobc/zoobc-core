@@ -16,6 +16,8 @@ type (
 		IsMyAddressDynamic() bool
 		GetHost() *model.Host
 		SetHost(myHost *model.Host)
+		SetHostID(nodeID int64)
+		GetHostID() (int64, error)
 		GetNodeSecretPhrase() string
 		GetNodePublicKey() []byte
 	}
@@ -62,6 +64,19 @@ func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string, nodePort u
 		host.Info.Address = nodeAddress
 		host.Info.Port = nodePort
 	}
+}
+
+func (nss *NodeConfigurationService) SetHostID(nodeID int64) {
+	if host != nil {
+		host.Info.ID = nodeID
+	}
+}
+
+func (nss *NodeConfigurationService) GetHostID() (int64, error) {
+	if host == nil || host.Info == nil || host.Info.ID == 0 {
+		return 0, blocker.NewBlocker(blocker.AppErr, "host id not set")
+	}
+	return host.Info.ID, nil
 }
 
 func (nss *NodeConfigurationService) GetMyAddress() (string, error) {

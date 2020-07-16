@@ -82,6 +82,7 @@ var (
 	}
 
 	mockHostInfo = &model.Node{
+		ID:      int64(111),
 		Address: "127.0.0.1",
 		Port:    8000,
 	}
@@ -1304,7 +1305,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				},
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3001": mockPeer,
+				"111": mockPeer,
 			},
 		},
 	}

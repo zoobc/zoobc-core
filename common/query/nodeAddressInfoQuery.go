@@ -120,9 +120,10 @@ func (paq *NodeAddressInfoQuery) DeleteNodeAddressInfoByNodeID(
 	}
 	addrStatusesStr := strings.Join(c, ", ")
 	return fmt.Sprintf(
-		"DELETE FROM %s WHERE node_id = ? AND status IN (?)",
+		"DELETE FROM %s WHERE node_id = ? AND status IN (%s)",
 		paq.getTableName(),
-	), []interface{}{nodeID, addrStatusesStr}
+		addrStatusesStr,
+	), []interface{}{nodeID}
 }
 
 // GetNodeAddressInfoByIDs returns query string to get peerAddress by node IDs and address statuses
@@ -179,8 +180,8 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByAddressPort(
 		c[i] = strconv.Itoa(int(v))
 	}
 	addrStatusesStr := strings.Join(c, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE address = ? AND port = ? AND status IN (?) ORDER BY status ASC",
-		strings.Join(paq.Fields, ", "), paq.getTableName()), []interface{}{address, port, addrStatusesStr}
+	return fmt.Sprintf("SELECT %s FROM %s WHERE address = ? AND port = ? AND status IN (%s) ORDER BY status ASC",
+		strings.Join(paq.Fields, ", "), paq.getTableName(), addrStatusesStr), []interface{}{address, port}
 }
 
 // ExtractModel extract the model struct fields to the order of NodeAddressInfoQuery.Fields

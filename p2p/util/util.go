@@ -154,16 +154,16 @@ func GetPriorityPeersByNodeFullAddress(
 
 // GetPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
 func GetPriorityPeersByNodeID(
-	nodeID int64,
+	senderPeerID int64,
 	scrambledNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
 	var (
-		peers = make(map[string]*model.Peer)
+		priorityPeers = make(map[string]*model.Peer)
+		nodeIDStr     = fmt.Sprintf("%d", senderPeerID)
 	)
-	nodeIDStr := fmt.Sprintf("%d", nodeID)
 	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
 	if hostIndex == nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "nodeIDNotInScrambledList")
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
 	}
 	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
 	addedPosition := 0
@@ -171,19 +171,15 @@ func GetPriorityPeersByNodeID(
 		var (
 			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
 			peer          = scrambledNodes.AddressNodes[peersPosition]
-			nodeIDPeer    = peer.GetInfo().ID
+			peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
 		)
-		if nodeIDPeer == 0 {
-			return nil, blocker.NewBlocker(blocker.ValidationErr, "scrambledNodeWithoutNodeID")
-		}
-		nodeIDPeerStr := fmt.Sprintf("%d", peer.GetInfo().ID)
-		if peers[nodeIDPeerStr] != nil {
+		if priorityPeers[peerIDStr] != nil {
 			break
 		}
-		if nodeIDPeer != nodeID {
-			peers[nodeIDPeerStr] = peer
+		if peerIDStr != nodeIDStr {
+			priorityPeers[peerIDStr] = peer
 		}
 		addedPosition++
 	}
-	return peers, nil
+	return priorityPeers, nil
 }

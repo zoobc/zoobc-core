@@ -28,6 +28,30 @@ var (
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)
 	GenesisConfig                  = []GenesisConfigEntry{
+		// {
+		// 	AccountAddress: "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+		// 	AccountBalance: 0,
+		// 	NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
+		// 		97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		// 	LockedBalance:      0,
+		// 	ParticipationScore: GenesisParticipationScore,
+		// },
+		// {
+		// 	AccountAddress: "ZBC_HJYRRTEP_QQYV5FCN_7IKBGOSQ_KI4RFFT2_QHZW7EWJ_CN56HL3F_EU2SGEHU",
+		// 	AccountBalance: 0,
+		// 	NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
+		// 		194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
+		// 	LockedBalance:      0,
+		// 	ParticipationScore: GenesisParticipationScore,
+		// },
+		// {
+		// 	AccountAddress: "ZBC_RERG3XD7_GAKOZZKY_VMZP2SQE_LBP45DC6_VDFGDTFK_3BZFBQGK_JMWELLO7",
+		// 	AccountBalance: 100000000000,
+		// 	NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
+		// 		92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
+		// 	LockedBalance:      0,
+		// 	ParticipationScore: GenesisParticipationScore,
+		// },
 		{
 			AccountAddress: "ZBC_4WN2TZMB_J2AVKGI5_DNUM7AJ5_7PBKFWPT_ORJ4BUY4_EM5FWFXP_QBUM6D6Z",
 			AccountBalance: 0,

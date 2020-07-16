@@ -104,6 +104,17 @@ func (ps *PriorityStrategy) ConnectPriorityPeersThread() {
 	}
 }
 
+// getPriorityPeersByFullAddress build a priority peers map with only peers that have and address
+func (ps *PriorityStrategy) GetPriorityPeersByFullAddress(priorityPeers map[string]*model.Peer) map[string]*model.Peer {
+	var priorityPeersByAddr = make(map[string]*model.Peer)
+	for _, pp := range priorityPeers {
+		if pp.GetInfo().Address != "" && pp.GetInfo().Port != 0 {
+			priorityPeersByAddr[p2pUtil.GetFullAddress(pp.GetInfo())] = pp
+		}
+	}
+	return priorityPeersByAddr
+}
+
 func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	var (
 		i                            int
@@ -113,7 +124,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		resolvedPeers                = ps.GetResolvedPeers()
 		blacklistedPeers             = ps.GetBlacklistedPeers()
 		exceedMaxUnresolvedPeers     = ps.GetExceedMaxUnresolvedPeers() - 1
-		priorityPeers                = ps.GetPriorityPeers()
+		priorityPeers                = ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 		hostModelPeer                = &model.Peer{
 			Info: ps.NodeConfigurationService.GetHost().Info,
 		}
@@ -180,11 +191,8 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 // GetPriorityPeers, to get a list peer should connect if host in scramble node
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	var (
-		priorityPeers   = make(map[string]*model.Peer)
-		host            = ps.NodeConfigurationService.GetHost()
-		hostFullAddress = p2pUtil.GetFullAddressPeer(&model.Peer{
-			Info: host.GetInfo(),
-		})
+		priorityPeers = make(map[string]*model.Peer)
+		host          = ps.NodeConfigurationService.GetHost()
 	)
 	lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
 	if err != nil {
@@ -195,25 +203,30 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		return priorityPeers
 	}
 
+	// STEF is it correct that only a scrambled node can get the list of priority peers? (
+	// it was like this even before refactoring the scrambled nodes)
 	if ps.ValidateScrambleNode(scrambledNodes, host.GetInfo()) {
-		var (
-			hostIndex     = scrambledNodes.IndexNodes[hostFullAddress]
-			startPeers    = p2pUtil.GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
-			addedPosition = 0
-		)
-		for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+		if hostID, err := ps.NodeConfigurationService.GetHostID(); err == nil {
 			var (
-				peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
-				peer          = scrambledNodes.AddressNodes[peersPosition]
-				addressPeer   = p2pUtil.GetFullAddressPeer(peer)
+				hostIDStr     = fmt.Sprintf("%d", hostID)
+				hostIndex     = scrambledNodes.IndexNodes[hostIDStr]
+				startPeers    = p2pUtil.GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+				addedPosition = 0
 			)
-			if priorityPeers[addressPeer] != nil {
-				break
+			for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+				var (
+					peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
+					peer          = scrambledNodes.AddressNodes[peersPosition]
+					peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
+				)
+				if priorityPeers[peerIDStr] != nil {
+					break
+				}
+				if peerIDStr != hostIDStr {
+					priorityPeers[peerIDStr] = peer
+				}
+				addedPosition++
 			}
-			if addressPeer != hostFullAddress {
-				priorityPeers[addressPeer] = peer
-			}
-			addedPosition++
 		}
 	}
 	return priorityPeers
@@ -221,8 +234,31 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 
 // ValidateScrambleNode, check node in scramble or not
 func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.ScrambledNodes, node *model.Node) bool {
-	var address = p2pUtil.GetFullAddress(node)
-	return scrambledNodes.IndexNodes[address] != nil
+	var nodeID = node.GetID()
+	if nodeID == 0 {
+		// @iltoga: this is a little hack to be backward compatible with previous scrambled nodes logic.
+		//  we should always be able to get the node/peer by its nodeID, if is registered in node registry.
+		// TODO: scan all code where we call nodeConfigurationService.SetHost and make sure that host has Info.ID,
+		//  if it's a registered node. then validate scrambled node only by nodeID
+		if node.Address != "" && node.Port != 0 {
+			nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(node.Address, node.Port,
+				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending,
+					model.NodeAddressStatus_NodeAddressConfirmed})
+			if err != nil || len(nais) == 0 {
+				return false
+			}
+			for _, nai := range nais {
+				naiIDStr := fmt.Sprintf("%d", nai.GetNodeID())
+				if scrambledNodes.IndexNodes[naiIDStr] != nil {
+					ps.NodeConfigurationService.SetHostID(nai.GetNodeID())
+					return true
+				}
+			}
+		}
+		return false
+	}
+	var nodeIDStr = fmt.Sprintf("%d", nodeID)
+	return scrambledNodes.IndexNodes[nodeIDStr] != nil
 }
 
 // ValidatePriorityPeer, check peer is in priority list peer of host node
@@ -356,7 +392,7 @@ func (ps *PriorityStrategy) ResolvePeersThread() {
 // ResolvePeers looping unresolved peers and adding to (resolve) Peers if get response
 func (ps *PriorityStrategy) ResolvePeers() {
 	exceedMaxResolvedPeers := ps.GetExceedMaxResolvedPeers()
-	priorityPeers := ps.GetPriorityPeers()
+	priorityPeers := ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 	resolvedPeers := ps.GetResolvedPeers()
 	unresolvedPeers := ps.GetUnresolvedPeers()
 	var (
@@ -420,7 +456,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 // UpdateResolvedPeers use to maintaining resolved peers
 func (ps *PriorityStrategy) UpdateResolvedPeers() {
 	var (
-		priorityPeers = ps.GetPriorityPeers()
+		priorityPeers = ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 		currentTime   = time.Now().UTC()
 	)
 	for _, peer := range ps.GetResolvedPeers() {
