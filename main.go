@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
@@ -16,16 +17,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/auth"
-
-	"github.com/zoobc/lib/address"
-
-	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
-
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -36,9 +34,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
+	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -68,6 +68,7 @@ var (
 	kvExecutor                                      *kvdb.KVExecutor
 	observerInstance                                *observer.Observer
 	schedulerInstance                               *util.Scheduler
+	snapshotSchedulers                              *scheduler.SnapshotScheduler
 	blockServices                                   = make(map[int32]service.BlockServiceInterface)
 	snapshotBlockServices                           = make(map[int32]service.SnapshotBlockServiceInterface)
 	mainchainBlockService                           *service.BlockService
@@ -107,6 +108,7 @@ var (
 	defaultSignatureType                            *crypto.Ed25519Signature
 	nodeKey                                         *model.NodeKey
 	cpuProfile                                      bool
+	nodeShardStorage                                storage.CacheStorageInterface
 )
 
 func init() {
@@ -268,6 +270,22 @@ func init() {
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	initP2pInstance()
+	nodeShardStorage = storage.NewNodeShardCacheStorage()
+	snapshotSchedulers = scheduler.NewSnapshotScheduler(
+		spineBlockManifestService,
+		fileService,
+		util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler),
+		nodeShardStorage,
+		blockServices[0],
+		&service.BlockSpinePublicKeyService{
+			Signature:             crypto.NewSignature(),
+			QueryExecutor:         queryExecutor,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
+			Logger:                loggerCoreService,
+		},
+		nodeConfigurationService,
+	)
 }
 
 func loadNodeConfig(configPath, configFileName, configExtension string) {
@@ -847,6 +865,13 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.BlockPoolScanPeriod,
 		mainchainBlockService.ScanBlockPool,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+
+	if err := schedulerInstance.AddJob(
+		constant.SnapshotSchedulerUnmaintedChunksPeriod,
+		snapshotSchedulers.DeleteUnmaintainedChunks,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}

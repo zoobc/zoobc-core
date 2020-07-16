@@ -14,9 +14,11 @@ type (
 	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
 		GetShardAssigment(
-			shards map[uint64][][]byte,
+			chunks []byte,
+			shardBitLength int,
 			nodeIDs []int64,
-		) (map[int64][]uint64, error)
+			save bool,
+		) (storage.ShardMap, error)
 	}
 
 	ChunkUtil struct {
@@ -30,7 +32,7 @@ func NewChunkUtil(
 	chunkHashSize int,
 	nodeShardCacheStorage storage.CacheStorageInterface,
 	logger *logrus.Logger,
-) *ChunkUtil {
+) ChunkUtilInterface {
 	return &ChunkUtil{
 		chunkHashSize:         chunkHashSize,
 		nodeShardCacheStorage: nodeShardCacheStorage,
