@@ -384,6 +384,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		recipientNodeRegistration model.NodeRegistration
 		err                       error
 		peers                     map[string]*model.Peer
+		recipientFullAddress      string
 	)
 	// get sender address at height
 	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
@@ -413,15 +414,17 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	}
 
 	if recipientNodeRegistration.NodeAddress != nil {
+		recipientFullAddress = fmt.Sprintf(
+			"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
 		// get priority peer of sender from scrambledNodes
 		peers, err = p2pUtil.GetPriorityPeersByNodeFullAddress(
 			fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
 			scrambledNodes,
 		)
 	}
-	if err != nil || recipientNodeRegistration.NodeAddress == nil {
+	if err != nil || len(peers) == 0 || recipientNodeRegistration.NodeAddress == nil {
 		// search also for scrambledNodes that might not have a nodeAddress yet
-		if peers, err = p2pUtil.GetScrambledNodesByNodeID(
+		if peers, err = p2pUtil.GetPriorityPeersByNodeID(
 			senderNodeRegistration.NodeID,
 			scrambledNodes,
 		); err != nil {
@@ -435,13 +438,9 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 			// valid recipient and sender
 			return nil
 		}
-		if recipientNodeRegistration.NodeAddress != nil {
-			recipientFullAddress := fmt.Sprintf(
-				"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
-			if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
-				// valid recipient and sender
-				return nil
-			}
+		if recipientFullAddress != "" && p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+			// valid recipient and sender
+			return nil
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")

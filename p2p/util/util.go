@@ -152,8 +152,8 @@ func GetPriorityPeersByNodeFullAddress(
 	return priorityPeers, nil
 }
 
-// GetScrambledNodesByNodeID extract a list of scrambled nodes by nodeID
-func GetScrambledNodesByNodeID(
+// GetPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
+func GetPriorityPeersByNodeID(
 	nodeID int64,
 	scrambledNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {

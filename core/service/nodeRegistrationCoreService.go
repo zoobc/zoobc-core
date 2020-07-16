@@ -383,6 +383,10 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 	return nrs.sortNodeRegistries(&nearestBlock)
 }
 
+// sortNodeRegistries this function is responsible of selecting and sorting registered nodes so that nodes/peers in scrambledNodes map changes
+// order at a given interval
+// note: this algorithm is deterministic for the whole network so that,
+// at any point in time every node can calculate this map autonomously, given its node registry is updated
 func (nrs *NodeRegistrationService) sortNodeRegistries(
 	block *model.Block,
 ) error {
@@ -439,16 +443,14 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 			},
 		}
 		// p2p: add peer to index and address nodes only if node has address
-		var scrambleDNodeMapKey string
+		scrambleDNodeMapKey := fmt.Sprintf("%d", nai.GetNodeID())
 		if nai != nil {
 			peer.Info.Address = nai.GetAddress()
 			peer.Info.Port = nai.GetPort()
 			peer.Info.SharedAddress = nai.GetAddress()
 			peer.Info.AddressStatus = nai.GetStatus()
-			scrambleDNodeMapKey = fmt.Sprintf("%s:%d", nai.GetAddress(), nai.GetPort())
-		} else {
-			// if scrambled node doesn't have any address yet, assign its nodeId
-			scrambleDNodeMapKey = fmt.Sprintf("%d", node.GetNodeID())
+			//STEF delete when tested
+			// scrambleDNodeMapKey = fmt.Sprintf("%s:%d", nai.GetAddress(), nai.GetPort())
 		}
 		index := key
 		newIndexNodes[scrambleDNodeMapKey] = &index
