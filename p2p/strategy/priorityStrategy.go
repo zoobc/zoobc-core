@@ -264,11 +264,15 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 // ValidatePriorityPeer, check peer is in priority list peer of host node
 func (ps *PriorityStrategy) ValidatePriorityPeer(scrambledNodes *model.ScrambledNodes, host, peer *model.Node) bool {
 	if ps.ValidateScrambleNode(scrambledNodes, host) && ps.ValidateScrambleNode(scrambledNodes, peer) {
-		priorityPeers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(p2pUtil.GetFullAddress(host), scrambledNodes)
+		if host.GetID() == 0 || peer.GetID() == 0 {
+			return false
+		}
+		priorityPeers, err := p2pUtil.GetPriorityPeersByNodeID(host.GetID(), scrambledNodes)
 		if err != nil {
 			return false
 		}
-		return priorityPeers[p2pUtil.GetFullAddress(peer)] != nil
+		peerIDStr := fmt.Sprintf("%d", peer.GetID())
+		return priorityPeers[peerIDStr] != nil
 	}
 	return false
 }
@@ -541,7 +545,9 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 			} else {
 				// if peer has nodeID and there are no pending addresses associated,
 				// it means that address is already confirmed and there's no need to resolve it again
-				connectToPeer = false
+				// connectToPeer = false
+				//STEF test only
+				connectToPeer = true
 			}
 		}
 	}
