@@ -24,11 +24,6 @@ type (
 		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
 		NodeConfigurationService   service.NodeConfigurationServiceInterface
 	}
-	// SnapshotSchedulerService bounce of methods of snapshot scheduler service
-	// SnapshotSchedulerService interface {
-	// 	CheckChunksIntegrity(chainType chaintype.ChainType) error
-	// 	DeleteUnmaintainedChunks() (err error)
-	// }
 )
 
 func NewSnapshotScheduler(
