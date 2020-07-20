@@ -1,4 +1,4 @@
-package testFixtures
+package testfixtures
 
 import (
 	"github.com/zoobc/zoobc-core/common/model"

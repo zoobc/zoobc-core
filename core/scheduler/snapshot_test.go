@@ -16,7 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
-	"github.com/zoobc/zoobc-core/testFixtures"
+	"github.com/zoobc/zoobc-core/testfixtures"
 )
 
 type (
@@ -191,7 +191,7 @@ func (*mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess) GetSpinePublicK
 func (*mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess) GetSpineBlockManifestBySpineBlockHeight(
 	uint32,
 ) ([]*model.SpineBlockManifest, error) {
-	fullHashed, fileChunkHashes, err := testFixtures.GetFixtureForSnapshotBasicChunks(constant.SnapshotChunkSize, service.NewFileService(
+	fullHashed, fileChunkHashes, err := testfixtures.GetFixtureForSnapshotBasicChunks(constant.SnapshotChunkSize, service.NewFileService(
 		logrus.New(),
 		new(codec.CborHandle),
 		"./testdata",
