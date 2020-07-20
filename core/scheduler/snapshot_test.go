@@ -3,8 +3,8 @@ package scheduler
 import (
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"math/rand"
-	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -51,14 +51,14 @@ func (*mockSpineBlockManifestSuccess) GetLastSpineBlockManifest(
 	if err != nil {
 		return nil, err
 	}
-	var fullChunkHashesx []byte
+	var fullChunkHashes []byte
 	for _, chunkHaHash := range fileChunkHashes {
-		fullChunkHashesx = append(fullChunkHashesx, chunkHaHash...)
+		fullChunkHashes = append(fullChunkHashes, chunkHaHash...)
 	}
 	return &model.SpineBlockManifest{
 		ID:                       12345678,
 		FullFileHash:             fullHashed,
-		FileChunkHashes:          fullChunkHashesx,
+		FileChunkHashes:          fullChunkHashes,
 		ManifestReferenceHeight:  720,
 		ManifestSpineBlockHeight: 1,
 		ChainType:                0,
@@ -133,25 +133,41 @@ type (
 		service.NodeConfigurationService
 	}
 
-	mockNodeShardCacheStorage struct {
-		sync.RWMutex
-		// representation of sorted chunk_hashes hashed
-		// lastChange [32]byte
-		// shardMap   storage.ShardMap
+	mockNodeShardCacheStorageNotFound struct {
+		storage.NodeShardCacheStorage
+	}
+	mockNodeShardCacheStorageSuccess struct {
+		storage.NodeShardCacheStorage
+	}
+	mockSnapshotChunkUtilSuccess struct {
+		util.ChunkUtil
 	}
 )
 
-func (*mockNodeShardCacheStorage) SetItem(interface{}, interface{}) error {
+func (*mockNodeShardCacheStorageNotFound) GetItem(interface{}, interface{}) error {
 	return nil
 }
-func (*mockNodeShardCacheStorage) GetItem(interface{}, interface{}) error {
-	return nil
-}
-func (*mockNodeShardCacheStorage) GetSize() int64 {
+func (*mockNodeShardCacheStorageNotFound) GetSize() int64 {
 	return 1
 }
-func (*mockNodeShardCacheStorage) ClearCache() error {
-	return nil
+func (*mockNodeShardCacheStorageSuccess) GetItem(interface{}, interface{}) error {
+	return errors.New("error needed")
+}
+func (*mockNodeShardCacheStorageSuccess) GetSize() int64 {
+	return 1
+}
+func (*mockSnapshotChunkUtilSuccess) GetShardAssigment([]byte, int, []int64, bool) (storage.ShardMap, error) {
+	return storage.ShardMap{
+		NodeShards: map[int64][]uint64{
+			1234567890: {1, 3},
+			1234567891: {3, 4},
+		},
+		ShardChunks: map[uint64][][]byte{
+			1: {
+				{1, 23, 4},
+			},
+		},
+	}, nil
 }
 
 func (*mockBlockCoreServiceDeleteUnmaintainedChunksSuccess) GetLastBlock() (*model.Block, error) {
@@ -222,8 +238,8 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 			name: "Success:ModeIDIsNotInShard",
 			fields: fields{
 				SpineBlockManifestService:  &mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess{},
-				SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorage{}, logrus.New()),
-				NodeShardStorage:           &mockNodeShardCacheStorage{},
+				SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorageNotFound{}, logrus.New()),
+				NodeShardStorage:           &mockNodeShardCacheStorageNotFound{},
 				BlockCoreService:           &mockBlockCoreServiceDeleteUnmaintainedChunksSuccess{},
 				BlockSpinePublicKeyService: &mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess{},
 				NodeConfigurationService:   &mockNodeConfigurationServiceDeleteUnmaintainedChunksSuccess{},
@@ -235,11 +251,12 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 			},
 		},
 		{
-			name: "Success",
+			name: "Success:DeletingFromShard",
 			fields: fields{
-				SpineBlockManifestService:  &mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess{},
-				SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorage{}, logrus.New()),
-				NodeShardStorage:           &mockNodeShardCacheStorage{},
+				SpineBlockManifestService: &mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess{},
+				// SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorageNotFound{}, logrus.New()),
+				SnapshotChunkUtil:          &mockSnapshotChunkUtilSuccess{},
+				NodeShardStorage:           &mockNodeShardCacheStorageSuccess{},
 				BlockCoreService:           &mockBlockCoreServiceDeleteUnmaintainedChunksSuccess{},
 				BlockSpinePublicKeyService: &mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess{},
 				NodeConfigurationService:   &mockNodeConfigurationServiceDeleteUnmaintainedChunksSuccess{},
