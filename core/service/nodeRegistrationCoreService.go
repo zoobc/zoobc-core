@@ -430,7 +430,6 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 		// Ascending sort
 		return res < 0
 	})
-
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
 		nai, err := nrs.NodeAddressInfoService.GetAddressInfoByNodeID(node.GetNodeID(), model.NodeAddressStatus_NodeAddressPending)
@@ -443,13 +442,13 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 			},
 		}
 		// p2p: add peer to index and address nodes only if node has address
-		scrambleDNodeMapKey := fmt.Sprintf("%d", nai.GetNodeID())
+		scrambleDNodeMapKey := fmt.Sprintf("%d", node.GetNodeID())
 		if nai != nil {
 			peer.Info.Address = nai.GetAddress()
 			peer.Info.Port = nai.GetPort()
 			peer.Info.SharedAddress = nai.GetAddress()
 			peer.Info.AddressStatus = nai.GetStatus()
-			//STEF delete when tested
+			// STEF delete when tested
 			// scrambleDNodeMapKey = fmt.Sprintf("%s:%d", nai.GetAddress(), nai.GetPort())
 		}
 		index := key
