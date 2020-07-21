@@ -47,6 +47,8 @@ var (
 
 	badgerMetrics     map[string]prometheus.Gauge
 	badgerMetricsLock sync.Mutex
+
+	scrambledNodes prometheus.Gauge
 )
 
 const (
@@ -108,6 +110,13 @@ func SetMonitoringActive(isActive bool) {
 		Help: "nodeAddressInfo counter",
 	})
 	prometheus.MustRegister(nodeAddressInfoCounter)
+
+	//STEF temporary metric
+	scrambledNodes = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_scrambled_nodes_hash_distribution",
+		Help: "scrambled nodes hash counter",
+	})
+	prometheus.MustRegister(scrambledNodes)
 
 	confirmedAddressCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_node_address_info_count_status_confirmed",
@@ -386,6 +395,15 @@ func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
 	}
 
 	nodeScore.Set(float64(scoreInt64))
+}
+
+//STEF temporary metric
+func SetScrambledNodes(scrambledNodeHash int64) {
+	if !isMonitoringActive {
+		return
+	}
+
+	scrambledNodes.Set(float64(scrambledNodeHash))
 }
 
 func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {

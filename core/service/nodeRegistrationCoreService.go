@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"encoding/binary"
 	"fmt"
+	"github.com/ugorji/go/codec"
 	"math/big"
 	"sort"
 	"sync"
@@ -448,8 +450,6 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 			peer.Info.Port = nai.GetPort()
 			peer.Info.SharedAddress = nai.GetAddress()
 			peer.Info.AddressStatus = nai.GetStatus()
-			// STEF delete when tested
-			// scrambleDNodeMapKey = fmt.Sprintf("%s:%d", nai.GetAddress(), nai.GetPort())
 		}
 		index := key
 		newIndexNodes[scrambleDNodeMapKey] = &index
@@ -464,6 +464,16 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 		AddressNodes: newAddressNodes,
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  block.Height,
+	}
+	// STEF temporary monitoring parameter
+	// computing the hash of scrambled nodes and extracting 1st 8 bytes into an int64 (little endian)
+	var h = new(codec.CborHandle)
+	var b = make([]byte, 0)
+	enc := codec.NewEncoderBytes(&b, h)
+	if err = enc.Encode(nrs.ScrambledNodes[block.Height]); err == nil {
+		hash := sha3.Sum256(b)
+		scrambledHash := binary.LittleEndian.Uint64(hash[:])
+		monitoring.SetScrambledNodes(int64(scrambledHash))
 	}
 
 	return nil
