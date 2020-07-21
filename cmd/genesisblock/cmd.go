@@ -123,7 +123,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			log.Fatal(err)
 		}
 	}
-	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.preRegisteredNodes.json", envTarget)))
+	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
 	if err == nil {
 		err = json.Unmarshal(file, &preRegisteredNodes)
 		if err != nil {
@@ -164,7 +164,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	}
 
 	// generate extra nodes from a json file containing only account addresses
-	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.genesisAccountAddresses.json", envTarget)))
+	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.genesisAccountAddresses.json", envTarget)))
 	if err == nil {
 		// read custom addresses from file
 		err = json.Unmarshal(file, &preRegisteredAccountAddresses)
@@ -186,7 +186,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 		log.Fatalf("can't create folder %s. error: %s", outPath, err)
 	}
-	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath))
+	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
 	clusterConfig := generateClusterConfigFile(bcState, fmt.Sprintf("%s/cluster_config.json", outPath))
 	// generate a bash script to init consul key/value data store in case we automatically deploy all nodes in genesis
 	generateConsulKvInitScript(clusterConfig, fmt.Sprintf("%s/consulKvInit.sh", outPath))
@@ -338,34 +338,70 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 }
 
 // generateGenesisFile generates a genesis file with given entries, starting from a template
-func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath string) {
+func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, newSpineGenesisFilePath string) {
+	var (
+		mainGenesisTmpl, spineGenesisTmpl *template.Template
+		err                               error
+		mainBlockID, spineBlockID         = getGenesisBlockID(genesisEntries)
+	)
+	/**
+	Main Genesis
+	*/
 	// read and execute genesis template, outputting the genesis.go to stdout
-	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/genesis.tmpl"))
+	mainGenesisTmpl, err = template.ParseFiles(path.Join(getRootPath(), "./resource/templates/genesis.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
-	err = os.Remove(newGenesisFilePath)
+	err = os.Remove(newMainGenesisFilePath)
 	if err != nil {
-		log.Printf("remove %s file: %s\n", newGenesisFilePath, err)
+		log.Printf("remove %s file: %s\n", newMainGenesisFilePath, err)
 	}
-	f, err := os.Create(newGenesisFilePath)
+	mainFile, err := os.Create(newMainGenesisFilePath)
 	if err != nil {
-		log.Printf("create %s file: %s\n", newGenesisFilePath, err)
+		log.Printf("create %s file: %s\n", newMainGenesisFilePath, err)
 		return
 	}
-	defer f.Close()
-
 	config := map[string]interface{}{
-		"MainchainGenesisBlockID": getGenesisBlockID(genesisEntries),
+		"MainchainGenesisBlockID": mainBlockID,
 		"MainchainGenesisConfig":  genesisEntries,
 	}
-	err = tmpl.Execute(f, config)
+	err = mainGenesisTmpl.Execute(mainFile, config)
 	if err != nil {
 		log.Fatal(err)
 	}
+	func() {
+		defer mainFile.Close()
+	}()
+
+	/**
+	Spine Genesis
+	*/
+	// read and execute genesis template, outputting the genesis.go to stdout
+	spineGenesisTmpl, err = template.ParseFiles(path.Join(getRootPath(), "./resource/templates/genesisSpine.tmpl"))
+	if err != nil {
+		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
+	}
+	err = os.Remove(newSpineGenesisFilePath)
+	if err != nil {
+		log.Printf("remove %s file: %s\n", newSpineGenesisFilePath, err)
+	}
+	spineFile, err := os.Create(newSpineGenesisFilePath)
+	if err != nil {
+		log.Printf("create %s file: %s\n", newSpineGenesisFilePath, err)
+		return
+	}
+	defer spineFile.Close()
+
+	err = spineGenesisTmpl.Execute(spineFile, map[string]interface{}{
+		"SpinechainGenesisBlockID": spineBlockID,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
-func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
+func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID int64) {
 	var (
 		genesisConfig []constant.GenesisConfigEntry
 	)
@@ -415,7 +451,43 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return block.ID
+	sb := service.NewBlockMainService(
+		&chaintype.SpineChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.TypeSwitcher{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
+	spine, err := sb.GenerateGenesisBlock(genesisConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return block.ID, spine.ID
 }
 
 func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFilePath string) (clusterConfig []clusterConfigEntry) {
@@ -444,12 +516,12 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 	return clusterConfig
 }
 
-func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePath string) {
+func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFilePath string) {
 	var (
 		accountNodes []accountNodeEntry
 	)
 
-	for _, entry := range accountNodeEntris {
+	for _, entry := range accountNodeEntries {
 		entry := accountNodeEntry{
 			NodeAddress:    entry.NodeAddress,
 			AccountAddress: entry.AccountAddress,
@@ -470,7 +542,7 @@ func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePa
 func generateConsulKvInitScript(clusterConfigEntries []clusterConfigEntry, consulKvInitScriptPath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/consulKvInit.tmpl"))
+	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./resource/templates/consulKvInit.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading consulKvInit.tmpl file: %s", err)
 	}

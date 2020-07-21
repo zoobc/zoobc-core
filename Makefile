@@ -37,7 +37,9 @@ go-fmt:
 generate-gen:
 	$(info generating new genesis file and replace old genesis file ...)
 	go run cmd/main.go genesis generate -e ${gen-target} -o ${gen-output}
-	mv ./${gen-output}/generated/genesis/genesis.go ./common/constant/genesis.go
+#	mv ./${gen-output}/generated/genesis/genesis.go ./common/constant/genesis.go
+	cp ./${gen-output}/generated/genesis/genesis*.go ./common/constant/
+
 
 .PHONY: build
 build:
