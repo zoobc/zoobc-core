@@ -134,9 +134,13 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock 
 		bss.SortedBlocksmithsLock.Lock()
 		defer bss.SortedBlocksmithsLock.Unlock()
 	}
+	// todo: andy-shi88 - temporary logging
+	bss.Logger.Infof("\n\n\n\nSortBlocksmiths:\theight: %d\n\n", block.Height)
 	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)
+		bss.Logger.Infof("\n\n%d\t%d"+
+			"-----------------------------------------------------------------------", index, blocksmith.NodeID)
 		bss.SortedBlocksmithsMap[string(blocksmith.NodePublicKey)] = &blocksmithIndex
 	}
 	// set last sorted block id
