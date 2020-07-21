@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"fmt"
-	"github.com/ugorji/go/codec"
 	"math/big"
 	"sort"
 	"sync"
@@ -467,14 +466,22 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	}
 	// STEF temporary monitoring parameter
 	// computing the hash of scrambled nodes and extracting 1st 8 bytes into an int64 (little endian)
-	var h = new(codec.CborHandle)
-	var b = make([]byte, 0)
-	enc := codec.NewEncoderBytes(&b, h)
-	if err = enc.Encode(nrs.ScrambledNodes[block.Height]); err == nil {
-		hash := sha3.Sum256(b)
-		scrambledHash := binary.LittleEndian.Uint64(hash[:])
-		monitoring.SetScrambledNodes(int64(scrambledHash))
+	var digest = sha3.New256()
+	for _, sn := range nrs.ScrambledNodes[block.Height].AddressNodes {
+		if _, err := digest.Write(commonUtils.ConvertUint64ToBytes(uint64(sn.Info.ID))); err != nil {
+			break
+		}
 	}
+	scrambledHash := binary.LittleEndian.Uint64(digest.Sum([]byte{}))
+	monitoring.SetScrambledNodes(int64(scrambledHash))
+	// var h = new(codec.CborHandle)
+	// var b = make([]byte, 0)
+	// enc := codec.NewEncoderBytes(&b, h)
+	// if err = enc.Encode(nrs.ScrambledNodes[block.Height].AddressNodes); err == nil {
+	// 	hash := sha3.Sum256(b)
+	// 	scrambledHash := binary.LittleEndian.Uint64(hash[:])
+	// 	monitoring.SetScrambledNodes(int64(scrambledHash))
+	// }
 
 	return nil
 }
