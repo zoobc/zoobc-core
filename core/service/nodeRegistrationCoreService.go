@@ -467,8 +467,8 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	// STEF temporary monitoring parameter
 	// computing the hash of scrambled nodes and extracting 1st 8 bytes into an int64 (little endian)
 	var digest = sha3.New256()
-	for _, sn := range nrs.ScrambledNodes[block.Height].IndexNodes {
-		if _, err := digest.Write(commonUtils.ConvertUint64ToBytes(uint64(*sn))); err != nil {
+	for _, sn := range nrs.ScrambledNodes[block.Height].AddressNodes {
+		if _, err := digest.Write(commonUtils.ConvertUint64ToBytes(uint64(sn.GetInfo().GetID()))); err != nil {
 			break
 		}
 	}
