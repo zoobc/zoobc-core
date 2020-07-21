@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -902,7 +903,6 @@ func (ps *PriorityStrategy) AddToResolvedPeer(peer *model.Peer) error {
 	}()
 
 	host.ResolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 }
 
@@ -925,7 +925,6 @@ func (ps *PriorityStrategy) RemoveResolvedPeer(peer *model.Peer) error {
 	}
 
 	delete(host.ResolvedPeers, p2pUtil.GetFullAddressPeer(peer))
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 }
 
@@ -970,7 +969,6 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 			}
 			counter++
 		}
-		ps.NodeConfigurationService.SetHost(host)
 	}
 
 	for key, UnresolvedPeer := range host.UnresolvedPeers {
@@ -1028,7 +1026,6 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		}
 	}
 	host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 }
 
@@ -1089,7 +1086,6 @@ func (ps *PriorityStrategy) RemoveUnresolvedPeer(peer *model.Peer) error {
 		monitoring.SetUnresolvedPeersCount(len(host.UnresolvedPeers))
 	}()
 	delete(host.UnresolvedPeers, p2pUtil.GetFullAddressPeer(peer))
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 }
 
@@ -1125,7 +1121,6 @@ func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, cause string)
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
 	host.BlacklistedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 
 }
@@ -1141,7 +1136,6 @@ func (ps *PriorityStrategy) RemoveBlacklistedPeer(peer *model.Peer) error {
 	ps.BlacklistedPeersLock.Lock()
 	defer ps.BlacklistedPeersLock.Unlock()
 	delete(host.BlacklistedPeers, p2pUtil.GetFullAddressPeer(peer))
-	ps.NodeConfigurationService.SetHost(host)
 	return nil
 }
 

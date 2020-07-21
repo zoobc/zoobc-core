@@ -152,8 +152,17 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	if err != nil {
+		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+	}
 	// initialize services
-	nodeConfigurationService = service.NewNodeConfigurationService(nodeAddressDynamic, nodeSecretPhrase, loggerCoreService)
+	nodeConfigurationService = service.NewNodeConfigurationService(
+		nodeAddressDynamic,
+		nodeSecretPhrase,
+		loggerCoreService,
+		p2pUtil.NewHost(myAddress, peerPort, knownPeersResult),
+	)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -385,11 +394,7 @@ func initLogInstance() {
 
 func initP2pInstance() {
 	// init p2p instances
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
-	if err != nil {
-		loggerCoreService.Fatal("Initialize P2P Err : ", err.Error())
-	}
-	nodeConfigurationService.SetHost(p2pUtil.NewHost(myAddress, peerPort, knownPeersResult))
+	// nodeConfigurationService.SetHost(p2pUtil.NewHost(myAddress, peerPort, knownPeersResult))
 
 	// initialize peer client service
 	nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
