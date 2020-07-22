@@ -12,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/kvdb"
@@ -43,6 +42,7 @@ func startGrpcServer(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
+	maxAPIRequestPerSecond uint32,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -57,7 +57,7 @@ func startGrpcServer(
 	grpcServer := grpc.NewServer(
 		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
-			interceptor.NewServerRateLimiterInterceptor(constant.MaxAPIRequestPerSecond),
+			interceptor.NewServerRateLimiterInterceptor(maxAPIRequestPerSecond),
 			interceptor.NewServerInterceptor(
 				logger,
 				ownerAccountAddress,
@@ -164,6 +164,7 @@ func startGrpcServer(
 			query.NewPendingTransactionQuery(),
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
+			query.NewMultiSignatureParticipantQuery(),
 		)})
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
@@ -200,6 +201,7 @@ func Start(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
+	maxAPIRequestPerSecond uint32,
 ) {
 	startGrpcServer(
 		grpcPort,
@@ -218,6 +220,7 @@ func Start(
 		receiptUtil,
 		receiptService,
 		transactionCoreService,
+		maxAPIRequestPerSecond,
 	)
 	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
 		go func() {

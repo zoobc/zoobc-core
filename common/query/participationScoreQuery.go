@@ -11,6 +11,7 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
+		InsertParticipationScores(scores []*model.ParticipationScore) (str string, args []interface{})
 		UpdateParticipationScore(
 			nodeID, score int64,
 			blockHeight uint32,
@@ -52,6 +53,28 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 		strings.Join(ps.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
 	), ps.ExtractModel(participationScore)
+}
+
+// InsertParticipationScores represents query builder to insert multiple record in single query
+func (ps *ParticipationScoreQuery) InsertParticipationScores(scores []*model.ParticipationScore) (str string, args []interface{}) {
+	if len(scores) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			ps.getTableName(),
+			strings.Join(ps.Fields, ", "),
+		)
+		for k, score := range scores {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(ps.Fields)-1),
+			)
+			if k < len(scores)-1 {
+				str += ","
+			}
+			args = append(args, ps.ExtractModel(score)...)
+		}
+	}
+	return str, args
 }
 
 func (ps *ParticipationScoreQuery) UpdateParticipationScore(

@@ -131,9 +131,11 @@ go run main.go generate account bitcoin --seed "concur vocalist rotten busload g
 ```
 
 ### Account Generating multisig
+
 ```bash
 go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
 ```
+It will generate files such as genesis.go consul script and more, you can check these inside `${-o}/generated/genesis` directory.
 
 ## Other Commands
 ### Genesis
@@ -176,17 +178,20 @@ go run main.go genesis generate -w -n 10
 outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ### Generate Proof of Ownership Node Registry
+
 ```bash
 go run main.go generate poow --node-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"   --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM"  --db-node-path "../resource" --db-node-name "zoobc.db"
---output-type "hex" 
+--output-type "hex"
 ```
 
 ### Rollback Blockchain State
+
 ```bash
 go run main.go rollback blockchain --to-height 10 --db-path "../resource" --db-name "zoobc.db"
 ```
 
 ### Signature Signing data using Ed25519
+
 ```bash
 go run main.go signature sign ed25519 --data-bytes='1, 222, 54, 12, 32' --use-slip10=true
 ```
@@ -207,4 +212,43 @@ go run main.go generate scrambledNodes --db-name zoobc_2.db --height 11153
 
 ```
 go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --sender-full-address "n56.alpha.proofofparticipation.network:8001"
+```
+## Snapshot
+Snapshot command aim to generate new snapshot files, and also import snapshot, get payload and store payload into database. This command for developer who want to test integration of snapshot is working well or not.
+There are sub commands:
+1. New<br>
+Aim to generate new snapshot files, based on latest state of block chain, and store manifest into database, actually will stored to new database named `dump.db` same path with snapshot path target. if you want store to the real database just set `--dump false`.
+    ```bash
+    Snapshot sub command that aim to generating new snapshot file based on database target
+
+    Usage:
+      zoobc snapshot new [flags]
+
+    Flags:
+      -b, --height uint32   Block height target to snapshot
+      -h, --help            help for new
+
+    Global Flags:
+      -n, --db-name string   Database name target (default "zoobc.db")
+      -p, --db-path string   Database path target (default "resource")
+      -d, --dump             Dump result out (default true)
+      -f, --file string      Snapshot file location (default "resource/snapshot")
+
+    ```
+2. Import
+Aim to import payload from snapshot files and will store into database, actually will store into `dump.db` as default which if `dump.db` is available, better do `snpashot new` before doing this command.
+    ```bash
+    Snapshot sub command simulation for import from snapshot file and storing snapshot payload into a database target
+
+    Usage:
+      zoobc snapshot import [flags]
+
+    Flags:
+      -h, --help   help for import
+
+    Global Flags:
+      -n, --db-name string   Database name target (default "zoobc.db")
+      -p, --db-path string   Database path target (default "resource")
+      -d, --dump             Dump result out (default true)
+      -f, --file string      Snapshot file location (default "resource/snapshot")
 ```

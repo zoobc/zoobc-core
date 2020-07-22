@@ -20,6 +20,7 @@ type (
 		GetBlockFromHeight(startHeight, limit uint32) string
 		GetBlockFromTimestamp(startTimestamp int64, limit uint32) string
 		InsertBlock(block *model.Block) (str string, args []interface{})
+		InsertBlocks(blocks []*model.Block) (str string, args []interface{})
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
 		Scan(block *model.Block, row *sql.Row) error
@@ -80,6 +81,28 @@ func (bq *BlockQuery) InsertBlock(block *model.Block) (str string, args []interf
 	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
 		bq.getTableName(), strings.Join(bq.Fields, ", "), value)
 	return query, bq.ExtractModel(block)
+}
+
+// InsertBlocks represents query builder to insert multiple record in single query
+func (bq *BlockQuery) InsertBlocks(blocks []*model.Block) (str string, args []interface{}) {
+	if len(blocks) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			bq.getTableName(),
+			strings.Join(bq.Fields, ", "),
+		)
+		for k, block := range blocks {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(bq.Fields)-1),
+			)
+			if k < len(blocks)-1 {
+				str += ","
+			}
+			args = append(args, bq.ExtractModel(block)...)
+		}
+	}
+	return str, args
 }
 
 // GetBlockByID returns query string to get block by ID

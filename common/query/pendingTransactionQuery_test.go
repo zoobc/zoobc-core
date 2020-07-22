@@ -615,3 +615,48 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 		})
 	}
 }
+
+func TestPendingTransactionQuery_InsertPendingTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		pendingTXs []*model.PendingTransaction
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPendingTransactionQuery()),
+			args: args{
+				pendingTXs: []*model.PendingTransaction{
+					mockInsertPendingTransaction,
+				},
+			},
+			wantArgs: NewPendingTransactionQuery().ExtractModel(mockInsertPendingTransaction),
+			wantStr: "INSERT OR REPLACE INTO pending_transaction (sender_address, transaction_hash, transaction_bytes, status, block_height, latest) " +
+				"VALUES (?, ?, ?, ?, ?, ?)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ptq := &PendingTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ptq.InsertPendingTransactions(tt.args.pendingTXs)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPendingTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPendingTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

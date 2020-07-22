@@ -51,7 +51,7 @@ func (tx *UpdateNodeRegistration) SkipMempoolTransaction(selectedTransactions []
 func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		effectiveBalanceToLock, lockedBalance int64
-		nodePublicKey        []byte
+		nodePublicKey                         []byte
 		nodeAddress                           *model.NodeAddress
 		nodeReg                               model.NodeRegistration
 		queries                               [][]interface{}
@@ -65,8 +65,8 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
-		return err
-	}
+			return err
+		}
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 	}
 
@@ -158,8 +158,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 		if err != nil {
 			if err != sql.ErrNoRows {
-			return err
-		}
+				return err
+			}
 			return blocker.NewBlocker(blocker.AppErr, "NodeNotFoundWithAccountAddress")
 		}
 

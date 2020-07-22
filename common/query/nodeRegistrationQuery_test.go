@@ -535,3 +535,49 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeight(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_InsertNodeRegistrations(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		nodeRegistrations []*model.NodeRegistration
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewNodeRegistrationQuery()),
+			args: args{
+				nodeRegistrations: []*model.NodeRegistration{
+					mockNodeRegistry,
+				},
+			},
+			wantStr: "INSERT INTO node_registry (id, node_public_key, account_address, registration_height, node_address, " +
+				"locked_balance, registration_status, latest, height) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewNodeRegistrationQuery().ExtractModel(mockNodeRegistry),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := &NodeRegistrationQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := nrq.InsertNodeRegistrations(tt.args.nodeRegistrations)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertNodeRegistrations() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertNodeRegistrations() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

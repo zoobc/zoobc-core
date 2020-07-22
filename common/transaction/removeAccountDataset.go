@@ -50,7 +50,7 @@ func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 	)
 
 	// Account dataset removed, need to set IsActive false
-	datasetQ := tx.AccountDatasetQuery.RemoveAccountDataset(&model.AccountDataset{
+	datasetQ := tx.AccountDatasetQuery.InsertAccountDataset(&model.AccountDataset{
 		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
 		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
 		Property:                tx.Body.GetProperty(),
@@ -149,7 +149,10 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		tx.Body.GetProperty(),
 	)
 
-	row, err = tx.QueryExecutor.ExecuteSelectRow(datasetQ, dbTx, datasetArgs...)
+	// NOTE: currently dbTx became true only when calling on push block,
+	// this is will make allow to execute all of same tx in mempool if all of them selected
+	// TODO: should be using skip mempool to check double same tx in mempool
+	row, err = tx.QueryExecutor.ExecuteSelectRow(datasetQ, false, datasetArgs...)
 	if err != nil {
 		return err
 	}

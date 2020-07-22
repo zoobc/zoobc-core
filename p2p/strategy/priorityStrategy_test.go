@@ -1261,7 +1261,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 			fields: fields{
 				Host: &model.Host{
 					UnresolvedPeers: make(map[string]*model.Peer),
-					Info: mockGoodScrambledNodes.AddressNodes[0].GetInfo(),
+					Info:            mockGoodScrambledNodes.AddressNodes[0].GetInfo(),
 				},
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
 			},
