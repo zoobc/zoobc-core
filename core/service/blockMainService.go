@@ -620,16 +620,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	// building scrambled node registry
-	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
-		if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
-			err = bs.NodeRegistrationService.BuildScrambledNodes(block)
-			if err != nil {
-				bs.Logger.Error(err.Error())
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
-				return err
+	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
 			}
+			return err
 		}
 	}
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer

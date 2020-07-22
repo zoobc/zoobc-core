@@ -500,6 +500,9 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 		nearestBlock model.Block
 		err          error
 	)
+	if block.Height == 0 {
+		return nrs.sortNodeRegistries(block)
+	}
 	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(block.Height)
 	// todo: andy-shi88 temporary logs
 	nrs.Logger.Infof("---NEAREST_HEIGHT-CURRENT-PUSHBLOCK: %d -----\n\n\n", nearestHeight)
