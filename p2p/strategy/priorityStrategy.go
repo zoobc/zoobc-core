@@ -720,7 +720,7 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		timeInterval uint
 	)
 	currentAddr, err := ps.NodeConfigurationService.GetMyAddress()
-	timeInterval = constant.ResolvePeersGap * 2
+	timeInterval = constant.ResolvePeersGap * 6
 	//STEF testing same interval if address is dynamic or static
 	// myAddressDynamic := ps.NodeConfigurationService.IsMyAddressDynamic()
 	// if myAddressDynamic {
