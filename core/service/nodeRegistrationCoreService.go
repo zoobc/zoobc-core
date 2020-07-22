@@ -22,6 +22,7 @@ type (
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
+		GetNodeRegistrationsByNodePublicKeys(nodePublicKey [][]byte) ([]*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		GetNodeAdmittanceCycle() uint32
@@ -134,6 +135,21 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 	}
 
 	return nodeRegistrations[0], nil
+}
+
+func (nrs *NodeRegistrationService) GetNodeRegistrationsByNodePublicKeys(nodePublicKeys [][]byte) ([]*model.NodeRegistration, error) {
+	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetNodeRegistrationsByNodePublicKeys(), false, nodePublicKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return nodeRegistrations, nil
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)
