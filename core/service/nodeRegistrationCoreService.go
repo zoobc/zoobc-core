@@ -494,7 +494,21 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 
 // BuildScrambleNodes,  build sorted scramble nodes based on node registry
 func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
-	return nrs.sortNodeRegistries(block)
+	// nearest block to build scramble
+	// todo: andy-shi88 - quick experimental fix, need tidy up later
+	var (
+		nearestBlock model.Block
+		err          error
+	)
+	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(block.Height)
+	// todo: andy-shi88 temporary logs
+	nrs.Logger.Infof("---NEAREST_HEIGHT-CURRENT-PUSHBLOCK: %d -----\n\n\n", nearestHeight)
+	nearestBlockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nearestHeight), false)
+	err = nrs.BlockQuery.Scan(&nearestBlock, nearestBlockRow)
+	if err != nil {
+		return err
+	}
+	return nrs.sortNodeRegistries(&nearestBlock)
 }
 
 func (nrs *NodeRegistrationService) ResetScrambledNodes() {
