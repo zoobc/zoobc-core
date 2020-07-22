@@ -211,6 +211,10 @@ func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, number
 	remainder := (timeGapCurrentLastBlock - ct.GetSmithingPeriod()) % timeForOneRound
 	if remainder >= blocksmithIndex*ct.GetBlocksmithTimeGap() {
 		if remainder > ct.GetBlocksmithTimeGap()+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
+			// todo: andy-shi88 temporary logs
+			bss.Logger.Warnf("BlocksmithExpired: function parameter: "+
+				"blocksmithIndex: %d  numberOfBlocksmiths: %d, previousBlock.Height: %d, currentBlockHeight: %d",
+				blocksmithIndex, numberOfBlocksmiths, previousBlock.Height, currentBlock.Height)
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithExpired")
 		}
 		return nil
