@@ -714,14 +714,16 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	var (
 		timeInterval uint
 	)
-	myAddressDynamic := ps.NodeConfigurationService.IsMyAddressDynamic()
 	currentAddr, err := ps.NodeConfigurationService.GetMyAddress()
-	if myAddressDynamic {
-		timeInterval = constant.UpdateNodeAddressGap
-	} else {
-		// if can't connect to any resolved peers, wait till we hopefully get some more from the network
-		timeInterval = constant.ResolvePeersGap * 2
-	}
+	timeInterval = constant.ResolvePeersGap * 2
+	//STEF testing same interval if address is dynamic or static
+	// myAddressDynamic := ps.NodeConfigurationService.IsMyAddressDynamic()
+	// if myAddressDynamic {
+	// 	timeInterval = constant.UpdateNodeAddressGap
+	// } else {
+	// 	// if can't connect to any resolved peers, wait till we hopefully get some more from the network
+	// 	timeInterval = constant.ResolvePeersGap * 2
+	// }
 	ticker := time.NewTicker(time.Duration(timeInterval) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
