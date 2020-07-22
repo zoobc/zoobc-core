@@ -15,7 +15,6 @@ type (
 		SetIsMyAddressDynamic(nodeAddressDynamic bool)
 		IsMyAddressDynamic() bool
 		GetHost() *model.Host
-		//SetHost(myHost *model.Host)
 		SetHostID(nodeID int64)
 		GetHostID() (int64, error)
 		GetNodeSecretPhrase() string
@@ -111,7 +110,3 @@ func (nss *NodeConfigurationService) IsMyAddressDynamic() bool {
 func (nss *NodeConfigurationService) GetHost() *model.Host {
 	return nss.host
 }
-
-//func (nss *NodeConfigurationService) SetHost(myHost *model.Host) {
-//	nss.host = myHost
-//}
