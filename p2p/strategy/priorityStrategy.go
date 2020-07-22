@@ -452,7 +452,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 		if i >= maxAddedPeers {
 			break
 		}
-		go ps.resolvePeer(priorityUnresolvedPeer, true)
+		go ps.resolvePeer(priorityUnresolvedPeer, true, true)
 		i++
 	}
 
@@ -464,7 +464,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 
 		if priorityUnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil {
 			// unresolved peer that non priority when failed connect will remove permanently
-			go ps.resolvePeer(peer, false)
+			go ps.resolvePeer(peer, false, false)
 			i++
 		}
 	}
@@ -485,121 +485,19 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 		// priority peers no need to maintenance
 		// Todo: sukrawidhyawan ignore priority peers
 		if priorityPeers[fullAddr] == nil && currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
-			go ps.resolvePeer(peer, true)
+			go ps.resolvePeer(peer, true, true)
 		}
 	}
 }
 
+//STEF remove if below logic works better
 // resolvePeer send request to a peer and add to resolved peer if get response
-func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
-	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer)
-	if err != nil {
-		// TODO: add mechanism to blacklist failing peers
-		// will add into unresolved peer list if want to keep
-		// sotherwise remove permanently
-		if wantToKeep {
-			ps.DisconnectPeer(destPeer)
-			return
-		}
-		if err := ps.RemoveResolvedPeer(destPeer); err != nil {
-			ps.Logger.Warn(err)
-		}
-		if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
-			ps.Logger.Warn(err)
-		}
-		return
-	}
-	if destPeer != nil {
-		destPeer.ResolvingTime = time.Now().UTC().Unix()
-	}
-	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
-		ps.Logger.Error(err.Error())
-	}
-
-	if err = ps.AddToResolvedPeer(destPeer); err != nil {
-		ps.Logger.Error(err.Error())
-	}
-}
-
-//STEF remove if above logic works better
-// // resolvePeer send request to a peer and add to resolved peer if get response
-// func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool, forceConnect bool) {
-// 	var (
-// 		errPoorig, errNodeAddressInfo, errGetPeerInfo error
-// 		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo
-// 		poorig                                        *model.ProofOfOrigin
-// 		destPeerInfo                                  = destPeer.GetInfo()
-// 		peerNodeID                                    = destPeerInfo.GetID()
-// 	)
-//
-// 	// if peer nodeID = 0, check if the address is a pending  node address info
-// 	if peerNodeID == 0 {
-// 		nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
-// 			destPeerInfo.GetAddress(),
-// 			destPeerInfo.GetPort(),
-// 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
-// 		)
-// 		if err != nil {
-// 			return
-// 		}
-// 		if len(nais) > 0 {
-// 			nai := nais[0]
-// 			destPeer.Info.ID = nai.GetNodeID()
-// 			destPeer.Info.AddressStatus = nai.GetStatus()
-// 			peerNodeID = nai.GetNodeID()
-// 		}
-// 	}
-//
-// 	// only validate priority peers addresses (the ones with nodeID)
-// 	if peerNodeID != 0 {
-// 		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-// 			[]int64{peerNodeID},
-// 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
-// 		); errNodeAddressInfo == nil {
-// 			if len(pendingAddressesInfo) > 0 {
-// 				// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
-// 				poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
-// 				if errPoorig == nil && poorig != nil {
-// 					if errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(
-// 						pendingAddressesInfo[0]); errNodeAddressInfo == nil {
-// 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
-// 					}
-// 				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-// 					[]int64{pendingAddressesInfo[0].GetNodeID()},
-// 					[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
-// 				); errNodeAddressInfo == nil && len(confirmedAddressesInfo) > 0 {
-// 					nai := confirmedAddressesInfo[0]
-// 					// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
-// 					tmpDestPeer := &model.Peer{Info: &model.Node{
-// 						ID:            nai.NodeID,
-// 						Address:       nai.Address,
-// 						SharedAddress: nai.Address,
-// 						Port:          nai.Port,
-// 						AddressStatus: nai.Status,
-// 					}}
-// 					poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(tmpDestPeer)
-// 					if errPoorig == nil && poorig != nil {
-// 						// previous confirmed address is re-confirmed and pending address failed validation, so remove pending address
-// 						_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
-// 						// remove also unresolved peer who failed validation and change it with the new, confirmed, peer
-// 						_ = ps.RemoveUnresolvedPeer(destPeer)
-// 						destPeer = tmpDestPeer
-// 						// this is an extra safe for the edge case where destPeer reports a different address status from what is in db
-// 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-//
-// 	if forceConnect && poorig == nil && errPoorig == nil {
-// 		_, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
-// 	}
-//
-// 	if errPoorig != nil || errGetPeerInfo != nil {
+// func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
+// 	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer)
+// 	if err != nil {
 // 		// TODO: add mechanism to blacklist failing peers
 // 		// will add into unresolved peer list if want to keep
-// 		// otherwise remove permanently
+// 		// sotherwise remove permanently
 // 		if wantToKeep {
 // 			ps.DisconnectPeer(destPeer)
 // 			return
@@ -615,14 +513,116 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 // 	if destPeer != nil {
 // 		destPeer.ResolvingTime = time.Now().UTC().Unix()
 // 	}
-// 	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
+// 	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
 // 		ps.Logger.Error(err.Error())
 // 	}
 //
-// 	if err := ps.AddToResolvedPeer(destPeer); err != nil {
+// 	if err = ps.AddToResolvedPeer(destPeer); err != nil {
 // 		ps.Logger.Error(err.Error())
 // 	}
 // }
+
+// resolvePeer send request to a peer and add to resolved peer if get response
+func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool, forceConnect bool) {
+	var (
+		errPoorig, errNodeAddressInfo, errGetPeerInfo error
+		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo
+		poorig                                        *model.ProofOfOrigin
+		destPeerInfo                                  = destPeer.GetInfo()
+		peerNodeID                                    = destPeerInfo.GetID()
+	)
+
+	// if peer nodeID = 0, check if the address is a pending  node address info
+	if peerNodeID == 0 {
+		nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+			destPeerInfo.GetAddress(),
+			destPeerInfo.GetPort(),
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
+		)
+		if err != nil {
+			return
+		}
+		if len(nais) > 0 {
+			nai := nais[0]
+			destPeer.Info.ID = nai.GetNodeID()
+			destPeer.Info.AddressStatus = nai.GetStatus()
+			peerNodeID = nai.GetNodeID()
+		}
+	}
+
+	// only validate priority peers addresses (the ones with nodeID)
+	if peerNodeID != 0 {
+		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
+			[]int64{peerNodeID},
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
+		); errNodeAddressInfo == nil {
+			if len(pendingAddressesInfo) > 0 {
+				// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
+				poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
+				if errPoorig == nil && poorig != nil {
+					if errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(
+						pendingAddressesInfo[0]); errNodeAddressInfo == nil {
+						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+					}
+				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
+					[]int64{pendingAddressesInfo[0].GetNodeID()},
+					[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
+				); errNodeAddressInfo == nil && len(confirmedAddressesInfo) > 0 {
+					nai := confirmedAddressesInfo[0]
+					// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
+					tmpDestPeer := &model.Peer{Info: &model.Node{
+						ID:            nai.NodeID,
+						Address:       nai.Address,
+						SharedAddress: nai.Address,
+						Port:          nai.Port,
+						AddressStatus: nai.Status,
+					}}
+					poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(tmpDestPeer)
+					if errPoorig == nil && poorig != nil {
+						// previous confirmed address is re-confirmed and pending address failed validation, so remove pending address
+						_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
+						// remove also unresolved peer who failed validation and change it with the new, confirmed, peer
+						_ = ps.RemoveUnresolvedPeer(destPeer)
+						destPeer = tmpDestPeer
+						// this is an extra safe for the edge case where destPeer reports a different address status from what is in db
+						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
+					}
+				}
+			}
+		}
+	}
+
+	if forceConnect && poorig == nil && errPoorig == nil {
+		_, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
+	}
+
+	if errPoorig != nil || errGetPeerInfo != nil {
+		// TODO: add mechanism to blacklist failing peers
+		// will add into unresolved peer list if want to keep
+		// otherwise remove permanently
+		if wantToKeep {
+			ps.DisconnectPeer(destPeer)
+			return
+		}
+		if err := ps.RemoveResolvedPeer(destPeer); err != nil {
+			ps.Logger.Warn(err)
+		}
+		if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
+			ps.Logger.Warn(err)
+		}
+		return
+	}
+	if destPeer != nil {
+		destPeer.ResolvingTime = time.Now().UTC().Unix()
+	}
+	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
+
+	if err := ps.AddToResolvedPeer(destPeer); err != nil {
+		ps.Logger.Error(err.Error())
+	}
+}
 
 // resolvePendingAddresses get the list of pending addresses and resolve them
 func (ps *PriorityStrategy) resolvePendingAddresses() {
