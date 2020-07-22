@@ -482,7 +482,9 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 			// override resolved peer info, since priority peers have nodeID and node address status too
 			peer.Info = priorityPeers[fullAddr].Info
 		}
-		if currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
+		// priority peers no need to maintenance
+		// Todo: sukrawidhyawan ignore priority peers
+		if priorityPeers[fullAddr] == nil && currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
 			go ps.resolvePeer(peer, true)
 		}
 	}
@@ -1062,6 +1064,9 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 					peer.Info.AddressStatus = nai.GetStatus()
 				}
 			}
+		} else {
+			// todo sukrawdihaywan - temporary logger
+			ps.Logger.Warnln("AddToUnresolvedPeer - GetNodeAddressInfoFromDbByAddressPort", err.Error())
 		}
 	}
 	host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
