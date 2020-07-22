@@ -219,6 +219,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 				addedPosition = 0
 			)
 			// todo: andy-shi88 temporary logs
+			ps.Logger.Infof("hostIDStr: %s\n\n", hostIDStr)
 			ps.Logger.Infof("\n----HEIGHT: %d \t hostIndex: %d\tstartPeers: %d ----\n\n\n",
 				lastBlock.Height, *hostIndex, startPeers)
 			for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
