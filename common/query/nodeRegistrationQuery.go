@@ -169,7 +169,7 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
 		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 
-// GetNodeRegistrationsByNodePublicKeys returns query string to get Node Registration by node array of public key
+// GetNodeRegistrationsByNodePublicKeys returns query string to get Node Registrations by array of node public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByNodePublicKeys() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key IN ? AND latest=1 ORDER BY height DESC LIMIT 1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName())
