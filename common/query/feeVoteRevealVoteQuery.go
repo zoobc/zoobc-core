@@ -27,7 +27,6 @@ type (
 func NewFeeVoteRevealVoteQuery() *FeeVoteRevealVoteQuery {
 	return &FeeVoteRevealVoteQuery{
 		Fields: []string{
-			"recent_block_hash",
 			"recent_block_height",
 			"fee_vote",
 			"voter_address",
@@ -79,7 +78,6 @@ func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRev
 // ExtractModel extracting model.FeeVoteRevealVote values
 func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote) []interface{} {
 	return []interface{}{
-		revealVote.VoteInfo.GetRecentBlockHash(),
 		revealVote.VoteInfo.GetRecentBlockHeight(),
 		revealVote.VoteInfo.GetFeeVote(),
 		revealVote.GetVoterAddress(),
@@ -97,7 +95,6 @@ func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.
 		feeVoteInfo    model.FeeVoteInfo
 	)
 	err := row.Scan(
-		&feeVoteInfo.RecentBlockHash,
 		&feeVoteInfo.RecentBlockHeight,
 		&feeVoteInfo.FeeVote,
 		&voterAddress,
@@ -125,7 +122,6 @@ func (fvr *FeeVoteRevealVoteQuery) BuildModel(
 			err error
 		)
 		err = rows.Scan(
-			&revealVote.VoteInfo.RecentBlockHash,
 			&revealVote.VoteInfo.RecentBlockHeight,
 			&revealVote.VoteInfo.FeeVote,
 			&revealVote.VoterAddress,

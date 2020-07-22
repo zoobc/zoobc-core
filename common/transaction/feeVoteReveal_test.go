@@ -147,7 +147,6 @@ func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) GetVoteCommitByAccou
 }
 func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) Scan(vote *model.FeeVoteCommitmentVote, _ *sql.Row) error {
 	body, _ := GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")
@@ -230,7 +229,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateInvalid{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{1, 2, 3, 4, 5, 6, 7, 8},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -238,27 +236,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				},
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "WantErr:InvalidRecentBlock",
-			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
-				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
-				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
-				Body: &model.FeeVoteRevealTransactionBody{
-					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{1, 2, 3, 4, 5, 6, 7, 8},
-						RecentBlockHeight: 100,
-						FeeVote:           10,
-					},
-					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-				},
-				BlockQuery:             &mockBlockQueryFeeVoteRevealVoteTXValidateFound{},
-				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
-				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 			},
 			wantErr: true,
 		},
@@ -271,7 +248,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -292,7 +268,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -314,7 +289,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -337,7 +311,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
 					FeeVoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -585,7 +558,6 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	txBody := &model.FeeVoteRevealTransactionBody{
 		FeeVoteInfo: &model.FeeVoteInfo{
 			RecentBlockHeight: 100,
-			RecentBlockHash:   []byte{1, 2, 3, 4, 5},
 			FeeVote:           100,
 		},
 		VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},

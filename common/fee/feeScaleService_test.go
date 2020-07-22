@@ -449,113 +449,92 @@ func TestNewFeeScaleService(t *testing.T) {
 var (
 	mockMedianLowerConstraintsPassed = []*model.FeeVoteInfo{
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 3), // i:4
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 1), // i:2 less than 0.5 than previous
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 2), // i:3
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/10, // i:1
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/30, // i:0
 		},
 	}
 	mockMedianHigherConstraintsPassed = []*model.FeeVoteInfo{
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 3), // i:4
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 1), // i:2 more than 2.0 than previous
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 2), // i:3
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
 		},
 	}
 	mockMedianWithinConstraintsEven = []*model.FeeVoteInfo{
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 3), // i:4
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
 		},
 	}
 	mockMedianWithinConstraintsOdd = []*model.FeeVoteInfo{
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
 		},
 		{
-			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
 			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
 		},

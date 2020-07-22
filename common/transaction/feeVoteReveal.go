@@ -115,9 +115,6 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		}
 		return blocker.NewBlocker(blocker.ValidationErr, "BlockNotFound")
 	}
-	if res := bytes.Compare(tx.Body.GetFeeVoteInfo().GetRecentBlockHash(), recentBlock.GetBlockHash()); res != 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidRecentBlock")
-	}
 
 	// sender must be as node owner
 	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
@@ -231,15 +228,6 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 		err     error
 	)
 
-	chunked, err = util.ReadTransactionBytes(buff, int(constant.RecentBlockHashLength))
-	if err != nil {
-		return nil, err
-	}
-	recentBlockHas, err := util.ReadTransactionBytes(buff, int(util.ConvertBytesToUint32(chunked)))
-	if err != nil {
-		return nil, err
-	}
-
 	chunked, err = util.ReadTransactionBytes(buff, int(constant.RecentBlockHeight))
 	if err != nil {
 		return nil, err
@@ -262,7 +250,6 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 	}
 	return &model.FeeVoteRevealTransactionBody{
 		FeeVoteInfo: &model.FeeVoteInfo{
-			RecentBlockHash:   recentBlockHas,
 			RecentBlockHeight: recentBlockHeight,
 			FeeVote:           int64(feeVote),
 		},
@@ -273,8 +260,6 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 // GetBodyBytes translate tx body to bytes representation
 func (tx *FeeVoteRevealTransaction) GetBodyBytes() []byte {
 	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
-	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.VoterSignature))))
@@ -292,7 +277,6 @@ func (tx *FeeVoteRevealTransaction) GetTransactionBody(transaction *model.Transa
 // GetFeeVoteInfoBytes will build bytes from model.FeeVoteInfo
 func (tx *FeeVoteRevealTransaction) GetFeeVoteInfoBytes() []byte {
 	buff := bytes.NewBuffer([]byte{})
-	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	return buff.Bytes()

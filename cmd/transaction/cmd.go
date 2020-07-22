@@ -545,7 +545,6 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		}
 		feeVoteInfo = model.FeeVoteInfo{
 			RecentBlockHeight: lastBlock.GetHeight(),
-			RecentBlockHash:   lastBlock.GetBlockHash(),
 			FeeVote:           feeVote,
 		}
 		fb := (&transaction.FeeVoteRevealTransaction{
@@ -628,7 +627,6 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 				logrus.Errorf("Getting last block failed: %s", err.Error())
 				return
 			}
-			feeVoteInfo.RecentBlockHash = block.GetBlockHash()
 			feeVoteInfo.RecentBlockHeight = recentBlockHeight
 		}
 

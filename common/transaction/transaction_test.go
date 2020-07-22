@@ -26,12 +26,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 
 	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
 	feeVoteCommitTransactionBody, feeVoteCommitTransactionBodyBytes := GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")
 	feeVoteRevealBody := GetFixtureForFeeVoteRevealTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")

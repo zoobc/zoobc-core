@@ -422,7 +422,6 @@ type (
 
 var (
 	mockFeeVoteCommitTxBody, mockFeeVoteCommitTxBodyBytes = GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")

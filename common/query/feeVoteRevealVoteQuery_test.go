@@ -34,7 +34,7 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHe
 				accountAddress: "ABSCasjkdahsdasd",
 				blockHeight:    100,
 			},
-			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+			want: "SELECT recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
 				"FROM fee_vote_reveal_vote WHERE voter_address = ? AND recent_block_height = ? ORDER BY block_height DESC LIMIT 1",
 			want1: []interface{}{"ABSCasjkdahsdasd", uint32(100)},
 		},
@@ -78,7 +78,6 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 			args: args{
 				revealVote: &model.FeeVoteRevealVote{
 					VoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{1, 2, 3, 4, 5, 6, 7, 8},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -87,10 +86,9 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 					BlockHeight:    230,
 				},
 			},
-			wantQry: "INSERT INTO fee_vote_reveal_vote (recent_block_hash, recent_block_height, fee_vote, voter_address," +
-				" voter_signature, block_height) VALUES(?, ?, ?, ?, ?, ?)",
+			wantQry: "INSERT INTO fee_vote_reveal_vote (recent_block_height, fee_vote, voter_address," +
+				" voter_signature, block_height) VALUES(?, ?, ?, ?, ?)",
 			wantArgs: []interface{}{
-				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				uint32(100),
 				int64(10),
 				"ABSCasjkdahsdasd",
@@ -121,7 +119,6 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(mock.NewRows(NewFeeVoteRevealVoteQuery().Fields).
 		AddRow(
-			[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 			100,
 			10,
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
@@ -148,7 +145,6 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 			args: args{
 				vote: &model.FeeVoteRevealVote{
 					VoteInfo: &model.FeeVoteInfo{
-						RecentBlockHash:   []byte{1, 2, 3, 4, 5, 6, 7, 8},
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
@@ -195,7 +191,7 @@ func TestFeeVoteRevealVoteQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 100,
 				toHeight:   170,
 			},
-			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+			want: "SELECT recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
 				"FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
 		},
 	}
@@ -255,7 +251,6 @@ var (
 	mockFeeVoteRevealVoteQueryBuildModelRowResult = []*model.FeeVoteRevealVote{
 		{
 			VoteInfo: &model.FeeVoteInfo{
-				RecentBlockHash:   make([]byte, 32),
 				RecentBlockHeight: 100,
 				FeeVote:           constant.OneZBC,
 			},
@@ -265,7 +260,6 @@ var (
 		},
 		{
 			VoteInfo: &model.FeeVoteInfo{
-				RecentBlockHash:   make([]byte, 32),
 				RecentBlockHeight: 105,
 				FeeVote:           constant.OneZBC,
 			},
@@ -283,14 +277,12 @@ func TestFeeVoteRevealVoteQuery_BuildModel(t *testing.T) {
 		defer db.Close()
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockFeeVoteRevealVoteQuery.Fields).
 			AddRow(
-				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetRecentBlockHash(),
 				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetRecentBlockHeight(),
 				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoteInfo().GetFeeVote(),
 				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoterAddress(),
 				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetVoterSignature(),
 				mockFeeVoteRevealVoteQueryBuildModelRowResult[0].GetBlockHeight(),
 			).AddRow(
-			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetRecentBlockHash(),
 			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetRecentBlockHeight(),
 			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoteInfo().GetFeeVote(),
 			mockFeeVoteRevealVoteQueryBuildModelRowResult[1].GetVoterAddress(),
@@ -312,7 +304,7 @@ func TestFeeVoteRevealVoteQuery_BuildModel(t *testing.T) {
 func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealsInPeriod(t *testing.T) {
 	t.Run("FeeVoteRevealVoteQuery:success", func(t *testing.T) {
 		qry, args := mockFeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(0, 720)
-		expectQry := "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
+		expectQry := "SELECT recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
 			"FROM fee_vote_reveal_vote WHERE block_height between ? AND ? ORDER BY fee_vote ASC"
 		expectArgs := []interface{}{
 			uint32(0),
