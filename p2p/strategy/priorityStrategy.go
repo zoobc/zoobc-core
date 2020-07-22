@@ -228,8 +228,13 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 				}
 				addedPosition++
 			}
+		} else {
+			// todo: andy-shi88 temporary logs
+			ps.Logger.Infof("GetPriorityPeers: ps.NodeConfigurationService.GetHostID() - %v\n\n\n", err)
 		}
 	}
+	// todo: andy-shi88 temporary logs
+	ps.Logger.Infof("GetPriorityPeers:OutSideValidateScrambleNode\n\n\npriorityPeers: %v\n\n\n", priorityPeers)
 	return priorityPeers
 }
 
