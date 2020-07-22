@@ -263,8 +263,12 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 			}
 			for _, nai := range nais {
 				naiIDStr := fmt.Sprintf("%d", nai.GetNodeID())
+				// todo: andy-shi88 temporary solution refactor later
 				if scrambledNodes.IndexNodes[naiIDStr] != nil {
-					ps.NodeConfigurationService.SetHostID(nai.GetNodeID())
+					if ps.NodeConfigurationService.GetHost().GetInfo().GetAddress() == node.Address &&
+						ps.NodeConfigurationService.GetHost().GetInfo().GetPort() == node.Port {
+						ps.NodeConfigurationService.SetHostID(nai.GetNodeID())
+					}
 					return true
 				}
 			}
