@@ -141,7 +141,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		}
 		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
 		// todo: andy-shi88 temporary logs
-		ps.Logger.Infof("--- nodeID: %d\tnodeAddress: %v----\n", id, priorityNodeAddress)
+		ps.Logger.Infof("--- nodeID: %s\tnodeAddress: %v----\n", id, priorityNodeAddress)
 
 		if unresolvedPeers[priorityNodeAddress] == nil &&
 			resolvedPeers[priorityNodeAddress] == nil &&
