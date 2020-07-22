@@ -62,8 +62,8 @@ func (tx *SetupAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 		Latest:                  true,
 	}
 
-	accDatasetQ, accDatasetArgs := tx.AccountDatasetQuery.InsertAccountDataset(dataset)
-	queries = append(queries, append([]interface{}{accDatasetQ}, accDatasetArgs...))
+	accDatasetQ := tx.AccountDatasetQuery.InsertAccountDataset(dataset)
+	queries = append(queries, accDatasetQ...)
 
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
@@ -158,7 +158,10 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 		tx.Body.GetRecipientAccountAddress(),
 		tx.Body.GetProperty(),
 	)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
+	// NOTE: currently dbTx became true only when calling on push block,
+	// this is will make allow to execute all of same tx in mempool if all of them selected
+	// TODO: should be using skip mempool to check double same tx in mempool
+	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, false, accDatasetArgs...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -170,7 +173,7 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	}
 	// false if err in above is sql.ErrNoRows || nil
 	if accountDataset.GetIsActive() {
-		return blocker.NewBlocker(blocker.ValidationErr, "AlreadyExists")
+		return blocker.NewBlocker(blocker.ValidationErr, "DatasetAlreadyExists")
 	}
 	// check account balance sender
 	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)

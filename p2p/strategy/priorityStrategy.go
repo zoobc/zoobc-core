@@ -268,23 +268,23 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 							isAddedToUnresolved = true
 						}
 					} else {
-					for _, peer := range unresolvedPeers {
-						// add peer requester into unresolved and remove the old one in unresolved peers
-						// removing one of unresolved peers will do when already stayed more than max stayed
-						// and not priority peers
-						if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
-							!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
-							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
-								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-									ps.Logger.Error(err.Error())
+						for _, peer := range unresolvedPeers {
+							// add peer requester into unresolved and remove the old one in unresolved peers
+							// removing one of unresolved peers will do when already stayed more than max stayed
+							// and not priority peers
+							if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
+								!ps.ValidatePriorityPeer(scrambledNodes, ps.Host.GetInfo(), peer.GetInfo()) {
+								if err = ps.RemoveUnresolvedPeer(peer); err == nil {
+									if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+										ps.Logger.Error(err.Error())
+										break
+									}
+									isAddedToUnresolved = true
 									break
 								}
-								isAddedToUnresolved = true
-								break
 							}
 						}
 					}
-				}
 				}
 
 				// Check host is in priority peer list of requester

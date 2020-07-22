@@ -555,3 +555,47 @@ func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
 		})
 	}
 }
+
+func TestPendingSignatureQuery_InsertPendingSignatures(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		pendingSigs []*model.PendingSignature
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPendingSignatureQuery()),
+			args: args{
+				pendingSigs: []*model.PendingSignature{
+					mockInsertPendingSignaturePendingSig,
+				},
+			},
+			wantStr:  "INSERT INTO pending_signature (transaction_hash, account_address, signature, block_height, latest) VALUES (?, ?, ?, ?, ?)",
+			wantArgs: NewPendingSignatureQuery().ExtractModel(mockInsertPendingSignaturePendingSig),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psq := &PendingSignatureQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := psq.InsertPendingSignatures(tt.args.pendingSigs)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPendingSignatures() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPendingSignatures() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

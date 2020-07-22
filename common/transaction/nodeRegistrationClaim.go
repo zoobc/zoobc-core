@@ -58,8 +58,8 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
-		return err
-	}
+			return err
+		}
 		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
 	}
 

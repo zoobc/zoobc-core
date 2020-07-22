@@ -28,6 +28,9 @@ type simpleRateLimiter struct {
 }
 
 func (rl *simpleRateLimiter) isAllowed() bool {
+	if rl.numberOfAllowedRequest == 0 {
+		return true
+	}
 	rl.Lock()
 	defer rl.Unlock()
 	if rl.numberOfRequest >= rl.numberOfAllowedRequest {
@@ -46,6 +49,9 @@ func (rl *simpleRateLimiter) requestFinished() {
 }
 
 func (rl *simpleRateLimiter) start() {
+	if rl.numberOfAllowedRequest == 0 {
+		return
+	}
 	ticker := time.NewTicker(time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
