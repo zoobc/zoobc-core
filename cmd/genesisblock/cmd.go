@@ -451,29 +451,12 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 	if err != nil {
 		log.Fatal(err)
 	}
-	sb := service.NewBlockMainService(
+	sb := service.NewBlockSpineService(
 		&chaintype.SpineChain{},
 		nil,
 		nil,
 		nil,
 		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		&transaction.TypeSwitcher{},
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		&transaction.Util{},
-		&coreUtil.ReceiptUtil{},
 		nil,
 		nil,
 		nil,
@@ -491,16 +474,16 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 }
 
 func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFilePath string) (clusterConfig []clusterConfigEntry) {
-	for _, genesisEntry := range genesisEntries {
+	for _, genEntry := range genesisEntries {
 		// exclude entries that don't have NodeSeed set from cluster_config.json
 		// (they should be nodes already registered/run by someone, thus they shouldn't be deployed automatically)
-		if genesisEntry.NodeSeed != "" {
+		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodeAddress:         genesisEntry.NodeAddress,
-				NodePublicKey:       genesisEntry.NodePublicKeyB64,
-				NodeSeed:            genesisEntry.NodeSeed,
-				OwnerAccountAddress: genesisEntry.AccountAddress,
-				Smithing:            genesisEntry.Smithing,
+				NodeAddress:         genEntry.NodeAddress,
+				NodePublicKey:       genEntry.NodePublicKeyB64,
+				NodeSeed:            genEntry.NodeSeed,
+				OwnerAccountAddress: genEntry.AccountAddress,
+				Smithing:            genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
@@ -521,10 +504,10 @@ func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFileP
 		accountNodes []accountNodeEntry
 	)
 
-	for _, entry := range accountNodeEntries {
+	for _, e := range accountNodeEntries {
 		entry := accountNodeEntry{
-			NodeAddress:    entry.NodeAddress,
-			AccountAddress: entry.AccountAddress,
+			NodeAddress:    e.NodeAddress,
+			AccountAddress: e.AccountAddress,
 		}
 		accountNodes = append(accountNodes, entry)
 	}
