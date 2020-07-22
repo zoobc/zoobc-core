@@ -376,8 +376,6 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 		err          error
 	)
 	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(blockHeight)
-	// todo: andy-shi88 temporary logs
-	nrs.Logger.Infof("---NEAREST_HEIGHT: %d -----\n\n\n", nearestHeight)
 	nearestBlockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nearestHeight), false)
 	err = nrs.BlockQuery.Scan(&nearestBlock, nearestBlockRow)
 	if err != nil {
@@ -456,11 +454,6 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 		newIndexNodes[scrambleDNodeMapKey] = &index
 		newAddressNodes = append(newAddressNodes, peer)
 	}
-	// todo: andy-shi88 temporary logs
-	nrs.Logger.Infof("\n\n\n----NEW_INDEX_NODES----\n\n\n")
-	for key, value := range newIndexNodes {
-		nrs.Logger.Infof("k: %s \t v: %d\n", key, *value)
-	}
 	// build the scrambled node map
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
@@ -494,24 +487,7 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 
 // BuildScrambleNodes,  build sorted scramble nodes based on node registry
 func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
-	// nearest block to build scramble
-	// todo: andy-shi88 - quick experimental fix, need tidy up later
-	var (
-		nearestBlock model.Block
-		err          error
-	)
-	if block.Height == 0 {
-		return nrs.sortNodeRegistries(block)
-	}
-	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(block.Height)
-	// todo: andy-shi88 temporary logs
-	nrs.Logger.Infof("---NEAREST_HEIGHT-CURRENT-PUSHBLOCK: %d -----\n\n\n", nearestHeight)
-	nearestBlockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nearestHeight), false)
-	err = nrs.BlockQuery.Scan(&nearestBlock, nearestBlockRow)
-	if err != nil {
-		return err
-	}
-	return nrs.sortNodeRegistries(&nearestBlock)
+	return nrs.sortNodeRegistries(block)
 }
 
 func (nrs *NodeRegistrationService) ResetScrambledNodes() {
