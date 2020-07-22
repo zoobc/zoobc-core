@@ -20,7 +20,7 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
-		ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error
+		ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error
 		ExpiringPendingTransactions(blockHeight uint32, useTX bool) error
 		CompletePassedLiquidPayment(block *model.Block) error
 	}
@@ -167,7 +167,7 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 // ExpiringEscrowTransactions push an observer event that is ExpiringEscrowTransactions,
 // will set status to be expired caused by current block height
 // query lock from outside (PushBlock)
-func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error {
+func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error {
 	var (
 		escrows []*model.Escrow
 		rows    *sql.Rows
@@ -200,18 +200,38 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			}
 		}
 		for _, escrow := range escrows {
+			var (
+				refTransaction model.Transaction
+				typeAction     transaction.TypeAction
+				row            *sql.Row
+			)
 			/**
 			SET Escrow
-			1. block height = current block height
 			2. status = expired
 			*/
-			nEscrow := escrow
-			nEscrow.BlockHeight = blockHeight
-			nEscrow.Status = model.EscrowStatus_Expired
-			q := tg.EscrowTransactionQuery.InsertEscrowTransaction(escrow)
-			err = tg.QueryExecutor.ExecuteTransactions(q)
+			row, err = tg.QueryExecutor.ExecuteSelectRow(tg.TransactionQuery.GetTransaction(escrow.GetID()), useTX)
 			if err != nil {
 				break
+			}
+			err = tg.TransactionQuery.Scan(&refTransaction, row)
+			if err != nil {
+				break
+			}
+
+			refTransaction.Height = blockHeight
+			refTransaction.Escrow = escrow
+			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(&refTransaction)
+			if err != nil {
+				break
+			}
+			if escrowTypAction, ok := typeAction.Escrowable(); ok {
+				err = escrowTypAction.EscrowApproval(blockTimestamp, &model.ApprovalEscrowTransactionBody{
+					Approval:      model.EscrowApproval_Expire,
+					TransactionID: escrow.GetID(),
+				})
+				if err != nil {
+					break
+				}
 			}
 		}
 
