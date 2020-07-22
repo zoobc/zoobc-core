@@ -218,6 +218,9 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 				startPeers    = p2pUtil.GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
 				addedPosition = 0
 			)
+			// todo: andy-shi88 temporary logs
+			ps.Logger.Infof("\n----HEIGHT: %d \t hostIndex: %d\tstartPeers: %d ----\n\n\n",
+				lastBlock.Height, *hostIndex, startPeers)
 			for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
 				var (
 					peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
