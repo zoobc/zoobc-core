@@ -163,7 +163,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	var idx int
 	for idx = 0; idx < extraNodesCount; idx++ {
-		bcState = append(bcState, generateRandomGenesisEntry(idx, ""))
+		bcState = append(bcState, generateRandomGenesisEntry(""))
 	}
 
 	// generate extra nodes from a json file containing only account addresses
@@ -179,7 +179,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		}
 		for _, preRegisteredAccountAddress := range preRegisteredAccountAddresses {
 			idx++
-			bcState = append(bcState, generateRandomGenesisEntry(idx, preRegisteredAccountAddress.AccountAddress))
+			bcState = append(bcState, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
 		}
 	}
 
@@ -213,7 +213,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       and we are not storing the relative seed, needed to sign transactions, these nodes can smith but their owners
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
-func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
+func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 	var (
 		ed25519Signature = crypto.NewEd25519Signature()
 	)
