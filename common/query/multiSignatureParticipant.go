@@ -86,14 +86,12 @@ func (msq *MultiSignatureParticipantQuery) InsertMultisignatureParticipants(
 		args []interface{}
 	)
 	if participants != nil {
-		for k, participant := range participants {
+		for _, participant := range participants {
 			qStr += fmt.Sprintf(
 				"(?%s)",
 				strings.Repeat(", ?", len(msq.Fields)-1),
 			)
-			if k < len(participants)-1 {
-				qStr += ", "
-			}
+			qStr += ", "
 			args = append(args, msq.ExtractModel(participant)...)
 		}
 		queries = append(
