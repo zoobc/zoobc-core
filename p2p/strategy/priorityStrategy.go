@@ -132,7 +132,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		hostAddress = p2pUtil.GetFullAddressPeer(hostModelPeer)
 	)
 	ps.Logger.Infoln("Connecting to priority lists...")
-	for id, peer := range priorityPeers {
+	for _, peer := range priorityPeers {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
 		}
@@ -412,12 +412,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 		if priorityPeers[fullAddr] != nil {
 			// override unresolved peer info, since priority peers have nodeID and node address status too
 			unresolvedPeer.Info = priorityPeers[fullAddr].GetInfo()
-			if resolvedPeers[fullAddr] == nil {
-				priorityUnresolvedPeers[fullAddr] = unresolvedPeer
-			} else {
-				// override resolved peer info, since priority peers have nodeID and node address status too
-				resolvedPeers[fullAddr].Info = priorityPeers[fullAddr].Info
-			}
+			priorityUnresolvedPeers[fullAddr] = unresolvedPeer
 		}
 	}
 
