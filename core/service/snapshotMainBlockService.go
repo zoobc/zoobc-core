@@ -304,10 +304,12 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 				loopCount := len(payload.GetPublishedReceipts()) / bulkSize
 				remainder := len(payload.GetPublishedReceipts()) % bulkSize
 				for i := 0; i < loopCount; i++ {
-					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts()[i*bulkSize : i*bulkSize+bulkSize])
+					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(
+						payload.GetPublishedReceipts()[i*bulkSize : i*bulkSize+bulkSize])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
-				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts()[len(payload.GetPublishedReceipts())-remainder : len(payload.GetPublishedReceipts())])
+				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(
+					payload.GetPublishedReceipts()[len(payload.GetPublishedReceipts())-remainder : len(payload.GetPublishedReceipts())])
 				queries = append(queries, append([]interface{}{qry}, args...))
 			}
 
