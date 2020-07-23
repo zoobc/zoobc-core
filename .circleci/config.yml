@@ -164,7 +164,38 @@ jobs:
                   name: UP SERVICE
                   command: |
                       ssh root@$ln4 'sudo systemctl start zoobc.service'
-
+    deploy-experimental:
+        <<: *defaults
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                        sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOST
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+            - run:
+                  name: DOWN SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            - run: *reset_db
+            - run:
+                  name: DEPLOY APP
+                  command: |
+                      for host in $x1 $x2 $x3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+            - run:
+                  name: UP SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
 workflows:
     version: 2
     prepare-deploy:
@@ -188,3 +219,9 @@ workflows:
                   filters:
                       branches:
                           only: staging
+            - deploy-experimental:
+                requires:
+                  - build
+                filters:
+                  branches:
+                    only: experimental
