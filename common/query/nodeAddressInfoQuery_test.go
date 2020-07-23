@@ -165,7 +165,7 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 				int64(111),
 				"2",
 			},
-			wantStr: "DELETE FROM node_address_info WHERE node_id = ? AND status IN (1, 2)",
+			wantStr: "DELETE FROM node_address_info WHERE node_id = ? AND status IN (2)",
 		},
 	}
 	for _, tt := range tests {
@@ -474,7 +474,6 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByAddressPort(t *testing.T) {
 			wantArgs: []interface{}{
 				"127.0.0.1",
 				uint32(8001),
-				"2",
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, " +
 				"status FROM node_address_info WHERE address = ? AND port = ? AND status IN (2) ORDER BY status ASC",
