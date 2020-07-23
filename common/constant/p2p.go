@@ -17,8 +17,8 @@ const (
 	ResolvePendingPeersGap uint = 60
 	// UnresolvedPendingPeerExpirationTimeOffset max time in seconds a node should try to connect to/resolve a pending node address (one hour)
 	UnresolvedPendingPeerExpirationTimeOffset int64 = 3600
-	// UpdateNodeAddressGap, interval in seconds of peer thread to update node dynamic address
-	UpdateNodeAddressGap uint = 3600
+	// UpdateNodeAddressGap, interval in seconds of peer thread to update and broadcast node dynamic address
+	UpdateNodeAddressGap uint = 120
 	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
 	SyncNodeAddressGap uint = 30 // every 30 min
 	// ScrambleNodesSafeHeight height before which scramble nodes are always recalculated (

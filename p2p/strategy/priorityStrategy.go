@@ -208,8 +208,6 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		return priorityPeers
 	}
 
-	// STEF is it correct that only a scrambled node can get the list of priority peers? (
-	// it was like this even before refactoring the scrambled nodes)
 	if ps.ValidateScrambleNode(scrambledNodes, host.GetInfo()) {
 		if hostID, err := ps.NodeConfigurationService.GetHostID(); err == nil {
 			var (
@@ -495,38 +493,6 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 	}
 }
 
-//STEF remove if below logic works better
-// resolvePeer send request to a peer and add to resolved peer if get response
-// func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
-// 	_, err := ps.PeerServiceClient.GetPeerInfo(destPeer)
-// 	if err != nil {
-// 		// TODO: add mechanism to blacklist failing peers
-// 		// will add into unresolved peer list if want to keep
-// 		// sotherwise remove permanently
-// 		if wantToKeep {
-// 			ps.DisconnectPeer(destPeer)
-// 			return
-// 		}
-// 		if err := ps.RemoveResolvedPeer(destPeer); err != nil {
-// 			ps.Logger.Warn(err)
-// 		}
-// 		if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
-// 			ps.Logger.Warn(err)
-// 		}
-// 		return
-// 	}
-// 	if destPeer != nil {
-// 		destPeer.ResolvingTime = time.Now().UTC().Unix()
-// 	}
-// 	if err = ps.RemoveUnresolvedPeer(destPeer); err != nil {
-// 		ps.Logger.Error(err.Error())
-// 	}
-//
-// 	if err = ps.AddToResolvedPeer(destPeer); err != nil {
-// 		ps.Logger.Error(err.Error())
-// 	}
-// }
-
 // resolvePeer send request to a peer and add to resolved peer if get response
 func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool, forceConnect bool) {
 	var (
@@ -754,20 +720,19 @@ func (ps *PriorityStrategy) GetMorePeersThread() {
 }
 
 // UpdateNodeAddressThread to periodically update node own's dynamic address and broadcast it
+// note: if address is dynamic, if will be fetched periodically from internet, but will be re-broadcast only if it is changed
 func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 	var (
 		timeInterval uint
 	)
 	currentAddr, err := ps.NodeConfigurationService.GetMyAddress()
-	timeInterval = constant.ResolvePeersGap * 6
-	//STEF testing same interval if address is dynamic or static
-	// myAddressDynamic := ps.NodeConfigurationService.IsMyAddressDynamic()
-	// if myAddressDynamic {
-	// 	timeInterval = constant.UpdateNodeAddressGap
-	// } else {
-	// 	// if can't connect to any resolved peers, wait till we hopefully get some more from the network
-	// 	timeInterval = constant.ResolvePeersGap * 2
-	// }
+	myAddressDynamic := ps.NodeConfigurationService.IsMyAddressDynamic()
+	if myAddressDynamic {
+		timeInterval = constant.UpdateNodeAddressGap
+	} else {
+		// if can't connect to any resolved peers, wait till we hopefully get some more from the network
+		timeInterval = constant.ResolvePeersGap * 2
+	}
 	ticker := time.NewTicker(time.Duration(timeInterval) * time.Second)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -780,6 +745,7 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 			host = ps.NodeConfigurationService.GetHost()
 			err  error
 		)
+
 		if !ps.NodeConfigurationService.IsMyAddressDynamic() {
 			if err = ps.UpdateOwnNodeAddressInfo(
 				currentAddr,
