@@ -124,7 +124,7 @@ var (
 
 	// node registry
 	mockNodeRegistrationData = model.NodeRegistration{
-		NodeID:             0,
+		NodeID:             111,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
@@ -138,7 +138,7 @@ var (
 		Height:             0,
 	}
 	mockNodeRegistrationDataB = model.NodeRegistration{
-		NodeID:             0,
+		NodeID:             222,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
@@ -320,9 +320,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 	defer db.Close()
 	switch qe {
 
-	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
-		"registration_status, latest, height FROM node_registry " +
-		"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, " +
+		"height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -392,9 +391,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
-		"registration_status, latest, height FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE " +
-		"node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, latest, " +
+		"height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -587,41 +585,46 @@ func (*mockNodeRegistrationSelectReceiptSuccess) GetScrambleNodesByHeight(
 		AddressNodes: []*model.Peer{
 			{
 				Info: &model.Node{
+					ID:      111,
 					Address: "0.0.0.0",
 					Port:    8001,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      222,
 					Address: "0.0.0.0",
 					Port:    8002,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      333,
 					Address: "0.0.0.0",
 					Port:    8003,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      444,
 					Address: "0.0.0.0",
 					Port:    8004,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      555,
 					Address: "0.0.0.0",
 					Port:    8005,
 				},
 			},
 		},
 		IndexNodes: map[string]*int{
-			"0.0.0.0:8001": &indexA,
-			"0.0.0.0:8002": &indexB,
-			"0.0.0.0:8003": &indexC,
-			"0.0.0.0:8004": &indexD,
-			"0.0.0.0:8005": &indexE,
+			"111": &indexA,
+			"222": &indexB,
+			"333": &indexC,
+			"444": &indexD,
+			"555": &indexE,
 		},
 		BlockHeight: blockHeight,
 	}, nil
