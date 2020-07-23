@@ -132,17 +132,11 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		hostAddress = p2pUtil.GetFullAddressPeer(hostModelPeer)
 	)
 	ps.Logger.Infoln("Connecting to priority lists...")
-	// todo: andy-shi88 temporary logs
-	ps.Logger.Infof("---\npriority peers: %v\n\n", priorityPeers)
-
 	for id, peer := range priorityPeers {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
 		}
 		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
-		// todo: andy-shi88 temporary logs
-		ps.Logger.Infof("--- nodeID: %s\tnodeAddress: %v----\n", id, priorityNodeAddress)
-
 		if unresolvedPeers[priorityNodeAddress] == nil &&
 			resolvedPeers[priorityNodeAddress] == nil &&
 			blacklistedPeers[priorityNodeAddress] == nil &&
@@ -216,10 +210,6 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 				startPeers    = p2pUtil.GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
 				addedPosition = 0
 			)
-			// todo: andy-shi88 temporary logs
-			ps.Logger.Infof("hostIDStr: %s\n\n", hostIDStr)
-			ps.Logger.Infof("\n----HEIGHT: %d \t hostIndex: %d\tstartPeers: %d ----\n\n\n",
-				lastBlock.Height, *hostIndex, startPeers)
 			for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
 				var (
 					peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
@@ -234,13 +224,8 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 				}
 				addedPosition++
 			}
-		} else {
-			// todo: andy-shi88 temporary logs
-			ps.Logger.Infof("GetPriorityPeers: ps.NodeConfigurationService.GetHostID() - %v\n\n\n", err)
 		}
 	}
-	// todo: andy-shi88 temporary logs
-	ps.Logger.Infof("GetPriorityPeers:OutSideValidateScrambleNode\n\n\npriorityPeers: %v\n\n\n", priorityPeers)
 	return priorityPeers
 }
 
@@ -261,10 +246,9 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 			}
 			for _, nai := range nais {
 				naiIDStr := fmt.Sprintf("%d", nai.GetNodeID())
-				// todo: andy-shi88 temporary solution refactor later
 				if scrambledNodes.IndexNodes[naiIDStr] != nil {
 					if ps.NodeConfigurationService.GetHost().GetInfo().GetAddress() == node.Address &&
-						ps.NodeConfigurationService.GetHost().GetInfo().GetPort() == node.Port {
+						ps.NodeConfigurationService.GetHost().GetInfo().GetPort() == node.Port { // only reset host.NodeID if nai is host
 						ps.NodeConfigurationService.SetHostID(nai.GetNodeID())
 					}
 					return true
@@ -486,7 +470,6 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 			peer.Info = priorityPeers[fullAddr].Info
 		}
 		// priority peers no need to maintenance
-		// Todo: sukrawidhyawan ignore priority peers
 		if priorityPeers[fullAddr] == nil && currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
 			go ps.resolvePeer(peer, true, true)
 		}
@@ -1036,8 +1019,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 				}
 			}
 		} else {
-			// todo sukrawdihaywan - temporary logger
-			ps.Logger.Warnln("AddToUnresolvedPeer - GetNodeAddressInfoFromDbByAddressPort", err.Error())
+			ps.Logger.Warnln("AddToUnresolvedPeer: ", err.Error())
 		}
 	}
 	host.UnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] = peer
