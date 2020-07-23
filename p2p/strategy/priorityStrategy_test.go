@@ -12,7 +12,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -370,44 +369,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 		),
 	)
 	return db.QueryRow(qe), nil
-}
-
-func TestNewPriorityStrategy(t *testing.T) {
-	type args struct {
-		peerServiceClient        client.PeerServiceClientInterface
-		queryExecutor            query.ExecutorInterface
-		logger                   *log.Logger
-		peerStrategyHelper       PeerStrategyHelperInterface
-		nodeConfigurationService coreService.NodeConfigurationServiceInterface
-	}
-	tests := []struct {
-		name string
-		args args
-		want *PriorityStrategy
-	}{
-		{
-			name: "wantSuccess",
-			args: args{
-				peerStrategyHelper:       NewPeerStrategyHelper(),
-				nodeConfigurationService: &coreService.NodeConfigurationService{},
-			},
-			want: &PriorityStrategy{
-				MaxUnresolvedPeers:       constant.MaxUnresolvedPeers,
-				MaxResolvedPeers:         constant.MaxResolvedPeers,
-				PeerStrategyHelper:       NewPeerStrategyHelper(),
-				NodeConfigurationService: &coreService.NodeConfigurationService{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := NewPriorityStrategy(tt.args.peerServiceClient, nil,
-				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService, nil, nil)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {

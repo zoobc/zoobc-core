@@ -132,7 +132,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 		hostAddress = p2pUtil.GetFullAddressPeer(hostModelPeer)
 	)
 	ps.Logger.Infoln("Connecting to priority lists...")
-	for id, peer := range priorityPeers {
+	for _, peer := range priorityPeers {
 		if i >= constant.NumberOfPriorityPeersToBeAdded {
 			break
 		}
