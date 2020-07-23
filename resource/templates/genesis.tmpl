@@ -32,7 +32,6 @@ var (
 			AccountAddress: "{{$value.AccountAddress}}",
 			AccountBalance: {{$value.AccountBalance}},{{if $value.HasNodePublicKey}}
 			NodePublicKey:  {{$value.NodePublicKeyString}},
-			NodeAddress:    {{if $value.HasNodeAddress}}"{{$value.NodeAddress}}"{{else}}"127.0.0.1"{{end}},
 			LockedBalance:  {{$value.LockedBalance}},
 			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} GenesisParticipationScore{{end}},{{end}}
 		},

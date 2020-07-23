@@ -36,7 +36,6 @@ type (
 		NodeSeed           string
 		NodeAccountAddress string
 		NodePublicKey      []byte
-		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
 		Smithing           bool
@@ -199,7 +198,6 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	for _, entry := range bcState {
 		newEntry := accountNodeEntry{
-			NodeAddress:    entry.NodeAddress,
 			AccountAddress: entry.AccountAddress,
 		}
 		accountNodes = append(accountNodes, newEntry)
@@ -242,7 +240,6 @@ func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
 		LockedBalance:      0,
-		NodeAddress:        fmt.Sprintf("n%d.alpha.proofofparticipation.network", nodeIdx),
 	}
 }
 
@@ -310,11 +307,6 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
-			if nr.NodeAddress.Port > 0 {
-				bcEntry.NodeAddress = fmt.Sprintf("%s:%d", nr.NodeAddress.Address, nr.NodeAddress.Port)
-			} else {
-				bcEntry.NodeAddress = nr.NodeAddress.Address
-			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 
 			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
@@ -417,7 +409,6 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 			AccountAddress:     entry.AccountAddress,
 			AccountBalance:     entry.AccountBalance,
 			LockedBalance:      entry.LockedBalance,
-			NodeAddress:        entry.NodeAddress,
 			NodePublicKey:      entry.NodePublicKey,
 			ParticipationScore: entry.ParticipationScore,
 		}
@@ -491,7 +482,6 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		// (they should be nodes already registered/run by someone, thus they shouldn't be deployed automatically)
 		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodeAddress:         genEntry.NodeAddress,
 				NodePublicKey:       genEntry.NodeAccountAddress,
 				NodeSeed:            genEntry.NodeSeed,
 				OwnerAccountAddress: genEntry.AccountAddress,
@@ -603,10 +593,6 @@ func (ge *genesisEntry) HasLockedBalance() bool {
 
 func (ge *genesisEntry) HasAccountBalance() bool {
 	return ge.AccountBalance > 0
-}
-
-func (ge *genesisEntry) HasNodeAddress() bool {
-	return ge.NodeAddress != ""
 }
 
 func (ge *genesisEntry) HasNodePublicKey() bool {
