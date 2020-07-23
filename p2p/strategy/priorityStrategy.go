@@ -472,7 +472,7 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 }
 
 // resolvePeer send request to a peer and add to resolved peer if get response
-func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool, forceConnect bool) {
+func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep, forceConnect bool) {
 	var (
 		errPoorig, errNodeAddressInfo, errGetPeerInfo error
 		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo

@@ -599,8 +599,27 @@ type (
 	nrsMockNodeAddressInfoService struct {
 		NodeAddressInfoService
 		getRegisteredNodesWithConsolidatedAddressesFail bool
+		getAddressInfoByNodeIDFail                      bool
 	}
 )
+
+func (nrsMock *nrsMockNodeAddressInfoService) GetAddressInfoByNodeID(
+	nodeID int64,
+	preferredStatus model.NodeAddressStatus,
+) (*model.NodeAddressInfo, error) {
+	if nrsMock.getAddressInfoByNodeIDFail {
+		return nil, errors.New("MockedError")
+	}
+	return &model.NodeAddressInfo{
+		BlockHeight: 10,
+		NodeID:      int64(111),
+		Address:     "127.0.0.1",
+		Port:        3001,
+		Signature:   make([]byte, 64),
+		BlockHash:   make([]byte, 32),
+		Status:      model.NodeAddressStatus_NodeAddressConfirmed,
+	}, nil
+}
 
 func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidatedAddresses(
 	height uint32,

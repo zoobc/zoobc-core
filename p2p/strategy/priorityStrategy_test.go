@@ -88,6 +88,7 @@ var (
 
 	mockPeer = &model.Peer{
 		Info: &model.Node{
+			ID:      int64(222),
 			Address: "127.0.0.1",
 			Port:    3001,
 		},
@@ -97,20 +98,22 @@ var (
 		AddressNodes: []*model.Peer{
 			0: {
 				Info: &model.Node{
+					ID:      int64(111),
 					Address: "127.0.0.1",
 					Port:    8000,
 				},
 			},
 			1: {
 				Info: &model.Node{
+					ID:      int64(222),
 					Address: "127.0.0.1",
 					Port:    3001,
 				},
 			},
 		},
 		IndexNodes: map[string]*int{
-			"127.0.0.1:8000": &indexScramble[0],
-			"127.0.0.1:3001": &indexScramble[1],
+			"111": &indexScramble[0],
+			"222": &indexScramble[1],
 		},
 	}
 
@@ -217,6 +220,10 @@ func (p2pNssMock *p2pMockNodeConfigurationService) GetHost() *model.Host {
 
 func (p2pNssMock *p2pMockNodeConfigurationService) GetMyAddress() (string, error) {
 	return "127.0.0.1", nil
+}
+
+func (p2pNssMock *p2pMockNodeConfigurationService) GetHostID() (int64, error) {
+	return 111, nil
 }
 
 func (p2pNssMock *p2pMockNodeConfigurationService) GetMyPeerPort() (uint32, error) {
@@ -1266,7 +1273,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				},
 			},
 			want: map[string]*model.Peer{
-				"111": mockPeer,
+				"222": mockPeer,
 			},
 		},
 	}

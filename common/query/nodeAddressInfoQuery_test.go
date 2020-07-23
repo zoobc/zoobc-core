@@ -163,7 +163,6 @@ func TestNodeAddressInfoQuery_DeleteNodeAddressInfoByNodeID(t *testing.T) {
 			},
 			wantArgs: []interface{}{
 				int64(111),
-				"2",
 			},
 			wantStr: "DELETE FROM node_address_info WHERE node_id = ? AND status IN (2)",
 		},
