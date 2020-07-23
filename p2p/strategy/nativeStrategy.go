@@ -214,13 +214,14 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
 	}()
 }
 
-func (ns *NativeStrategy) GetPriorityPeersByFullAddress(priorityPeers map[string]*model.Peer) (priorityPeersByAddr map[string]*model.Peer) {
+func (ns *NativeStrategy) GetPriorityPeersByFullAddress(priorityPeers map[string]*model.Peer) map[string]*model.Peer {
+	var priorityPeersByAddr = make(map[string]*model.Peer)
 	for _, pp := range priorityPeers {
 		if pp.GetInfo().Address != "" && pp.GetInfo().Port != 0 {
 			priorityPeersByAddr[p2pUtil.GetFullAddress(pp.GetInfo())] = pp
 		}
 	}
-	return
+	return priorityPeersByAddr
 }
 
 // GetPriorityPeers returns resolved peers in thread-safe manner
