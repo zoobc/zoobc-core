@@ -203,8 +203,8 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte,
 	height uint32) (str string, args []interface{}) {
 	joinedFields := nrq.JoinedAddressInfoFields[:len(nrq.JoinedAddressInfoFields)-1]
-	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
-			"WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+	return fmt.Sprintf("SELECT %s FROM %s LEFT JOIN %s AS t2 ON id = t2.node_id "+
+			"WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? ORDER BY height DESC LIMIT 1",
 			strings.Join(joinedFields, ", "), nrq.getTableName(), NewNodeAddressInfoQuery().TableName),
 		[]interface{}{nodePublicKey, height}
 }
@@ -463,7 +463,7 @@ func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress)
 func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 
 	var (
-		stringAddress string
+		stringAddress *string
 		err           error
 	)
 	err = row.Scan(
@@ -480,8 +480,10 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 	if err != nil {
 		return err
 	}
-	nodeAddress := nrq.BuildNodeAddress(stringAddress)
-	nr.NodeAddress = nodeAddress
+	if stringAddress != nil {
+		nodeAddress := nrq.BuildNodeAddress(*stringAddress)
+		nr.NodeAddress = nodeAddress
+	}
 	return nil
 }
 

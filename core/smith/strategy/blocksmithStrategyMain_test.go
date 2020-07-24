@@ -509,7 +509,7 @@ func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
 				QueryExecutor:                          tt.fields.QueryExecutor,
 				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
 				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
-				Logger:                                 tt.fields.Logger,
+				Logger:                                 log.New(),
 				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
 				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
 				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,

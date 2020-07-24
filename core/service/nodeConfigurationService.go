@@ -15,7 +15,8 @@ type (
 		SetIsMyAddressDynamic(nodeAddressDynamic bool)
 		IsMyAddressDynamic() bool
 		GetHost() *model.Host
-		SetHost(myHost *model.Host)
+		SetHostID(nodeID int64)
+		GetHostID() (int64, error)
 		GetNodeSecretPhrase() string
 		GetNodePublicKey() []byte
 	}
@@ -24,26 +25,35 @@ type (
 type (
 	NodeConfigurationService struct {
 		Logger *log.Logger
+		host   *model.Host
 	}
 )
 
 var (
-	secretPhrase       string
-	isMyAddressDynamic bool
-	host               *model.Host
+	secretPhrase                     string
+	isMyAddressDynamic               bool
+	NodeConfigurationServiceInstance *NodeConfigurationService
 )
 
 func NewNodeConfigurationService(
 	nodeAddressDynamic bool,
 	sp string,
 	logger *log.Logger,
+	host *model.Host,
 ) *NodeConfigurationService {
-	var nss = &NodeConfigurationService{
-		Logger: logger,
-	}
 	secretPhrase = sp
 	isMyAddressDynamic = nodeAddressDynamic
-	return nss
+
+	if NodeConfigurationServiceInstance == nil {
+		NodeConfigurationServiceInstance = &NodeConfigurationService{
+			Logger: logger,
+			host:   host,
+		}
+		return NodeConfigurationServiceInstance
+	}
+	NodeConfigurationServiceInstance.Logger = logger
+	NodeConfigurationServiceInstance.host = host
+	return NodeConfigurationServiceInstance
 }
 
 func (nss *NodeConfigurationService) GetNodeSecretPhrase() string {
@@ -58,22 +68,33 @@ func (nss *NodeConfigurationService) GetNodePublicKey() []byte {
 }
 
 func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string, nodePort uint32) {
-	if host != nil {
-		host.Info.Address = nodeAddress
-		host.Info.Port = nodePort
+	nss.host.Info.Address = nodeAddress
+	nss.host.Info.Port = nodePort
+}
+
+func (nss *NodeConfigurationService) SetHostID(nodeID int64) {
+	if nss.host != nil {
+		nss.host.Info.ID = nodeID
 	}
 }
 
+func (nss *NodeConfigurationService) GetHostID() (int64, error) {
+	if nss.host == nil || nss.host.Info == nil || nss.host.Info.ID == 0 {
+		return 0, blocker.NewBlocker(blocker.AppErr, "host id not set")
+	}
+	return nss.host.Info.ID, nil
+}
+
 func (nss *NodeConfigurationService) GetMyAddress() (string, error) {
-	if host != nil {
-		return host.Info.Address, nil
+	if nss.host != nil {
+		return nss.host.Info.Address, nil
 	}
 	return "", blocker.NewBlocker(blocker.AppErr, "node address not set")
 }
 
 func (nss *NodeConfigurationService) GetMyPeerPort() (uint32, error) {
-	if host != nil && host.Info.Port > 0 {
-		return host.Info.Port, nil
+	if nss.host != nil && nss.host.Info.Port > 0 {
+		return nss.host.Info.Port, nil
 	}
 	return 0, blocker.NewBlocker(blocker.AppErr, "node peer port not set")
 }
@@ -87,9 +108,5 @@ func (nss *NodeConfigurationService) IsMyAddressDynamic() bool {
 }
 
 func (nss *NodeConfigurationService) GetHost() *model.Host {
-	return host
-}
-
-func (nss *NodeConfigurationService) SetHost(myHost *model.Host) {
-	host = myHost
+	return nss.host
 }

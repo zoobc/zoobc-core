@@ -1264,10 +1264,9 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check previous block hash of new block not same with current block hash and
-	// check new block is not better than current block
+	// or if broadcast block is our current last block
 	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
-		!(bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
-			block.Timestamp < lastBlock.Timestamp) {
+		!bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
