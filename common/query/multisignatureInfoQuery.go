@@ -124,7 +124,8 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 
 			for a, address := range musig.GetAddresses() {
 				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
-				if a < len(musig.GetAddresses())-1 {
+
+				if !(a == len(musig.GetAddresses())-1 && m == len(multiSignatureInfos)-1) {
 					participantQ += ","
 				}
 				participantArgs = append(participantArgs, participantQueryInterface.ExtractModel(&model.MultiSignatureParticipant{
