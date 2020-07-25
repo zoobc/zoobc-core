@@ -51,7 +51,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
 	nodeAddressDynamic                              bool
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
@@ -341,7 +341,6 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	badgerDbName = viper.GetString("badgerDbName")
 	nodeKeyPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
-	nodePreSeed = viper.GetString("nodeSeed")
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
