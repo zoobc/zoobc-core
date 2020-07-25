@@ -95,14 +95,13 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 // ParseNodeKeysFile read the node key file and parses it into an array of NodeKey stuct
 func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 	file, err := ioutil.ReadFile(nas.FilePath)
-	if err != nil && os.IsNotExist(err) {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NodeKeysFileNotExist")
+	if err != nil {
+		return nil, err
 	}
-
 	data := make([]*model.NodeKey, 0)
 	err = json.Unmarshal(file, &data)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.AppErr, "InvalidNodeKeysFile")
+		return nil, err
 	}
 	return data, nil
 }
