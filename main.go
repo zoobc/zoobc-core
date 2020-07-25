@@ -351,7 +351,6 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("peerPort: %d", peerPort)
 	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
-	log.Printf("apiHTTPPort: %d", apiHTTPPort)
 	if cpuProfile {
 		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
 	}
