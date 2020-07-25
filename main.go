@@ -58,7 +58,7 @@ var (
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
-	apiRPCPort, apiHTTPPort, monitoringPort         int
+	apiRPCPort, monitoringPort                      int
 	cpuProfilingPort                                int
 	apiCertFile, apiKeyFile                         string
 	peerPort                                        uint32
@@ -305,7 +305,6 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	monitoringPort = viper.GetInt("monitoringPort")
 	apiRPCPort = viper.GetInt("apiRPCPort")
 	maxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
-	apiHTTPPort = viper.GetInt("apiHTTPPort")
 	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
 	ownerAccountAddress = viper.GetString("ownerAccountAddress")
 	wellknownPeers = viper.GetStringSlice("wellknownPeers")
@@ -352,7 +351,6 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	log.Printf("peerPort: %d", peerPort)
 	log.Printf("monitoringPort: %d", monitoringPort)
 	log.Printf("apiRPCPort: %d", apiRPCPort)
-	log.Printf("apiHTTPPort: %d", apiHTTPPort)
 	if cpuProfile {
 		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
 	}
@@ -472,7 +470,6 @@ func startServices() {
 	)
 	api.Start(
 		apiRPCPort,
-		apiHTTPPort,
 		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
