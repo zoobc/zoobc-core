@@ -52,7 +52,7 @@ import (
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
 	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
-	nodeAddressDynamic                              bool
+	nodeAddressDynamic, logOnCLI                    bool
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
@@ -344,6 +344,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
+	logOnCLI = viper.GetBool("logOnCLI")
 	loadNodeKey()
 	nodeAddress, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodeKey.PublicKey)
 	if err != nil {
@@ -378,13 +379,13 @@ func initLogInstance() {
 		t         = time.Now().Format("2-Jan-2006_")
 	)
 
-	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels); err != nil {
+	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, logOnCLI); err != nil {
 		panic(err)
 	}
-	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels); err != nil {
+	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, logOnCLI); err != nil {
 		panic(err)
 	}
-	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels); err != nil {
+	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, logOnCLI); err != nil {
 		panic(err)
 	}
 }
