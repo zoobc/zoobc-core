@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -52,7 +51,7 @@ import (
 
 var (
 	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, nodePreSeed, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
+	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
 	nodeAddressDynamic                              bool
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
@@ -80,7 +79,7 @@ var (
 	peerServiceClient                               client.PeerServiceClientInterface
 	peerExplorer                                    p2pStrategy.PeerExplorerStrategyInterface
 	wellknownPeers                                  []string
-	smithing, isNodePreSeed, isDebugMode            bool
+	smithing, isDebugMode                           bool
 	nodeRegistrationService                         service.NodeRegistrationServiceInterface
 	nodeAuthValidationService                       auth.NodeAuthValidationInterface
 	mainchainProcessor                              smith.BlockchainProcessorInterface
@@ -278,10 +277,37 @@ func init() {
 	initP2pInstance()
 }
 
-func loadNodeConfig(configPath, configFileName, configExtension string) {
+func loadNodeKey() {
 	var (
-		seed string
+		seed     string
+		nodeKeys []*model.NodeKey
+		err      error
 	)
+	// get the node private key
+	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
+	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
+	nodeKeys, err = nodeAdminKeysService.ParseKeysFile()
+	if err != nil {
+		// fail parsing node_keys.json, could be wrong format or no file found, generating new one anyway
+		seed = util.GetSecureRandomSeed()
+		nodePublicKey, err := nodeAdminKeysService.GenerateNodeKey(seed)
+		if err != nil {
+			loggerCoreService.Fatal(err)
+		}
+		nodeKey = &model.NodeKey{
+			PublicKey: nodePublicKey,
+			Seed:      seed,
+		}
+	} else {
+		nodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	}
+	if nodeKey == nil {
+		log.Fatal("could not find or generate node key")
+	}
+	nodeSecretPhrase = nodeKey.Seed
+}
+
+func loadNodeConfig(configPath, configFileName, configExtension string) {
 
 	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
 		panic(err)
@@ -315,63 +341,36 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	badgerDbName = viper.GetString("badgerDbName")
 	nodeKeyPath = viper.GetString("configPath")
 	nodeKeyFile = viper.GetString("nodeKeyFile")
-	isNodePreSeed = viper.IsSet("nodeSeed")
-	nodePreSeed = viper.GetString("nodeSeed")
 	apiCertFile = viper.GetString("apiapiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
-
-	// get the node private key
-	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
-	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
-	nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-	if err != nil {
-		if isNodePreSeed {
-			seed = nodePreSeed
-		} else {
-			// generate a node private key if there aren't already configured
-			seed = util.GetSecureRandomSeed()
-		}
-		nodePublicKey, err := nodeAdminKeysService.GenerateNodeKey(seed)
-		if err != nil {
-			loggerCoreService.Fatal(err)
-		}
-		nodeKey = &model.NodeKey{
-			PublicKey: nodePublicKey,
-			Seed:      seed,
-		}
-	} else {
-		nodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-	}
-	if nodeKey == nil {
-		loggerCoreService.Fatal(errors.New("NodeKeyIsNil"))
-	}
-	nodeSecretPhrase = nodeKey.Seed
-	// log the b64 encoded node public key
-	log.Printf("peerPort: %d", peerPort)
-	log.Printf("monitoringPort: %d", monitoringPort)
-	log.Printf("apiRPCPort: %d", apiRPCPort)
-	if cpuProfile {
-		log.Printf("cpuProfilingPort: %d", cpuProfilingPort)
-	}
-	log.Printf("ownerAccountAddress: %s", ownerAccountAddress)
+	loadNodeKey()
 	nodeAddress, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodeKey.PublicKey)
 	if err != nil {
-		loggerCoreService.Fatal(errors.New("FailToEncodeNodePublicKey"))
+		log.Fatal("fail to encode node public key")
 	}
+	// log the b64 encoded node public key
+	log.Printf("peer to peer port: %d", peerPort)
+	log.Printf("node monitoring port: %d", monitoringPort)
+	log.Printf("client / wallet API port: %d", apiRPCPort)
+	if cpuProfile {
+		log.Printf("cpu profiling port: %d", cpuProfilingPort)
+	}
+	log.Printf("node's owner account address: %s", ownerAccountAddress)
 
-	log.Printf("nodePublicKey: %s", nodeAddress)
-	log.Printf("wellknownPeers: %s", strings.Join(wellknownPeers, ","))
+	log.Printf("node's public key: %s", nodeAddress)
+	log.Printf("well known peers: %s", strings.Join(wellknownPeers, ","))
 	log.Printf("smithing: %v", smithing)
 	if nodeAddressDynamic {
-		log.Printf("myAddress: %s (%s)", myAddress, "automatically discovered")
+		log.Printf("node's ip address: %s (%s)", myAddress, "automatically discovered")
 	} else {
-		log.Printf("myAddress: %s (%s)", myAddress, "set in configuration file")
+		log.Printf("node's ip address: %s (%s)", myAddress, "set in configuration file")
 	}
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
 }
+
 func initLogInstance() {
 	var (
 		err       error
