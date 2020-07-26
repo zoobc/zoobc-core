@@ -90,7 +90,7 @@ cmd-windows: $(XGO)
 
 
 .PHONY: core-common-os
-core-common-os:
+core-common-os: $(XGO)
 	$(info    build core with windows, linux & darwin as targets...)
 	mkdir -p $(ZBCPATH)/linux $(ZBCPATH)/windows $(ZBCPATH)/darwin
 	xgo --targets=windows/*,linux/amd64,darwin/amd64 -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
