@@ -17,7 +17,6 @@ func LoadConfig(path, name, extension string) error {
 	}
 
 	viper.SetDefault("dbName", "zoobc.db")
-	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
 	viper.SetDefault("resourcePath", "./resource")

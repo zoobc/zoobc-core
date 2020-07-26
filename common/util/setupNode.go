@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 
@@ -31,7 +32,23 @@ type SetupNode struct {
 func NewSetupNode() *SetupNode {
 	return &SetupNode{}
 }
-
+func (sn *SetupNode) discoverNodeAddress(config *model.Config) error {
+	ipAddr, err := (&IPUtil{}).DiscoverNodeAddress()
+	if ipAddr == nil {
+		// panic if we can't set an IP address for the node
+		return errors.New(
+			"node's ip can't be discovered, consider using static ip by setting myAddress in config.toml",
+		)
+	} else if err != nil {
+		// notify user that something went wrong in net address discovery process and its node might not behave properly on the network
+		color.Yellow("something goes wrong when discovering node's public IP, some feature might not work as expected"+
+			"consider using static ip by setting myAddress\nerror: %s\n", err.Error())
+	}
+	color.Green("discovered node's address: %s", ipAddr.String())
+	config.MyAddress = ipAddr.String()
+	config.IsNodeAddressDynamic = true
+	return nil
+}
 func (sn *SetupNode) checkConfig(config *model.Config) error {
 	if !config.ConfigFileExist {
 		return errors.New(ErrNoConfigFile)
@@ -39,20 +56,9 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 
 	if config.MyAddress == "" {
 		color.Cyan("node's address not set, discovering...")
-		ipAddr, err := (&IPUtil{}).DiscoverNodeAddress()
-		if ipAddr == nil {
-			// panic if we can't set an IP address for the node
-			return errors.New(
-				"node's ip can't be discovered, consider using static ip by setting myAddress in config.toml",
-			)
-		} else if err != nil {
-			// notify user that something went wrong in net address discovery process and its node might not behave properly on the network
-			color.Yellow("something goes wrong when discovering node's public IP, some feature might not work as expected"+
-				"consider using static ip by setting myAddress\nerror: %s\n", err.Error())
+		if err := sn.discoverNodeAddress(config); err != nil {
+			return err
 		}
-		color.Green("discovered node's address: %s", ipAddr.String())
-		config.MyAddress = ipAddr.String()
-		config.IsNodeAddressDynamic = true
 	}
 	_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 	if err != nil {
@@ -66,6 +72,10 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 			color.Red("unknown error occurred when scanning for node keys file")
 			return err
 		}
+	}
+	if len(config.WellknownPeers) == 0 {
+		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
+			"from scratch.")
 	}
 
 	return nil
@@ -123,8 +133,27 @@ func (sn *SetupNode) ownerAddressPrompt(config *model.Config) error {
 	return nil
 }
 
+func (sn *SetupNode) wellknownPeersPrompt(config *model.Config) error {
+	var (
+		wellknownPeerString string
+	)
+	prompt := promptui.Prompt{
+		Label: "provide the peers (space separated) you prefer to connect to (ip:port):",
+	}
+	wellknownPeerString, err := prompt.Run()
+	if err != nil {
+		return errors.New(ErrFatal)
+	}
+	config.WellknownPeers = strings.Split(wellknownPeerString, " ")
+	viper.Set("wellknownPeers", config.WellknownPeers)
+	return nil
+}
+
 func (sn *SetupNode) generateConfig(config *model.Config) error {
 	color.Cyan("generating config\n")
+	if err := sn.discoverNodeAddress(config); err != nil {
+		return err
+	}
 	// ask if want to run as blocksmith
 	prompt := promptui.Select{
 		Label: "Do you want to run node as blocksmith?",
@@ -149,6 +178,10 @@ func (sn *SetupNode) generateConfig(config *model.Config) error {
 		if err != nil {
 			return err
 		}
+	}
+	err = sn.wellknownPeersPrompt(config)
+	if err != nil {
+		return err
 	}
 	// todo: checking port availability and accessibility
 	return nil
