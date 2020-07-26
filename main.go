@@ -127,19 +127,20 @@ func init() {
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
-	if len(config.NodeKey.Seed) > 0 {
-		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
-		if err != nil {
-			log.Fatal("Fail to generate node key")
+	if config.Smithing {
+		if len(config.NodeKey.Seed) > 0 {
+			config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
+			if err != nil {
+				log.Fatal("Fail to generate node key")
+			}
+		} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+			nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+			if err != nil {
+				log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			}
+			config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 		}
-	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
-		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-		if err != nil {
-			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
-		}
-		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
-
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
