@@ -1,13 +1,11 @@
 package api
 
 import (
-	"context"
 	"fmt"
-	"net"
 	"net/http"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
@@ -22,6 +20,8 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -92,11 +92,6 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
-	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		logger.Fatalf("failed to listen: %v\n", err)
-		return
-	}
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -134,7 +129,6 @@ func startGrpcServer(
 			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
 			ownerAccountAddress, nodefilePath),
 	})
-
 	// Set GRPC handler for unconfirmed
 	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
 		Service: service.NewNodeHardwareService(
@@ -146,12 +140,10 @@ func startGrpcServer(
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),
 	})
-
 	// Set GRPC handler for account ledger request
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
 		Service: service.NewAccountLedgerService(queryExecutor),
 	})
-
 	// Set GRPC handler for escrow transaction request
 	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
 		Service: service.NewEscrowTransactionService(queryExecutor),
@@ -164,10 +156,10 @@ func startGrpcServer(
 			query.NewPendingTransactionQuery(),
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
+			query.NewMultiSignatureParticipantQuery(),
 		)})
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
-
 	// Set GRPC handler for account dataset
 	rpcService.RegisterAccountDatasetServiceServer(grpcServer, &handler.AccountDatasetHandler{
 		Service: service.NewAccountDatasetService(
@@ -175,18 +167,36 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
-	// run grpc-gateway handler
+
 	go func() {
-		if err := grpcServer.Serve(serv); err != nil {
+		wrappedServer := grpcweb.WrapServer(grpcServer)
+		httpServer := &http.Server{
+			Addr: fmt.Sprintf(":%d", port),
+			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.ProtoMajor == 2 {
+					wrappedServer.ServeHTTP(w, r)
+				} else {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+					w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+					w.Header().Set("Access-Control-Allow-Headers",
+						"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
+							"Authorization, X-User-Agent, X-Grpc-Web")
+					if wrappedServer.IsGrpcWebRequest(r) {
+						wrappedServer.ServeHTTP(w, r)
+					}
+				}
+			}), &http2.Server{}),
+		}
+		if err := httpServer.ListenAndServe(); err != nil {
 			panic(err)
 		}
 	}()
-	logger.Infof("GRPC listening to http:%d\n", port)
+	logger.Infof("Client API Served on http:%d\n", port)
 }
 
 // Start starts api servers in the given port and passing query executor
 func Start(
-	grpcPort, restPort int,
+	grpcPort int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
@@ -221,38 +231,4 @@ func Start(
 		transactionCoreService,
 		maxAPIRequestPerSecond,
 	)
-	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
-		go func() {
-			err := runProxy(restPort, grpcPort)
-			if err != nil {
-				panic(err)
-			}
-		}()
-	}
-}
-
-/**
-runProxy only ran when `Debug` flag is set to `true` in `config.toml`
-this function open a http endpoint that will be proxy to our rpc service
-*/
-func runProxy(apiPort, rpcPort int) error {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	_ = rpcService.RegisterAccountBalanceServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterBlockServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterHostServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterMempoolServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeHardwareServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeRegistrationServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterAccountDatasetServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

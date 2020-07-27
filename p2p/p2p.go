@@ -154,7 +154,7 @@ func (s *Peer2PeerService) GetUnresolvedPeers() map[string]*model.Peer {
 
 // GetPriorityPeers exposed current node priority peer list.
 func (s *Peer2PeerService) GetPriorityPeers() map[string]*model.Peer {
-	return s.PeerExplorer.GetPriorityPeers()
+	return s.PeerExplorer.GetPriorityPeersByFullAddress(s.PeerExplorer.GetPriorityPeers())
 }
 
 // SendBlockListener setup listener for send block to the list peer
@@ -179,7 +179,9 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
 				go func(p *model.Peer) {
-					_ = s.PeerServiceClient.SendBlock(p, b, chainType)
+					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
+						s.Logger.Errorf("SendBlockListener: %s", err)
+					}
 				}(peer)
 			}
 		},

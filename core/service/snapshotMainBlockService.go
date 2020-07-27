@@ -286,8 +286,16 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 		switch qryRepoName {
 		case "block":
+			// todo: andy-shi88 quick-fix need refactor
 			if len(payload.GetBlocks()) > 0 {
-				qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks())
+				bulkSize := 50
+				loopCount := len(payload.GetBlocks()) / bulkSize
+				remainder := len(payload.GetBlocks()) % bulkSize
+				for i := 0; i < loopCount; i++ {
+					qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[i*bulkSize : i*bulkSize+bulkSize])
+					queries = append(queries, append([]interface{}{qry}, args...))
+				}
+				qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[len(payload.GetBlocks())-remainder : len(payload.GetBlocks())])
 				queries = append(queries, append([]interface{}{qry}, args...))
 			}
 
@@ -316,8 +324,18 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 
 		case "publishedReceipt":
+			// todo: andy-shi88 quick-fix need refactor
 			if len(payload.GetPublishedReceipts()) > 0 {
-				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts())
+				bulkSize := 50
+				loopCount := len(payload.GetPublishedReceipts()) / bulkSize
+				remainder := len(payload.GetPublishedReceipts()) % bulkSize
+				for i := 0; i < loopCount; i++ {
+					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(
+						payload.GetPublishedReceipts()[i*bulkSize : i*bulkSize+bulkSize])
+					queries = append(queries, append([]interface{}{qry}, args...))
+				}
+				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(
+					payload.GetPublishedReceipts()[len(payload.GetPublishedReceipts())-remainder : len(payload.GetPublishedReceipts())])
 				queries = append(queries, append([]interface{}{qry}, args...))
 			}
 

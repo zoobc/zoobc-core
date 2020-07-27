@@ -103,6 +103,38 @@ func (*nrcuMockQueryExecutor) ExecuteSelect(qe string, tx bool, args ...interfac
 			model.NodeAddressStatus_NodeAddressConfirmed,
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
+	case "SELECT node_id, address, port, block_height, block_hash, signature, " +
+		"status FROM node_address_info WHERE node_id = 111 AND status IN (1, 2) ORDER BY status ASC":
+		mockedRows := sqlmock.NewRows([]string{
+			"node_id",
+			"address",
+			"port",
+			"block_height",
+			"block_hash",
+			"signature",
+			"status",
+		})
+		mockedRows.AddRow(
+			int64(111),
+			"127.0.0.1",
+			3000,
+			10,
+			[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			model.NodeAddressStatus_NodeAddressConfirmed,
+		)
+		mockedRows.AddRow(
+			int64(111),
+			"127.0.0.2",
+			4000,
+			20,
+			[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+			model.NodeAddressStatus_NodeAddressPending,
+		)
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	default:
 		return nil, errors.New("InvalidQuery")
 	}
@@ -272,6 +304,86 @@ func TestNodeAddressInfoService_GetRegisteredNodesWithConsolidatedAddresses(t *t
 				t.Errorf("NodeAddressInfoService.GetRegisteredNodesWithConsolidatedAddresses() = %v, want %v", got, tt.want)
 			}
 
+		})
+	}
+}
+
+func TestNodeAddressInfoService_GetAddressInfoByNodeID(t *testing.T) {
+	type fields struct {
+		QueryExecutor         query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
+		Logger                *log.Logger
+	}
+	type args struct {
+		nodeID          int64
+		preferredStatus model.NodeAddressStatus
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.NodeAddressInfo
+		wantErr bool
+	}{
+		{
+			name: "GetAddressInfoByNodeID:success-{addressConfirmed}",
+			args: args{
+				nodeID:          int64(111),
+				preferredStatus: model.NodeAddressStatus_NodeAddressConfirmed,
+			},
+			fields: fields{
+				QueryExecutor:        &nrcuMockQueryExecutor{},
+				NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+			},
+			want: &model.NodeAddressInfo{
+				NodeID:      int64(111),
+				Address:     "127.0.0.1",
+				Port:        uint32(3000),
+				BlockHeight: uint32(10),
+				BlockHash:   []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				Status: model.NodeAddressStatus_NodeAddressConfirmed,
+			},
+		}, {
+			name: "GetAddressInfoByNodeID:success-{addressPending}",
+			args: args{
+				nodeID:          int64(111),
+				preferredStatus: model.NodeAddressStatus_NodeAddressPending,
+			},
+			fields: fields{
+				QueryExecutor:        &nrcuMockQueryExecutor{},
+				NodeAddressInfoQuery: query.NewNodeAddressInfoQuery(),
+			},
+			want: &model.NodeAddressInfo{
+				NodeID:      int64(111),
+				Address:     "127.0.0.2",
+				Port:        uint32(4000),
+				BlockHeight: uint32(20),
+				BlockHash:   []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				Signature: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				Status: model.NodeAddressStatus_NodeAddressPending,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nru := &NodeAddressInfoService{
+				QueryExecutor:         tt.fields.QueryExecutor,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				NodeAddressInfoQuery:  tt.fields.NodeAddressInfoQuery,
+				Logger:                tt.fields.Logger,
+			}
+			got, err := nru.GetAddressInfoByNodeID(tt.args.nodeID, tt.args.preferredStatus)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetAddressInfoByNodeID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetAddressInfoByNodeID() got = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

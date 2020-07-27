@@ -427,7 +427,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
-	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), true)
+	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
@@ -566,6 +566,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		totalReward := block.TotalFee + block.TotalCoinBase
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
 			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+			block.Timestamp,
+			previousBlock.Timestamp,
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -1099,7 +1101,7 @@ func (bs *BlockService) GenerateBlock(
 	)
 	newBlockHeight := previousBlock.Height + 1
 	// calculate total coinbase to be added to the block
-	totalCoinbase = bs.CoinbaseService.GetCoinbase()
+	totalCoinbase = bs.CoinbaseService.GetCoinbase(timestamp, previousBlock.Timestamp)
 	if !empty {
 		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
 		if err != nil {
@@ -1264,10 +1266,9 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check previous block hash of new block not same with current block hash and
-	// check new block is not better than current block
+	// or if broadcast block is our current last block
 	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
-		!(bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
-			block.Timestamp < lastBlock.Timestamp) {
+		!bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
