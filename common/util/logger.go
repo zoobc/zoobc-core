@@ -36,7 +36,7 @@ func (h hooker) Levels() []logrus.Level {
 InitLogger is function that should be implemeneted with interceptor. That can centralized the log action.
 `[]logrus.Level` can inject dynamically switch on development or production mode
 */
-func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) {
+func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.Logger, error) {
 	var (
 		logLevels   []logrus.Level
 		lowestLevel logrus.Level
@@ -87,10 +87,16 @@ func InitLogger(path, filename string, levels []string) (*logrus.Logger, error) 
 	}
 	logger.SetReportCaller(true)
 	logger.SetFormatter(&logrus.JSONFormatter{})
-	logger.AddHook(&hooker{
-		Writer:      logFile,
-		EntryLevels: logLevels,
-	})
+	if logOnCLI {
+		logger.AddHook(&hooker{
+			Writer:      logFile,
+			EntryLevels: logLevels,
+		})
+	} else {
+		// only record log on file
+		logger.SetOutput(logFile)
+	}
+
 	// lowestLevel use to set lowest level will fire
 	logger.SetLevel(lowestLevel)
 

@@ -12,7 +12,6 @@ myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3004
-apiHTTPPort=3034
 monitoringPort=9094
 cpuProfilingPort=6064
 apiReqTimeoutSec=2

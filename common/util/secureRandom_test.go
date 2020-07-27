@@ -1,6 +1,9 @@
 package util
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestGetSecureRandom(t *testing.T) {
 	tests := []struct {
@@ -19,4 +22,13 @@ func TestGetSecureRandom(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetSecureRandomSeed(t *testing.T) {
+	t.Run("GetSecureRandomSeed - Length 24 words", func(t *testing.T) {
+		seed := GetSecureRandomSeed()
+		if len(strings.Split(seed, " ")) != 24 {
+			t.Errorf("Expect 24 word random seed, but got: %d", len(strings.Split(seed, " ")))
+		}
+	})
 }
