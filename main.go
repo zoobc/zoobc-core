@@ -484,6 +484,7 @@ func startMainchain() {
 	mainchainCoinbaseService := service.NewCoinbaseService(
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
+		mainchain,
 	)
 	mainchainParticipationScoreService := service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
