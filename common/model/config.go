@@ -7,7 +7,7 @@ import (
 type Config struct {
 	PeerPort, MaxAPIRequestPerSecond                uint32
 	ClientAPIPort, MonitoringPort, CPUProfilingPort int
-	Smithing, IsNodeAddressDynamic                  bool
+	Smithing, IsNodeAddressDynamic, LogOnCli        bool
 	MyAddress, OwnerAccountAddress                  string
 	DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
 	NodeKeyPath, NodeKeyFileName, APICertFile, APIKeyFile, SnapshotPath string
@@ -42,4 +42,5 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.APICertFile = viper.GetString("apiapiCertFile")
 	cfg.APIKeyFile = viper.GetString("apiKeyFile")
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
+	cfg.LogOnCli = viper.GetBool("logOnCli")
 }
