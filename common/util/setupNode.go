@@ -60,18 +60,22 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 			return err
 		}
 	}
-	_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
-	if err != nil {
-		if ok := os.IsNotExist(err); ok {
-			color.Cyan("node keys has not been setup")
-			err := sn.nodeKeysPrompt(config)
-			if err != nil {
+	if config.Smithing {
+		_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
+		if err != nil {
+			if ok := os.IsNotExist(err); ok {
+				color.Cyan("node keys has not been setup")
+				err := sn.nodeKeysPrompt(config)
+				if err != nil {
+					return err
+				}
+			} else {
+				color.Red("unknown error occurred when scanning for node keys file")
 				return err
 			}
-		} else {
-			color.Red("unknown error occurred when scanning for node keys file")
-			return err
 		}
+	} else {
+		color.Yellow("node is not smithing")
 	}
 	if len(config.WellknownPeers) == 0 {
 		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
