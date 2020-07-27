@@ -39,7 +39,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.BadgerDbName = viper.GetString("badgerDbName")
 	cfg.ResourcePath = viper.GetString("resourcePath")
 	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
-	cfg.APICertFile = viper.GetString("apiapiCertFile")
+	cfg.APICertFile = viper.GetString("apiCertFile")
 	cfg.APIKeyFile = viper.GetString("apiKeyFile")
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
