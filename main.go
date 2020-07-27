@@ -309,7 +309,7 @@ func loadNodeConfig(configPath, configFileName, configExtension string) {
 	nodeKeyFile = viper.GetString("nodeKeyFile")
 	isNodePreSeed = viper.IsSet("nodeSeed")
 	nodePreSeed = viper.GetString("nodeSeed")
-	apiCertFile = viper.GetString("apiapiCertFile")
+	apiCertFile = viper.GetString("apiCertFile")
 	apiKeyFile = viper.GetString("apiKeyFile")
 	snapshotPath = viper.GetString("snapshotPath")
 
