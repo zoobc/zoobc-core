@@ -2,18 +2,17 @@ package util
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/abiosoft/ishell"
 
 	"github.com/spf13/viper"
 
 	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/fatih/color"
-
-	"github.com/manifoldco/promptui"
 )
 
 const (
@@ -21,10 +20,6 @@ const (
 	ErrFatal               = "ErrFatal"               // fatal error, abort process
 	ErrFailSavingNewConfig = "ErrFailSavingNewConfig" // fatal error, abort process
 )
-
-// var loadingCircle = []string{
-// 	"--", "\\", "|", "/", "--", "\\", "|", "/",
-// }
 
 type SetupNode struct {
 }
@@ -65,10 +60,7 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 		if err != nil {
 			if ok := os.IsNotExist(err); ok {
 				color.Cyan("node keys has not been setup")
-				err := sn.nodeKeysPrompt(config)
-				if err != nil {
-					return err
-				}
+				sn.nodeKeysPrompt(config)
 			} else {
 				color.Red("unknown error occurred when scanning for node keys file")
 				return err
@@ -85,30 +77,17 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 	return nil
 }
 
-func (sn *SetupNode) nodeKeysPrompt(config *model.Config) error {
+func (sn *SetupNode) nodeKeysPrompt(config *model.Config) {
+	c := ishell.New()
 	var (
 		nodeSeed string
 	)
-	prompt := promptui.Select{
-		Label: "Do you have node's seed you want to use?",
-		Items: []string{"YES", "NO"},
-	}
-	_, result, err := prompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-	}
-	if result == "YES" {
-		validate := func(input string) error {
-			return nil
-		}
-		prompt := promptui.Prompt{
-			Label:    "input your node's seed",
-			Validate: validate,
-		}
-		nodeSeed, err = prompt.Run()
-		if err != nil {
-			return errors.New(ErrFatal)
-		}
+	result := c.MultiChoice([]string{
+		"YES", "NO",
+	}, "Do you have node's seed you want to use?")
+	if result == 0 {
+		c.Print("input your node's seed: ")
+		nodeSeed = c.ReadLine()
 	} else {
 		color.Green("Generating secure random seed for node...\n")
 		nodeSeed = GetSecureRandomSeed()
@@ -117,76 +96,55 @@ func (sn *SetupNode) nodeKeysPrompt(config *model.Config) error {
 	config.NodeKey = &model.NodeKey{
 		Seed: nodeSeed,
 	}
-	return nil
 }
 
-func (sn *SetupNode) ownerAddressPrompt(config *model.Config) error {
+func (sn *SetupNode) ownerAddressPrompt(config *model.Config) {
+	c := ishell.New()
 	var (
 		ownerAddress string
 	)
 
-	prompt := promptui.Prompt{
-		Label: "Input your account address to be set as owner of this node",
-	}
-	ownerAddress, err := prompt.Run()
-	if err != nil {
-		return errors.New(ErrFatal)
-	}
+	c.Print("input your account address to be set as owner of this node: ")
+	ownerAddress = c.ReadLine()
 	config.OwnerAccountAddress = ownerAddress
 	viper.Set("ownerAddress", ownerAddress)
-	return nil
 }
 
-func (sn *SetupNode) wellknownPeersPrompt(config *model.Config) error {
+func (sn *SetupNode) wellknownPeersPrompt(config *model.Config) {
+	c := ishell.New()
 	var (
 		wellknownPeerString string
 	)
-	prompt := promptui.Prompt{
-		Label: "provide the peers (space separated) you prefer to connect to (ip:port)",
-	}
-	wellknownPeerString, err := prompt.Run()
-	if err != nil {
-		return errors.New(ErrFatal)
-	}
-	config.WellknownPeers = strings.Split(wellknownPeerString, " ")
+	c.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+	wellknownPeerString = c.ReadLine()
+	config.WellknownPeers = strings.Split(strings.TrimSpace(wellknownPeerString), " ")
 	viper.Set("wellknownPeers", config.WellknownPeers)
-	return nil
 }
 
 func (sn *SetupNode) generateConfig(config *model.Config) error {
+	c := ishell.New()
 	color.Cyan("generating config\n")
 	if err := sn.discoverNodeAddress(config); err != nil {
 		return err
 	}
 	// ask if want to run as blocksmith
-	prompt := promptui.Select{
-		Label: "Do you want to run node as blocksmith?",
-		Items: []string{"YES", "NO"},
-	}
-	_, result, err := prompt.Run()
-	if err != nil {
-		fmt.Printf("Prompt failed %v\n", err)
-	}
-	if result == "YES" {
+
+	result := c.MultiChoice([]string{
+		"YES", "NO",
+	}, "Do you want to run node as blocksmith?")
+	if result == 0 {
 		// node keys prompt
+		config.Smithing = true
+		viper.Set("smithing", true)
 		_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 		if ok := os.IsNotExist(err); ok {
 			color.Cyan("node keys has not been setup")
-			err := sn.nodeKeysPrompt(config)
-			if err != nil {
-				return err
-			}
+			sn.nodeKeysPrompt(config)
 		}
 		// ask if have account address prepared as owner
-		err = sn.ownerAddressPrompt(config)
-		if err != nil {
-			return err
-		}
+		sn.ownerAddressPrompt(config)
 	}
-	err = sn.wellknownPeersPrompt(config)
-	if err != nil {
-		return err
-	}
+	sn.wellknownPeersPrompt(config)
 	// todo: checking port availability and accessibility
 	return nil
 }
