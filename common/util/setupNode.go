@@ -102,7 +102,7 @@ func (sn *SetupNode) nodeKeysPrompt(config *model.Config) error {
 			return nil
 		}
 		prompt := promptui.Prompt{
-			Label:    "Please input your node's seed",
+			Label:    "input your node's seed",
 			Validate: validate,
 		}
 		nodeSeed, err = prompt.Run()
@@ -126,7 +126,7 @@ func (sn *SetupNode) ownerAddressPrompt(config *model.Config) error {
 	)
 
 	prompt := promptui.Prompt{
-		Label: "Input your account address to be set as owner of this node (you can generate one on our wallet)",
+		Label: "Input your account address to be set as owner of this node",
 	}
 	ownerAddress, err := prompt.Run()
 	if err != nil {
@@ -142,7 +142,7 @@ func (sn *SetupNode) wellknownPeersPrompt(config *model.Config) error {
 		wellknownPeerString string
 	)
 	prompt := promptui.Prompt{
-		Label: "provide the peers (space separated) you prefer to connect to (ip:port):",
+		Label: "provide the peers (space separated) you prefer to connect to (ip:port)",
 	}
 	wellknownPeerString, err := prompt.Run()
 	if err != nil {
