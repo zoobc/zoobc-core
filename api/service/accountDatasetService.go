@@ -61,6 +61,7 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	if request.GetHeight() > 0 {
 		caseQ.Where(caseQ.Equal("height", request.GetHeight()))
 	}
+	caseQ.And(caseQ.Equal("is_active", true))
 	caseQ.And(caseQ.Equal("latest", true))
 
 	countQ, countArgs := caseQ.Build()

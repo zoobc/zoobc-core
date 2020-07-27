@@ -88,9 +88,8 @@ jobs:
             - run:
                   name: GENERATING GENESIS
                   command: |
-                    if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" ]]; then
-                      go run cmd/main.go genesis generate -e ${CIRCLE_BRANCH} -o dist \
-                      && cp ./dist/generated/genesis/genesis.go ./common/constant/genesis.go
+                    if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" || ${CIRCLE_BRANCH} == "experimental" ]]; then
+                      make generate-gen gen-target=${CIRCLE_BRANCH}
                     fi
             - run:
                   name: BUILD
@@ -164,7 +163,38 @@ jobs:
                   name: UP SERVICE
                   command: |
                       ssh root@$ln4 'sudo systemctl start zoobc.service'
-
+    deploy-experimental:
+        <<: *defaults
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                        sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOST
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+            - run:
+                  name: DOWN SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            - run: *reset_db
+            - run:
+                  name: DEPLOY APP
+                  command: |
+                      for host in $x1 $x2 $x3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+            - run:
+                  name: UP SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
 workflows:
     version: 2
     prepare-deploy:
@@ -188,3 +218,9 @@ workflows:
                   filters:
                       branches:
                           only: staging
+            - deploy-experimental:
+                requires:
+                  - build
+                filters:
+                  branches:
+                    only: experimental
