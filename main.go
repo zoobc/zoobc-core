@@ -11,13 +11,10 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/auth"
-
-	"github.com/zoobc/lib/address"
 
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
@@ -50,18 +47,11 @@ import (
 )
 
 var (
-	dbPath, dbName, badgerDbPath, badgerDbName, nodeSecretPhrase, nodeKeyPath,
-	nodeKeyFile, ownerAccountAddress, myAddress, nodeKeyFilePath, snapshotPath string
-	nodeAddressDynamic, logOnCLI                    bool
+	config                                          *model.Config
 	dbInstance                                      *database.SqliteDB
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
-	apiRPCPort, monitoringPort                      int
-	cpuProfilingPort                                int
-	apiCertFile, apiKeyFile                         string
-	peerPort                                        uint32
-	maxAPIRequestPerSecond                          uint32
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
@@ -78,8 +68,7 @@ var (
 	receiptService                                  service.ReceiptServiceInterface
 	peerServiceClient                               client.PeerServiceClientInterface
 	peerExplorer                                    p2pStrategy.PeerExplorerStrategyInterface
-	wellknownPeers                                  []string
-	smithing, isDebugMode                           bool
+	isDebugMode, useEnvVar                          bool
 	nodeRegistrationService                         service.NodeRegistrationServiceInterface
 	nodeAuthValidationService                       auth.NodeAuthValidationInterface
 	mainchainProcessor                              smith.BlockchainProcessorInterface
@@ -102,8 +91,6 @@ var (
 	feeScaleService                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
-	defaultSignatureType                            *crypto.Ed25519Signature
-	nodeKey                                         *model.NodeKey
 	cpuProfile                                      bool
 )
 
@@ -113,24 +100,60 @@ func init() {
 		configPath    string
 		err           error
 	)
-
+	// parse custom flag in running the node
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
 	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
+	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
 	flag.Parse()
 
-	loadNodeConfig(configPath, "config"+configPostfix, "toml")
+	// spawn config object
+	config = model.NewConfig()
+	// load config for default value to be feed to viper
+	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok && useEnvVar {
+			config.ConfigFileExist = true
+		}
+	} else {
+		config.ConfigFileExist = true
+	}
+	// assign read configuration to config object
+	config.LoadConfigurations()
+	// validate and generate configurations
+	err = util.NewSetupNode().WizardFirstSetup(config)
+	if err != nil {
+		log.Fatalf("Unknown error occurred - error: %s", err.Error())
+	}
+	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
+		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
+	if config.Smithing {
+		if len(config.NodeKey.Seed) > 0 {
+			config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
+			if err != nil {
+				log.Fatal("Fail to generate node key")
+			}
+		} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+			nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+			if err != nil {
+				log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			}
+			config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+		}
+	}
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
 
 	initLogInstance()
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
-	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
+	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(
-		dbPath,
-		dbName,
+		config.ResourcePath,
+		config.DatabaseFileName,
 		constant.SQLMaxOpenConnetion,
 		constant.SQLMaxIdleConnections,
 		constant.SQLMaxConnectionLifetime,
@@ -141,26 +164,26 @@ func init() {
 	}
 	// initialize k-v db
 	badgerDbInstance = database.NewBadgerDB()
-	if err := badgerDbInstance.InitializeBadgerDB(badgerDbPath, badgerDbName); err != nil {
+	if err := badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	badgerDb, err = badgerDbInstance.OpenBadgerDB(badgerDbPath, badgerDbName)
+	badgerDb, err = badgerDbInstance.OpenBadgerDB(config.ResourcePath, config.BadgerDbName)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(wellknownPeers)
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
 		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
 	}
 	// initialize services
 	nodeConfigurationService = service.NewNodeConfigurationService(
-		nodeAddressDynamic,
-		nodeSecretPhrase,
+		config.IsNodeAddressDynamic,
+		config.NodeKey.Seed,
 		loggerCoreService,
-		p2pUtil.NewHost(myAddress, peerPort, knownPeersResult),
+		p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult),
 	)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -211,14 +234,14 @@ func init() {
 	fileService = service.NewFileService(
 		loggerCoreService,
 		new(codec.CborHandle),
-		snapshotPath,
+		config.SnapshotPath,
 	)
 	mainBlockSnapshotChunkStrategy = service.NewSnapshotBasicChunkStrategy(
 		constant.SnapshotChunkSize,
 		fileService,
 	)
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
-		snapshotPath,
+		config.SnapshotPath,
 		queryExecutor,
 		loggerCoreService,
 		mainBlockSnapshotChunkStrategy,
@@ -268,108 +291,10 @@ func init() {
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
 		crypto.NewSignature(),
 	)
-
-	defaultSignatureType = crypto.NewEd25519Signature()
-
 	// initialize Observer
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler()
 	initP2pInstance()
-}
-
-func loadNodeKey() {
-	var (
-		seed     string
-		nodeKeys []*model.NodeKey
-		err      error
-	)
-	// get the node private key
-	nodeKeyFilePath = filepath.Join(nodeKeyPath, nodeKeyFile)
-	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil, nodeKeyFilePath)
-	nodeKeys, err = nodeAdminKeysService.ParseKeysFile()
-	if err != nil {
-		// fail parsing node_keys.json, could be wrong format or no file found, generating new one anyway
-		seed = util.GetSecureRandomSeed()
-		nodePublicKey, err := nodeAdminKeysService.GenerateNodeKey(seed)
-		if err != nil {
-			loggerCoreService.Fatal(err)
-		}
-		nodeKey = &model.NodeKey{
-			PublicKey: nodePublicKey,
-			Seed:      seed,
-		}
-	} else {
-		nodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
-	}
-	if nodeKey == nil {
-		log.Fatal("could not find or generate node key")
-	}
-	nodeSecretPhrase = nodeKey.Seed
-}
-
-func loadNodeConfig(configPath, configFileName, configExtension string) {
-
-	if err := util.LoadConfig(configPath, configFileName, configExtension); err != nil {
-		panic(err)
-	}
-
-	myAddress = viper.GetString("myAddress")
-	if myAddress == "" {
-		ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress()
-		if ipAddr == nil {
-			// panic if we can't set an IP address for the node
-			panic(err)
-		} else if err != nil {
-			// notify user that something went wrong in net address discovery process and its node might not behave properly on the network
-			log.Print(err)
-		}
-		myAddress = ipAddr.String()
-		nodeAddressDynamic = true
-		viper.Set("myAddress", myAddress)
-	}
-	peerPort = viper.GetUint32("peerPort")
-	monitoringPort = viper.GetInt("monitoringPort")
-	apiRPCPort = viper.GetInt("apiRPCPort")
-	maxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
-	cpuProfilingPort = viper.GetInt("cpuProfilingPort")
-	ownerAccountAddress = viper.GetString("ownerAccountAddress")
-	wellknownPeers = viper.GetStringSlice("wellknownPeers")
-	smithing = viper.GetBool("smithing")
-	dbPath = viper.GetString("dbPath")
-	dbName = viper.GetString("dbName")
-	badgerDbPath = viper.GetString("badgerDbPath")
-	badgerDbName = viper.GetString("badgerDbName")
-	nodeKeyPath = viper.GetString("configPath")
-	nodeKeyFile = viper.GetString("nodeKeyFile")
-	apiCertFile = viper.GetString("apiapiCertFile")
-	apiKeyFile = viper.GetString("apiKeyFile")
-	snapshotPath = viper.GetString("snapshotPath")
-	logOnCLI = viper.GetBool("logOnCLI")
-	loadNodeKey()
-	nodeAddress, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodeKey.PublicKey)
-	if err != nil {
-		log.Fatal("fail to encode node public key")
-	}
-	// log the b64 encoded node public key
-	log.Printf("peer to peer port: %d", peerPort)
-	log.Printf("node monitoring port: %d", monitoringPort)
-	log.Printf("client / wallet API port: %d", apiRPCPort)
-	if cpuProfile {
-		log.Printf("cpu profiling port: %d", cpuProfilingPort)
-	}
-	log.Printf("node's owner account address: %s", ownerAccountAddress)
-
-	log.Printf("node's public key: %s", nodeAddress)
-	log.Printf("well known peers: %s", strings.Join(wellknownPeers, ","))
-	log.Printf("smithing: %v", smithing)
-	if nodeAddressDynamic {
-		log.Printf("node's ip address: %s (%s)", myAddress, "automatically discovered")
-	} else {
-		log.Printf("node's ip address: %s (%s)", myAddress, "set in configuration file")
-	}
-	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
-		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
-	}
 }
 
 func initLogInstance() {
@@ -379,27 +304,23 @@ func initLogInstance() {
 		t         = time.Now().Format("2-Jan-2006_")
 	)
 
-	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, logOnCLI); err != nil {
+	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, logOnCLI); err != nil {
+	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, logOnCLI); err != nil {
+	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
 }
 
 func initP2pInstance() {
-	// init p2p instances
-	// nodeConfigurationService.SetHost(p2pUtil.NewHost(myAddress, peerPort, knownPeersResult))
-
 	// initialize peer client service
-	nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
 	peerServiceClient = client.NewPeerServiceClient(
 		queryExecutor,
 		query.NewNodeReceiptQuery(),
-		nodePublicKey,
+		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
@@ -444,7 +365,7 @@ func initObserverListeners() {
 	observerInstance.AddListener(observer.BroadcastBlock, p2pServiceInstance.SendBlockListener())
 	observerInstance.AddListener(observer.TransactionAdded, p2pServiceInstance.SendTransactionListener())
 	// only smithing nodes generate snapshots
-	if smithing {
+	if config.Smithing {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
@@ -455,10 +376,10 @@ func initObserverListeners() {
 
 func startServices() {
 	p2pServiceInstance.StartP2P(
-		myAddress,
-		ownerAccountAddress,
-		peerPort,
-		nodeSecretPhrase,
+		config.MyAddress,
+		config.OwnerAccountAddress,
+		config.PeerPort,
+		config.NodeKey.Seed,
 		queryExecutor,
 		blockServices,
 		mempoolServices,
@@ -469,34 +390,34 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		apiRPCPort,
+		config.ClientAPIPort,
 		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
-		ownerAccountAddress,
-		nodeKeyFilePath,
+		config.OwnerAccountAddress,
+		filepath.Join(config.NodeKeyPath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
-		apiCertFile,
-		apiKeyFile,
+		config.APICertFile,
+		config.APIKeyFile,
 		transactionUtil,
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-		maxAPIRequestPerSecond,
+		config.MaxAPIRequestPerSecond,
 	)
 }
 
 func startNodeMonitoring() {
-	log.Infof("starting node monitoring at port:%d...", monitoringPort)
+	log.Infof("starting node monitoring at port:%d...", config.MonitoringPort)
 	monitoring.SetMonitoringActive(true)
-	monitoring.SetNodePublicKey(defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase))
+	monitoring.SetNodePublicKey(config.NodeKey.PublicKey)
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", database.InstrumentBadgerMetrics(monitoring.Handler()))
-		err := http.ListenAndServe(fmt.Sprintf(":%d", monitoringPort), mux)
+		err := http.ListenAndServe(fmt.Sprintf(":%d", config.MonitoringPort), mux)
 		if err != nil {
 			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
 		}
@@ -651,9 +572,8 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 	}
 
-	if len(nodeSecretPhrase) > 0 && smithing {
-		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
-		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
+	if len(config.NodeKey.Seed) > 0 && config.Smithing {
+		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(config.NodeKey.PublicKey)
 		if err != nil {
 			loggerCoreService.Fatal(err)
 		} else if node == nil {
@@ -664,12 +584,12 @@ func startMainchain() {
 		}
 		if node != nil {
 			// register node config public key, so node registration service can detect if node has been admitted
-			nodeRegistrationService.SetCurrentNodePublicKey(nodePublicKey)
+			nodeRegistrationService.SetCurrentNodePublicKey(config.NodeKey.PublicKey)
 			// default to isBlocksmith=true
 			blockchainStatusService.SetIsBlocksmith(true)
 			mainchainProcessor = smith.NewBlockchainProcessor(
 				mainchainBlockService.GetChainType(),
-				model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, node.NodeID),
+				model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, node.NodeID),
 				mainchainBlockService,
 				loggerCoreService,
 				blockchainStatusService,
@@ -761,13 +681,12 @@ func startSpinechain() {
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
-	if len(nodeSecretPhrase) > 0 && smithing {
-		nodePublicKey := defaultSignatureType.GetPublicKeyFromSeed(nodeSecretPhrase)
+	if len(config.NodeKey.Seed) > 0 && config.Smithing {
 		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
-		nodeID = int64(binary.LittleEndian.Uint64(nodePublicKey))
+		nodeID = int64(binary.LittleEndian.Uint64(config.NodeKey.PublicKey))
 		spinechainProcessor = smith.NewBlockchainProcessor(
 			spinechainBlockService.GetChainType(),
-			model.NewBlocksmith(nodeSecretPhrase, nodePublicKey, nodeID),
+			model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, nodeID),
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
@@ -879,7 +798,7 @@ func main() {
 	// start cpu profiling if enabled
 	if cpuProfile {
 		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", cpuProfilingPort), nil); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.CPUProfilingPort), nil); err != nil {
 				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
 			}
 		}()

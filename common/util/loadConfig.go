@@ -17,11 +17,9 @@ func LoadConfig(path, name, extension string) error {
 	}
 
 	viper.SetDefault("dbName", "zoobc.db")
-	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
-	viper.SetDefault("badgerDbPath", "./resource")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
-	viper.SetDefault("configPath", "./resource")
+	viper.SetDefault("resourcePath", "./resource")
 	viper.SetDefault("peerPort", 8001)
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
@@ -40,7 +38,7 @@ func LoadConfig(path, name, extension string) error {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./resource" && name == "config" {
 			// Config file not found; ignore error if desired
-			return nil
+			return err
 		}
 		// Config file was found but another error was produced
 		return err
