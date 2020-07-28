@@ -16,6 +16,7 @@ type (
 			height uint32,
 		) (qStr string, args []interface{})
 		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
+		InsertCommitVotes(voteCommits []*model.FeeVoteCommitmentVote) (qStr string, args []interface{})
 		ExtractModel(voteCommit *model.FeeVoteCommitmentVote) []interface{}
 		Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error
 		BuildModel(
@@ -23,6 +24,7 @@ type (
 			rows *sql.Rows,
 		) ([]*model.FeeVoteCommitmentVote, error)
 		Rollback(height uint32) (multiQueries [][]interface{})
+		GetFields() []string
 	}
 	// FeeVoteCommitmentVoteQuery struct that have string  query for FeeVoteCommitmentVotes
 	FeeVoteCommitmentVoteQuery struct {
@@ -59,6 +61,27 @@ func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVote(voteCommit *model.FeeVo
 	), fsvc.ExtractModel(voteCommit)
 }
 
+func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVotes(voteCommits []*model.FeeVoteCommitmentVote) (str string, args []interface{}) {
+	if len(voteCommits) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			fsvc.getTableName(),
+			strings.Join(fsvc.Fields, ", "),
+		)
+		for k, voteCommit := range voteCommits {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(fsvc.Fields)-1),
+			)
+			if k < len(voteCommits)-1 {
+				str += ","
+			}
+			args = append(args, fsvc.ExtractModel(voteCommit)...)
+		}
+	}
+	return str, args
+}
+
 // GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height
 func (fsvc *FeeVoteCommitmentVoteQuery) GetVoteCommitByAccountAddressAndHeight(
 	accountAddress string, height uint32,
@@ -86,6 +109,10 @@ func (*FeeVoteCommitmentVoteQuery) Scan(voteCommit *model.FeeVoteCommitmentVote,
 		&voteCommit.BlockHeight,
 	)
 	return err
+}
+
+func (fsvc *FeeVoteCommitmentVoteQuery) GetFields() []string {
+	return fsvc.Fields
 }
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that

@@ -39,6 +39,7 @@ type (
 		// TODO: @iltoga ExtractNodeAddress must be moved in ipUtils or some other util package
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
+		GetFields() []string
 	}
 
 	NodeRegistrationQuery struct {
@@ -485,6 +486,10 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 		nr.NodeAddress = nodeAddress
 	}
 	return nil
+}
+
+func (nrq *NodeRegistrationQuery) GetFields() []string {
+	return nrq.Fields
 }
 
 // SelectDataForSnapshot this query selects only node registry latest state from height 0 to 'fromHeight' (

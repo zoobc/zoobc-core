@@ -22,6 +22,7 @@ type (
 			rows *sql.Rows,
 		) ([]*model.NodeAdmissionTimestamp, error)
 		Scan(nextNodeAdmission *model.NodeAdmissionTimestamp, row *sql.Row) error
+		GetFields() []string
 	}
 	// NodeAdmissionTimestampQuery fields must have
 	NodeAdmissionTimestampQuery struct {
@@ -154,6 +155,9 @@ func (natq *NodeAdmissionTimestampQuery) Scan(
 	)
 	return err
 }
+func (natq *NodeAdmissionTimestampQuery) GetFields() []string {
+	return natq.Fields
+}
 
 // Rollback delete records `WHERE height > "block_height"
 func (natq *NodeAdmissionTimestampQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
@@ -180,7 +184,7 @@ func (natq *NodeAdmissionTimestampQuery) Rollback(height uint32) (multiQueries [
 
 // SelectDataForSnapshot select only the block at snapshot block_height (fromHeight is unused)
 func (natq *NodeAdmissionTimestampQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(natq.Fields, ","), natq.getTableName(), fromHeight, toHeight)
 }
 

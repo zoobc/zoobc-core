@@ -13,9 +13,11 @@ type (
 	FeeScaleQueryInterface interface {
 		GetLatestFeeScale() string
 		InsertFeeScale(feeScale *model.FeeScale) [][]interface{}
+		InsertFeeScales(feeScales []*model.FeeScale) (qry string, args []interface{})
 		ExtractModel(feeScale *model.FeeScale) []interface{}
 		BuildModel(feeScales []*model.FeeScale, rows *sql.Rows) ([]*model.FeeScale, error)
 		Scan(feeScale *model.FeeScale, row *sql.Row) error
+		GetFields() []string
 	}
 
 	FeeScaleQuery struct {
@@ -72,6 +74,28 @@ func (fsq *FeeScaleQuery) InsertFeeScale(feeScale *model.FeeScale) [][]interface
 	}
 }
 
+func (fsq *FeeScaleQuery) InsertFeeScales(feeScales []*model.FeeScale) (str string, args []interface{}) {
+	if len(feeScales) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			fsq.getTableName(),
+			strings.Join(fsq.Fields, ", "),
+		)
+		for k, feeScale := range feeScales {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(fsq.Fields)-1),
+			)
+			if k < len(feeScales)-1 {
+				str += ","
+			}
+			args = append(args, fsq.ExtractModel(feeScale)...)
+		}
+	}
+	return str, args
+
+}
+
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
 func (*FeeScaleQuery) ExtractModel(feeScale *model.FeeScale) []interface{} {
 	return []interface{}{
@@ -113,6 +137,9 @@ func (*FeeScaleQuery) Scan(feeScale *model.FeeScale, row *sql.Row) error {
 		&feeScale.Latest,
 	)
 	return err
+}
+func (fsq *FeeScaleQuery) GetFields() []string {
+	return fsq.Fields
 }
 
 // Rollback delete records `WHERE height > "block_height"
