@@ -1026,12 +1026,12 @@ func TestSnapshotMainBlockService_calculateBulkSize(t *testing.T) {
 			name:   "WantSuccess",
 			fields: fields{},
 			args: args{
-				totalRecords: 1200,
-				totalFields:  16,
+				totalRecords: 1421,
+				totalFields:  12,
 			},
-			wantRecordsPerPeriod: 62,
-			wantRounds:           19,
-			wantRemaining:        22,
+			wantRecordsPerPeriod: 83,
+			wantRounds:           17,
+			wantRemaining:        10,
 		},
 	}
 	for _, tt := range tests {

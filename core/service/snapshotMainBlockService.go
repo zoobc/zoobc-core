@@ -272,7 +272,7 @@ func (ss *SnapshotMainBlockService) calculateBulkSize(totalFields, totalRecords 
 	perPeriod := math.Floor(999 / float64(totalFields))
 	rounds = int(math.Floor(float64(totalRecords) / perPeriod))
 
-	if perPeriod < 1 || rounds < 1 {
+	if perPeriod == 0 || rounds == 0 {
 		return totalRecords, 1, 0
 	}
 	remaining = totalRecords % (rounds * int(perPeriod))
