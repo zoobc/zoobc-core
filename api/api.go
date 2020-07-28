@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
@@ -27,7 +28,7 @@ import (
 )
 
 func startGrpcServer(
-	port int,
+	rpcPort, httpPort int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
@@ -62,6 +63,11 @@ func startGrpcServer(
 		),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
+	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", rpcPort))
+	if err != nil {
+		logger.Fatalf("failed to listen: %v\n", err)
+		return
+	}
 	actionTypeSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
@@ -158,8 +164,14 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
-
 	go func() {
+		// serve rpc
+		if err := grpcServer.Serve(serv); err != nil {
+			panic(err)
+		}
+	}()
+	go func() {
+		// serve webrpc
 		wrappedServer := grpcweb.WrapServer(
 			grpcServer,
 			grpcweb.WithCorsForRegisteredEndpointsOnly(true),
@@ -167,19 +179,15 @@ func startGrpcServer(
 				return true // origin: '*'
 			}))
 		httpServer := &http.Server{
-			Addr: fmt.Sprintf(":%d", port),
+			Addr: fmt.Sprintf(":%d", httpPort),
 			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if r.ProtoMajor == 2 {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+				w.Header().Set("Access-Control-Allow-Headers",
+					"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
+						"Authorization, X-User-Agent, X-Grpc-Web")
+				if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
 					wrappedServer.ServeHTTP(w, r)
-				} else {
-					w.Header().Set("Access-Control-Allow-Origin", "*")
-					w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-					w.Header().Set("Access-Control-Allow-Headers",
-						"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
-							"Authorization, X-User-Agent, X-Grpc-Web")
-					if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
-						wrappedServer.ServeHTTP(w, r)
-					}
 				}
 			}), &http2.Server{}),
 		}
@@ -198,12 +206,12 @@ func startGrpcServer(
 		}
 
 	}()
-	logger.Infof("Client API Served on http:%d\n", port)
+	logger.Infof("Client API Served on [rpc] http:%d\t [browser] http:%d", rpcPort, httpPort)
 }
 
 // Start starts api servers in the given port and passing query executor
 func Start(
-	grpcPort int,
+	grpcPort, httpPort int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
@@ -220,7 +228,7 @@ func Start(
 	maxAPIRequestPerSecond uint32,
 ) {
 	startGrpcServer(
-		grpcPort,
+		grpcPort, httpPort,
 		kvExecutor,
 		queryExecutor,
 		p2pHostService,

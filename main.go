@@ -394,7 +394,8 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		config.ClientAPIPort,
+		config.RPCAPIPort,
+		config.HTTPAPIPort,
 		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,

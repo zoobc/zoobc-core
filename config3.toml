@@ -10,6 +10,7 @@ myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3003
+apiHTTPPort=7003
 maxAPIRequestPerSecond=10
 # comment out or set to 0 to disable http proxy, only enable in dev mode
 monitoringPort=9093
