@@ -19,6 +19,7 @@ type (
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
+		GetFields() []string
 	}
 
 	PendingSignatureQuery struct {
@@ -116,6 +117,9 @@ func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.
 		&pendingSig.Latest,
 	)
 	return err
+}
+func (psq *PendingSignatureQuery) GetFields() []string {
+	return psq.Fields
 }
 
 func (*PendingSignatureQuery) ExtractModel(pendingSig *model.PendingSignature) []interface{} {

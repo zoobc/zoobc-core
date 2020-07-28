@@ -22,6 +22,7 @@ type (
 			rows *sql.Rows,
 		) ([]*model.NodeAdmissionTimestamp, error)
 		Scan(nextNodeAdmission *model.NodeAdmissionTimestamp, row *sql.Row) error
+		GetFields() []string
 	}
 	// NodeAdmissionTimestampQuery fields must have
 	NodeAdmissionTimestampQuery struct {
@@ -153,6 +154,9 @@ func (natq *NodeAdmissionTimestampQuery) Scan(
 		&nextNodeAdmission.Latest,
 	)
 	return err
+}
+func (natq *NodeAdmissionTimestampQuery) GetFields() []string {
+	return natq.Fields
 }
 
 // Rollback delete records `WHERE height > "block_height"

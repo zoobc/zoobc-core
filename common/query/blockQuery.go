@@ -24,6 +24,7 @@ type (
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
 		Scan(block *model.Block, row *sql.Row) error
+		GetFields() []string
 	}
 
 	BlockQuery struct {
@@ -203,6 +204,11 @@ func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 
 	}
 	return nil
+}
+
+// GetFields Get fields query
+func (bq *BlockQuery) GetFields() []string {
+	return bq.Fields
 }
 
 // Rollback delete records `WHERE height > "height"`
