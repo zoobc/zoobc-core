@@ -55,8 +55,8 @@ func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 
 	// Account dataset removed, need to set IsActive false
 	datasetQ := tx.AccountDatasetQuery.InsertAccountDataset(&model.AccountDataset{
-		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
-		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+		SetterAccountAddress:    tx.SenderAddress,
+		RecipientAccountAddress: tx.RecipientAddress,
 		Property:                tx.Body.GetProperty(),
 		Value:                   tx.Body.GetValue(),
 		Height:                  tx.Height,
