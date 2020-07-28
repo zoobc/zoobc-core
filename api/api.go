@@ -24,7 +24,6 @@ import (
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 )
 
 func startGrpcServer(
@@ -47,15 +46,7 @@ func startGrpcServer(
 
 	chainType := chaintype.GetChainType(0)
 
-	// load/enable TLS over grpc
-	creds, err := credentials.NewServerTLSFromFile(apiCertFile, apiKeyFile)
-	if err != nil {
-		logger.Infof("Failed to generate credentials %v. TLS encryption won't be enabled for grpc api", err)
-	} else {
-		logger.Info("TLS certificate loaded. rpc api will use encryption at transport level")
-	}
 	grpcServer := grpc.NewServer(
-		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
 			interceptor.NewServerRateLimiterInterceptor(maxAPIRequestPerSecond),
 			interceptor.NewServerInterceptor(
@@ -169,7 +160,12 @@ func startGrpcServer(
 	})
 
 	go func() {
-		wrappedServer := grpcweb.WrapServer(grpcServer)
+		wrappedServer := grpcweb.WrapServer(
+			grpcServer,
+			grpcweb.WithCorsForRegisteredEndpointsOnly(true),
+			grpcweb.WithOriginFunc(func(origin string) bool {
+				return true // origin: '*'
+			}))
 		httpServer := &http.Server{
 			Addr: fmt.Sprintf(":%d", port),
 			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -181,15 +177,26 @@ func startGrpcServer(
 					w.Header().Set("Access-Control-Allow-Headers",
 						"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
 							"Authorization, X-User-Agent, X-Grpc-Web")
-					if wrappedServer.IsGrpcWebRequest(r) {
+					if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
 						wrappedServer.ServeHTTP(w, r)
 					}
 				}
 			}), &http2.Server{}),
 		}
-		if err := httpServer.ListenAndServe(); err != nil {
-			panic(err)
+		if apiKeyFile == "" || apiCertFile == "" {
+			// no certificate provided, run on http
+			if err := httpServer.ListenAndServe(); err != nil {
+				panic(err)
+			}
+		} else {
+			if err := httpServer.ListenAndServeTLS(apiCertFile, apiKeyFile); err != nil {
+				// invalid or not found certificate, falling back to http
+				if err := httpServer.ListenAndServe(); err != nil {
+					panic(err)
+				}
+			}
 		}
+
 	}()
 	logger.Infof("Client API Served on http:%d\n", port)
 }

@@ -44,6 +44,7 @@ func (sn *SetupNode) discoverNodeAddress(config *model.Config) error {
 	config.IsNodeAddressDynamic = true
 	return nil
 }
+
 func (sn *SetupNode) checkConfig(config *model.Config) error {
 	if !config.ConfigFileExist {
 		return errors.New(ErrNoConfigFile)
@@ -59,13 +60,20 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 		_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 		if err != nil {
 			if ok := os.IsNotExist(err); ok {
-				color.Cyan("node keys has not been setup")
-				sn.nodeKeysPrompt(config)
+				if config.NodeSeed != "" {
+					config.NodeKey = &model.NodeKey{
+						Seed: config.NodeSeed,
+					}
+				} else {
+					color.Cyan("node keys has not been setup")
+					sn.nodeKeysPrompt(config)
+				}
 			} else {
 				color.Red("unknown error occurred when scanning for node keys file")
 				return err
 			}
 		}
+
 	} else {
 		color.Yellow("node is not smithing")
 	}
@@ -171,18 +179,18 @@ func (sn *SetupNode) WizardFirstSetup(config *model.Config) error {
 				color.Green("resource directory created")
 			}
 			color.Yellow("saving new configurations")
-			err = viper.SafeWriteConfigAs("./resource/config.toml")
+			err = viper.SafeWriteConfigAs("./config.toml")
 			if err != nil {
 				return errors.New(ErrFailSavingNewConfig)
 			}
-			color.Green("configuration saved successfully in ./resource/config.toml")
+			color.Green("configuration saved successfully in ./config.toml")
 			color.Green("continue to run node with provided configurations")
 		} else {
 			color.Red("failed reading / creating config file, error: %s\tstopping node...\n", err.Error())
 			return errors.New(ErrFatal)
 		}
 	} else {
-		color.Green("continue to run node with ./resource/config.toml configurations")
+		color.Green("continue to run node with ./config.toml configurations")
 	}
 	return nil
 }

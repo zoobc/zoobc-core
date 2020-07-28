@@ -103,7 +103,7 @@ func init() {
 	)
 	// parse custom flag in running the node
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
+	flag.StringVar(&configPath, "config-path", "./", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
@@ -401,7 +401,7 @@ func startServices() {
 		blockServices,
 		nodeRegistrationService,
 		config.OwnerAccountAddress,
-		filepath.Join(config.NodeKeyPath, config.NodeKeyFileName),
+		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
 		config.APICertFile,
