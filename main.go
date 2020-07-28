@@ -397,7 +397,7 @@ func startServices() {
 		blockServices,
 		nodeRegistrationService,
 		config.OwnerAccountAddress,
-		filepath.Join(config.NodeKeyPath, config.NodeKeyFileName),
+		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
 		config.APICertFile,
