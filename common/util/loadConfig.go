@@ -36,7 +36,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./resource" && name == "config" {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./" && name == "config" {
 			// Config file not found; ignore error if desired
 			return err
 		}

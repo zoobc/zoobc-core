@@ -179,18 +179,18 @@ func (sn *SetupNode) WizardFirstSetup(config *model.Config) error {
 				color.Green("resource directory created")
 			}
 			color.Yellow("saving new configurations")
-			err = viper.SafeWriteConfigAs("./resource/config.toml")
+			err = viper.SafeWriteConfigAs("./config.toml")
 			if err != nil {
 				return errors.New(ErrFailSavingNewConfig)
 			}
-			color.Green("configuration saved successfully in ./resource/config.toml")
+			color.Green("configuration saved successfully in ./config.toml")
 			color.Green("continue to run node with provided configurations")
 		} else {
 			color.Red("failed reading / creating config file, error: %s\tstopping node...\n", err.Error())
 			return errors.New(ErrFatal)
 		}
 	} else {
-		color.Green("continue to run node with ./resource/config.toml configurations")
+		color.Green("continue to run node with ./config.toml configurations")
 	}
 	return nil
 }

@@ -1,10 +1,8 @@
-dbPath = "./resource/"
+resourcePath = "./resource"
 dbName = "zoobc_3.db"
-badgerDbPath="./resource"
 badgerDbName="zoobc_3_kv/"
-configPath = "./resource/"
 nodeKeyFile = "node_keys_3.json"
-snapshotPath = "./resource/snapshots"
+snapshotPath = "./resource/snapshots_3"
 
 # Peer
 peerPort=8003
@@ -12,15 +10,19 @@ myAddress="127.0.0.1"
 wellknownPeers=["127.0.0.1:8001"]
 
 apiRPCPort=3003
+maxAPIRequestPerSecond=10
+# comment out or set to 0 to disable http proxy, only enable in dev mode
 monitoringPort=9093
 cpuProfilingPort=6063
 apiReqTimeoutSec=2
 
 ownerAccountAddress = "ZBC_RERG3XD7_GAKOZZKY_VMZP2SQE_LBP45DC6_VDFGDTFK_3BZFBQGK_JMWELLO7"
 
+smithing=true
 proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-#logLevels=["fatal", "error", "panic"]
 logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
 
+#apiCertFile="./resource/network.crt"
+#apiKeyFile="./resource/network.key"
