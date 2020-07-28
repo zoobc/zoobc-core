@@ -391,7 +391,7 @@ func startServices() {
 	)
 	api.Start(
 		config.RPCAPIPort,
-		config.WebRPCAPIPort,
+		config.HTTPAPIPort,
 		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,

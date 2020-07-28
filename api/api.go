@@ -28,7 +28,7 @@ import (
 )
 
 func startGrpcServer(
-	rpcPort, webRpcPort int,
+	rpcPort, httpPort int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
@@ -179,7 +179,7 @@ func startGrpcServer(
 				return true // origin: '*'
 			}))
 		httpServer := &http.Server{
-			Addr: fmt.Sprintf(":%d", webRpcPort),
+			Addr: fmt.Sprintf(":%d", httpPort),
 			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Access-Control-Allow-Origin", "*")
 				w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
@@ -206,12 +206,12 @@ func startGrpcServer(
 		}
 
 	}()
-	logger.Infof("Client API Served on [rpc] http:%d\t [browser] http:%d", rpcPort, webRpcPort)
+	logger.Infof("Client API Served on [rpc] http:%d\t [browser] http:%d", rpcPort, httpPort)
 }
 
 // Start starts api servers in the given port and passing query executor
 func Start(
-	grpcPort, webRpcPort int,
+	grpcPort, httpPort int,
 	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
@@ -228,7 +228,7 @@ func Start(
 	maxAPIRequestPerSecond uint32,
 ) {
 	startGrpcServer(
-		grpcPort, webRpcPort,
+		grpcPort, httpPort,
 		kvExecutor,
 		queryExecutor,
 		p2pHostService,
