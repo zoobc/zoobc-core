@@ -10,7 +10,7 @@ type Config struct {
 	Smithing, IsNodeAddressDynamic, LogOnCli        bool
 	MyAddress, OwnerAccountAddress                  string
 	DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
-	NodeKeyPath, NodeKeyFileName, APICertFile, APIKeyFile, SnapshotPath string
+	NodeKeyFileName, NodeSeed, APICertFile, APIKeyFile, SnapshotPath string
 	WellknownPeers []string
 
 	NodeKey *NodeKey
@@ -39,6 +39,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.BadgerDbName = viper.GetString("badgerDbName")
 	cfg.ResourcePath = viper.GetString("resourcePath")
 	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
+	cfg.NodeSeed = viper.GetString("nodeSeed")
 	cfg.APICertFile = viper.GetString("apiCertFile")
 	cfg.APIKeyFile = viper.GetString("apiKeyFile")
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
