@@ -77,7 +77,8 @@ func (nl *CLIMonitoring) Start() {
 
 		tm.Printf("%s: %v\n", tm.Bold("Node IP Address / DNS "), nl.ConfigInfo.MyAddress)
 		tm.Printf("%s: %v\n", tm.Bold("Peer Communication Port"), (nl.ConfigInfo.PeerPort))
-		tm.Printf("%s: %v\n", tm.Bold("Client API Port"), nl.ConfigInfo.ClientAPIPort)
+		tm.Printf("%s: %v\n", tm.Bold("RPC API Port"), nl.ConfigInfo.RPCAPIPort)
+		tm.Printf("%s: %v\n", tm.Bold("HTTP API Port"), nl.ConfigInfo.HTTPAPIPort)
 		tm.Printf("%s: %v\n", tm.Bold("Monitoring Port"), nl.ConfigInfo.MonitoringPort)
 		tm.Printf("%s: %v\n", tm.Bold("Well Known Peers"), strings.Join(nl.ConfigInfo.WellknownPeers, ","))
 
