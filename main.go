@@ -837,7 +837,10 @@ func main() {
 	initObserverListeners()
 	startScheduler()
 	go startBlockchainSyncronizers()
-	go cliMonitoring.Start()
+
+	if !config.LogOnCli && config.CliMonitoring {
+		go cliMonitoring.Start()
+	}
 
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)

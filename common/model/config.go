@@ -5,10 +5,10 @@ import (
 )
 
 type Config struct {
-	PeerPort, MaxAPIRequestPerSecond                uint32
-	ClientAPIPort, MonitoringPort, CPUProfilingPort int
-	Smithing, IsNodeAddressDynamic, LogOnCli        bool
-	MyAddress, OwnerAccountAddress                  string
+	PeerPort, MaxAPIRequestPerSecond                        uint32
+	ClientAPIPort, MonitoringPort, CPUProfilingPort         int
+	Smithing, IsNodeAddressDynamic, LogOnCli, CliMonitoring bool
+	MyAddress, OwnerAccountAddress                          string
 	DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
 	NodeKeyFileName, NodeSeed, APICertFile, APIKeyFile, SnapshotPath string
 	WellknownPeers []string
@@ -44,4 +44,5 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.APIKeyFile = viper.GetString("apiKeyFile")
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
+	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
 }

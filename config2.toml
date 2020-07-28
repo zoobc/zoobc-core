@@ -23,7 +23,8 @@ proofOfOwnershipReqTimeoutSec = 1
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
 logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
-
+logOnCli= false
+cliMonitoring=true
 
 #apiCertFile="./resource/network.crt"
 #apiKeyFile="./resource/network.key"
