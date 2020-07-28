@@ -309,7 +309,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[remaining:])
+					qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[len(payload.GetBlocks())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -325,7 +325,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances()[remaining:])
+					qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances()[len(payload.GetAccountBalances())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -341,7 +341,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations()[remaining:])
+					qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations()[len(payload.GetNodeRegistrations())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -357,7 +357,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets()[remaining:])
+					qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets()[len(payload.GetAccountDatasets())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -373,7 +373,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(payload.GetParticipationScores()[remaining:])
+					qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(
+						payload.GetParticipationScores()[len(payload.GetParticipationScores())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -389,7 +391,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts()[remaining:])
+					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts()[len(payload.GetPublishedReceipts())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -405,7 +407,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions()[remaining:])
+					qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions()[len(payload.GetEscrowTransactions())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -421,7 +423,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(payload.GetPendingTransactions()[remaining:])
+					qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(
+						payload.GetPendingTransactions()[len(payload.GetPendingTransactions())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -437,7 +441,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(payload.GetPendingSignatures()[remaining:])
+					qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(
+						payload.GetPendingSignatures()[len(payload.GetPendingSignatures())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -453,7 +459,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, musigQ...)
 				}
 				if remaining > 0 {
-					musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(payload.GetMultiSignatureInfos()[remaining:])
+					musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(
+						payload.GetMultiSignatureInfos()[len(payload.GetMultiSignatureInfos())-remaining:],
+					)
 					queries = append(queries, musigQ...)
 				}
 			}
@@ -468,7 +476,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(payload.GetSkippedBlocksmiths()[remaining:])
+					qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(
+						payload.GetSkippedBlocksmiths()[len(payload.GetSkippedBlocksmiths())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -483,7 +493,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.FeeScaleQuery.InsertFeeScales(payload.GetFeeScale()[remaining:])
+					qry, args = ss.FeeScaleQuery.InsertFeeScales(payload.GetFeeScale()[len(payload.GetFeeScale())-remaining:])
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -498,7 +508,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.FeeVoteCommitmentVoteQuery.InsertCommitVotes(payload.GetFeeVoteCommitmentVote()[remaining:])
+					qry, args = ss.FeeVoteCommitmentVoteQuery.InsertCommitVotes(
+						payload.GetFeeVoteCommitmentVote()[len(payload.GetFeeVoteCommitmentVote())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -513,7 +525,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.FeeVoteRevealVoteQuery.InsertRevealVotes(payload.GetFeeVoteRevealVote()[remaining:])
+					qry, args = ss.FeeVoteRevealVoteQuery.InsertRevealVotes(
+						payload.GetFeeVoteRevealVote()[len(payload.GetFeeVoteRevealVote())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -528,7 +542,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransactions(payload.GetLiquidPayment()[remaining:])
+					qry, args = ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransactions(
+						payload.GetLiquidPayment()[len(payload.GetLiquidPayment())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
@@ -546,7 +562,9 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 				if remaining > 0 {
-					qry, args = ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(payload.GetNodeAdmissionTimestamp()[remaining:])
+					qry, args = ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(
+						payload.GetNodeAdmissionTimestamp()[len(payload.GetNodeAdmissionTimestamp())-remaining:],
+					)
 					queries = append(queries, append([]interface{}{qry}, args...))
 				}
 			}
