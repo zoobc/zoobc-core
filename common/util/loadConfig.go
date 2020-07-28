@@ -26,6 +26,8 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("apiRPCPort", 7000)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
 	viper.SetDefault("snapshotPath", "./resource/snapshots")
+	viper.SetDefault("logOnCli", false)
+	viper.SetDefault("cliMonitoring", true)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed

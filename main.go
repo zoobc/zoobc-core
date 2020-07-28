@@ -92,6 +92,7 @@ var (
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	cpuProfile                                      bool
+	cliMonitoring                                   monitoring.CLIMonitoringInteface
 )
 
 func init() {
@@ -146,6 +147,9 @@ func init() {
 	}
 
 	initLogInstance()
+	cliMonitoring = monitoring.NewCLIMonitoring(config)
+	monitoring.SetCLIMonitoring(cliMonitoring)
+
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
@@ -559,6 +563,7 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
+	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
@@ -679,6 +684,11 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
+	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
@@ -827,6 +837,10 @@ func main() {
 	initObserverListeners()
 	startScheduler()
 	go startBlockchainSyncronizers()
+
+	if !config.LogOnCli && config.CliMonitoring {
+		go cliMonitoring.Start()
+	}
 
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)

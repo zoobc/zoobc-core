@@ -24,5 +24,10 @@ proofOfOwnershipReqTimeoutSec = 1
 # Available log level: info, warn, error, fatal, panic
 logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
 
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli= false
+# to show usefull information on terminal/cli. The logOnCli must be false
+cliMonitoring=true
+
 #apiCertFile="./resource/network.crt"
 #apiKeyFile="./resource/network.key"
