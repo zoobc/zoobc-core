@@ -5,10 +5,10 @@ import (
 )
 
 type Config struct {
-	PeerPort, MaxAPIRequestPerSecond                uint32
-	ClientAPIPort, MonitoringPort, CPUProfilingPort int
-	Smithing, IsNodeAddressDynamic, LogOnCli        bool
-	MyAddress, OwnerAccountAddress                  string
+	PeerPort, MaxAPIRequestPerSecond                            uint32
+	RPCAPIPort, WebRPCAPIPort, MonitoringPort, CPUProfilingPort int
+	Smithing, IsNodeAddressDynamic, LogOnCli                    bool
+	MyAddress, OwnerAccountAddress                              string
 	DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
 	NodeKeyFileName, NodeSeed, APICertFile, APIKeyFile, SnapshotPath string
 	WellknownPeers []string
@@ -29,7 +29,8 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.MyAddress = viper.GetString("myAddress")
 	cfg.PeerPort = viper.GetUint32("peerPort")
 	cfg.MonitoringPort = viper.GetInt("monitoringPort")
-	cfg.ClientAPIPort = viper.GetInt("apiRPCPort")
+	cfg.RPCAPIPort = viper.GetInt("apiRPCPort")
+	cfg.WebRPCAPIPort = viper.GetInt("apiWebRPCPort")
 	cfg.MaxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	cfg.CPUProfilingPort = viper.GetInt("cpuProfilingPort")
 	cfg.OwnerAccountAddress = viper.GetString("ownerAccountAddress")

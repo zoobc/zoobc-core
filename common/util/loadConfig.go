@@ -24,6 +24,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
+	viper.SetDefault("apiWebRPCPort", 7001)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
 	viper.SetDefault("snapshotPath", "./resource/snapshots")
 
