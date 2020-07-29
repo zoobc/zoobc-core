@@ -96,16 +96,14 @@ func (nl *CLIMonitoring) Start() {
 		tm.Printf("%s: %v\n", tm.Bold("Owner Account Address"), nl.ConfigInfo.OwnerAccountAddress)
 		tm.Printf("%s: %v\n\n", tm.Bold("Smithing Status"), nl.ConfigInfo.Smithing)
 
-		if nl.BlocksInfo[spainChain.GetTypeInt()] != nil {
-			tm.Printf("%s: %v\n",
-				tm.Bold(fmt.Sprintf("%s Block ID", spainChain.GetName())),
-				nl.BlocksInfo[spainChain.GetTypeInt()].GetID(),
-			)
-			tm.Printf("%s: %v\n",
-				tm.Bold(fmt.Sprintf("%s Block Height", spainChain.GetName())),
-				nl.BlocksInfo[spainChain.GetTypeInt()].GetHeight(),
-			)
-		}
+		tm.Printf("%s: %v\n",
+			tm.Bold(fmt.Sprintf("%s Block ID", spainChain.GetName())),
+			nl.BlocksInfo[spainChain.GetTypeInt()].GetID(),
+		)
+		tm.Printf("%s: %v\n",
+			tm.Bold(fmt.Sprintf("%s Block Height", spainChain.GetName())),
+			nl.BlocksInfo[spainChain.GetTypeInt()].GetHeight(),
+		)
 
 		tm.Printf("%s: %v\n",
 			tm.Bold(fmt.Sprintf("%s Block ID", mainChain.GetName())),
