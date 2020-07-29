@@ -24,9 +24,12 @@ const (
 type SetupNode struct {
 }
 
-func NewSetupNode() *SetupNode {
+func NewSetupNode(
+// helper SetupNodeHelperInterface,
+) *SetupNode {
 	return &SetupNode{}
 }
+
 func (sn *SetupNode) discoverNodeAddress(config *model.Config) error {
 	ipAddr, err := (&IPUtil{}).DiscoverNodeAddress()
 	if ipAddr == nil {
@@ -141,12 +144,14 @@ func (sn *SetupNode) generateConfig(config *model.Config) error {
 		config.Smithing = true
 		viper.Set("smithing", true)
 		_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
-		if ok := os.IsNotExist(err); ok {
+		if ok := os.IsNotExist(err); ok && config.NodeSeed == "" {
 			color.Cyan("node keys has not been setup")
 			sn.nodeKeysPrompt(config)
 		}
 		// ask if have account address prepared as owner
-		sn.ownerAddressPrompt(config)
+		if config.OwnerAccountAddress == "" {
+			sn.ownerAddressPrompt(config)
+		}
 	}
 	sn.wellknownPeersPrompt(config)
 	// todo: checking port availability and accessibility

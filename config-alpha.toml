@@ -29,5 +29,7 @@ logOnCli= false
 # to show usefull information on terminal/cli. The logOnCli must be false
 cliMonitoring=false
 
+walletCertFileName= "wallet-alpha.zbc"
+
 apiCertFile="./resource/network.crt"
 apiKeyFile="./resource/network.key"
