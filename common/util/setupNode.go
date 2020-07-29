@@ -98,7 +98,8 @@ func (sn *SetupNode) nodeKeysPrompt() {
 	)
 	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
-	}, "Do you have node's seed you want to use?")
+	}, "Do you have node's seed you want to use? "+
+		"(select no if you don't know what this is)")
 	if result == 0 {
 		sn.Shell.Print("input your node's seed: ")
 		nodeSeed = sn.Shell.ReadLine()
@@ -116,7 +117,8 @@ func (sn *SetupNode) ownerAddressPrompt() {
 	var (
 		ownerAddress string
 	)
-	sn.Shell.Print("input your account address to be set as owner of this node: ")
+	sn.Shell.Print("input the node's owner address " +
+		"(you can generate one in zoobc web/mobile wallet): \n")
 	ownerAddress = sn.Shell.ReadLine()
 	sn.Config.OwnerAccountAddress = ownerAddress
 }
@@ -126,7 +128,7 @@ func (sn *SetupNode) wellknownPeersPrompt() {
 		wellknownPeerString string
 	)
 	for i := 0; i < maxInputRepeat; i++ {
-		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): \n")
 		wellknownPeerString = sn.Shell.ReadLine()
 		wellknownPeers := strings.Split(strings.TrimSpace(wellknownPeerString), " ")
 		_, err := util.ParseKnownPeers(wellknownPeers)
@@ -142,7 +144,7 @@ func (sn *SetupNode) wellknownPeersPrompt() {
 }
 
 func (sn *SetupNode) generateConfig() error {
-	color.Cyan("generating config\n")
+	color.Cyan("generating configuration\n")
 	if err := sn.discoverNodeAddress(); err != nil {
 		return err
 	}
@@ -150,7 +152,7 @@ func (sn *SetupNode) generateConfig() error {
 
 	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
-	}, "Do you want to run node as blocksmith?")
+	}, "Do you want to run node as blocksmith (block creator) ?")
 	if result == 0 {
 		// node keys prompt
 		sn.Config.Smithing = true
