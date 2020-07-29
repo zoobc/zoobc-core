@@ -3,20 +3,21 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/abiosoft/ishell"
-	"github.com/fatih/color"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/p2p/util"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/abiosoft/ishell"
+	"github.com/fatih/color"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p/util"
 )
 
 const (
-	ErrNoConfigFile        = "ErrNoConfigFile"
-	ErrFatal               = "ErrFatal"               // fatal error, abort process
-	maxInputRepeat = 2
+	ErrNoConfigFile = "ErrNoConfigFile"
+	ErrFatal        = "ErrFatal" // fatal error, abort process
+	maxInputRepeat  = 2
 )
 
 type SetupNode struct {
@@ -59,7 +60,11 @@ func (sn *SetupNode) checkConfig() error {
 			return err
 		}
 	}
-	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	err := sn.checkResourceFolder()
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
 	if err != nil {
 		if ok := os.IsNotExist(err); ok {
 			if sn.Config.NodeSeed != "" {
@@ -93,7 +98,8 @@ func (sn *SetupNode) nodeKeysPrompt() {
 	)
 	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
-	}, "Do you have node's seed you want to use?")
+	}, "Do you have node's seed you want to use? "+
+		"(select no if you don't know what this is)")
 	if result == 0 {
 		sn.Shell.Print("input your node's seed: ")
 		nodeSeed = sn.Shell.ReadLine()
@@ -111,7 +117,8 @@ func (sn *SetupNode) ownerAddressPrompt() {
 	var (
 		ownerAddress string
 	)
-	sn.Shell.Print("input your account address to be set as owner of this node: ")
+	sn.Shell.Print("input the node's owner address " +
+		"(you can generate one in zoobc web/mobile wallet): \n")
 	ownerAddress = sn.Shell.ReadLine()
 	sn.Config.OwnerAccountAddress = ownerAddress
 }
@@ -121,7 +128,7 @@ func (sn *SetupNode) wellknownPeersPrompt() {
 		wellknownPeerString string
 	)
 	for i := 0; i < maxInputRepeat; i++ {
-		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): \n")
 		wellknownPeerString = sn.Shell.ReadLine()
 		wellknownPeers := strings.Split(strings.TrimSpace(wellknownPeerString), " ")
 		_, err := util.ParseKnownPeers(wellknownPeers)
@@ -137,7 +144,7 @@ func (sn *SetupNode) wellknownPeersPrompt() {
 }
 
 func (sn *SetupNode) generateConfig() error {
-	color.Cyan("generating config\n")
+	color.Cyan("generating configuration\n")
 	if err := sn.discoverNodeAddress(); err != nil {
 		return err
 	}
@@ -145,7 +152,7 @@ func (sn *SetupNode) generateConfig() error {
 
 	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
-	}, "Do you want to run node as blocksmith?")
+	}, "Do you want to run node as blocksmith (block creator) ?")
 	if result == 0 {
 		// node keys prompt
 		sn.Config.Smithing = true
@@ -162,6 +169,18 @@ func (sn *SetupNode) generateConfig() error {
 	return nil
 }
 
+func (sn *SetupNode) checkResourceFolder() error {
+	_, err := os.Stat(sn.Config.ResourcePath)
+	if ok := os.IsNotExist(err); ok {
+		color.Cyan("resource folder not found, creating directory...")
+		if err := os.Mkdir("resource", os.ModePerm); err != nil {
+			return errors.New("fail to create directory")
+		}
+		color.Green("resource directory created")
+	}
+	return nil
+}
+
 func (sn *SetupNode) WizardFirstSetup() error {
 	color.Green("WELCOME TO ZOOBC\n\n")
 	color.Yellow("Checking existing configuration...\n")
@@ -175,13 +194,9 @@ func (sn *SetupNode) WizardFirstSetup() error {
 				return err
 			}
 			// save generated config file
-			_, err = os.Stat(sn.Config.ResourcePath)
-			if ok := os.IsNotExist(err); ok {
-				color.Cyan("resource folder not found, creating directory...")
-				if err := os.Mkdir("resource", os.ModePerm); err != nil {
-					return errors.New("fail to create directory")
-				}
-				color.Green("resource directory created")
+			err = sn.checkResourceFolder()
+			if err != nil {
+				return err
 			}
 			color.Yellow("saving new configurations")
 			err = sn.Config.SaveConfig()
