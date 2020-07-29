@@ -1106,6 +1106,10 @@ func (ps *PriorityStrategy) AddToBlacklistedPeer(peer *model.Peer, cause string)
 	var (
 		host = ps.NodeConfigurationService.GetHost()
 	)
+	// don't blacklist if only have 1 known peer
+	if host.KnownPeers[p2pUtil.GetFullAddressPeer(peer)] != nil && len(host.KnownPeers) == 1 {
+		return nil
+	}
 
 	peer.BlacklistingTime = uint64(time.Now().UTC().Unix())
 	peer.BlacklistingCause = cause
