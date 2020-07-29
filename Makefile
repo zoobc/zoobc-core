@@ -118,5 +118,6 @@ release-core: core-linux
 .PHONY: release-cmd
 release-cmd: cmd-linux
 
+.PHONY: reset-data
 reset-data: 
 	rm -rf resource/*db resource/*kv resource/snapshots
