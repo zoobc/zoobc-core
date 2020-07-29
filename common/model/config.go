@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"github.com/spf13/viper"
 )
 
@@ -56,4 +57,19 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+}
+
+func (cfg *Config) SaveConfig() error {
+	viper.Set("smithing", cfg.Smithing)
+	viper.Set("ownerAddress", cfg.OwnerAccountAddress)
+	viper.Set("wellknownPeers", cfg.WellknownPeers)
+	viper.Set("peerPort", cfg.PeerPort )
+	viper.Set("apiRPCPort", cfg.RPCAPIPort)
+	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
+
+	err := viper.SafeWriteConfigAs("./config.toml")
+	if err != nil {
+		return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
+	}
+	return nil
 }
