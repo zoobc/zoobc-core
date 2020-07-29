@@ -3,21 +3,20 @@ package util
 import (
 	"errors"
 	"fmt"
+	"github.com/abiosoft/ishell"
+	"github.com/fatih/color"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p/util"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/abiosoft/ishell"
-	"github.com/fatih/color"
-	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 const (
 	ErrNoConfigFile        = "ErrNoConfigFile"
 	ErrFatal               = "ErrFatal"               // fatal error, abort process
-	ErrFailSavingNewConfig = "ErrFailSavingNewConfig" // fatal error, abort process
+	maxInputRepeat = 2
 )
 
 type SetupNode struct {
@@ -77,18 +76,14 @@ func (sn *SetupNode) checkConfig() error {
 		}
 	}
 
-	if len(sn.Config.WellknownPeers) == 0 {
-		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
-			"from scratch.")
-	}
 	if len(sn.Config.WellknownPeers) < 1 {
+		color.Yellow("no wellknown peers found")
 		sn.wellknownPeersPrompt()
 	}
 
 	sn.Config.PeerPort = uint32(sn.portAvailability("PEER", int(sn.Config.PeerPort)))
 	sn.Config.RPCAPIPort = sn.portAvailability("API", sn.Config.RPCAPIPort)
 	sn.Config.HTTPAPIPort = sn.portAvailability("API PROXY", sn.Config.HTTPAPIPort)
-
 	return nil
 }
 
@@ -116,21 +111,29 @@ func (sn *SetupNode) ownerAddressPrompt() {
 	var (
 		ownerAddress string
 	)
-
 	sn.Shell.Print("input your account address to be set as owner of this node: ")
 	ownerAddress = sn.Shell.ReadLine()
 	sn.Config.OwnerAccountAddress = ownerAddress
-	viper.Set("ownerAddress", ownerAddress)
 }
 
 func (sn *SetupNode) wellknownPeersPrompt() {
 	var (
 		wellknownPeerString string
 	)
-	sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
-	wellknownPeerString = sn.Shell.ReadLine()
-	sn.Config.WellknownPeers = strings.Split(strings.TrimSpace(wellknownPeerString), " ")
-	viper.Set("wellknownPeers", sn.Config.WellknownPeers)
+	for i := 0; i < maxInputRepeat; i++ {
+		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+		wellknownPeerString = sn.Shell.ReadLine()
+		wellknownPeers := strings.Split(strings.TrimSpace(wellknownPeerString), " ")
+		_, err := util.ParseKnownPeers(wellknownPeers)
+		if err == nil {
+			sn.Config.WellknownPeers = wellknownPeers
+			break
+		}
+	}
+	if len(sn.Config.WellknownPeers) == 0 {
+		color.Red("too many attempt try running it again providing the right peer format address:port")
+		os.Exit(1)
+	}
 }
 
 func (sn *SetupNode) generateConfig() error {
@@ -146,15 +149,14 @@ func (sn *SetupNode) generateConfig() error {
 	if result == 0 {
 		// node keys prompt
 		sn.Config.Smithing = true
-		viper.Set("smithing", true)
-		_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-		if ok := os.IsNotExist(err); ok {
-			color.Cyan("node keys has not been setup")
-			sn.nodeKeysPrompt()
-		}
-		// ask if have account address prepared as owner
-		sn.ownerAddressPrompt()
 	}
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	if ok := os.IsNotExist(err); ok {
+		color.Cyan("node keys has not been setup")
+		sn.nodeKeysPrompt()
+	}
+	// ask if have account address prepared as owner
+	sn.ownerAddressPrompt()
 	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil
@@ -182,9 +184,9 @@ func (sn *SetupNode) WizardFirstSetup() error {
 				color.Green("resource directory created")
 			}
 			color.Yellow("saving new configurations")
-			err = viper.SafeWriteConfigAs("./config.toml")
+			err = sn.Config.SaveConfig()
 			if err != nil {
-				return errors.New(ErrFailSavingNewConfig)
+				return err
 			}
 			color.Green("configuration saved successfully in ./config.toml")
 			color.Green("continue to run node with provided configurations")

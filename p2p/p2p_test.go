@@ -214,11 +214,11 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 				maxRetryCount: 0,
 			},
 			fields: fields{
-				Logger:       log.New(),
+				Logger: log.New(),
 				PeerExplorer: &p2pMockPeerExplorer{
 					oneResolvedPeer: true,
 				},
-				FileService:  &p2pMockFileService{},
+				FileService: &p2pMockFileService{},
 				PeerServiceClient: &p2pMockPeerServiceClient{
 					downloadErr: true,
 				},
