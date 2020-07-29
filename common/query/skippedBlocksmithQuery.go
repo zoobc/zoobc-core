@@ -18,6 +18,7 @@ type (
 		BuildModel(skippedBlocksmiths []*model.SkippedBlocksmith, rows *sql.Rows) ([]*model.SkippedBlocksmith, error)
 		Scan(skippedBlocksmith *model.SkippedBlocksmith, rows *sql.Row) error
 		Rollback(height uint32) (multiQueries [][]interface{})
+		GetFields() []string
 	}
 
 	SkippedBlocksmithQuery struct {
@@ -128,6 +129,9 @@ func (*SkippedBlocksmithQuery) Scan(skippedBlocksmith *model.SkippedBlocksmith, 
 		&skippedBlocksmith.BlocksmithIndex,
 	)
 	return err
+}
+func (sbq *SkippedBlocksmithQuery) GetFields() []string {
+	return sbq.Fields
 }
 
 func (sbq *SkippedBlocksmithQuery) Rollback(height uint32) (multiQueries [][]interface{}) {

@@ -242,7 +242,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 	if len(nodeRegistrations) > 0 {
 		return nodeRegistrations[0], nil
 	}
-	return nil, nil
+	return nil, blocker.NewBlocker(blocker.DBErr, "noNodeRegistrationFound")
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)

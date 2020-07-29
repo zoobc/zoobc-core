@@ -29,6 +29,7 @@ type (
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
+		GetFields() []string
 	}
 )
 
@@ -232,6 +233,10 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.Latest,
 		&escrow.Instruction,
 	)
+}
+
+func (et *EscrowTransactionQuery) GetFields() []string {
+	return et.Fields
 }
 
 // Rollback delete records `WHERE height > "height"

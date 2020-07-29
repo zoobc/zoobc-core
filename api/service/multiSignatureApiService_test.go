@@ -11,7 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/core/service"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -115,7 +114,7 @@ func (*mockGetPendingTransactionsPendingTxQueryBuildSuccess) BuildModel(
 func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
@@ -252,11 +251,11 @@ var (
 
 type (
 	mockGetPendingTransactionByTransactionHashBlockServiceFail struct {
-		service.BlockService
+		coreService.BlockService
 	}
 
 	mockGetPendingTransactionByTransactionHashBlockServiceSuccess struct {
-		service.BlockService
+		coreService.BlockService
 	}
 
 	mockGetPendingTransactionByTransactionHashPendingQueryScanNoRow struct {
@@ -372,7 +371,7 @@ func (*mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess) Scan(m
 func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
@@ -703,7 +702,7 @@ func (*mockGetMultisigInfoQueryBuildSuccess) BuildModel(
 func TestMultisigService_GetMultisignatureInfo(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface

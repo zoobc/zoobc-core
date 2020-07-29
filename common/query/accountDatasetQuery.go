@@ -24,6 +24,7 @@ type (
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
+		GetFields() []string
 	}
 )
 
@@ -194,6 +195,9 @@ func (*AccountDatasetQuery) Scan(dataset *model.AccountDataset, row *sql.Row) er
 	)
 }
 
+func (adq *AccountDatasetQuery) GetFields() []string {
+	return adq.Fields
+}
 func (adq *AccountDatasetQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{

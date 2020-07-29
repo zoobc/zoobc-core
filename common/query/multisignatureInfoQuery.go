@@ -19,6 +19,7 @@ type (
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
+		GetFields() []string
 	}
 
 	MultisignatureInfoQuery struct {
@@ -161,6 +162,9 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 	)
 	multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
+}
+func (msi *MultisignatureInfoQuery) GetFields() []string {
+	return msi.Fields
 }
 
 // ExtractModel will get values exclude addresses, perfectly used while inserting new record.

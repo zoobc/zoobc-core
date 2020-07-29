@@ -30,6 +30,7 @@ type (
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
+		GetFields() []string
 	}
 
 	PendingTransactionQuery struct {
@@ -176,6 +177,9 @@ func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *s
 	return err
 }
 
+func (ptq *PendingTransactionQuery) GetFields() []string {
+	return ptq.Fields
+}
 func (*PendingTransactionQuery) ExtractModel(pendingTx *model.PendingTransaction) []interface{} {
 	return []interface{}{
 		&pendingTx.SenderAddress,

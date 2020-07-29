@@ -17,6 +17,7 @@ type (
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
+		GetFields() []string
 	}
 
 	PublishedReceiptQuery struct {
@@ -116,6 +117,9 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 
 }
 
+func (prq *PublishedReceiptQuery) GetFields() []string {
+	return prq.Fields
+}
 func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{} {
 	return []interface{}{
 		&publishedReceipt.BatchReceipt.SenderPublicKey,

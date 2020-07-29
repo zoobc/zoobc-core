@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
@@ -80,6 +82,14 @@ func (bdb *BadgerDB) InitializeBadgerDB(dbPath, dbName string) error {
 
 // OpenBadgerDB will open badger db connection
 func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
+	logFile, err := os.OpenFile(filepath.Join(dbPath, dbName, "badger.log"), os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return nil, err
+	}
+	logger := logrus.New()
+	logger.SetLevel(logrus.ErrorLevel)
+	logrus.SetOutput(logFile)
+
 	opts := badger.DefaultOptions(filepath.Join(dbPath, dbName))
 	// avoid memory-mapping log files
 	opts.TableLoadingMode = options.FileIO
@@ -87,6 +97,8 @@ func (bdb *BadgerDB) OpenBadgerDB(dbPath, dbName string) (*badger.DB, error) {
 	opts.ValueLogFileSize = 1<<28 - 1
 	// limit in-memory db entries
 	opts.ValueLogMaxEntries = 250000
+	// direct badger's log to file stored in ./badgerFolder/badger.log
+	opts.Logger = logger
 	badgerConn, err := badger.Open(opts)
 	if err != nil {
 		return nil, err
