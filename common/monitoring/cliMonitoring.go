@@ -96,27 +96,25 @@ func (nl *CLIMonitoring) Start() {
 		tm.Printf("%s: %v\n", tm.Bold("Owner Account Address"), nl.ConfigInfo.OwnerAccountAddress)
 		tm.Printf("%s: %v\n\n", tm.Bold("Smithing Status"), nl.ConfigInfo.Smithing)
 
-		if nl.BlocksInfo[mainChain.GetTypeInt()] != nil {
-			tm.Printf("%s: %v\n",
-				tm.Bold(fmt.Sprintf("%s Block ID", mainChain.GetName())),
-				nl.BlocksInfo[mainChain.GetTypeInt()].GetID(),
-			)
-			tm.Printf("%s: %v\n",
-				tm.Bold(fmt.Sprintf("%s Block Height", mainChain.GetName())),
-				nl.BlocksInfo[mainChain.GetTypeInt()].GetHeight(),
-			)
-
-		}
 		if nl.BlocksInfo[spainChain.GetTypeInt()] != nil {
 			tm.Printf("%s: %v\n",
 				tm.Bold(fmt.Sprintf("%s Block ID", spainChain.GetName())),
 				nl.BlocksInfo[spainChain.GetTypeInt()].GetID(),
 			)
-			tm.Printf("%s: %v\n\n",
+			tm.Printf("%s: %v\n",
 				tm.Bold(fmt.Sprintf("%s Block Height", spainChain.GetName())),
 				nl.BlocksInfo[spainChain.GetTypeInt()].GetHeight(),
 			)
 		}
+
+		tm.Printf("%s: %v\n",
+			tm.Bold(fmt.Sprintf("%s Block ID", mainChain.GetName())),
+			nl.BlocksInfo[mainChain.GetTypeInt()].GetID(),
+		)
+		tm.Printf("%s: %v\n\n",
+			tm.Bold(fmt.Sprintf("%s Block Height", mainChain.GetName())),
+			nl.BlocksInfo[mainChain.GetTypeInt()].GetHeight(),
+		)
 
 		tm.Printf("%s: %v\n", tm.Bold("Resolved Peers Number"), nl.PeersInfo[CLIMonitoringResolvePeersNumber])
 		tm.Printf("%s: %v\n", tm.Bold("Unresolved Peers Number"), nl.PeersInfo[CLIMonitoringUnresolvedPeersNumber])
