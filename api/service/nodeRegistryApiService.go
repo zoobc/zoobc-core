@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"google.golang.org/grpc/codes"
@@ -13,10 +14,12 @@ type (
 	NodeRegistryServiceInterface interface {
 		GetNodeRegistrations(*model.GetNodeRegistrationsRequest) (*model.GetNodeRegistrationsResponse, error)
 		GetNodeRegistration(*model.GetNodeRegistrationRequest) (*model.GetNodeRegistrationResponse, error)
+		GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error)
 	}
 
 	NodeRegistryService struct {
-		Query query.ExecutorInterface
+		Query                 query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	}
 )
 
@@ -90,6 +93,23 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	return &model.GetNodeRegistrationsResponse{
 		Total:             totalRecords,
+		NodeRegistrations: nodeRegistrations,
+	}, nil
+}
+
+func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model.GetNodeRegistrationsByNodePublicKeysRequest) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+	rows, err := ns.Query.ExecuteSelect(ns.NodeRegistrationQuery.GetNodeRegistrationsByNodePublicKeys(), false, params.NodePublicKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err := ns.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	if (err != nil) || len(nodeRegistrations) == 0 {
+		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	}
+
+	return &model.GetNodeRegistrationsByNodePublicKeysResponse{
 		NodeRegistrations: nodeRegistrations,
 	}, nil
 }

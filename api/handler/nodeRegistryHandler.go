@@ -42,3 +42,18 @@ func (nrh NodeRegistryHandler) GetNodeRegistration(
 	}
 	return response, nil
 }
+
+func (nrh NodeRegistryHandler) GetNodeRegistrationsByNodePublicKeys(
+	ctx context.Context,
+	req *model.GetNodeRegistrationsByNodePublicKeysRequest,
+) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+	var (
+		response *model.GetNodeRegistrationsByNodePublicKeysResponse
+		err      error
+	)
+	response, err = nrh.Service.GetNodeRegistrationsByNodePublicKeys(req)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
