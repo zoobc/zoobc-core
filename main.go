@@ -155,6 +155,9 @@ func init() {
 			log.Fatal("Fail to generate account public key")
 		}
 		id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
+		if err != nil {
+			log.Fatal("Fail generating address from node's seed")
+		}
 		config.OwnerAccountAddress = id
 		err = config.SaveConfig()
 		if err != nil {

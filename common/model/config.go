@@ -65,7 +65,7 @@ func (cfg *Config) SaveConfig() error {
 	viper.Set("smithing", cfg.Smithing)
 	viper.Set("ownerAddress", cfg.OwnerAccountAddress)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
-	viper.Set("peerPort", cfg.PeerPort )
+	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
 	// todo: code in rush, need refactor later andy-shi88
