@@ -244,6 +244,6 @@ func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight ui
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (ps *ParticipationScoreQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		ps.TableName, fromHeight, toHeight)
 }

@@ -521,7 +521,7 @@ func TestEscrowTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

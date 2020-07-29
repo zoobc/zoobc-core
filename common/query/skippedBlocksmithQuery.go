@@ -155,6 +155,6 @@ func (sbq *SkippedBlocksmithQuery) SelectDataForSnapshot(fromHeight, toHeight ui
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (sbq *SkippedBlocksmithQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		sbq.getTableName(), fromHeight, toHeight)
 }

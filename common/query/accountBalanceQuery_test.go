@@ -297,7 +297,7 @@ func TestAccountBalanceQuery_SelectDataForSnapshot(t *testing.T) {
 func TestAccountBalanceQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot", func(t *testing.T) {
 		q := mockAccountBalanceQuery.TrimDataBeforeSnapshot(0, 10)
-		wantQ := "DELETE FROM account_balance WHERE block_height >= 0 AND block_height <= 10"
+		wantQ := "DELETE FROM account_balance WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
