@@ -800,7 +800,7 @@ func TestBlocksmithStrategySpine_IsValidSmithTime(t *testing.T) {
 				previousBlock: &model.Block{
 					ID: 1,
 					Timestamp: time.Now().Unix() - spine.GetSmithingPeriod() -
-						spine.GetBlocksmithTimeGap() + 1,
+						spine.GetBlocksmithTimeGap() - 1,
 				},
 			},
 			wantErr: false,
