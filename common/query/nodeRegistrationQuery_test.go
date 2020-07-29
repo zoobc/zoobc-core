@@ -441,7 +441,7 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 func TestNodeRegistrationQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.TrimDataBeforeSnapshot(0, 10)
-		want := "DELETE FROM node_registry WHERE height >= 0 AND height <= 10"
+		want := "DELETE FROM node_registry WHERE height >= 0 AND height <= 10 AND height != 0"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}

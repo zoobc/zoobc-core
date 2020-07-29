@@ -540,7 +540,7 @@ func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

@@ -397,7 +397,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10 AND height != 0",
 		},
 		{
 			name:   "TrimDataBeforeSnapshot:success-{startFromGenesis}",
@@ -406,7 +406,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {

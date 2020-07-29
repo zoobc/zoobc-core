@@ -157,10 +157,6 @@ func (fsvc *FeeVoteCommitmentVoteQuery) SelectDataForSnapshot(fromHeight, toHeig
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (fsvc *FeeVoteCommitmentVoteQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	// do not delete genesis block
-	if fromHeight == 0 {
-		fromHeight++
-	}
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		fsvc.getTableName(), fromHeight, toHeight)
 }
