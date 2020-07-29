@@ -66,7 +66,9 @@ func (nl *CLIMonitoring) UpdatePeersInfo(peersType string, peersNumber int) {
 func (nl *CLIMonitoring) UpdateSmithingInfo(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
 	nl.NextSmithingIndex = sortedBlocksmithsMap[string(nl.ConfigInfo.NodeKey.PublicKey)]
 	if nl.NextSmithingIndex != nil {
-		nl.SmithInfo = sortedBlocksmiths[*nl.NextSmithingIndex]
+		if int(*nl.NextSmithingIndex) <= len(sortedBlocksmiths) { // safety check since we are using index of different model
+			nl.SmithInfo = sortedBlocksmiths[*nl.NextSmithingIndex]
+		}
 	}
 }
 
