@@ -178,7 +178,7 @@ func (fvr *FeeVoteRevealVoteQuery) Rollback(height uint32) (multiQueries [][]int
 
 // SelectDataForSnapshot select only the block at snapshot block_height
 func (fvr *FeeVoteRevealVoteQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(fvr.Fields, ", "), fvr.getTableName(), fromHeight, toHeight)
 }
 

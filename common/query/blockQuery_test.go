@@ -357,7 +357,7 @@ func TestBlockQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,block_hash,previous_block_hash,height,timestamp,block_seed,block_signature," +
 				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount,total_fee,total_coinbase," +
-				"version FROM main_block WHERE height >= 0 AND height <= 10",
+				"version FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {

@@ -505,7 +505,7 @@ func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 	}
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d ORDER BY height, id",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0 ORDER BY height, id",
 		strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 }
 
