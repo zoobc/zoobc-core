@@ -122,7 +122,7 @@ func init() {
 	// assign read configuration to config object
 	config.LoadConfigurations()
 	// validate and generate configurations
-	err = util.NewSetupNode().WizardFirstSetup(config)
+	err = util.NewSetupNode(config).WizardFirstSetup()
 	if err != nil {
 		log.Fatalf("Unknown error occurred - error: %s", err.Error())
 	}
