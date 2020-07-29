@@ -3,6 +3,7 @@ package monitoring
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	tm "github.com/buger/goterm"
@@ -19,6 +20,8 @@ type (
 		PeersInfo         map[string]int
 		SmithInfo         *model.Blocksmith
 		NextSmithingIndex *int64
+		PeersInfoLock     sync.RWMutex
+		BlocksInfoLock    sync.RWMutex
 	}
 	CLIMonitoringInteface interface {
 		UpdateBlockState(chaintype chaintype.ChainType, block *model.Block)
@@ -42,6 +45,8 @@ func NewCLIMonitoring(configInfo *model.Config) CLIMonitoringInteface {
 }
 
 func (nl *CLIMonitoring) UpdateBlockState(chaintype chaintype.ChainType, block *model.Block) {
+	nl.BlocksInfoLock.Lock()
+	defer nl.BlocksInfoLock.Unlock()
 	if nl.BlocksInfo == nil {
 		nl.BlocksInfo = make(map[int32]*model.Block)
 	}
@@ -49,10 +54,13 @@ func (nl *CLIMonitoring) UpdateBlockState(chaintype chaintype.ChainType, block *
 }
 
 func (nl *CLIMonitoring) UpdatePeersInfo(peersType string, peersNumber int) {
+	nl.PeersInfoLock.Lock()
+	defer nl.PeersInfoLock.Unlock()
 	if nl.PeersInfo == nil {
 		nl.PeersInfo = make(map[string]int)
 	}
 	nl.PeersInfo[peersType] = peersNumber
+
 }
 
 func (nl *CLIMonitoring) UpdateSmithingInfo(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
