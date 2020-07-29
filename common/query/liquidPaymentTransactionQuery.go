@@ -232,8 +232,9 @@ func (lpt *LiquidPaymentTransactionQuery) Rollback(height uint32) (multiQueries 
 }
 
 func (lpt *LiquidPaymentTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX("+
-		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.id) ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		strings.Join(lpt.Fields, ","),
 		lpt.getTableName(),
 		lpt.getTableName(),

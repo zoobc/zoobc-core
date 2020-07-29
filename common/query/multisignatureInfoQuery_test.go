@@ -519,8 +519,8 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				") as addresses FROM multisignature_info " +
 				"WHERE (multisig_address, block_height) IN (" +
 				"SELECT t2.multisig_address, MAX(t2.block_height) " +
-				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2.multisig_address" +
-				") ORDER BY block_height",
+				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+				"GROUP BY t2.multisig_address) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {

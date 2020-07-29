@@ -434,7 +434,7 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 			SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM account_dataset
-				WHERE height >= 0 AND height <= 1
+				WHERE height >= 0 AND height <= 1 AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		},

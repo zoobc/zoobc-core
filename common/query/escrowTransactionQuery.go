@@ -264,8 +264,9 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX("+
-		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.id) ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		strings.Join(et.Fields, ","),
 		et.getTableName(),
 		et.getTableName(),

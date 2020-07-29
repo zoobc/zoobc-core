@@ -474,7 +474,7 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
-				"height FROM node_registry WHERE height >= 0 AND height <= 10 ORDER BY height, id",
+				"height FROM node_registry WHERE height >= 0 AND height <= 10 AND height != 0 ORDER BY height, id",
 		},
 		{
 			name: "SelectDataForSnapshot:success-{fromArbitraryHeight}",
