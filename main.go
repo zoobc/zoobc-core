@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/zoobc/lib/address"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 
 	badger "github.com/dgraph-io/badger/v2"
@@ -129,7 +131,7 @@ func init() {
 		}
 	}
 	// validate and generate configurations
-	err = util.NewSetupNode().WizardFirstSetup(config)
+	err = util.NewSetupNode(config).WizardFirstSetup()
 	if err != nil {
 		log.Fatalf("Unknown error occurred - error: %s", err.Error())
 	}
@@ -146,6 +148,29 @@ func init() {
 			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
 		}
 		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	}
+	if config.OwnerAccountAddress == "" {
+		// todo: andy-shi88 refactor this
+		ed25519 := crypto.NewEd25519Signature()
+		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
+			config.NodeKey.Seed,
+		)
+		if err != nil {
+			log.Fatal("Fail to generate account private key")
+		}
+		publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
+		if err != nil {
+			log.Fatal("Fail to generate account public key")
+		}
+		id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
+		if err != nil {
+			log.Fatal("Fail generating address from node's seed")
+		}
+		config.OwnerAccountAddress = id
+		err = config.SaveConfig()
+		if err != nil {
+			log.Fatal("Fail to save new configuration")
+		}
 	}
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))

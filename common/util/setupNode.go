@@ -2,35 +2,36 @@ package util
 
 import (
 	"errors"
+	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/abiosoft/ishell"
-
-	"github.com/spf13/viper"
-
-	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/fatih/color"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p/util"
 )
 
 const (
-	ErrNoConfigFile        = "ErrNoConfigFile"
-	ErrFatal               = "ErrFatal"               // fatal error, abort process
-	ErrFailSavingNewConfig = "ErrFailSavingNewConfig" // fatal error, abort process
+	ErrNoConfigFile = "ErrNoConfigFile"
+	ErrFatal        = "ErrFatal" // fatal error, abort process
+	maxInputRepeat  = 2
 )
 
 type SetupNode struct {
+	Config *model.Config
+	Shell  *ishell.Shell
 }
 
-func NewSetupNode(
-// helper SetupNodeHelperInterface,
-) *SetupNode {
-	return &SetupNode{}
+func NewSetupNode(config *model.Config) *SetupNode {
+	return &SetupNode{
+		Config: config,
+		Shell:  ishell.New(),
+	}
 }
-
-func (sn *SetupNode) discoverNodeAddress(config *model.Config) error {
+func (sn *SetupNode) discoverNodeAddress() error {
 	ipAddr, err := (&IPUtil{}).DiscoverNodeAddress()
 	if ipAddr == nil {
 		// panic if we can't set an IP address for the node
@@ -43,32 +44,32 @@ func (sn *SetupNode) discoverNodeAddress(config *model.Config) error {
 			"consider using static ip by setting myAddress\nerror: %s\n", err.Error())
 	}
 	color.Green("discovered node's address: %s", ipAddr.String())
-	config.MyAddress = ipAddr.String()
-	config.IsNodeAddressDynamic = true
+	sn.Config.MyAddress = ipAddr.String()
+	sn.Config.IsNodeAddressDynamic = true
 	return nil
 }
 
-func (sn *SetupNode) checkConfig(config *model.Config) error {
-	if !config.ConfigFileExist {
+func (sn *SetupNode) checkConfig() error {
+	if !sn.Config.ConfigFileExist {
 		return errors.New(ErrNoConfigFile)
 	}
 
-	if config.MyAddress == "" {
+	if sn.Config.MyAddress == "" {
 		color.Cyan("node's address not set, discovering...")
-		if err := sn.discoverNodeAddress(config); err != nil {
+		if err := sn.discoverNodeAddress(); err != nil {
 			return err
 		}
 	}
-	_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
 	if err != nil {
 		if ok := os.IsNotExist(err); ok {
-			if config.NodeSeed != "" {
-				config.NodeKey = &model.NodeKey{
-					Seed: config.NodeSeed,
+			if sn.Config.NodeSeed != "" {
+				sn.Config.NodeKey = &model.NodeKey{
+					Seed: sn.Config.NodeSeed,
 				}
 			} else {
 				color.Cyan("node keys has not been setup")
-				sn.nodeKeysPrompt(config)
+				sn.nodeKeysPrompt()
 			}
 		} else {
 			color.Red("unknown error occurred when scanning for node keys file")
@@ -76,102 +77,106 @@ func (sn *SetupNode) checkConfig(config *model.Config) error {
 		}
 	}
 
-	if len(config.WellknownPeers) == 0 {
-		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
-			"from scratch.")
+	if len(sn.Config.WellknownPeers) < 1 {
+		color.Yellow("no wellknown peers found")
+		sn.wellknownPeersPrompt()
 	}
 
+	sn.Config.PeerPort = uint32(sn.portAvailability("PEER", int(sn.Config.PeerPort)))
+	sn.Config.RPCAPIPort = sn.portAvailability("API", sn.Config.RPCAPIPort)
+	sn.Config.HTTPAPIPort = sn.portAvailability("API PROXY", sn.Config.HTTPAPIPort)
 	return nil
 }
 
-func (sn *SetupNode) nodeKeysPrompt(config *model.Config) {
-	c := ishell.New()
+func (sn *SetupNode) nodeKeysPrompt() {
 	var (
 		nodeSeed string
 	)
-	result := c.MultiChoice([]string{
+	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
 	}, "Do you have node's seed you want to use?")
 	if result == 0 {
-		c.Print("input your node's seed: ")
-		nodeSeed = c.ReadLine()
+		sn.Shell.Print("input your node's seed: ")
+		nodeSeed = sn.Shell.ReadLine()
 	} else {
 		color.Green("Generating secure random seed for node...\n")
 		nodeSeed = GetSecureRandomSeed()
 		color.Green("Node seed generated\n")
 	}
-	config.NodeKey = &model.NodeKey{
+	sn.Config.NodeKey = &model.NodeKey{
 		Seed: nodeSeed,
 	}
 }
 
-func (sn *SetupNode) ownerAddressPrompt(config *model.Config) {
-	c := ishell.New()
+func (sn *SetupNode) ownerAddressPrompt() {
 	var (
 		ownerAddress string
 	)
-
-	c.Print("input your account address to be set as owner of this node: ")
-	ownerAddress = c.ReadLine()
-	config.OwnerAccountAddress = ownerAddress
-	viper.Set("ownerAddress", ownerAddress)
+	sn.Shell.Print("input your account address to be set as owner of this node: ")
+	ownerAddress = sn.Shell.ReadLine()
+	sn.Config.OwnerAccountAddress = ownerAddress
 }
 
-func (sn *SetupNode) wellknownPeersPrompt(config *model.Config) {
-	c := ishell.New()
+func (sn *SetupNode) wellknownPeersPrompt() {
 	var (
 		wellknownPeerString string
 	)
-	c.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
-	wellknownPeerString = c.ReadLine()
-	config.WellknownPeers = strings.Split(strings.TrimSpace(wellknownPeerString), " ")
-	viper.Set("wellknownPeers", config.WellknownPeers)
+	for i := 0; i < maxInputRepeat; i++ {
+		sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+		wellknownPeerString = sn.Shell.ReadLine()
+		wellknownPeers := strings.Split(strings.TrimSpace(wellknownPeerString), " ")
+		_, err := util.ParseKnownPeers(wellknownPeers)
+		if err == nil {
+			sn.Config.WellknownPeers = wellknownPeers
+			break
+		}
+	}
+	if len(sn.Config.WellknownPeers) == 0 {
+		color.Red("too many attempt try running it again providing the right peer format address:port")
+		os.Exit(1)
+	}
 }
 
-func (sn *SetupNode) generateConfig(config *model.Config) error {
-	c := ishell.New()
+func (sn *SetupNode) generateConfig() error {
 	color.Cyan("generating config\n")
-	if err := sn.discoverNodeAddress(config); err != nil {
+	if err := sn.discoverNodeAddress(); err != nil {
 		return err
 	}
 	// ask if want to run as blocksmith
 
-	result := c.MultiChoice([]string{
+	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
 	}, "Do you want to run node as blocksmith?")
 	if result == 0 {
 		// node keys prompt
-		config.Smithing = true
-		viper.Set("smithing", true)
-		_, err := os.Stat(filepath.Join(config.ResourcePath, config.NodeKeyFileName))
-		if ok := os.IsNotExist(err); ok && config.NodeSeed == "" {
-			color.Cyan("node keys has not been setup")
-			sn.nodeKeysPrompt(config)
-		}
-		// ask if have account address prepared as owner
-		if config.OwnerAccountAddress == "" {
-			sn.ownerAddressPrompt(config)
-		}
+		sn.Config.Smithing = true
 	}
-	sn.wellknownPeersPrompt(config)
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	if ok := os.IsNotExist(err); ok && sn.Config.NodeSeed == "" {
+		color.Cyan("node keys has not been setup")
+		sn.nodeKeysPrompt()
+	}
+	// ask if have account address prepared as owner
+	sn.ownerAddressPrompt()
+	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil
 }
 
-func (sn *SetupNode) WizardFirstSetup(config *model.Config) error {
+func (sn *SetupNode) WizardFirstSetup() error {
 	color.Green("WELCOME TO ZOOBC\n\n")
 	color.Yellow("Checking existing configuration...\n")
 	// todo: check config if everything ok, return
-	err := sn.checkConfig(config)
+	err := sn.checkConfig()
 	if err != nil {
 		if err.Error() == ErrNoConfigFile {
 			color.Cyan("no config file found, generating one...\n")
-			err := sn.generateConfig(config)
+			err := sn.generateConfig()
 			if err != nil {
 				return err
 			}
 			// save generated config file
-			_, err = os.Stat(config.ResourcePath)
+			_, err = os.Stat(sn.Config.ResourcePath)
 			if ok := os.IsNotExist(err); ok {
 				color.Cyan("resource folder not found, creating directory...")
 				if err := os.Mkdir("resource", os.ModePerm); err != nil {
@@ -180,9 +185,9 @@ func (sn *SetupNode) WizardFirstSetup(config *model.Config) error {
 				color.Green("resource directory created")
 			}
 			color.Yellow("saving new configurations")
-			err = viper.SafeWriteConfigAs("./config.toml")
+			err = sn.Config.SaveConfig()
 			if err != nil {
-				return errors.New(ErrFailSavingNewConfig)
+				return err
 			}
 			color.Green("configuration saved successfully in ./config.toml")
 			color.Green("continue to run node with provided configurations")
@@ -194,4 +199,33 @@ func (sn *SetupNode) WizardFirstSetup(config *model.Config) error {
 		color.Green("continue to run node with ./config.toml configurations")
 	}
 	return nil
+}
+
+// portAvailability allowing to check port availability for peer and api grpc connection need to use
+func (sn *SetupNode) portAvailability(portType model.PortType, port int) (availablePort int) {
+	portCollection := map[model.PortType]int{
+		model.PeerPort:    int(sn.Config.PeerPort),
+		model.RPCAPIPort:  sn.Config.RPCAPIPort,
+		model.HTTPAPIPort: sn.Config.HTTPAPIPort,
+	}
+
+	if _, ok := portCollection[portType]; ok {
+		port++
+		sn.portAvailability(portType, port)
+	}
+	for i := 0; i <= model.PortChangePeriod; i++ {
+		if i == model.PortChangePeriod {
+			color.Red("too long, pick another port for %v manually!", portType)
+			break
+		}
+		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			color.Yellow("%s", err.Error())
+			port++
+			continue
+		}
+		_ = ln.Close()
+		break
+	}
+	return port
 }
