@@ -1,7 +1,6 @@
 package blockchainsync
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -101,10 +100,10 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 	)
 	// notify observer about start of blockchain download of this specific chain
 	if err != nil {
-		bss.Logger.Warn(fmt.Sprintf("failed to start getMoreBlocks go routine: %v", err))
+		bss.Logger.Fatalf("getMoreBlocks:GetLastBlock()-Fail: error: %v", err)
 	}
 	if lastBlock == nil {
-		bss.Logger.Fatal("There is no genesis block found")
+		bss.Logger.Fatalf("getMoreBlocks:GetLastBlock()-NoError-LastBlockNil: error: %v", err)
 	}
 	initialHeight := lastBlock.Height
 
