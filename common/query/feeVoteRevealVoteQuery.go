@@ -15,8 +15,10 @@ type (
 			lowerBlockHeight, upperBlockHeight uint32,
 		) (string, []interface{})
 		InsertRevealVote(revealVote *model.FeeVoteRevealVote) (string, []interface{})
+		InsertRevealVotes(revealVotes []*model.FeeVoteRevealVote) (str string, args []interface{})
 		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
 		BuildModel(votes []*model.FeeVoteRevealVote, rows *sql.Rows) ([]*model.FeeVoteRevealVote, error)
+		GetFields() []string
 	}
 	FeeVoteRevealVoteQuery struct {
 		Fields    []string
@@ -75,6 +77,27 @@ func (fvr *FeeVoteRevealVoteQuery) InsertRevealVote(revealVote *model.FeeVoteRev
 		fmt.Sprintf("?%s", strings.Repeat(", ?", len(fvr.Fields)-1)),
 	), fvr.ExtractModel(revealVote)
 }
+func (fvr *FeeVoteRevealVoteQuery) InsertRevealVotes(revealVotes []*model.FeeVoteRevealVote) (str string, args []interface{}) {
+	if len(revealVotes) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			fvr.getTableName(),
+			strings.Join(fvr.Fields, ", "),
+		)
+		for k, revealVote := range revealVotes {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(fvr.Fields)-1),
+			)
+			if k < len(revealVotes)-1 {
+				str += ","
+			}
+			args = append(args, fvr.ExtractModel(revealVote)...)
+		}
+	}
+	return str, args
+
+}
 
 // ExtractModel extracting model.FeeVoteRevealVote values
 func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote) []interface{} {
@@ -109,6 +132,9 @@ func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.
 	vote.VoterSignature = voterSignature
 	vote.VoteInfo = &feeVoteInfo
 	return err
+}
+func (fvr *FeeVoteRevealVoteQuery) GetFields() []string {
+	return fvr.Fields
 }
 
 func (fvr *FeeVoteRevealVoteQuery) BuildModel(

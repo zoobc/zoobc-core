@@ -142,6 +142,8 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock 
 	// set last sorted block id
 	bss.LastSortedBlockID = block.ID
 	bss.SortedBlocksmiths = blocksmiths
+
+	monitoring.SetNextSmith(blocksmiths, bss.SortedBlocksmithsMap)
 }
 
 // CalculateScore calculate the blocksmith score

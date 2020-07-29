@@ -289,7 +289,7 @@ func TestNodeAdmissionTimestampQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   2,
 			},
 			want: "SELECT timestamp,block_height,latest FROM node_admission_timestamp " +
-				"WHERE block_height >= 1 AND block_height <= 2",
+				"WHERE block_height >= 1 AND block_height <= 2 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

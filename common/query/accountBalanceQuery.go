@@ -25,6 +25,7 @@ type (
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
+		GetFields() []string
 	}
 )
 
@@ -178,6 +179,10 @@ func (*AccountBalanceQuery) Scan(accountBalance *model.AccountBalance, row *sql.
 }
 func (q *AccountBalanceQuery) getTableName() string {
 	return q.TableName
+}
+
+func (q *AccountBalanceQuery) GetFields() []string {
+	return q.Fields
 }
 
 // Rollback delete records `WHERE block_height > "height"

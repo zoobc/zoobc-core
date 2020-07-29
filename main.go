@@ -92,6 +92,7 @@ var (
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	cpuProfile                                      bool
+	cliMonitoring                                   monitoring.CLIMonitoringInteface
 )
 
 func init() {
@@ -102,7 +103,7 @@ func init() {
 	)
 	// parse custom flag in running the node
 	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configPath, "config-path", "./resource", "Usage")
+	flag.StringVar(&configPath, "config-path", "./", "Usage")
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
@@ -127,25 +128,26 @@ func init() {
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
-	if config.Smithing {
-		if len(config.NodeKey.Seed) > 0 {
-			config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
-			if err != nil {
-				log.Fatal("Fail to generate node key")
-			}
-		} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
-			nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
-			if err != nil {
-				log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
-			}
-			config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
+	if len(config.NodeKey.Seed) > 0 {
+		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
+		if err != nil {
+			log.Fatal("Fail to generate node key")
 		}
+	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
+		if err != nil {
+			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+		}
+		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
 
 	initLogInstance()
+	cliMonitoring = monitoring.NewCLIMonitoring(config)
+	monitoring.SetCLIMonitoring(cliMonitoring)
+
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
@@ -390,14 +392,15 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		config.ClientAPIPort,
+		config.RPCAPIPort,
+		config.HTTPAPIPort,
 		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
 		config.OwnerAccountAddress,
-		filepath.Join(config.NodeKeyPath, config.NodeKeyFileName),
+		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
 		config.APICertFile,
@@ -559,6 +562,7 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
+	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
@@ -679,6 +683,11 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
+	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
@@ -827,6 +836,10 @@ func main() {
 	initObserverListeners()
 	startScheduler()
 	go startBlockchainSyncronizers()
+
+	if !config.LogOnCli && config.CliMonitoring {
+		go cliMonitoring.Start()
+	}
 
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)

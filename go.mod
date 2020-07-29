@@ -9,6 +9,7 @@ require (
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.1
+	github.com/buger/goterm v0.0.0-20200322175922-2f3e71b85129
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
@@ -43,7 +44,7 @@ require (
 	github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
-	golang.org/x/sys v0.0.0-20200302150141-5c8b2ff67527 // indirect
+	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c // indirect
 	google.golang.org/genproto v0.0.0-20200306153348-d950eab6f860
 	google.golang.org/grpc v1.27.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
