@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/zoobc/lib/address"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/lib/address"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 
@@ -143,8 +144,8 @@ func init() {
 	}
 	if config.OwnerAccountAddress == "" {
 		// todo: andy-shi88 refactor this
-		ed25519 :=  crypto.NewEd25519Signature()
-		accountPrivateKey, err :=ed25519.GetPrivateKeyFromSeedUseSlip10(
+		ed25519 := crypto.NewEd25519Signature()
+		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
 			config.NodeKey.Seed,
 		)
 		if err != nil {
