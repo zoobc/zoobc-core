@@ -405,7 +405,7 @@ func TestLiquidPaymentTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 			want: "SELECT id,sender_address,recipient_address,amount,applied_time,complete_minutes,status," +
 				"block_height,latest FROM liquid_payment_transaction WHERE (id, block_height) IN (SELECT t2.id, MAX(" +
 				"t2.block_height) FROM liquid_payment_transaction as t2 WHERE t2.block_height >= 720" +
-				" AND t2.block_height <= 1440 GROUP BY t2.id) ORDER BY block_height",
+				" AND t2.block_height <= 1440 AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {

@@ -151,7 +151,7 @@ func (fsvc *FeeVoteCommitmentVoteQuery) Rollback(height uint32) (multiQueries []
 
 // SelectDataForSnapshot select only the block at snapshot block_height (fromHeight is unused)
 func (fsvc *FeeVoteCommitmentVoteQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(fsvc.Fields, ","), fsvc.getTableName(), fromHeight, toHeight)
 }
 
