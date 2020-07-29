@@ -338,6 +338,10 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(fileChunksNames []string, maxRe
 		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, fileChunksToDownload)
 		if err != nil {
 			s.Logger.Warnf("error download: %v\nchunks: %v\npeer: %v\n", err, fileChunksToDownload, peer)
+			if len(resolvedPeers) > 0 {
+				// continue to try download from other peer
+				continue
+			}
 			return nil, err
 		}
 

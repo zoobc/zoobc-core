@@ -56,27 +56,23 @@ func (sn *SetupNode) checkConfig() error {
 			return err
 		}
 	}
-	if sn.Config.Smithing {
-		_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-		if err != nil {
-			if ok := os.IsNotExist(err); ok {
-				if sn.Config.NodeSeed != "" {
-					sn.Config.NodeKey = &model.NodeKey{
-						Seed: sn.Config.NodeSeed,
-					}
-				} else {
-					color.Cyan("node keys has not been setup")
-					sn.nodeKeysPrompt()
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	if err != nil {
+		if ok := os.IsNotExist(err); ok {
+			if sn.Config.NodeSeed != "" {
+				sn.Config.NodeKey = &model.NodeKey{
+					Seed: sn.Config.NodeSeed,
 				}
 			} else {
-				color.Red("unknown error occurred when scanning for node keys file")
-				return err
+				color.Cyan("node keys has not been setup")
+				sn.nodeKeysPrompt()
 			}
+		} else {
+			color.Red("unknown error occurred when scanning for node keys file")
+			return err
 		}
-
-	} else {
-		color.Yellow("node is not smithing")
 	}
+
 	if len(sn.Config.WellknownPeers) == 0 {
 		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
 			"from scratch.")
@@ -86,9 +82,6 @@ func (sn *SetupNode) checkConfig() error {
 	sn.Config.RPCAPIPort = sn.portAvailability("API", sn.Config.RPCAPIPort)
 	sn.Config.HTTPAPIPort = sn.portAvailability("API PROXY", sn.Config.HTTPAPIPort)
 
-	fmt.Println("PEER", sn.Config.PeerPort)
-	fmt.Println("RPC", sn.Config.RPCAPIPort)
-	fmt.Println("HTTP", sn.Config.HTTPAPIPort)
 	return nil
 }
 
