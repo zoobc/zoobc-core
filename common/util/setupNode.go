@@ -147,14 +147,15 @@ func (sn *SetupNode) generateConfig() error {
 		// node keys prompt
 		sn.Config.Smithing = true
 		viper.Set("smithing", true)
-		_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-		if ok := os.IsNotExist(err); ok {
-			color.Cyan("node keys has not been setup")
-			sn.nodeKeysPrompt()
-		}
-		// ask if have account address prepared as owner
-		sn.ownerAddressPrompt()
+
 	}
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	if ok := os.IsNotExist(err); ok {
+		color.Cyan("node keys has not been setup")
+		sn.nodeKeysPrompt()
+	}
+	// ask if have account address prepared as owner
+	sn.ownerAddressPrompt()
 	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil

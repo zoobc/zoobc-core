@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	"github.com/zoobc/lib/address"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -132,6 +133,27 @@ func init() {
 		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
 		if err != nil {
 			log.Fatal("Fail to generate node key")
+		}
+		if config.OwnerAccountAddress == "" {
+			// todo: andy-shi88 refactor this
+			ed25519 :=  crypto.NewEd25519Signature()
+			accountPrivateKey, err :=ed25519.GetPrivateKeyFromSeedUseSlip10(
+				config.NodeKey.Seed,
+				)
+			if err != nil {
+				log.Fatal("Fail to generate account private key")
+			}
+			publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
+			if err != nil {
+				log.Fatal("Fail to generate account public key")
+			}
+			id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
+			config.OwnerAccountAddress = id
+			viper.Set("ownerAccountAddress", id)
+			err = viper.WriteConfigAs("./config.toml")
+			if err != nil {
+				log.Fatal("Fail to save new configuration")
+			}
 		}
 	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
