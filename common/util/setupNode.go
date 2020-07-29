@@ -3,20 +3,21 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/abiosoft/ishell"
-	"github.com/fatih/color"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/p2p/util"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/abiosoft/ishell"
+	"github.com/fatih/color"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/p2p/util"
 )
 
 const (
-	ErrNoConfigFile        = "ErrNoConfigFile"
-	ErrFatal               = "ErrFatal"               // fatal error, abort process
-	maxInputRepeat = 2
+	ErrNoConfigFile = "ErrNoConfigFile"
+	ErrFatal        = "ErrFatal" // fatal error, abort process
+	maxInputRepeat  = 2
 )
 
 type SetupNode struct {
@@ -59,7 +60,11 @@ func (sn *SetupNode) checkConfig() error {
 			return err
 		}
 	}
-	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	err := sn.checkResourceFolder()
+	if err != nil {
+		return err
+	}
+	_, err = os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
 	if err != nil {
 		if ok := os.IsNotExist(err); ok {
 			if sn.Config.NodeSeed != "" {
@@ -162,6 +167,18 @@ func (sn *SetupNode) generateConfig() error {
 	return nil
 }
 
+func (sn *SetupNode) checkResourceFolder() error {
+	_, err := os.Stat(sn.Config.ResourcePath)
+	if ok := os.IsNotExist(err); ok {
+		color.Cyan("resource folder not found, creating directory...")
+		if err := os.Mkdir("resource", os.ModePerm); err != nil {
+			return errors.New("fail to create directory")
+		}
+		color.Green("resource directory created")
+	}
+	return nil
+}
+
 func (sn *SetupNode) WizardFirstSetup() error {
 	color.Green("WELCOME TO ZOOBC\n\n")
 	color.Yellow("Checking existing configuration...\n")
@@ -175,13 +192,9 @@ func (sn *SetupNode) WizardFirstSetup() error {
 				return err
 			}
 			// save generated config file
-			_, err = os.Stat(sn.Config.ResourcePath)
-			if ok := os.IsNotExist(err); ok {
-				color.Cyan("resource folder not found, creating directory...")
-				if err := os.Mkdir("resource", os.ModePerm); err != nil {
-					return errors.New("fail to create directory")
-				}
-				color.Green("resource directory created")
+			err = sn.checkResourceFolder()
+			if err != nil {
+				return err
 			}
 			color.Yellow("saving new configurations")
 			err = sn.Config.SaveConfig()
