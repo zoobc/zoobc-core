@@ -14,7 +14,8 @@ type (
 	NodeRegistryServiceInterface interface {
 		GetNodeRegistrations(*model.GetNodeRegistrationsRequest) (*model.GetNodeRegistrationsResponse, error)
 		GetNodeRegistration(*model.GetNodeRegistrationRequest) (*model.GetNodeRegistrationResponse, error)
-		GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error)
+		GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest,
+		) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error)
 	}
 
 	NodeRegistryService struct {
@@ -97,7 +98,8 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	}, nil
 }
 
-func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model.GetNodeRegistrationsByNodePublicKeysRequest) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model.GetNodeRegistrationsByNodePublicKeysRequest,
+) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
 	rows, err := ns.Query.ExecuteSelect(ns.NodeRegistrationQuery.GetNodeRegistrationsByNodePublicKeys(), false, params.NodePublicKeys)
 	if err != nil {
 		return nil, err
