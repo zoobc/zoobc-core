@@ -22,10 +22,14 @@ const (
 
 type SetupNode struct {
 	Config *model.Config
+	Shell  *ishell.Shell
 }
 
 func NewSetupNode(config *model.Config) *SetupNode {
-	return &SetupNode{Config: config}
+	return &SetupNode{
+		Config: config,
+		Shell:  ishell.New(),
+	}
 }
 func (sn *SetupNode) discoverNodeAddress() error {
 	ipAddr, err := (&IPUtil{}).DiscoverNodeAddress()
@@ -77,6 +81,9 @@ func (sn *SetupNode) checkConfig() error {
 		color.Yellow("no wellknown peers found, set it in config.toml:wellknownPeers if you are starting " +
 			"from scratch.")
 	}
+	if len(sn.Config.WellknownPeers) < 1 {
+		sn.wellknownPeersPrompt()
+	}
 
 	sn.Config.PeerPort = uint32(sn.portAvailability("PEER", int(sn.Config.PeerPort)))
 	sn.Config.RPCAPIPort = sn.portAvailability("API", sn.Config.RPCAPIPort)
@@ -86,16 +93,15 @@ func (sn *SetupNode) checkConfig() error {
 }
 
 func (sn *SetupNode) nodeKeysPrompt() {
-	c := ishell.New()
 	var (
 		nodeSeed string
 	)
-	result := c.MultiChoice([]string{
+	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
 	}, "Do you have node's seed you want to use?")
 	if result == 0 {
-		c.Print("input your node's seed: ")
-		nodeSeed = c.ReadLine()
+		sn.Shell.Print("input your node's seed: ")
+		nodeSeed = sn.Shell.ReadLine()
 	} else {
 		color.Green("Generating secure random seed for node...\n")
 		nodeSeed = GetSecureRandomSeed()
@@ -107,37 +113,34 @@ func (sn *SetupNode) nodeKeysPrompt() {
 }
 
 func (sn *SetupNode) ownerAddressPrompt() {
-	c := ishell.New()
 	var (
 		ownerAddress string
 	)
 
-	c.Print("input your account address to be set as owner of this node: ")
-	ownerAddress = c.ReadLine()
+	sn.Shell.Print("input your account address to be set as owner of this node: ")
+	ownerAddress = sn.Shell.ReadLine()
 	sn.Config.OwnerAccountAddress = ownerAddress
 	viper.Set("ownerAddress", ownerAddress)
 }
 
 func (sn *SetupNode) wellknownPeersPrompt() {
-	c := ishell.New()
 	var (
 		wellknownPeerString string
 	)
-	c.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
-	wellknownPeerString = c.ReadLine()
+	sn.Shell.Print("provide the peers (space separated) you prefer to connect to (ip:port): ")
+	wellknownPeerString = sn.Shell.ReadLine()
 	sn.Config.WellknownPeers = strings.Split(strings.TrimSpace(wellknownPeerString), " ")
 	viper.Set("wellknownPeers", sn.Config.WellknownPeers)
 }
 
 func (sn *SetupNode) generateConfig() error {
-	c := ishell.New()
 	color.Cyan("generating config\n")
 	if err := sn.discoverNodeAddress(); err != nil {
 		return err
 	}
 	// ask if want to run as blocksmith
 
-	result := c.MultiChoice([]string{
+	result := sn.Shell.MultiChoice([]string{
 		"YES", "NO",
 	}, "Do you want to run node as blocksmith?")
 	if result == 0 {
@@ -207,8 +210,8 @@ func (sn *SetupNode) portAvailability(portType model.PortType, port int) (availa
 		port++
 		sn.portAvailability(portType, port)
 	}
-	for i := 0; i <= 5; i++ {
-		if i == 5 {
+	for i := 0; i <= model.PortChangePeriod; i++ {
+		if i == model.PortChangePeriod {
 			color.Red("too long, pick another port for %v manually!", portType)
 			break
 		}

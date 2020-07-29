@@ -23,9 +23,10 @@ type (
 )
 
 const (
-	PeerPort    PortType = "PeerPort"
-	RPCAPIPort  PortType = "RPCAPIPort"
-	HTTPAPIPort PortType = "HTTPAPIPort"
+	PeerPort         PortType = "PeerPort"
+	RPCAPIPort       PortType = "RPCAPIPort"
+	HTTPAPIPort      PortType = "HTTPAPIPort"
+	PortChangePeriod int      = 5
 )
 
 func NewConfig() *Config {
