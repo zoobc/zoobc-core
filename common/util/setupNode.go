@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/util"
 	"net"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strings"
 )
@@ -150,14 +149,14 @@ func (sn *SetupNode) generateConfig() error {
 	if result == 0 {
 		// node keys prompt
 		sn.Config.Smithing = true
-		_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-		if ok := os.IsNotExist(err); ok {
-			color.Cyan("node keys has not been setup")
-			sn.nodeKeysPrompt()
-		}
-		// ask if have account address prepared as owner
-		sn.ownerAddressPrompt()
 	}
+	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
+	if ok := os.IsNotExist(err); ok {
+		color.Cyan("node keys has not been setup")
+		sn.nodeKeysPrompt()
+	}
+	// ask if have account address prepared as owner
+	sn.ownerAddressPrompt()
 	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil

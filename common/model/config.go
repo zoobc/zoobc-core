@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"github.com/spf13/viper"
+	"os"
 )
 
 type (
@@ -60,14 +61,26 @@ func (cfg *Config) LoadConfigurations() {
 }
 
 func (cfg *Config) SaveConfig() error {
+	var err error
 	viper.Set("smithing", cfg.Smithing)
 	viper.Set("ownerAddress", cfg.OwnerAccountAddress)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
 	viper.Set("peerPort", cfg.PeerPort )
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
-
-	err := viper.SafeWriteConfigAs("./config.toml")
+	// todo: code in rush, need refactor later andy-shi88
+	_, err = os.Stat("./config.toml")
+	if err != nil {
+		if ok := os.IsNotExist(err); ok {
+			err = viper.SafeWriteConfigAs("./config.toml")
+			if err != nil {
+				return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
+			}
+		} else {
+			return err
+		}
+	}
+	err = viper.WriteConfigAs("./config.toml")
 	if err != nil {
 		return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
 	}
