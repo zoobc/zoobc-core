@@ -53,7 +53,7 @@ func NewPeer(address string, port int) *model.Peer {
 // ParsePeer to parse an address to a peer model
 func ParsePeer(peerStr string) (*model.Peer, error) {
 	peerInfo := strings.Split(peerStr, ":")
-	if len(peerInfo) < 2 {
+	if len(peerInfo) != 2 {
 		return nil, errors.New("peer address must be provided in address:port format")
 	}
 	peerAddress := peerInfo[0]
