@@ -1103,7 +1103,7 @@ func (bs *BlockService) GenerateBlock(
 	// calculate total coinbase to be added to the block
 	totalCoinbase = bs.CoinbaseService.GetCoinbase(timestamp, previousBlock.Timestamp)
 	if !empty {
-		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
+		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, previousBlock.Height+1)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
 		}
