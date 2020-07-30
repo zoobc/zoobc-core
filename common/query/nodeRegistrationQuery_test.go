@@ -488,7 +488,7 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
-				"height >= 0 AND t2.height < 720 GROUP BY t2.id) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
+				"height > 0 AND t2.height < 720 GROUP BY t2.id) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
 				"locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE height >= 720 AND height <= 1440 ORDER BY height, id",
 		},
