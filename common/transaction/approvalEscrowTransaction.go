@@ -134,6 +134,9 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		}
 		return blocker.NewBlocker(blocker.ValidationErr, "EscrowNotExists")
 	}
+	if tx.Height >= latestEscrow.GetBlockHeight()+uint32(latestEscrow.Timeout) {
+		return blocker.NewBlocker(blocker.ValidationErr, "EscrowTimeout")
+	}
 
 	// Check escrow status still pending before allow to apply
 	if latestEscrow.GetStatus() != model.EscrowStatus_Pending {

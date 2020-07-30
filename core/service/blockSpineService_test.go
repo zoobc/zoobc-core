@@ -1381,7 +1381,7 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
@@ -1399,12 +1399,12 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64
 }
 
 // mockSpineMempoolServiceSelectFail
-func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,

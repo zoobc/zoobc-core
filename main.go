@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -45,7 +46,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 var (
@@ -123,11 +123,25 @@ func init() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
+
+	// early init configuration service
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
+	if err != nil {
+		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+	}
+	nodeConfigurationService = service.NewNodeConfigurationService(
+		config.IsNodeAddressDynamic,
+		config.NodeKey.Seed,
+		loggerCoreService,
+		p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult),
+		&service.NodeConfigurationServiceHelper{},
+	)
+
 	// if wallet certificate is present in ResourcePath, import it
-	_, err = os.Stat(config.WalletCertFileName)
-	if ok := os.IsExist(err); ok {
-		if err := nodeConfigurationService.ImportWalletCertificate(config); err != nil {
-			log.Fatal(err)
+	if _, err := os.Stat(config.WalletCertFileName); err == nil {
+		if err = nodeConfigurationService.ImportWalletCertificate(config); err != nil {
+			log.Error(err)
+			log.Fatal("either password is wrong or the certificate is malformed")
 		}
 	}
 	// validate and generate configurations
@@ -208,18 +222,7 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
-	if err != nil {
-		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
-	}
 	// initialize services
-	nodeConfigurationService = service.NewNodeConfigurationService(
-		config.IsNodeAddressDynamic,
-		config.NodeKey.Seed,
-		loggerCoreService,
-		p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult),
-		&service.NodeConfigurationServiceHelper{},
-	)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
