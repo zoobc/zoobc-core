@@ -561,7 +561,7 @@ func TestMultisignatureInfoQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "DELETE FROM multisignature_info WHERE block_height >= 1 AND block_height <= 10",
+			want: "DELETE FROM multisignature_info WHERE block_height >= 1 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

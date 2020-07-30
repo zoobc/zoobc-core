@@ -227,6 +227,6 @@ func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32)
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (q *AccountBalanceQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		q.getTableName(), fromHeight, toHeight)
 }

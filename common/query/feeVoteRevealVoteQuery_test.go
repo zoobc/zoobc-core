@@ -234,7 +234,7 @@ func TestFeeVoteRevealVoteQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 100,
 				toHeight:   170,
 			},
-			want: "DELETE FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
+			want: "DELETE FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

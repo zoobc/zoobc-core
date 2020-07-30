@@ -134,6 +134,8 @@ func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock 
 		bss.SortedBlocksmithsLock.Lock()
 		defer bss.SortedBlocksmithsLock.Unlock()
 	}
+	// clean up bss.SortedBlocksmithsMap
+	bss.SortedBlocksmithsMap = make(map[string]*int64)
 	// copying the sorted list to map[string(publicKey)]index
 	for index, blocksmith := range blocksmiths {
 		blocksmithIndex := int64(index)

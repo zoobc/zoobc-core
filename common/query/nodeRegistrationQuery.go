@@ -499,7 +499,7 @@ func (nrq *NodeRegistrationQuery) GetFields() []string {
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
-			"MAX(t2.height) FROM %s as t2 WHERE t2.height >= 0 AND t2.height < %d GROUP BY t2.id) "+
+			"MAX(t2.height) FROM %s as t2 WHERE t2.height > 0 AND t2.height < %d GROUP BY t2.id) "+
 			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
@@ -511,6 +511,6 @@ func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (nrq *NodeRegistrationQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		nrq.TableName, fromHeight, toHeight)
 }

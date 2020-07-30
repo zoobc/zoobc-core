@@ -387,7 +387,7 @@ func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				TableName: prQry.TableName,
 				Fields:    prQry.Fields,
 			},
-			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
