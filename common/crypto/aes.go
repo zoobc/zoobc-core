@@ -32,7 +32,7 @@ func OpenSSLDecrypt(passphrase, encryptedBase64String string) ([]byte, error) {
 
 func decrypt(key, iv, data []byte) ([]byte, error) {
 	if len(data) == 0 || len(data)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("bad blocksize(%v), aes.BlockSize = %v\n", len(data), aes.BlockSize)
+		return nil, fmt.Errorf("bad blocksize(%v), aes.BlockSize = %v", len(data), aes.BlockSize)
 	}
 	c, err := aes.NewCipher(key)
 	if err != nil {
