@@ -29,6 +29,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("snapshotPath", "./resource/snapshots")
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", true)
+	viper.SetDefault("walletCertFileName", "wallet.zbc")
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed

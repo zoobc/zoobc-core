@@ -158,12 +158,14 @@ func (sn *SetupNode) generateConfig() error {
 		sn.Config.Smithing = true
 	}
 	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-	if ok := os.IsNotExist(err); ok {
+	if ok := os.IsNotExist(err); ok && sn.Config.NodeSeed == "" {
 		color.Cyan("node keys has not been setup")
 		sn.nodeKeysPrompt()
 	}
 	// ask if have account address prepared as owner
-	sn.ownerAddressPrompt()
+	if sn.Config.OwnerAccountAddress == "" {
+		sn.ownerAddressPrompt()
+	}
 	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil

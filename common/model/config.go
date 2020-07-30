@@ -2,8 +2,9 @@ package model
 
 import (
 	"errors"
-	"github.com/spf13/viper"
 	"os"
+
+	"github.com/spf13/viper"
 )
 
 type (
@@ -14,9 +15,9 @@ type (
 		MyAddress, OwnerAccountAddress                            string
 		DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
 		NodeKeyFileName, NodeSeed, APICertFile, APIKeyFile, SnapshotPath string
-		WellknownPeers []string
-
-		NodeKey *NodeKey
+		WellknownPeers     []string
+		WalletCertFileName string
+		NodeKey            *NodeKey
 
 		// validation fields
 		ConfigFileExist bool
@@ -58,6 +59,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+	cfg.WalletCertFileName = viper.GetString("walletCertFileName")
 }
 
 func (cfg *Config) SaveConfig() error {
