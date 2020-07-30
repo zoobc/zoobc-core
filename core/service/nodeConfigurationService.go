@@ -11,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 type (
@@ -133,7 +132,7 @@ func (nss *NodeConfigurationService) ImportWalletCertificate(config *model.Confi
 		ownerAccountFieldName = "ownerAccount"
 	)
 
-	jsonFile, err := os.Open(filepath.Join(config.ResourcePath, config.WalletCertFileName))
+	jsonFile, err := os.Open(config.WalletCertFileName)
 	// if we os.Open returns an error then handle it
 	if err != nil {
 		return err

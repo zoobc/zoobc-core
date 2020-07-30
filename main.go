@@ -124,7 +124,7 @@ func init() {
 	// assign read configuration to config object
 	config.LoadConfigurations()
 	// if wallet certificate is present in ResourcePath, import it
-	_, err = os.Stat(filepath.Join(config.ResourcePath, config.WalletCertFileName))
+	_, err = os.Stat(config.WalletCertFileName)
 	if ok := os.IsExist(err); ok {
 		if err := nodeConfigurationService.ImportWalletCertificate(config); err != nil {
 			log.Fatal(err)
