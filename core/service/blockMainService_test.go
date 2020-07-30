@@ -1653,7 +1653,10 @@ func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestam
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
+	blockTimestamp int64,
+	blockHeight uint32,
+) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,
