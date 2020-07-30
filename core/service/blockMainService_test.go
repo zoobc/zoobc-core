@@ -1630,7 +1630,7 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
@@ -1648,14 +1648,12 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 }
 
 // mockMempoolServiceSelectFail
-func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
-	blockTimestamp int64,
-) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,
