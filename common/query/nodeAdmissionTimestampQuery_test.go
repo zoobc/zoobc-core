@@ -327,7 +327,7 @@ func TestNodeAdmissionTimestampQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   2,
 			},
-			want: "DELETE FROM node_admission_timestamp WHERE block_height >= 1 AND block_height <= 2",
+			want: "DELETE FROM node_admission_timestamp WHERE block_height >= 1 AND block_height <= 2 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

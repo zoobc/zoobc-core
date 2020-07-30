@@ -474,7 +474,7 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10",
+			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {

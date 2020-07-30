@@ -101,7 +101,7 @@ func TestParticipationScoreQuery_SelectDataForSnapshot(t *testing.T) {
 func TestParticipationScoreQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot", func(t *testing.T) {
 		res := mockParticipationScoreQuery.TrimDataBeforeSnapshot(0, 10)
-		want := "DELETE FROM participation_score WHERE height >= 0 AND height <= 10"
+		want := "DELETE FROM participation_score WHERE height >= 0 AND height <= 10 AND height != 0"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
