@@ -163,7 +163,9 @@ func (sn *SetupNode) generateConfig() error {
 		sn.nodeKeysPrompt()
 	}
 	// ask if have account address prepared as owner
-	sn.ownerAddressPrompt()
+	if sn.Config.OwnerAccountAddress == "" {
+		sn.ownerAddressPrompt()
+	}
 	sn.wellknownPeersPrompt()
 	// todo: checking port availability and accessibility
 	return nil

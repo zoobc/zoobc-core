@@ -140,15 +140,18 @@ func (nss *NodeConfigurationService) ImportWalletCertificate(config *model.Confi
 	defer jsonFile.Close()
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 	c := ishell.New()
-	c.Print("A wallet certificate has been found. Please enter the password to decrypt and import it:")
+	c.Print("A wallet certificate has been found. Please enter the password to decrypt and import it: ")
 	var i int
-	for i = 0; i < 4; i++ {
+	for {
+		i++
 		if i > 3 {
 			return errors.New("maximum numbers of attempts exceeded")
 		}
 		pwd := nss.ServiceHelper.ReadPassword(c)
 		nodeKeyDecryptedBytes, err := crypto.OpenSSLDecrypt(pwd, string(byteValue))
 		if err != nil {
+			c.Printf("Attempt n. %d decrypting certificate failed...", i)
+			c.Print("Please try again: ")
 			continue
 		}
 
