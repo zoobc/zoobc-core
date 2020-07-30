@@ -37,8 +37,7 @@ func TestNodeConfigurationService_ImportWalletCertificate(t *testing.T) {
 			name: "importWalletCertificate:success",
 			args: args{
 				config: &model.Config{
-					WalletCertFileName: "test-cert.zbc",
-					ResourcePath:       "./testdata",
+					WalletCertFileName: "./testdata/test-cert.zbc",
 				},
 			},
 			fields: fields{
