@@ -26,10 +26,7 @@ func OpenSSLDecrypt(passphrase, encryptedBase64String string) ([]byte, error) {
 		return nil, fmt.Errorf("does not appear to have been encrypted with OpenSSL, salt header missing")
 	}
 	salt := saltHeader[8:]
-	creds, err := extractOpenSSLCreds([]byte(passphrase), salt)
-	if err != nil {
-		return nil, err
-	}
+	creds := extractOpenSSLCreds([]byte(passphrase), salt)
 	return decrypt(creds.key, creds.iv, data)
 }
 
@@ -54,14 +51,14 @@ func decrypt(key, iv, data []byte) ([]byte, error) {
 // It uses the EVP_BytesToKey() method which is basically:
 // D_i = HASH^count(D_(i-1) || password || salt) where || denotes concatentaion, until there are sufficient bytes available
 // 48 bytes since we're expecting to handle AES-256, 32bytes for a key and 16bytes for the IV
-func extractOpenSSLCreds(password, salt []byte) (OpenSSLCreds, error) {
+func extractOpenSSLCreds(password, salt []byte) OpenSSLCreds {
 	m := make([]byte, 48)
 	prev := make([]byte, 0)
 	for i := 0; i < 3; i++ {
 		prev = hashForAES(prev, password, salt)
 		copy(m[i*16:], prev)
 	}
-	return OpenSSLCreds{key: m[:32], iv: m[32:]}, nil
+	return OpenSSLCreds{key: m[:32], iv: m[32:]}
 }
 
 func hashForAES(prev, password, salt []byte) []byte {
@@ -74,7 +71,7 @@ func hashForAES(prev, password, salt []byte) []byte {
 
 func md5sum(data []byte) []byte {
 	h := md5.New()
-	h.Write(data)
+	_, _ = h.Write(data)
 	return h.Sum(nil)
 }
 
