@@ -225,7 +225,7 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 			SELECT %s FROM %s
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM %s
-				WHERE height >= %d AND height <= %d
+				WHERE height >= %d AND height <= %d AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		strings.Join(adq.Fields, ", "),
@@ -238,6 +238,6 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (adq *AccountDatasetQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		adq.TableName, fromHeight, toHeight)
 }

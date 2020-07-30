@@ -226,10 +226,10 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) IN ("+
-			"SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
-			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
-			") ORDER BY block_height",
+		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
+			"IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
+			"GROUP BY t2.multisig_address) ORDER BY block_height",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index ASC) as addresses",
@@ -242,6 +242,6 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (msi *MultisignatureInfoQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		msi.getTableName(), fromHeight, toHeight)
 }

@@ -231,13 +231,19 @@ func (ps *ParticipationScoreQuery) GetFields() []string {
 	return ps.Fields
 }
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX("+
-		"t2.height) FROM %s as t2 WHERE t2.height >= %d AND t2.height <= %d GROUP BY t2.node_id ) ORDER by height",
-		strings.Join(ps.Fields, ","), ps.getTableName(), ps.getTableName(), fromHeight, toHeight)
+	return fmt.Sprintf(""+
+		"SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX(t2.height) FROM %s as t2 "+
+		"WHERE t2.height >= %d AND t2.height <= %d AND t2.height != 0 GROUP BY t2.node_id ) ORDER by height",
+		strings.Join(ps.Fields, ","),
+		ps.getTableName(),
+		ps.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (ps *ParticipationScoreQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		ps.TableName, fromHeight, toHeight)
 }
