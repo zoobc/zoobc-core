@@ -3,6 +3,7 @@ package query
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -61,7 +62,9 @@ func (fq *CaseQuery) Select(tableName string, columns ...string) *CaseQuery {
 
 // Where build buffer query string, can combine with `In(), NotIn() ...`
 func (fq *CaseQuery) Where(query ...string) *CaseQuery {
-	if !strings.Contains(fq.Query.String(), "WHERE") {
+	sliceWhere := strings.Split(fq.Query.String(), "WHERE")
+	if !strings.Contains(fq.Query.String(), "WHERE") ||
+		regexp.MustCompile(`AS|FROM|JOIN`).MatchString(sliceWhere[len(sliceWhere)-1]) {
 		fq.Query.WriteString(fmt.Sprintf(
 			"WHERE %s ",
 			strings.Join(query, ""),
@@ -150,8 +153,13 @@ func (fq *CaseQuery) NotBetween(column string, start, end interface{}) string {
 
 // OrderBy represents `... ORDER BY column DESC|ASC`
 func (fq *CaseQuery) OrderBy(column string, order model.OrderBy) *CaseQuery {
-	fq.Query.WriteString(fmt.Sprintf("ORDER BY ? %s ", order.String()))
-	fq.Args = append(fq.Args, column)
+	// manual sanitizing, prepare-statement don't work on column name
+	valid := regexp.MustCompile("^[A-Za-z0-9_]+$") // only number & lower+upper case and underscore
+	if !valid.MatchString(column) {
+		// invalid column name, do not proceed in order to prevent SQL injection
+		return fq
+	}
+	fq.Query.WriteString(fmt.Sprintf("ORDER BY %s %s ", column, order.String()))
 	return fq
 }
 

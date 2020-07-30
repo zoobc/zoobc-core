@@ -59,10 +59,12 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') "+
-			"FROM multisignature_participant GROUP BY multisig_address, block_height ORDER BY account_address_index DESC) as addresses",
+			"FROM multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height "+
+			"ORDER BY account_address_index DESC) as addresses",
 		msi.getTableName(),
 	)
 	return query, []interface{}{
+		multisigAddress,
 		multisigAddress,
 		blockHeight,
 	}
@@ -122,7 +124,8 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 
 			for a, address := range musig.GetAddresses() {
 				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
-				if a < len(musig.GetAddresses())-1 {
+
+				if !(a == len(musig.GetAddresses())-1 && m == len(multiSignatureInfos)-1) {
 					participantQ += ","
 				}
 				participantArgs = append(participantArgs, participantQueryInterface.ExtractModel(&model.MultiSignatureParticipant{

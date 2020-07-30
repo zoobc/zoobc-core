@@ -394,6 +394,43 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx boo
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
 	return db.Query(qStr)
 }
+func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ bool, _ ...interface{}) (*sql.Row, error) {
+
+	db, mock, _ := sqlmock.New()
+	mockedRows := sqlmock.NewRows(query.NewTransactionQuery(&chaintype.MainChain{}).Fields)
+	tx, _ := transaction.GetFixtureForSpecificTransaction(
+		1234567890,
+		12345678901,
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		8,
+		model.TransactionType_SendMoneyTransaction,
+		&model.SendMoneyTransactionBody{
+			Amount: 10,
+		},
+		true,
+		true,
+	)
+	mockedRows.AddRow(
+		tx.GetID(),
+		tx.GetBlockID(),
+		tx.GetHeight(),
+		tx.GetSenderAccountAddress(),
+		tx.GetRecipientAccountAddress(),
+		tx.GetTransactionType(),
+		tx.GetFee(),
+		tx.GetTimestamp(),
+		tx.GetTransactionHash(),
+		tx.GetTransactionBodyLength(),
+		tx.GetTransactionBodyBytes(),
+		tx.GetSignature(),
+		tx.GetVersion(),
+		tx.GetTransactionIndex(),
+		tx.GetMultisigChild(),
+	)
+	mock.ExpectQuery(qStr).WillReturnRows(mockedRows)
+	return db.QueryRow(qStr), nil
+}
 func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
@@ -403,6 +440,7 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 		TransactionQuery       query.TransactionQueryInterface
 		EscrowTransactionQuery query.EscrowTransactionQueryInterface
 		QueryExecutor          query.ExecutorInterface
+		TypeActionSwitcher     transaction.TypeActionSwitcher
 	}
 	type args struct {
 		blockHeight uint32
@@ -419,6 +457,7 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				EscrowTransactionQuery: query.NewEscrowTransactionQuery(),
 				QueryExecutor:          &mockQueryExecutorExpiringEscrowSuccess{},
+				TypeActionSwitcher:     &transaction.TypeSwitcher{Executor: &mockQueryExecutorExpiringEscrowSuccess{}},
 			},
 		},
 	}
@@ -428,8 +467,9 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 				TransactionQuery:       tt.fields.TransactionQuery,
 				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
 				QueryExecutor:          tt.fields.QueryExecutor,
+				TypeActionSwitcher:     tt.fields.TypeActionSwitcher,
 			}
-			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight, false); (err != nil) != tt.wantErr {
+			if err := tg.ExpiringEscrowTransactions(tt.args.blockHeight, 100, false); (err != nil) != tt.wantErr {
 				t.Errorf("ExpiringEscrowTransactions() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
