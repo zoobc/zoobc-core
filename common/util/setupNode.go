@@ -158,7 +158,7 @@ func (sn *SetupNode) generateConfig() error {
 		sn.Config.Smithing = true
 	}
 	_, err := os.Stat(filepath.Join(sn.Config.ResourcePath, sn.Config.NodeKeyFileName))
-	if ok := os.IsNotExist(err); ok {
+	if ok := os.IsNotExist(err); ok && sn.Config.NodeSeed == "" {
 		color.Cyan("node keys has not been setup")
 		sn.nodeKeysPrompt()
 	}

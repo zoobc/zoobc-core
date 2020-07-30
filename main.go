@@ -123,6 +123,13 @@ func init() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
+	// if wallet certificate is present in ResourcePath, import it
+	_, err = os.Stat(config.WalletCertFileName)
+	if ok := os.IsExist(err); ok {
+		if err := nodeConfigurationService.ImportWalletCertificate(config); err != nil {
+			log.Fatal(err)
+		}
+	}
 	// validate and generate configurations
 	err = util.NewSetupNode(config).WizardFirstSetup()
 	if err != nil {
@@ -211,6 +218,7 @@ func init() {
 		config.NodeKey.Seed,
 		loggerCoreService,
 		p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult),
+		&service.NodeConfigurationServiceHelper{},
 	)
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
