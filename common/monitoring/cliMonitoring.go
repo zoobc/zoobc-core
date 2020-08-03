@@ -138,11 +138,13 @@ func (cm *CLIMonitoring) Start() {
 }
 
 func (*CLIMonitoring) print(label string, value interface{}) {
-	tm.Println(tm.ResetLine(fmt.Sprintf("%s: %v", tm.Bold(label), value)))
+	tm.Printf("%s\n", tm.ResetLine(fmt.Sprintf("%s: %v", tm.Bold(label), value)))
 }
 
 func (*CLIMonitoring) printLineBreak() {
-	tm.Println(tm.ResetLine(""))
+	if _, err := tm.Println(tm.ResetLine("")); err != nil {
+		return
+	}
 }
 
 // clearLine to clear unusede line of screen, numberLine depends on number of print in the conditional
