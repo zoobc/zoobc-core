@@ -86,7 +86,6 @@ func (cm *CLIMonitoring) Start() {
 		tm.MoveCursor(1, 1)
 		cm.print("Node IP Address / DNS", cm.ConfigInfo.MyAddress)
 		cm.print("Peer Communication Port", cm.ConfigInfo.PeerPort)
-
 		cm.print("RPC API Port", cm.ConfigInfo.RPCAPIPort)
 		cm.print("HTTP API Port", cm.ConfigInfo.HTTPAPIPort)
 		cm.print("Monitoring Port", cm.ConfigInfo.MonitoringPort)
