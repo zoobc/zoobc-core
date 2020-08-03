@@ -44,9 +44,6 @@ var (
 		NodePublicKey:      nrsNodePubKey1,
 		AccountAddress:     nrsAddress1,
 		RegistrationHeight: 10,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-		},
 		LockedBalance:      100000000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 		Latest:             true,
@@ -57,9 +54,6 @@ var (
 		NodePublicKey:      nrsNodePubKey1,
 		AccountAddress:     nrsAddress1,
 		RegistrationHeight: 10,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-		},
 		LockedBalance:      100000000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 		Latest:             true,
@@ -477,9 +471,6 @@ func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T
 				NodePublicKey:      nrsNodePubKey1,
 				AccountAddress:     nrsAddress1,
 				RegistrationHeight: 10,
-				NodeAddress: &model.NodeAddress{
-					Address: "10.10.10.10",
-				},
 				LockedBalance:      100000000,
 				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 				Latest:             true,
@@ -547,9 +538,6 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 					NodePublicKey:      nrsNodePubKey1,
 					AccountAddress:     nrsAddress1,
 					RegistrationHeight: 10,
-					NodeAddress: &model.NodeAddress{
-						Address: "10.10.10.10",
-					},
 					LockedBalance:      100000000,
 					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 					Latest:             true,
@@ -633,10 +621,6 @@ func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidated
 			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
 			AccountAddress:     "accountA",
 			RegistrationHeight: 0,
-			NodeAddress: &model.NodeAddress{
-				Address: "127.0.0.1",
-				Port:    3000,
-			},
 			LockedBalance:      0,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,
@@ -647,10 +631,6 @@ func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidated
 			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78},
 			AccountAddress:     "accountB",
 			RegistrationHeight: 0,
-			NodeAddress: &model.NodeAddress{
-				Address: "127.0.0.1",
-				Port:    3002,
-			},
 			LockedBalance:      0,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,

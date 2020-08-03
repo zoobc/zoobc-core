@@ -1037,9 +1037,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	bodyWithPoown := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.1",
-		},
 	}
 	bodyWithNullNodeAddress := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -1048,9 +1045,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	txBody := &model.NodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.1",
-		},
 	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
 	type fields struct {
@@ -1139,9 +1133,6 @@ func TestNodeRegistration_Validate(t *testing.T) {
 					Poown:         poown,
 					NodePublicKey: nodePubKey1,
 					LockedBalance: 10000,
-					NodeAddress: &model.NodeAddress{
-						Address: "10.10.10.1",
-					},
 				},
 				SenderAddress:       senderAddress1,
 				QueryExecutor:       &mockExecutorValidateFailBalanceNotEnough{},
@@ -1312,11 +1303,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 		{
 			name: "GetSize:success",
 			fields: fields{
-				Body: &model.NodeRegistrationTransactionBody{
-					NodeAddress: &model.NodeAddress{
-						Address: "127.0.0.1",
-					},
-				},
+				Body:                  &model.NodeRegistrationTransactionBody{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			want: 289,
@@ -1467,8 +1454,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         nil,
 			},
 			args: args{
-				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
-					len([]byte(mockNodeRegistrationQ.ExtractNodeAddress(body.GetNodeAddress()))))],
+				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)))],
 			},
 			want:    nil,
 			wantErr: true,
@@ -1485,8 +1471,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         nil,
 			},
 			args: args{
-				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)) + 4 +
-					len([]byte(mockNodeRegistrationQ.ExtractNodeAddress(body.GetNodeAddress()))) + int(constant.Balance))],
+				txBodyBytes: bodyBytes[:(len(body.NodePublicKey) + 4 + len([]byte(body.AccountAddress)))],
 			},
 			want:    nil,
 			wantErr: true,

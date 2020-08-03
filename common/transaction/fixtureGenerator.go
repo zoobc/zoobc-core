@@ -84,11 +84,8 @@ func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistration
 	txBody = &model.NodeRegistrationTransactionBody{
 		NodePublicKey:  nodePubKey1,
 		AccountAddress: senderAddress1,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.0.1",
-		},
-		LockedBalance: 10000000000,
-		Poown:         poown,
+		LockedBalance:  10000000000,
+		Poown:          poown,
 	}
 	nr := NodeRegistration{
 		Body:                  txBody,
@@ -119,9 +116,6 @@ func GetFixturesForUpdateNoderegistration(nodeRegistrationQuery query.NodeRegist
 	}
 	txBody = &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.0.1",
-		},
 		LockedBalance: 10000000000,
 		Poown:         poown,
 	}

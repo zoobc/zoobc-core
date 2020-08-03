@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
-	"net"
-	"strconv"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -35,9 +33,6 @@ type (
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
-		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
-		// TODO: @iltoga ExtractNodeAddress must be moved in ipUtils or some other util package
-		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
 		ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error
 		GetFields() []string
@@ -427,39 +422,6 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 			1, 0,
 		},
 	}
-}
-
-// BuildNodeAddress to build joining the NodeAddress.Address and NodeAddress.Port
-func (*NodeRegistrationQuery) BuildNodeAddress(fullNodeAddress string) *model.NodeAddress {
-	var (
-		host, port string
-		err        error
-	)
-
-	host, port, err = net.SplitHostPort(fullNodeAddress)
-	if err != nil {
-		host = fullNodeAddress
-	}
-
-	uintPort, _ := strconv.ParseUint(port, 0, 32)
-	return &model.NodeAddress{
-		Address: host,
-		Port:    uint32(uintPort),
-	}
-}
-
-// ExtractNodeAddress to build fully node address include port to NodeAddress struct
-func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress) string {
-
-	if nodeAddress == nil {
-		return ""
-	}
-
-	if nodeAddress.GetPort() != 0 {
-		return fmt.Sprintf("%s:%d", nodeAddress.GetAddress(), nodeAddress.GetPort())
-	}
-
-	return nodeAddress.GetAddress()
 }
 
 // Scan represents `sql.Scan`

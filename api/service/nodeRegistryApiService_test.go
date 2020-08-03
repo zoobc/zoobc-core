@@ -219,11 +219,8 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 			},
 			args: args{
 				params: &model.GetNodeRegistrationRequest{
-					NodePublicKey:  []byte{1, 1},
-					AccountAddress: "AccountA",
-					NodeAddress: &model.NodeAddress{
-						Address: "127.0.0.1",
-					},
+					NodePublicKey:      []byte{1, 1},
+					AccountAddress:     "AccountA",
 					RegistrationHeight: 1,
 				},
 			},

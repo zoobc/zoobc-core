@@ -299,28 +299,20 @@ var (
 		SpendableBalance: 100000000000,
 	}
 	nr1 = &model.NodeRegistration{
-		AccountAddress: bcsAddress1,
-		Latest:         true,
-		Height:         0,
-		LockedBalance:  10000000000,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-			Port:    8888,
-		},
+		AccountAddress:     bcsAddress1,
+		Latest:             true,
+		Height:             0,
+		LockedBalance:      10000000000,
 		NodeID:             11111,
 		NodePublicKey:      []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		RegistrationHeight: 0,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 	}
 	nr2 = &model.NodeRegistration{
-		AccountAddress: bcsAddress2,
-		Latest:         true,
-		Height:         0,
-		LockedBalance:  10000000000,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.11",
-			Port:    8889,
-		},
+		AccountAddress:     bcsAddress2,
+		Latest:             true,
+		Height:             0,
+		LockedBalance:      10000000000,
 		NodeID:             22222,
 		NodePublicKey:      []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
 		RegistrationHeight: 0,

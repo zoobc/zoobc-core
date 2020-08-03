@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
@@ -128,10 +127,6 @@ var (
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
-		NodeAddress: &model.NodeAddress{
-			Address: "0.0.0.0",
-			Port:    8001,
-		},
 		LockedBalance:      0,
 		RegistrationStatus: 0,
 		Latest:             false,
@@ -142,10 +137,6 @@ var (
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
-		NodeAddress: &model.NodeAddress{
-			Address: "0.0.0.0",
-			Port:    8002,
-		},
 		LockedBalance:      0,
 		RegistrationStatus: 0,
 		Latest:             false,
@@ -332,9 +323,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationData.NodePublicKey,
 					mockNodeRegistrationData.AccountAddress,
 					mockNodeRegistrationData.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationData.NodeAddress.Address, mockNodeRegistrationData.NodeAddress.Port,
-					),
 					mockNodeRegistrationData.LockedBalance,
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
@@ -349,9 +337,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationDataB.NodePublicKey,
 					mockNodeRegistrationDataB.AccountAddress,
 					mockNodeRegistrationDataB.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationDataB.NodeAddress.Address, mockNodeRegistrationDataB.NodeAddress.Port,
-					),
 					mockNodeRegistrationDataB.LockedBalance,
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
@@ -403,9 +388,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationData.NodePublicKey,
 					mockNodeRegistrationData.AccountAddress,
 					mockNodeRegistrationData.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationData.NodeAddress.Address, mockNodeRegistrationData.NodeAddress.Port,
-					),
 					mockNodeRegistrationData.LockedBalance,
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
@@ -420,9 +402,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationDataB.NodePublicKey,
 					mockNodeRegistrationDataB.AccountAddress,
 					mockNodeRegistrationDataB.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationDataB.NodeAddress.Address, mockNodeRegistrationDataB.NodeAddress.Port,
-					),
 					mockNodeRegistrationDataB.LockedBalance,
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
