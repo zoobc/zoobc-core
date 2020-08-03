@@ -427,10 +427,7 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 // Scan represents `sql.Scan`
 func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 
-	var (
-		err error
-	)
-	err = row.Scan(
+	err := row.Scan(
 		&nr.NodeID,
 		&nr.NodePublicKey,
 		&nr.AccountAddress,

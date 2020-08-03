@@ -297,8 +297,6 @@ func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...inte
 	default:
 		return nil, errors.New("mockQueryExecutorNotFound - InvalidQuery")
 	}
-	rows, _ := db.Query(qe)
-	return rows, nil
 }
 
 // mockQueryExecutorNotNil
