@@ -68,7 +68,7 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 			"height",
 			"%s.address AS node_address",
 			"%s.port AS node_address_port",
-			"%s.status as node_address_status",
+			"%s.status AS node_address_status",
 		},
 		TableName: "node_registry",
 	}
@@ -491,8 +491,8 @@ func (nrq *NodeRegistrationQuery) GetFields() []string {
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
-			"MAX(t2.height) FROM %s as t2 WHERE t2.height > 0 AND t2.height < %d GROUP BY t2.id) "+
-			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
+			"MAX(t2.height) FROM %s as t2 WHERE t2.height > 0 AND t2.height < %d AND t2.latest = 1 GROUP BY t2.id) "+
+			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d AND latest = 1 "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)

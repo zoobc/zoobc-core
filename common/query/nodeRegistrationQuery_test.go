@@ -480,9 +480,9 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,node_public_key,account_address,registration_height,locked_balance,registration_status,latest,height " +
 				"FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) " +
-				"FROM node_registry as t2 WHERE t2.height > 0 AND t2.height < 720 GROUP BY t2.id) " +
+				"FROM node_registry as t2 WHERE t2.height > 0 AND t2.height < 720 AND t2.latest = 1 GROUP BY t2.id) " +
 				"UNION ALL SELECT id,node_public_key,account_address,registration_height,locked_balance,registration_status,latest,height " +
-				"FROM node_registry WHERE height >= 720 AND height <= 1440 ORDER BY height, id",
+				"FROM node_registry WHERE height >= 720 AND height <= 1440 AND latest = 1 ORDER BY height, id",
 		},
 	}
 	for _, tt := range tests {
@@ -554,10 +554,11 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 			args: args{
 				height: 10,
 			},
-			want: "SELECT id, node_public_key, account_address, registration_height,locked_balance, registration_status, latest, " +
-				"height,t2.address AS node_address, t2.port AS node_address_port, t2.status as node_address_status FROM node_registry " +
-				"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 AND (id,height) " +
-				"in (SELECT t1.id,MAX(t1.height) FROM node_registry AS t1 WHERE t1.height <= 10 GROUP BY t1.id) ORDER BY id, t2.status",
+			want: "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, latest, height, " +
+				"t2.address AS node_address, t2.port AS node_address_port, t2.status AS node_address_status " +
+				"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 " +
+				"AND (id,height) in (SELECT t1.id,MAX(t1.height) FROM node_registry AS t1 WHERE t1.height <= 10 " +
+				"GROUP BY t1.id) ORDER BY id, t2.status",
 		},
 	}
 	for _, tt := range tests {
@@ -625,10 +626,9 @@ func TestNodeRegistrationQuery_GetActiveNodeRegistrationsWithNodeAddress(t *test
 				Fields:                  NewNodeRegistrationQuery().Fields,
 				JoinedAddressInfoFields: NewNodeRegistrationQuery().JoinedAddressInfoFields,
 			},
-			want: "SELECT id, node_public_key, account_address, registration_height " +
-				"locked_balance, registration_status, latest, height, t2.address as node_address, " +
-				"t2.port as node_address_port, t2.status as node_address_status " +
-				"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 ORDER BY height DESC",
+			want: "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, latest, height, " +
+				"t2.address AS node_address, t2.port AS node_address_port, t2.status AS node_address_status FROM node_registry " +
+				"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 ORDER BY height DESC",
 		},
 	}
 	for _, tt := range tests {
@@ -673,10 +673,10 @@ func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKeyWithNo
 				height:        10,
 				nodePublicKey: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			},
-			wantStr: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
-				"locked_balance, registration_status, latest, height FROM node_registry " +
-				"LEFT JOIN node_address_info AS t2 ON id = t2.node_id WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? " +
-				"ORDER BY height DESC LIMIT 1",
+			wantStr: "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, latest, height, " +
+				"t2.address AS node_address, t2.port AS node_address_port, t2.status AS node_address_status " +
+				"FROM node_registry LEFT JOIN node_address_info AS t2 ON id = t2.node_id " +
+				"WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? ORDER BY height DESC LIMIT 1",
 			wantArgs: []interface{}{[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1}, uint32(10)},
 		},

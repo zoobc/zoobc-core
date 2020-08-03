@@ -38,16 +38,16 @@ func (*mockCoinbaseLotteryWinnersQueryExecutorSuccess) ExecuteSelectRow(qStr str
 			switch nodeID {
 			case "1":
 				mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-					"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-				}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
+					"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+				}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
 			case "2":
 				mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-					"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-				}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, "10.10.10.2", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
+					"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+				}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 			case "3":
 				mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-					"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-				}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, "10.10.10.3", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
+					"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+				}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 			}
 		}
 	}

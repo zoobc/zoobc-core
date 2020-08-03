@@ -299,7 +299,7 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, arg
 		mockedRows.AddRow(
 			senderAddress1,
 			uint32(1),
-			int64(1000000000000),
+			int64(900000000),
 			int64(1000000000000),
 			int64(100000000),
 			true,
@@ -359,7 +359,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	}
 	txBodyWithValidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
-		LockedBalance: int64(1000000000),
+		LockedBalance: int64(100000),
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -826,7 +826,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 				Body:                  txBody,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			want: 221,
+			want: 206,
 		},
 	}
 	for _, tt := range tests {

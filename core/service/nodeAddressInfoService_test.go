@@ -23,7 +23,7 @@ func (*nrcuMockQueryExecutor) ExecuteSelect(qe string, tx bool, args ...interfac
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height, t2.status as ai_status FROM node_registry " +
 		"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 AND (id,height) in " +
 		"(SELECT t1.id,MAX(t1.height) FROM node_registry AS t1 WHERE t1.height <= 10 GROUP BY t1.id) GROUP BY id ORDER BY t2.status":
@@ -32,22 +32,19 @@ func (*nrcuMockQueryExecutor) ExecuteSelect(qe string, tx bool, args ...interfac
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"t2.address || ':' || t2.port AS node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
-			// TODO: add these fields when dropping address field from node_registry table
-			// "t2.address AS ai_Address",
-			// "t2.port AS ai_Port",
-			"t2.status as ai_status",
+			"t2.address AS node_address",
+			"t2.port AS node_address_port",
+			"t2.status AS node_address_status",
 		})
 		mockedRows.AddRow(
 			int64(111),
 			[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			uint32(0),
-			"127.0.0.1:3000",
 			10000000000,
 			model.NodeRegistrationState_NodeRegistered,
 			true,
