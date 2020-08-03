@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"fmt"
 	"time"
 
 	"golang.org/x/crypto/sha3"
@@ -383,9 +382,10 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		senderNodeRegistration    model.NodeRegistration
 		recipientNodeRegistration model.NodeRegistration
 		err                       error
+		peers                     map[string]*model.Peer
 	)
 	// get sender address at height
-	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
+	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
 		receipt.SenderPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
@@ -396,7 +396,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	}
 
 	// get recipient address at height
-	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(
+	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
 		receipt.RecipientPublicKey,
 		receipt.ReferenceBlockHeight,
 	)
@@ -405,24 +405,22 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	if err != nil {
 		return err
 	}
-	recipientFullAddress := fmt.Sprintf(
-		"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
 	// get or build scrambled nodes at height
 	scrambledNodes, err := rs.NodeRegistrationService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-	// get priority peer of sender from scrambledNodes
-	peers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(
-		fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
+
+	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
+		senderNodeRegistration.NodeID,
 		scrambledNodes,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
+
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
-		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+		if peer.GetInfo().ID == recipientNodeRegistration.NodeID {
 			// valid recipient and sender
 			return nil
 		}

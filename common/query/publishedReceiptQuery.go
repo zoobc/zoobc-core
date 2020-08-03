@@ -17,6 +17,7 @@ type (
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
+		GetFields() []string
 	}
 
 	PublishedReceiptQuery struct {
@@ -116,6 +117,9 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 
 }
 
+func (prq *PublishedReceiptQuery) GetFields() []string {
+	return prq.Fields
+}
 func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{} {
 	return []interface{}{
 		&publishedReceipt.BatchReceipt.SenderPublicKey,
@@ -173,13 +177,17 @@ func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (prq *PublishedReceiptQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0 ORDER BY block_height",
 		strings.Join(prq.Fields, ", "),
-		prq.getTableName(), fromHeight, toHeight)
+		prq.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (prq *PublishedReceiptQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		prq.TableName, fromHeight, toHeight)
 }

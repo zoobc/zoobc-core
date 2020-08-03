@@ -1345,7 +1345,7 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess:Approvec",
+			name: "wantSuccess:Approved",
 			fields: fields{
 				ID:               1234567890,
 				Fee:              1,
@@ -1393,6 +1393,7 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 					BlockHeight:      1,
 				},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				QueryExecutor:       &mockQueryEscrowApprovalOK{},
 			},
@@ -1402,6 +1403,43 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 					Approval:      1,
 					TransactionID: 1234567890,
 				}},
+		},
+		{
+			name: "WantSuccess:Expired",
+			fields: fields{
+				ID:               1234567890,
+				Fee:              1,
+				SenderAddress:    "ZBC_",
+				RecipientAddress: "ZBC_1",
+				Height:           1,
+				Body: &model.SendMoneyTransactionBody{
+					Amount: 10,
+				},
+				Escrow: &model.Escrow{
+					ID:               1234567890,
+					SenderAddress:    "ZBC_",
+					RecipientAddress: "ZBC_1",
+					ApproverAddress:  "ZBC_2",
+					Amount:           10,
+					Commission:       1,
+					Timeout:          123456789,
+					Status:           model.EscrowStatus_Expired,
+					BlockHeight:      1,
+					Latest:           true,
+					Instruction:      "Do this",
+				},
+				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+			},
+			args: args{
+				blockTimestamp: 100,
+				txBody: &model.ApprovalEscrowTransactionBody{
+					Approval:      model.EscrowApproval_Expire,
+					TransactionID: 1234567890,
+				},
+			},
 		},
 	}
 	for _, tt := range tests {

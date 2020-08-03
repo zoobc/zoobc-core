@@ -17,18 +17,19 @@ func LoadConfig(path, name, extension string) error {
 	}
 
 	viper.SetDefault("dbName", "zoobc.db")
-	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
-	viper.SetDefault("badgerDbPath", "./resource")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
-	viper.SetDefault("configPath", "./resource")
+	viper.SetDefault("resourcePath", "./resource")
 	viper.SetDefault("peerPort", 8001)
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
-	viper.SetDefault("apiHTTPPort", 0)
+	viper.SetDefault("apiHTTPPort", 7001)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
 	viper.SetDefault("snapshotPath", "./resource/snapshots")
+	viper.SetDefault("logOnCli", false)
+	viper.SetDefault("cliMonitoring", true)
+	viper.SetDefault("walletCertFileName", "wallet.zbc")
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed
@@ -39,9 +40,9 @@ func LoadConfig(path, name, extension string) error {
 	viper.AddConfigPath(".")
 
 	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./resource" && name == "config" {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./" && name == "config" {
 			// Config file not found; ignore error if desired
-			return nil
+			return err
 		}
 		// Config file was found but another error was produced
 		return err

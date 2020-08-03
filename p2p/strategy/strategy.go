@@ -20,6 +20,7 @@ type (
 		GetUnresolvedPeers() map[string]*model.Peer
 		GetResolvedPeers() map[string]*model.Peer
 		GetPriorityPeers() map[string]*model.Peer
+		GetPriorityPeersByFullAddress(priorityPeers map[string]*model.Peer) (priorityPeersByAddr map[string]*model.Peer)
 		AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error
 		GetBlacklistedPeers() map[string]*model.Peer
 		PeerBlacklist(peer *model.Peer, cause string) error

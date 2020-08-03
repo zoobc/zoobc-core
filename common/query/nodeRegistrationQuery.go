@@ -40,6 +40,7 @@ type (
 		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
 		ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error
+		GetFields() []string
 	}
 
 	NodeRegistrationQuery struct {
@@ -202,8 +203,8 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKeyWit
 	height uint32) (str string, args []interface{}) {
 	joinedFields := strings.Join(nrq.JoinedAddressInfoFields, ", ")
 	joinedFieldsStr := fmt.Sprintf(joinedFields, "t2", "t2", "t2")
-	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
-			"WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+	return fmt.Sprintf("SELECT %s FROM %s LEFT JOIN %s AS t2 ON id = t2.node_id "+
+			"WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? ORDER BY height DESC LIMIT 1",
 			joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName),
 		[]interface{}{nodePublicKey, height}
 }
@@ -517,6 +518,10 @@ func (nrq *NodeRegistrationQuery) ScanWithNodeAddress(nr *model.NodeRegistration
 	return nil
 }
 
+func (nrq *NodeRegistrationQuery) GetFields() []string {
+	return nrq.Fields
+}
+
 // SelectDataForSnapshot this query selects only node registry latest state from height 0 to 'fromHeight' (
 // excluded) and all records from 'fromHeight' to 'toHeight',
 // removing from first selection records that have duplicate ids with second second selection.
@@ -524,18 +529,18 @@ func (nrq *NodeRegistrationQuery) ScanWithNodeAddress(nr *model.NodeRegistration
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
-			"MAX(t2.height) FROM %s as t2 WHERE t2.height >= 0 AND t2.height < %d GROUP BY t2.id) "+
+			"MAX(t2.height) FROM %s as t2 WHERE t2.height > 0 AND t2.height < %d GROUP BY t2.id) "+
 			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 	}
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d ORDER BY height, id",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0 ORDER BY height, id",
 		strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (nrq *NodeRegistrationQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		nrq.TableName, fromHeight, toHeight)
 }

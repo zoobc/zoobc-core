@@ -29,6 +29,7 @@ type (
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
+		GetFields() []string
 	}
 )
 
@@ -234,6 +235,10 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 	)
 }
 
+func (et *EscrowTransactionQuery) GetFields() []string {
+	return et.Fields
+}
+
 // Rollback delete records `WHERE height > "height"
 func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
@@ -259,8 +264,9 @@ func (et *EscrowTransactionQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX("+
-		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.id) ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		strings.Join(et.Fields, ","),
 		et.getTableName(),
 		et.getTableName(),
@@ -271,6 +277,6 @@ func (et *EscrowTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uin
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (et *EscrowTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		et.TableName, fromHeight, toHeight)
 }

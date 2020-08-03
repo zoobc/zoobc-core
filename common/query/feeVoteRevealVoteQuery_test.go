@@ -196,7 +196,7 @@ func TestFeeVoteRevealVoteQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   170,
 			},
 			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
-				"FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
+				"FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -234,7 +234,7 @@ func TestFeeVoteRevealVoteQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 100,
 				toHeight:   170,
 			},
-			want: "DELETE FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170",
+			want: "DELETE FROM fee_vote_reveal_vote WHERE block_height >= 100 AND block_height <= 170 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

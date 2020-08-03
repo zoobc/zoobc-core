@@ -19,12 +19,14 @@ type (
 	// LiquidPaymentTransactionQueryInterface methods must have
 	LiquidPaymentTransactionQueryInterface interface {
 		InsertLiquidPaymentTransaction(liquidPayment *model.LiquidPayment) [][]interface{}
+		InsertLiquidPaymentTransactions(liquidPayments []*model.LiquidPayment) (str string, args []interface{})
 		GetPendingLiquidPaymentTransactionByID(id int64, status model.LiquidPaymentStatus) (str string, args []interface{})
 		GetPassedTimePendingLiquidPaymentTransactions(timestamp int64) (qStr string, args []interface{})
 		CompleteLiquidPaymentTransaction(id int64, causedFields map[string]interface{}) [][]interface{}
 		ExtractModel(*model.LiquidPayment) []interface{}
 		BuildModels(*sql.Rows) ([]*model.LiquidPayment, error)
 		Scan(liquidPayment *model.LiquidPayment, row *sql.Row) error
+		GetFields() []string
 	}
 )
 
@@ -75,6 +77,27 @@ func (lpt *LiquidPaymentTransactionQuery) InsertLiquidPaymentTransaction(liquidP
 	}
 }
 
+func (lpt *LiquidPaymentTransactionQuery) InsertLiquidPaymentTransactions(liquidPayments []*model.LiquidPayment) (str string, args []interface{}) {
+	if len(liquidPayments) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			lpt.getTableName(),
+			strings.Join(lpt.Fields, ", "),
+		)
+		for k, liquidPayment := range liquidPayments {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(lpt.Fields)-1),
+			)
+			if k < len(liquidPayments)-1 {
+				str += ","
+			}
+			args = append(args, lpt.ExtractModel(liquidPayment)...)
+		}
+
+	}
+	return str, args
+}
 func (lpt *LiquidPaymentTransactionQuery) CompleteLiquidPaymentTransaction(id int64, causedFields map[string]interface{}) [][]interface{} {
 	return [][]interface{}{
 		{
@@ -180,6 +203,9 @@ func (lpt *LiquidPaymentTransactionQuery) Scan(liquidPayment *model.LiquidPaymen
 		&liquidPayment.Latest,
 	)
 }
+func (lpt *LiquidPaymentTransactionQuery) GetFields() []string {
+	return lpt.Fields
+}
 
 // Rollback delete records `WHERE height > "height"
 func (lpt *LiquidPaymentTransactionQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
@@ -206,8 +232,9 @@ func (lpt *LiquidPaymentTransactionQuery) Rollback(height uint32) (multiQueries 
 }
 
 func (lpt *LiquidPaymentTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX("+
-		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.id) ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (id, block_height) IN (SELECT t2.id, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		strings.Join(lpt.Fields, ","),
 		lpt.getTableName(),
 		lpt.getTableName(),
@@ -218,6 +245,6 @@ func (lpt *LiquidPaymentTransactionQuery) SelectDataForSnapshot(fromHeight, toHe
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (lpt *LiquidPaymentTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		lpt.TableName, fromHeight, toHeight)
 }

@@ -206,7 +206,7 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		currentTime                      = time.Now().Unix()
-		ct                               = &chaintype.MainChain{}
+		ct                               = &chaintype.SpineChain{}
 		prevRoundBegin, prevRoundExpired int64
 	)
 	// avoid division by zero in case there are no blocksmiths in the network (edge case)

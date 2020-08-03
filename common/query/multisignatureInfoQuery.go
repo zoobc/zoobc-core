@@ -19,6 +19,7 @@ type (
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
+		GetFields() []string
 	}
 
 	MultisignatureInfoQuery struct {
@@ -58,10 +59,13 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	query := fmt.Sprintf(
 		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 		strings.Join(msi.Fields, ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') FROM %s GROUP BY multisig_address, block_height ORDER BY account_address_index DESC) as addresses",
+		"(SELECT GROUP_CONCAT(account_address, ',') "+
+			"FROM multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height "+
+			"ORDER BY account_address_index DESC) as addresses",
 		msi.getTableName(),
 	)
 	return query, []interface{}{
+		multisigAddress,
 		multisigAddress,
 		blockHeight,
 	}
@@ -121,7 +125,8 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 
 			for a, address := range musig.GetAddresses() {
 				participantQ += fmt.Sprintf("(?%s)", strings.Repeat(", ?", len(participantQueryInterface.Fields)-1))
-				if a < len(musig.GetAddresses())-1 {
+
+				if !(a == len(musig.GetAddresses())-1 && m == len(multiSignatureInfos)-1) {
 					participantQ += ","
 				}
 				participantArgs = append(participantArgs, participantQueryInterface.ExtractModel(&model.MultiSignatureParticipant{
@@ -157,6 +162,9 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 	)
 	multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
+}
+func (msi *MultisignatureInfoQuery) GetFields() []string {
+	return msi.Fields
 }
 
 // ExtractModel will get values exclude addresses, perfectly used while inserting new record.
@@ -218,10 +226,10 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) IN ("+
-			"SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
-			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
-			") ORDER BY block_height",
+		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
+			"IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
+			"GROUP BY t2.multisig_address) ORDER BY block_height",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index ASC) as addresses",
@@ -234,6 +242,6 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (msi *MultisignatureInfoQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		msi.getTableName(), fromHeight, toHeight)
 }

@@ -20,13 +20,13 @@ func TestLoadConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "MustSucceed",
+			name: "ConfigNotFound",
 			args: args{
 				path:      "./resource",
 				name:      "config",
 				extension: "toml",
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "MustError",

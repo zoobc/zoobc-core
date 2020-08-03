@@ -18,6 +18,7 @@ type (
 		BuildModel(skippedBlocksmiths []*model.SkippedBlocksmith, rows *sql.Rows) ([]*model.SkippedBlocksmith, error)
 		Scan(skippedBlocksmith *model.SkippedBlocksmith, rows *sql.Row) error
 		Rollback(height uint32) (multiQueries [][]interface{})
+		GetFields() []string
 	}
 
 	SkippedBlocksmithQuery struct {
@@ -129,6 +130,9 @@ func (*SkippedBlocksmithQuery) Scan(skippedBlocksmith *model.SkippedBlocksmith, 
 	)
 	return err
 }
+func (sbq *SkippedBlocksmithQuery) GetFields() []string {
+	return sbq.Fields
+}
 
 func (sbq *SkippedBlocksmithQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
@@ -140,13 +144,17 @@ func (sbq *SkippedBlocksmithQuery) Rollback(height uint32) (multiQueries [][]int
 }
 
 func (sbq *SkippedBlocksmithQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0 ORDER BY block_height",
 		strings.Join(sbq.Fields, ", "),
-		sbq.getTableName(), fromHeight, toHeight)
+		sbq.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (sbq *SkippedBlocksmithQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		sbq.getTableName(), fromHeight, toHeight)
 }

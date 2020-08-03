@@ -5,7 +5,13 @@ import (
 )
 
 var (
-	MaxNumBlocksmithRewards     = 5
+	CoinbaseTotalDistribution        int64   = 3000000 * OneZBC // 3 million * 10^8 in production
+	CoinbaseTime                     int64   = 30 * OneDay      // 5 years in production
+	CoinbaseSigmoidStart             float64 = 3
+	CoinbaseSigmoidEnd               float64 = 6
+	CoinbaseNumberRewardsPerSecond   int64   = 1 // probably this will always be 1
+	CoinbaseMaxNumberRewardsPerBlock int64   = 600
+
 	GenerateBlockTimeoutSec     = int64(15)
 	CumulativeDifficultyDivisor = int64(1000000)
 	// BlockPoolScanPeriod define the periodic time to scan the whole block pool for legal block to persist to the chain

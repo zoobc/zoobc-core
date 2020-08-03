@@ -433,7 +433,7 @@ func TestNodeRegistrationQuery_InsertNodeRegistration(t *testing.T) {
 func TestNodeRegistrationQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot:success", func(t *testing.T) {
 		res := mockNodeRegistrationQuery.TrimDataBeforeSnapshot(0, 10)
-		want := "DELETE FROM node_registry WHERE height >= 0 AND height <= 10"
+		want := "DELETE FROM node_registry WHERE height >= 0 AND height <= 10 AND height != 0"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -465,8 +465,8 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "SELECT id,node_public_key,account_address,registration_height,locked_balance,registration_status,latest," +
-				"height FROM node_registry WHERE height >= 0 AND height <= 10 ORDER BY height, id",
+			want: "SELECT id,node_public_key,account_address,registration_height,node_address,locked_balance,registration_status,latest," +
+				"height FROM node_registry WHERE height >= 0 AND height <= 10 AND height != 0 ORDER BY height, id",
 		},
 		{
 			name: "SelectDataForSnapshot:success-{fromArbitraryHeight}",
@@ -480,7 +480,7 @@ func TestNodeRegistrationQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,node_public_key,account_address,registration_height,locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE (id, height) IN (SELECT t2.id, MAX(t2.height) FROM node_registry as t2 WHERE t2." +
-				"height >= 0 AND t2.height < 720 GROUP BY t2.id) UNION ALL SELECT id,node_public_key,account_address,registration_height," +
+				"height > 0 AND t2.height < 720 GROUP BY t2.id) UNION ALL SELECT id,node_public_key,account_address,registration_height,node_address," +
 				"locked_balance,registration_status,latest," +
 				"height FROM node_registry WHERE height >= 720 AND height <= 1440 ORDER BY height, id",
 		},
@@ -673,10 +673,10 @@ func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKeyWithNo
 				height:        10,
 				nodePublicKey: []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 			},
-			wantStr: "SELECT id, node_public_key, account_address, locked_balance, registration_status, latest, height, " +
-				"t2.address as node_address, t2.port as node_address_port " +
-				"FROM node_registry " +
-				"INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1",
+			wantStr: "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, " +
+				"locked_balance, registration_status, latest, height FROM node_registry " +
+				"LEFT JOIN node_address_info AS t2 ON id = t2.node_id WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? " +
+				"ORDER BY height DESC LIMIT 1",
 			wantArgs: []interface{}{[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 				1, 1, 1, 1, 1, 1}, uint32(10)},
 		},

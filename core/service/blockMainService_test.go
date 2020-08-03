@@ -976,7 +976,11 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
+	blocksmiths []*model.Blocksmith,
+	blockTimestamp,
+	previousBlockTimestamp int64,
+) ([]string, error) {
 	return []string{}, nil
 }
 
@@ -1564,6 +1568,10 @@ type (
 	mockReceiptServiceReturnEmpty struct {
 		ReceiptService
 	}
+
+	mockGenerateBlockCoinbaseServiceSuccess struct {
+		CoinbaseService
+	}
 )
 
 func (*mockReceiptServiceReturnEmpty) SelectReceipts(
@@ -1616,7 +1624,7 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
@@ -1634,19 +1642,26 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 }
 
 // mockMempoolServiceSelectFail
-func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockMempoolServiceSelectSuccess
 func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
 	blockTimestamp int64,
+	blockHeight uint32,
 ) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,
 		},
 	}, nil
+}
+
+func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
+	blockTimesatamp, previousBlockTimesatamp int64,
+) int64 {
+	return 50 * constant.OneZBC
 }
 
 func TestBlockService_GenerateBlock(t *testing.T) {
@@ -1684,7 +1699,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				Signature:       &mockSignature{},
 				MempoolQuery:    query.NewMempoolQuery(&chaintype.MainChain{}),
 				MempoolService:  &mockMempoolServiceSelectFail{},
-				CoinbaseService: &CoinbaseService{},
+				CoinbaseService: &mockGenerateBlockCoinbaseServiceSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1724,7 +1739,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
 				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				CoinbaseService:    &CoinbaseService{},
+				CoinbaseService:    &mockGenerateBlockCoinbaseServiceSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
