@@ -44,90 +44,110 @@ func NewCLIMonitoring(configInfo *model.Config) CLIMonitoringInteface {
 	}
 }
 
-func (nl *CLIMonitoring) UpdateBlockState(chaintype chaintype.ChainType, block *model.Block) {
-	nl.BlocksInfoLock.Lock()
-	defer nl.BlocksInfoLock.Unlock()
-	if nl.BlocksInfo == nil {
-		nl.BlocksInfo = make(map[int32]*model.Block)
+func (cm *CLIMonitoring) UpdateBlockState(chaintype chaintype.ChainType, block *model.Block) {
+	cm.BlocksInfoLock.Lock()
+	defer cm.BlocksInfoLock.Unlock()
+	if cm.BlocksInfo == nil {
+		cm.BlocksInfo = make(map[int32]*model.Block)
 	}
-	nl.BlocksInfo[chaintype.GetTypeInt()] = block
+	cm.BlocksInfo[chaintype.GetTypeInt()] = block
 }
 
-func (nl *CLIMonitoring) UpdatePeersInfo(peersType string, peersNumber int) {
-	nl.PeersInfoLock.Lock()
-	defer nl.PeersInfoLock.Unlock()
-	if nl.PeersInfo == nil {
-		nl.PeersInfo = make(map[string]int)
+func (cm *CLIMonitoring) UpdatePeersInfo(peersType string, peersNumber int) {
+	cm.PeersInfoLock.Lock()
+	defer cm.PeersInfoLock.Unlock()
+	if cm.PeersInfo == nil {
+		cm.PeersInfo = make(map[string]int)
 	}
-	nl.PeersInfo[peersType] = peersNumber
+	cm.PeersInfo[peersType] = peersNumber
 
 }
 
-func (nl *CLIMonitoring) UpdateSmithingInfo(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
-	nl.NextSmithingIndex = sortedBlocksmithsMap[string(nl.ConfigInfo.NodeKey.PublicKey)]
-	if nl.NextSmithingIndex != nil {
-		if int(*nl.NextSmithingIndex) <= len(sortedBlocksmiths) { // safety check since we are using index of different model
-			nl.SmithInfo = sortedBlocksmiths[*nl.NextSmithingIndex]
+func (cm *CLIMonitoring) UpdateSmithingInfo(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
+	cm.NextSmithingIndex = sortedBlocksmithsMap[string(cm.ConfigInfo.NodeKey.PublicKey)]
+	if cm.NextSmithingIndex != nil {
+		if int(*cm.NextSmithingIndex) <= len(sortedBlocksmiths) { // safety check since we are using index of different model
+			cm.SmithInfo = sortedBlocksmiths[*cm.NextSmithingIndex]
 		}
 	}
 }
 
-func (nl *CLIMonitoring) Start() {
+func (cm *CLIMonitoring) Start() {
 	var (
 		mainChain                          = &chaintype.MainChain{}
 		spainChain                         = &chaintype.SpineChain{}
 		nodeAccountAddress, errNodeAddress = address.EncodeZbcID(
 			constant.PrefixZoobcNodeAccount,
-			nl.ConfigInfo.NodeKey.PublicKey,
+			cm.ConfigInfo.NodeKey.PublicKey,
 		)
 	)
 	tm.Clear() // Clear current screen
 	for {
 		tm.MoveCursor(1, 1)
+		cm.print("Node IP Address / DNS", cm.ConfigInfo.MyAddress)
+		cm.print("Peer Communication Port", cm.ConfigInfo.PeerPort)
 
-		tm.Printf("%s: %v\n", tm.Bold("Node IP Address / DNS "), nl.ConfigInfo.MyAddress)
-		tm.Printf("%s: %v\n", tm.Bold("Peer Communication Port"), (nl.ConfigInfo.PeerPort))
-		tm.Printf("%s: %v\n", tm.Bold("RPC API Port"), nl.ConfigInfo.RPCAPIPort)
-		tm.Printf("%s: %v\n", tm.Bold("HTTP API Port"), nl.ConfigInfo.HTTPAPIPort)
-		tm.Printf("%s: %v\n", tm.Bold("Monitoring Port"), nl.ConfigInfo.MonitoringPort)
-		tm.Printf("%s: %v\n", tm.Bold("Well Known Peers"), strings.Join(nl.ConfigInfo.WellknownPeers, ","))
+		cm.print("RPC API Port", cm.ConfigInfo.RPCAPIPort)
+		cm.print("HTTP API Port", cm.ConfigInfo.HTTPAPIPort)
+		cm.print("Monitoring Port", cm.ConfigInfo.MonitoringPort)
+		cm.print("Well Known Peers", strings.Join(cm.ConfigInfo.WellknownPeers, ", "))
 
 		if errNodeAddress == nil {
-			tm.Printf("%s: %v\n", tm.Bold("Node Account Address"), nodeAccountAddress)
+			cm.print("Node Account Address", nodeAccountAddress)
 		}
-		tm.Printf("%s: %v\n", tm.Bold("Owner Account Address"), nl.ConfigInfo.OwnerAccountAddress)
-		tm.Printf("%s: %v\n\n", tm.Bold("Smithing Status"), nl.ConfigInfo.Smithing)
+		cm.print("Owner Account Address", cm.ConfigInfo.OwnerAccountAddress)
+		cm.print("Smithing Status", cm.ConfigInfo.Smithing)
+		cm.printLineBreak()
 
-		tm.Printf("%s: %v\n",
-			tm.Bold(fmt.Sprintf("%s Block ID", spainChain.GetName())),
-			nl.BlocksInfo[spainChain.GetTypeInt()].GetID(),
+		cm.print(
+			fmt.Sprintf("%s Block ID", spainChain.GetName()),
+			cm.BlocksInfo[spainChain.GetTypeInt()].GetID(),
 		)
-		tm.Printf("%s: %v\n",
-			tm.Bold(fmt.Sprintf("%s Block Height", spainChain.GetName())),
-			nl.BlocksInfo[spainChain.GetTypeInt()].GetHeight(),
-		)
-
-		tm.Printf("%s: %v\n",
-			tm.Bold(fmt.Sprintf("%s Block ID", mainChain.GetName())),
-			nl.BlocksInfo[mainChain.GetTypeInt()].GetID(),
-		)
-		tm.Printf("%s: %v\n\n",
-			tm.Bold(fmt.Sprintf("%s Block Height", mainChain.GetName())),
-			nl.BlocksInfo[mainChain.GetTypeInt()].GetHeight(),
+		cm.print(
+			fmt.Sprintf("%s Block Height", spainChain.GetName()),
+			cm.BlocksInfo[spainChain.GetTypeInt()].GetHeight(),
 		)
 
-		tm.Printf("%s: %v\n", tm.Bold("Resolved Peers Number"), nl.PeersInfo[CLIMonitoringResolvePeersNumber])
-		tm.Printf("%s: %v\n", tm.Bold("Unresolved Peers Number"), nl.PeersInfo[CLIMonitoringUnresolvedPeersNumber])
-		if nl.NextSmithingIndex != nil {
-			tm.Printf("%s: %v\n", tm.Bold("Priority Resolved  Peers Number"), nl.PeersInfo[CLIMonitoringResolvedPriorityPeersNumber])
-			tm.Printf("%s: %v\n\n", tm.Bold("Priority Unresolved Peers Number"), nl.PeersInfo[CLIMonitoringUnresolvedPriorityPeersNumber])
+		cm.print(
+			fmt.Sprintf("%s Block ID", mainChain.GetName()),
+			cm.BlocksInfo[mainChain.GetTypeInt()].GetID(),
+		)
+		cm.print(
+			fmt.Sprintf("%s Block Height", mainChain.GetName()),
+			cm.BlocksInfo[mainChain.GetTypeInt()].GetHeight(),
+		)
+		cm.printLineBreak()
 
-			tm.Printf("%s: %d\n", tm.Bold("Next Smithing Potition"), *nl.NextSmithingIndex)
-			tm.Printf("%s: %v\n", tm.Bold("Node ID"), nl.SmithInfo.NodeID)
-			tm.Printf("%s: %v\n", tm.Bold("Node Score"), nl.SmithInfo.Score)
+		cm.print("Resolved Peers Number", cm.PeersInfo[CLIMonitoringResolvePeersNumber])
+		cm.print("Unresolved Peers Number", cm.PeersInfo[CLIMonitoringUnresolvedPeersNumber])
+		if cm.NextSmithingIndex != nil {
+			cm.print("Priority Resolved  Peers Number", cm.PeersInfo[CLIMonitoringResolvedPriorityPeersNumber])
+			cm.print("Priority Unresolved Peers Number", cm.PeersInfo[CLIMonitoringUnresolvedPriorityPeersNumber])
+			cm.printLineBreak()
+
+			cm.print("Next Smithing Potition", *cm.NextSmithingIndex)
+			cm.print("Node ID", cm.SmithInfo.NodeID)
+			cm.print("Node Score", cm.SmithInfo.Score)
 		}
 
+		// note. Please add number of clearLine as many as number of print in conditional
+		cm.clearLine(1)
 		tm.Flush() // Call it every time at the end of rendering
 		time.Sleep(2 * time.Second)
+	}
+}
+
+func (*CLIMonitoring) print(label string, value interface{}) {
+	tm.Println(tm.ResetLine(fmt.Sprintf("%s: %v", tm.Bold(label), value)))
+}
+
+func (*CLIMonitoring) printLineBreak() {
+	tm.Println(tm.ResetLine(""))
+}
+
+// clearLine to clear unusede line of screen, numberLine depends on number of print in the conditional
+func (cm *CLIMonitoring) clearLine(numberLine int) {
+	for i := 0; i < numberLine; i++ {
+		cm.printLineBreak()
 	}
 }
