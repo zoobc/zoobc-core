@@ -124,12 +124,12 @@ func (cm *CLIMonitoring) Start() {
 			cm.print("Priority Unresolved Peers Number", cm.PeersInfo[CLIMonitoringUnresolvedPriorityPeersNumber])
 			cm.printLineBreak()
 
-			cm.print("Next Smithing Potition", *cm.NextSmithingIndex)
+			cm.print("Next Smithing Position", *cm.NextSmithingIndex)
 			cm.print("Node ID", cm.SmithInfo.NodeID)
 			cm.print("Node Score", cm.SmithInfo.Score)
 		}
 
-		// note. Please add number of clearLine as many as number of print in conditional
+		// note. Please add number of clearLine as many as number of print in conditional state
 		cm.clearLine(1)
 		tm.Flush() // Call it every time at the end of rendering
 		time.Sleep(2 * time.Second)
