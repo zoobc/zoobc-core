@@ -47,9 +47,6 @@ func GenerateTxRegisterNode(
 
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
-		NodeAddress: &model.NodeAddress{
-			Address: nodeAddress,
-		},
 		LockedBalance: lockedBalance,
 		Poown:         proofOfOwnerShip,
 	}
@@ -81,9 +78,6 @@ func GenerateTxUpdateNode(
 ) *model.Transaction {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
-		NodeAddress: &model.NodeAddress{
-			Address: nodeAddress,
-		},
 		LockedBalance: lockedBalance,
 		Poown:         proofOfOwnerShip,
 	}
