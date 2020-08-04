@@ -1337,6 +1337,13 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 
 // UpdateOwnNodeAddressInfo check if nodeAddress in db must be updated and broadcast the new address
 func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, forceBroadcast bool) error {
+	if nodeAddress == "" || port == 0 {
+		return blocker.NewBlocker(
+			blocker.P2PPeerError,
+			fmt.Sprintf("Invalid own address or port info %s:%d", nodeAddress, port),
+		)
+	}
+
 	var (
 		updated          bool
 		nodeAddressInfo  *model.NodeAddressInfo
@@ -1364,7 +1371,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			model.NodeAddressStatus_NodeAddressConfirmed,
 		)
 		if err != nil {
-			ps.Logger.Debugf("cannot update nodeAddressInfo: %s", err)
+			ps.Logger.Warnf("cannot update nodeAddressInfo: %s", err)
 		}
 		// broadcast, if node addressInfo has been updated
 		if updated || forceBroadcast {
@@ -1413,7 +1420,7 @@ func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressI
 	if peerInfo.Address == nodeAddressInfo.Address && peerInfo.Port == nodeAddressInfo.Port {
 		return
 	}
-	ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+	ps.Logger.Warnf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
 		nodeAddressInfo.Address,
 		nodeAddressInfo.Port,
 		peerInfo.Address,
