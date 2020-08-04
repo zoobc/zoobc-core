@@ -146,7 +146,7 @@ func (*CLIMonitoring) printLineBreak() {
 	}
 }
 
-// clearLine to clear unusede line of screen, numberLine depends on number of print in the conditional
+// clearLine to clear unused line on the screen, numberLine depends on number of print in the conditional state
 func (cm *CLIMonitoring) clearLine(numberLine int) {
 	for i := 0; i < numberLine; i++ {
 		cm.printLineBreak()
