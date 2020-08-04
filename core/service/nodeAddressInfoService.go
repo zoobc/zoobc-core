@@ -13,9 +13,6 @@ type (
 	// NodeAddressInfoServiceInterface represents interface for NodeAddressInfoService
 	NodeAddressInfoServiceInterface interface {
 		GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte
-		GetRegisteredNodesWithConsolidatedAddresses(
-			height uint32,
-			preferredStatus model.NodeAddressStatus) ([]*model.NodeRegistration, error)
 		GetAddressInfoTableWithConsolidatedAddresses(preferredStatus model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GetAddressInfoByNodeID(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error)
 	}
@@ -57,44 +54,6 @@ func (nru *NodeAddressInfoService) GetUnsignedNodeAddressInfoBytes(nodeAddressMe
 	buffer.Write(util.ConvertUint32ToBytes(nodeAddressMessage.BlockHeight))
 	buffer.Write(nodeAddressMessage.BlockHash)
 	return buffer.Bytes()
-}
-
-// GetRegisteredNodesWithConsolidatedAddresses returns registered nodes that have relative node address info records,
-// selecting addresses with 'preferredStatus', when available, over the other ones
-func (nru *NodeAddressInfoService) GetRegisteredNodesWithConsolidatedAddresses(
-	height uint32,
-	preferredStatus model.NodeAddressStatus) ([]*model.NodeRegistration, error) {
-	// get all registry with addresses, grouped by nodeID and ordered by status
-	rows, err := nru.QueryExecutor.ExecuteSelect(
-		nru.NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress(height),
-		false,
-	)
-	if err != nil {
-		nru.Logger.Error(err.Error())
-		return nil, err
-	}
-	defer rows.Close()
-	nodeRegistries, err := nru.NodeRegistrationQuery.BuildModelWithAddressInfo([]*model.NodeRegistration{}, rows)
-	if err != nil {
-		nru.Logger.Error(err.Error())
-		return nil, err
-	}
-
-	mapRegistries := make(map[int64]*model.NodeRegistration)
-	// consolidate the registry into a list of unique node Ids, preferring pending addresses rather than confirmed when present
-	for _, nr := range nodeRegistries {
-		if prevNr, ok := mapRegistries[nr.GetNodeID()]; ok &&
-			prevNr.GetNodeAddressInfo().GetStatus() == preferredStatus {
-			continue
-		}
-		mapRegistries[nr.GetNodeID()] = nr
-	}
-	// rebuild the registry array
-	var res []*model.NodeRegistration
-	for _, nr := range mapRegistries {
-		res = append(res, nr)
-	}
-	return res, nil
 }
 
 // GetAddressInfoTableWithConsolidatedAddresses returns registered nodes that have relative node address info records,

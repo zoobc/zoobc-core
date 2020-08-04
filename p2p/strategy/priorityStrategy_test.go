@@ -329,9 +329,6 @@ func (p2pNr *p2pMockNodeRegistraionService) GetRegisteredNodes() ([]*model.NodeR
 			NodePublicKey:      nrsNodePubKey1,
 			AccountAddress:     nrsAddress1,
 			RegistrationHeight: 10,
-			NodeAddress: &model.NodeAddress{
-				Address: "10.10.10.10",
-			},
 			LockedBalance:      100000000,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,

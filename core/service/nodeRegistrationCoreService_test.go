@@ -44,9 +44,6 @@ var (
 		NodePublicKey:      nrsNodePubKey1,
 		AccountAddress:     nrsAddress1,
 		RegistrationHeight: 10,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-		},
 		LockedBalance:      100000000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 		Latest:             true,
@@ -57,9 +54,6 @@ var (
 		NodePublicKey:      nrsNodePubKey1,
 		AccountAddress:     nrsAddress1,
 		RegistrationHeight: 10,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-		},
 		LockedBalance:      100000000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 		Latest:             true,
@@ -79,7 +73,7 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx boo
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 " +
 		"ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -87,28 +81,26 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx boo
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
 		))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
 		))
-	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
+	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.locked_balance, " +
 		"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
 		"WHERE B.score = 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -116,7 +108,6 @@ func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx boo
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -178,7 +169,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE locked_balance > 0 AND registration_status = 1 AND latest=1 " +
 		"ORDER BY locked_balance DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -186,28 +177,26 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.node_address, A.locked_balance, " +
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+	case "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.locked_balance, " +
 		"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
 		"WHERE B.score <= 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -215,13 +204,12 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT nr.id AS nodeID, nr.node_public_key AS node_public_key, ps.score AS participation_score " +
 		"FROM node_registry AS nr INNER JOIN participation_score AS ps ON nr.id = ps.node_id " +
 		"WHERE nr.registration_status = 0 AND nr.latest = 1 AND ps.score > 0 AND ps.latest = 1":
@@ -231,7 +219,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"participation_score",
 		},
 		).AddRow(1, nrsNodePubKey1, 8000))
-	case "SELECT id, node_public_key, account_address, registration_height, t2.address || ':' || t2.port AS node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id " +
 		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) " +
 		"FROM node_registry AS t1 WHERE t1.height <= 1 GROUP BY t1.id) ORDER BY height DESC":
@@ -240,13 +228,12 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...in
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
-		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, "10.10.10.10", 100000000,
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, 100000000,
 			uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 	default:
 		return nil, errors.New("InvalidQuery")
@@ -477,9 +464,6 @@ func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T
 				NodePublicKey:      nrsNodePubKey1,
 				AccountAddress:     nrsAddress1,
 				RegistrationHeight: 10,
-				NodeAddress: &model.NodeAddress{
-					Address: "10.10.10.10",
-				},
 				LockedBalance:      100000000,
 				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 				Latest:             true,
@@ -547,9 +531,6 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 					NodePublicKey:      nrsNodePubKey1,
 					AccountAddress:     nrsAddress1,
 					RegistrationHeight: 10,
-					NodeAddress: &model.NodeAddress{
-						Address: "10.10.10.10",
-					},
 					LockedBalance:      100000000,
 					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 					Latest:             true,
@@ -633,10 +614,6 @@ func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidated
 			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76},
 			AccountAddress:     "accountA",
 			RegistrationHeight: 0,
-			NodeAddress: &model.NodeAddress{
-				Address: "127.0.0.1",
-				Port:    3000,
-			},
 			LockedBalance:      0,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,
@@ -647,10 +624,6 @@ func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidated
 			NodePublicKey:      []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78},
 			AccountAddress:     "accountB",
 			RegistrationHeight: 0,
-			NodeAddress: &model.NodeAddress{
-				Address: "127.0.0.1",
-				Port:    3002,
-			},
 			LockedBalance:      0,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,
@@ -668,9 +641,9 @@ func (*executorBuildScrambleNodesSuccess) ExecuteSelect(qStr string, tx bool, ar
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WithArgs(1).WillReturnRows(sqlmock.NewRows(
 		query.NewNodeRegistrationQuery().Fields,
 	).AddRow(
-		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, "127.0.0.1:3000", 0, 0, true, 0,
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 76}, "accountA", 0, 0, 0, true, 0,
 	).AddRow(
-		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, "127.0.0.1:3001", 0, 0, true, 0,
+		0, []byte{2, 65, 76, 32, 76, 12, 12, 34, 65, 78}, "accountB", 0, 0, 0, true, 0,
 	))
 
 	return db.Query(qStr, 1)
@@ -1297,7 +1270,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 	)
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if (nrMock.nodeIDNotFound && qStr == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if (nrMock.nodeIDNotFound && qStr == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1") ||
 		(nrMock.blockNotFound && qStr == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, "+
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
@@ -1308,21 +1281,20 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 	}
 
 	switch qStr {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
 		"latest, height FROM node_registry WHERE id = ? AND latest=1":
 		sqlRows = sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
 		},
 		).AddRow(
-			0, nrMock.nodePublicKey, "accountA", 0, "127.0.0.1:3000", 0, 0, true, 0,
+			0, nrMock.nodePublicKey, "accountA", 0, 0, 0, true, 0,
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +

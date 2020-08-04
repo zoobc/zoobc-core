@@ -101,7 +101,6 @@ func (m *Migration) Init() error {
 				"node_public_key" BLOB,
 				"account_address" VARCHAR(255),
 				"registration_height" INTEGER,
-				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
 				"queued" INTEGER,
 				"latest" INTEGER,

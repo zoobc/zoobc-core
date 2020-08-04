@@ -55,12 +55,10 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		effectiveBalanceToLock, lockedBalance int64
 		nodePublicKey                         []byte
-		// TODO: @iltoga remove nodeAddress from nodeRegistration
-		nodeAddress *model.NodeAddress
-		nodeReg     model.NodeRegistration
-		queries     [][]interface{}
-		row         *sql.Row
-		err         error
+		nodeReg                               model.NodeRegistration
+		queries                               [][]interface{}
+		row                                   *sql.Row
+		err                                   error
 	)
 
 	// get the latest node registration by owner (sender account)
@@ -78,12 +76,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		lockedBalance = tx.Body.GetLockedBalance()
 	} else {
 		lockedBalance = nodeReg.GetLockedBalance()
-	}
-
-	if tx.Body.GetNodeAddress() != nil {
-		nodeAddress = tx.Body.GetNodeAddress()
-	} else {
-		nodeAddress = nodeReg.GetNodeAddress()
 	}
 
 	if len(tx.Body.GetNodePublicKey()) != 0 {
@@ -111,7 +103,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		NodeID:             nodeReg.GetNodeID(),
 		LockedBalance:      lockedBalance,
 		Height:             tx.Height,
-		NodeAddress:        nodeAddress,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
@@ -311,11 +302,6 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
 	}
 
-	nodeAddress := tx.Body.GetNodeAddress()
-	if nodeAddress == nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressEmpty")
-	}
-
 	return nil
 }
 
@@ -328,14 +314,9 @@ func (*UpdateNodeRegistration) GetMinimumFee() (int64, error) {
 }
 
 func (tx *UpdateNodeRegistration) GetSize() uint32 {
-	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
-	// (necessary to parse the bytes into tx body struct)
-	nodeAddress := constant.NodeAddressLength + uint32(len([]byte(
-		tx.NodeRegistrationQuery.ExtractNodeAddress(tx.Body.GetNodeAddress()),
-	)))
 	// ProofOfOwnership (message + signature)
 	poown := util.GetProofOfOwnershipSize(true)
-	return constant.NodePublicKey + constant.Balance + poown + nodeAddress
+	return constant.NodePublicKey + constant.Balance + poown
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -344,7 +325,6 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 	var (
 		nodePublicKey []byte
 		lockedBalance uint64
-		nodeAddress   *model.NodeAddress
 		poown         *model.ProofOfOwnership
 		err           error
 	)
@@ -355,17 +335,6 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 	if err != nil {
 		return nil, err
 	}
-
-	nodeAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.NodeAddressLength))
-	if err != nil {
-		return nil, err
-	}
-	nodeAddressLength := util.ConvertBytesToUint32(nodeAddressLengthBytes)             // uint32 length of next bytes to read
-	nodeAddressBytes, err := util.ReadTransactionBytes(buffer, int(nodeAddressLength)) // based on nodeAddressLength
-	if err != nil {
-		return nil, err
-	}
-	nodeAddress = tx.NodeRegistrationQuery.BuildNodeAddress(string(nodeAddressBytes))
 
 	lockedBalanceBytes, err := util.ReadTransactionBytes(buffer, int(constant.Balance))
 	if err != nil {
@@ -384,7 +353,6 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 	}
 	return &model.UpdateNodeRegistrationTransactionBody{
 		NodePublicKey: nodePublicKey,
-		NodeAddress:   nodeAddress,
 		LockedBalance: int64(lockedBalance),
 		Poown:         poown,
 	}, nil
@@ -395,14 +363,6 @@ func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	// note: the first 4 bytes (uint32) of nodeAddress contain the field length
-	// (necessary to parse the bytes into tx body struct)
-	fullNodeAddress := tx.NodeRegistrationQuery.ExtractNodeAddress(tx.Body.GetNodeAddress())
-	addressLengthBytes := util.ConvertUint32ToBytes(uint32(len([]byte(
-		fullNodeAddress,
-	))))
-	buffer.Write(addressLengthBytes)
-	buffer.Write([]byte(fullNodeAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
