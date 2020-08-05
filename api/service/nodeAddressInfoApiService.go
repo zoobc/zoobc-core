@@ -13,15 +13,15 @@ type (
 		GetNodeAddressesInfo(request *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error)
 	}
 
-	NodeAddressInfoApiService struct {
+	NodeAddressInfoAPIService struct {
 		NodeRegistrationCoreService coreService.NodeRegistrationServiceInterface
 	}
 )
 
 func NewNodeAddressInfoApiService(
 	nodeAddressInfoCoreService coreService.NodeRegistrationServiceInterface,
-) *NodeAddressInfoApiService {
-	return &NodeAddressInfoApiService{
+) *NodeAddressInfoAPIService {
+	return &NodeAddressInfoAPIService{
 		NodeRegistrationCoreService: nodeAddressInfoCoreService,
 	}
 }
@@ -30,7 +30,7 @@ func NewNodeAddressInfoApiService(
 // note: if request.NodeIDs is an empty array, the whole address info table will be returned
 // note2: only one address per (registered) node is returned. if a node has two addresses for the same nodeID (pending and confirmed),
 // confirmed address is chosen over the pending one
-func (nhs *NodeAddressInfoApiService) GetNodeAddressesInfo(request *model.GetNodeAddressesInfoRequest,
+func (nhs *NodeAddressInfoAPIService) GetNodeAddressesInfo(request *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	nais, err := nhs.NodeRegistrationCoreService.GetNodeAddressesInfoFromDb(
 		request.NodeIDs,
