@@ -192,7 +192,7 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 				blockTimesatamp:         (&chaintype.MainChain{}).GetGenesisBlockTimestamp() + 15,
 				previousBlockTimesatamp: (&chaintype.MainChain{}).GetGenesisBlockTimestamp(),
 			},
-			want: 5234176702,
+			want: 86041924,
 		},
 	}
 	for _, tt := range tests {
