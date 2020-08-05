@@ -26,6 +26,8 @@ type (
 		GetNodeSecretPhrase() string
 		GetNodePublicKey() []byte
 		ImportWalletCertificate(config *model.Config) error
+		SetHost(host *model.Host)
+		SetNodeSeed(seed string)
 	}
 	NodeConfigurationServiceHelperInterface interface {
 		ReadPassword(c *ishell.Shell) string
@@ -48,26 +50,22 @@ var (
 )
 
 func NewNodeConfigurationService(
-	nodeAddressDynamic bool,
-	sp string,
 	logger *log.Logger,
-	host *model.Host,
 	serviceHelper NodeConfigurationServiceHelperInterface,
 ) *NodeConfigurationService {
-	secretPhrase = sp
-	isMyAddressDynamic = nodeAddressDynamic
-
 	if NodeConfigurationServiceInstance == nil {
 		NodeConfigurationServiceInstance = &NodeConfigurationService{
 			Logger:        logger,
-			host:          host,
 			ServiceHelper: serviceHelper,
 		}
 		return NodeConfigurationServiceInstance
 	}
 	NodeConfigurationServiceInstance.Logger = logger
-	NodeConfigurationServiceInstance.host = host
 	return NodeConfigurationServiceInstance
+}
+
+func (nss *NodeConfigurationService) SetNodeSeed(seed string) {
+	secretPhrase = seed
 }
 
 func (nss *NodeConfigurationService) GetNodeSecretPhrase() string {
@@ -79,6 +77,10 @@ func (nss *NodeConfigurationService) GetNodePublicKey() []byte {
 		return []byte{}
 	}
 	return crypto.NewEd25519Signature().GetPublicKeyFromSeed(nss.GetNodeSecretPhrase())
+}
+
+func (nss *NodeConfigurationService) SetHost(host *model.Host) {
+	nss.host = host
 }
 
 func (nss *NodeConfigurationService) SetMyAddress(nodeAddress string, nodePort uint32) {
