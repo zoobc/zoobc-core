@@ -1430,7 +1430,7 @@ func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressI
 	if peerInfo.Address == nodeAddressInfo.Address && peerInfo.Port == nodeAddressInfo.Port {
 		return
 	}
-	ps.Logger.Warnf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+	ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
 		nodeAddressInfo.Address,
 		nodeAddressInfo.Port,
 		peerInfo.Address,
