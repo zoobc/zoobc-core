@@ -607,12 +607,8 @@ func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 
 	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
-
 	return nodeAddressesInfo, nil
 }
 

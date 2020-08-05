@@ -496,7 +496,10 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
 		)
 		if err != nil {
-			return
+			ps.Logger.Warn(blocker.NewBlocker(
+				blocker.P2PPeerError,
+				fmt.Sprintln("resolvePeer node address info :  ", err.Error()),
+			))
 		}
 		if len(nais) > 0 {
 			nai := nais[0]
