@@ -408,6 +408,13 @@ func (ps *PriorityStrategy) ResolvePeers() {
 	for _, unresolvedPeer := range unresolvedPeers {
 		fullAddr := p2pUtil.GetFullAddressPeer(unresolvedPeer)
 		if priorityPeers[fullAddr] != nil {
+			// remove unresolved priority peers when already in resolved peers
+			if resolvedPeers[fullAddr] != nil {
+				if err := ps.RemoveUnresolvedPeer(unresolvedPeer); err != nil {
+					ps.Logger.Warn(err)
+				}
+				continue
+			}
 			// override unresolved peer info, since priority peers have nodeID and node address status too
 			unresolvedPeer.Info = priorityPeers[fullAddr].GetInfo()
 			priorityUnresolvedPeers[fullAddr] = unresolvedPeer
@@ -434,7 +441,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 		if i >= maxAddedPeers {
 			break
 		}
-		go ps.resolvePeer(priorityUnresolvedPeer, true, true)
+		go ps.resolvePeer(priorityUnresolvedPeer, true)
 		i++
 	}
 
@@ -446,7 +453,7 @@ func (ps *PriorityStrategy) ResolvePeers() {
 
 		if priorityUnresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil {
 			// unresolved peer that non priority when failed connect will remove permanently
-			go ps.resolvePeer(peer, false, false)
+			go ps.resolvePeer(peer, false)
 			i++
 		}
 	}
@@ -466,13 +473,13 @@ func (ps *PriorityStrategy) UpdateResolvedPeers() {
 		}
 		// priority peers no need to maintenance
 		if priorityPeers[fullAddr] == nil && currentTime.Unix()-peer.GetResolvingTime() >= constant.SecondsToUpdatePeersConnection {
-			go ps.resolvePeer(peer, true, true)
+			go ps.resolvePeer(peer, true)
 		}
 	}
 }
 
 // resolvePeer send request to a peer and add to resolved peer if get response
-func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep, forceConnect bool) {
+func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	var (
 		errPoorig, errNodeAddressInfo, errGetPeerInfo error
 		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo
@@ -541,7 +548,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep, forceC
 		}
 	}
 
-	if forceConnect && poorig == nil && errPoorig == nil {
+	if poorig == nil && errPoorig == nil {
 		_, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
 	}
 
