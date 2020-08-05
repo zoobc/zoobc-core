@@ -135,7 +135,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for node address info requests
 	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
-		Service: service.NewNodeAddressInfoApiService(
+		Service: service.NewNodeAddressInfoAPIService(
 			nodeRegistrationService,
 		),
 	})

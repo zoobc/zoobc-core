@@ -18,7 +18,7 @@ type (
 	}
 )
 
-func NewNodeAddressInfoApiService(
+func NewNodeAddressInfoAPIService(
 	nodeAddressInfoCoreService coreService.NodeRegistrationServiceInterface,
 ) *NodeAddressInfoAPIService {
 	return &NodeAddressInfoAPIService{
