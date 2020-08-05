@@ -575,16 +575,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
-		if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
-			lotteryAccounts,
-			totalReward,
-			block.GetTimestamp(),
-			block.Height,
-		); err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
+		if totalReward > 0 {
+			if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
+				lotteryAccounts,
+				totalReward,
+				block.GetTimestamp(),
+				block.Height,
+			); err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
 			}
-			return err
 		}
 	}
 	// admit nodes from registry at genesis and regular intervals

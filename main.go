@@ -125,15 +125,8 @@ func init() {
 	config.LoadConfigurations()
 
 	// early init configuration service
-	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
-	if err != nil {
-		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
-	}
 	nodeConfigurationService = service.NewNodeConfigurationService(
-		config.IsNodeAddressDynamic,
-		config.NodeKey.Seed,
 		loggerCoreService,
-		p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult),
 		&service.NodeConfigurationServiceHelper{},
 	)
 
@@ -163,6 +156,19 @@ func init() {
 		}
 		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
+
+	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
+	if err != nil {
+		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+	}
+
+	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult))
+	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
+	if config.NodeKey.Seed == "" {
+		loggerCoreService.Fatal("node seed is empty", err.Error())
+	}
+	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
+
 	if config.OwnerAccountAddress == "" {
 		// todo: andy-shi88 refactor this
 		ed25519 := crypto.NewEd25519Signature()
