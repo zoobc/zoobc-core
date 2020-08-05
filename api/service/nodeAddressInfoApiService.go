@@ -9,7 +9,7 @@ import (
 )
 
 type (
-	NodeAddressInfoApiServiceInterface interface {
+	NodeAddressInfoAPIServiceInterface interface {
 		GetNodeAddressesInfo(request *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error)
 	}
 
@@ -44,12 +44,10 @@ func (nhs *NodeAddressInfoApiService) GetNodeAddressesInfo(request *model.GetNod
 	for _, nai := range nais {
 		if _, ok := naisMap[nai.NodeID]; !ok {
 			naisMap[nai.NodeID] = nai
-		} else {
 			// always prefer confirmed addresses over pending
-			if nai.Status == model.NodeAddressStatus_NodeAddressConfirmed &&
-				naisMap[nai.NodeID].Status == model.NodeAddressStatus_NodeAddressPending {
-				naisMap[nai.NodeID] = nai
-			}
+		} else if nai.Status == model.NodeAddressStatus_NodeAddressConfirmed &&
+			naisMap[nai.NodeID].Status == model.NodeAddressStatus_NodeAddressPending {
+			naisMap[nai.NodeID] = nai
 		}
 	}
 	// rebuild the array

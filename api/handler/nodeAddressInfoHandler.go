@@ -9,7 +9,7 @@ import (
 )
 
 type NodeAddressInfoHandler struct {
-	Service service.NodeAddressInfoApiServiceInterface
+	Service service.NodeAddressInfoAPIServiceInterface
 }
 
 // GetNodeAddressInfo handles request to get one or a list of address info from db
