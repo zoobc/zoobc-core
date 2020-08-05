@@ -138,7 +138,7 @@ func (paq *NodeAddressInfoQuery) GetNodeAddressInfoByNodeIDs(nodeIDs []int64, ad
 		c[i] = strconv.Itoa(int(v))
 	}
 	addrStatusesStr := strings.Join(c, ", ")
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s) AND status IN (%s)",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id IN (%s) AND status IN (%s) ORDER BY node_id, status ASC",
 		strings.Join(paq.Fields, ", "), paq.getTableName(), nodeIDsStr, addrStatusesStr)
 }
 
