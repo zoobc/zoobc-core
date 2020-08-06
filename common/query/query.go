@@ -16,7 +16,7 @@ type (
 		SelectDataForSnapshot(fromHeight, toHeight uint32) string
 		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
 		ImportSnapshot(interface{}) ([][]interface{}, error)
-		RecalibrateVersionedTable() string
+		RecalibrateVersionedTable() []string
 	}
 	// PruneQuery represent query to delete the prunable data from manage table
 	PruneQuery interface {

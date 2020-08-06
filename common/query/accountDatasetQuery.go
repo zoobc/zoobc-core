@@ -90,12 +90,19 @@ func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interfa
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (adq *AccountDatasetQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (setter_account_address, recipient_account_address, property, height) NOT IN "+
-			"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
-			"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
-		adq.getTableName(), adq.getTableName())
+func (adq *AccountDatasetQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (setter_account_address, recipient_account_address, property, height) NOT IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (setter_account_address, recipient_account_address, property, height) IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+	}
 }
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset

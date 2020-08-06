@@ -132,11 +132,17 @@ func (natq *NodeAdmissionTimestampQuery) ImportSnapshot(payload interface{}) ([]
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (natq *NodeAdmissionTimestampQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND block_height NOT IN "+
-			"(select max(t2.block_height) from %s t2)",
-		natq.getTableName(), natq.getTableName())
+func (natq *NodeAdmissionTimestampQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND block_height NOT IN "+
+				"(select max(t2.block_height) from %s t2)",
+			natq.getTableName(), natq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND block_height IN "+
+				"(select max(t2.block_height) from %s t2)",
+			natq.getTableName(), natq.getTableName()),
+	}
 }
 
 // ExtractModel extract the model struct fields to the order of NodeAdmissionTimestampQuery.Fields

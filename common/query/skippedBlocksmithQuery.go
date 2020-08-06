@@ -113,8 +113,8 @@ func (sbq *SkippedBlocksmithQuery) ImportSnapshot(payload interface{}) ([][]inte
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (sbq *SkippedBlocksmithQuery) RecalibrateVersionedTable() string {
-	return ""
+func (sbq *SkippedBlocksmithQuery) RecalibrateVersionedTable() []string {
+	return []string{}
 }
 
 func (*SkippedBlocksmithQuery) ExtractModel(skippedModel *model.SkippedBlocksmith) []interface{} {

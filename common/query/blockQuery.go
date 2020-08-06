@@ -130,8 +130,8 @@ func (bq *BlockQuery) ImportSnapshot(payload interface{}) ([][]interface{}, erro
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (bq *BlockQuery) RecalibrateVersionedTable() string {
-	return "" // only table with `latest` column need this
+func (bq *BlockQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
 }
 
 // GetBlockByID returns query string to get block by ID

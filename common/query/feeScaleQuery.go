@@ -119,11 +119,17 @@ func (fsq *FeeScaleQuery) ImportSnapshot(payload interface{}) ([][]interface{}, 
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (fsq *FeeScaleQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND block_height NOT IN "+
-			"(select max(t2.block_height) from %s t2)",
-		fsq.getTableName(), fsq.getTableName())
+func (fsq *FeeScaleQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND block_height NOT IN "+
+				"(select max(t2.block_height) from %s t2)",
+			fsq.getTableName(), fsq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND block_height IN "+
+				"(select max(t2.block_height) from %s t2)",
+			fsq.getTableName(), fsq.getTableName()),
+	}
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields

@@ -134,11 +134,17 @@ func (et *EscrowTransactionQuery) ImportSnapshot(payload interface{}) ([][]inter
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (et *EscrowTransactionQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (id, block_height) NOT IN "+
-			"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
-		et.getTableName(), et.getTableName())
+func (et *EscrowTransactionQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (id, block_height) NOT IN "+
+				"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
+			et.getTableName(), et.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (id, block_height) IN "+
+				"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
+			et.getTableName(), et.getTableName()),
+	}
 }
 
 // GetLatestEscrowTransactionByID represents getting latest escrow by id

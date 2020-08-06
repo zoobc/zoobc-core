@@ -189,11 +189,17 @@ func (ptq *PendingTransactionQuery) ImportSnapshot(payload interface{}) ([][]int
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (ptq *PendingTransactionQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (transaction_hash, block_height) NOT IN "+
-			"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
-		ptq.getTableName(), ptq.getTableName())
+func (ptq *PendingTransactionQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (transaction_hash, block_height) NOT IN "+
+				"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
+			ptq.getTableName(), ptq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (transaction_hash, block_height) IN "+
+				"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
+			ptq.getTableName(), ptq.getTableName()),
+	}
 }
 
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {
