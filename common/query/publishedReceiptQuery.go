@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -17,7 +18,6 @@ type (
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
 		ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{}
 		BuildModel(prs []*model.PublishedReceipt, rows *sql.Rows) ([]*model.PublishedReceipt, error)
-		GetFields() []string
 	}
 
 	PublishedReceiptQuery struct {
@@ -83,6 +83,34 @@ func (prq *PublishedReceiptQuery) InsertPublishedReceipts(receipts []*model.Publ
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (prq *PublishedReceiptQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	publishedReceipts, ok := payload.([]*model.PublishedReceipt)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+prq.TableName)
+	}
+	if len(publishedReceipts) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(prq.Fields), len(publishedReceipts))
+		for i := 0; i < rounds; i++ {
+			qry, args := prq.InsertPublishedReceipts(publishedReceipts[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := prq.InsertPublishedReceipts(publishedReceipts[len(publishedReceipts)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (prq *PublishedReceiptQuery) RecalibrateVersionedTable() string {
+	return "" // only table with `latest` column need this
+}
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked = ?", strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
@@ -117,9 +145,6 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 
 }
 
-func (prq *PublishedReceiptQuery) GetFields() []string {
-	return prq.Fields
-}
 func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{} {
 	return []interface{}{
 		&publishedReceipt.BatchReceipt.SenderPublicKey,

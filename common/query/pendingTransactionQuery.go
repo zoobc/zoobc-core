@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -30,7 +31,6 @@ type (
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
-		GetFields() []string
 	}
 
 	PendingTransactionQuery struct {
@@ -165,6 +165,37 @@ func (ptq *PendingTransactionQuery) InsertPendingTransactions(pendingTXs []*mode
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (ptq *PendingTransactionQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	pendingTransactions, ok := payload.([]*model.PendingTransaction)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+ptq.TableName)
+	}
+	if len(pendingTransactions) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(ptq.Fields), len(pendingTransactions))
+		for i := 0; i < rounds; i++ {
+			qry, args := ptq.InsertPendingTransactions(pendingTransactions[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := ptq.InsertPendingTransactions(pendingTransactions[len(pendingTransactions)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (ptq *PendingTransactionQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where latest = true AND (transaction_hash, block_height) NOT IN "+
+			"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
+		ptq.getTableName(), ptq.getTableName())
+}
+
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {
 	err := row.Scan(
 		&pendingTx.SenderAddress,
@@ -177,9 +208,6 @@ func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *s
 	return err
 }
 
-func (ptq *PendingTransactionQuery) GetFields() []string {
-	return ptq.Fields
-}
 func (*PendingTransactionQuery) ExtractModel(pendingTx *model.PendingTransaction) []interface{} {
 	return []interface{}{
 		&pendingTx.SenderAddress,

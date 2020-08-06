@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -22,7 +23,6 @@ type (
 			rows *sql.Rows,
 		) ([]*model.NodeAdmissionTimestamp, error)
 		Scan(nextNodeAdmission *model.NodeAdmissionTimestamp, row *sql.Row) error
-		GetFields() []string
 	}
 	// NodeAdmissionTimestampQuery fields must have
 	NodeAdmissionTimestampQuery struct {
@@ -108,6 +108,37 @@ func (natq *NodeAdmissionTimestampQuery) InsertNextNodeAdmissions(
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (natq *NodeAdmissionTimestampQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	timestamps, ok := payload.([]*model.NodeAdmissionTimestamp)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+natq.TableName)
+	}
+	if len(timestamps) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(natq.Fields), len(timestamps))
+		for i := 0; i < rounds; i++ {
+			qry, args := natq.InsertNextNodeAdmissions(timestamps[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := natq.InsertNextNodeAdmissions(timestamps[len(timestamps)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (natq *NodeAdmissionTimestampQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where latest = true AND block_height NOT IN "+
+			"(select max(t2.block_height) from %s t2)",
+		natq.getTableName(), natq.getTableName())
+}
+
 // ExtractModel extract the model struct fields to the order of NodeAdmissionTimestampQuery.Fields
 func (*NodeAdmissionTimestampQuery) ExtractModel(
 	nextNodeAdmission *model.NodeAdmissionTimestamp,
@@ -154,9 +185,6 @@ func (natq *NodeAdmissionTimestampQuery) Scan(
 		&nextNodeAdmission.Latest,
 	)
 	return err
-}
-func (natq *NodeAdmissionTimestampQuery) GetFields() []string {
-	return natq.Fields
 }
 
 // Rollback delete records `WHERE height > "block_height"

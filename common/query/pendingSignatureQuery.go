@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -19,7 +20,6 @@ type (
 		Scan(pendingSig *model.PendingSignature, row *sql.Row) error
 		ExtractModel(pendingSig *model.PendingSignature) []interface{}
 		BuildModel(pendingSigs []*model.PendingSignature, rows *sql.Rows) ([]*model.PendingSignature, error)
-		GetFields() []string
 	}
 
 	PendingSignatureQuery struct {
@@ -108,6 +108,37 @@ func (psq *PendingSignatureQuery) InsertPendingSignatures(pendingSigs []*model.P
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (psq *PendingSignatureQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	pendingSigs, ok := payload.([]*model.PendingSignature)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+psq.TableName)
+	}
+	if len(pendingSigs) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(psq.Fields), len(pendingSigs))
+		for i := 0; i < rounds; i++ {
+			qry, args := psq.InsertPendingSignatures(pendingSigs[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := psq.InsertPendingSignatures(pendingSigs[len(pendingSigs)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (psq *PendingSignatureQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where latest = true AND (account_address, transaction_hash, block_height) NOT IN "+
+			"(select t2.account_address, t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.account_address, t2.transaction_hash)",
+		psq.getTableName(), psq.getTableName())
+}
+
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {
 	err := row.Scan(
 		&pendingSig.TransactionHash,
@@ -117,9 +148,6 @@ func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.
 		&pendingSig.Latest,
 	)
 	return err
-}
-func (psq *PendingSignatureQuery) GetFields() []string {
-	return psq.Fields
 }
 
 func (*PendingSignatureQuery) ExtractModel(pendingSig *model.PendingSignature) []interface{} {
