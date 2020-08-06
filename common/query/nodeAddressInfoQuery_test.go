@@ -399,7 +399,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (1) ORDER BY node_id, status ASC",
 		},
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success-{statusConfirmed}",
@@ -412,7 +412,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2) ORDER BY node_id, status ASC",
 		},
 		{
 			name: "GetNodeAddressInfoByNodeIDs:success-{allAddressStatus}",
@@ -425,7 +425,7 @@ func TestNodeAddressInfoQuery_GetNodeAddressInfoByNodeIDs(t *testing.T) {
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
 			wantStr: "SELECT node_id, address, port, block_height, block_hash, signature, status FROM node_address_info WHERE node_id IN " +
-				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2, 1)",
+				"(1, 2, 3, 4, 5, 6, 7, 100, 2, 3, 4, 6, 7) AND status IN (2, 1) ORDER BY node_id, status ASC",
 		},
 	}
 	for _, tt := range tests {

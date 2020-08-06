@@ -133,6 +133,12 @@ func startGrpcServer(
 			crypto.NewSignature(),
 		),
 	})
+	// Set GRPC handler for node address info requests
+	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
+		Service: service.NewNodeAddressInfoAPIService(
+			nodeRegistrationService,
+		),
+	})
 	// Set GRPC handler for node registry request
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),

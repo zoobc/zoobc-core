@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -29,7 +30,6 @@ type (
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
-		GetFields() []string
 	}
 )
 
@@ -108,6 +108,43 @@ func (et *EscrowTransactionQuery) InsertEscrowTransactions(escrows []*model.Escr
 	}
 
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (et *EscrowTransactionQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	escrows, ok := payload.([]*model.Escrow)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+et.TableName)
+	}
+	if len(escrows) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(et.Fields), len(escrows))
+		for i := 0; i < rounds; i++ {
+			qry, args := et.InsertEscrowTransactions(escrows[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := et.InsertEscrowTransactions(escrows[len(escrows)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (et *EscrowTransactionQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (id, block_height) NOT IN "+
+				"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
+			et.getTableName(), et.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (id, block_height) IN "+
+				"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
+			et.getTableName(), et.getTableName()),
+	}
 }
 
 // GetLatestEscrowTransactionByID represents getting latest escrow by id
@@ -233,10 +270,6 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.Latest,
 		&escrow.Instruction,
 	)
-}
-
-func (et *EscrowTransactionQuery) GetFields() []string {
-	return et.Fields
 }
 
 // Rollback delete records `WHERE height > "height"
