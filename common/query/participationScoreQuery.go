@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -22,7 +23,6 @@ type (
 		Scan(participationScore *model.ParticipationScore, row *sql.Row) error
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
-		GetFields() []string
 	}
 
 	ParticipationScoreQuery struct {
@@ -76,6 +76,43 @@ func (ps *ParticipationScoreQuery) InsertParticipationScores(scores []*model.Par
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (ps *ParticipationScoreQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	participationScores, ok := payload.([]*model.ParticipationScore)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+ps.TableName)
+	}
+	if len(participationScores) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(ps.Fields), len(participationScores))
+		for i := 0; i < rounds; i++ {
+			qry, args := ps.InsertParticipationScores(participationScores[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := ps.InsertParticipationScores(participationScores[len(participationScores)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (ps *ParticipationScoreQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (node_id, height) NOT IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (node_id, height) IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+	}
 }
 
 func (ps *ParticipationScoreQuery) UpdateParticipationScore(
@@ -227,9 +264,6 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 	return err
 }
 
-func (ps *ParticipationScoreQuery) GetFields() []string {
-	return ps.Fields
-}
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(""+
 		"SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX(t2.height) FROM %s as t2 "+

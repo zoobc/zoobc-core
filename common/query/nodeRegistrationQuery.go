@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"math/big"
 	"strings"
 
@@ -35,7 +36,6 @@ type (
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
 		ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error
-		GetFields() []string
 	}
 
 	NodeRegistrationQuery struct {
@@ -108,6 +108,44 @@ func (nrq *NodeRegistrationQuery) InsertNodeRegistrations(nodeRegistrations []*m
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (nrq *NodeRegistrationQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	nodeRegistrations, ok := payload.([]*model.NodeRegistration)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+nrq.TableName)
+	}
+	if len(nodeRegistrations) > 0 {
+
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(nrq.Fields), len(nodeRegistrations))
+		for i := 0; i < rounds; i++ {
+			qry, args := nrq.InsertNodeRegistrations(nodeRegistrations[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := nrq.InsertNodeRegistrations(nodeRegistrations[len(nodeRegistrations)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (id, height) NOT IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (id, height) IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+	}
 }
 
 // UpdateNodeRegistration returns a slice of two queries.
@@ -475,10 +513,6 @@ func (nrq *NodeRegistrationQuery) ScanWithNodeAddress(nr *model.NodeRegistration
 		return err
 	}
 	return nil
-}
-
-func (nrq *NodeRegistrationQuery) GetFields() []string {
-	return nrq.Fields
 }
 
 // SelectDataForSnapshot this query selects only node registry latest state from height 0 to 'fromHeight' (
