@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -25,7 +26,6 @@ type (
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
 		BuildModel(accountBalances []*model.AccountBalance, rows *sql.Rows) ([]*model.AccountBalance, error)
 		Scan(accountBalance *model.AccountBalance, row *sql.Row) error
-		GetFields() []string
 	}
 )
 
@@ -130,6 +130,29 @@ func (q *AccountBalanceQuery) InsertAccountBalances(accountBalances []*model.Acc
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (q *AccountBalanceQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	balances, ok := payload.([]*model.AccountBalance)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+q.TableName)
+	}
+	if len(balances) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(q.Fields), len(balances))
+		for i := 0; i < rounds; i++ {
+			qry, args := q.InsertAccountBalances(balances[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := q.InsertAccountBalances(balances[len(balances)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
 func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
 	return []interface{}{
 		account.AccountAddress,
@@ -179,10 +202,6 @@ func (*AccountBalanceQuery) Scan(accountBalance *model.AccountBalance, row *sql.
 }
 func (q *AccountBalanceQuery) getTableName() string {
 	return q.TableName
-}
-
-func (q *AccountBalanceQuery) GetFields() []string {
-	return q.Fields
 }
 
 // Rollback delete records `WHERE block_height > "height"

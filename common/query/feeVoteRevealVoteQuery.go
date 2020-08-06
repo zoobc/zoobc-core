@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -18,7 +19,6 @@ type (
 		InsertRevealVotes(revealVotes []*model.FeeVoteRevealVote) (str string, args []interface{})
 		Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error
 		BuildModel(votes []*model.FeeVoteRevealVote, rows *sql.Rows) ([]*model.FeeVoteRevealVote, error)
-		GetFields() []string
 	}
 	FeeVoteRevealVoteQuery struct {
 		Fields    []string
@@ -99,6 +99,29 @@ func (fvr *FeeVoteRevealVoteQuery) InsertRevealVotes(revealVotes []*model.FeeVot
 
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (fvr *FeeVoteRevealVoteQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	reveals, ok := payload.([]*model.FeeVoteRevealVote)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+fvr.TableName)
+	}
+	if len(reveals) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(fvr.Fields), len(reveals))
+		for i := 0; i < rounds; i++ {
+			qry, args := fvr.InsertRevealVotes(reveals[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := fvr.InsertRevealVotes(reveals[len(reveals)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
 // ExtractModel extracting model.FeeVoteRevealVote values
 func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote) []interface{} {
 	return []interface{}{
@@ -132,9 +155,6 @@ func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.
 	vote.VoterSignature = voterSignature
 	vote.VoteInfo = &feeVoteInfo
 	return err
-}
-func (fvr *FeeVoteRevealVoteQuery) GetFields() []string {
-	return fvr.Fields
 }
 
 func (fvr *FeeVoteRevealVoteQuery) BuildModel(

@@ -293,282 +293,146 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		var (
-			qry                                 = snapshotQuery.TrimDataBeforeSnapshot(0, height)
-			args                                []interface{}
-			recordsPerPeriod, rounds, remaining int
+			qry = snapshotQuery.TrimDataBeforeSnapshot(0, height)
 		)
 		queries = append(queries, []interface{}{qry})
 
 		switch qryRepoName {
 		case "block":
 			if len(payload.GetBlocks()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.BlockQuery.GetFields()), len(payload.GetBlocks()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod])
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetBlocks())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks()[len(payload.GetBlocks())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
-
 		case "accountBalance":
 			if len(payload.GetAccountBalances()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.AccountBalanceQuery.GetFields()), len(payload.GetAccountBalances()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.AccountBalanceQuery.InsertAccountBalances(
-						payload.GetAccountBalances()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountBalances())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances()[len(payload.GetAccountBalances())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
-
 		case "nodeRegistration":
 			if len(payload.GetNodeRegistrations()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.NodeRegistrationQuery.GetFields()), len(payload.GetNodeRegistrations()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(
-						payload.GetNodeRegistrations()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeRegistrations())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations()[len(payload.GetNodeRegistrations())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "accountDataset":
 			if len(payload.GetAccountDatasets()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.AccountDatasetQuery.GetFields()), len(payload.GetAccountDatasets()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(
-						payload.GetAccountDatasets()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountDatasets())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets()[len(payload.GetAccountDatasets())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "participationScore":
 			if len(payload.GetParticipationScores()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.ParticipationScoreQuery.GetFields()), len(payload.GetParticipationScores()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(
-						payload.GetParticipationScores()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetParticipationScores())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(
-						payload.GetParticipationScores()[len(payload.GetParticipationScores())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "publishedReceipt":
 			if len(payload.GetPublishedReceipts()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.PublishedReceiptQuery.GetFields()), len(payload.GetPublishedReceipts()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(
-						payload.GetPublishedReceipts()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPublishedReceipts())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts()[len(payload.GetPublishedReceipts())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "escrowTransaction":
 			if len(payload.GetEscrowTransactions()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.EscrowTransactionQuery.GetFields()), len(payload.GetEscrowTransactions()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(
-						payload.GetEscrowTransactions()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetEscrowTransactions())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions()[len(payload.GetEscrowTransactions())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "pendingTransaction":
 			if len(payload.GetPendingTransactions()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.PendingSignatureQuery.GetFields()), len(payload.GetPendingTransactions()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(
-						payload.GetPendingTransactions()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingTransactions())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(
-						payload.GetPendingTransactions()[len(payload.GetPendingTransactions())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "pendingSignature":
 			if len(payload.GetPendingSignatures()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.PendingSignatureQuery.GetFields()), len(payload.GetPendingSignatures()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(
-						payload.GetPendingSignatures()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingSignatures())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(
-						payload.GetPendingSignatures()[len(payload.GetPendingSignatures())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 
 		case "multisignatureInfo":
 			if len(payload.GetMultiSignatureInfos()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.MultisignatureInfoQuery.GetFields()), len(payload.GetMultiSignatureInfos()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(
-						payload.GetMultiSignatureInfos()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, musigQ...)
+				q, err := snapshotQuery.ImportSnapshot(payload.GetMultiSignatureInfos())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(
-						payload.GetMultiSignatureInfos()[len(payload.GetMultiSignatureInfos())-remaining:],
-					)
-					queries = append(queries, musigQ...)
-				}
+				queries = append(queries, q...)
 			}
 		case "skippedBlocksmith":
 			if len(payload.GetSkippedBlocksmiths()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.SkippedBlocksmithQuery.GetFields()), len(payload.GetSkippedBlocksmiths()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(
-						payload.GetSkippedBlocksmiths()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetSkippedBlocksmiths())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(
-						payload.GetSkippedBlocksmiths()[len(payload.GetSkippedBlocksmiths())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 		case "feeScale":
 			if len(payload.GetFeeScale()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.FeeScaleQuery.GetFields()), len(payload.GetFeeScale()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.FeeScaleQuery.InsertFeeScales(
-						payload.GetFeeScale()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeScale())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.FeeScaleQuery.InsertFeeScales(payload.GetFeeScale()[len(payload.GetFeeScale())-remaining:])
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 		case "feeVoteCommit":
 			if len(payload.GetFeeVoteCommitmentVote()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.FeeVoteCommitmentVoteQuery.GetFields()), len(payload.GetFeeScale()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.FeeVoteCommitmentVoteQuery.InsertCommitVotes(
-						payload.GetFeeVoteCommitmentVote()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteCommitmentVote())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.FeeVoteCommitmentVoteQuery.InsertCommitVotes(
-						payload.GetFeeVoteCommitmentVote()[len(payload.GetFeeVoteCommitmentVote())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 		case "feeVoteReveal":
 			if len(payload.GetFeeVoteRevealVote()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.FeeVoteRevealVoteQuery.GetFields()), len(payload.GetFeeVoteRevealVote()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.FeeVoteRevealVoteQuery.InsertRevealVotes(
-						payload.GetFeeVoteRevealVote()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteRevealVote())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.FeeVoteRevealVoteQuery.InsertRevealVotes(
-						payload.GetFeeVoteRevealVote()[len(payload.GetFeeVoteRevealVote())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 		case "liquidPaymentTransaction":
 			if len(payload.GetLiquidPayment()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(len(ss.LiquidPaymentTransactionQuery.GetFields()), len(payload.GetLiquidPayment()))
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransactions(
-						payload.GetLiquidPayment()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetLiquidPayment())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransactions(
-						payload.GetLiquidPayment()[len(payload.GetLiquidPayment())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
 		case "nodeAdmissionTimestamp":
 			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
-				recordsPerPeriod, rounds, remaining = ss.calculateBulkSize(
-					len(ss.NodeAdmissionTimestampQuery.GetFields()),
-					len(payload.GetNodeAdmissionTimestamp()),
-				)
-				for i := 0; i < rounds; i++ {
-					var ii = i
-					qry, args = ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(
-						payload.GetNodeAdmissionTimestamp()[ii*recordsPerPeriod : (ii*recordsPerPeriod)+recordsPerPeriod],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeAdmissionTimestamp())
+				if err != nil {
+					return err
 				}
-				if remaining > 0 {
-					qry, args = ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(
-						payload.GetNodeAdmissionTimestamp()[len(payload.GetNodeAdmissionTimestamp())-remaining:],
-					)
-					queries = append(queries, append([]interface{}{qry}, args...))
-				}
+				queries = append(queries, q...)
 			}
-
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}

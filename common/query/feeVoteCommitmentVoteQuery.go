@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -24,7 +25,6 @@ type (
 			rows *sql.Rows,
 		) ([]*model.FeeVoteCommitmentVote, error)
 		Rollback(height uint32) (multiQueries [][]interface{})
-		GetFields() []string
 	}
 	// FeeVoteCommitmentVoteQuery struct that have string  query for FeeVoteCommitmentVotes
 	FeeVoteCommitmentVoteQuery struct {
@@ -82,6 +82,29 @@ func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVotes(voteCommits []*model.F
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (fsvc *FeeVoteCommitmentVoteQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	commits, ok := payload.([]*model.FeeVoteCommitmentVote)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+fsvc.TableName)
+	}
+	if len(commits) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(fsvc.Fields), len(commits))
+		for i := 0; i < rounds; i++ {
+			qry, args := fsvc.InsertCommitVotes(commits[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := fsvc.InsertCommitVotes(commits[len(commits)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
 // GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height
 func (fsvc *FeeVoteCommitmentVoteQuery) GetVoteCommitByAccountAddressAndHeight(
 	accountAddress string, height uint32,
@@ -109,10 +132,6 @@ func (*FeeVoteCommitmentVoteQuery) Scan(voteCommit *model.FeeVoteCommitmentVote,
 		&voteCommit.BlockHeight,
 	)
 	return err
-}
-
-func (fsvc *FeeVoteCommitmentVoteQuery) GetFields() []string {
-	return fsvc.Fields
 }
 
 // BuildModel will only be used for mapping the result of `select` query, which will guarantee that

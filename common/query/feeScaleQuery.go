@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -17,7 +18,6 @@ type (
 		ExtractModel(feeScale *model.FeeScale) []interface{}
 		BuildModel(feeScales []*model.FeeScale, rows *sql.Rows) ([]*model.FeeScale, error)
 		Scan(feeScale *model.FeeScale, row *sql.Row) error
-		GetFields() []string
 	}
 
 	FeeScaleQuery struct {
@@ -93,7 +93,29 @@ func (fsq *FeeScaleQuery) InsertFeeScales(feeScales []*model.FeeScale) (str stri
 		}
 	}
 	return str, args
+}
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (fsq *FeeScaleQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	feeScales, ok := payload.([]*model.FeeScale)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+fsq.TableName)
+	}
+	if len(feeScales) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(fsq.Fields), len(feeScales))
+		for i := 0; i < rounds; i++ {
+			qry, args := fsq.InsertFeeScales(feeScales[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := fsq.InsertFeeScales(feeScales[len(feeScales)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
 }
 
 // ExtractModel extract the model struct fields to the order of MempoolQuery.Fields
@@ -137,9 +159,6 @@ func (*FeeScaleQuery) Scan(feeScale *model.FeeScale, row *sql.Row) error {
 		&feeScale.Latest,
 	)
 	return err
-}
-func (fsq *FeeScaleQuery) GetFields() []string {
-	return fsq.Fields
 }
 
 // Rollback delete records `WHERE height > "block_height"

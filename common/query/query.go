@@ -1,6 +1,9 @@
 package query
 
-import "github.com/zoobc/zoobc-core/common/chaintype"
+import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"math"
+)
 
 type (
 	// DerivedQuery represent query that can be rolled back
@@ -11,6 +14,7 @@ type (
 	SnapshotQuery interface {
 		SelectDataForSnapshot(fromHeight, toHeight uint32) string
 		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
+		ImportSnapshot(interface{}) ([][]interface{}, error)
 	}
 	// PruneQuery represent query to delete the prunable data from manage table
 	PruneQuery interface {
@@ -112,4 +116,17 @@ func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
 		pruneQuery = []PruneQuery{}
 	}
 	return pruneQuery
+}
+
+// CalculateBulkSize calculating max records might allowed in single sqlite transaction, since sqlite3 has maximum
+// variables in single transactions called SQLITE_LIMIT_VARIABLE_NUMBER in sqlite3-binding.c which is 999
+func CalculateBulkSize(totalFields, totalRecords int) (recordsPerPeriod, rounds, remaining int) {
+	perPeriod := math.Floor(999 / float64(totalFields))
+	rounds = int(math.Floor(float64(totalRecords) / perPeriod))
+
+	if perPeriod == 0 || rounds == 0 {
+		return totalRecords, 1, 0
+	}
+	remaining = totalRecords % (rounds * int(perPeriod))
+	return int(perPeriod), rounds, remaining
 }

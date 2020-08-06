@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -26,7 +27,6 @@ type (
 		ExtractModel(*model.LiquidPayment) []interface{}
 		BuildModels(*sql.Rows) ([]*model.LiquidPayment, error)
 		Scan(liquidPayment *model.LiquidPayment, row *sql.Row) error
-		GetFields() []string
 	}
 )
 
@@ -98,6 +98,30 @@ func (lpt *LiquidPaymentTransactionQuery) InsertLiquidPaymentTransactions(liquid
 	}
 	return str, args
 }
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (lpt *LiquidPaymentTransactionQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	liquidPayments, ok := payload.([]*model.LiquidPayment)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+lpt.TableName)
+	}
+	if len(liquidPayments) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(lpt.Fields), len(liquidPayments))
+		for i := 0; i < rounds; i++ {
+			qry, args := lpt.InsertLiquidPaymentTransactions(liquidPayments[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := lpt.InsertLiquidPaymentTransactions(liquidPayments[len(liquidPayments)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
 func (lpt *LiquidPaymentTransactionQuery) CompleteLiquidPaymentTransaction(id int64, causedFields map[string]interface{}) [][]interface{} {
 	return [][]interface{}{
 		{
@@ -202,9 +226,6 @@ func (lpt *LiquidPaymentTransactionQuery) Scan(liquidPayment *model.LiquidPaymen
 		&liquidPayment.BlockHeight,
 		&liquidPayment.Latest,
 	)
-}
-func (lpt *LiquidPaymentTransactionQuery) GetFields() []string {
-	return lpt.Fields
 }
 
 // Rollback delete records `WHERE height > "height"

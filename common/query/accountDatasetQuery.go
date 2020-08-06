@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -24,7 +25,6 @@ type (
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
-		GetFields() []string
 	}
 )
 
@@ -64,6 +64,29 @@ func (adq *AccountDatasetQuery) InsertAccountDatasets(datasets []*model.AccountD
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	accountDatasets, ok := payload.([]*model.AccountDataset)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+adq.TableName)
+	}
+	if len(accountDatasets) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(adq.Fields), len(accountDatasets))
+		for i := 0; i < rounds; i++ {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[len(accountDatasets)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
 }
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
@@ -195,9 +218,6 @@ func (*AccountDatasetQuery) Scan(dataset *model.AccountDataset, row *sql.Row) er
 	)
 }
 
-func (adq *AccountDatasetQuery) GetFields() []string {
-	return adq.Fields
-}
 func (adq *AccountDatasetQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 	return [][]interface{}{
 		{
