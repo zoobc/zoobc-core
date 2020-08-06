@@ -136,7 +136,7 @@ func (et *EscrowTransactionQuery) ImportSnapshot(payload interface{}) ([][]inter
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
 func (et *EscrowTransactionQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
-		"update %s set latest = false where (id, block_height) NOT IN "+
+		"update %s set latest = false where latest = true AND (id, block_height) NOT IN "+
 			"(select id, max(block_height) from %s group by id)",
 		et.getTableName(), et.getTableName())
 }

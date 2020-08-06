@@ -191,7 +191,7 @@ func (ptq *PendingTransactionQuery) ImportSnapshot(payload interface{}) ([][]int
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
 func (ptq *PendingTransactionQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
-		"update %s set latest = false where (transaction_hash, block_height) NOT IN "+
+		"update %s set latest = false where latest = true AND (transaction_hash, block_height) NOT IN "+
 			"(select transaction_hash, max(block_height) from %s group by transaction_hash)",
 		ptq.getTableName(), ptq.getTableName())
 }
