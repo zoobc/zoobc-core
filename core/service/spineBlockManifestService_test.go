@@ -98,10 +98,10 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 			},
 			wantErr: false,
 			want: &model.SpineBlockManifest{
-				ID:                      int64(6846303009968673829),
+				ID:                      int64(-6343438915916024408),
 				FullFileHash:            make([]byte, 32),
 				ManifestReferenceHeight: ssMockMainBlock.Height,
-				ExpirationTimestamp:     int64(1596790815),
+				ExpirationTimestamp:     int64(1596708015),
 				FileChunkHashes:         make([]byte, 0),
 				SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
 				ChainType:               0,
