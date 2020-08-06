@@ -153,6 +153,14 @@ func (q *AccountBalanceQuery) ImportSnapshot(payload interface{}) ([][]interface
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (q *AccountBalanceQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (account_address, block_height) NOT IN "+
+			"(select account_address, max(block_height) from %s group by account_address)",
+		q.getTableName(), q.getTableName())
+}
+
 func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
 	return []interface{}{
 		account.AccountAddress,

@@ -171,6 +171,14 @@ func (msi *MultisignatureInfoQuery) ImportSnapshot(payload interface{}) ([][]int
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (multisig_address, block_height) NOT IN "+
+			"(select multisig_address, max(block_height) from %s group by multisig_address)",
+		msi.getTableName(), msi.getTableName())
+}
+
 // Scan will build model from *sql.Row that expect has addresses column
 // which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {

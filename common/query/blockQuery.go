@@ -129,6 +129,11 @@ func (bq *BlockQuery) ImportSnapshot(payload interface{}) ([][]interface{}, erro
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (bq *BlockQuery) RecalibrateVersionedTable() string {
+	return "" // only table with `latest` column need this
+}
+
 // GetBlockByID returns query string to get block by ID
 func (bq *BlockQuery) GetBlockByID(id int64) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), id)

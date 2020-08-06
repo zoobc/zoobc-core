@@ -106,6 +106,11 @@ func (prq *PublishedReceiptQuery) ImportSnapshot(payload interface{}) ([][]inter
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (prq *PublishedReceiptQuery) RecalibrateVersionedTable() string {
+	return "" // only table with `latest` column need this
+}
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked = ?", strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{

@@ -134,6 +134,14 @@ func (nrq *NodeRegistrationQuery) ImportSnapshot(payload interface{}) ([][]inter
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (id, height) NOT IN "+
+			"(select id, max(height) from %s group by id)",
+		nrq.getTableName(), nrq.getTableName())
+}
+
 // UpdateNodeRegistration returns a slice of two queries.
 // 1st update all old noderegistration versions' latest field to 0
 // 2nd insert a new version of the noderegisration with updated data

@@ -131,6 +131,14 @@ func (natq *NodeAdmissionTimestampQuery) ImportSnapshot(payload interface{}) ([]
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (natq *NodeAdmissionTimestampQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where block_height NOT IN "+
+			"(select max(block_height) from %s)",
+		natq.getTableName(), natq.getTableName())
+}
+
 // ExtractModel extract the model struct fields to the order of NodeAdmissionTimestampQuery.Fields
 func (*NodeAdmissionTimestampQuery) ExtractModel(
 	nextNodeAdmission *model.NodeAdmissionTimestamp,

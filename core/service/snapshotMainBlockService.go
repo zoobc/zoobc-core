@@ -436,6 +436,11 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}
+		// recalibrate the versioned table to get rid of multiple `latest = true` rows.
+		recalibrateQuery := snapshotQuery.RecalibrateVersionedTable()
+		if recalibrateQuery != "" {
+			queries = append(queries, []interface{}{recalibrateQuery})
+		}
 	}
 
 	err = ss.QueryExecutor.ExecuteTransactions(queries)

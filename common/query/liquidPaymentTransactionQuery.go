@@ -122,6 +122,14 @@ func (lpt *LiquidPaymentTransactionQuery) ImportSnapshot(payload interface{}) ([
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (lpt *LiquidPaymentTransactionQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (id, block_height) NOT IN "+
+			"(select id, max(block_height) from %s group by id)",
+		lpt.getTableName(), lpt.getTableName())
+}
+
 func (lpt *LiquidPaymentTransactionQuery) CompleteLiquidPaymentTransaction(id int64, causedFields map[string]interface{}) [][]interface{} {
 	return [][]interface{}{
 		{

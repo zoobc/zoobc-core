@@ -131,6 +131,14 @@ func (psq *PendingSignatureQuery) ImportSnapshot(payload interface{}) ([][]inter
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (psq *PendingSignatureQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (account_address, transaction_hash, block_height) NOT IN "+
+			"(select account_address, transaction_hash, max(block_height) from %s group by account_address, transaction_hash)",
+		psq.getTableName(), psq.getTableName())
+}
+
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {
 	err := row.Scan(
 		&pendingSig.TransactionHash,

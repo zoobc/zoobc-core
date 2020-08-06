@@ -89,6 +89,15 @@ func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interfa
 	return queries, nil
 }
 
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (adq *AccountDatasetQuery) RecalibrateVersionedTable() string {
+	return fmt.Sprintf(
+		"update %s set latest = false where (setter_account_address, recipient_account_address, property, height) NOT IN "+
+			"(select setter_account_address, recipient_account_address, property, max(height) from %s "+
+			"group by setter_account_address, recipient_account_address, property)",
+		adq.getTableName(), adq.getTableName())
+}
+
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
 func (adq *AccountDatasetQuery) GetLatestAccountDataset(
 	setterAccountAddress, recipientAccountAddress, property string,
