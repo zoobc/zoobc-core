@@ -344,6 +344,7 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
 	if err != nil {
 		return err
