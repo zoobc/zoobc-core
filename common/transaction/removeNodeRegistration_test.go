@@ -44,14 +44,13 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"NodeID",
 			"NodePublicKey",
 			"AccountAddress",
 			"RegistrationHeight",
-			"NodeAddress",
 			"LockedBalance",
 			"RegistrationStatus",
 			"Latest",
@@ -61,7 +60,6 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess) ExecuteSelect(
 			body.NodePublicKey,
 			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 			1,
-			"10.10.10.10",
 			1,
 			1,
 			1,
@@ -82,14 +80,13 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"NodeID",
 			"NodePublicKey",
 			"AccountAddress",
 			"RegistrationHeight",
-			"NodeAddress",
 			"LockedBalance",
 			"RegistrationStatus",
 			"Latest",
@@ -99,7 +96,6 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe 
 			body.NodePublicKey,
 			"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			1,
-			"10.10.10.10",
 			1,
 			1,
 			1,
@@ -124,7 +120,6 @@ func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelectRow(qe st
 		body.NodePublicKey,
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		1,
-		"10.10.10.10",
 		1,
 		1,
 		1,
@@ -144,7 +139,6 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted) Execute
 		body.NodePublicKey,
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		1,
-		"10.10.10.10",
 		1,
 		uint32(model.NodeRegistrationState_NodeDeleted),
 		1,
@@ -168,7 +162,6 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelectRow
 		body.NodePublicKey,
 		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 		1,
-		"10.10.10.10",
 		1,
 		1,
 		1,

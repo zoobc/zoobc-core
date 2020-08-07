@@ -3,9 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
-
 	log "github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -278,110 +276,155 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		var (
-			qry  = snapshotQuery.TrimDataBeforeSnapshot(0, height)
-			args []interface{}
+			qry = snapshotQuery.TrimDataBeforeSnapshot(0, height)
 		)
 		queries = append(queries, []interface{}{qry})
 
 		switch qryRepoName {
 		case "block":
 			if len(payload.GetBlocks()) > 0 {
-				qry, args = ss.BlockQuery.InsertBlocks(payload.GetBlocks())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetBlocks())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
-
 		case "accountBalance":
 			if len(payload.GetAccountBalances()) > 0 {
-				qry, args = ss.AccountBalanceQuery.InsertAccountBalances(payload.GetAccountBalances())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountBalances())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
-
 		case "nodeRegistration":
 			if len(payload.GetNodeRegistrations()) > 0 {
-				qry, args = ss.NodeRegistrationQuery.InsertNodeRegistrations(payload.GetNodeRegistrations())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeRegistrations())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "accountDataset":
 			if len(payload.GetAccountDatasets()) > 0 {
-				qry, args = ss.AccountDatasetQuery.InsertAccountDatasets(payload.GetAccountDatasets())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountDatasets())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "participationScore":
 			if len(payload.GetParticipationScores()) > 0 {
-				qry, args = ss.ParticipationScoreQuery.InsertParticipationScores(payload.GetParticipationScores())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetParticipationScores())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "publishedReceipt":
 			if len(payload.GetPublishedReceipts()) > 0 {
-				qry, args = ss.PublishedReceiptQuery.InsertPublishedReceipts(payload.GetPublishedReceipts())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPublishedReceipts())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "escrowTransaction":
 			if len(payload.GetEscrowTransactions()) > 0 {
-				qry, args = ss.EscrowTransactionQuery.InsertEscrowTransactions(payload.GetEscrowTransactions())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetEscrowTransactions())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "pendingTransaction":
 			if len(payload.GetPendingTransactions()) > 0 {
-				qry, args = ss.PendingTransactionQuery.InsertPendingTransactions(payload.GetPendingTransactions())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingTransactions())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "pendingSignature":
 			if len(payload.GetPendingSignatures()) > 0 {
-				qry, args = ss.PendingSignatureQuery.InsertPendingSignatures(payload.GetPendingSignatures())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingSignatures())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 
 		case "multisignatureInfo":
 			if len(payload.GetMultiSignatureInfos()) > 0 {
-				musigQ := ss.MultisignatureInfoQuery.InsertMultiSignatureInfos(payload.GetMultiSignatureInfos())
-				queries = append(queries, musigQ...)
+				q, err := snapshotQuery.ImportSnapshot(payload.GetMultiSignatureInfos())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "skippedBlocksmith":
 			if len(payload.GetSkippedBlocksmiths()) > 0 {
-				qry, args = ss.SkippedBlocksmithQuery.InsertSkippedBlocksmiths(payload.GetSkippedBlocksmiths())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetSkippedBlocksmiths())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "feeScale":
-			for _, rec := range payload.FeeScale {
-				qryArgs := ss.FeeScaleQuery.InsertFeeScale(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetFeeScale()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeScale())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "feeVoteCommit":
-			for _, rec := range payload.FeeVoteCommitmentVote {
-				qry, args := ss.FeeVoteCommitmentVoteQuery.InsertCommitVote(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetFeeVoteCommitmentVote()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteCommitmentVote())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "feeVoteReveal":
-			for _, rec := range payload.FeeVoteRevealVote {
-				qry, args := ss.FeeVoteRevealVoteQuery.InsertRevealVote(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetFeeVoteRevealVote()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteRevealVote())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "liquidPaymentTransaction":
-			for _, rec := range payload.LiquidPayment {
-				qryArgs := ss.LiquidPaymentTransactionQuery.InsertLiquidPaymentTransaction(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetLiquidPayment()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetLiquidPayment())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "nodeAdmissionTimestamp":
 			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
-				qry, args := ss.NodeAdmissionTimestampQuery.InsertNextNodeAdmissions(payload.GetNodeAdmissionTimestamp())
-				queries = append(queries, append([]interface{}{qry}, args...))
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeAdmissionTimestamp())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
-
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
+		}
+		// recalibrate the versioned table to get rid of multiple `latest = true` rows.
+		recalibrateQuery := snapshotQuery.RecalibrateVersionedTable()
+		if len(recalibrateQuery) > 0 {
+			for _, s := range recalibrateQuery {
+				queries = append(queries, []interface{}{s})
+			}
 		}
 	}
 
@@ -392,19 +435,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			ss.Logger.Error(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
-	}
-
-	for key, dQuery := range ss.DerivedQueries {
-		queries = dQuery.Rollback(height)
-		err = ss.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
-			rollbackErr := ss.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
-			}
-			return err
-		}
 	}
 
 	err = ss.QueryExecutor.CommitTx()

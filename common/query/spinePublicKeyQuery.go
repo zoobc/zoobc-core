@@ -49,6 +49,7 @@ func (spkq *SpinePublicKeyQuery) InsertSpinePublicKey(spinePublicKey *model.Spin
 	var (
 		queries [][]interface{}
 	)
+	spinePublicKey.Latest = true
 	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE node_public_key = ?", spkq.getTableName())
 	qryInsert := fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
