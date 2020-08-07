@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -18,7 +19,6 @@ type (
 		BuildModel(skippedBlocksmiths []*model.SkippedBlocksmith, rows *sql.Rows) ([]*model.SkippedBlocksmith, error)
 		Scan(skippedBlocksmith *model.SkippedBlocksmith, rows *sql.Row) error
 		Rollback(height uint32) (multiQueries [][]interface{})
-		GetFields() []string
 	}
 
 	SkippedBlocksmithQuery struct {
@@ -89,6 +89,34 @@ func (sbq *SkippedBlocksmithQuery) InsertSkippedBlocksmiths(skippedBlocksmiths [
 
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (sbq *SkippedBlocksmithQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	skippedBlocksmiths, ok := payload.([]*model.SkippedBlocksmith)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+sbq.TableName)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(sbq.Fields), len(skippedBlocksmiths))
+		for i := 0; i < rounds; i++ {
+			qry, args := sbq.InsertSkippedBlocksmiths(skippedBlocksmiths[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := sbq.InsertSkippedBlocksmiths(skippedBlocksmiths[len(skippedBlocksmiths)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (sbq *SkippedBlocksmithQuery) RecalibrateVersionedTable() []string {
+	return []string{}
+}
+
 func (*SkippedBlocksmithQuery) ExtractModel(skippedModel *model.SkippedBlocksmith) []interface{} {
 	return []interface{}{
 		&skippedModel.BlocksmithPublicKey,
@@ -129,9 +157,6 @@ func (*SkippedBlocksmithQuery) Scan(skippedBlocksmith *model.SkippedBlocksmith, 
 		&skippedBlocksmith.BlocksmithIndex,
 	)
 	return err
-}
-func (sbq *SkippedBlocksmithQuery) GetFields() []string {
-	return sbq.Fields
 }
 
 func (sbq *SkippedBlocksmithQuery) Rollback(height uint32) (multiQueries [][]interface{}) {

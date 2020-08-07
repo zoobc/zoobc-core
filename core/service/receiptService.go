@@ -390,7 +390,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		receipt.ReferenceBlockHeight,
 	)
 	senderNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(senderNodeQ, false, senderNodeArgs...)
-	err = rs.NodeRegistrationQuery.ScanWithNodeAddress(&senderNodeRegistration, senderNodeRow)
+	err = rs.NodeRegistrationQuery.Scan(&senderNodeRegistration, senderNodeRow)
 	if err != nil {
 		return err
 	}
@@ -401,7 +401,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		receipt.ReferenceBlockHeight,
 	)
 	recipientNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(recipientNodeQ, false, recipientNodeArgs...)
-	err = rs.NodeRegistrationQuery.ScanWithNodeAddress(&recipientNodeRegistration, recipientNodeRow)
+	err = rs.NodeRegistrationQuery.Scan(&recipientNodeRegistration, recipientNodeRow)
 	if err != nil {
 		return err
 	}

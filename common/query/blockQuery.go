@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -24,7 +25,6 @@ type (
 		ExtractModel(block *model.Block) []interface{}
 		BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.Block, error)
 		Scan(block *model.Block, row *sql.Row) error
-		GetFields() []string
 	}
 
 	BlockQuery struct {
@@ -104,6 +104,34 @@ func (bq *BlockQuery) InsertBlocks(blocks []*model.Block) (str string, args []in
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (bq *BlockQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	blocks, ok := payload.([]*model.Block)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+bq.TableName)
+	}
+	if len(blocks) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(bq.Fields), len(blocks))
+		for i := 0; i < rounds; i++ {
+			qry, args := bq.InsertBlocks(blocks[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := bq.InsertBlocks(blocks[len(blocks)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (bq *BlockQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
 }
 
 // GetBlockByID returns query string to get block by ID
@@ -204,11 +232,6 @@ func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 
 	}
 	return nil
-}
-
-// GetFields Get fields query
-func (bq *BlockQuery) GetFields() []string {
-	return bq.Fields
 }
 
 // Rollback delete records `WHERE height > "height"`
