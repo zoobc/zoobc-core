@@ -3,8 +3,6 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"math"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -263,20 +261,6 @@ func (ss *SnapshotMainBlockService) IsSnapshotHeight(height uint32) bool {
 	snapshotInterval := ss.chainType.GetSnapshotInterval()
 	return height%snapshotInterval == 0
 
-}
-
-// calculateBulkSize calculating max records might allowed in single sqlite transaction, since sqlite3 has maximum
-// variables in single transactions called SQLITE_LIMIT_VARIABLE_NUMBER in sqlite3-binding.c which is 999
-func (ss *SnapshotMainBlockService) calculateBulkSize(totalFields, totalRecords int) (recordsPerPeriod, rounds, remaining int) {
-
-	perPeriod := math.Floor(999 / float64(totalFields))
-	rounds = int(math.Floor(float64(totalRecords) / perPeriod))
-
-	if perPeriod == 0 || rounds == 0 {
-		return totalRecords, 1, 0
-	}
-	remaining = totalRecords % (rounds * int(perPeriod))
-	return int(perPeriod), rounds, remaining
 }
 
 // InsertSnapshotPayloadToDB insert snapshot data to db
