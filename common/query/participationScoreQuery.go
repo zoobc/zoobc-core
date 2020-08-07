@@ -105,7 +105,7 @@ func (ps *ParticipationScoreQuery) ImportSnapshot(payload interface{}) ([][]inte
 func (ps *ParticipationScoreQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (node_id, height) NOT IN "+
-			"(select node_id, max(height) from %s group by node_id)",
+			"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
 		ps.getTableName(), ps.getTableName())
 }
 

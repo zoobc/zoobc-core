@@ -126,7 +126,7 @@ func (lpt *LiquidPaymentTransactionQuery) ImportSnapshot(payload interface{}) ([
 func (lpt *LiquidPaymentTransactionQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (id, block_height) NOT IN "+
-			"(select id, max(block_height) from %s group by id)",
+			"(select t2.id, max(t2.block_height) from %s t2 group by t2.id)",
 		lpt.getTableName(), lpt.getTableName())
 }
 

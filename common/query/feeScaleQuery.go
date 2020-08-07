@@ -122,7 +122,7 @@ func (fsq *FeeScaleQuery) ImportSnapshot(payload interface{}) ([][]interface{}, 
 func (fsq *FeeScaleQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND block_height NOT IN "+
-			"(select max(block_height) from %s)",
+			"(select max(t2.block_height) from %s t2)",
 		fsq.getTableName(), fsq.getTableName())
 }
 

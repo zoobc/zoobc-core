@@ -157,7 +157,7 @@ func (q *AccountBalanceQuery) ImportSnapshot(payload interface{}) ([][]interface
 func (q *AccountBalanceQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (account_address, block_height) NOT IN "+
-			"(select account_address, max(block_height) from %s group by account_address)",
+			"(select t2.account_address, max(t2.block_height) from %s t2 group by t2.account_address)",
 		q.getTableName(), q.getTableName())
 }
 

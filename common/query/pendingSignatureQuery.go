@@ -135,7 +135,7 @@ func (psq *PendingSignatureQuery) ImportSnapshot(payload interface{}) ([][]inter
 func (psq *PendingSignatureQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (account_address, transaction_hash, block_height) NOT IN "+
-			"(select account_address, transaction_hash, max(block_height) from %s group by account_address, transaction_hash)",
+			"(select t2.account_address, t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.account_address, t2.transaction_hash)",
 		psq.getTableName(), psq.getTableName())
 }
 

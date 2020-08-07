@@ -138,7 +138,7 @@ func (nrq *NodeRegistrationQuery) ImportSnapshot(payload interface{}) ([][]inter
 func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (id, height) NOT IN "+
-			"(select id, max(height) from %s group by id)",
+			"(select t2.id, max(height) from %s t2 group by t2.id)",
 		nrq.getTableName(), nrq.getTableName())
 }
 

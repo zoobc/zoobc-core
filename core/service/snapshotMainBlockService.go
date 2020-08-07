@@ -452,19 +452,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
 
-	for key, dQuery := range ss.DerivedQueries {
-		queries = dQuery.Rollback(height)
-		err = ss.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
-			rollbackErr := ss.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
-			}
-			return err
-		}
-	}
-
 	err = ss.QueryExecutor.CommitTx()
 	if err != nil {
 		return err

@@ -93,8 +93,8 @@ func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interfa
 func (adq *AccountDatasetQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (setter_account_address, recipient_account_address, property, height) NOT IN "+
-			"(select setter_account_address, recipient_account_address, property, max(height) from %s "+
-			"group by setter_account_address, recipient_account_address, property)",
+			"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+			"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
 		adq.getTableName(), adq.getTableName())
 }
 

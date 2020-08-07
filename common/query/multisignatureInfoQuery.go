@@ -175,7 +175,7 @@ func (msi *MultisignatureInfoQuery) ImportSnapshot(payload interface{}) ([][]int
 func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() string {
 	return fmt.Sprintf(
 		"update %s set latest = false where latest = true AND (multisig_address, block_height) NOT IN "+
-			"(select multisig_address, max(block_height) from %s group by multisig_address)",
+			"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
 		msi.getTableName(), msi.getTableName())
 }
 
