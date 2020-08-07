@@ -2,9 +2,14 @@ package noderegistry
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 
 	"github.com/spf13/cobra"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -20,9 +25,14 @@ var (
 	*/
 	generateProofOfOwnerShipCmd = &cobra.Command{
 		Use:   "poow",
-		Short: "geneate proof of ownership for node registry transaction",
-		Long: `geneate proof of ownership for transaction related with node registry.
+		Short: "generate proof of ownership for node registry transaction",
+		Long: `generate proof of ownership for transaction related with node registry.
 			For example:  register node transaction, update node transaction & claim node transaction`,
+	}
+	generateNodeKeyCmd = &cobra.Command{
+		Use:   "node-key",
+		Short: "generate node_keys.json",
+		Long:  "generate node_keys.json file that needed for proof of ownership. Will store into resource directory",
 	}
 )
 
@@ -41,7 +51,16 @@ func init() {
 // Commands will return  proof of owner ship cmd
 func Commands() *cobra.Command {
 	generateProofOfOwnerShipCmd.Run = GenerateProofOfOwnerShip
-	return generateProofOfOwnerShipCmd
+	generateNodeKeyCmd.Run = GenerateNodeKeysFile
+
+	commands := &cobra.Command{
+		Use:   "node-admin",
+		Short: "node admin command",
+		Long:  "node admin command stuff, proof of ownership stuff",
+	}
+	commands.AddCommand(generateProofOfOwnerShipCmd)
+	commands.AddCommand(generateNodeKeyCmd)
+	return commands
 }
 
 // GenerateProofOfOwnerShip for generate Proof of ownership node registry
@@ -65,7 +84,7 @@ func GenerateProofOfOwnerShip(*cobra.Command, []string) {
 	}
 }
 
-// GetProofOfOwnerShip will reuturn proof of ownership basd on provided nodeOwnerAccountAddress & nodeSeed in a DB
+// GetProofOfOwnerShip will return proof of ownership based on provided nodeOwnerAccountAddress & nodeSeed in a DB
 func GetProofOfOwnerShip(
 	dbPath, dbname, nodeOwnerAccountAddress, nodeSeed string,
 ) *model.ProofOfOwnership {
@@ -101,4 +120,39 @@ func GetProofOfOwnerShip(
 		MessageBytes: poownMessageBytes,
 		Signature:    signature,
 	}
+}
+
+func GenerateNodeKeysFile(*cobra.Command, []string) {
+
+	var (
+		err     error
+		b       []byte
+		nodeKey *model.NodeKeyFromFile
+	)
+
+	if len(nodeSeed) < 1 {
+		nodeSeed = util.GetSecureRandomSeed()
+	}
+	nodeKey = &model.NodeKeyFromFile{
+		Seed: nodeSeed,
+	}
+	pubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+	publicKeyStr, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, pubKey)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	nodeKey.PublicKey = publicKeyStr
+
+	b, err = json.MarshalIndent(nodeKey, "", "")
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	err = ioutil.WriteFile(path.Join(util.GetRootPath(), "/resource/node_keys.json"), b, 0644)
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(2)
+	}
+	fmt.Printf("PublicKey: %s\nSeed: %s", nodeKey.PublicKey, nodeKey.Seed)
 }
