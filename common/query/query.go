@@ -2,6 +2,7 @@ package query
 
 import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
 )
 
@@ -122,7 +123,7 @@ func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
 // CalculateBulkSize calculating max records might allowed in single sqlite transaction, since sqlite3 has maximum
 // variables in single transactions called SQLITE_LIMIT_VARIABLE_NUMBER in sqlite3-binding.c which is 999
 func CalculateBulkSize(totalFields, totalRecords int) (recordsPerPeriod, rounds, remaining int) {
-	perPeriod := math.Floor(999 / float64(totalFields))
+	perPeriod := math.Floor(float64(constant.SQLiteLimitVariableNumber) / float64(totalFields))
 	rounds = int(math.Floor(float64(totalRecords) / perPeriod))
 
 	if perPeriod == 0 || rounds == 0 {
