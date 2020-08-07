@@ -50,7 +50,11 @@ func (cm *CLIMonitoring) UpdateBlockState(chaintype chaintype.ChainType, block *
 	if cm.BlocksInfo == nil {
 		cm.BlocksInfo = make(map[int32]*model.Block)
 	}
-	cm.BlocksInfo[chaintype.GetTypeInt()] = block
+	// Note: Sometimes recevied blokc is nil, when updating spine block in new joining block
+	if block != nil {
+		cm.BlocksInfo[chaintype.GetTypeInt()] = block
+	}
+
 }
 
 func (cm *CLIMonitoring) UpdatePeersInfo(peersType string, peersNumber int) {
