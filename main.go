@@ -358,7 +358,7 @@ func initLogInstance() {
 	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels); err != nil {
+	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
 }
