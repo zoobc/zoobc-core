@@ -327,7 +327,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
 				WillReturnRows(sqlmock.NewRows(
-					query.NewNodeRegistrationQuery().JoinedAddressInfoFields,
+					query.NewNodeRegistrationQuery().Fields,
 				).AddRow(
 					mockNodeRegistrationData.NodeID,
 					mockNodeRegistrationData.NodePublicKey,
@@ -337,14 +337,11 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
 					mockNodeRegistrationData.Height,
-					mockNodeRegistrationData.NodeAddressInfo.Address,
-					mockNodeRegistrationData.NodeAddressInfo.Port,
-					mockNodeRegistrationData.NodeAddressInfo.Status,
 				))
 		} else {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
 				WillReturnRows(sqlmock.NewRows(
-					query.NewNodeRegistrationQuery().JoinedAddressInfoFields,
+					query.NewNodeRegistrationQuery().Fields,
 				).AddRow(
 					mockNodeRegistrationDataB.NodeID,
 					mockNodeRegistrationDataB.NodePublicKey,
@@ -354,9 +351,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
 					mockNodeRegistrationDataB.Height,
-					mockNodeRegistrationData.NodeAddressInfo.Address,
-					mockNodeRegistrationData.NodeAddressInfo.Port,
-					mockNodeRegistrationData.NodeAddressInfo.Status,
 				))
 		}
 
@@ -398,7 +392,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
 				WillReturnRows(sqlmock.NewRows(
-					query.NewNodeRegistrationQuery().JoinedAddressInfoFields,
+					query.NewNodeRegistrationQuery().Fields,
 				).AddRow(
 					mockNodeRegistrationData.NodeID,
 					mockNodeRegistrationData.NodePublicKey,
@@ -408,14 +402,11 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
 					mockNodeRegistrationData.Height,
-					mockNodeRegistrationData.NodeAddressInfo.Address,
-					mockNodeRegistrationData.NodeAddressInfo.Port,
-					mockNodeRegistrationData.NodeAddressInfo.Status,
 				))
 		} else {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
 				WillReturnRows(sqlmock.NewRows(
-					query.NewNodeRegistrationQuery().JoinedAddressInfoFields,
+					query.NewNodeRegistrationQuery().Fields,
 				).AddRow(
 					mockNodeRegistrationDataB.NodeID,
 					mockNodeRegistrationDataB.NodePublicKey,
@@ -425,9 +416,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
 					mockNodeRegistrationDataB.Height,
-					mockNodeRegistrationData.NodeAddressInfo.Address,
-					mockNodeRegistrationData.NodeAddressInfo.Port,
-					mockNodeRegistrationData.NodeAddressInfo.Status,
 				))
 		}
 
