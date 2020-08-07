@@ -1089,9 +1089,15 @@ func (*mockQueryExecutorInsertNextNodeAdmissionTimestampFail) ExecuteSelect(
 }
 
 func (*mockQueryExecutorInsertNextNodeAdmissionTimestampSuccess) ExecuteSelect(
-	query string, tx bool, args ...interface{},
+	qry string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
-	return nil, nil
+	var (
+		db, mock, _ = sqlmock.New()
+		mockRows    = mock.NewRows(query.NewNodeAdmissionTimestampQuery().Fields)
+	)
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(mockRows)
+	return db.Query("")
 }
 
 func (*mockQueryExecutorInsertNextNodeAdmissionTimestampSuccess) ExecuteTransactions(
@@ -1100,9 +1106,15 @@ func (*mockQueryExecutorInsertNextNodeAdmissionTimestampSuccess) ExecuteTransact
 	return nil
 }
 func (*mockQueryExecutorInsertNextNodeAdmissionTimestampFailExecuteTransactions) ExecuteSelect(
-	query string, tx bool, args ...interface{},
+	qry string, tx bool, args ...interface{},
 ) (*sql.Rows, error) {
-	return nil, nil
+	var (
+		db, mock, _ = sqlmock.New()
+		mockRows    = mock.NewRows(query.NewNodeAdmissionTimestampQuery().Fields)
+	)
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(mockRows)
+	return db.Query("")
 }
 
 func (*mockQueryExecutorInsertNextNodeAdmissionTimestampFailExecuteTransactions) ExecuteTransactions(
