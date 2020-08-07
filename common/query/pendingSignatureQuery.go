@@ -132,11 +132,17 @@ func (psq *PendingSignatureQuery) ImportSnapshot(payload interface{}) ([][]inter
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (psq *PendingSignatureQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (account_address, transaction_hash, block_height) NOT IN "+
-			"(select t2.account_address, t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.account_address, t2.transaction_hash)",
-		psq.getTableName(), psq.getTableName())
+func (psq *PendingSignatureQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (account_address, transaction_hash, block_height) NOT IN "+
+				"(select t2.account_address, t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.account_address, t2.transaction_hash)",
+			psq.getTableName(), psq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (account_address, transaction_hash, block_height) IN "+
+				"(select t2.account_address, t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.account_address, t2.transaction_hash)",
+			psq.getTableName(), psq.getTableName()),
+	}
 }
 
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {

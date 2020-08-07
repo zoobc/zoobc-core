@@ -106,8 +106,8 @@ func (fsvc *FeeVoteCommitmentVoteQuery) ImportSnapshot(payload interface{}) ([][
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (fsvc *FeeVoteCommitmentVoteQuery) RecalibrateVersionedTable() string {
-	return "" // only table with `latest` column need this
+func (fsvc *FeeVoteCommitmentVoteQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
 }
 
 // GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height

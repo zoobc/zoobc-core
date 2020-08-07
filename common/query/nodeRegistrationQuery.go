@@ -135,11 +135,17 @@ func (nrq *NodeRegistrationQuery) ImportSnapshot(payload interface{}) ([][]inter
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (id, height) NOT IN "+
-			"(select t2.id, max(height) from %s t2 group by t2.id)",
-		nrq.getTableName(), nrq.getTableName())
+func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (id, height) NOT IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (id, height) IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+	}
 }
 
 // UpdateNodeRegistration returns a slice of two queries.

@@ -123,8 +123,8 @@ func (fvr *FeeVoteRevealVoteQuery) ImportSnapshot(payload interface{}) ([][]inte
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (fvr *FeeVoteRevealVoteQuery) RecalibrateVersionedTable() string {
-	return ""
+func (fvr *FeeVoteRevealVoteQuery) RecalibrateVersionedTable() []string {
+	return []string{}
 }
 
 // ExtractModel extracting model.FeeVoteRevealVote values

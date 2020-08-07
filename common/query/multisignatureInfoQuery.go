@@ -172,11 +172,17 @@ func (msi *MultisignatureInfoQuery) ImportSnapshot(payload interface{}) ([][]int
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (multisig_address, block_height) NOT IN "+
-			"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
-		msi.getTableName(), msi.getTableName())
+func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (multisig_address, block_height) NOT IN "+
+				"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
+			msi.getTableName(), msi.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (multisig_address, block_height) IN "+
+				"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
+			msi.getTableName(), msi.getTableName()),
+	}
 }
 
 // Scan will build model from *sql.Row that expect has addresses column

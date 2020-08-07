@@ -102,11 +102,17 @@ func (ps *ParticipationScoreQuery) ImportSnapshot(payload interface{}) ([][]inte
 }
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
-func (ps *ParticipationScoreQuery) RecalibrateVersionedTable() string {
-	return fmt.Sprintf(
-		"update %s set latest = false where latest = true AND (node_id, height) NOT IN "+
-			"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
-		ps.getTableName(), ps.getTableName())
+func (ps *ParticipationScoreQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (node_id, height) NOT IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (node_id, height) IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+	}
 }
 
 func (ps *ParticipationScoreQuery) UpdateParticipationScore(

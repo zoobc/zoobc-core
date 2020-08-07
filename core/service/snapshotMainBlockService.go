@@ -422,8 +422,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		}
 		// recalibrate the versioned table to get rid of multiple `latest = true` rows.
 		recalibrateQuery := snapshotQuery.RecalibrateVersionedTable()
-		if recalibrateQuery != "" {
-			queries = append(queries, []interface{}{recalibrateQuery})
+		if len(recalibrateQuery) > 0 {
+			for _, s := range recalibrateQuery {
+				queries = append(queries, []interface{}{s})
+			}
 		}
 	}
 
