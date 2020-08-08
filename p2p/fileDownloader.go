@@ -87,7 +87,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 			//  but in future we could download multiple chunks at once from one peer
 			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 			failed, err := ss.P2pService.DownloadFilesFromPeer(
-				spineBlockManifest.GetFileChunkHashes(),
+				spineBlockManifest.FullFileHash,
 				[]string{fileName},
 				validNodeRegistryIDs,
 				constant.DownloadSnapshotNumberOfRetries,

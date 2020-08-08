@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	"bytes"
 	"encoding/base64"
 	"math/rand"
 	"time"
@@ -326,14 +325,29 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 	}
 	fileChunksToDownload := fileChunksNames
 
-	// andy-shi88 FILTER: filter out peer outside of validNodeIDs
-	for _, peer := range resolvedPeers {
-		if _, ok := validNodeIDs[peer.GetInfo().GetID()]; ok {
-			validPeers = append(validPeers, peer)
+	for i := 0; i < int(maxRetryCount); i++ {
+		if i > 0 {
+			resolvedPeers = s.PeerExplorer.GetResolvedPeers()
+		}
+		// FILTER: filter out peer outside of validNodeIDs
+		for _, peer := range resolvedPeers {
+			if _, ok := validNodeIDs[peer.GetInfo().GetID()]; ok {
+				validPeers = append(validPeers, peer)
+			} else {
+				s.Logger.Warnf("SKIPPING\t %v", peer.GetInfo().GetID())
+			}
+
+		}
+		if len(validPeers) == 0 {
+			s.Logger.Infof("zero valid peer to download snapshot from, waiting 2 second for peer resolvement - retry counter: %d", i+1)
+			time.Sleep(2 * time.Second)
+			s.Logger.Infof("retrying...")
+		} else {
+			break
 		}
 	}
 
-	// andy-shi88 UPDATE: use shuffle instead of re-looping array everytime.
+	// use shuffle instead of re-looping array everytime.
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(validPeers), func(i, j int) {
 		validPeers[i], validPeers[j] = validPeers[j], validPeers[i]
@@ -367,12 +381,8 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 
 		// save downloaded chunks to storage as soon as possible to avoid keeping in memory large arrays
 		chunks := fileDownloadResponse.GetFileChunks()
-		fileHash, err := s.FileService.HashPayload(bytes.Join(chunks, []byte{}))
-		if err != nil {
-			return nil, err
-		}
 
-		_, err = s.FileService.SaveSnapshotChunks(base64.URLEncoding.EncodeToString(fileHash), chunks)
+		_, err = s.FileService.SaveSnapshotChunks(base64.URLEncoding.EncodeToString(snapshotHash), chunks)
 		if err != nil {
 			return nil, err
 		}
