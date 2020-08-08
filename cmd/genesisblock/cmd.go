@@ -453,21 +453,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 	if err != nil {
 		log.Fatal(err)
 	}
-	sb := service.NewBlockSpineService(
-		&chaintype.SpineChain{},
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-	)
+	sb := service.NewBlockSpineService(&chaintype.SpineChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	spine, err := sb.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
 		log.Fatal(err)

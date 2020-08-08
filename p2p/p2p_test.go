@@ -290,7 +290,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 				TransactionUtil:   tt.fields.TransactionUtil,
 				FileService:       tt.fields.FileService,
 			}
-			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fullHash, tt.args.fileChunksNames, tt.args.maxRetryCount)
+			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fullHash, tt.args.fileChunksNames, nil, tt.args.maxRetryCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Peer2PeerService.DownloadFilesFromPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -3,6 +3,8 @@ package p2p
 import (
 	"bytes"
 	"encoding/base64"
+	"math/rand"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -12,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -51,7 +52,12 @@ type (
 		SendTransactionListener() observer.Listener
 		RequestBlockTransactionsListener() observer.Listener
 		SendBlockTransactionsListener() observer.Listener
-		DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) (failed []string, err error)
+		DownloadFilesFromPeer(
+			fullHash []byte,
+			fileChunksNames []string,
+			validNodeIDs map[int64]bool,
+			retryCount uint32,
+		) (failed []string, err error)
 	}
 	Peer2PeerService struct {
 		PeerExplorer             strategy.PeerExplorerStrategyInterface
@@ -298,12 +304,16 @@ func (s *Peer2PeerService) SendBlockTransactionsListener() observer.Listener {
 }
 
 // DownloadFilesFromPeer download a file from a random peer
-func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunksNames []string, maxRetryCount uint32) ([]string, error) {
+func (s *Peer2PeerService) DownloadFilesFromPeer(
+	snapshotHash []byte,
+	fileChunksNames []string,
+	validNodeIDs map[int64]bool,
+	maxRetryCount uint32,
+) ([]string, error) {
 	var (
 		peer          *model.Peer
 		resolvedPeers = s.PeerExplorer.GetResolvedPeers()
-		peerKey       string
-		retryCount    uint32
+		validPeers    []*model.Peer
 	)
 	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
 	if len(resolvedPeers) < 1 {
@@ -315,32 +325,25 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(snapshotHash []byte, fileChunks
 		fileChunkNamesMap[name] = name
 	}
 	fileChunksToDownload := fileChunksNames
-	r := util.GetFastRandomSeed()
-	for retryCount < maxRetryCount+1 {
-		retryCount++
 
-		// randomly select one of the resolved peers to download files from
-		// (no need for secure random here. we just want to get a quick pseudo random index)
-		// TODO: Will update since use snapshot shard node
-		randomIdx := int(util.GetFastRandom(r, len(resolvedPeers)))
-		if randomIdx != 0 {
-			randomIdx %= len(resolvedPeers)
+	// andy-shi88 FILTER: filter out peer outside of validNodeIDs
+	for _, peer := range resolvedPeers {
+		if _, ok := validNodeIDs[peer.GetInfo().GetID()]; ok {
+			validPeers = append(validPeers, peer)
 		}
-		idx := 0
-		for peerKey, peer = range resolvedPeers {
-			if idx == randomIdx {
-				// remove selected peer from map to avoid selecting it again
-				delete(resolvedPeers, peerKey)
-				break
-			}
-			idx++
-		}
+	}
 
+	// andy-shi88 UPDATE: use shuffle instead of re-looping array everytime.
+	rand.Seed(time.Now().UnixNano())
+	rand.Shuffle(len(validPeers), func(i, j int) {
+		validPeers[i], validPeers[j] = validPeers[j], validPeers[i]
+	})
+	for i, validPeer := range validPeers {
 		// download the files
-		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(peer, snapshotHash, fileChunksToDownload)
+		fileDownloadResponse, err := s.PeerServiceClient.RequestDownloadFile(validPeer, snapshotHash, fileChunksToDownload)
 		if err != nil {
 			s.Logger.Warnf("error download: %v\nchunks: %v\npeer: %v\n", err, fileChunksToDownload, peer)
-			if len(resolvedPeers) > 0 {
+			if i+1 < len(validPeers) {
 				// continue to try download from other peer
 				continue
 			}

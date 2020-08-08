@@ -42,8 +42,9 @@ func TestNewFileDownloader(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewFileDownloader(tt.args.p2pService, tt.args.fileService, tt.args.logger,
-				tt.args.blockchainStatusService); !reflect.DeepEqual(got, tt.want) {
+			if got := NewFileDownloader(
+				tt.args.p2pService, tt.args.fileService, tt.args.blockchainStatusService,
+				nil, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFileDownloader() = %v, want %v", got, tt.want)
 			}
 		})
@@ -90,7 +91,12 @@ func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) string {
 	return "testFileName"
 }
 
-func (mp2p *mockP2pService) DownloadFilesFromPeer(fullHash []byte, fileChunksNames []string, retryCount uint32) (failed []string, err error) {
+func (mp2p *mockP2pService) DownloadFilesFromPeer(
+	fullHash []byte,
+	fileChunksNames []string,
+	validNodeIDs map[int64]bool,
+	retryCount uint32,
+) (failed []string, err error) {
 	failed = make([]string, 0)
 	if mp2p.success {
 		return
