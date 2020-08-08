@@ -325,7 +325,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 	}
 	fileChunksToDownload := fileChunksNames
 
-	for i := 0; i < int(maxRetryCount); i++ {
+	for i := 0; i <= int(maxRetryCount); i++ {
 		if i > 0 {
 			resolvedPeers = s.PeerExplorer.GetResolvedPeers()
 		}
