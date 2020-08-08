@@ -62,6 +62,7 @@ var (
 	blockServices                                   = make(map[int32]service.BlockServiceInterface)
 	snapshotBlockServices                           = make(map[int32]service.SnapshotBlockServiceInterface)
 	mainchainBlockService                           *service.BlockService
+	spinePublicKeyService                           *service.BlockSpinePublicKeyService
 	mainBlockSnapshotChunkStrategy                  service.SnapshotChunkStrategyInterface
 	spinechainBlockService                          *service.BlockSpineService
 	fileDownloader                                  p2p.FileDownloaderInterface
@@ -336,6 +337,14 @@ func init() {
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
 		crypto.NewSignature(),
 	)
+
+	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
+		crypto.NewSignature(),
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewSpinePublicKeyQuery(),
+		loggerCoreService,
+	)
 	// initialize Observer
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
@@ -402,8 +411,9 @@ func initP2pInstance() {
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
 		fileService,
-		loggerP2PService,
 		blockchainStatusService,
+		spinePublicKeyService,
+		loggerP2PService,
 	)
 }
 
@@ -711,9 +721,7 @@ func startSpinechain() {
 		spinechain,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
-		query.NewSpinePublicKeyQuery(),
 		crypto.NewSignature(),
-		query.NewNodeRegistrationQuery(),
 		observerInstance,
 		blocksmithStrategySpine,
 		loggerCoreService,
@@ -721,6 +729,7 @@ func startSpinechain() {
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
 		blockchainStatusService,
+		spinePublicKeyService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 

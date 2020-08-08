@@ -20,24 +20,27 @@ type (
 	}
 
 	FileDownloader struct {
-		FileService             service.FileServiceInterface
-		P2pService              Peer2PeerServiceInterface
-		BlockchainStatusService service.BlockchainStatusServiceInterface
-		Logger                  *log.Logger
+		FileService                service.FileServiceInterface
+		P2pService                 Peer2PeerServiceInterface
+		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
+		BlockchainStatusService    service.BlockchainStatusServiceInterface
+		Logger                     *log.Logger
 	}
 )
 
 func NewFileDownloader(
 	p2pService Peer2PeerServiceInterface,
 	fileService service.FileServiceInterface,
-	logger *log.Logger,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
+	blockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface,
+	logger *log.Logger,
 ) *FileDownloader {
 	return &FileDownloader{
-		P2pService:              p2pService,
-		FileService:             fileService,
-		Logger:                  logger,
-		BlockchainStatusService: blockchainStatusService,
+		P2pService:                 p2pService,
+		FileService:                fileService,
+		BlockSpinePublicKeyService: blockSpinePublicKeyService,
+		Logger:                     logger,
+		BlockchainStatusService:    blockchainStatusService,
 	}
 }
 
@@ -50,6 +53,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 		failedDownloadChunkNames = model.NewMapStringInt() // map instead of array to avoid duplicates
 		hashSize                 = sha3.New256().Size()
 		wg                       sync.WaitGroup
+		validNodeRegistryIDs     = make(map[int64]bool)
 	)
 
 	fileChunkHashes, err := ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
@@ -61,6 +65,19 @@ func (ss *FileDownloader) DownloadSnapshot(
 	}
 
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, true)
+	// get valid spine public keys from height 0 to manifest reference height (last height after snapshot imported)
+	validSpinePublicKeys, err := ss.BlockSpinePublicKeyService.GetValidSpinePublicKeyByBlockHeightInterval(
+		0,
+		spineBlockManifest.ManifestReferenceHeight,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	// fetching nodeID of the valid node registry at the snapshot height, so we only download snapshot from those peers
+	for _, key := range validSpinePublicKeys {
+		validNodeRegistryIDs[key.NodeID] = true
+	}
 	// TODO: implement some sort of rate limiting for number of concurrent downloads (eg. by segmenting the WaitGroup)
 	wg.Add(len(fileChunkHashes))
 	for _, fileChunkHash := range fileChunkHashes {
@@ -70,8 +87,9 @@ func (ss *FileDownloader) DownloadSnapshot(
 			//  but in future we could download multiple chunks at once from one peer
 			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 			failed, err := ss.P2pService.DownloadFilesFromPeer(
-				spineBlockManifest.GetFileChunkHashes(),
+				spineBlockManifest.FullFileHash,
 				[]string{fileName},
+				validNodeRegistryIDs,
 				constant.DownloadSnapshotNumberOfRetries,
 			)
 			if err != nil {

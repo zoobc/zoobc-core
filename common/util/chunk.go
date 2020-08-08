@@ -14,9 +14,9 @@ type (
 	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
 		GetShardAssigment(
-			shards map[uint64][][]byte,
+			chunks []byte, shardBitLength int,
 			nodeIDs []int64,
-		) (map[int64][]uint64, error)
+		) (storage.ShardMap, error)
 	}
 
 	ChunkUtil struct {
