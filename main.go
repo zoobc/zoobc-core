@@ -337,6 +337,14 @@ func init() {
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
 		crypto.NewSignature(),
 	)
+
+	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
+		crypto.NewSignature(),
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewSpinePublicKeyQuery(),
+		loggerCoreService,
+	)
 	// initialize Observer
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
@@ -708,13 +716,6 @@ func startSpinechain() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		spinechain,
-	)
-	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
-		crypto.NewSignature(),
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
 	)
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
