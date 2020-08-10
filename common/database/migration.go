@@ -305,7 +305,7 @@ func (m *Migration) Init() error {
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
 				"latest" INTEGER,			-- latest flag for pending signature
-				PRIMARY KEY("multisig_address", "block_height", "latest")
+				PRIMARY KEY("multisig_address", "block_height")
 			)
 			`,
 			`
@@ -416,7 +416,7 @@ func (m *Migration) Init() error {
 				"account_address_index" INTEGER, -- index / position of participants
 				"latest" INTEGER,
 				"block_height" INTEGER,
-				PRIMARY KEY("multisig_address", "account_address", "block_height", "latest")
+				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
 			`CREATE TABLE IF NOT EXISTS "node_address_info" (
