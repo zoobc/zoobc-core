@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -80,6 +81,34 @@ func (prq *PublishedReceiptQuery) InsertPublishedReceipts(receipts []*model.Publ
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (prq *PublishedReceiptQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	publishedReceipts, ok := payload.([]*model.PublishedReceipt)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+prq.TableName)
+	}
+	if len(publishedReceipts) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(prq.Fields), len(publishedReceipts))
+		for i := 0; i < rounds; i++ {
+			qry, args := prq.InsertPublishedReceipts(publishedReceipts[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := prq.InsertPublishedReceipts(publishedReceipts[len(publishedReceipts)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (prq *PublishedReceiptQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
 }
 
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{}) {
@@ -173,13 +202,17 @@ func (prq *PublishedReceiptQuery) Rollback(height uint32) (multiQueries [][]inte
 }
 
 func (prq *PublishedReceiptQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d ORDER BY block_height",
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0 ORDER BY block_height",
 		strings.Join(prq.Fields, ", "),
-		prq.getTableName(), fromHeight, toHeight)
+		prq.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (prq *PublishedReceiptQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		prq.TableName, fromHeight, toHeight)
 }

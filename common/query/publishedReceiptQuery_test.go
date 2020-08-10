@@ -345,7 +345,7 @@ func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
-				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height",
+				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 AND block_height != 0 ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -387,7 +387,7 @@ func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				TableName: prQry.TableName,
 				Fields:    prQry.Fields,
 			},
-			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

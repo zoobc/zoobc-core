@@ -36,7 +36,6 @@ type (
 		NodeSeed           string
 		NodeAccountAddress string
 		NodePublicKey      []byte
-		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
 		Smithing           bool
@@ -125,7 +124,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			log.Fatal(err)
 		}
 	}
-	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.preRegisteredNodes.json", envTarget)))
+	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
 	if err == nil {
 		err = json.Unmarshal(file, &preRegisteredNodes)
 		if err != nil {
@@ -164,11 +163,11 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	var idx int
 	for idx = 0; idx < extraNodesCount; idx++ {
-		bcState = append(bcState, generateRandomGenesisEntry(idx, ""))
+		bcState = append(bcState, generateRandomGenesisEntry(""))
 	}
 
 	// generate extra nodes from a json file containing only account addresses
-	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./cmd/genesisblock/templates/%s.genesisAccountAddresses.json", envTarget)))
+	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.genesisAccountAddresses.json", envTarget)))
 	if err == nil {
 		// read custom addresses from file
 		err = json.Unmarshal(file, &preRegisteredAccountAddresses)
@@ -180,7 +179,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		}
 		for _, preRegisteredAccountAddress := range preRegisteredAccountAddresses {
 			idx++
-			bcState = append(bcState, generateRandomGenesisEntry(idx, preRegisteredAccountAddress.AccountAddress))
+			bcState = append(bcState, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
 		}
 	}
 
@@ -190,7 +189,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 		log.Fatalf("can't create folder %s. error: %s", outPath, err)
 	}
-	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath))
+	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
 	clusterConfig := generateClusterConfigFile(bcState, fmt.Sprintf("%s/cluster_config.json", outPath))
 	// generate a bash script to init consul key/value data store in case we automatically deploy all nodes in genesis
 	generateConsulKvInitScript(clusterConfig, fmt.Sprintf("%s/consulKvInit.sh", outPath))
@@ -199,7 +198,6 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 
 	for _, entry := range bcState {
 		newEntry := accountNodeEntry{
-			NodeAddress:    entry.NodeAddress,
 			AccountAddress: entry.AccountAddress,
 		}
 		accountNodes = append(accountNodes, newEntry)
@@ -215,7 +213,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 //       and we are not storing the relative seed, needed to sign transactions, these nodes can smith but their owners
 //       can't perform any transaction.
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
-func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry {
+func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 	var (
 		ed25519Signature = crypto.NewEd25519Signature()
 	)
@@ -242,7 +240,6 @@ func generateRandomGenesisEntry(nodeIdx int, accountAddress string) genesisEntry
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
 		LockedBalance:      0,
-		NodeAddress:        fmt.Sprintf("n%d.alpha.proofofparticipation.network", nodeIdx),
 	}
 }
 
@@ -310,11 +307,6 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
-			if nr.NodeAddress.Port > 0 {
-				bcEntry.NodeAddress = fmt.Sprintf("%s:%d", nr.NodeAddress.Address, nr.NodeAddress.Port)
-			} else {
-				bcEntry.NodeAddress = nr.NodeAddress.Address
-			}
 			bcEntry.NodePublicKey = nr.NodePublicKey
 
 			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
@@ -345,34 +337,70 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 }
 
 // generateGenesisFile generates a genesis file with given entries, starting from a template
-func generateGenesisFile(genesisEntries []genesisEntry, newGenesisFilePath string) {
+func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, newSpineGenesisFilePath string) {
+	var (
+		mainGenesisTmpl, spineGenesisTmpl *template.Template
+		err                               error
+		mainBlockID, spineBlockID         = getGenesisBlockID(genesisEntries)
+	)
+	/**
+	Main Genesis
+	*/
 	// read and execute genesis template, outputting the genesis.go to stdout
-	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/genesis.tmpl"))
+	mainGenesisTmpl, err = template.ParseFiles(path.Join(getRootPath(), "./resource/templates/genesis.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
 	}
-	err = os.Remove(newGenesisFilePath)
+	err = os.Remove(newMainGenesisFilePath)
 	if err != nil {
-		log.Printf("remove %s file: %s\n", newGenesisFilePath, err)
+		log.Printf("remove %s file: %s\n", newMainGenesisFilePath, err)
 	}
-	f, err := os.Create(newGenesisFilePath)
+	mainFile, err := os.Create(newMainGenesisFilePath)
 	if err != nil {
-		log.Printf("create %s file: %s\n", newGenesisFilePath, err)
+		log.Printf("create %s file: %s\n", newMainGenesisFilePath, err)
 		return
 	}
-	defer f.Close()
-
 	config := map[string]interface{}{
-		"MainchainGenesisBlockID": getGenesisBlockID(genesisEntries),
+		"MainchainGenesisBlockID": mainBlockID,
 		"MainchainGenesisConfig":  genesisEntries,
 	}
-	err = tmpl.Execute(f, config)
+	err = mainGenesisTmpl.Execute(mainFile, config)
 	if err != nil {
 		log.Fatal(err)
 	}
+	func() {
+		defer mainFile.Close()
+	}()
+
+	/**
+	Spine Genesis
+	*/
+	// read and execute genesis template, outputting the genesis.go to stdout
+	spineGenesisTmpl, err = template.ParseFiles(path.Join(getRootPath(), "./resource/templates/genesisSpine.tmpl"))
+	if err != nil {
+		log.Fatalf("Error while reading genesis.tmpl file: %s", err)
+	}
+	err = os.Remove(newSpineGenesisFilePath)
+	if err != nil {
+		log.Printf("remove %s file: %s\n", newSpineGenesisFilePath, err)
+	}
+	spineFile, err := os.Create(newSpineGenesisFilePath)
+	if err != nil {
+		log.Printf("create %s file: %s\n", newSpineGenesisFilePath, err)
+		return
+	}
+	defer spineFile.Close()
+
+	err = spineGenesisTmpl.Execute(spineFile, map[string]interface{}{
+		"SpinechainGenesisBlockID": spineBlockID,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
-func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
+func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID int64) {
 	var (
 		genesisConfig []constant.GenesisConfigEntry
 	)
@@ -381,7 +409,6 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 			AccountAddress:     entry.AccountAddress,
 			AccountBalance:     entry.AccountBalance,
 			LockedBalance:      entry.LockedBalance,
-			NodeAddress:        entry.NodeAddress,
 			NodePublicKey:      entry.NodePublicKey,
 			ParticipationScore: entry.ParticipationScore,
 		}
@@ -426,20 +453,25 @@ func getGenesisBlockID(genesisEntries []genesisEntry) int64 {
 	if err != nil {
 		log.Fatal(err)
 	}
-	return block.ID
+	sb := service.NewBlockSpineService(&chaintype.SpineChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	spine, err := sb.GenerateGenesisBlock(genesisConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return block.ID, spine.ID
 }
 
 func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFilePath string) (clusterConfig []clusterConfigEntry) {
-	for _, genesisEntry := range genesisEntries {
+	for _, genEntry := range genesisEntries {
 		// exclude entries that don't have NodeSeed set from cluster_config.json
 		// (they should be nodes already registered/run by someone, thus they shouldn't be deployed automatically)
-		if genesisEntry.NodeSeed != "" {
+		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodeAddress:         genesisEntry.NodeAddress,
-				NodePublicKey:       genesisEntry.NodeAccountAddress,
-				NodeSeed:            genesisEntry.NodeSeed,
-				OwnerAccountAddress: genesisEntry.AccountAddress,
-				Smithing:            genesisEntry.Smithing,
+				NodePublicKey:       genEntry.NodeAccountAddress,
+				NodeSeed:            genEntry.NodeSeed,
+				OwnerAccountAddress: genEntry.AccountAddress,
+				Smithing:            genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
@@ -455,15 +487,15 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 	return clusterConfig
 }
 
-func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePath string) {
+func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFilePath string) {
 	var (
 		accountNodes []accountNodeEntry
 	)
 
-	for _, entry := range accountNodeEntris {
+	for _, e := range accountNodeEntries {
 		entry := accountNodeEntry{
-			NodeAddress:    entry.NodeAddress,
-			AccountAddress: entry.AccountAddress,
+			NodeAddress:    e.NodeAddress,
+			AccountAddress: e.AccountAddress,
 		}
 		accountNodes = append(accountNodes, entry)
 	}
@@ -481,7 +513,7 @@ func generateAccountNodesFile(accountNodeEntris []accountNodeEntry, configFilePa
 func generateConsulKvInitScript(clusterConfigEntries []clusterConfigEntry, consulKvInitScriptPath string) {
 	// read and execute genesis template, outputting the genesis.go to stdout
 	// genesisTmpl, err := helpers.ReadTemplateFile("./genesis.tmpl")
-	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./cmd/genesisblock/templates/consulKvInit.tmpl"))
+	tmpl, err := template.ParseFiles(path.Join(getRootPath(), "./resource/templates/consulKvInit.tmpl"))
 	if err != nil {
 		log.Fatalf("Error while reading consulKvInit.tmpl file: %s", err)
 	}
@@ -547,10 +579,6 @@ func (ge *genesisEntry) HasLockedBalance() bool {
 
 func (ge *genesisEntry) HasAccountBalance() bool {
 	return ge.AccountBalance > 0
-}
-
-func (ge *genesisEntry) HasNodeAddress() bool {
-	return ge.NodeAddress != ""
 }
 
 func (ge *genesisEntry) HasNodePublicKey() bool {

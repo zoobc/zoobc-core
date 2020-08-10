@@ -372,7 +372,7 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 					MempoolQuery:  tt.fields.MempoolQuery,
 				},
 			}
-			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp)
+			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = %v, wantErr %v", err, tt.wantErr)
 				return

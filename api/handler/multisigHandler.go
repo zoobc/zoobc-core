@@ -72,3 +72,29 @@ func (msh *MultisigHandler) GetMultisignatureInfo(
 	result, err := msh.MultisigService.GetMultisignatureInfo(req)
 	return result, err
 }
+
+func (msh *MultisigHandler) GetMultisigAddressByParticipantAddresses(
+	_ context.Context,
+	req *model.GetMultisigAddressByParticipantAddressesRequest,
+) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
+	if req.Pagination == nil {
+		req.Pagination = &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+			Page:       1,
+			Limit:      constant.MaxAPILimitPerPage,
+		}
+	}
+	if req.GetPagination().GetPage() < 1 {
+		return nil, status.Error(codes.InvalidArgument, "PageCannotBeLessThanOne")
+	}
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
+	if req.GetPagination().GetPage() > 30 {
+		return nil, status.Error(codes.InvalidArgument, "LimitCannotBeMoreThan30")
+	}
+	result, err := msh.MultisigService.GetMultisigAddressByParticipantAddresses(req)
+	return result, err
+}

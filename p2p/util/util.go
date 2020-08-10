@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -52,6 +53,9 @@ func NewPeer(address string, port int) *model.Peer {
 // ParsePeer to parse an address to a peer model
 func ParsePeer(peerStr string) (*model.Peer, error) {
 	peerInfo := strings.Split(peerStr, ":")
+	if len(peerInfo) != 2 {
+		return nil, errors.New("peer address must be provided in address:port format")
+	}
 	peerAddress := peerInfo[0]
 	peerPort, err := strconv.Atoi(peerInfo[1])
 	if err != nil {
@@ -145,6 +149,38 @@ func GetPriorityPeersByNodeFullAddress(
 		}
 		if addressPeer != senderFullAddress {
 			priorityPeers[addressPeer] = peer
+		}
+		addedPosition++
+	}
+	return priorityPeers, nil
+}
+
+// GetPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
+func GetPriorityPeersByNodeID(
+	senderPeerID int64,
+	scrambledNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var (
+		priorityPeers = make(map[string]*model.Peer)
+		nodeIDStr     = fmt.Sprintf("%d", senderPeerID)
+	)
+	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
+	if hostIndex == nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
+	}
+	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+	addedPosition := 0
+	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+		var (
+			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
+			peer          = scrambledNodes.AddressNodes[peersPosition]
+			peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
+		)
+		if priorityPeers[peerIDStr] != nil {
+			break
+		}
+		if peerIDStr != nodeIDStr {
+			priorityPeers[peerIDStr] = peer
 		}
 		addedPosition++
 	}

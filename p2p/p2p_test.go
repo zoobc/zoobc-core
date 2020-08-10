@@ -18,6 +18,7 @@ type (
 	p2pMockPeerExplorer struct {
 		strategy.PeerExplorerStrategyInterface
 		noResolvedPeers bool
+		oneResolvedPeer bool
 	}
 	p2pMockPeerServiceClient struct {
 		client.PeerServiceClient
@@ -62,9 +63,12 @@ func (p2pMpe *p2pMockPeerExplorer) GetResolvedPeers() map[string]*model.Peer {
 	if p2pMpe.noResolvedPeers {
 		return nil
 	}
+
 	peers := make(map[string]*model.Peer)
 	peers[p2pP1.Info.Address] = p2pP1
-	peers[p2pP2.Info.Address] = p2pP2
+	if !p2pMpe.oneResolvedPeer {
+		peers[p2pP2.Info.Address] = p2pP2
+	}
 	return peers
 }
 
@@ -142,6 +146,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 	type args struct {
 		fullHash        []byte
 		fileChunksNames []string
+		validNodeIDs    map[int64]bool
 		maxRetryCount   uint32
 	}
 	tests := []struct {
@@ -160,6 +165,10 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 0,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
 				Logger:            log.New(),
@@ -180,6 +189,10 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 1,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
 				Logger:            log.New(),
@@ -200,6 +213,10 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 1,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
 				Logger:       log.New(),
@@ -211,7 +228,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 			},
 		},
 		{
-			name: "DownloadFilesFromPeer:fail-{DownloadFailed}",
+			name: "DownloadFilesFromPeer:fail-{DownloadFailed - only one resolved peer}",
 			args: args{
 				fileChunksNames: []string{
 					"testChunk1",
@@ -219,11 +236,17 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 0,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
-				Logger:       log.New(),
-				PeerExplorer: &p2pMockPeerExplorer{},
-				FileService:  &p2pMockFileService{},
+				Logger: log.New(),
+				PeerExplorer: &p2pMockPeerExplorer{
+					oneResolvedPeer: true,
+				},
+				FileService: &p2pMockFileService{},
 				PeerServiceClient: &p2pMockPeerServiceClient{
 					downloadErr: true,
 				},
@@ -239,6 +262,10 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 0,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
 				Logger:       log.New(),
@@ -263,6 +290,10 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 					"testChunk3",
 				},
 				maxRetryCount: 0,
+				validNodeIDs: map[int64]bool{
+					1111: true,
+					2222: true,
+				},
 			},
 			fields: fields{
 				Logger:       log.New(),
@@ -284,7 +315,7 @@ func TestPeer2PeerService_DownloadFilesFromPeer(t *testing.T) {
 				TransactionUtil:   tt.fields.TransactionUtil,
 				FileService:       tt.fields.FileService,
 			}
-			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fullHash, tt.args.fileChunksNames, tt.args.maxRetryCount)
+			gotFailed, err := s.DownloadFilesFromPeer(tt.args.fullHash, tt.args.fileChunksNames, tt.args.validNodeIDs, tt.args.maxRetryCount)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Peer2PeerService.DownloadFilesFromPeer() error = %v, wantErr %v", err, tt.wantErr)
 				return

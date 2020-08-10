@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
 	"math/big"
 	"sort"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -242,7 +242,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 	if len(nodeRegistrations) > 0 {
 		return nodeRegistrations[0], nil
 	}
-	return nil, nil
+	return nil, blocker.NewBlocker(blocker.DBErr, "noNodeRegistrationFound")
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)
@@ -344,6 +344,7 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
 	if err != nil {
 		return err
@@ -371,11 +372,8 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 
 func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint32) error {
 	var (
-		nearestBlock    model.Block
-		nodeRegistries  []*model.NodeRegistration
-		newAddressNodes []*model.Peer
-		newIndexNodes   = make(map[string]*int)
-		err             error
+		nearestBlock model.Block
+		err          error
 	)
 	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(blockHeight)
 	nearestBlockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nearestHeight), false)
@@ -383,56 +381,39 @@ func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint
 	if err != nil {
 		return err
 	}
-	nodeRegistries, err = nrs.sortNodeRegistries(&nearestBlock)
+	return nrs.sortNodeRegistries(&nearestBlock)
+}
+
+// sortNodeRegistries this function is responsible of selecting and sorting registered nodes so that nodes/peers in scrambledNodes map changes
+// order at a given interval
+// note: this algorithm is deterministic for the whole network so that,
+// at any point in time every node can calculate this map autonomously, given its node registry is updated
+func (nrs *NodeRegistrationService) sortNodeRegistries(
+	block *model.Block,
+) error {
+	var (
+		nodeRegistries  []*model.NodeRegistration
+		newAddressNodes []*model.Peer
+		newIndexNodes   = make(map[string]*int)
+		err             error
+	)
+
+	// get node registry list
+	rows, err := nrs.QueryExecutor.ExecuteSelect(
+		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+		false,
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	nodeRegistries, err = nrs.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
 	if err != nil {
 		return err
 	}
 
-	// Restructure & validating node address
-	for key, node := range nodeRegistries {
-		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
-		// note that we already have the address in node struct: see GetNodeRegistryAtHeightWithNodeAddress
-		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
-		// Checking port of address,
-		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
-		fullAddresss := p2pUtil.GetFullAddressPeer(&model.Peer{
-			Info: nodeInfo,
-		})
-		peer := &model.Peer{
-			Info: &model.Node{
-				ID:            node.GetNodeID(),
-				Address:       nodeInfo.GetAddress(),
-				Port:          nodeInfo.GetPort(),
-				SharedAddress: nodeInfo.GetAddress(),
-				AddressStatus: node.GetNodeAddressInfo().GetStatus(),
-			},
-		}
-		index := key
-		newIndexNodes[fullAddresss] = &index
-		newAddressNodes = append(newAddressNodes, peer)
-	}
-
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
-	// memoize the scrambled nodes
-	nrs.ScrambledNodes[nearestBlock.Height] = &model.ScrambledNodes{
-		AddressNodes: newAddressNodes,
-		IndexNodes:   newIndexNodes,
-		BlockHeight:  nearestBlock.Height,
-	}
-	return nil
-}
-
-func (nrs *NodeRegistrationService) sortNodeRegistries(
-	block *model.Block,
-) ([]*model.NodeRegistration, error) {
-	// get node registry list: only registered nodes that already have a confirmed or pending address (preferring pending addr over confirmed)
-	nodeRegistries, err := nrs.NodeAddressInfoService.GetRegisteredNodesWithConsolidatedAddresses(
-		block.GetHeight(),
-		model.NodeAddressStatus_NodeAddressPending,
-	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {
@@ -450,51 +431,30 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 		// Ascending sort
 		return res < 0
 	})
-	return nodeRegistries, nil
-}
-
-// BuildScrambleNodes,  build sorted scramble nodes based on node registry
-func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
-	var (
-		nodeRegistries  []*model.NodeRegistration
-		newAddressNodes []*model.Peer
-		newIndexNodes   = make(map[string]*int)
-		err             error
-	)
-	nodeRegistries, err = nrs.sortNodeRegistries(block)
-	if err != nil {
-		return err
-	}
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
-		var (
-			addressStatus model.NodeAddressStatus
-		)
-		if node.GetNodeAddressInfo() != nil {
-			addressStatus = node.GetNodeAddressInfo().GetStatus()
+		nai, err := nrs.NodeAddressInfoService.GetAddressInfoByNodeID(node.GetNodeID(), model.NodeAddressStatus_NodeAddressPending)
+		if err != nil {
+			return err
 		}
-		// STEF node.GetNodeAddress() must change into getting ip address from peer table by nodeID
-		// note that we already have the address in node struct: see GetNodeRegistryAtHeightWithNodeAddress
-		fullAddress := nrs.NodeRegistrationQuery.ExtractNodeAddress(node.GetNodeAddress())
-		// Checking port of address,
-		nodeInfo := p2pUtil.GetNodeInfo(fullAddress)
-		fullAddress = p2pUtil.GetFullAddressPeer(&model.Peer{
-			Info: nodeInfo,
-		})
 		peer := &model.Peer{
 			Info: &model.Node{
-				ID:            node.GetNodeID(),
-				Address:       nodeInfo.GetAddress(),
-				Port:          nodeInfo.GetPort(),
-				SharedAddress: nodeInfo.GetAddress(),
-				AddressStatus: addressStatus,
+				ID: node.GetNodeID(),
 			},
 		}
+		// p2p: add peer to index and address nodes only if node has address
+		scrambleDNodeMapKey := fmt.Sprintf("%d", node.GetNodeID())
+		if nai != nil {
+			peer.Info.Address = nai.GetAddress()
+			peer.Info.Port = nai.GetPort()
+			peer.Info.SharedAddress = nai.GetAddress()
+			peer.Info.AddressStatus = nai.GetStatus()
+		}
 		index := key
-		newIndexNodes[fullAddress] = &index
+		newIndexNodes[scrambleDNodeMapKey] = &index
 		newAddressNodes = append(newAddressNodes, peer)
 	}
-
+	// build the scrambled node map
 	nrs.ScrambledNodesLock.Lock()
 	defer nrs.ScrambledNodesLock.Unlock()
 	// memoize the scrambled nodes
@@ -503,7 +463,13 @@ func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) erro
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  block.Height,
 	}
+
 	return nil
+}
+
+// BuildScrambleNodes,  build sorted scramble nodes based on node registry
+func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
+	return nrs.sortNodeRegistries(block)
 }
 
 func (nrs *NodeRegistrationService) ResetScrambledNodes() {
@@ -608,7 +574,12 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
 	nodeIDs []int64,
 	addressStatuses []model.NodeAddressStatus,
 ) ([]*model.NodeAddressInfo, error) {
-	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+	var qry string
+	if len(nodeIDs) > 0 {
+		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+	} else {
+		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByStatus(addressStatuses)
+	}
 	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return nil, err
@@ -637,12 +608,8 @@ func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 
 	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return nil, nil
-		}
 		return nil, err
 	}
-
 	return nodeAddressesInfo, nil
 }
 

@@ -12,7 +12,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -82,12 +81,14 @@ var (
 	}
 
 	mockHostInfo = &model.Node{
+		ID:      int64(111),
 		Address: "127.0.0.1",
 		Port:    8000,
 	}
 
 	mockPeer = &model.Peer{
 		Info: &model.Node{
+			ID:      int64(222),
 			Address: "127.0.0.1",
 			Port:    3001,
 		},
@@ -97,20 +98,22 @@ var (
 		AddressNodes: []*model.Peer{
 			0: {
 				Info: &model.Node{
+					ID:      int64(111),
 					Address: "127.0.0.1",
 					Port:    8000,
 				},
 			},
 			1: {
 				Info: &model.Node{
+					ID:      int64(222),
 					Address: "127.0.0.1",
 					Port:    3001,
 				},
 			},
 		},
 		IndexNodes: map[string]*int{
-			"127.0.0.1:8000": &indexScramble[0],
-			"127.0.0.1:3001": &indexScramble[1],
+			"111": &indexScramble[0],
+			"222": &indexScramble[1],
 		},
 	}
 
@@ -219,6 +222,10 @@ func (p2pNssMock *p2pMockNodeConfigurationService) GetMyAddress() (string, error
 	return "127.0.0.1", nil
 }
 
+func (p2pNssMock *p2pMockNodeConfigurationService) GetHostID() (int64, error) {
+	return 111, nil
+}
+
 func (p2pNssMock *p2pMockNodeConfigurationService) GetMyPeerPort() (uint32, error) {
 
 	return 8001, nil
@@ -322,9 +329,6 @@ func (p2pNr *p2pMockNodeRegistraionService) GetRegisteredNodes() ([]*model.NodeR
 			NodePublicKey:      nrsNodePubKey1,
 			AccountAddress:     nrsAddress1,
 			RegistrationHeight: 10,
-			NodeAddress: &model.NodeAddress{
-				Address: "10.10.10.10",
-			},
 			LockedBalance:      100000000,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 			Latest:             true,
@@ -369,44 +373,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 		),
 	)
 	return db.QueryRow(qe), nil
-}
-
-func TestNewPriorityStrategy(t *testing.T) {
-	type args struct {
-		peerServiceClient        client.PeerServiceClientInterface
-		queryExecutor            query.ExecutorInterface
-		logger                   *log.Logger
-		peerStrategyHelper       PeerStrategyHelperInterface
-		nodeConfigurationService coreService.NodeConfigurationServiceInterface
-	}
-	tests := []struct {
-		name string
-		args args
-		want *PriorityStrategy
-	}{
-		{
-			name: "wantSuccess",
-			args: args{
-				peerStrategyHelper:       NewPeerStrategyHelper(),
-				nodeConfigurationService: &coreService.NodeConfigurationService{},
-			},
-			want: &PriorityStrategy{
-				MaxUnresolvedPeers:       constant.MaxUnresolvedPeers,
-				MaxResolvedPeers:         constant.MaxResolvedPeers,
-				PeerStrategyHelper:       NewPeerStrategyHelper(),
-				NodeConfigurationService: &coreService.NodeConfigurationService{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := NewPriorityStrategy(tt.args.peerServiceClient, nil,
-				tt.args.queryExecutor, nil, tt.args.logger, tt.args.peerStrategyHelper, tt.args.nodeConfigurationService, nil, nil)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewPriorityStrategy() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
@@ -1304,7 +1270,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				},
 			},
 			want: map[string]*model.Peer{
-				"127.0.0.1:3001": mockPeer,
+				"222": mockPeer,
 			},
 		},
 	}

@@ -214,7 +214,7 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
 		nodeIDs        []int64
 	)
 	defer func() {
@@ -365,7 +365,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
 	)
 	defer func() {
 		cancelReq()

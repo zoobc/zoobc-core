@@ -8,10 +8,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -45,8 +44,9 @@ var (
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
 
-	badgerMetrics     map[string]prometheus.Gauge
-	badgerMetricsLock sync.Mutex
+	badgerMetrics         map[string]prometheus.Gauge
+	badgerMetricsLock     sync.Mutex
+	cliMonitoringInstance CLIMonitoringInteface
 )
 
 const (
@@ -237,6 +237,10 @@ func SetMonitoringActive(isActive bool) {
 
 }
 
+func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
+	cliMonitoringInstance = cliMonitoring
+}
+
 func SetNodePublicKey(pk []byte) {
 	nodePublicKey = pk
 }
@@ -293,6 +297,10 @@ func SetNodeAddressStatusCount(count int, status model.NodeAddressStatus) {
 }
 
 func SetUnresolvedPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringUnresolvedPeersNumber, count)
+	}
+
 	if !isMonitoringActive {
 		return
 	}
@@ -301,6 +309,9 @@ func SetUnresolvedPeersCount(count int) {
 }
 
 func SetResolvedPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringResolvePeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -309,6 +320,9 @@ func SetResolvedPeersCount(count int) {
 }
 
 func SetResolvedPriorityPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringResolvedPriorityPeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -317,6 +331,9 @@ func SetResolvedPriorityPeersCount(count int) {
 }
 
 func SetUnresolvedPriorityPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringUnresolvedPriorityPeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -388,7 +405,17 @@ func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
 	nodeScore.Set(float64(scoreInt64))
 }
 
+func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdateSmithingInfo(sortedBlocksmiths, sortedBlocksmithsMap)
+	}
+}
+
 func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdateBlockState(chainType, block)
+	}
+
 	if !isMonitoringActive {
 		return
 	}
