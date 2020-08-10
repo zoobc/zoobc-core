@@ -747,7 +747,8 @@ func (tx *MultiSignatureTransaction) GetTransactionBody(transaction *model.Trans
 
 func (*MultiSignatureTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }

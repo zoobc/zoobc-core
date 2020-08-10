@@ -23,14 +23,15 @@ type RemoveNodeRegistration struct {
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
+	AccountBalanceHelper  AccountBalanceHelperInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
 func (tx *RemoveNodeRegistration) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	authorizedType := map[model.TransactionType]bool{
 		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
@@ -152,9 +153,10 @@ func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	var (
-		nodeReg model.NodeRegistration
-		err     error
-		row     *sql.Row
+		nodeReg        model.NodeRegistration
+		err            error
+		row            *sql.Row
+		accountBalance model.AccountBalance
 	)
 
 	// check for duplication
@@ -176,6 +178,14 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	}
 	if nodeReg.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyDeleted")
+	}
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+	if accountBalance.GetSpendableBalance() < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
 }

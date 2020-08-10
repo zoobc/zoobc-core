@@ -30,7 +30,8 @@ type RemoveAccountDataset struct {
 // SkipMempoolTransaction this tx type has no mempool filter
 func (tx *RemoveAccountDataset) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }
@@ -186,7 +187,10 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "RemoveAccountDataset, user balance not enough")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
 	}
 	return nil
 }

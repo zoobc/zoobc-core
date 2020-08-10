@@ -207,7 +207,8 @@ func (tx *LiquidPaymentStopTransaction) GetTransactionBody(transaction *model.Tr
 // SkipMempoolTransaction filter out of the mempool tx under specific condition
 func (tx *LiquidPaymentStopTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }

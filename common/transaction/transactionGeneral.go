@@ -271,9 +271,7 @@ func (u *Util) ValidateTransaction(
 	verifySignature bool,
 ) error {
 	var (
-		senderAccountBalance model.AccountBalance
-		row                  *sql.Row
-		err                  error
+		err error
 	)
 
 	if tx.Fee <= 0 {
@@ -324,28 +322,6 @@ func (u *Util) ValidateTransaction(
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxComeFromFuture",
-		)
-	}
-
-	// validate sender account
-	qry, args := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	row, err = queryExecutor.ExecuteSelectRow(qry, false, args...)
-	if err != nil {
-		return err
-	}
-
-	err = accountBalanceQuery.Scan(&senderAccountBalance, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
-	}
-
-	if senderAccountBalance.SpendableBalance < tx.Fee {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"TxAccountBalanceNotEnough",
 		)
 	}
 

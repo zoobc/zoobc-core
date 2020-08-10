@@ -72,7 +72,10 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.Acc
 
 	err = abh.AccountBalanceQuery.Scan(accountBalance, row)
 	if err != nil {
-		return err
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 	return nil
 }
