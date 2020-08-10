@@ -205,7 +205,7 @@ func TestMultiSignatureParticipantQuery_InsertMultisignatureParticipants(t *test
 			},
 			wantQueries: [][]interface{}{
 				{
-					"INSERT INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
+					"INSERT OR REPLACE INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
 						"VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)",
 					"MSG_", "BCZ_0", uint32(0), true, uint32(100), "MSG_", "BCZ_1", uint32(1), true, uint32(100),
 				},
