@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -208,6 +209,12 @@ func (ps *P2PServerService) SendPeers(
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: only accept nodes that are already registered in the node registration
+		var compatiblePeers []*model.Node
+		for _, peer := range peers {
+			if err := p2pUtil.CheckPeerCompatibility(ps.PeerExplorer.GetHostInfo(), peer); err == nil {
+				compatiblePeers = append(compatiblePeers, peer)
+			}
+		}
 		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())

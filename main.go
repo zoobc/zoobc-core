@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	"github.com/zoobc/lib/address"
 
@@ -162,7 +163,7 @@ func init() {
 		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
 	}
 
-	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult))
+	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult, constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
 		loggerCoreService.Fatal("node seed is empty", err.Error())

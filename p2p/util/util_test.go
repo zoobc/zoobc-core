@@ -14,6 +14,8 @@ func TestNewHost(t *testing.T) {
 		address    string
 		port       uint32
 		knownPeers []*model.Peer
+		version    string
+		codename   string
 	}
 	tests := []struct {
 		name string
@@ -42,11 +44,14 @@ func TestNewHost(t *testing.T) {
 						},
 					},
 				},
+				version: "1.0.0",
 			},
 			want: &model.Host{
 				Info: &model.Node{
-					Address: "127.0.0.1",
-					Port:    3000,
+					Address:  "127.0.0.1",
+					Port:     3000,
+					Version:  "1.0.0",
+					CodeName: "ZBC_main",
 				},
 				KnownPeers: map[string]*model.Peer{
 					"127.0.0.1:3001": {
@@ -85,7 +90,7 @@ func TestNewHost(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewHost(tt.args.address, tt.args.port, tt.args.knownPeers)
+			got := NewHost(tt.args.address, tt.args.port, tt.args.knownPeers, tt.args.version, tt.args.codename)
 			if strings.Compare(got.String(), tt.want.String()) != 0 {
 				t.Errorf("\n%v \n%v", got.String(), tt.want.String())
 			}
