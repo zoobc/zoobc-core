@@ -199,7 +199,8 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 			blockHeight,
 		)
 		if err != nil {
-			return nil, err
+			mps.Logger.Errorf("skip mempool err : %v", err)
+			continue
 		}
 		if toRemove {
 			continue
