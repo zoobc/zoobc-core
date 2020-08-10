@@ -2,6 +2,8 @@ package p2p
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -54,6 +56,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 		hashSize                 = sha3.New256().Size()
 		wg                       sync.WaitGroup
 		validNodeRegistryIDs     = make(map[int64]bool)
+		shardToDownload          [][]string
 	)
 
 	fileChunkHashes, err := ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), hashSize)
@@ -63,7 +66,17 @@ func (ss *FileDownloader) DownloadSnapshot(
 	if len(fileChunkHashes) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 	}
-
+	// todo: andy-shi88 inject chunkutil from main.go
+	chunkUtil := util.NewChunkUtil(hashSize, storage.NewNodeShardCacheStorage(), ss.Logger)
+	shardMap := chunkUtil.ShardChunk(spineBlockManifest.GetFileChunkHashes(), 8)
+	for _, shard := range shardMap {
+		temp := make([]string, len(shard))
+		for i, chunk := range shard {
+			fileName := ss.FileService.GetFileNameFromHash(chunk)
+			temp[i] = fileName
+		}
+		shardToDownload = append(shardToDownload, temp)
+	}
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, true)
 	// get valid spine public keys from height 0 to manifest reference height (last height after snapshot imported)
 	validSpinePublicKeys, err := ss.BlockSpinePublicKeyService.GetValidSpinePublicKeyByBlockHeightInterval(
@@ -79,16 +92,13 @@ func (ss *FileDownloader) DownloadSnapshot(
 		validNodeRegistryIDs[key.NodeID] = true
 	}
 	// TODO: implement some sort of rate limiting for number of concurrent downloads (eg. by segmenting the WaitGroup)
-	wg.Add(len(fileChunkHashes))
-	for _, fileChunkHash := range fileChunkHashes {
-		go func(fileChunkHash []byte) {
+	wg.Add(len(shardToDownload))
+	for _, shard := range shardToDownload {
+		go func(fileChunkHashes []string) {
 			defer wg.Done()
-			// TODO: for now download just one chunk per peer,
-			//  but in future we could download multiple chunks at once from one peer
-			fileName := ss.FileService.GetFileNameFromHash(fileChunkHash)
 			failed, err := ss.P2pService.DownloadFilesFromPeer(
 				spineBlockManifest.FullFileHash,
-				[]string{fileName},
+				fileChunkHashes,
 				validNodeRegistryIDs,
 				constant.DownloadSnapshotNumberOfRetries,
 			)
@@ -96,15 +106,17 @@ func (ss *FileDownloader) DownloadSnapshot(
 				ss.Logger.Error(err)
 			}
 			if len(failed) > 0 {
-				var nInt int64 = 0
-				n, ok := failedDownloadChunkNames.Load(fileName)
-				if ok {
-					nInt = n + 1
+				for _, failedFileName := range failed {
+					var nInt int64 = 0
+					n, ok := failedDownloadChunkNames.Load(failedFileName)
+					if ok {
+						nInt = n + 1
+					}
+					failedDownloadChunkNames.Store(failedFileName, nInt)
 				}
-				failedDownloadChunkNames.Store(fileName, nInt)
 				return
 			}
-		}(fileChunkHash)
+		}(shard)
 	}
 	wg.Wait()
 	ss.BlockchainStatusService.SetIsDownloadingSnapshot(ct, false)

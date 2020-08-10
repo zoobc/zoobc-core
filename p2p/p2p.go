@@ -346,7 +346,6 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 			break
 		}
 	}
-
 	// use shuffle instead of re-looping array everytime.
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(validPeers), func(i, j int) {
@@ -390,10 +389,11 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 		// set next files to download = previous files that failed to download
 		fileChunksToDownload = fileDownloadResponse.GetFailed()
 		// break download loop either if all files have been successfully downloaded or there are no more peers to connect to
-		if len(fileChunksToDownload) == 0 || len(resolvedPeers) == 0 {
-			if len(fileChunksToDownload) > 0 && len(resolvedPeers) == 0 {
-				s.Logger.Debug("no more resolved peers to download files from. Already tried them all!")
-			}
+		if len(fileChunksToDownload) == 0 {
+			break
+		}
+		if i+1 == len(validPeers) {
+			s.Logger.Debug("no more resolved peers to download files from. Already tried them all!")
 			break
 		}
 	}
