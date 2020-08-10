@@ -126,7 +126,10 @@ type (
 	mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess struct {
 		service.BlockSpinePublicKeyService
 	}
-	mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess struct {
+	mockSpineBlockManifestServiceDeleteUnmaintainedChunksEmpty struct {
+		service.SpineBlockManifestService
+	}
+	mockSpineBlockManifestServiceDeleteUnmaintainedChunksFilled struct {
 		service.SpineBlockManifestService
 	}
 	mockNodeConfigurationServiceDeleteUnmaintainedChunksSuccess struct {
@@ -139,6 +142,12 @@ type (
 	mockNodeShardCacheStorageSuccess struct {
 		storage.NodeShardCacheStorage
 	}
+	mockBlockStateStorageEmpty struct {
+		storage.BlockStateStorage
+	}
+	mockBlockStateStorageFilled struct {
+		storage.BlockStateStorage
+	}
 	mockSnapshotChunkUtilSuccess struct {
 		util.ChunkUtil
 	}
@@ -147,15 +156,20 @@ type (
 func (*mockNodeShardCacheStorageNotFound) GetItem(interface{}, interface{}) error {
 	return nil
 }
-func (*mockNodeShardCacheStorageNotFound) GetSize() int64 {
-	return 1
-}
+
 func (*mockNodeShardCacheStorageSuccess) GetItem(interface{}, interface{}) error {
 	return errors.New("error needed")
 }
-func (*mockNodeShardCacheStorageSuccess) GetSize() int64 {
-	return 1
+
+func (*mockBlockStateStorageEmpty) GetItem(interface{}, interface{}) error {
+	return nil
 }
+func (*mockBlockStateStorageFilled) GetItem(_, item interface{}) error {
+	assert := item.(*model.Block)
+	*assert = model.Block{Height: 3000}
+	return nil
+}
+
 func (*mockSnapshotChunkUtilSuccess) GetShardAssigment([]byte, int, []int64, bool) (storage.ShardMap, error) {
 	return storage.ShardMap{
 		NodeShards: map[int64][]uint64{
@@ -188,9 +202,15 @@ func (*mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess) GetSpinePublicK
 		},
 	}, nil
 }
-func (*mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess) GetSpineBlockManifestBySpineBlockHeight(
-	uint32,
-) ([]*model.SpineBlockManifest, error) {
+
+func (*mockSpineBlockManifestServiceDeleteUnmaintainedChunksEmpty) GetSpineBlockManifestsByManifestReferenceHeightRange(
+	uint32, uint32,
+) (manifests []*model.SpineBlockManifest, err error) {
+	return nil, nil
+}
+func (*mockSpineBlockManifestServiceDeleteUnmaintainedChunksFilled) GetSpineBlockManifestsByManifestReferenceHeightRange(
+	uint32, uint32,
+) (manifests []*model.SpineBlockManifest, err error) {
 	fullHashed, fileChunkHashes, err := testfixtures.GetFixtureForSnapshotBasicChunks(constant.SnapshotChunkSize, service.NewFileService(
 		logrus.New(),
 		new(codec.CborHandle),
@@ -225,6 +245,7 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 		FileService                service.FileServiceInterface
 		SnapshotChunkUtil          util.ChunkUtilInterface
 		NodeShardStorage           storage.CacheStorageInterface
+		BlockStateStorage          storage.CacheStorageInterface
 		BlockCoreService           service.BlockServiceInterface
 		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
 		NodeConfigurationService   service.NodeConfigurationServiceInterface
@@ -235,11 +256,25 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Success:ModeIDIsNotInShard",
+			name: "Success:BlockHeightLessThanConstant",
 			fields: fields{
-				SpineBlockManifestService:  &mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess{},
+				SpineBlockManifestService:  nil,
+				FileService:                nil,
+				SnapshotChunkUtil:          nil,
+				NodeShardStorage:           nil,
+				BlockStateStorage:          &mockBlockStateStorageEmpty{},
+				BlockCoreService:           nil,
+				BlockSpinePublicKeyService: nil,
+				NodeConfigurationService:   nil,
+			},
+		},
+		{
+			name: "Success:EmptyManifests",
+			fields: fields{
+				SpineBlockManifestService:  &mockSpineBlockManifestServiceDeleteUnmaintainedChunksEmpty{},
 				SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorageNotFound{}, logrus.New()),
 				NodeShardStorage:           &mockNodeShardCacheStorageNotFound{},
+				BlockStateStorage:          &mockBlockStateStorageFilled{},
 				BlockCoreService:           &mockBlockCoreServiceDeleteUnmaintainedChunksSuccess{},
 				BlockSpinePublicKeyService: &mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess{},
 				NodeConfigurationService:   &mockNodeConfigurationServiceDeleteUnmaintainedChunksSuccess{},
@@ -253,10 +288,10 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 		{
 			name: "Success:DeletingFromShard",
 			fields: fields{
-				SpineBlockManifestService: &mockSpineBlockManifestServiceDeleteUnmaintainedChunksSuccess{},
-				// SnapshotChunkUtil:          util.NewChunkUtil(sha256.Size, &mockNodeShardCacheStorageNotFound{}, logrus.New()),
+				SpineBlockManifestService:  &mockSpineBlockManifestServiceDeleteUnmaintainedChunksFilled{},
 				SnapshotChunkUtil:          &mockSnapshotChunkUtilSuccess{},
 				NodeShardStorage:           &mockNodeShardCacheStorageSuccess{},
+				BlockStateStorage:          &mockBlockStateStorageFilled{},
 				BlockCoreService:           &mockBlockCoreServiceDeleteUnmaintainedChunksSuccess{},
 				BlockSpinePublicKeyService: &mockSpinePublicKeyServiceDeleteUnmaintainedChunksSuccess{},
 				NodeConfigurationService:   &mockNodeConfigurationServiceDeleteUnmaintainedChunksSuccess{},
@@ -275,6 +310,7 @@ func TestSnapshotScheduler_DeleteUnmaintainedChunks(t *testing.T) {
 				FileService:                tt.fields.FileService,
 				SnapshotChunkUtil:          tt.fields.SnapshotChunkUtil,
 				NodeShardStorage:           tt.fields.NodeShardStorage,
+				BlockStateStorage:          tt.fields.BlockStateStorage,
 				BlockCoreService:           tt.fields.BlockCoreService,
 				BlockSpinePublicKeyService: tt.fields.BlockSpinePublicKeyService,
 				NodeConfigurationService:   tt.fields.NodeConfigurationService,
