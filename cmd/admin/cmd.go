@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -149,7 +150,7 @@ func GenerateNodeKeysFile(*cobra.Command, []string) {
 		fmt.Println(err.Error())
 		os.Exit(2)
 	}
-	err = ioutil.WriteFile(path.Join(util.GetRootPath(), "/resource/node_keys.json"), b, 0644)
+	err = ioutil.WriteFile(path.Join(helper.GetAbsDBPath(), "/resource/node_keys.json"), b, 0644)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(2)

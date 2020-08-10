@@ -49,7 +49,8 @@ func (sn *SetupNode) discoverNodeAddress() error {
 	return nil
 }
 
-func (sn *SetupNode) checkConfig() error {
+// CheckConfig checking configuration files, validate keys of it that would important to start the app
+func (sn *SetupNode) CheckConfig() error {
 	if !sn.Config.ConfigFileExist {
 		return errors.New(ErrNoConfigFile)
 	}
@@ -73,7 +74,7 @@ func (sn *SetupNode) checkConfig() error {
 				}
 			} else {
 				color.Cyan("node keys has not been setup")
-				sn.nodeKeysPrompt()
+				return errors.New("nod keys has not been setup")
 			}
 		} else {
 			color.Red("unknown error occurred when scanning for node keys file")
@@ -187,7 +188,7 @@ func (sn *SetupNode) WizardFirstSetup() error {
 	color.Green("WELCOME TO ZOOBC\n\n")
 	color.Yellow("Checking existing configuration...\n")
 	// todo: check config if everything ok, return
-	err := sn.checkConfig()
+	err := sn.CheckConfig()
 	if err != nil {
 		if err.Error() == ErrNoConfigFile {
 			color.Cyan("no config file found, generating one...\n")

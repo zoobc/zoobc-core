@@ -16,11 +16,7 @@ import (
 
 func main() {
 	var (
-		rootCmd     *cobra.Command
-		generateCmd = &cobra.Command{
-			Use:   "generate",
-			Short: "generate command is a parent command for generating stuffs",
-		}
+		rootCmd   *cobra.Command
 		parserCmd = &cobra.Command{
 			Use:   "parser",
 			Short: "parse data to understandable struct",
@@ -32,7 +28,6 @@ func main() {
 		Short: "CLI app for zoobc core",
 		Long:  "Commandline Tools for zoobc core",
 	}
-	rootCmd.AddCommand(generateCmd)
 	rootCmd.AddCommand(genesisblock.Commands())
 	rootCmd.AddCommand(rollback.Commands())
 	rootCmd.AddCommand(parserCmd)
