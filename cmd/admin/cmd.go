@@ -47,6 +47,7 @@ func init() {
 		"make sure to download the database from node or run this command on node")
 	generateProofOfOwnerShipCmd.Flags().StringVar(&databaseName, "db-node-name", "zoobc.db", "Database name of node, "+
 		"make sure to download the database from node or run this command on node")
+	generateNodeKeyCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node, empty allowed")
 }
 
 // Commands will return  proof of owner ship cmd
