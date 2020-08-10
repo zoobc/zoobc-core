@@ -3,9 +3,9 @@ package main
 import (
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/account"
+	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/cmd/block"
 	"github.com/zoobc/zoobc-core/cmd/genesisblock"
-	"github.com/zoobc/zoobc-core/cmd/noderegistry"
 	"github.com/zoobc/zoobc-core/cmd/parser"
 	"github.com/zoobc/zoobc-core/cmd/rollback"
 	"github.com/zoobc/zoobc-core/cmd/scramblednodes"
@@ -38,13 +38,13 @@ func main() {
 	rootCmd.AddCommand(parserCmd)
 	rootCmd.AddCommand(signature.Commands())
 	rootCmd.AddCommand(snapshot.Commands())
-	generateCmd.AddCommand(account.Commands())
-	generateCmd.AddCommand(transaction.Commands())
-	generateCmd.AddCommand(block.Commands())
-	generateCmd.AddCommand(noderegistry.Commands())
+	rootCmd.AddCommand(account.Commands())
+	rootCmd.AddCommand(transaction.Commands())
+	rootCmd.AddCommand(block.Commands())
+	rootCmd.AddCommand(admin.Commands())
+	rootCmd.AddCommand(scramblednodes.Commands()["getScrambledNodesCmd"])
+	rootCmd.AddCommand(scramblednodes.Commands()["getPriorityPeersCmd"])
 	parserCmd.AddCommand(parser.Commands())
-	generateCmd.AddCommand(scramblednodes.Commands()["getScrambledNodesCmd"])
-	generateCmd.AddCommand(scramblednodes.Commands()["getPriorityPeersCmd"])
 	_ = rootCmd.Execute()
 
 }

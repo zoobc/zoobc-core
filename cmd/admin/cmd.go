@@ -1,4 +1,4 @@
-package noderegistry
+package admin
 
 import (
 	"encoding/hex"
