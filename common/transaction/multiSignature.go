@@ -488,10 +488,25 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	var (
 		body                  = tx.Body
 		multisigInfoAddresses = make(map[string]bool)
+		err                   error
+		accountBalance        model.AccountBalance
 	)
 	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBe"+
 			"Provided")
+	}
+
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+
+	if accountBalance.SpendableBalance < tx.Fee {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
 	}
 
 	if body.MultiSignatureInfo != nil {

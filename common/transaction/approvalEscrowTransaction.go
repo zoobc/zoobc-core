@@ -41,7 +41,8 @@ type (
 	}
 )
 
-// SkipMempoolTransaction this tx type has no mempool filter
+// SkipMempoolTransaction to filter out current Approval escrow transaction when
+// this tx already expired based on new block height
 func (tx *ApprovalEscrowTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
 	newBlockTimestamp int64,
@@ -140,7 +141,7 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		if err != sql.ErrNoRows {
 			return err
 		}
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidAccountSender")
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 	if accountBalance.SpendableBalance < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")

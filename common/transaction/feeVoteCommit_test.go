@@ -508,21 +508,29 @@ func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess) Scan(block *mod
 	return nil
 }
 
-func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mock", nil
 }
 
 func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 	return errors.New("MockedError")
 }
-func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mockQuery", nil
 }
 
-func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) Scan(nr *model.NodeRegistration, row *sql.Row) error {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) Scan(
+	nr *model.NodeRegistration, row *sql.Row,
+) error {
 	return sql.ErrNoRows
 }
-func (*mockNodeRegistrationQueryFeeVoteCommitValidateSuccess) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateSuccess) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mockQuery", nil
 }
 
@@ -550,7 +558,9 @@ func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.Fee
 	return nil
 }
 
-func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
 	return errors.New("MockedError")
 }
 
