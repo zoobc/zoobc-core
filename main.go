@@ -54,6 +54,8 @@ var (
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
+	nodeShardStorage                                storage.CacheStorageInterface
+	snapshotChunkUtil                               util.ChunkUtilInterface
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
@@ -97,7 +99,6 @@ var (
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	cpuProfile                                      bool
-	nodeShardStorage                                storage.CacheStorageInterface
 	cliMonitoring                                   monitoring.CLIMonitoringInteface
 )
 
@@ -351,11 +352,16 @@ func init() {
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	initP2pInstance()
+
+	/*
+		Snapshot Scheduler initiate
+	*/
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
+	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 	snapshotSchedulers = scheduler.NewSnapshotScheduler(
 		spineBlockManifestService,
 		fileService,
-		util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler),
+		snapshotChunkUtil,
 		nodeShardStorage,
 		blockServices[0],
 		&service.BlockSpinePublicKeyService{

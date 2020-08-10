@@ -28,11 +28,7 @@ type (
 	}
 )
 
-func NewChunkUtil(
-	chunkHashSize int,
-	nodeShardCacheStorage storage.CacheStorageInterface,
-	logger *logrus.Logger,
-) ChunkUtilInterface {
+func NewChunkUtil(chunkHashSize int, nodeShardCacheStorage storage.CacheStorageInterface, logger *logrus.Logger) *ChunkUtil {
 	return &ChunkUtil{
 		chunkHashSize:         chunkHashSize,
 		nodeShardCacheStorage: nodeShardCacheStorage,
