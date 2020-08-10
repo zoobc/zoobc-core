@@ -30,7 +30,7 @@ func GetGenesisTransactions(
 				Version:                 1,
 				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
 				Height:                  0,
-				Timestamp:               1562806389,
+				Timestamp:               constant.MainchainGenesisBlockTimestamp,
 				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 				RecipientAccountAddress: genesisEntry.AccountAddress,
 				Fee:                     0,
