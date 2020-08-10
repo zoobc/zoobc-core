@@ -419,6 +419,10 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
 			`,
+			`
+			ALTER TABLE "spine_public_key"
+				ADD COLUMN "node_id" INTEGER AFTER "node_public_key"
+			`,
 			`CREATE TABLE IF NOT EXISTS "node_address_info" (
 				"node_id"		INTEGER,					-- node_id relative to this node address
 				"address"		VARCHAR(255),				-- peer/node address
@@ -432,10 +436,6 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
-			`,
-			`
-			ALTER TABLE "spine_public_key"
-				ADD COLUMN "node_id" INTEGER AFTER "node_public_key"
 			`,
 		}
 		return nil
