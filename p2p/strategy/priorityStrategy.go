@@ -494,6 +494,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 		errPoorig, errNodeAddressInfo, errGetPeerInfo error
 		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo
 		poorig                                        *model.ProofOfOrigin
+		peerInfoResult                                *model.GetPeerInfoResponse
 		destPeerInfo                                  = destPeer.GetInfo()
 		peerNodeID                                    = destPeerInfo.GetID()
 	)
@@ -562,7 +563,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	}
 
 	if poorig == nil && errPoorig == nil {
-		_, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
+		peerInfoResult, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
 	}
 
 	if errPoorig != nil || errGetPeerInfo != nil {
@@ -583,6 +584,8 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	}
 	if destPeer != nil {
 		destPeer.ResolvingTime = time.Now().UTC().Unix()
+		destPeer.Version = peerInfoResult.GetHostInfo().GetVersion()
+		destPeer.CodeName = peerInfoResult.GetHostInfo().GetCodeName()
 	}
 	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
