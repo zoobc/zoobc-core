@@ -752,10 +752,6 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
