@@ -299,28 +299,20 @@ var (
 		SpendableBalance: 100000000000,
 	}
 	nr1 = &model.NodeRegistration{
-		AccountAddress: bcsAddress1,
-		Latest:         true,
-		Height:         0,
-		LockedBalance:  10000000000,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-			Port:    8888,
-		},
+		AccountAddress:     bcsAddress1,
+		Latest:             true,
+		Height:             0,
+		LockedBalance:      10000000000,
 		NodeID:             11111,
 		NodePublicKey:      []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 		RegistrationHeight: 0,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
 	}
 	nr2 = &model.NodeRegistration{
-		AccountAddress: bcsAddress2,
-		Latest:         true,
-		Height:         0,
-		LockedBalance:  10000000000,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.11",
-			Port:    8889,
-		},
+		AccountAddress:     bcsAddress2,
+		Latest:             true,
+		Height:             0,
+		LockedBalance:      10000000000,
 		NodeID:             22222,
 		NodePublicKey:      []byte{2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2},
 		RegistrationHeight: 0,
@@ -364,10 +356,8 @@ var (
 		Height:    1440,
 		Timestamp: 15875392,
 	}
-	snapshotFullHash = []byte{
-		222, 155, 147, 46, 83, 40, 19, 208, 55, 187, 156, 164, 162, 158, 70, 249, 53, 131, 183, 153, 67, 89,
-		47, 189, 207, 38, 224, 31, 115, 124, 247, 161,
-	}
+	snapshotFullHash = []byte{141, 108, 162, 113, 168, 69, 83, 100, 83, 167, 225, 67, 240, 162, 177, 107, 15, 176, 114, 95, 93, 82, 146, 39,
+		154, 181, 125, 197, 96, 41, 158, 247}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
 		188, 144, 9, 73, 75, 6, 1, 1, 1,

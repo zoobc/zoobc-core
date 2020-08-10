@@ -81,7 +81,6 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		NodeID:             nodeReg.GetNodeID(),
 		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        nil,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,

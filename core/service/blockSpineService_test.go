@@ -255,7 +255,7 @@ func (*mockSpineQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ..
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height  FROM node_registry WHERE node_public_key = ? AND height <= ? " +
 		"ORDER BY height DESC LIMIT 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -322,12 +322,12 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, arg
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "RegistrationStatus",
+			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "LockedBalance", "RegistrationStatus",
 			"Latest", "Height",
-		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
@@ -365,7 +365,7 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1":
 		for idx, arg := range args {
 			if idx == 0 {
@@ -373,40 +373,40 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 				switch nodeID {
 				case "1":
 					mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
 				case "2":
 					mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, "10.10.10.2", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 				case "3":
 					mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, "10.10.10.3", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				case "4":
 					mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, mockSpineGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, "10.10.10.3", 100000000,
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, mockSpineGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, 100000000,
 						uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				}
 			}
 		}
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
 		"FROM main_block AS mb1 WHERE mb1.timestamp >= 12345600) AND height <= (SELECT MAX(height) " +
 		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
 		"FROM main_block AS mb1 WHERE mb1.timestamp >= 0) AND height <= (SELECT MAX(height) " +
 		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
 		"ORDER BY height DESC LIMIT 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-			"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM spine_block WHERE height = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -516,18 +516,18 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			mockSpinePublishedReceipt[0].ReceiptIndex,
 			mockSpinePublishedReceipt[0].PublishedIndex,
 		))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 0 AND " +
 		"registration_status = 0 GROUP BY id ORDER BY height DESC":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height, max(height) AS max_height FROM node_registry where height <= 1 " +
 		"AND registration_status = 0 GROUP BY id ORDER BY height DESC":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
 	}
@@ -1388,7 +1388,7 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
@@ -1406,12 +1406,12 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64
 }
 
 // mockSpineMempoolServiceSelectFail
-func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectFail) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockSpineMempoolServiceSelectSuccess
-func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(int64) ([]*model.Transaction, error) {
+func (*mockSpineMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(int64, uint32) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,

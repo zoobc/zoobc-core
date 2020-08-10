@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -18,9 +19,8 @@ type (
 	// AccountDatasetQueryInterface methods must have
 	AccountDatasetQueryInterface interface {
 		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{})
-		InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{})
 		InsertAccountDatasets(datasets []*model.AccountDataset) (str string, args []interface{})
-		RemoveAccountDataset(dataset *model.AccountDataset) [][]interface{}
+		InsertAccountDataset(dataset *model.AccountDataset) [][]interface{}
 		GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
@@ -42,20 +42,6 @@ func NewAccountDatasetsQuery() *AccountDatasetQuery {
 		},
 		TableName: "account_dataset",
 	}
-}
-
-/*
-InsertAccountDataset represents a query builder to insert new record and set old version as latest is false and active is false
-to account_dataset table
-*/
-func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDataset) (str string, args []interface{}) {
-	return fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
-		adq.getTableName(),
-		strings.Join(adq.Fields, ", "),
-		fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
-	), adq.ExtractModel(dataset)
-
 }
 
 // InsertAccountDatasets represents query builder to insert multiple record in single query
@@ -80,6 +66,45 @@ func (adq *AccountDatasetQuery) InsertAccountDatasets(datasets []*model.AccountD
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	accountDatasets, ok := payload.([]*model.AccountDataset)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+adq.TableName)
+	}
+	if len(accountDatasets) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(adq.Fields), len(accountDatasets))
+		for i := 0; i < rounds; i++ {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[len(accountDatasets)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (adq *AccountDatasetQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (setter_account_address, recipient_account_address, property, height) NOT IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (setter_account_address, recipient_account_address, property, height) IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+	}
+}
+
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
 func (adq *AccountDatasetQuery) GetLatestAccountDataset(
 	setterAccountAddress, recipientAccountAddress, property string,
@@ -98,32 +123,42 @@ func (adq *AccountDatasetQuery) GetLatestAccountDataset(
 }
 
 /*
-RemoveAccountDataset represents a query builder to insert new record and set old version as latest is false and active is false
+InsertAccountDataset represents a query builder to insert new record and set old version as latest is false and active is false
 to account_dataset table. Perhaps *model.AccountDataset.IsActive already set to false
 */
-func (adq *AccountDatasetQuery) RemoveAccountDataset(dataset *model.AccountDataset) (str [][]interface{}) {
-
+func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDataset) (str [][]interface{}) {
 	return [][]interface{}{
 		{
 			fmt.Sprintf(
-				"UPDATE %s set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? "+
-					"AND property = ? AND is_active = ?",
+				"UPDATE %s SET latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? "+
+					"AND property = ? AND height < ? AND latest = ?",
 				adq.getTableName(),
 			),
 			false,
 			dataset.GetSetterAccountAddress(),
 			dataset.GetRecipientAccountAddress(),
 			dataset.GetProperty(),
+			dataset.GetHeight(),
 			true,
 		},
-		append([]interface{}{
-			fmt.Sprintf(
-				"INSERT INTO %s (%s) VALUES(%s)",
-				adq.getTableName(),
-				strings.Join(adq.Fields, ", "),
-				fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
-			),
-		}, adq.ExtractModel(dataset)...),
+		append(
+			[]interface{}{
+				fmt.Sprintf(
+					"INSERT INTO %s (%s) VALUES(%s) "+
+						"ON CONFLICT(setter_account_address, recipient_account_address, property, height) "+
+						"DO UPDATE SET value = ?, is_active = ?, latest = ?",
+					adq.getTableName(),
+					strings.Join(adq.Fields, ", "),
+					fmt.Sprintf("?%s", strings.Repeat(", ?", len(adq.Fields)-1)),
+				),
+			},
+			append(
+				adq.ExtractModel(dataset),
+				dataset.GetValue(),
+				dataset.GetIsActive(),
+				dataset.GetLatest(),
+			)...,
+		),
 	}
 }
 
@@ -226,7 +261,7 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 			SELECT %s FROM %s
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM %s
-				WHERE height >= %d AND height <= %d
+				WHERE height >= %d AND height <= %d AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		strings.Join(adq.Fields, ", "),
@@ -239,6 +274,6 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (adq *AccountDatasetQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		adq.TableName, fromHeight, toHeight)
 }

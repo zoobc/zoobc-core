@@ -97,7 +97,6 @@ func GetGenesisNodeRegistrationTx(
 		Body: &model.NodeRegistrationTransactionBody{
 			AccountAddress: accountAddress,
 			LockedBalance:  lockedBalance,
-			NodeAddress:    nodeRegistrationQuery.BuildNodeAddress(nodeAddress),
 			NodePublicKey:  nodePublicKey,
 			Poown: &model.ProofOfOwnership{
 				MessageBytes: util.GetProofOfOwnershipMessageBytes(poownMessage),

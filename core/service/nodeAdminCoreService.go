@@ -92,7 +92,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	}, nil
 }
 
-// ParseNodeKeysFile read the node key file and parses it into an array of NodeKey stuct
+// ParseNodeKeysFile read the node key file and parses it into an array of NodeKey struct
 func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 	file, err := ioutil.ReadFile(nas.FilePath)
 	if err != nil && os.IsNotExist(err) {

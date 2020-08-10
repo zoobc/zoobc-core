@@ -8,11 +8,10 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/core/service"
+	coreService "github.com/zoobc/zoobc-core/core/service"
 )
 
 var (
@@ -115,7 +114,7 @@ func (*mockGetPendingTransactionsPendingTxQueryBuildSuccess) BuildModel(
 func TestMultisigService_GetPendingTransactionByAddress(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
@@ -252,11 +251,11 @@ var (
 
 type (
 	mockGetPendingTransactionByTransactionHashBlockServiceFail struct {
-		service.BlockService
+		coreService.BlockService
 	}
 
 	mockGetPendingTransactionByTransactionHashBlockServiceSuccess struct {
-		service.BlockService
+		coreService.BlockService
 	}
 
 	mockGetPendingTransactionByTransactionHashPendingQueryScanNoRow struct {
@@ -372,7 +371,7 @@ func (*mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess) Scan(m
 func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
@@ -549,11 +548,12 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 
 func TestNewMultisigService(t *testing.T) {
 	type args struct {
-		executor                query.ExecutorInterface
-		blockService            service.BlockServiceInterface
-		pendingTransactionQuery query.PendingTransactionQueryInterface
-		pendingSignatureQuery   query.PendingSignatureQueryInterface
-		multisignatureQuery     query.MultisignatureInfoQueryInterface
+		executor                       query.ExecutorInterface
+		blockService                   coreService.BlockServiceInterface
+		pendingTransactionQuery        query.PendingTransactionQueryInterface
+		pendingSignatureQuery          query.PendingSignatureQueryInterface
+		multisignatureQuery            query.MultisignatureInfoQueryInterface
+		multiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
 	}
 	tests := []struct {
 		name string
@@ -563,27 +563,28 @@ func TestNewMultisigService(t *testing.T) {
 		{
 			name: "NewMultisigService-success",
 			args: args{
-				executor:                nil,
-				blockService:            nil,
-				pendingTransactionQuery: nil,
-				pendingSignatureQuery:   nil,
-				multisignatureQuery:     nil,
+				executor:                       nil,
+				blockService:                   nil,
+				pendingTransactionQuery:        nil,
+				pendingSignatureQuery:          nil,
+				multisignatureQuery:            nil,
+				multiSignatureParticipantQuery: nil,
 			},
 			want: &MultisigService{
-				Executor:                nil,
-				BlockService:            nil,
-				PendingTransactionQuery: nil,
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  nil,
+				Executor:                       nil,
+				BlockService:                   nil,
+				PendingTransactionQuery:        nil,
+				PendingSignatureQuery:          nil,
+				MultiSignatureParticipantQuery: nil,
+				Logger:                         nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewMultisigService(
-				tt.args.executor, tt.args.blockService, tt.args.pendingTransactionQuery, tt.args.pendingSignatureQuery,
-				tt.args.multisignatureQuery); !reflect.DeepEqual(got, tt.want) {
+			if got := NewMultisigService(tt.args.executor, tt.args.blockService, tt.args.pendingTransactionQuery,
+				tt.args.pendingSignatureQuery, tt.args.multisignatureQuery,
+				tt.args.multiSignatureParticipantQuery); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewMultisigService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -701,7 +702,7 @@ func (*mockGetMultisigInfoQueryBuildSuccess) BuildModel(
 func TestMultisigService_GetMultisignatureInfo(t *testing.T) {
 	type fields struct {
 		Executor                query.ExecutorInterface
-		BlockService            service.BlockServiceInterface
+		BlockService            coreService.BlockServiceInterface
 		PendingTransactionQuery query.PendingTransactionQueryInterface
 		PendingSignatureQuery   query.PendingSignatureQueryInterface
 		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface

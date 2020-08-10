@@ -290,22 +290,14 @@ func (*mockQueryExecutorScanFail) ExecuteSelect(qe string, tx bool, args ...inte
 
 // mockQueryExecutorNotFound
 func (*mockQueryExecutorNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
+	db, _, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height  FROM node_registry WHERE node_public_key = ? AND height <= ? " +
-		"ORDER BY height DESC LIMIT 1":
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
-			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
-			"Version"},
-		))
+	case "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith WHERE block_height = 1":
+		return nil, errors.New("MockedError")
 	default:
 		return nil, errors.New("mockQueryExecutorNotFound - InvalidQuery")
 	}
-	rows, _ := db.Query(qe)
-	return rows, nil
 }
 
 // mockQueryExecutorNotNil
@@ -360,10 +352,10 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "NodeAddress", "LockedBalance", "RegistrationStatus",
+			"ID", "NodePublicKey", "AccountAddress", "RegistrationHeight", "LockedBalance", "RegistrationStatus",
 			"Latest", "Height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree ORDER BY timestamp DESC LIMIT 1":
@@ -380,7 +372,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1":
 		for idx, arg := range args {
 			if idx == 0 {
@@ -388,30 +380,30 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				switch nodeID {
 				case "1":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.1", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 100))
 				case "2":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, "10.10.10.2", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(2, bcsNodePubKey2, bcsAddress2, 20, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 200))
 				case "3":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, "10.10.10.3", 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, bcsNodePubKey3, bcsAddress3, 30, 100000000, uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				case "4":
 					mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-						"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-					}).AddRow(3, mockGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, "10.10.10.3", 100000000,
+						"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+					}).AddRow(3, mockGoodBlock.BlocksmithPublicKey, bcsAddress3, 30, 100000000,
 						uint32(model.NodeRegistrationState_NodeRegistered), true, 300))
 				}
 			}
 		}
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
 		"ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
-			"account_address", "registration_height", "node_address", "locked_balance", "registration_status", "latest", "height",
-		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, "10.10.10.10", 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
+			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
+		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -544,22 +536,22 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].ReceiptIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+	case "SELECT id, node_public_key, account_address, registration_height, " +
 		"locked_balance, registration_status, latest, height " +
 		"FROM node_registry where registration_status = 0 AND (id,height) in " +
 		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 0 GROUP BY id) " +
 		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, " +
+	case "SELECT id, node_public_key, account_address, registration_height, " +
 		"locked_balance, registration_status, latest, height " +
 		"FROM node_registry where registration_status = 0 AND (id,height) in " +
 		"(SELECT id,MAX(height) FROM node_registry WHERE height <= 1 GROUP BY id) " +
 		"ORDER BY height DESC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"id", "node_public_key", "account_address", "registration_height", "node_address", "locked_balance",
+			"id", "node_public_key", "account_address", "registration_height", "locked_balance",
 			"registration_status", "latest", "height",
 		}))
 	case "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
@@ -983,7 +975,11 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(blocksmiths []*model.Blocksmith) ([]string, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
+	blocksmiths []*model.Blocksmith,
+	blockTimestamp,
+	previousBlockTimestamp int64,
+) ([]string, error) {
 	return []string{}, nil
 }
 
@@ -1577,6 +1573,10 @@ type (
 	mockReceiptServiceReturnEmpty struct {
 		ReceiptService
 	}
+
+	mockGenerateBlockCoinbaseServiceSuccess struct {
+		CoinbaseService
+	}
 )
 
 func (*mockReceiptServiceReturnEmpty) SelectReceipts(
@@ -1629,7 +1629,7 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model
 }
 
 // mockMempoolServiceSelectSuccess
-func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
@@ -1647,19 +1647,26 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 }
 
 // mockMempoolServiceSelectFail
-func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
 }
 
 // mockMempoolServiceSelectSuccess
 func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
 	blockTimestamp int64,
+	blockHeight uint32,
 ) ([]*model.Transaction, error) {
 	return []*model.Transaction{
 		{
 			ID: 1,
 		},
 	}, nil
+}
+
+func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
+	blockTimesatamp, previousBlockTimesatamp int64,
+) int64 {
+	return 50 * constant.OneZBC
 }
 
 func TestBlockService_GenerateBlock(t *testing.T) {
@@ -1697,7 +1704,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				Signature:       &mockSignature{},
 				MempoolQuery:    query.NewMempoolQuery(&chaintype.MainChain{}),
 				MempoolService:  &mockMempoolServiceSelectFail{},
-				CoinbaseService: &CoinbaseService{},
+				CoinbaseService: &mockGenerateBlockCoinbaseServiceSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1737,7 +1744,7 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
 				ReceiptService:     &mockReceiptServiceReturnEmpty{},
 				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				CoinbaseService:    &CoinbaseService{},
+				CoinbaseService:    &mockGenerateBlockCoinbaseServiceSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -3523,7 +3530,6 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 						AccountBalance: 0,
 						NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
 							97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-						NodeAddress:        "0.0.0.0",
 						LockedBalance:      10000000000000,
 						ParticipationScore: 1000000000,
 					},
@@ -3532,7 +3538,6 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 						AccountBalance: 0,
 						NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
 							194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-						NodeAddress:        "0.0.0.0",
 						LockedBalance:      0,
 						ParticipationScore: 1000000000,
 					},
@@ -3541,7 +3546,6 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 						AccountBalance: 0,
 						NodePublicKey: []byte{140, 115, 35, 51, 159, 22, 234, 192, 38, 104, 96, 24, 80, 70, 86, 211, 123, 72, 52,
 							221, 97, 121, 59, 151, 158, 90, 167, 17, 110, 253, 122, 158},
-						NodeAddress:        "0.0.0.0",
 						LockedBalance:      0,
 						ParticipationScore: 1000000000,
 					},
@@ -3550,14 +3554,13 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 						AccountBalance: 100000000000,
 						NodePublicKey: []byte{41, 235, 184, 214, 70, 23, 153, 89, 104, 41, 250, 248, 51, 7, 69, 89, 234, 181, 100,
 							163, 45, 69, 152, 70, 52, 201, 147, 70, 6, 242, 52, 220},
-						NodeAddress:        "0.0.0.0",
 						LockedBalance:      0,
 						ParticipationScore: 1000000000,
 					},
 				},
 			},
 			wantErr: false,
-			want:    1906526980477206254,
+			want:    -2178638697288142601,
 		},
 	}
 	for _, tt := range tests {

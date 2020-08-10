@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -16,6 +17,7 @@ type (
 			height uint32,
 		) (qStr string, args []interface{})
 		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
+		InsertCommitVotes(voteCommits []*model.FeeVoteCommitmentVote) (qStr string, args []interface{})
 		ExtractModel(voteCommit *model.FeeVoteCommitmentVote) []interface{}
 		Scan(voteCommit *model.FeeVoteCommitmentVote, row *sql.Row) error
 		BuildModel(
@@ -57,6 +59,55 @@ func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVote(voteCommit *model.FeeVo
 		strings.Join(fsvc.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(fsvc.Fields)-1)),
 	), fsvc.ExtractModel(voteCommit)
+}
+
+func (fsvc *FeeVoteCommitmentVoteQuery) InsertCommitVotes(voteCommits []*model.FeeVoteCommitmentVote) (str string, args []interface{}) {
+	if len(voteCommits) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			fsvc.getTableName(),
+			strings.Join(fsvc.Fields, ", "),
+		)
+		for k, voteCommit := range voteCommits {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(fsvc.Fields)-1),
+			)
+			if k < len(voteCommits)-1 {
+				str += ","
+			}
+			args = append(args, fsvc.ExtractModel(voteCommit)...)
+		}
+	}
+	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (fsvc *FeeVoteCommitmentVoteQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	commits, ok := payload.([]*model.FeeVoteCommitmentVote)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+fsvc.TableName)
+	}
+	if len(commits) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(fsvc.Fields), len(commits))
+		for i := 0; i < rounds; i++ {
+			qry, args := fsvc.InsertCommitVotes(commits[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := fsvc.InsertCommitVotes(commits[len(commits)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (fsvc *FeeVoteCommitmentVoteQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
 }
 
 // GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height
@@ -124,16 +175,12 @@ func (fsvc *FeeVoteCommitmentVoteQuery) Rollback(height uint32) (multiQueries []
 
 // SelectDataForSnapshot select only the block at snapshot block_height (fromHeight is unused)
 func (fsvc *FeeVoteCommitmentVoteQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(fsvc.Fields, ","), fsvc.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (fsvc *FeeVoteCommitmentVoteQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	// do not delete genesis block
-	if fromHeight == 0 {
-		fromHeight++
-	}
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		fsvc.getTableName(), fromHeight, toHeight)
 }
