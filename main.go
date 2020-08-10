@@ -54,7 +54,7 @@ var (
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
-	nodeShardStorage                                storage.CacheStorageInterface
+	nodeShardStorage, blockSateCacheInstance        storage.CacheStorageInterface
 	snapshotChunkUtil                               util.ChunkUtilInterface
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
@@ -490,6 +490,7 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
+		blockSateCacheInstance,
 	)
 }
 
@@ -618,6 +619,7 @@ func startMainchain() {
 		mainchainPublishedReceiptService,
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
+		blockSateCacheInstance,
 		blockchainStatusService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -644,6 +646,7 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), *lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
@@ -752,6 +755,7 @@ func startSpinechain() {
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
+		blockSateCacheInstance,
 		blockchainStatusService,
 		spinePublicKeyService,
 	)

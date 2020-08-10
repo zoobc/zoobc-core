@@ -27,6 +27,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -88,6 +89,7 @@ type (
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		PruneQuery                  []query.PruneQuery
+		BlockStateCache             storage.CacheStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
@@ -125,6 +127,7 @@ func NewBlockMainService(
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
 	pruneQuery []query.PruneQuery,
+	blockStateCache storage.CacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
@@ -160,6 +163,7 @@ func NewBlockMainService(
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
 		PruneQuery:                  pruneQuery,
+		BlockStateCache:             blockStateCache,
 		BlockchainStatusService:     blockchainStatusService,
 	}
 }
@@ -760,6 +764,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	if err != nil {
+		return err
+	}
 
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
@@ -784,32 +793,38 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 func (bs *BlockService) ScanBlockPool() error {
 	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockScanBlockPool)
 	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockScanBlockPool)
-	previousBlock, err := bs.GetLastBlock()
+	var (
+		previousBlock model.Block
+		err           error
+	)
+	err = bs.BlockStateCache.GetItem(bs.Chaintype.GetTypeInt(), &previousBlock)
 	if err != nil {
 		return err
 	}
 	blocks := bs.BlockPoolService.GetBlocks()
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock)
+	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmiths(&previousBlock)
 	for index, block := range blocks {
-		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), previousBlock)
-		if err == nil {
-			err := bs.ValidateBlock(block, previousBlock)
-			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
-				return blocker.NewBlocker(
-					blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
-				)
-			}
-			err = bs.PushBlock(previousBlock, block, true, true)
-
-			if err != nil {
-				bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
-				return blocker.NewBlocker(
-					blocker.BlockErr, "ScanBlockPool:PushBlockFail",
-				)
-			}
-			break
+		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), &previousBlock)
+		if err != nil {
+			continue
 		}
+
+		err = bs.ValidateBlock(block, &previousBlock)
+		if err != nil {
+			bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
+			return blocker.NewBlocker(
+				blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
+			)
+		}
+		err = bs.PushBlock(&previousBlock, block, true, true)
+
+		if err != nil {
+			bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
+			return blocker.NewBlocker(
+				blocker.BlockErr, "ScanBlockPool:PushBlockFail",
+			)
+		}
+		break
 	}
 	return nil
 }
@@ -1470,11 +1485,21 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	// Backup existing transactions from mempool before rollback
+	// note: rollback process do inside Backup Mempools func
 	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
 		return nil, err
 	}
 
+	err = bs.PopulateBlockData(commonBlock)
+	if err != nil {
+		return nil, err
+	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	if err != nil {
+		return nil, err
+	}
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
 	//  rollback. Something like this:
 	//  - before rolling back derived queries, select all spine block manifest records from commonBlock.Height till last
