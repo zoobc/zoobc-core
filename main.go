@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"path/filepath"
 	"syscall"
 	"time"
+
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	"github.com/zoobc/lib/address"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
@@ -96,6 +98,7 @@ var (
 	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
 	cpuProfile                                      bool
+	blockSateCacheInstance                          storage.CacheStorageInterface
 	cliMonitoring                                   monitoring.CLIMonitoringInteface
 )
 
@@ -349,6 +352,8 @@ func init() {
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	initP2pInstance()
+	// initialize block cache, to avoid nil service
+	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), model.Block{})
 }
 
 func initLogInstance() {
@@ -466,6 +471,7 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
+		blockSateCacheInstance,
 	)
 }
 
@@ -594,6 +600,7 @@ func startMainchain() {
 		mainchainPublishedReceiptService,
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
+		blockSateCacheInstance,
 		blockchainStatusService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -620,6 +627,7 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	blockSateCacheInstance = storage.NewBlockStateStorage(mainchain.GetTypeInt(), *lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
@@ -728,19 +736,21 @@ func startSpinechain() {
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
+		blockSateCacheInstance,
 		blockchainStatusService,
 		spinePublicKeyService,
 	)
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
+	var lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	blockSateCacheInstance = storage.NewBlockStateStorage(spinechain.GetTypeInt(), *lastBlockAtStart)
 
 	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
 		if err := spinechainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}
-	}
-	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
 
@@ -797,6 +807,7 @@ func startSpinechain() {
 		spinechainDownloader,
 		spinechainForkProcessor,
 	)
+
 }
 
 // Scheduler Init
