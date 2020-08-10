@@ -193,8 +193,10 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 		{
 			name: "DownloadSnapshot:fail-{DownloadFilesFromPeer}",
 			args: args{
-				ct:                 &chaintype.MainChain{},
-				spineBlockManifest: &model.SpineBlockManifest{},
+				ct: &chaintype.MainChain{},
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: append(fdChunk1Hash, fdChunk2Hash...),
+				},
 			},
 			fields: fields{
 				FileService: &mockFileService{
