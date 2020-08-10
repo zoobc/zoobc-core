@@ -247,7 +247,9 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestID(spineBlockManifest 
 
 }
 
-func (ss *SpineBlockManifestService) GetSpineBlockManifestsByManifestReferenceHeightRange(fromHeight, toHeight uint32) (manifests []*model.SpineBlockManifest, err error) {
+func (ss *SpineBlockManifestService) GetSpineBlockManifestsByManifestReferenceHeightRange(
+	fromHeight, toHeight uint32,
+) (manifests []*model.SpineBlockManifest, err error) {
 	var (
 		rows      *sql.Rows
 		qry, args = ss.SpineBlockManifestQuery.GetManifestsFromManifestReferenceHeightRange(fromHeight, toHeight)
