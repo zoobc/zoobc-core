@@ -413,6 +413,7 @@ func initP2pInstance() {
 		fileService,
 		blockchainStatusService,
 		spinePublicKeyService,
+		nil, // todo: andy-shi88 injec chunk util here
 		loggerP2PService,
 	)
 }

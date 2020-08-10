@@ -2,7 +2,6 @@ package p2p
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"sync"
 
@@ -26,6 +25,7 @@ type (
 		P2pService                 Peer2PeerServiceInterface
 		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
 		BlockchainStatusService    service.BlockchainStatusServiceInterface
+		ChunkUtil                  util.ChunkUtilInterface
 		Logger                     *log.Logger
 	}
 )
@@ -35,14 +35,16 @@ func NewFileDownloader(
 	fileService service.FileServiceInterface,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
 	blockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface,
+	chunkUtil util.ChunkUtilInterface,
 	logger *log.Logger,
 ) *FileDownloader {
 	return &FileDownloader{
 		P2pService:                 p2pService,
 		FileService:                fileService,
 		BlockSpinePublicKeyService: blockSpinePublicKeyService,
-		Logger:                     logger,
 		BlockchainStatusService:    blockchainStatusService,
+		ChunkUtil:                  chunkUtil,
+		Logger:                     logger,
 	}
 }
 
@@ -66,9 +68,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 	if len(fileChunkHashes) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 	}
-	// todo: andy-shi88 inject chunkutil from main.go
-	chunkUtil := util.NewChunkUtil(hashSize, storage.NewNodeShardCacheStorage(), ss.Logger)
-	shardMap := chunkUtil.ShardChunk(spineBlockManifest.GetFileChunkHashes(), 8)
+	shardMap := ss.ChunkUtil.ShardChunk(spineBlockManifest.GetFileChunkHashes(), 8)
 	for _, shard := range shardMap {
 		temp := make([]string, len(shard))
 		for i, chunk := range shard {
