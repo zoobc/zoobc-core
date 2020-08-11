@@ -81,7 +81,7 @@ func (bsf *BlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height ui
 	return spinePublicKeys, nil
 }
 
-// GetSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
+// BuildSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
 func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
 	fromTimestamp,
 	toTimestamp int64,

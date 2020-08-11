@@ -14,8 +14,10 @@ type (
 	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
 		GetShardAssigment(
-			chunks []byte, shardBitLength int,
+			chunks []byte,
+			shardBitLength int,
 			nodeIDs []int64,
+			save bool,
 		) (storage.ShardMap, error)
 	}
 
@@ -26,11 +28,7 @@ type (
 	}
 )
 
-func NewChunkUtil(
-	chunkHashSize int,
-	nodeShardCacheStorage storage.CacheStorageInterface,
-	logger *logrus.Logger,
-) *ChunkUtil {
+func NewChunkUtil(chunkHashSize int, nodeShardCacheStorage storage.CacheStorageInterface, logger *logrus.Logger) *ChunkUtil {
 	return &ChunkUtil{
 		chunkHashSize:         chunkHashSize,
 		nodeShardCacheStorage: nodeShardCacheStorage,
@@ -67,8 +65,10 @@ func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][
 // GetShardAssigment assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
 // nodeIDs could be sorted
 func (c *ChunkUtil) GetShardAssigment(
-	chunks []byte, shardBitLength int,
+	chunks []byte,
+	shardBitLength int,
 	nodeIDs []int64,
+	save bool,
 ) (storage.ShardMap, error) {
 	type nodeOrder struct {
 		nodeID int64
@@ -117,9 +117,12 @@ func (c *ChunkUtil) GetShardAssigment(
 		}
 	}
 
-	err = c.nodeShardCacheStorage.SetItem(lastChange, shardMap)
-	if err != nil {
-		c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
+	if save {
+		err = c.nodeShardCacheStorage.SetItem(lastChange, shardMap)
+		if err != nil {
+			c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
+		}
+
 	}
 	return shardMap, err
 }
