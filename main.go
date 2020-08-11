@@ -438,6 +438,7 @@ func initP2pInstance() {
 		fileService,
 		blockchainStatusService,
 		spinePublicKeyService,
+		snapshotChunkUtil,
 		loggerP2PService,
 	)
 }

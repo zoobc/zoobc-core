@@ -1,6 +1,9 @@
 package p2p
 
 import (
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 	"reflect"
 	"testing"
 
@@ -18,7 +21,10 @@ func TestNewFileDownloader(t *testing.T) {
 		fileService             service.FileServiceInterface
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
+		chunkUtil               util.ChunkUtilInterface
 	}
+	chunkUtil := util.NewChunkUtil(sha3.New256().Size(), storage.NewNodeShardCacheStorage(), &log.Logger{})
+
 	tests := []struct {
 		name string
 		args args
@@ -31,12 +37,14 @@ func TestNewFileDownloader(t *testing.T) {
 				blockchainStatusService: &service.BlockchainStatusService{},
 				logger:                  &log.Logger{},
 				fileService:             &service.FileService{},
+				chunkUtil:               chunkUtil,
 			},
 			want: &FileDownloader{
 				FileService:             &service.FileService{},
 				Logger:                  &log.Logger{},
 				BlockchainStatusService: &service.BlockchainStatusService{},
 				P2pService:              &Peer2PeerService{},
+				ChunkUtil:               chunkUtil,
 			},
 		},
 	}
@@ -44,7 +52,7 @@ func TestNewFileDownloader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewFileDownloader(
 				tt.args.p2pService, tt.args.fileService, tt.args.blockchainStatusService,
-				nil, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+				nil, tt.args.chunkUtil, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFileDownloader() = %v, want %v", got, tt.want)
 			}
 		})
@@ -124,12 +132,14 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 		P2pService                 Peer2PeerServiceInterface
 		BlockchainStatusService    service.BlockchainStatusServiceInterface
 		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
+		ChunkUtil                  util.ChunkUtilInterface
 		Logger                     *log.Logger
 	}
 	type args struct {
 		ct                 chaintype.ChainType
 		spineBlockManifest *model.SpineBlockManifest
 	}
+	chunkUtil := util.NewChunkUtil(sha3.New256().Size(), storage.NewNodeShardCacheStorage(), &log.Logger{})
 	tests := []struct {
 		name    string
 		fields  fields
@@ -149,6 +159,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
+				ChunkUtil:                  chunkUtil,
 				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
 				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
@@ -166,6 +177,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
+				ChunkUtil:                  chunkUtil,
 				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
 				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
@@ -185,6 +197,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
+				ChunkUtil:                  chunkUtil,
 				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
 				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
@@ -193,8 +206,10 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 		{
 			name: "DownloadSnapshot:fail-{DownloadFilesFromPeer}",
 			args: args{
-				ct:                 &chaintype.MainChain{},
-				spineBlockManifest: &model.SpineBlockManifest{},
+				ct: &chaintype.MainChain{},
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: append(fdChunk1Hash, fdChunk2Hash...),
+				},
 			},
 			fields: fields{
 				FileService: &mockFileService{
@@ -203,6 +218,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: false,
 				},
+				ChunkUtil:                  chunkUtil,
 				Logger:                     log.New(),
 				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
 				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
@@ -217,6 +233,7 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService:                 tt.fields.P2pService,
 				BlockchainStatusService:    tt.fields.BlockchainStatusService,
 				BlockSpinePublicKeyService: tt.fields.BlockSpinePublicKeyService,
+				ChunkUtil:                  tt.fields.ChunkUtil,
 				Logger:                     tt.fields.Logger,
 			}
 			if _, err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); (err != nil) != tt.wantErr {
