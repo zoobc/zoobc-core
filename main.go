@@ -373,6 +373,7 @@ func init() {
 			Logger:                loggerCoreService,
 		},
 		nodeConfigurationService,
+		fileDownloader,
 	)
 }
 
@@ -866,6 +867,13 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.SnapshotSchedulerUnmaintedChunksPeriod,
 		snapshotSchedulers.DeleteUnmaintainedChunks,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+
+	if err := schedulerInstance.AddJob(
+		constant.SnapshotSchedulerUnmaintedChunksPeriod,
+		snapshotSchedulers.CheckChunksIntegrity,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
