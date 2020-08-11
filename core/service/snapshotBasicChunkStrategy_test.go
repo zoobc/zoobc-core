@@ -281,40 +281,28 @@ func TestSnapshotBasicChunkStrategy_BuildSnapshotFromChunks(t *testing.T) {
 			},
 			want: fixtureSnapshotPayload,
 		},
-		// {
-		// 	name: "BuildSnapshotFromChunks:fail-{invalidFileHash}",
-		// 	fields: fields{
-		// 		ChunkSize: 10000000, // 10MB chunks
-		// 		FileService: &bcsMockFileService{
-		// 			FileService: FileService{
-		// 				Logger:       log.New(),
-		// 				h:            new(codec.CborHandle),
-		// 				snapshotPath: "testdata/snapshots",
-		// 			},
-		// 		},
-		// 	},
-		// 	args: args{
-		// 		filePath: "testdata/snapshots",
-		// 		fileChunkHashes: [][]byte{
-		// 			bcsSnapshotChunk1Hash,
-		// 			bcsSnapshotChunk2Hash,
-		// 		},
-		// 		fullHash: bcsSnapshotChunk1Hash,
-		// 	},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "BuildSnapshotFromChunks:success-{decodePayload-integrationTest}",
-		// 	fields: fields{
-		// 		ChunkSize:   10000000, // 10MB chunks
-		// 		FileService: NewFileService(log.New(), new(codec.CborHandle), "testdata/snapshots"),
-		// 	},
-		// 	args: args{
-		// 		filePath:        "testdata/snapshots",
-		// 		fileChunkHashes: fixtureFileChunkHashes,
-		// 		fullHash:        fixtureFullHash,
-		// 	},
-		// },
+		{
+			name: "BuildSnapshotFromChunks:fail-{invalidFileHash}",
+			fields: fields{
+				ChunkSize: 10000000, // 10MB chunks
+				FileService: &bcsMockFileService{
+					FileService: FileService{
+						Logger:       log.New(),
+						h:            new(codec.CborHandle),
+						snapshotPath: "testdata/snapshots",
+					},
+				},
+			},
+			args: args{
+				filePath: "testdata/snapshots",
+				fileChunkHashes: [][]byte{
+					bcsSnapshotChunk1Hash,
+					bcsSnapshotChunk2Hash,
+				},
+				fullHash: bcsSnapshotChunk1Hash,
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

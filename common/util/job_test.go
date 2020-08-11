@@ -37,7 +37,7 @@ func TestScheduler_AddJob(t *testing.T) {
 				fn: func(str string) error {
 					return errors.New("need error")
 				},
-				args: []interface{}{"Ariasa"},
+				args: []interface{}{"Test"},
 			},
 			wantErr: false,
 		},
