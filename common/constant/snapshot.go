@@ -15,6 +15,6 @@ const (
 	DownloadSnapshotNumberOfRetries = uint32(MaxResolvedPeers)
 
 	ShardBitLength                              = 8
-	SnapshotSchedulerUnmaintedChunksPeriod      = 3 * time.Hour
+	SnapshotSchedulerUnmaintedChunksPeriod      = 3 * time.Hour // TODO: snapshotV2 will update on production
 	SnapshotSchedulerUnmaintainedChunksAtHeight = 3 * MainchainSnapshotInterval
 )
