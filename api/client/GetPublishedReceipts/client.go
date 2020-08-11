@@ -20,7 +20,7 @@ func main() {
 		apiRPCPort = viper.GetInt("apiRPCPort")
 	}
 
-	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort, grpc.WithInsecure()))
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -37,7 +37,6 @@ func main() {
 		log.Fatalf("error calling rpc_service.GetTransactions: %s", err)
 	}
 
-	// log.Printf("response from remote rpc_service.GetTransactions(): %s", response)
 	for _, receipt := range response.GetPublishedReceipts() {
 		fmt.Printf("blockHeight: %d\tindex: %d\n", receipt.GetBlockHeight(), receipt.GetPublishedIndex())
 	}
