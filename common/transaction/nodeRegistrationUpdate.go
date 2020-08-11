@@ -34,7 +34,8 @@ type UpdateNodeRegistration struct {
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
 func (tx *UpdateNodeRegistration) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	authorizedType := map[model.TransactionType]bool{
 		model.TransactionType_ClaimNodeRegistrationTransaction:  true,

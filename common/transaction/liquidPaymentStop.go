@@ -128,9 +128,10 @@ func (tx *LiquidPaymentStopTransaction) UndoApplyUnconfirmed() error {
 
 func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 	var (
-		row           *sql.Row
-		err           error
-		liquidPayment model.LiquidPayment
+		row            *sql.Row
+		err            error
+		liquidPayment  model.LiquidPayment
+		accountBalance model.AccountBalance
 	)
 	if tx.SenderAddress == "" {
 		return errors.New("transaction must have a valid sender account id")
@@ -160,6 +161,19 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 
 	if liquidPayment.Status == model.LiquidPaymentStatus_LiquidPaymentCompleted {
 		return blocker.NewBlocker(blocker.ValidationErr, "LiquidPaymentHasPreviouslyCompleted")
+	}
+
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+
+	if accountBalance.SpendableBalance < tx.Fee {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
 	}
 
 	return nil
@@ -207,7 +221,8 @@ func (tx *LiquidPaymentStopTransaction) GetTransactionBody(transaction *model.Tr
 // SkipMempoolTransaction filter out of the mempool tx under specific condition
 func (tx *LiquidPaymentStopTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }
