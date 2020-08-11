@@ -28,6 +28,7 @@ type (
 		GetEncoderHandler() codec.Handle
 		SaveSnapshotChunks(dir string, chunks [][]byte) (fileHashes [][]byte, err error)
 		DeleteSnapshotDir(dir string) error
+		DeleteSnapshotChunkFromDir(dir string, fileName string) error
 		ReadFileFromDir(dir, fileName string) ([]byte, error)
 	}
 
@@ -168,7 +169,10 @@ func (fs *FileService) GetFileNameFromBytes(fileBytes []byte) string {
 
 // DeleteSnapshotDir deleting specific snapshot directory which named as file hashes
 func (fs *FileService) DeleteSnapshotDir(dir string) error {
-
 	return os.RemoveAll(filepath.Join(fs.snapshotPath, dir))
+}
 
+// DeleteSnapshotChunkFromDir deleting chunk files from snapshot hash directory
+func (fs *FileService) DeleteSnapshotChunkFromDir(dir, fileName string) error {
+	return os.Remove(filepath.Join(fs.GetDownloadPath(), dir, fileName))
 }

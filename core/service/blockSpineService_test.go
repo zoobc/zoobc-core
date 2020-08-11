@@ -20,6 +20,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -826,6 +827,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
@@ -872,6 +874,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -941,6 +944,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -990,6 +994,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
@@ -1579,6 +1584,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	tests := []struct {
@@ -1616,6 +1622,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpineBlockManifestQuery: query.NewSpineBlockManifestQuery(),
 					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
+				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -1633,6 +1640,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				Logger:                    tt.fields.Logger,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
@@ -2313,6 +2321,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		NodeRegistrationService   NodeRegistrationServiceInterface
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
@@ -2358,6 +2367,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2399,6 +2409,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2434,6 +2445,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2477,6 +2489,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2512,6 +2525,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2552,6 +2566,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -2570,6 +2585,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				Logger:                    log.New(),
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			got, err := bs.ReceiveBlock(
@@ -3567,6 +3583,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3688,33 +3705,28 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		{
 			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				Observer:                nil,
-				Logger:                  log.New(),
-				SpinePublicKeyService: &BlockSpinePublicKeyService{
-					Logger:                log.New(),
-					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-					QueryExecutor:         &mockSpineExecutorBlockPopSuccess{},
-					Signature:             nil,
-					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				},
+				RWMutex:                   sync.RWMutex{},
+				Chaintype:                 &chaintype.SpineChain{},
+				KVExecutor:                nil,
+				QueryExecutor:             &mockSpineExecutorBlockPopSuccess{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
+				MempoolQuery:              nil,
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.SpineChain{}),
+				MerkleTreeQuery:           nil,
+				PublishedReceiptQuery:     nil,
+				SkippedBlocksmithQuery:    nil,
+				Signature:                 nil,
+				MempoolService:            &mockSpineMempoolServiceBlockPopSuccess{},
+				ReceiptService:            &mockSpineReceiptSuccess{},
+				ActionTypeSwitcher:        nil,
+				AccountBalanceQuery:       nil,
+				ParticipationScoreQuery:   nil,
+				Observer:                  nil,
+				Logger:                    log.New(),
+				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3725,33 +3737,28 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		{
 			name: "GetManifestFromSpineBlockHeightPoppedOffBlocks",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				Observer:                nil,
-				Logger:                  log.New(),
-				SpinePublicKeyService: &BlockSpinePublicKeyService{
-					Logger:                log.New(),
-					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-					QueryExecutor:         &mockSpineExecutorBlockPopSuccess{},
-					Signature:             nil,
-					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				},
+				RWMutex:                   sync.RWMutex{},
+				Chaintype:                 &chaintype.SpineChain{},
+				KVExecutor:                nil,
+				QueryExecutor:             &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
+				MempoolQuery:              nil,
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.SpineChain{}),
+				MerkleTreeQuery:           nil,
+				PublishedReceiptQuery:     nil,
+				SkippedBlocksmithQuery:    nil,
+				Signature:                 nil,
+				MempoolService:            &mockSpineMempoolServiceBlockPopSuccess{},
+				ReceiptService:            &mockSpineReceiptSuccess{},
+				ActionTypeSwitcher:        nil,
+				AccountBalanceQuery:       nil,
+				ParticipationScoreQuery:   nil,
+				Observer:                  nil,
+				Logger:                    log.New(),
+				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
+				BlockStateCache:           storage.NewBlockStateStorage((&chaintype.SpineChain{}).GetTypeInt(), model.Block{}),
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3779,6 +3786,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

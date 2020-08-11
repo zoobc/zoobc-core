@@ -1,12 +1,12 @@
 package main
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -15,16 +15,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/lib/address"
-
-	"github.com/zoobc/zoobc-core/common/auth"
-
-	badger "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
-
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -35,9 +32,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/blockchainsync"
+	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -46,6 +45,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 var (
@@ -54,11 +54,14 @@ var (
 	badgerDbInstance                                *database.BadgerDB
 	db                                              *sql.DB
 	badgerDb                                        *badger.DB
+	nodeShardStorage, blockStateStorage             storage.CacheStorageInterface
+	snapshotChunkUtil                               util.ChunkUtilInterface
 	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                   *query.Executor
 	kvExecutor                                      *kvdb.KVExecutor
 	observerInstance                                *observer.Observer
 	schedulerInstance                               *util.Scheduler
+	snapshotSchedulers                              *scheduler.SnapshotScheduler
 	blockServices                                   = make(map[int32]service.BlockServiceInterface)
 	snapshotBlockServices                           = make(map[int32]service.SnapshotBlockServiceInterface)
 	mainchainBlockService                           *service.BlockService
@@ -349,6 +352,28 @@ func init() {
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	initP2pInstance()
+
+	/*
+		Snapshot Scheduler initiate
+	*/
+	nodeShardStorage = storage.NewNodeShardCacheStorage()
+	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
+	snapshotSchedulers = scheduler.NewSnapshotScheduler(
+		spineBlockManifestService,
+		fileService,
+		snapshotChunkUtil,
+		nodeShardStorage,
+		blockStateStorage,
+		blockServices[0],
+		&service.BlockSpinePublicKeyService{
+			Signature:             crypto.NewSignature(),
+			QueryExecutor:         queryExecutor,
+			NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+			SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
+			Logger:                loggerCoreService,
+		},
+		nodeConfigurationService,
+	)
 }
 
 func initLogInstance() {
@@ -467,6 +492,7 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
+		blockStateStorage,
 	)
 }
 
@@ -595,6 +621,7 @@ func startMainchain() {
 		mainchainPublishedReceiptService,
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
+		blockStateStorage,
 		blockchainStatusService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -621,6 +648,7 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	blockStateStorage = storage.NewBlockStateStorage(mainchain.GetTypeInt(), *lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 
 	// initializing scrambled nodes
@@ -729,6 +757,7 @@ func startSpinechain() {
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
+		blockStateStorage,
 		blockchainStatusService,
 		spinePublicKeyService,
 	)
@@ -812,14 +841,14 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to generate receipt markle root
+	// scheduler to generate receipt merkle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMarkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to remove block uncomplete queue that already waiting transactions too long
+	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,
 		blockIncompleteQueueService.PruneTimeoutBlockQueue,
@@ -833,9 +862,16 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+
+	if err := schedulerInstance.AddJob(
+		constant.SnapshotSchedulerUnmaintedChunksPeriod,
+		snapshotSchedulers.DeleteUnmaintainedChunks,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
 }
 
-func startBlockchainSyncronizers() {
+func startBlockchainSynchronizers() {
 	blockchainOrchestrator := blockchainsync.NewBlockchainOrchestratorService(
 		spinechainSynchronizer,
 		mainchainSynchronizer,
@@ -884,7 +920,7 @@ func main() {
 	startServices()
 	initObserverListeners()
 	startScheduler()
-	go startBlockchainSyncronizers()
+	go startBlockchainSynchronizers()
 
 	if !config.LogOnCli && config.CliMonitoring {
 		go cliMonitoring.Start()
