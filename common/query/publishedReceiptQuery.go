@@ -132,7 +132,7 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight u
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeightRange(
 	fromBlockHeight, toBlockHeight uint32,
 ) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height BETWEEN ? AND ? ORDER BY published_index ASC",
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height BETWEEN ? AND ? ORDER BY block_height, published_index ASC",
 		strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
 		fromBlockHeight, toBlockHeight,
