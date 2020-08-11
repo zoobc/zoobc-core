@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"time"
 
@@ -18,13 +20,18 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		log.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
+	var (
+		ip         string
+		apiRPCPort int
+	)
+
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
 
@@ -60,7 +67,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error calling remote.GenerateNodeKey: %s", err)
 	}
-
-	log.Printf("response from remote.GenerateNodeKey(): %v", response)
-
+	j, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("response from remote.GenerateNodeKey(): %s", j)
 }

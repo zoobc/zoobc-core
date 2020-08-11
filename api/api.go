@@ -161,8 +161,10 @@ func startGrpcServer(
 			query.NewMultisignatureInfoQuery(),
 			query.NewMultiSignatureParticipantQuery(),
 		)})
+
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
+
 	// Set GRPC handler for account dataset
 	rpcService.RegisterAccountDatasetServiceServer(grpcServer, &handler.AccountDatasetHandler{
 		Service: service.NewAccountDatasetService(
@@ -170,6 +172,15 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
+
+	// Set GRPC handler for skipped block smith
+	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
+		Service: service.NewSkippedBlockSmithService(
+			query.NewSkippedBlocksmithQuery(),
+			queryExecutor,
+		),
+	})
+
 	go func() {
 		// serve rpc
 		if err := grpcServer.Serve(serv); err != nil {

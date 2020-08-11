@@ -18,11 +18,11 @@ import (
 func main() {
 	var (
 		apiRPCPort int
-		configPath = "./resource"
+		configPath = "./"
 	)
 	dir, _ := os.Getwd()
 	if strings.Contains(dir, "api") {
-		configPath = "../../../resource"
+		configPath = "../../../"
 	}
 	if err := util.LoadConfig(configPath, "config", "toml"); err != nil {
 		logrus.Fatal(err)

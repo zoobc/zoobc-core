@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
@@ -14,11 +14,18 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		logrus.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
+	var (
+		ip         string
+		apiRPCPort int
+	)
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
+		}
 	}
 
 	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())

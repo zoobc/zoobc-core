@@ -20,7 +20,6 @@ func main() {
 		conn *grpc.ClientConn
 		err  error
 	)
-
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
@@ -36,15 +35,21 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := rpc_service.NewHostServiceClient(conn)
+	c := rpc_service.NewSkippedBlockSmithsServiceClient(conn)
 
-	response, err := c.GetHostPeers(context.Background(), &rpc_model.Empty{})
+	response, err := c.GetSkippedBlockSmiths(
+		context.Background(),
+		&rpc_model.GetSkippedBlocksmithsRequest{
+			BlockHeightStart: 0,
+			BlockHeightEnd:   10,
+		},
+	)
 
 	if err != nil {
-		log.Fatalf("error calling rpc_service.GetHostPeers: %s", err)
+		log.Fatalf("error calling rpc_service.GetSkippedBlockSmiths: %s", err)
 	}
 
 	j, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("response from remote rpc_service.GetSkippedBlockSmiths(): %s", j)
 
-	log.Printf("response from remote rpc_service.GetHostPeers(): %s", j)
 }
