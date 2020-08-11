@@ -68,7 +68,7 @@ func (ss *FileDownloader) DownloadSnapshot(
 	if len(fileChunkHashes) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "Failed parsing File Chunk Hashes from Spine Block Manifest")
 	}
-	shardMap := ss.ChunkUtil.ShardChunk(spineBlockManifest.GetFileChunkHashes(), 8)
+	shardMap := ss.ChunkUtil.ShardChunk(spineBlockManifest.GetFileChunkHashes(), constant.ShardBitLength)
 	for _, shard := range shardMap {
 		temp := make([]string, len(shard))
 		for i, chunk := range shard {
