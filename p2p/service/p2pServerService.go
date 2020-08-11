@@ -215,7 +215,7 @@ func (ps *P2PServerService) SendPeers(
 				compatiblePeers = append(compatiblePeers, peer)
 			}
 		}
-		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
+		err := ps.PeerExplorer.AddToUnresolvedPeers(compatiblePeers, true)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

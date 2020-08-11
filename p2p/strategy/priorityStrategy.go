@@ -584,8 +584,8 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	}
 	if destPeer != nil {
 		destPeer.ResolvingTime = time.Now().UTC().Unix()
-		destPeer.Version = peerInfoResult.GetHostInfo().GetVersion()
-		destPeer.CodeName = peerInfoResult.GetHostInfo().GetCodeName()
+		destPeer.Info.Version = peerInfoResult.GetHostInfo().GetVersion()
+		destPeer.Info.CodeName = peerInfoResult.GetHostInfo().GetCodeName()
 	}
 	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
@@ -957,7 +957,7 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 	var newUnresolvedPeers = make(map[string]*model.Peer)
 
 	// Add known peers into unresolved peer list if the unresolved peers is empty
-	if len(host.UnresolvedPeers) == 0 && len(host.ResolvedPeers) == 0 {
+	if len(host.UnresolvedPeers) == 0 {
 		// putting this initialization in a condition to prevent unneeded lock of resolvedPeers and blacklistedPeers
 		var (
 			resolvedPeers    = ps.GetResolvedPeers()
@@ -1016,10 +1016,15 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		host             = ps.NodeConfigurationService.GetHost()
 		resolvedPeers    = ps.GetResolvedPeers()
 		blacklistedPeers = ps.GetBlacklistedPeers()
+		peerAddress      = p2pUtil.GetFullAddressPeer(peer)
+		hostAddressInfo  = &model.Peer{
+			Info: host.Info,
+		}
+		hostAddress = p2pUtil.GetFullAddressPeer(hostAddressInfo)
 	)
-	_, isInResolvedPeers := resolvedPeers[p2pUtil.GetFullAddressPeer(peer)]
-	_, isInBlacklistedPeers := blacklistedPeers[p2pUtil.GetFullAddressPeer(peer)]
-	if isInResolvedPeers || isInBlacklistedPeers {
+	_, isInResolvedPeers := resolvedPeers[peerAddress]
+	_, isInBlacklistedPeers := blacklistedPeers[peerAddress]
+	if peerAddress == hostAddress || isInResolvedPeers || isInBlacklistedPeers {
 		return nil
 	}
 

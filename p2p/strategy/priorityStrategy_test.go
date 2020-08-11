@@ -1449,6 +1449,8 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 	var (
 		mockMetadata = map[string]string{
 			p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(mockGoodScrambledNodes.AddressNodes[1].GetInfo()),
+			"version":                         mockGoodScrambledNodes.AddressNodes[1].GetInfo().GetVersion(),
+			"codename":                        mockGoodScrambledNodes.AddressNodes[1].GetInfo().GetCodeName(),
 		}
 		mockHeader                          = metadata.New(mockMetadata)
 		mockGoodMetadata                    = metadata.NewIncomingContext(context.Background(), mockHeader)

@@ -188,8 +188,8 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
 	return map[string]string{
 		p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo()),
-		"version":                         psc.NodeConfigurationService.GetHost().Info.GetVersion(),
-		"codename":                        psc.NodeConfigurationService.GetHost().Info.GetCodeName(),
+		"version":                         psc.NodeConfigurationService.GetHost().GetInfo().GetVersion(),
+		"codename":                        psc.NodeConfigurationService.GetHost().GetInfo().GetCodeName(),
 	}
 }
 
