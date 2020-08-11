@@ -220,7 +220,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	// Excrow
+	// Escrow
 	case 4:
 		switch buf[1] {
 		case 0:

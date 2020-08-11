@@ -54,10 +54,9 @@ var (
 	MultiSigTransactionHash        uint32 = 32
 
 	// FeeVote part
-	FeeVote               uint32 = 8
-	RecentBlockHashLength uint32 = 4
-	RecentBlockHeight     uint32 = 4
-	VoterSignatureLength  uint32 = 4
+	FeeVote              uint32 = 8
+	RecentBlockHeight    uint32 = 4
+	VoterSignatureLength uint32 = 4
 
 	// Liquid Transaction
 
