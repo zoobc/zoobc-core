@@ -31,3 +31,4 @@ github.token
 *.bak
 dist/
 local.preRegisteredNodes.json
+core/service/testdata/snapshots/
