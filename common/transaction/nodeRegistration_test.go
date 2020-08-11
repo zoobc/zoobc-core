@@ -3,11 +3,12 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -1604,7 +1605,8 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
-		blockTimestamp       int64
+		newBlockTimestamp    int64
+		newBlockHeight       uint32
 	}
 	tests := []struct {
 		name    string
@@ -1696,7 +1698,7 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 				QueryExecutor:           tt.fields.QueryExecutor,
 				AuthPoown:               tt.fields.AuthPoown,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.blockTimestamp)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return

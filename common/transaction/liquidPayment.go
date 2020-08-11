@@ -118,6 +118,7 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 
+	// check existing & balance account sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
 		return err
@@ -126,7 +127,7 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 	if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
-			"balance not enough",
+			"UserBalanceNotEnough",
 		)
 	}
 	return nil
@@ -177,7 +178,8 @@ func (tx *LiquidPaymentTransaction) GetTransactionBody(transaction *model.Transa
 // SkipMempoolTransaction filter out of the mempool tx under specific condition
 func (tx *LiquidPaymentTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }
