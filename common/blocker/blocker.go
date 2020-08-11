@@ -44,7 +44,6 @@ var (
 	ValidateMainBlockErr      TypeBlocker = "ValidateMainBlockErr"
 	PushSpineBlockErr         TypeBlocker = "PushSpineBlockErr"
 	ValidateSpineBlockErr     TypeBlocker = "ValidateSpineBlockErr"
-	PeerError                 TypeBlocker = "PeerError"
 )
 
 func SetIsDebugMode(val bool) {

@@ -191,10 +191,10 @@ func GetPriorityPeersByNodeID(
 
 func CheckPeerCompatibility(host, peer *model.Node) error {
 	if peer.GetCodeName() != host.GetCodeName() {
-		return blocker.NewBlocker(blocker.PeerError, "peer code name does not match")
+		return blocker.NewBlocker(blocker.P2PPeerError, "peer code name does not match")
 	}
 	if strings.Split(peer.GetVersion(), ".")[0] != strings.Split(host.GetVersion(), ".")[0] {
-		return blocker.NewBlocker(blocker.PeerError, "peer version does not match")
+		return blocker.NewBlocker(blocker.P2PPeerError, "peer version does not match")
 	}
 	return nil
 }
