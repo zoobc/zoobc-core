@@ -129,26 +129,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "wantNil",
-			fields: fields{
-				Executor: &query.Executor{},
-			},
-			args: args{
-				tx: &model.Transaction{
-					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10,
-						},
-					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
-				},
-			},
-			want: nil,
-		},
-		{
 			name: "wantNodeRegistration",
 			fields: fields{
 				Executor: &query.Executor{},
@@ -232,6 +212,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 			},
 		},
 		{
@@ -261,6 +242,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 			},
 		},
 		{

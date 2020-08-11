@@ -138,13 +138,10 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	// check account balance sender
+	// check existing & balance account sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+		return err
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
@@ -314,13 +311,19 @@ func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
 
-// SkipMempoolTransaction this tx type has no mempool filter
+/*
+SkipMempoolTransaction filter out current fee reveal vote tx when
+	- Current time is already not reveal vote phase based on new block timestamp
+	- There are other tx fee reveal vote with same sender in mempool
+	- Fee reveal vote tx for current phase already exist in previous block
+*/
 func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	// check tx is still valid for reveal vote phase based on new block timestamp
-	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(newBlockTimestamp, true)
 	if err != nil {
 		return true, err
 	}

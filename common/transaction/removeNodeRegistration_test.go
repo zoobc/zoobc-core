@@ -210,6 +210,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name   string
@@ -234,6 +235,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RemoveNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
@@ -255,6 +257,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -330,6 +333,42 @@ func TestRemoveNodeRegistration_GetAmount(t *testing.T) {
 	}
 }
 
+type (
+	mockAccountBalanceHelperRemoveNodeRegistrationValidateFail struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+var (
+	mockFeeRemoveNodeRegistrationValidate int64 = 10
+)
+
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateFail) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	return errors.New("MockedError")
+}
+
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate - 1
+	return nil
+}
+
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate + 1
+	return nil
+}
+
 func TestRemoveNodeRegistration_Validate(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
@@ -340,6 +379,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -355,6 +395,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceHelper:  &mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess{},
 			},
 			wantErr: false,
 		},
@@ -394,6 +435,32 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Validate:fail-{GetAccountBalanceByAccountAddressFail}",
+			fields: fields{
+				Body:                  body,
+				Fee:                   mockFeeRemoveNodeRegistrationValidate,
+				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				Height:                1,
+				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceHelper:  &mockAccountBalanceHelperRemoveNodeRegistrationValidateFail{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "Validate:fail-{GetAccountBalanceByAccountAddressNotEnoughSpandable}",
+			fields: fields{
+				Body:                  body,
+				Fee:                   mockFeeRemoveNodeRegistrationValidate,
+				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				Height:                1,
+				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				AccountBalanceHelper:  &mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable{},
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -405,6 +472,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -423,6 +491,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -464,6 +533,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -482,6 +552,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -523,6 +594,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -603,6 +675,7 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -632,6 +705,7 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
 		})
@@ -654,7 +728,8 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
-		blockTimestamp       int64
+		newBlockTimestamp    int64
+		newBlockHeight       uint32
 	}
 	tests := []struct {
 		name    string
@@ -746,7 +821,7 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 				QueryExecutor:           tt.fields.QueryExecutor,
 				AuthPoown:               tt.fields.AuthPoown,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.blockTimestamp)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return
