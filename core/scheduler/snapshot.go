@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/p2p"
 )
 
 type (
@@ -25,6 +26,7 @@ type (
 		BlockCoreService           service.BlockServiceInterface
 		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
 		NodeConfigurationService   service.NodeConfigurationServiceInterface
+		FileDownloaderService      p2p.FileDownloaderInterface
 	}
 )
 
@@ -36,6 +38,7 @@ func NewSnapshotScheduler(
 	blockCoreService service.BlockServiceInterface,
 	blockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface,
 	nodeConfigurationService service.NodeConfigurationServiceInterface,
+	fileDownloaderService p2p.FileDownloaderInterface,
 ) *SnapshotScheduler {
 	return &SnapshotScheduler{
 		SpineBlockManifestService:  spineBlockManifestService,
@@ -46,43 +49,82 @@ func NewSnapshotScheduler(
 		BlockCoreService:           blockCoreService,
 		BlockSpinePublicKeyService: blockSpinePublicKeyService,
 		NodeConfigurationService:   nodeConfigurationService,
+		FileDownloaderService:      fileDownloaderService,
 	}
 }
 
 // CheckChunksIntegrity checking availability of snapshot read files from last manifest
-func (ss *SnapshotScheduler) CheckChunksIntegrity(chainType chaintype.ChainType) error {
+func (ss *SnapshotScheduler) CheckChunksIntegrity() error {
 	var (
-		spineBlockManifest *model.SpineBlockManifest
-		chunksHashed       [][]byte
-		err                error
+		err       error
+		manifests []*model.SpineBlockManifest
+		interval  int
+		block     model.Block
 	)
 
-	spineBlockManifest, err = ss.SpineBlockManifestService.GetLastSpineBlockManifest(chainType, model.SpineBlockManifestType_Snapshot)
+	err = ss.BlockStateStorage.GetItem(0, &block)
 	if err != nil {
-		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
+		return err
 	}
-	// NOTE: Need to check this meanwhile err checked
-	if spineBlockManifest == nil {
-		return blocker.NewBlocker(blocker.SchedulerError, "SpineBlockManifest is nil")
+	interval = int(block.GetHeight()) - int(constant.SnapshotSchedulerUnmaintainedChunksAtHeight)
+	if interval <= 0 {
+		return nil
 	}
 
-	chunksHashed, err = ss.FileService.ParseFileChunkHashes(spineBlockManifest.GetFileChunkHashes(), sha256.Size)
+	manifests, err = ss.SpineBlockManifestService.GetSpineBlockManifestsByManifestReferenceHeightRange(uint32(interval), block.GetHeight())
 	if err != nil {
-		return blocker.NewBlocker(blocker.SchedulerError, err.Error())
+		return err
 	}
-	if len(chunksHashed) != 0 {
-		for _, chunkHashed := range chunksHashed {
-			_, err = ss.FileService.ReadFileFromDir(
-				base64.URLEncoding.EncodeToString(spineBlockManifest.GetFileChunkHashes()),
-				ss.FileService.GetFileNameFromHash(chunkHashed),
-			)
-			if err != nil {
-				// Could be requesting a missing chunk p2p
-				fmt.Println(err) // TODO: Will update when p2p finish
+	for _, manifest := range manifests {
+		var (
+			spinePublicKeys  []*model.SpinePublicKey
+			nodeIDs          []int64
+			shards           storage.ShardMap
+			snapshotDir      = base64.URLEncoding.EncodeToString(manifest.GetFileChunkHashes())
+			snapshotFileInfo *model.SnapshotFileInfo
+		)
+
+		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestReferenceHeight())
+		if err != nil {
+			return err
+		}
+		for _, spinePublicKey := range spinePublicKeys {
+			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
+
+		}
+		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
+		if err != nil {
+			return err
+		}
+
+		if shardNumbers, ok := shards.NodeShards[ss.NodeConfigurationService.GetHost().GetInfo().GetID()]; ok {
+			var needToDownload bool
+			for _, shardNumber := range shardNumbers {
+				for _, chunkByte := range shards.ShardChunks[shardNumber] {
+					_, err = ss.FileService.ReadFileFromDir(snapshotDir, ss.FileService.GetFileNameFromBytes(chunkByte))
+					if err != nil {
+						needToDownload = true
+						break
+					}
+				}
+			}
+
+			if needToDownload {
+				snapshotFileInfo, err = ss.FileDownloaderService.DownloadSnapshot(&chaintype.MainChain{}, manifest)
+				if err != nil {
+					return err
+				}
+				_, err = ss.FileService.SaveSnapshotChunks(
+					base64.URLEncoding.EncodeToString(snapshotFileInfo.GetSnapshotFileHash()),
+					snapshotFileInfo.GetFileChunksHashes(),
+				)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
-	return blocker.NewBlocker(blocker.SchedulerError, "Failed parsing File Chunk Hashes from Spine Block Manifest")
+	return nil
 }
 
 // DeleteUnmaintainedChunks deleting chunks in previous manifest that might be not maintained since new one already there

@@ -2,52 +2,97 @@ package scheduler
 
 import (
 	"crypto/sha256"
-	"database/sql"
 	"errors"
 	"math/rand"
 	"testing"
 
 	"github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/testfixtures"
 )
 
 type (
-	mockSpineBlockManifestErr struct {
+	mockBlockStateStorageCheckSnapshotIntegrityFilled struct {
+		storage.BlockStateStorage
+	}
+	mockSpineBlockManifestCheckSnapshotIntegrityFilled struct {
 		service.SpineBlockManifestService
 	}
-	mockSpineBlockManifestSuccess struct {
-		service.SpineBlockManifestService
+	mockBlockSpinePublicKeysCheckSnapshotIntegrityFilled struct {
+		service.BlockSpinePublicKeyService
+	}
+	mockSnapshotChunkUtilCheckSnapshotIntegrityFilled struct {
+		util.ChunkUtil
+	}
+	mockNodeConfigurationCheckSnapshotIntegrityFilled struct {
+		service.NodeConfigurationServiceInterface
+	}
+	mockFileServiceCheckSnapshotIntegrityFilled struct {
+		service.FileService
 	}
 )
 
-func (*mockSpineBlockManifestErr) GetLastSpineBlockManifest(
-	chaintype.ChainType,
-	model.SpineBlockManifestType,
-) (sm *model.SpineBlockManifest, err error) {
-	return nil, sql.ErrNoRows
+func (*mockFileServiceCheckSnapshotIntegrityFilled) GetFileNameFromBytes([]byte) string {
+	return ""
 }
-func (*mockSpineBlockManifestSuccess) GetLastSpineBlockManifest(
-	chaintype.ChainType,
-	model.SpineBlockManifestType,
-) (sm *model.SpineBlockManifest, err error) {
-
-	payload := model.SnapshotPayload{
-		Blocks: []*model.Block{transaction.GetFixturesForBlock(720, 1234567890)},
+func (*mockFileServiceCheckSnapshotIntegrityFilled) ReadFileFromDir(string, string) (b []byte, err error) {
+	return nil, nil
+}
+func (*mockNodeConfigurationCheckSnapshotIntegrityFilled) GetHost() *model.Host {
+	return &model.Host{
+		Info: &model.Node{
+			ID: 1234567890,
+		},
 	}
+}
 
-	fullHashed, fileChunkHashes, err := service.NewSnapshotBasicChunkStrategy(constant.SnapshotChunkSize, service.NewFileService(
+func (*mockSnapshotChunkUtilCheckSnapshotIntegrityFilled) GetShardAssigment([]byte, int, []int64, bool) (storage.ShardMap, error) {
+	return storage.ShardMap{
+		NodeShards: map[int64][]uint64{
+			1234567890: {1, 3},
+			1234567891: {3, 4},
+		},
+		ShardChunks: map[uint64][][]byte{
+			1: {
+				{1, 23, 4},
+			},
+		},
+	}, nil
+}
+
+func (*mockBlockSpinePublicKeysCheckSnapshotIntegrityFilled) GetSpinePublicKeysByBlockHeight(
+	uint32,
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	return []*model.SpinePublicKey{
+		{
+			NodeID: 1234567890,
+		},
+		{
+			NodeID: rand.Int63n(10),
+		},
+	}, nil
+}
+
+func (*mockBlockStateStorageCheckSnapshotIntegrityFilled) GetItem(_, item interface{}) error {
+	assert := item.(*model.Block)
+	*assert = model.Block{Height: 3000}
+	return nil
+}
+func (*mockSpineBlockManifestCheckSnapshotIntegrityFilled) GetSpineBlockManifestsByManifestReferenceHeightRange(
+	uint32, uint32,
+) (manifests []*model.SpineBlockManifest, err error) {
+	fullHashed, fileChunkHashes, err := testfixtures.GetFixtureForSnapshotBasicChunks(constant.SnapshotChunkSize, service.NewFileService(
 		logrus.New(),
 		new(codec.CborHandle),
 		"./testdata",
-	)).GenerateSnapshotChunks(&payload)
+	), mockSnapshotPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -55,47 +100,42 @@ func (*mockSpineBlockManifestSuccess) GetLastSpineBlockManifest(
 	for _, chunkHaHash := range fileChunkHashes {
 		fullChunkHashes = append(fullChunkHashes, chunkHaHash...)
 	}
-	return &model.SpineBlockManifest{
-		ID:                       12345678,
-		FullFileHash:             fullHashed,
-		FileChunkHashes:          fullChunkHashes,
-		ManifestReferenceHeight:  720,
-		ManifestSpineBlockHeight: 1,
-		ChainType:                0,
-		SpineBlockManifestType:   0,
-		ExpirationTimestamp:      567890,
+
+	return []*model.SpineBlockManifest{
+		{
+			FileChunkHashes: fullChunkHashes,
+			FullFileHash:    fullHashed,
+		},
 	}, nil
 }
+
 func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 	type fields struct {
-		SpineBlockManifestService service.SpineBlockManifestServiceInterface
-		FileService               service.FileServiceInterface
-	}
-	type args struct {
-		chainType chaintype.ChainType
+		Logger                     *logrus.Logger
+		SpineBlockManifestService  service.SpineBlockManifestServiceInterface
+		FileService                service.FileServiceInterface
+		SnapshotChunkUtil          util.ChunkUtilInterface
+		NodeShardStorage           storage.CacheStorageInterface
+		BlockStateStorage          storage.CacheStorageInterface
+		BlockCoreService           service.BlockServiceInterface
+		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
+		NodeConfigurationService   service.NodeConfigurationServiceInterface
+		FileDownloaderService      p2p.FileDownloaderInterface
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
 		wantErr bool
 	}{
 		{
-			name: "WantErr:SpineBlockManifest",
+			name: "Want:NoNeedToDownload",
 			fields: fields{
-				SpineBlockManifestService: &mockSpineBlockManifestErr{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "WantErr:SpineBlockManifestParseFail",
-			fields: fields{
-				SpineBlockManifestService: &mockSpineBlockManifestSuccess{},
-				FileService: service.NewFileService(
-					logrus.New(),
-					new(codec.CborHandle),
-					"./testdata",
-				),
+				SpineBlockManifestService:  &mockSpineBlockManifestCheckSnapshotIntegrityFilled{},
+				BlockStateStorage:          &mockBlockStateStorageCheckSnapshotIntegrityFilled{},
+				BlockSpinePublicKeyService: &mockBlockSpinePublicKeysCheckSnapshotIntegrityFilled{},
+				SnapshotChunkUtil:          &mockSnapshotChunkUtilCheckSnapshotIntegrityFilled{},
+				NodeConfigurationService:   &mockNodeConfigurationCheckSnapshotIntegrityFilled{},
+				FileService:                &mockFileServiceCheckSnapshotIntegrityFilled{},
 			},
 			wantErr: true,
 		},
@@ -103,10 +143,17 @@ func TestSnapshotScheduler_CheckChunksIntegrity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotScheduler{
-				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
-				FileService:               tt.fields.FileService,
+				SpineBlockManifestService:  tt.fields.SpineBlockManifestService,
+				FileService:                tt.fields.FileService,
+				SnapshotChunkUtil:          tt.fields.SnapshotChunkUtil,
+				NodeShardStorage:           tt.fields.NodeShardStorage,
+				BlockStateStorage:          tt.fields.BlockStateStorage,
+				BlockCoreService:           tt.fields.BlockCoreService,
+				BlockSpinePublicKeyService: tt.fields.BlockSpinePublicKeyService,
+				NodeConfigurationService:   tt.fields.NodeConfigurationService,
+				FileDownloaderService:      tt.fields.FileDownloaderService,
 			}
-			if err := ss.CheckChunksIntegrity(tt.args.chainType); err != nil && !tt.wantErr {
+			if err := ss.CheckChunksIntegrity(); err != nil && !tt.wantErr {
 				t.Errorf("CheckChunksIntegrity got err: %s", err.Error())
 			}
 		})
