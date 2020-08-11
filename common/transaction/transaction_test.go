@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"reflect"
 	"testing"
@@ -31,7 +32,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		FeeVote:           10,
 	}, "ZOOBC")
 	feeVoteRevealBody := GetFixtureForFeeVoteRevealTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
+		RecentBlockHash:   sha256.New().Sum([]byte{}),
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")
