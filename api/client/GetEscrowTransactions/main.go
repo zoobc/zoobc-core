@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -42,7 +43,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error calling : %s", err)
 	}
-
-	log.Printf("response from remote : %s", response)
+	j, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("response from remote : %s", j)
 
 }

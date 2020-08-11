@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -21,7 +22,7 @@ func main() {
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
-		if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+		if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
 			log.Fatal(err)
 		} else {
 			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
@@ -41,5 +42,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error calling grpc GetAccountDatasets: %s", err.Error())
 	}
-	log.Printf("response from remote rpc_service.GetTransactions(): %s", response)
+	j, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("response from remote rpc_service.GetAccountDatasets(): %s", j)
 }

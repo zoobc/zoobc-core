@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -52,9 +53,9 @@ func main() {
 			},
 		})
 	if err != nil {
-		log.Fatalf("error calling rpc_service.GetBlockByID: %s", err)
+		log.Fatalf("error calling rpc_service.GetAccountLedgers: %s", err)
 	}
-
-	log.Printf("response from remote rpc_service.ID(): %s", res)
+	j, _ := json.MarshalIndent(res, "", "  ")
+	log.Printf("response from remote GetAccountLedgers.ID(): %s", j)
 
 }

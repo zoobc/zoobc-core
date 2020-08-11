@@ -25,7 +25,7 @@ type (
 func NewSkippedBlockSmithService(
 	skippedBlocksmithQuery *query.SkippedBlocksmithQuery,
 	queryExecutor query.ExecutorInterface,
-) *SkippedBlockSmithService {
+) SkippedBlockSmithServiceInterface {
 	return &SkippedBlockSmithService{
 		SkippedBlocksmithQuery: skippedBlocksmithQuery,
 		QueryExecutor:          queryExecutor,

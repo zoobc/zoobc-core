@@ -40,7 +40,7 @@ func main() {
 	response, err := c.GetSkippedBlockSmiths(
 		context.Background(),
 		&rpc_model.GetSkippedBlocksmithsRequest{
-			BlockHeightStart: 0,
+			BlockHeightStart: 1,
 			BlockHeightEnd:   10,
 		},
 	)
