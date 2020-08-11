@@ -1,0 +1,40 @@
+package crypto
+
+import (
+	"testing"
+)
+
+const (
+	SEED1 = 1387366483214
+)
+
+var values = [...]uint64{
+	0xDDE04155BF79DF63,
+	0xFCFED2E9D540B529,
+	0x4C5AA74B9BE7FF3E,
+	0xA38A0EF197E488D9,
+	0xEDA0BA12AA8B5343,
+	0x94AC0EE844BA7CB6,
+	0x644375EBE6F55AAF,
+	0xBD7DF1EF1C84093D,
+	0xDBDB00E0A41BE9AB,
+	0xC7A8EB53EB467566,
+}
+
+func TestRng(t *testing.T) {
+	var rng Rng
+	rng.Seed(SEED1)
+	for _, v := range values {
+		n := rng.Uint64()
+		if n != v {
+			t.Fatalf("Expected %X, got %X", v, n)
+		}
+	}
+	rng.Seed(SEED1)
+	for _, v := range values {
+		n := rng.Int63()
+		if n != int64(v>>1) {
+			t.Fatalf("Expected %X, got %X", int64(v>>1), n)
+		}
+	}
+}

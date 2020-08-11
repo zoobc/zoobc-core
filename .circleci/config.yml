@@ -1,0 +1,226 @@
+version: 2
+defaults: &defaults
+    working_directory: ~/zoobc
+    docker:
+        - image: circleci/golang:1.14.0-stretch
+reset_dbs: &reset_dbs
+    name: RESET DBs
+    command: |
+        if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
+          for host in $ln1 $ln2 $ln3; do
+            echo "Trying to reset db on $host"
+            ssh root@$host 'cd /root/zoobc/resource && for f in *.db; do mv -- "$f" "_$f"; done && rm -rf snapshots* *_kv';
+          done;
+        else
+          echo "All good without reset db";
+        fi
+reset_db: &reset_db
+    name: RESET DB
+    command: |
+        if [[ ${CIRCLE_BRANCH} == *"reset-db"* ]]; then
+          echo "Trying to reset db on ${ln4}"
+          ssh root@$ln4 'cd /root/zoobc/resource && for f in *.db; do mv -- "$f" "_$f"; done && rm -rf snapsnots* *_kv';
+        else
+         echo "All good without reset db"
+        fi
+jobs:
+    prepare:
+        <<: *defaults
+        steps:
+            - run:
+                  name: GIT CONF
+                  command: |
+                      git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ENV SET
+                  command: |
+                      echo 'export GOPRIVATE=github.com/zoobc/*' >> $BASH_ENV
+            - restore_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+            - run:
+                  name: GOMOD
+                  command: |
+                      if ! [ -f "go.mod" ]; then
+                          go mod init
+                      fi
+                      go mod download
+            - save_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  paths:
+                      - /go/pkg/mod
+    test:
+        <<: *defaults
+        steps:
+            - checkout
+            - restore_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+            - run:
+                  name: ↓ GOLINT
+                  command: go get -u golang.org/x/lint/golint
+            - run:
+                  name: GO Test
+                  command: make test
+            - run:
+                  name: GOLINT RUN
+                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+            - save_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+                  paths:
+                      - /go/pkg/mod
+    build:
+        <<: *defaults
+        steps:
+            - checkout
+            - restore_cache:
+                  key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - run:
+                  name: GENERATING GENESIS
+                  command: |
+                    if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" || ${CIRCLE_BRANCH} == "experimental" ]]; then
+                      make generate-gen gen-target=${CIRCLE_BRANCH}
+                    fi
+            - run:
+                  name: BUILD
+                  command: |
+                      go build -o ./dist/zoobc
+            #                       rsync -va --exclude='*.db' ./resource ./dist
+            - save_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+    deploy-develop:
+        <<: *defaults
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOSTS
+                  command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+            - run:
+                  name: DOWN SERVICES
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            - run: *reset_dbs
+            - run:
+                  name: DEPLOY
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+            - run:
+                  name: UP SERVICES
+                  command: |
+                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+    deploy-staging:
+        <<: *defaults
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                          sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOST
+                  command: |
+                      ssh-keyscan $ln4 >> ~/.ssh/known_hosts
+            - run:
+                  name: DOWN SERVICE
+                  command: |
+                      ssh root@$ln4 'sudo systemctl stop zoobc.service'
+            - run: *reset_db
+            - run:
+                  name: DEPLOY APP
+                  command: |
+                      rsync -vae ssh ./dist/ root@$ln4:/root/zoobc --exclude='*.db' --exclude='generated'
+            - run:
+                  name: UP SERVICE
+                  command: |
+                      ssh root@$ln4 'sudo systemctl start zoobc.service'
+    deploy-experimental:
+        <<: *defaults
+        steps:
+            - checkout
+            - add_ssh_keys
+            - run:
+                  name: ↓ RSYNC
+                  command: |
+                      if [ ! -d rsync ]; then
+                        sudo apt-get update && sudo apt-get install rsync
+                      fi
+            - restore_cache:
+                  key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
+                  paths:
+                      - ./dist
+            - run:
+                  name: ADD HOST
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+            - run:
+                  name: DOWN SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+            - run: *reset_db
+            - run:
+                  name: DEPLOY APP
+                  command: |
+                      for host in $x1 $x2 $x3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+            - run:
+                  name: UP SERVICE
+                  command: |
+                      for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+workflows:
+    version: 2
+    prepare-deploy:
+        jobs:
+            - prepare
+            - test:
+                  requires:
+                      - prepare
+            - build:
+                  requires:
+                      - test
+            - deploy-develop:
+                  requires:
+                      - build
+                  filters:
+                      branches:
+                          only: develop
+            - deploy-staging:
+                  requires:
+                      - build
+                  filters:
+                      branches:
+                          only: staging
+            - deploy-experimental:
+                requires:
+                  - build
+                filters:
+                  branches:
+                    only: experimental

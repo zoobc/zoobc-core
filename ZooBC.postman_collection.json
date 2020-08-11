@@ -1,0 +1,90 @@
+{
+  "info": {
+    "_postman_id": "e8cb55b1-5c13-4894-8106-52f4bf019eee",
+    "name": "ZooBC",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "blocks",
+      "item": [
+        {
+          "name": "GetBlocks",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host}}/v1/block/GetBlocks?Limit=10&Height=0&Chaintype=0",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "v1",
+                "block",
+                "GetBlocks"
+              ],
+              "query": [
+                {
+                  "key": "Limit",
+                  "value": "10"
+                },
+                {
+                  "key": "Height",
+                  "value": "0"
+                },
+                {
+                  "key": "Chaintype",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetBlock",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{host}}/v1/block/GetBlock?ID=-8826204794314169398",
+              "host": [
+                "{{host}}"
+              ],
+              "path": [
+                "v1",
+                "block",
+                "GetBlock"
+              ],
+              "query": [
+                {
+                  "key": "ID",
+                  "value": "-8826204794314169398"
+                },
+                {
+                  "key": "Height",
+                  "value": "20",
+                  "disabled": true
+                },
+                {
+                  "key": "Chaintype",
+                  "value": "0",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
