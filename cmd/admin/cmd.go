@@ -151,6 +151,7 @@ func GenerateNodeKeysFile(*cobra.Command, []string) {
 		fmt.Println(err.Error())
 		os.Exit(2)
 	}
+
 	err = ioutil.WriteFile(path.Join(helper.GetAbsDBPath(), "/resource/node_keys.json"), b, 0644)
 	if err != nil {
 		fmt.Println(err.Error())
