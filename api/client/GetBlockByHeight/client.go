@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"flag"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -13,13 +15,17 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		log.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
+	var (
+		ip         string
+		apiRPCPort int
+	)
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
 
@@ -38,7 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("error calling rpc_service.GetBlockByHeight: %s", err)
 	}
-
-	log.Printf("response from remote rpc_service.GetBlockByHeight(): %s", response)
+	j, _ := json.MarshalIndent(response, "", "  ")
+	log.Printf("response from remote rpc_service.GetBlockByHeight(): %s", j)
 
 }

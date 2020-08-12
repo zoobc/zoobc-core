@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"reflect"
 	"testing"
@@ -31,7 +32,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		FeeVote:           10,
 	}, "ZOOBC")
 	feeVoteRevealBody := GetFixtureForFeeVoteRevealTransaction(&model.FeeVoteInfo{
-		RecentBlockHash:   []byte{},
+		RecentBlockHash:   sha256.New().Sum([]byte{}),
 		RecentBlockHeight: 100,
 		FeeVote:           10,
 	}, "ZOOBC")
@@ -107,26 +108,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &TXEmpty{},
-		},
-		{
-			name: "wantNil",
-			fields: fields{
-				Executor: &query.Executor{},
-			},
-			args: args{
-				tx: &model.Transaction{
-					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10,
-						},
-					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
-				},
-			},
-			want: nil,
 		},
 		{
 			name: "wantNil",
@@ -232,6 +213,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 			},
 		},
 		{
@@ -261,6 +243,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 			},
 		},
 		{

@@ -8,9 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc"
-
-	"github.com/zoobc/zoobc-core/cmd/noderegistry"
+	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -18,6 +16,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
 // GenerateTxSendMoney return send money transaction based on provided basic transaction & ammunt
@@ -159,7 +158,7 @@ func GenerateProofOfOwnership(
 		}
 		return pow
 	}
-	return noderegistry.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
+	return admin.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
 }
 
 /*
@@ -223,9 +222,9 @@ func GenerateBasicTransaction(
 	var (
 		senderAccountAddress string
 	)
-	if senderSeed == "" {
+	if senderAddress != "" {
 		senderAccountAddress = senderAddress
-	} else {
+	} else if senderSeed != "" {
 		switch model.SignatureType(senderSignatureType) {
 		case model.SignatureType_DefaultSignature:
 			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, senderSeed)
@@ -254,6 +253,8 @@ func GenerateBasicTransaction(
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
 		}
+	} else {
+		panic("Failed found or generate sender account address")
 	}
 
 	if timestamp <= 0 {

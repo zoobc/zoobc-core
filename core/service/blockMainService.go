@@ -1100,12 +1100,13 @@ func (bs *BlockService) GenerateBlock(
 		err                 error
 		digest              = sha3.New256()
 		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		newBlockHeight      = previousBlock.Height + 1
 	)
-	newBlockHeight := previousBlock.Height + 1
+
 	// calculate total coinbase to be added to the block
 	totalCoinbase = bs.CoinbaseService.GetCoinbase(timestamp, previousBlock.Timestamp)
 	if !empty {
-		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, previousBlock.Height+1)
+		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, newBlockHeight)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
 		}

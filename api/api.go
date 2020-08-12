@@ -89,6 +89,8 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -161,12 +163,27 @@ func startGrpcServer(
 			query.NewMultisignatureInfoQuery(),
 			query.NewMultiSignatureParticipantQuery(),
 		)})
+
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
+
 	// Set GRPC handler for account dataset
 	rpcService.RegisterAccountDatasetServiceServer(grpcServer, &handler.AccountDatasetHandler{
 		Service: service.NewAccountDatasetService(
 			query.NewAccountDatasetsQuery(),
+			queryExecutor,
+		),
+	})
+
+	// Set GRPC handler for published receipt
+	rpcService.RegisterPublishedReceiptServiceServer(grpcServer, &handler.PublishedReceiptHandler{
+		Service: service.NewPublishedReceiptService(publishedReceiptUtil),
+	})
+
+	// Set GRPC handler for skipped block smith
+	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
+		Service: service.NewSkippedBlockSmithService(
+			query.NewSkippedBlocksmithQuery(),
 			queryExecutor,
 		),
 	})

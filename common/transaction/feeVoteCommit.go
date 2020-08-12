@@ -145,7 +145,7 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 
-	// check account balance sender
+	// check existing & balance account sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
 		return err
@@ -234,13 +234,19 @@ func (tx *FeeVoteCommitTransaction) GetTransactionBody(transaction *model.Transa
 	}
 }
 
-// SkipMempoolTransaction this tx type has no mempool filter
+/*
+SkipMempoolTransaction filter out current fee commit vote tx when
+	- Current time is already not commit vote phase based on new block timestamp
+	- There are other tx fee commit vote with same sender in mempool
+	- Fee commit vote tx for current phase already exist in previous block
+*/
 func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	// check tx is still valid for commit vote phase based on new block timestamp
-	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(newBlockTimestamp, true)
 	if err != nil {
 		return true, err
 	}

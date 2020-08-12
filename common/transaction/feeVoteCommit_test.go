@@ -368,7 +368,7 @@ type (
 		fee.FeeScaleService
 	}
 
-	mockQueryExecutorValidateSuccess struct {
+	mockQueryExecutorFeeVoteCommitValidateSuccess struct {
 		query.Executor
 	}
 	mockFeeVoteCommitmentVoteQueryValidateFail struct {
@@ -381,41 +381,41 @@ type (
 	mockFeeVoteCommitmentVoteQueryValidateSuccess struct {
 		query.FeeVoteCommitmentVoteQuery
 	}
-	mockBlockQueryGetLastBlockValidateFail struct {
+	mockBlockQueryFeeVoteCommitGetLastBlockValidateFail struct {
 		query.BlockQuery
 	}
-	mockBlockQueryGetLastBlockValidateWrongPhase struct {
+	mockBlockQueryGetLastBlockFeeVoteCommitValidateWrongPhase struct {
 		query.BlockQuery
 	}
-	mockBlockQueryGetLastBlockValidateSuccess struct {
+	mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess struct {
 		query.BlockQuery
 	}
-	mockBlockQueryGetBlockHeightValidateFail struct {
+	mockBlockQueryGetBlockHeightFeeVoteCommitValidateFail struct {
 		query.BlockQuery
 	}
-	mockBlockQueryGetBlockHeightValidateDuplicated struct {
+	mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated struct {
 		query.BlockQuery
 	}
-	mockBlockQueryGetBlockHeightValidateSuccess struct {
+	mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess struct {
 		query.BlockQuery
 	}
-	mockNodeRegistrationQueryValidateFail struct {
+	mockNodeRegistrationQueryFeeVoteCommitValidateFail struct {
 		query.NodeRegistrationQuery
 	}
-	mockNodeRegistrationQueryValidateFailErrNoRow struct {
+	mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow struct {
 		query.NodeRegistrationQuery
 	}
-	mockNodeRegistrationQueryValidateSuccess struct {
+	mockNodeRegistrationQueryFeeVoteCommitValidateSuccess struct {
 		query.NodeRegistrationQuery
 	}
 
-	mockAccountBalanceHelperValidateFail struct {
+	mockAccountBalanceHelperFeeVoteCommitValidateFail struct {
 		AccountBalanceHelper
 	}
-	mockAccountBalanceHelperValidateNotEnoughSpendable struct {
+	mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable struct {
 		AccountBalanceHelper
 	}
-	mockFeeVoteCommitAccountBalanceHelperValidateSuccess struct {
+	mockAccountBalanceHelperFeeVoteCommitValidateSuccess struct {
 		AccountBalanceHelper
 	}
 )
@@ -439,7 +439,7 @@ func (*mockFeeScaleServiceValidateFail) GetCurrentPhase(
 	return model.FeeVotePhase_FeeVotePhaseCommmit, false, errors.New("MockedError")
 }
 
-func (*mockQueryExecutorValidateSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (*mockQueryExecutorFeeVoteCommitValidateSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	return nil, nil
 }
 
@@ -454,79 +454,87 @@ func (*mockFeeVoteCommitmentVoteQueryValidateDupicated) Scan(voteCommit *model.F
 	return nil
 }
 
-func (*mockBlockQueryGetLastBlockValidateFail) GetLastBlock() string {
+func (*mockBlockQueryFeeVoteCommitGetLastBlockValidateFail) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetLastBlockValidateFail) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryFeeVoteCommitGetLastBlockValidateFail) Scan(block *model.Block, row *sql.Row) error {
 	return errors.New("MockedError")
 }
 
-func (*mockBlockQueryGetLastBlockValidateWrongPhase) GetLastBlock() string {
+func (*mockBlockQueryGetLastBlockFeeVoteCommitValidateWrongPhase) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetLastBlockValidateWrongPhase) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryGetLastBlockFeeVoteCommitValidateWrongPhase) Scan(block *model.Block, row *sql.Row) error {
 	block.Timestamp = mockTimestampValidateWrongPhase
 	return nil
 }
 
-func (*mockBlockQueryGetLastBlockValidateSuccess) GetLastBlock() string {
+func (*mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetLastBlockValidateSuccess) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess) Scan(block *model.Block, row *sql.Row) error {
 	block.Timestamp = mockTimestampValidateRightPhase
 	return nil
 }
 
-func (*mockBlockQueryGetBlockHeightValidateFail) GetLastBlock() string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateFail) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateFail) GetBlockByHeight(height uint32) string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateFail) GetBlockByHeight(height uint32) string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateFail) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateFail) Scan(block *model.Block, row *sql.Row) error {
 	return errors.New("MockedError")
 }
 
-func (*mockBlockQueryGetBlockHeightValidateDuplicated) GetLastBlock() string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateDuplicated) GetBlockByHeight(height uint32) string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated) GetBlockByHeight(height uint32) string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateDuplicated) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated) Scan(block *model.Block, row *sql.Row) error {
 	block.Timestamp = mockTimestampValidateRightPhaseExistVote
 	return nil
 }
-func (*mockBlockQueryGetBlockHeightValidateSuccess) GetLastBlock() string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess) GetLastBlock() string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateSuccess) GetBlockByHeight(height uint32) string {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess) GetBlockByHeight(height uint32) string {
 	return "mockQuery"
 }
-func (*mockBlockQueryGetBlockHeightValidateSuccess) Scan(block *model.Block, row *sql.Row) error {
+func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess) Scan(block *model.Block, row *sql.Row) error {
 	block.Timestamp = mockTimestampValidateRightPhase
 	return nil
 }
 
-func (*mockNodeRegistrationQueryValidateFail) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mock", nil
 }
 
-func (*mockNodeRegistrationQueryValidateFail) Scan(nr *model.NodeRegistration, row *sql.Row) error {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 	return errors.New("MockedError")
 }
-func (*mockNodeRegistrationQueryValidateFailErrNoRow) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mockQuery", nil
 }
 
-func (*mockNodeRegistrationQueryValidateFailErrNoRow) Scan(nr *model.NodeRegistration, row *sql.Row) error {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) Scan(
+	nr *model.NodeRegistration, row *sql.Row,
+) error {
 	return sql.ErrNoRows
 }
-func (*mockNodeRegistrationQueryValidateSuccess) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateSuccess) GetNodeRegistrationByAccountAddress(
+	accountAddress string) (str string, args []interface{},
+) {
 	return "mockQuery", nil
 }
 
-func (*mockNodeRegistrationQueryValidateSuccess) Scan(nr *model.NodeRegistration, row *sql.Row) error {
+func (*mockNodeRegistrationQueryFeeVoteCommitValidateSuccess) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 	return nil
 }
 
@@ -550,17 +558,19 @@ func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.Fee
 	return nil
 }
 
-func (*mockAccountBalanceHelperValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
 	return errors.New("MockedError")
 }
 
-func (*mockAccountBalanceHelperValidateNotEnoughSpendable) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable) GetBalanceByAccountID(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate - 1
 	return nil
 }
-func (*mockFeeVoteCommitAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperFeeVoteCommitValidateSuccess) GetBalanceByAccountID(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate + 1
@@ -607,8 +617,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:getLastBlock",
 			fields: fields{
 				Body:          mockFeeVoteCommitTxBody,
-				BlockQuery:    &mockBlockQueryGetLastBlockValidateFail{},
-				QueryExecutor: &mockQueryExecutorValidateSuccess{},
+				BlockQuery:    &mockBlockQueryFeeVoteCommitGetLastBlockValidateFail{},
+				QueryExecutor: &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 			},
 			args: args{
 				dbTx: false,
@@ -619,8 +629,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:getCurrentPhaseFirst",
 			fields: fields{
 				Body:            mockFeeVoteCommitTxBody,
-				QueryExecutor:   &mockQueryExecutorValidateSuccess{},
-				BlockQuery:      &mockBlockQueryGetLastBlockValidateSuccess{},
+				QueryExecutor:   &mockQueryExecutorFeeVoteCommitValidateSuccess{},
+				BlockQuery:      &mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess{},
 				FeeScaleService: &mockFeeScaleServiceValidateFail{},
 			},
 			args: args{
@@ -632,8 +642,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:notCommitPeriod",
 			fields: fields{
 				Body:            mockFeeVoteCommitTxBody,
-				QueryExecutor:   &mockQueryExecutorValidateSuccess{},
-				BlockQuery:      &mockBlockQueryGetLastBlockValidateWrongPhase{},
+				QueryExecutor:   &mockQueryExecutorFeeVoteCommitValidateSuccess{},
+				BlockQuery:      &mockBlockQueryGetLastBlockFeeVoteCommitValidateWrongPhase{},
 				FeeScaleService: &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
@@ -646,9 +656,9 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateFail{},
-				BlockQuery:                 &mockBlockQueryGetLastBlockValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 			},
 			args: args{
 				dbTx: false,
@@ -661,8 +671,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateDupicated{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateDuplicated{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated{},
 			},
 			args: args{
 				dbTx: false,
@@ -673,11 +683,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddress",
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateFail{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFail{},
 			},
 			args: args{
 				dbTx: false,
@@ -688,11 +698,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateFailErrNoRow{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow{},
 			},
 			args: args{
 				dbTx: false,
@@ -703,11 +713,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateFailErrNoRow{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow{},
 			},
 			args: args{
 				dbTx: false,
@@ -719,11 +729,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			fields: fields{
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
-				AccountBalanceHelper:       &mockAccountBalanceHelperValidateFail{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateSuccess{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperFeeVoteCommitValidateFail{},
 			},
 			args: args{
 				dbTx: false,
@@ -735,11 +745,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			fields: fields{
 				Fee:                        mockFeeValidate,
 				Body:                       mockFeeVoteCommitTxBody,
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
-				AccountBalanceHelper:       &mockAccountBalanceHelperValidateNotEnoughSpendable{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateSuccess{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
@@ -752,11 +762,11 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 			fields: fields{
 				Fee:                        mockFeeValidate,
 				Body:                       mockFeeVoteCommitTxBody,
-				QueryExecutor:              &mockQueryExecutorValidateSuccess{},
+				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
-				BlockQuery:                 &mockBlockQueryGetBlockHeightValidateSuccess{},
-				NodeRegistrationQuery:      &mockNodeRegistrationQueryValidateSuccess{},
-				AccountBalanceHelper:       &mockFeeVoteCommitAccountBalanceHelperValidateSuccess{},
+				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
+				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateSuccess{},
+				AccountBalanceHelper:       &mockAccountBalanceHelperFeeVoteCommitValidateSuccess{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
@@ -1130,7 +1140,8 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
-		blockTimestamp       int64
+		newBlockTimestamp    int64
+		newBlockHeight       uint32
 	}
 	tests := []struct {
 		name    string
@@ -1146,7 +1157,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{},
-				blockTimestamp:       1,
+				newBlockTimestamp:    1,
 			},
 			want:    true,
 			wantErr: true,
@@ -1158,7 +1169,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{},
-				blockTimestamp:       1,
+				newBlockTimestamp:    1,
 			},
 			want:    true,
 			wantErr: false,
@@ -1175,7 +1186,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 						TransactionType: uint32(model.TransactionType_FeeVoteCommitmentVoteTransaction),
 					},
 				},
-				blockTimestamp: 1,
+				newBlockTimestamp: 1,
 			},
 			want:    true,
 			wantErr: false,
@@ -1223,7 +1234,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 				AccountLedgerHelper:        tt.fields.AccountLedgerHelper,
 				QueryExecutor:              tt.fields.QueryExecutor,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.blockTimestamp)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("FeeVoteCommitTransaction.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return

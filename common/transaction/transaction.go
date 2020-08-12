@@ -31,6 +31,7 @@ type (
 		SkipMempoolTransaction(
 			selectedTransactions []*model.Transaction,
 			blockTimestamp int64,
+			blockHeight uint32,
 		) (bool, error)
 		Escrowable() (EscrowTypeAction, bool)
 	}
@@ -154,7 +155,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				Escrow:                tx.GetEscrow(),
+				AccountBalanceHelper:  accountBalanceHelper,
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -173,7 +174,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AuthPoown:             &auth.NodeAuthValidation{},
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				Escrow:                tx.GetEscrow(),
+				AccountBalanceHelper:  accountBalanceHelper,
 			}, nil
 		default:
 			return nil, nil
@@ -220,7 +221,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	// Excrow
+	// Escrow
 	case 4:
 		switch buf[1] {
 		case 0:
