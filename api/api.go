@@ -187,14 +187,6 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
-
-	// Set GRPC handler for skipped block smith
-	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
-		Service: service.NewSkippedBlockSmithService(
-			query.NewSkippedBlocksmithQuery(),
-			queryExecutor,
-		),
-	})
 	go func() {
 		// serve rpc
 		if err := grpcServer.Serve(serv); err != nil {
