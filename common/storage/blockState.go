@@ -5,7 +5,6 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -13,81 +12,55 @@ type (
 	// BlockStateStorage represent last state of block
 	BlockStateStorage struct {
 		sync.RWMutex
-		blocks map[int32]model.Block
+		lastBlock model.Block
 	}
 )
 
-var blockStateStorageInstance *BlockStateStorage
-
 // NewBlockStateStorage returns BlockStateStorage instance
-func NewBlockStateStorage(chainTypeInt int32, block model.Block) *BlockStateStorage {
-	if blockStateStorageInstance == nil {
-		blockStateStorageInstance = &BlockStateStorage{
-			blocks: map[int32]model.Block{
-				chainTypeInt: block,
-			},
-		}
-		return blockStateStorageInstance
+func NewBlockStateStorage(lastBlock model.Block) *BlockStateStorage {
+	return &BlockStateStorage{
+		lastBlock: lastBlock,
 	}
-	blockStateStorageInstance.blocks[chainTypeInt] = block
-	return blockStateStorageInstance
 }
 
 // SetItem setter of BlockStateStorage
-func (bs *BlockStateStorage) SetItem(chaintypeInt, block interface{}) error {
+func (bs *BlockStateStorage) SetItem(lastUpdate, block interface{}) error {
 	bs.Lock()
 	defer bs.Unlock()
 	var (
-		ok           bool
-		chainTypeInt int32
-		newBlock     model.Block
+		ok       bool
+		newBlock model.Block
 	)
 
-	chainTypeInt, ok = chaintypeInt.(int32)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType chainTypeInt, expected int32")
-	}
-	// check existing chain type
-	if (&chaintype.MainChain{}).GetTypeInt() != chainTypeInt && (&chaintype.SpineChain{}).GetTypeInt() != chainTypeInt {
-		return blocker.NewBlocker(blocker.ValidationErr, "Chaintyep doesn't exist")
-	}
 	// copy block
 	newBlock, ok = (deepcopy.Copy(block)).(model.Block)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item or FailCopyingBlock")
 	}
-	if bs.blocks == nil {
-		bs.blocks = make(map[int32]model.Block)
-	}
-	bs.blocks[chainTypeInt] = newBlock
+	bs.lastBlock = newBlock
 	return nil
 }
 
 // GetItem getter of BlockStateStorage
-func (bs *BlockStateStorage) GetItem(chaintypeInt, block interface{}) error {
+func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 	bs.RLock()
 	defer bs.RUnlock()
 
 	var (
-		ok           bool
-		chainTypeInt int32
-		blockCopy    *model.Block
+		ok        bool
+		blockCopy *model.Block
 	)
-	chainTypeInt, ok = chaintypeInt.(int32)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType lastChange, expected int32")
+
+	if bs.lastBlock.BlockHash == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "EmptyCache")
 	}
 
 	blockCopy, ok = block.(*model.Block)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
 	}
-	// NOTE: when BlockHash is nil it means empty block
-	if bs.blocks[chainTypeInt].BlockHash == nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "Chaintype not found")
-	}
 	// copy cache block value into reference variable requester
-	*blockCopy, ok = (deepcopy.Copy(bs.blocks[chainTypeInt])).(model.Block)
+	*blockCopy, ok = (deepcopy.Copy(bs.lastBlock)).(model.Block)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
 	}
@@ -96,15 +69,11 @@ func (bs *BlockStateStorage) GetItem(chaintypeInt, block interface{}) error {
 
 // GetSize return the size of BlockStateStorage
 func (bs *BlockStateStorage) GetSize() int64 {
-	var size int64
-	for _, block := range bs.blocks {
-		size += int64(block.XXX_Size())
-	}
-	return size
+	return int64(bs.lastBlock.XXX_Size())
 }
 
 // ClearCache cleaner of BlockStateStorage
 func (bs *BlockStateStorage) ClearCache() error {
-	bs.blocks = make(map[int32]model.Block)
+	bs.lastBlock = model.Block{}
 	return nil
 }
