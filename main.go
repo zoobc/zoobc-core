@@ -878,14 +878,14 @@ func startScheduler() {
 	}
 
 	if err := schedulerInstance.AddJob(
-		constant.SnapshotSchedulerUnmaintedChunksPeriod,
+		constant.SnapshotSchedulerUnmaintainedChunksPeriod,
 		snapshotSchedulers.DeleteUnmaintainedChunks,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
 
 	if err := schedulerInstance.AddJob(
-		constant.SnapshotSchedulerUnmaintedChunksPeriod,
+		constant.SnapshotSchedulerUnmaintainedChunksPeriod,
 		snapshotSchedulers.CheckChunksIntegrity,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())

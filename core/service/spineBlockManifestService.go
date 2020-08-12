@@ -259,6 +259,7 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestsByManifestReferenceHe
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	manifests, err = ss.SpineBlockManifestQuery.BuildModel(manifests, rows)
 	if err != nil {
