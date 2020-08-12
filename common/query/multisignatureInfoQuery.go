@@ -66,8 +66,8 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	)
 	return query, []interface{}{
 		multisigAddress,
-		multisigAddress,
 		blockHeight,
+		multisigAddress,
 	}
 }
 
