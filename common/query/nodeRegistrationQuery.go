@@ -3,9 +3,10 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"math/big"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -23,7 +24,6 @@ type (
 		GetActiveNodeRegistrationsWithNodeAddress() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
-		GetNodeRegistrationsByNodePublicKeys() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
@@ -220,12 +220,6 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string,
 // GetNodeRegistrationByNodePublicKey returns query string to get Node Registration by node public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByNodePublicKey() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName())
-}
-
-// GetNodeRegistrationsByNodePublicKeys returns query string to get Node Registrations by array of node public key
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByNodePublicKeys() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE node_public_key IN (?) AND latest=1 ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 

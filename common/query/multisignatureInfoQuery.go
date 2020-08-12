@@ -60,7 +60,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') "+
-			"FROM multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height "+
+			"FROM multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index DESC) as addresses",
 		msi.getTableName(),
 	)
