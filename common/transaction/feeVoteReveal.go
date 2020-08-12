@@ -2,10 +2,9 @@ package transaction
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"database/sql"
 	"strings"
-
-	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -14,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -138,13 +138,10 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	// check account balance sender
+	// check existing & balance account sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+		return err
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
 		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
@@ -231,11 +228,7 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 		err     error
 	)
 
-	chunked, err = util.ReadTransactionBytes(buff, int(constant.RecentBlockHashLength))
-	if err != nil {
-		return nil, err
-	}
-	recentBlockHas, err := util.ReadTransactionBytes(buff, int(util.ConvertBytesToUint32(chunked)))
+	recentBlockHash, err := util.ReadTransactionBytes(buff, sha256.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -262,7 +255,7 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 	}
 	return &model.FeeVoteRevealTransactionBody{
 		FeeVoteInfo: &model.FeeVoteInfo{
-			RecentBlockHash:   recentBlockHas,
+			RecentBlockHash:   recentBlockHash,
 			RecentBlockHeight: recentBlockHeight,
 			FeeVote:           int64(feeVote),
 		},
@@ -273,7 +266,6 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 // GetBodyBytes translate tx body to bytes representation
 func (tx *FeeVoteRevealTransaction) GetBodyBytes() []byte {
 	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
 	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
@@ -292,14 +284,13 @@ func (tx *FeeVoteRevealTransaction) GetTransactionBody(transaction *model.Transa
 // GetFeeVoteInfoBytes will build bytes from model.FeeVoteInfo
 func (tx *FeeVoteRevealTransaction) GetFeeVoteInfoBytes() []byte {
 	buff := bytes.NewBuffer([]byte{})
-	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.FeeVoteInfo.RecentBlockHash))))
 	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	return buff.Bytes()
 }
 
-// Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
+// Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option
 func (*FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
 }
@@ -314,13 +305,19 @@ func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
 
-// SkipMempoolTransaction this tx type has no mempool filter
+/*
+SkipMempoolTransaction filter out current fee reveal vote tx when
+	- Current time is already not reveal vote phase based on new block timestamp
+	- There are other tx fee reveal vote with same sender in mempool
+	- Fee reveal vote tx for current phase already exist in previous block
+*/
 func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	// check tx is still valid for reveal vote phase based on new block timestamp
-	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(blockTimestamp, true)
+	var feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(newBlockTimestamp, true)
 	if err != nil {
 		return true, err
 	}
@@ -335,7 +332,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 			return true, nil
 		}
 	}
-	// check previouds vote
+	// check previous vote
 	err = tx.checkDuplicateVoteReveal(false)
 	if err != nil {
 		if strings.Contains(err.Error(), string(blocker.ValidationErr)) {

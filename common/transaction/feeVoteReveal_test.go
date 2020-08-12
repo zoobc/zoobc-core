@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -9,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -585,7 +585,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	txBody := &model.FeeVoteRevealTransactionBody{
 		FeeVoteInfo: &model.FeeVoteInfo{
 			RecentBlockHeight: 100,
-			RecentBlockHash:   []byte{1, 2, 3, 4, 5},
+			RecentBlockHash:   make([]byte, sha256.Size),
 			FeeVote:           100,
 		},
 		VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},

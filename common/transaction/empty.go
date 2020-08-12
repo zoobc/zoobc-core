@@ -15,7 +15,8 @@ func (tx *TXEmpty) Escrowable() (EscrowTypeAction, bool) {
 // SkipMempoolTransaction this tx type has no mempool filter
 func (tx *TXEmpty) SkipMempoolTransaction(
 	selectedTransactions []*model.Transaction,
-	blockTimestamp int64,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
 ) (bool, error) {
 	return false, nil
 }

@@ -142,10 +142,11 @@ func init() {
 			log.Fatal("either password is wrong or the certificate is malformed")
 		}
 	}
-	// validate and generate configurations
-	err = util.NewSetupNode(config).WizardFirstSetup()
+	// check and validate configurations
+	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
 		log.Fatalf("Unknown error occurred - error: %s", err.Error())
+		return
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
