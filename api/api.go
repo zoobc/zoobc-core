@@ -89,6 +89,8 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -173,6 +175,11 @@ func startGrpcServer(
 		),
 	})
 
+	// Set GRPC handler for published receipt
+	rpcService.RegisterPublishedReceiptServiceServer(grpcServer, &handler.PublishedReceiptHandler{
+		Service: service.NewPublishedReceiptService(publishedReceiptUtil),
+	})
+
 	// Set GRPC handler for skipped block smith
 	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
 		Service: service.NewSkippedBlockSmithService(
@@ -181,6 +188,13 @@ func startGrpcServer(
 		),
 	})
 
+	// Set GRPC handler for skipped block smith
+	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
+		Service: service.NewSkippedBlockSmithService(
+			query.NewSkippedBlocksmithQuery(),
+			queryExecutor,
+		),
+	})
 	go func() {
 		// serve rpc
 		if err := grpcServer.Serve(serv); err != nil {

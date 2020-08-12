@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"flag"
 	"fmt"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -15,16 +14,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/lib/address"
-
-	"github.com/zoobc/zoobc-core/common/auth"
-
 	badger "github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"github.com/ugorji/go/codec"
-
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -46,6 +42,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 var (
@@ -137,10 +134,11 @@ func init() {
 			log.Fatal("either password is wrong or the certificate is malformed")
 		}
 	}
-	// validate and generate configurations
-	err = util.NewSetupNode(config).WizardFirstSetup()
+	// check and validate configurations
+	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
 		log.Fatalf("Unknown error occurred - error: %s", err.Error())
+		return
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
