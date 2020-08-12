@@ -448,3 +448,21 @@ func TestPublishedReceiptQuery_InsertPublishedReceipts(t *testing.T) {
 		})
 	}
 }
+
+func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightRange(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		qry := NewPublishedReceiptQuery()
+		qStr, args := qry.GetPublishedReceiptByBlockHeightRange(0, 100)
+		result := "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+			"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+			"published_index FROM published_receipt WHERE block_height BETWEEN ? AND ? ORDER BY block_height, published_index ASC"
+		if qStr != result {
+			t.Fatalf("expect: %s\ngot: %s", result, qStr)
+		}
+		if args[0] != uint32(0) && args[1] != uint32(100) {
+			t.Fatalf("expect arguments: %s\ngot: %s", []interface{}{
+				uint32(0), uint32(100),
+			}, args)
+		}
+	})
+}
