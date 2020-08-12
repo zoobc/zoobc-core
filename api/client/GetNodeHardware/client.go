@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"time"
 
@@ -18,13 +19,17 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
-		log.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
+	var (
+		ip         string
+		apiRPCPort int
+	)
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
 	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())

@@ -8,6 +8,11 @@ import (
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,15 +21,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 func startGrpcServer(
@@ -43,6 +45,7 @@ func startGrpcServer(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -89,6 +92,8 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -109,7 +114,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -161,12 +166,27 @@ func startGrpcServer(
 			query.NewMultisignatureInfoQuery(),
 			query.NewMultiSignatureParticipantQuery(),
 		)})
+
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
+
 	// Set GRPC handler for account dataset
 	rpcService.RegisterAccountDatasetServiceServer(grpcServer, &handler.AccountDatasetHandler{
 		Service: service.NewAccountDatasetService(
 			query.NewAccountDatasetsQuery(),
+			queryExecutor,
+		),
+	})
+
+	// Set GRPC handler for published receipt
+	rpcService.RegisterPublishedReceiptServiceServer(grpcServer, &handler.PublishedReceiptHandler{
+		Service: service.NewPublishedReceiptService(publishedReceiptUtil),
+	})
+
+	// Set GRPC handler for skipped block smith
+	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
+		Service: service.NewSkippedBlockSmithService(
+			query.NewSkippedBlocksmithQuery(),
 			queryExecutor,
 		),
 	})
@@ -232,6 +252,7 @@ func Start(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 	startGrpcServer(
 		grpcPort, httpPort,
@@ -251,5 +272,6 @@ func Start(
 		receiptService,
 		transactionCoreService,
 		maxAPIRequestPerSecond,
+		blockStateStorages,
 	)
 }

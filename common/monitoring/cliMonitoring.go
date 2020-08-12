@@ -87,6 +87,8 @@ func (cm *CLIMonitoring) Start() {
 	tm.Clear() // Clear current screen
 	for {
 		tm.MoveCursor(1, 1)
+		cm.print("Application Codename", constant.ApplicationCodeName)
+		cm.print("Application Version", constant.ApplicationVersion)
 		cm.print("Node IP Address / DNS", cm.ConfigInfo.MyAddress)
 		cm.print("Peer Communication Port", cm.ConfigInfo.PeerPort)
 		cm.print("RPC API Port", cm.ConfigInfo.RPCAPIPort)
