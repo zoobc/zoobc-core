@@ -45,7 +45,7 @@ func startGrpcServer(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
-	blockStateCache storage.CacheStorageInterface,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -114,7 +114,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateCache),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -241,7 +241,7 @@ func Start(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
-	blockStateCache storage.CacheStorageInterface,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 	startGrpcServer(
 		grpcPort, httpPort,
@@ -261,6 +261,6 @@ func Start(
 		receiptService,
 		transactionCoreService,
 		maxAPIRequestPerSecond,
-		blockStateCache,
+		blockStateStorages,
 	)
 }

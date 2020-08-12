@@ -22,7 +22,7 @@ type (
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
-		BlockStateCache         storage.CacheStorageInterface
+		BlockStateStorages      map[int32]storage.CacheStorageInterface
 	}
 )
 
@@ -34,7 +34,7 @@ func NewHostService(
 	p2pService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	blockStateCache storage.CacheStorageInterface,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
@@ -42,7 +42,7 @@ func NewHostService(
 			P2pService:              p2pService,
 			BlockServices:           blockServices,
 			NodeRegistrationService: nodeRegistrationService,
-			BlockStateCache:         blockStateCache,
+			BlockStateStorages:      blockStateStorages,
 		}
 	}
 	return hostServiceInstance
@@ -55,7 +55,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	)
 	for chainType := range hs.BlockServices {
 		var lastBlock model.Block
-		err = hs.BlockStateCache.GetItem(chainType, &lastBlock)
+		err = hs.BlockStateStorages[chainType].GetItem(nil, &lastBlock)
 		if err != nil {
 			continue
 		}

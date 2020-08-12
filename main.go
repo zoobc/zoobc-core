@@ -49,57 +49,58 @@ import (
 )
 
 var (
-	config                                          *model.Config
-	dbInstance                                      *database.SqliteDB
-	badgerDbInstance                                *database.BadgerDB
-	db                                              *sql.DB
-	badgerDb                                        *badger.DB
-	nodeShardStorage, blockStateStorage             storage.CacheStorageInterface
-	snapshotChunkUtil                               util.ChunkUtilInterface
-	p2pServiceInstance                              p2p.Peer2PeerServiceInterface
-	queryExecutor                                   *query.Executor
-	kvExecutor                                      *kvdb.KVExecutor
-	observerInstance                                *observer.Observer
-	schedulerInstance                               *util.Scheduler
-	snapshotSchedulers                              *scheduler.SnapshotScheduler
-	blockServices                                   = make(map[int32]service.BlockServiceInterface)
-	snapshotBlockServices                           = make(map[int32]service.SnapshotBlockServiceInterface)
-	mainchainBlockService                           *service.BlockService
-	spinePublicKeyService                           *service.BlockSpinePublicKeyService
-	mainBlockSnapshotChunkStrategy                  service.SnapshotChunkStrategyInterface
-	spinechainBlockService                          *service.BlockSpineService
-	fileDownloader                                  p2p.FileDownloaderInterface
-	mempoolServices                                 = make(map[int32]service.MempoolServiceInterface)
-	blockIncompleteQueueService                     service.BlockIncompleteQueueServiceInterface
-	receiptService                                  service.ReceiptServiceInterface
-	peerServiceClient                               client.PeerServiceClientInterface
-	peerExplorer                                    p2pStrategy.PeerExplorerStrategyInterface
-	isDebugMode, useEnvVar                          bool
-	nodeRegistrationService                         service.NodeRegistrationServiceInterface
-	nodeAuthValidationService                       auth.NodeAuthValidationInterface
-	mainchainProcessor                              smith.BlockchainProcessorInterface
-	spinechainProcessor                             smith.BlockchainProcessorInterface
-	loggerAPIService                                *log.Logger
-	loggerCoreService                               *log.Logger
-	loggerP2PService                                *log.Logger
-	loggerScheduler                                 *log.Logger
-	spinechainSynchronizer, mainchainSynchronizer   blockchainsync.BlockchainSyncServiceInterface
-	spineBlockManifestService                       service.SpineBlockManifestServiceInterface
-	snapshotService                                 service.SnapshotServiceInterface
-	transactionUtil                                 transaction.UtilInterface
-	receiptUtil                                     = &coreUtil.ReceiptUtil{}
-	transactionCoreServiceIns                       service.TransactionCoreServiceInterface
-	fileService                                     service.FileServiceInterface
-	mainchain                                       = &chaintype.MainChain{}
-	spinechain                                      = &chaintype.SpineChain{}
-	blockchainStatusService                         service.BlockchainStatusServiceInterface
-	nodeConfigurationService                        service.NodeConfigurationServiceInterface
-	nodeAddressInfoService                          service.NodeAddressInfoServiceInterface
-	feeScaleService                                 fee.FeeScaleServiceInterface
-	mainchainDownloader, spinechainDownloader       blockchainsync.BlockchainDownloadInterface
-	mainchainForkProcessor, spinechainForkProcessor blockchainsync.ForkingProcessorInterface
-	cpuProfile                                      bool
-	cliMonitoring                                   monitoring.CLIMonitoringInteface
+	config                                                          *model.Config
+	dbInstance                                                      *database.SqliteDB
+	badgerDbInstance                                                *database.BadgerDB
+	db                                                              *sql.DB
+	badgerDb                                                        *badger.DB
+	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
+	snapshotChunkUtil                                               util.ChunkUtilInterface
+	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
+	queryExecutor                                                   *query.Executor
+	kvExecutor                                                      *kvdb.KVExecutor
+	observerInstance                                                *observer.Observer
+	schedulerInstance                                               *util.Scheduler
+	snapshotSchedulers                                              *scheduler.SnapshotScheduler
+	blockServices                                                   = make(map[int32]service.BlockServiceInterface)
+	snapshotBlockServices                                           = make(map[int32]service.SnapshotBlockServiceInterface)
+	blockStateStorages                                              = make(map[int32]storage.CacheStorageInterface)
+	mainchainBlockService                                           *service.BlockService
+	spinePublicKeyService                                           *service.BlockSpinePublicKeyService
+	mainBlockSnapshotChunkStrategy                                  service.SnapshotChunkStrategyInterface
+	spinechainBlockService                                          *service.BlockSpineService
+	fileDownloader                                                  p2p.FileDownloaderInterface
+	mempoolServices                                                 = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService                                     service.BlockIncompleteQueueServiceInterface
+	receiptService                                                  service.ReceiptServiceInterface
+	peerServiceClient                                               client.PeerServiceClientInterface
+	peerExplorer                                                    p2pStrategy.PeerExplorerStrategyInterface
+	isDebugMode, useEnvVar                                          bool
+	nodeRegistrationService                                         service.NodeRegistrationServiceInterface
+	nodeAuthValidationService                                       auth.NodeAuthValidationInterface
+	mainchainProcessor                                              smith.BlockchainProcessorInterface
+	spinechainProcessor                                             smith.BlockchainProcessorInterface
+	loggerAPIService                                                *log.Logger
+	loggerCoreService                                               *log.Logger
+	loggerP2PService                                                *log.Logger
+	loggerScheduler                                                 *log.Logger
+	spinechainSynchronizer, mainchainSynchronizer                   blockchainsync.BlockchainSyncServiceInterface
+	spineBlockManifestService                                       service.SpineBlockManifestServiceInterface
+	snapshotService                                                 service.SnapshotServiceInterface
+	transactionUtil                                                 transaction.UtilInterface
+	receiptUtil                                                     = &coreUtil.ReceiptUtil{}
+	transactionCoreServiceIns                                       service.TransactionCoreServiceInterface
+	fileService                                                     service.FileServiceInterface
+	mainchain                                                       = &chaintype.MainChain{}
+	spinechain                                                      = &chaintype.SpineChain{}
+	blockchainStatusService                                         service.BlockchainStatusServiceInterface
+	nodeConfigurationService                                        service.NodeConfigurationServiceInterface
+	nodeAddressInfoService                                          service.NodeAddressInfoServiceInterface
+	feeScaleService                                                 fee.FeeScaleServiceInterface
+	mainchainDownloader, spinechainDownloader                       blockchainsync.BlockchainDownloadInterface
+	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
+	cpuProfile                                                      bool
+	cliMonitoring                                                   monitoring.CLIMonitoringInteface
 )
 
 func init() {
@@ -235,6 +236,11 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	mainBlockStateStorage = storage.NewBlockStateStorage()
+	spineBlockStateStorage = storage.NewBlockStateStorage()
+	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
+	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
+
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -364,7 +370,7 @@ func init() {
 		fileService,
 		snapshotChunkUtil,
 		nodeShardStorage,
-		blockStateStorage,
+		mainBlockStateStorage,
 		blockServices[0],
 		&service.BlockSpinePublicKeyService{
 			Signature:             crypto.NewSignature(),
@@ -494,7 +500,7 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
-		blockStateStorage,
+		blockStateStorages,
 	)
 }
 
@@ -623,7 +629,7 @@ func startMainchain() {
 		mainchainPublishedReceiptService,
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
-		blockStateStorage,
+		mainBlockStateStorage,
 		blockchainStatusService,
 	)
 	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
@@ -650,9 +656,11 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
-	blockStateStorage = storage.NewBlockStateStorage(mainchain.GetTypeInt(), *lastBlockAtStart)
+	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
 	// TODO: Check computer/node local time. Comparing with last block timestamp
-
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
 	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
@@ -748,6 +756,7 @@ func startSpinechain() {
 		queryExecutor,
 		spinechain,
 	)
+
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
 		queryExecutor,
@@ -759,7 +768,7 @@ func startSpinechain() {
 		query.NewSpineBlockManifestQuery(),
 		spinechainBlocksmithService,
 		snapshotBlockServices[mainchain.GetTypeInt()],
-		blockStateStorage,
+		spineBlockStateStorage,
 		blockchainStatusService,
 		spinePublicKeyService,
 	)
@@ -775,7 +784,10 @@ func startSpinechain() {
 		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
-
+	err = spineBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {

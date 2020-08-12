@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -53,18 +52,22 @@ func (m *MockP2pService) GetPriorityPeers() map[string]*model.Peer {
 }
 
 func TestHostService_GetHostInfo(t *testing.T) {
-	mockBlockService := make(map[int32]coreService.BlockServiceInterface)
+	var (
+		mockBlockService       = make(map[int32]coreService.BlockServiceInterface)
+		mockBlockStateStorages = make(map[int32]storage.CacheStorageInterface)
+		hostToReturn           = &model.Host{}
+		priorityPeersToReturn  = make(map[string]*model.Peer)
+	)
 	mockBlockService[int32(0)] = &MockBlockService{}
-
-	hostToReturn := &model.Host{}
-	priorityPeersToReturn := make(map[string]*model.Peer)
+	mockBlockStateStorages[int32(0)] = storage.NewBlockStateStorage()
+	_ = mockBlockStateStorages[int32(0)].SetItem(nil, model.Block{BlockHash: []byte{1}})
 
 	type fields struct {
 		Query                   query.ExecutorInterface
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
-		BlockStateCache         storage.CacheStorageInterface
+		BlockStateStorages      map[int32]storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -75,8 +78,8 @@ func TestHostService_GetHostInfo(t *testing.T) {
 		{
 			name: "GetHostInfo:error-lastBlockIsNil",
 			fields: fields{
-				BlockServices:   make(map[int32]coreService.BlockServiceInterface),
-				BlockStateCache: storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
+				BlockServices:      make(map[int32]coreService.BlockServiceInterface),
+				BlockStateStorages: mockBlockStateStorages,
 			},
 			wantErr: true,
 		},
@@ -85,7 +88,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 			fields: fields{
 				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceError{},
-				BlockStateCache:         storage.NewBlockStateStorage((&chaintype.MainChain{}).GetTypeInt(), model.Block{}),
+				BlockStateStorages:      mockBlockStateStorages,
 			},
 			wantErr: true,
 		},
@@ -98,12 +101,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 					HostToReturn:          hostToReturn,
 					PriorityPeersToReturn: priorityPeersToReturn,
 				},
-				BlockStateCache: storage.NewBlockStateStorage(
-					(&chaintype.MainChain{}).GetTypeInt(),
-					model.Block{
-						BlockHash: []byte{1},
-					},
-				),
+				BlockStateStorages: mockBlockStateStorages,
 			},
 			want: &model.HostInfo{
 				Host: hostToReturn,
@@ -130,7 +128,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 				P2pService:              tt.fields.P2pService,
 				BlockServices:           tt.fields.BlockServices,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlockStateCache:         tt.fields.BlockStateCache,
+				BlockStateStorages:      tt.fields.BlockStateStorages,
 			}
 			got, err := hs.GetHostInfo()
 			if (err != nil) != tt.wantErr {
