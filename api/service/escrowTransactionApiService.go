@@ -63,6 +63,7 @@ func (es *escrowTransactionService) GetEscrowTransactions(
 	if params.GetID() != 0 {
 		caseQuery.And(caseQuery.Equal("id", params.GetID()))
 	}
+	caseQuery.And(caseQuery.Equal("latest", true))
 
 	blockHeightStart := params.GetBlockHeightStart()
 	blockHeightEnd := params.GetBlockHeightEnd()
