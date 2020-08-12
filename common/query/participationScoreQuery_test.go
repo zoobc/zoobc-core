@@ -151,3 +151,47 @@ func TestParticipationScoreQuery_InsertParticipationScores(t *testing.T) {
 		})
 	}
 }
+
+func TestParticipationScoreQuery_GetParticipationScoresByBlockHeightRange(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromBlockHeight uint32
+		toBlockHeight   uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*NewParticipationScoreQuery()),
+			args: args{
+				fromBlockHeight: 20,
+				toBlockHeight:   123,
+			},
+			wantStr:  "SELECT node_id, score, latest, height FROM participation_score WHERE height BETWEEN ? AND ? ORDER BY height ASC",
+			wantArgs: []interface{}{uint32(20), uint32(123)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &ParticipationScoreQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ps.GetParticipationScoresByBlockHeightRange(tt.args.fromBlockHeight, tt.args.toBlockHeight)
+			if gotStr != tt.wantStr {
+				t.Errorf("ParticipationScoreQuery.GetParticipationScoresByBlockHeightRange() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("ParticipationScoreQuery.GetParticipationScoresByBlockHeightRange() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
