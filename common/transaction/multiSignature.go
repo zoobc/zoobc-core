@@ -88,8 +88,9 @@ type (
 	}
 
 	MultisignatureInfoHelper struct {
-		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
-		QueryExecutor           query.ExecutorInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		QueryExecutor                  query.ExecutorInterface
 	}
 
 	PendingTransactionHelper struct {
@@ -284,12 +285,22 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 }
 
 func (msi *MultisignatureInfoHelper) InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) error {
-	insertMultisigInfoQ := msi.MultisignatureInfoQuery.InsertMultisignatureInfo(multisigInfo)
-	err := msi.QueryExecutor.ExecuteTransactions(insertMultisigInfoQ)
-	if err != nil {
-		return err
+	var (
+		queries              = msi.MultisignatureInfoQuery.InsertMultisignatureInfo(multisigInfo)
+		participantAddresses []*model.MultiSignatureParticipant
+	)
+	for k, participant := range multisigInfo.GetAddresses() {
+		participantAddresses = append(participantAddresses, &model.MultiSignatureParticipant{
+			MultiSignatureAddress: multisigInfo.GetMultisigAddress(),
+			AccountAddressIndex:   uint32(k),
+			AccountAddress:        participant,
+			BlockHeight:           multisigInfo.GetBlockHeight(),
+			Latest:                true,
+		})
 	}
-	return nil
+	participantQ := msi.MultiSignatureParticipantQuery.InsertMultisignatureParticipants(participantAddresses)
+	queries = append(queries, participantQ...)
+	return msi.QueryExecutor.ExecuteTransactions(queries)
 }
 
 func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error {
@@ -477,10 +488,25 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	var (
 		body                  = tx.Body
 		multisigInfoAddresses = make(map[string]bool)
+		err                   error
+		accountBalance        model.AccountBalance
 	)
 	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBe"+
 			"Provided")
+	}
+
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+
+	if accountBalance.SpendableBalance < tx.Fee {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
 	}
 
 	if body.MultiSignatureInfo != nil {
@@ -734,7 +760,11 @@ func (tx *MultiSignatureTransaction) GetTransactionBody(transaction *model.Trans
 	}
 }
 
-func (*MultiSignatureTransaction) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (*MultiSignatureTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	return false, nil
 }
 

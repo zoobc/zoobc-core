@@ -91,7 +91,7 @@ func TestParticipationScoreQuery_SelectDataForSnapshot(t *testing.T) {
 	t.Run("SelectDataForSnapshot", func(t *testing.T) {
 		res := mockParticipationScoreQuery.SelectDataForSnapshot(0, 1)
 		want := "SELECT node_id,score,latest,height FROM participation_score WHERE (node_id, height) IN (SELECT t2.node_id, " +
-			"MAX(t2.height) FROM participation_score as t2 WHERE t2.height >= 0 AND t2.height <= 1 GROUP BY t2.node_id ) ORDER by height"
+			"MAX(t2.height) FROM participation_score as t2 WHERE t2.height >= 0 AND t2.height <= 1 AND t2.height != 0 GROUP BY t2.node_id ) ORDER by height"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
@@ -101,9 +101,53 @@ func TestParticipationScoreQuery_SelectDataForSnapshot(t *testing.T) {
 func TestParticipationScoreQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot", func(t *testing.T) {
 		res := mockParticipationScoreQuery.TrimDataBeforeSnapshot(0, 10)
-		want := "DELETE FROM participation_score WHERE height >= 0 AND height <= 10"
+		want := "DELETE FROM participation_score WHERE height >= 0 AND height <= 10 AND height != 0"
 		if res != want {
 			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
 		}
 	})
+}
+
+func TestParticipationScoreQuery_InsertParticipationScores(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		scores []*model.ParticipationScore
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewParticipationScoreQuery()),
+			args: args{
+				scores: []*model.ParticipationScore{
+					mockParticipationScore,
+				},
+			},
+			wantStr:  "INSERT INTO participation_score (node_id, score, latest, height) VALUES (?, ?, ?, ?)",
+			wantArgs: NewParticipationScoreQuery().ExtractModel(mockParticipationScore),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps := &ParticipationScoreQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ps.InsertParticipationScores(tt.args.scores)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertParticipationScores() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertParticipationScores() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
 }

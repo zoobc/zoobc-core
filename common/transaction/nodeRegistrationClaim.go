@@ -24,14 +24,18 @@ type ClaimNodeRegistration struct {
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.ProofOfOwnershipValidationInterface
+	AuthPoown             auth.NodeAuthValidationInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
+	AccountBalanceHelper  AccountBalanceHelperInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
-func (tx *ClaimNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *ClaimNodeRegistration) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	authorizedType := map[model.TransactionType]bool{
 		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
 		model.TransactionType_UpdateNodeRegistrationTransaction: true,
@@ -78,7 +82,6 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		NodeID:             nodeReg.GetNodeID(),
 		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        nil,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
 		NodePublicKey:      tx.Body.NodePublicKey,
 		Latest:             true,
@@ -148,6 +151,7 @@ func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
 func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	var (
 		nodeRegistrations []*model.NodeRegistration
+		accountBalance    model.AccountBalance
 	)
 
 	// validate proof of ownership
@@ -175,7 +179,14 @@ func (tx *ClaimNodeRegistration) Validate(dbTx bool) error {
 	if nodeRegistrations[0].RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted")
 	}
-
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+	if accountBalance.GetSpendableBalance() < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
+	}
 	return nil
 }
 

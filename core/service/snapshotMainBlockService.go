@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"fmt"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -17,27 +16,32 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath               string
-		chainType                  chaintype.ChainType
-		TransactionUtil            transaction.UtilInterface
-		TypeActionSwitcher         transaction.TypeActionSwitcher
-		Logger                     *log.Logger
-		SnapshotBasicChunkStrategy SnapshotChunkStrategyInterface
-		QueryExecutor              query.ExecutorInterface
-		AccountBalanceQuery        query.AccountBalanceQueryInterface
-		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery    query.ParticipationScoreQueryInterface
-		AccountDatasetQuery        query.AccountDatasetQueryInterface
-		EscrowTransactionQuery     query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery      query.PublishedReceiptQueryInterface
-		PendingTransactionQuery    query.PendingTransactionQueryInterface
-		PendingSignatureQuery      query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery    query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery     query.SkippedBlocksmithQueryInterface
-		BlockQuery                 query.BlockQueryInterface
-		SnapshotQueries            map[string]query.SnapshotQuery
-		BlocksmithSafeQuery        map[string]bool
-		DerivedQueries             []query.DerivedQuery
+		SnapshotPath                  string
+		chainType                     chaintype.ChainType
+		TransactionUtil               transaction.UtilInterface
+		TypeActionSwitcher            transaction.TypeActionSwitcher
+		Logger                        *log.Logger
+		SnapshotBasicChunkStrategy    SnapshotChunkStrategyInterface
+		QueryExecutor                 query.ExecutorInterface
+		AccountBalanceQuery           query.AccountBalanceQueryInterface
+		NodeRegistrationQuery         query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery       query.ParticipationScoreQueryInterface
+		AccountDatasetQuery           query.AccountDatasetQueryInterface
+		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery         query.PublishedReceiptQueryInterface
+		PendingTransactionQuery       query.PendingTransactionQueryInterface
+		PendingSignatureQuery         query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
+		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
+		BlockQuery                    query.BlockQueryInterface
+		FeeScaleQuery                 query.FeeScaleQueryInterface
+		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
+		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
+		SnapshotQueries               map[string]query.SnapshotQuery
+		BlocksmithSafeQuery           map[string]bool
+		DerivedQueries                []query.DerivedQuery
 	}
 )
 
@@ -56,6 +60,11 @@ func NewSnapshotMainBlockService(
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	feeScaleQuery query.FeeScaleQueryInterface,
+	feeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface,
+	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
+	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
+	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
@@ -64,27 +73,32 @@ func NewSnapshotMainBlockService(
 	typeSwitcher transaction.TypeActionSwitcher,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		SnapshotPath:               snapshotPath,
-		chainType:                  &chaintype.MainChain{},
-		Logger:                     logger,
-		SnapshotBasicChunkStrategy: snapshotChunkStrategy,
-		QueryExecutor:              queryExecutor,
-		AccountBalanceQuery:        accountBalanceQuery,
-		NodeRegistrationQuery:      nodeRegistrationQuery,
-		AccountDatasetQuery:        accountDatasetQuery,
-		ParticipationScoreQuery:    participationScoreQuery,
-		EscrowTransactionQuery:     escrowTransactionQuery,
-		PublishedReceiptQuery:      publishedReceiptQuery,
-		PendingTransactionQuery:    pendingTransactionQuery,
-		PendingSignatureQuery:      pendingSignatureQuery,
-		MultisignatureInfoQuery:    multisignatureInfoQuery,
-		SkippedBlocksmithQuery:     skippedBlocksmithQuery,
-		BlockQuery:                 blockQuery,
-		SnapshotQueries:            snapshotQueries,
-		BlocksmithSafeQuery:        blocksmithSafeQueries,
-		DerivedQueries:             derivedQueries,
-		TransactionUtil:            transactionUtil,
-		TypeActionSwitcher:         typeSwitcher,
+		SnapshotPath:                  snapshotPath,
+		chainType:                     &chaintype.MainChain{},
+		Logger:                        logger,
+		SnapshotBasicChunkStrategy:    snapshotChunkStrategy,
+		QueryExecutor:                 queryExecutor,
+		AccountBalanceQuery:           accountBalanceQuery,
+		NodeRegistrationQuery:         nodeRegistrationQuery,
+		AccountDatasetQuery:           accountDatasetQuery,
+		ParticipationScoreQuery:       participationScoreQuery,
+		EscrowTransactionQuery:        escrowTransactionQuery,
+		PublishedReceiptQuery:         publishedReceiptQuery,
+		PendingTransactionQuery:       pendingTransactionQuery,
+		PendingSignatureQuery:         pendingSignatureQuery,
+		MultisignatureInfoQuery:       multisignatureInfoQuery,
+		SkippedBlocksmithQuery:        skippedBlocksmithQuery,
+		FeeScaleQuery:                 feeScaleQuery,
+		FeeVoteCommitmentVoteQuery:    feeVoteCommitmentVoteQuery,
+		FeeVoteRevealVoteQuery:        feeVoteRevealVoteQuery,
+		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
+		NodeAdmissionTimestampQuery:   nodeAdmissionTimestampQuery,
+		BlockQuery:                    blockQuery,
+		SnapshotQueries:               snapshotQueries,
+		BlocksmithSafeQuery:           blocksmithSafeQueries,
+		DerivedQueries:                derivedQueries,
+		TransactionUtil:               transactionUtil,
+		TypeActionSwitcher:            typeSwitcher,
 	}
 }
 
@@ -149,6 +163,16 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
 			case "skippedBlocksmith":
 				snapshotPayload.SkippedBlocksmiths, err = ss.SkippedBlocksmithQuery.BuildModel([]*model.SkippedBlocksmith{}, rows)
+			case "feeScale":
+				snapshotPayload.FeeScale, err = ss.FeeScaleQuery.BuildModel([]*model.FeeScale{}, rows)
+			case "feeVoteCommit":
+				snapshotPayload.FeeVoteCommitmentVote, err = ss.FeeVoteCommitmentVoteQuery.BuildModel([]*model.FeeVoteCommitmentVote{}, rows)
+			case "feeVoteReveal":
+				snapshotPayload.FeeVoteRevealVote, err = ss.FeeVoteRevealVoteQuery.BuildModel([]*model.FeeVoteRevealVote{}, rows)
+			case "liquidPaymentTransaction":
+				snapshotPayload.LiquidPayment, err = ss.LiquidPaymentTransactionQuery.BuildModels(rows)
+			case "nodeAdmissionTimestamp":
+				snapshotPayload.NodeAdmissionTimestamp, err = ss.NodeAdmissionTimestampQuery.BuildModel([]*model.NodeAdmissionTimestamp{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -159,7 +183,7 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	}
 
 	// encode and save snapshot payload to file/s
-	snapshotFileHash, fileChunkHashes, err = ss.SnapshotBasicChunkStrategy.GenerateSnapshotChunks(snapshotPayload, ss.SnapshotPath)
+	snapshotFileHash, fileChunkHashes, err = ss.SnapshotBasicChunkStrategy.GenerateSnapshotChunks(snapshotPayload)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +208,6 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	snapshotPayload, err = ss.SnapshotBasicChunkStrategy.BuildSnapshotFromChunks(
 		snapshotFileInfo.GetSnapshotFileHash(),
 		snapshotFileInfo.GetFileChunksHashes(),
-		ss.SnapshotPath,
 	)
 	if err != nil {
 		return err
@@ -251,96 +274,157 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
-	dummyArgs := make([]interface{}, 0)
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
-		qry := snapshotQuery.TrimDataBeforeSnapshot(0, height)
-		queries = append(queries,
-			append(
-				[]interface{}{qry}, dummyArgs...),
+		var (
+			qry = snapshotQuery.TrimDataBeforeSnapshot(0, height)
 		)
+		queries = append(queries, []interface{}{qry})
 
 		switch qryRepoName {
 		case "block":
-			for _, rec := range payload.Blocks {
-				qry, args := ss.BlockQuery.InsertBlock(rec)
-				if highestBlock == nil || highestBlock.Height < rec.Height {
-					highestBlock = rec
+			if len(payload.GetBlocks()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetBlocks())
+				if err != nil {
+					return err
 				}
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+				queries = append(queries, q...)
 			}
 		case "accountBalance":
-			for _, rec := range payload.AccountBalances {
-				qry, args := ss.AccountBalanceQuery.InsertAccountBalance(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetAccountBalances()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountBalances())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "nodeRegistration":
-			for _, rec := range payload.NodeRegistrations {
-				qry, args := ss.NodeRegistrationQuery.InsertNodeRegistration(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetNodeRegistrations()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeRegistrations())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "accountDataset":
-			for _, rec := range payload.AccountDatasets {
-				qry, args := ss.AccountDatasetQuery.InsertAccountDataset(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetAccountDatasets()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAccountDatasets())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "participationScore":
-			for _, rec := range payload.ParticipationScores {
-				qry, args := ss.ParticipationScoreQuery.InsertParticipationScore(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetParticipationScores()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetParticipationScores())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "publishedReceipt":
-			for _, rec := range payload.PublishedReceipts {
-				qry, args := ss.PublishedReceiptQuery.InsertPublishedReceipt(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetPublishedReceipts()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPublishedReceipts())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "escrowTransaction":
-			for _, rec := range payload.EscrowTransactions {
-				qryArgs := ss.EscrowTransactionQuery.InsertEscrowTransaction(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetEscrowTransactions()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetEscrowTransactions())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "pendingTransaction":
-			for _, rec := range payload.PendingTransactions {
-				qryArgs := ss.PendingTransactionQuery.InsertPendingTransaction(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetPendingTransactions()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingTransactions())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "pendingSignature":
-			for _, rec := range payload.PendingSignatures {
-				qryArgs := ss.PendingSignatureQuery.InsertPendingSignature(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetPendingSignatures()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetPendingSignatures())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
+
 		case "multisignatureInfo":
-			for _, rec := range payload.MultiSignatureInfos {
-				qryArgs := ss.MultisignatureInfoQuery.InsertMultisignatureInfo(rec)
-				queries = append(queries, qryArgs...)
+			if len(payload.GetMultiSignatureInfos()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetMultiSignatureInfos())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		case "skippedBlocksmith":
-			for _, rec := range payload.SkippedBlocksmiths {
-				qry, args := ss.SkippedBlocksmithQuery.InsertSkippedBlocksmith(rec)
-				queries = append(queries,
-					append(
-						[]interface{}{qry}, args...),
-				)
+			if len(payload.GetSkippedBlocksmiths()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetSkippedBlocksmiths())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "feeScale":
+			if len(payload.GetFeeScale()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeScale())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "feeVoteCommit":
+			if len(payload.GetFeeVoteCommitmentVote()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteCommitmentVote())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "feeVoteReveal":
+			if len(payload.GetFeeVoteRevealVote()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetFeeVoteRevealVote())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "liquidPaymentTransaction":
+			if len(payload.GetLiquidPayment()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetLiquidPayment())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "nodeAdmissionTimestamp":
+			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeAdmissionTimestamp())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
 			}
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
+		}
+		// recalibrate the versioned table to get rid of multiple `latest = true` rows.
+		recalibrateQuery := snapshotQuery.RecalibrateVersionedTable()
+		if len(recalibrateQuery) > 0 {
+			for _, s := range recalibrateQuery {
+				queries = append(queries, []interface{}{s})
+			}
 		}
 	}
 
@@ -353,19 +437,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
 
-	for key, dQuery := range ss.DerivedQueries {
-		queries = dQuery.Rollback(height)
-		err = ss.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			ss.Logger.Errorf("Failed execute rollback queries in %d: %s", key, err.Error())
-			rollbackErr := ss.QueryExecutor.RollbackTx()
-			if err != nil {
-				ss.Logger.Warnf("Failed to run RollbackTX DB: %v", rollbackErr)
-			}
-			return err
-		}
-	}
-
 	err = ss.QueryExecutor.CommitTx()
 	if err != nil {
 		return err
@@ -376,5 +447,5 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 
 // DeleteFileByChunkHashes delete the files included in the file chunk hashes.
 func (ss *SnapshotMainBlockService) DeleteFileByChunkHashes(fileChunkHashes []byte) error {
-	return ss.SnapshotBasicChunkStrategy.DeleteFileByChunkHashes(fileChunkHashes, ss.SnapshotPath)
+	return ss.SnapshotBasicChunkStrategy.DeleteFileByChunkHashes(fileChunkHashes)
 }

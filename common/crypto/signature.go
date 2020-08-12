@@ -3,6 +3,8 @@ package crypto
 import (
 	"bytes"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -166,7 +168,7 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 		if accountAddress != signaturePubKeyAddress {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"invalidAccountAddrressOrSignaturePublicKey",
+				"invalidAccountAddressOrSignaturePublicKey",
 			)
 		}
 		sig, err := bitcoinSignature.GetSignatureFromBytes(signature[signatureFirstBytesIndex:])
@@ -230,8 +232,11 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 				return nil, nil, "", "", err
 			}
 		}
-		publicKeyString = ed25519Signature.GetPublicKeyString(publicKey)
-		address, err = ed25519Signature.GetAddressFromPublicKey(publicKey)
+		publicKeyString, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, publicKey)
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+		address, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
 		if err != nil {
 			return nil, nil, "", "", err
 		}

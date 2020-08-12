@@ -510,7 +510,7 @@ func TestPendingTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT sender_address,transaction_hash,transaction_bytes,status,block_height," +
 				"latest FROM pending_transaction WHERE (transaction_hash, block_height) IN (SELECT t2.transaction_hash, " +
-				"MAX(t2.block_height) FROM pending_transaction as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
+				"MAX(t2.block_height) FROM pending_transaction as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 GROUP BY t2." +
 				"transaction_hash) ORDER BY block_height",
 		},
 	}
@@ -552,7 +552,7 @@ func TestPendingTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -611,6 +611,51 @@ func TestPendingTransactionQuery_GetPendingTransactionsExpireByHeight(t *testing
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("GetPendingTransactionsExpireByHeight() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestPendingTransactionQuery_InsertPendingTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		pendingTXs []*model.PendingTransaction
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPendingTransactionQuery()),
+			args: args{
+				pendingTXs: []*model.PendingTransaction{
+					mockInsertPendingTransaction,
+				},
+			},
+			wantArgs: NewPendingTransactionQuery().ExtractModel(mockInsertPendingTransaction),
+			wantStr: "INSERT OR REPLACE INTO pending_transaction (sender_address, transaction_hash, transaction_bytes, status, block_height, latest) " +
+				"VALUES (?, ?, ?, ?, ?, ?)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ptq := &PendingTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := ptq.InsertPendingTransactions(tt.args.pendingTXs)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPendingTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPendingTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

@@ -345,7 +345,7 @@ func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
 				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
-				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 ORDER BY block_height",
+				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 AND block_height != 0 ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -387,7 +387,7 @@ func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				TableName: prQry.TableName,
 				Fields:    prQry.Fields,
 			},
-			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM published_receipt WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -401,4 +401,68 @@ func TestPublishedReceiptQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPublishedReceiptQuery_InsertPublishedReceipts(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		receipts []*model.PublishedReceipt
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPublishedReceiptQuery()),
+			args: args{
+				receipts: []*model.PublishedReceipt{
+					mockPublishedReceipt,
+				},
+			},
+			wantStr: "INSERT INTO published_receipt (sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, published_index) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewPublishedReceiptQuery().ExtractModel(mockPublishedReceipt),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prq := &PublishedReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := prq.InsertPublishedReceipts(tt.args.receipts)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPublishedReceipts() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPublishedReceipts() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightRange(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		qry := NewPublishedReceiptQuery()
+		qStr, args := qry.GetPublishedReceiptByBlockHeightRange(0, 100)
+		result := "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+			"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+			"published_index FROM published_receipt WHERE block_height BETWEEN ? AND ? ORDER BY block_height, published_index ASC"
+		if qStr != result {
+			t.Fatalf("expect: %s\ngot: %s", result, qStr)
+		}
+		if args[0] != uint32(0) && args[1] != uint32(100) {
+			t.Fatalf("expect arguments: %s\ngot: %s", []interface{}{
+				uint32(0), uint32(100),
+			}, args)
+		}
+	})
 }

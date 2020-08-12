@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -26,6 +27,7 @@ type (
 		)
 		GetPendingTransactionsExpireByHeight(blockHeight uint32) (str string, args []interface{})
 		InsertPendingTransaction(pendingTx *model.PendingTransaction) [][]interface{}
+		InsertPendingTransactions(pendingTXs []*model.PendingTransaction) (str string, args []interface{})
 		Scan(pendingTx *model.PendingTransaction, row *sql.Row) error
 		ExtractModel(pendingTx *model.PendingTransaction) []interface{}
 		BuildModel(pendingTxs []*model.PendingTransaction, rows *sql.Rows) ([]*model.PendingTransaction, error)
@@ -141,6 +143,65 @@ func (ptq *PendingTransactionQuery) InsertPendingTransaction(pendingTx *model.Pe
 	return queries
 }
 
+// InsertPendingTransactions represents query builder to insert multiple record in single query
+func (ptq *PendingTransactionQuery) InsertPendingTransactions(pendingTXs []*model.PendingTransaction) (str string, args []interface{}) {
+	if len(pendingTXs) > 0 {
+		str = fmt.Sprintf(
+			"INSERT OR REPLACE INTO %s (%s) VALUES ",
+			ptq.getTableName(),
+			strings.Join(ptq.Fields, ", "),
+		)
+		for k, pendingTX := range pendingTXs {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(ptq.Fields)-1),
+			)
+			if k < len(pendingTXs)-1 {
+				str += ","
+			}
+			args = append(args, ptq.ExtractModel(pendingTX)...)
+		}
+	}
+	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (ptq *PendingTransactionQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	pendingTransactions, ok := payload.([]*model.PendingTransaction)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+ptq.TableName)
+	}
+	if len(pendingTransactions) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(ptq.Fields), len(pendingTransactions))
+		for i := 0; i < rounds; i++ {
+			qry, args := ptq.InsertPendingTransactions(pendingTransactions[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := ptq.InsertPendingTransactions(pendingTransactions[len(pendingTransactions)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (ptq *PendingTransactionQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (transaction_hash, block_height) NOT IN "+
+				"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
+			ptq.getTableName(), ptq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (transaction_hash, block_height) IN "+
+				"(select t2.transaction_hash, max(t2.block_height) from %s t2 group by t2.transaction_hash)",
+			ptq.getTableName(), ptq.getTableName()),
+	}
+}
+
 func (*PendingTransactionQuery) Scan(pendingTx *model.PendingTransaction, row *sql.Row) error {
 	err := row.Scan(
 		&pendingTx.SenderAddress,
@@ -205,14 +266,19 @@ func (ptq *PendingTransactionQuery) Rollback(height uint32) (multiQueries [][]in
 }
 
 func (ptq *PendingTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (transaction_hash, block_height) IN (SELECT t2.transaction_hash, MAX("+
-		"t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY"+
-		" t2.transaction_hash) ORDER BY block_height",
-		strings.Join(ptq.Fields, ","), ptq.TableName, ptq.TableName, fromHeight, toHeight)
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (transaction_hash, block_height) IN (SELECT t2.transaction_hash, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.transaction_hash) ORDER BY block_height",
+		strings.Join(ptq.Fields, ","),
+		ptq.TableName,
+		ptq.TableName,
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (ptq *PendingTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		ptq.TableName, fromHeight, toHeight)
 }

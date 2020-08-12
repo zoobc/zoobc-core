@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/fee"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -21,7 +24,6 @@ type (
 	UtilInterface interface {
 		GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error)
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
-		ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte
 		GetTransactionID(transactionHash []byte) (int64, error)
 		ValidateTransaction(
 			tx *model.Transaction,
@@ -32,7 +34,9 @@ type (
 		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error)
 	}
 
-	Util struct{}
+	Util struct {
+		FeeScaleService fee.FeeScaleServiceInterface
+	}
 
 	MultisigTransactionUtilInterface interface {
 		CheckMultisigComplete(
@@ -250,17 +254,6 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	return &transaction, nil
 }
 
-// ReadAccountAddress to read the sender or recipient address from transaction bytes
-// depend on their account types.
-func (*Util) ReadAccountAddress(accountType uint32, transactionBuffer *bytes.Buffer) []byte {
-	switch accountType {
-	case 0:
-		return transactionBuffer.Next(int(constant.AccountAddress)) // zoobc account address length
-	default:
-		return transactionBuffer.Next(int(constant.AccountAddress)) // default to zoobc account address
-	}
-}
-
 // GetTransactionID calculate and returns a transaction ID given a transaction model
 func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 	if len(transactionHash) == 0 {
@@ -278,9 +271,7 @@ func (u *Util) ValidateTransaction(
 	verifySignature bool,
 ) error {
 	var (
-		senderAccountBalance model.AccountBalance
-		row                  *sql.Row
-		err                  error
+		err error
 	)
 
 	if tx.Fee <= 0 {
@@ -304,7 +295,16 @@ func (u *Util) ValidateTransaction(
 			"FailToGetTxMinFee",
 		)
 	}
-	if tx.Fee < minFee {
+	var feeScale model.FeeScale
+	err = u.FeeScaleService.GetLatestFeeScale(&feeScale)
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.AppErr,
+			"FailToGetTxMinFee",
+		)
+	}
+	// multiply by minimum fee first
+	if tx.Fee < int64(math.Floor(float64(minFee)*(float64(feeScale.FeeScale)/float64(constant.OneZBC)))) {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeLessThanMinimumRequiredFee",
@@ -322,28 +322,6 @@ func (u *Util) ValidateTransaction(
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxComeFromFuture",
-		)
-	}
-
-	// validate sender account
-	qry, args := accountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAccountAddress)
-	row, err = queryExecutor.ExecuteSelectRow(qry, false, args...)
-	if err != nil {
-		return err
-	}
-
-	err = accountBalanceQuery.Scan(&senderAccountBalance, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
-	}
-
-	if senderAccountBalance.SpendableBalance < tx.Fee {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"TxAccountBalanceNotEnough",
 		)
 	}
 
@@ -389,7 +367,7 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, 
 		buff.WriteString(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return sig.GetAddressFromPublicKey(hashed[:])
+	return sig.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, hashed[:])
 
 }
 

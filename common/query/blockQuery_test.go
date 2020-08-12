@@ -357,7 +357,7 @@ func TestBlockQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT id,block_hash,previous_block_hash,height,timestamp,block_seed,block_signature," +
 				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount,total_fee,total_coinbase," +
-				"version FROM main_block WHERE height >= 0 AND height <= 10",
+				"version FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -397,7 +397,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10 AND height != 0",
 		},
 		{
 			name:   "TrimDataBeforeSnapshot:success-{startFromGenesis}",
@@ -406,7 +406,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -418,6 +418,56 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := bq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("BlockQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlockQuery_InsertBlocks(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+		ChainType chaintype.ChainType
+	}
+	type args struct {
+		blocks []*model.Block
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewBlockQuery(&chaintype.MainChain{})),
+			args: args{
+				blocks: []*model.Block{
+					mockBlock,
+				},
+			},
+			wantStr: "INSERT INTO main_block " +
+				"(id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+				"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewBlockQuery(&chaintype.MainChain{}).ExtractModel(mockBlock),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq := &BlockQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+				ChainType: tt.fields.ChainType,
+			}
+			gotStr, gotArgs := bq.InsertBlocks(tt.args.blocks)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertBlocks() gotStr = %v, want %v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertBlocks() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

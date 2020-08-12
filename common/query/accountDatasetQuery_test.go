@@ -41,56 +41,6 @@ func TestNewAccountDatasetsQuery(t *testing.T) {
 	}
 }
 
-func TestAccountDatasetQuery_InsertAccountDataset(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	type args struct {
-		dataset *model.AccountDataset
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  string
-		wantArgs []interface{}
-	}{
-		{
-			name:   "wantSuccess",
-			fields: fields(*mockDatasetQuery),
-			args:   args{dataset: mockDataset},
-			wantStr: "INSERT INTO account_dataset (setter_account_address, recipient_account_address, property, value, is_active, latest, height) " +
-				"VALUES(?, ?, ?, ?, ?, ?, ?)",
-			wantArgs: []interface{}{
-				mockDataset.GetSetterAccountAddress(),
-				mockDataset.GetRecipientAccountAddress(),
-				mockDataset.GetProperty(),
-				mockDataset.GetValue(),
-				mockDataset.GetIsActive(),
-				mockDataset.GetLatest(),
-				mockDataset.GetHeight(),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			adq := &AccountDatasetQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			gotStr, gotArgs := adq.InsertAccountDataset(tt.args.dataset)
-			if gotStr != tt.wantStr {
-				t.Errorf("InsertAccountDataset() gotStr = %v, want %v", gotStr, tt.wantStr)
-				return
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("InsertAccountDataset() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
-			}
-		})
-	}
-}
-
 func TestAccountDatasetsQuery_GetLastAccountDataset(t *testing.T) {
 	type args struct {
 		SetterAccountAddress    string
@@ -135,7 +85,7 @@ func TestAccountDatasetsQuery_GetLastAccountDataset(t *testing.T) {
 	}
 }
 
-func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
+func TestAccountDatasetQuery_InsertAccountDataset(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -155,17 +105,20 @@ func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
 			args:   args{dataset: mockDataset},
 			wantStr: [][]interface{}{
 				{
-					"UPDATE account_dataset set latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? " +
-						"AND is_active = ?",
+					"UPDATE account_dataset SET latest = ? WHERE setter_account_address = ? AND recipient_account_address = ? " +
+						"AND property = ? AND height < ? AND latest = ?",
 					false,
 					mockDataset.GetSetterAccountAddress(),
 					mockDataset.GetRecipientAccountAddress(),
 					mockDataset.GetProperty(),
+					mockDataset.GetHeight(),
 					true,
 				},
 				{
 					"INSERT INTO account_dataset (setter_account_address, recipient_account_address, property, value, is_active, latest, height) " +
-						"VALUES(?, ?, ?, ?, ?, ?, ?)",
+						"VALUES(?, ?, ?, ?, ?, ?, ?) " +
+						"ON CONFLICT(setter_account_address, recipient_account_address, property, height) " +
+						"DO UPDATE SET value = ?, is_active = ?, latest = ?",
 					mockDataset.GetSetterAccountAddress(),
 					mockDataset.GetRecipientAccountAddress(),
 					mockDataset.GetProperty(),
@@ -173,6 +126,9 @@ func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
 					true,
 					true,
 					mockDataset.GetHeight(),
+					mockDataset.GetValue(),
+					mockDataset.GetIsActive(),
+					mockDataset.GetLatest(),
 				},
 			},
 		},
@@ -183,8 +139,8 @@ func TestAccountDatasetQuery_RemoveAccountDataset(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if gotStr := adq.RemoveAccountDataset(tt.args.dataset); !reflect.DeepEqual(gotStr, tt.wantStr) {
-				t.Errorf("RemoveAccountDataset() = \n%v, want \n%v", gotStr, tt.wantStr)
+			if gotStr := adq.InsertAccountDataset(tt.args.dataset); !reflect.DeepEqual(gotStr, tt.wantStr) {
+				t.Errorf("InsertAccountDataset() = \n%v, want \n%v", gotStr, tt.wantStr)
 			}
 		})
 	}
@@ -478,7 +434,7 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 			SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM account_dataset
-				WHERE height >= 0 AND height <= 1
+				WHERE height >= 0 AND height <= 1 AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		},
@@ -518,7 +474,7 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10",
+			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -529,6 +485,51 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := adq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("AccountDatasetQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAccountDatasetQuery_InsertAccountDatasets(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		datasets []*model.AccountDataset
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewAccountDatasetsQuery()),
+			args: args{
+				datasets: []*model.AccountDataset{
+					mockDataset,
+				},
+			},
+			wantStr: "INSERT INTO account_dataset (setter_account_address, recipient_account_address, property, value, is_active, latest, height) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewAccountDatasetsQuery().ExtractModel(mockDataset),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			adq := &AccountDatasetQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := adq.InsertAccountDatasets(tt.args.datasets)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertAccountDatasets() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertAccountDatasets() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

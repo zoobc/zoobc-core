@@ -1,6 +1,10 @@
 package transaction
 
 import (
+	"database/sql"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -8,6 +12,7 @@ type (
 	AccountBalanceHelperInterface interface {
 		AddAccountSpendableBalance(address string, amount int64) error
 		AddAccountBalance(address string, amount int64, blockHeight uint32) error
+		GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error
 	}
 
 	AccountBalanceHelper struct {
@@ -50,4 +55,27 @@ func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64,
 		},
 	)
 	return abh.QueryExecutor.ExecuteTransactions(addAccountBalanceQ)
+}
+
+// GetBalanceByAccountID fetching the balance of an account from database
+func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+	var (
+		row *sql.Row
+		err error
+	)
+
+	qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
+	row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	err = abh.AccountBalanceQuery.Scan(accountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
+	}
+	return nil
 }

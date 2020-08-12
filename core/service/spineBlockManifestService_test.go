@@ -1,11 +1,11 @@
 package service
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -98,18 +98,17 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 			},
 			wantErr: false,
 			want: &model.SpineBlockManifest{
-				ID:                      int64(-4442731824309358759),
+				ID:                      int64(5791654373679094336),
 				FullFileHash:            make([]byte, 32),
 				ManifestReferenceHeight: ssMockMainBlock.Height,
-				ExpirationTimestamp:     int64(1562117286),
+				ExpirationTimestamp:     int64(1596783615),
 				FileChunkHashes:         make([]byte, 0),
 				SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
-				ChainType:               0,
+				ChainType:               int32(0),
 			},
 		},
 	}
 	for _, tt := range tests {
-		fmt.Println(t.Name())
 		t.Run(tt.name, func(t *testing.T) {
 			mbl := &SpineBlockManifestService{
 				QueryExecutor:           tt.fields.QueryExecutor,
@@ -123,7 +122,7 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

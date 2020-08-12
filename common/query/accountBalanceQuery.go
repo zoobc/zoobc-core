@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -19,6 +20,7 @@ type (
 		GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetAccountBalances() string
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
+		InsertAccountBalances(accountBalances []*model.AccountBalance) (str string, args []interface{})
 		AddAccountBalance(balance int64, causedFields map[string]interface{}) [][]interface{}
 		AddAccountSpendableBalance(balance int64, causedFields map[string]interface{}) (str string, args []interface{})
 		ExtractModel(accountBalance *model.AccountBalance) []interface{}
@@ -106,6 +108,66 @@ func (q *AccountBalanceQuery) InsertAccountBalance(accountBalance *model.Account
 	), q.ExtractModel(accountBalance)
 }
 
+// InsertAccountBalances represents query builder to insert multiple record in single query
+func (q *AccountBalanceQuery) InsertAccountBalances(accountBalances []*model.AccountBalance) (str string, args []interface{}) {
+	if len(accountBalances) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			q.getTableName(),
+			strings.Join(q.Fields, ", "),
+		)
+		for k, accBalance := range accountBalances {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(q.Fields)-1),
+			)
+			if k < len(accountBalances)-1 {
+				str += ","
+			}
+			args = append(args, q.ExtractModel(accBalance)...)
+		}
+	}
+	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (q *AccountBalanceQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	balances, ok := payload.([]*model.AccountBalance)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+q.TableName)
+	}
+	if len(balances) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(q.Fields), len(balances))
+		for i := 0; i < rounds; i++ {
+			qry, args := q.InsertAccountBalances(balances[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := q.InsertAccountBalances(balances[len(balances)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (q *AccountBalanceQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (account_address, block_height) NOT IN "+
+				"(select t2.account_address, max(t2.block_height) from %s t2 group by t2.account_address)",
+			q.getTableName(), q.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (account_address, block_height) IN "+
+				"(select t2.account_address, max(t2.block_height) from %s t2 group by t2.account_address)",
+			q.getTableName(), q.getTableName()),
+	}
+
+}
+
 func (*AccountBalanceQuery) ExtractModel(account *model.AccountBalance) []interface{} {
 	return []interface{}{
 		account.AccountAddress,
@@ -153,6 +215,9 @@ func (*AccountBalanceQuery) Scan(accountBalance *model.AccountBalance, row *sql.
 	)
 	return err
 }
+func (q *AccountBalanceQuery) getTableName() string {
+	return q.TableName
+}
 
 // Rollback delete records `WHERE block_height > "height"
 // and UPDATE latest of the `account_address` clause by `block_height`
@@ -189,13 +254,13 @@ func (q *AccountBalanceQuery) SelectDataForSnapshot(fromHeight, toHeight uint32)
 		"latest",
 	}
 	return fmt.Sprintf("SELECT %s FROM %s WHERE (account_address, block_height) IN (SELECT t2.account_address, "+
-		"MAX(t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.account_address) ORDER BY"+
-		" block_height",
-		strings.Join(snapshotField, ","), q.TableName, q.TableName, fromHeight, toHeight)
+		"MAX(t2.block_height) FROM %s as t2 WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
+		"GROUP BY t2.account_address) ORDER BY block_height",
+		strings.Join(snapshotField, ","), q.getTableName(), q.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (q *AccountBalanceQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
-		q.TableName, fromHeight, toHeight)
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
+		q.getTableName(), fromHeight, toHeight)
 }

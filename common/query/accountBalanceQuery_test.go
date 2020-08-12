@@ -286,8 +286,8 @@ func TestAccountBalanceQuery_SelectDataForSnapshot(t *testing.T) {
 		q := mockAccountBalanceQuery.SelectDataForSnapshot(0, 10)
 		wantQ := "SELECT account_address,block_height,balance,balance,pop_revenue," +
 			"latest FROM account_balance WHERE (account_address, block_height) IN (SELECT t2.account_address, " +
-			"MAX(t2.block_height) FROM account_balance as t2 WHERE t2.block_height >= 0 AND t2.block_height <= 10 GROUP BY t2." +
-			"account_address) ORDER BY block_height"
+			"MAX(t2.block_height) FROM account_balance as t2 WHERE t2.block_height >= 0 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+			"GROUP BY t2.account_address) ORDER BY block_height"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -297,9 +297,69 @@ func TestAccountBalanceQuery_SelectDataForSnapshot(t *testing.T) {
 func TestAccountBalanceQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	t.Run("TrimDataBeforeSnapshot", func(t *testing.T) {
 		q := mockAccountBalanceQuery.TrimDataBeforeSnapshot(0, 10)
-		wantQ := "DELETE FROM account_balance WHERE block_height >= 0 AND block_height <= 10"
+		wantQ := "DELETE FROM account_balance WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
 	})
+}
+
+func TestAccountBalanceQuery_InsertAccountBalances(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		accountBalances []*model.AccountBalance
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewAccountBalanceQuery()),
+			args: args{
+				accountBalances: []*model.AccountBalance{
+					{
+						AccountAddress:   "BCZ",
+						BlockHeight:      0,
+						SpendableBalance: 0,
+						Balance:          0,
+						PopRevenue:       0,
+						Latest:           true,
+					},
+				},
+			},
+			wantStr: "INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) " +
+				"VALUES (?, ?, ?, ?, ?, ?)",
+			wantArgs: []interface{}{
+				"BCZ",
+				uint32(0),
+				int64(0),
+				int64(0),
+				int64(0),
+				true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := &AccountBalanceQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := q.InsertAccountBalances(tt.args.accountBalances)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertAccountBalances() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertAccountBalances() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
 }

@@ -421,8 +421,7 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 			want: "SELECT id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,latest," +
 				"instruction FROM escrow_transaction WHERE (id, block_height) IN (SELECT t2.id, " +
 				"MAX(t2.block_height) FROM escrow_transaction as t2 WHERE t2." +
-				"block_height >= 0 AND t2.block_height <= 1 GROUP BY t2.id) ORDER BY" +
-				" block_height",
+				"block_height >= 0 AND t2.block_height <= 1 AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -522,7 +521,7 @@ func TestEscrowTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -561,4 +560,50 @@ func TestEscrowTransactionQuery_GetExpiredEscrowTransactionsAtCurrentBlock(t *te
 			t.Errorf("expect: %s\ngot: %v", expect, qry)
 		}
 	})
+}
+
+func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		escrows []*model.Escrow
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewEscrowTransactionQuery()),
+			args: args{
+				escrows: []*model.Escrow{
+					mockEscrow,
+				},
+			},
+			wantStr: "INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission," +
+				"timeout,status,block_height,latest,instruction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+			wantArgs: NewEscrowTransactionQuery().ExtractModel(mockEscrow),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := &EscrowTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := et.InsertEscrowTransactions(tt.args.escrows)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertEscrowTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
 }

@@ -36,7 +36,11 @@ type (
 )
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SendMoney) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *SendMoney) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	return false, nil
 }
 
@@ -213,7 +217,7 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"balance not enough",
+				"UserBalanceNotEnough",
 			)
 		}
 	}
@@ -347,7 +351,7 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"balance not enough",
+				"UserBalanceNotEnough",
 			)
 		}
 	}
@@ -495,9 +499,52 @@ func (tx *SendMoney) EscrowApproval(
 		})
 		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
 		queries = append(queries, approverAccountLedgerArgs)
-	default:
+	case model.EscrowApproval_Reject:
 		tx.Escrow.Status = model.EscrowStatus_Rejected
 		// Give back sender balance
+		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetAmount(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetSenderAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, senderBalanceQ...)
+
+		// sender ledger
+		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetSenderAddress(),
+			BalanceChange:  tx.Escrow.GetAmount(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
+
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
+		// approver ledger
+		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetApproverAddress(),
+			BalanceChange:  tx.Escrow.GetCommission(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		queries = append(queries, append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...))
+
+	default:
+		tx.Escrow.Status = model.EscrowStatus_Expired
+		// sender balance
 		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
 			tx.Escrow.GetCommission()+tx.Escrow.GetAmount(),
 			map[string]interface{}{
@@ -506,6 +553,17 @@ func (tx *SendMoney) EscrowApproval(
 			},
 		)
 		queries = append(queries, senderBalanceQ...)
+
+		// sender ledger
+		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetSenderAddress(),
+			BalanceChange:  tx.Escrow.GetCommission() + tx.Escrow.GetAmount(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
 	}
 
 	// Insert Escrow
@@ -514,7 +572,6 @@ func (tx *SendMoney) EscrowApproval(
 	err = tx.QueryExecutor.ExecuteTransactions(queries)
 
 	if err != nil {
-		fmt.Printf("EscrowApproval: %v", err)
 		return err
 	}
 	return nil

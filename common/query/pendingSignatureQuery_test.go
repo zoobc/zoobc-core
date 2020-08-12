@@ -498,8 +498,8 @@ func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT transaction_hash,account_address,signature,block_height,latest FROM pending_signature WHERE (account_address, " +
 				"transaction_hash, block_height) IN (SELECT t2.account_address, t2.transaction_hash, " +
-				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
-				"account_address, t2.transaction_hash) ORDER BY block_height",
+				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+				"GROUP BY t2.account_address, t2.transaction_hash) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -540,7 +540,7 @@ func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -551,6 +551,50 @@ func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
 			}
 			if got := psq.TrimDataBeforeSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("PendingSignatureQuery.TrimDataBeforeSnapshot() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPendingSignatureQuery_InsertPendingSignatures(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		pendingSigs []*model.PendingSignature
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewPendingSignatureQuery()),
+			args: args{
+				pendingSigs: []*model.PendingSignature{
+					mockInsertPendingSignaturePendingSig,
+				},
+			},
+			wantStr:  "INSERT INTO pending_signature (transaction_hash, account_address, signature, block_height, latest) VALUES (?, ?, ?, ?, ?)",
+			wantArgs: NewPendingSignatureQuery().ExtractModel(mockInsertPendingSignaturePendingSig),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psq := &PendingSignatureQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := psq.InsertPendingSignatures(tt.args.pendingSigs)
+			if gotStr != tt.wantStr {
+				t.Errorf("InsertPendingSignatures() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("InsertPendingSignatures() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

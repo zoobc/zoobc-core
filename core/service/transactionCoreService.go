@@ -20,18 +20,20 @@ type (
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
-		ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error
+		ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error
 		ExpiringPendingTransactions(blockHeight uint32, useTX bool) error
+		CompletePassedLiquidPayment(block *model.Block) error
 	}
 
 	TransactionCoreService struct {
-		Log                     *logrus.Logger
-		QueryExecutor           query.ExecutorInterface
-		TypeActionSwitcher      transaction.TypeActionSwitcher
-		TransactionUtil         transaction.UtilInterface
-		TransactionQuery        query.TransactionQueryInterface
-		EscrowTransactionQuery  query.EscrowTransactionQueryInterface
-		PendingTransactionQuery query.PendingTransactionQueryInterface
+		Log                           *logrus.Logger
+		QueryExecutor                 query.ExecutorInterface
+		TypeActionSwitcher            transaction.TypeActionSwitcher
+		TransactionUtil               transaction.UtilInterface
+		TransactionQuery              query.TransactionQueryInterface
+		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
+		PendingTransactionQuery       query.PendingTransactionQueryInterface
+		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 	}
 )
 
@@ -43,15 +45,17 @@ func NewTransactionCoreService(
 	transactionQuery query.TransactionQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
+	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
 ) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
-		Log:                     log,
-		QueryExecutor:           queryExecutor,
-		TypeActionSwitcher:      typeActionSwitcher,
-		TransactionUtil:         transactionUtil,
-		TransactionQuery:        transactionQuery,
-		EscrowTransactionQuery:  escrowTransactionQuery,
-		PendingTransactionQuery: pendingTransactionQuery,
+		Log:                           log,
+		QueryExecutor:                 queryExecutor,
+		TypeActionSwitcher:            typeActionSwitcher,
+		TransactionUtil:               transactionUtil,
+		TransactionQuery:              transactionQuery,
+		EscrowTransactionQuery:        escrowTransactionQuery,
+		PendingTransactionQuery:       pendingTransactionQuery,
+		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
 	}
 }
 
@@ -163,7 +167,7 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 // ExpiringEscrowTransactions push an observer event that is ExpiringEscrowTransactions,
 // will set status to be expired caused by current block height
 // query lock from outside (PushBlock)
-func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, useTX bool) error {
+func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error {
 	var (
 		escrows []*model.Escrow
 		rows    *sql.Rows
@@ -196,18 +200,38 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 			}
 		}
 		for _, escrow := range escrows {
+			var (
+				refTransaction model.Transaction
+				typeAction     transaction.TypeAction
+				row            *sql.Row
+			)
 			/**
 			SET Escrow
-			1. block height = current block height
 			2. status = expired
 			*/
-			nEscrow := escrow
-			nEscrow.BlockHeight = blockHeight
-			nEscrow.Status = model.EscrowStatus_Expired
-			q := tg.EscrowTransactionQuery.InsertEscrowTransaction(escrow)
-			err = tg.QueryExecutor.ExecuteTransactions(q)
+			row, err = tg.QueryExecutor.ExecuteSelectRow(tg.TransactionQuery.GetTransaction(escrow.GetID()), useTX)
 			if err != nil {
 				break
+			}
+			err = tg.TransactionQuery.Scan(&refTransaction, row)
+			if err != nil {
+				break
+			}
+
+			refTransaction.Height = blockHeight
+			refTransaction.Escrow = escrow
+			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(&refTransaction)
+			if err != nil {
+				break
+			}
+			if escrowTypAction, ok := typeAction.Escrowable(); ok {
+				err = escrowTypAction.EscrowApproval(blockTimestamp, &model.ApprovalEscrowTransactionBody{
+					Approval:      model.EscrowApproval_Expire,
+					TransactionID: escrow.GetID(),
+				})
+				if err != nil {
+					break
+				}
 			}
 		}
 
@@ -321,6 +345,61 @@ func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32
 		}
 		return err
 	}
+	return nil
+}
+
+func (tg *TransactionCoreService) CompletePassedLiquidPayment(block *model.Block) error {
+	var (
+		rows           *sql.Rows
+		row            *sql.Row
+		err            error
+		liquidPayments []*model.LiquidPayment
+		tx             model.Transaction
+		txType         transaction.TypeAction
+	)
+	liquidPayments, err = func() ([]*model.LiquidPayment, error) {
+		liquidPaymentQ, liquidPaymentArgs := tg.LiquidPaymentTransactionQuery.GetPassedTimePendingLiquidPaymentTransactions(block.GetTimestamp())
+		rows, err = tg.QueryExecutor.ExecuteSelect(liquidPaymentQ, true, liquidPaymentArgs...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return tg.LiquidPaymentTransactionQuery.BuildModels(rows)
+	}()
+	if err != nil {
+		return err
+	}
+
+	for _, payment := range liquidPayments {
+		// get what transaction type it is, and switch to specific approval
+		transactionQ := tg.TransactionQuery.GetTransaction(payment.ID)
+		row, err = tg.QueryExecutor.ExecuteSelectRow(transactionQ, false)
+		if err != nil {
+			return err
+		}
+		err = tg.TransactionQuery.Scan(&tx, row)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return err
+			}
+			return blocker.NewBlocker(blocker.AppErr, "TransactionNotFound")
+
+		}
+
+		txType, err = tg.TypeActionSwitcher.GetTransactionType(&tx)
+		if err != nil {
+			return err
+		}
+		liquidPaymentTransaction, ok := txType.(transaction.LiquidPaymentTransactionInterface)
+		if !ok {
+			return blocker.NewBlocker(blocker.AppErr, "Wrong type of transaction")
+		}
+		err = liquidPaymentTransaction.CompletePayment(block.GetHeight(), block.GetTimestamp(), payment.AppliedTime)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 

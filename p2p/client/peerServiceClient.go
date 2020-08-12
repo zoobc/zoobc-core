@@ -2,9 +2,15 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sync"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/util"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -23,6 +29,9 @@ import (
 type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
+		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
+		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
+		GetNodeProofOfOrigin(destPeer *model.Peer) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
 		SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error)
@@ -55,24 +64,23 @@ type (
 		// connection managements
 		DeleteConnection(destPeer *model.Peer) error
 		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
-		RequestDownloadFile(
-			destPeer *model.Peer,
-			fileChunkNames []string,
-		) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(destPeer *model.Peer, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
-		Dialer              Dialer
-		Logger              *log.Logger
-		QueryExecutor       query.ExecutorInterface
-		NodeReceiptQuery    query.NodeReceiptQueryInterface
-		BatchReceiptQuery   query.BatchReceiptQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ReceiptService      coreService.ReceiptServiceInterface
-		NodePublicKey       []byte
-		Host                *model.Host
-		PeerConnections     map[string]*grpc.ClientConn
-		PeerConnectionsLock sync.RWMutex
+		Dialer                   Dialer
+		Logger                   *log.Logger
+		QueryExecutor            query.ExecutorInterface
+		NodeReceiptQuery         query.NodeReceiptQueryInterface
+		BatchReceiptQuery        query.BatchReceiptQueryInterface
+		MerkleTreeQuery          query.MerkleTreeQueryInterface
+		ReceiptService           coreService.ReceiptServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		NodePublicKey            []byte
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		PeerConnections          map[string]*grpc.ClientConn
+		PeerConnectionsLock      sync.RWMutex
+		NodeAuthValidation       auth.NodeAuthValidationInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -83,10 +91,12 @@ func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	nodePublicKey []byte,
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
-	host *model.Host,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAuthValidation auth.NodeAuthValidationInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log
@@ -109,15 +119,17 @@ func NewPeerServiceClient(
 			}
 			return conn, nil
 		},
-		QueryExecutor:     queryExecutor,
-		NodeReceiptQuery:  nodeReceiptQuery,
-		BatchReceiptQuery: batchReceiptQuery,
-		MerkleTreeQuery:   merkleTreeQuery,
-		ReceiptService:    receiptService,
-		NodePublicKey:     nodePublicKey,
-		Logger:            logger,
-		Host:              host,
-		PeerConnections:   make(map[string]*grpc.ClientConn),
+		QueryExecutor:            queryExecutor,
+		NodeReceiptQuery:         nodeReceiptQuery,
+		BatchReceiptQuery:        batchReceiptQuery,
+		MerkleTreeQuery:          merkleTreeQuery,
+		ReceiptService:           receiptService,
+		NodeRegistrationService:  nodeRegistrationService,
+		NodePublicKey:            nodePublicKey,
+		Logger:                   logger,
+		NodeConfigurationService: nodeConfigurationService,
+		PeerConnections:          make(map[string]*grpc.ClientConn),
+		NodeAuthValidation:       nodeAuthValidation,
 	}
 }
 
@@ -171,7 +183,11 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 // setDefaultMetadata use to set default metadata.
 // It will use in validation request
 func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
-	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.Host.GetInfo())}
+	return map[string]string{
+		p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo()),
+		"version":                         psc.NodeConfigurationService.GetHost().GetInfo().GetVersion(),
+		"codename":                        psc.NodeConfigurationService.GetHost().GetInfo().GetCodeName(),
+	}
 }
 
 // getDefaultContext use to get default context with deadline & default metadata
@@ -185,6 +201,52 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 		ctxWithDeadline, cancelFunc = context.WithDeadline(context.Background(), clientDeadline)
 	)
 	return metadata.NewOutgoingContext(ctxWithDeadline, header), cancelFunc
+}
+
+// GetNodeAddressesInfo to get a list of node addresses from a peer
+func (psc *PeerServiceClient) GetNodeAddressesInfo(
+	destPeer *model.Peer,
+	nodeRegistrations []*model.NodeRegistration,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+
+	// add a copy to avoid pointer delete
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
+		nodeIDs        []int64
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	for _, nr := range nodeRegistrations {
+		nodeIDs = append(nodeIDs, nr.NodeID)
+	}
+
+	// context still not use ctx := cs.buildContext()
+	res, err := p2pClient.GetNodeAddressesInfo(
+		ctx,
+		&model.GetNodeAddressesInfoRequest{
+			NodeIDs: nodeIDs,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if res.NodeAddressesInfo == nil {
+		return nil, blocker.NewBlocker(blocker.P2PPeerError, fmt.Sprintf(
+			"GetNodeAddressesInfo client: peer %s:%d returned an empty node address list",
+			destPeer.GetInfo().Address, destPeer.GetInfo().Port))
+	}
+	monitoring.IncrementGetAddressInfoTableFromPeer()
+
+	return res, err
 }
 
 // GetPeerInfo to get Peer info
@@ -208,9 +270,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetPeerInfo(
 		ctx,
-		&model.GetPeerInfoRequest{
-			Version: "v1,.0.1",
-		},
+		&model.GetPeerInfoRequest{},
 	)
 	if err != nil {
 		return nil, err
@@ -240,6 +300,85 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	if err != nil {
 		return nil, err
 	}
+	return res, err
+}
+
+// GetNodeProofOfOrigin get a cryptographic prove of a node authenticity and origin
+func (psc *PeerServiceClient) GetNodeProofOfOrigin(
+	destPeer *model.Peer,
+) (*model.ProofOfOrigin, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+
+	if destPeer.Info.GetID() == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
+			"Cannot get proof of origin from an unregistered node: %s:%d",
+			destPeer.GetInfo().Address, destPeer.GetInfo().Port))
+	}
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+
+	// generate the otp
+	challenge, err := util.GenerateRandomBytes(64)
+	if err != nil {
+		return nil, err
+	}
+
+	// send the challenge
+	res, err := p2pClient.GetNodeProofOfOrigin(ctx, &model.GetNodeProofOfOriginRequest{
+		ChallengeMessage: challenge,
+		Timestamp:        time.Now().Unix() + constant.ProofOfOriginExpirationOffset,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// validate response: message signature = challenge+timestamp
+	nr, err := psc.NodeRegistrationService.GetNodeRegistrationByNodeID(destPeer.Info.GetID())
+	if err != nil {
+		return nil, err
+	}
+	err = psc.NodeAuthValidation.ValidateProofOfOrigin(res, nr.GetNodePublicKey(), challenge)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+// SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
+func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+
+	connection, err := psc.GetConnection(destPeer)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		p2pClient      = service.NewP2PCommunicationClient(connection)
+		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
+	)
+	defer func() {
+		cancelReq()
+	}()
+	res, err := p2pClient.SendNodeAddressInfo(ctx, &model.SendNodeAddressInfoRequest{
+		NodeAddressInfoMessage: nodeAddressInfo,
+	})
+	if err != nil {
+		return nil, err
+	}
+	monitoring.IncrementSendAddressInfoToPeer()
 	return res, err
 }
 
@@ -422,6 +561,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 
 func (psc *PeerServiceClient) RequestDownloadFile(
 	destPeer *model.Peer,
+	snapshotHash []byte,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
@@ -439,6 +579,7 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 		cancelReq()
 	}()
 	res, err := p2pClient.RequestFileDownload(ctx, &model.FileDownloadRequest{
+		SnapshotHash:   snapshotHash,
 		FileChunkNames: fileChunkNames,
 	})
 	if err != nil {

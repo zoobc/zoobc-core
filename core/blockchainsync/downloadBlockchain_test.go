@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -325,8 +326,13 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
+		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
+		nil,
+		nil,
+		nil,
+		nil,
 		nil,
 		nil,
 		nil,

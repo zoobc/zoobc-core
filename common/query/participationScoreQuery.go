@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -11,6 +12,7 @@ import (
 type (
 	ParticipationScoreQueryInterface interface {
 		InsertParticipationScore(participationScore *model.ParticipationScore) (str string, args []interface{})
+		InsertParticipationScores(scores []*model.ParticipationScore) (str string, args []interface{})
 		UpdateParticipationScore(
 			nodeID, score int64,
 			blockHeight uint32,
@@ -52,6 +54,65 @@ func (ps *ParticipationScoreQuery) InsertParticipationScore(participationScore *
 		strings.Join(ps.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(ps.Fields)-1)),
 	), ps.ExtractModel(participationScore)
+}
+
+// InsertParticipationScores represents query builder to insert multiple record in single query
+func (ps *ParticipationScoreQuery) InsertParticipationScores(scores []*model.ParticipationScore) (str string, args []interface{}) {
+	if len(scores) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			ps.getTableName(),
+			strings.Join(ps.Fields, ", "),
+		)
+		for k, score := range scores {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(ps.Fields)-1),
+			)
+			if k < len(scores)-1 {
+				str += ","
+			}
+			args = append(args, ps.ExtractModel(score)...)
+		}
+	}
+	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (ps *ParticipationScoreQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	participationScores, ok := payload.([]*model.ParticipationScore)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+ps.TableName)
+	}
+	if len(participationScores) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(ps.Fields), len(participationScores))
+		for i := 0; i < rounds; i++ {
+			qry, args := ps.InsertParticipationScores(participationScores[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := ps.InsertParticipationScores(participationScores[len(participationScores)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (ps *ParticipationScoreQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (node_id, height) NOT IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (node_id, height) IN "+
+				"(select t2.node_id, max(t2.height) from %s t2 group by t2.node_id)",
+			ps.getTableName(), ps.getTableName()),
+	}
 }
 
 func (ps *ParticipationScoreQuery) UpdateParticipationScore(
@@ -204,13 +265,19 @@ func (*ParticipationScoreQuery) Scan(ps *model.ParticipationScore, row *sql.Row)
 }
 
 func (ps *ParticipationScoreQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX("+
-		"t2.height) FROM %s as t2 WHERE t2.height >= %d AND t2.height <= %d GROUP BY t2.node_id ) ORDER by height",
-		strings.Join(ps.Fields, ","), ps.getTableName(), ps.getTableName(), fromHeight, toHeight)
+	return fmt.Sprintf(""+
+		"SELECT %s FROM %s WHERE (node_id, height) IN (SELECT t2.node_id, MAX(t2.height) FROM %s as t2 "+
+		"WHERE t2.height >= %d AND t2.height <= %d AND t2.height != 0 GROUP BY t2.node_id ) ORDER by height",
+		strings.Join(ps.Fields, ","),
+		ps.getTableName(),
+		ps.getTableName(),
+		fromHeight,
+		toHeight,
+	)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (ps *ParticipationScoreQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		ps.TableName, fromHeight, toHeight)
 }
