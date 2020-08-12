@@ -17,9 +17,9 @@ type (
 )
 
 // NewBlockStateStorage returns BlockStateStorage instance
-func NewBlockStateStorage(lastBlock model.Block) *BlockStateStorage {
+func NewBlockStateStorage() *BlockStateStorage {
 	return &BlockStateStorage{
-		lastBlock: lastBlock,
+		lastBlock: model.Block{},
 	}
 }
 

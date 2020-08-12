@@ -235,6 +235,8 @@ func init() {
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize services
+	mainBlockStateStorage = storage.NewBlockStateStorage()
+	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -650,9 +652,11 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
-	mainBlockStateStorage = storage.NewBlockStateStorage(*lastBlockAtStart)
+	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
 	// TODO: Check computer/node local time. Comparing with last block timestamp
-
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
 	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
@@ -776,7 +780,10 @@ func startSpinechain() {
 		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
-
+	err = spineBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
