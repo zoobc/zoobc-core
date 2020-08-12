@@ -89,6 +89,8 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -169,6 +171,10 @@ func startGrpcServer(
 			query.NewAccountDatasetsQuery(),
 			queryExecutor,
 		),
+	})
+	// Set GRPC handler for published receipt
+	rpcService.RegisterPublishedReceiptServiceServer(grpcServer, &handler.PublishedReceiptHandler{
+		Service: service.NewPublishedReceiptService(publishedReceiptUtil),
 	})
 	go func() {
 		// serve rpc
