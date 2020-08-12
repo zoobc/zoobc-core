@@ -3,6 +3,7 @@ package helper
 import (
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -25,8 +26,14 @@ func ParseBytesArgument(argsBytesString, separated string) ([]byte, error) {
 
 func GetAbsDBPath() string {
 	wd, _ := os.Getwd()
-	if strings.Contains(wd, "zoobc-core/") {
-		return path.Join(wd, "../")
+	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
+	if strings.Contains(dir, "exe") {
+		// running via build
+		if strings.Contains(wd, "zoobc-core/") {
+			return path.Join(wd, "../")
+		}
+		return wd
 	}
+	// running as binary
 	return wd
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/cmd/noderegistry"
+	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -158,7 +158,7 @@ func GenerateProofOfOwnership(
 		}
 		return pow
 	}
-	return noderegistry.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
+	return admin.GetProofOfOwnerShip(dbPath, dbname, nodeOwnerAccountAddress, nodeSeed)
 }
 
 /*
