@@ -128,7 +128,7 @@ func (sn *SetupNode) portAvailability(portType model.PortType, port int) (availa
 	}
 	for i := 0; i <= model.PortChangePeriod; i++ {
 		if i == model.PortChangePeriod {
-			return port, fmt.Errorf("too long, pick another port for %v manually!", portType)
+			return port, fmt.Errorf("too long, pick another port for %v manually", portType)
 		}
 		ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 		if err != nil {
