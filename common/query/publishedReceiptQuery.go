@@ -13,6 +13,9 @@ type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
+		GetPublishedReceiptByBlockHeightRange(
+			fromBlockHeight, toBlockHeight uint32,
+		) (str string, args []interface{})
 		InsertPublishedReceipt(publishedReceipt *model.PublishedReceipt) (str string, args []interface{})
 		InsertPublishedReceipts(receipts []*model.PublishedReceipt) (str string, args []interface{})
 		Scan(publishedReceipt *model.PublishedReceipt, row *sql.Row) error
@@ -123,6 +126,16 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight u
 		strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
 		blockHeight,
+	}
+}
+
+func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeightRange(
+	fromBlockHeight, toBlockHeight uint32,
+) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height BETWEEN ? AND ? ORDER BY block_height, published_index ASC",
+		strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		fromBlockHeight, toBlockHeight,
 	}
 }
 

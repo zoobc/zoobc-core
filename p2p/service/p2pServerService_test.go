@@ -21,6 +21,8 @@ var (
 		SharedAddress: "127.0.0.1",
 		Address:       "127.0.0.1",
 		Port:          8001,
+		Version:       "1.0.0",
+		CodeName:      "ZBC_main",
 	}
 	mockPeers = map[string]*model.Peer{
 		"127.0.0.1:3000": {
@@ -72,6 +74,10 @@ type (
 	mockBlockServiceGetLastBlockFailed struct {
 		coreService.BlockService
 	}
+
+	mockNodeConfigurationService struct {
+		coreService.NodeConfigurationServiceInterface
+	}
 )
 
 func (mockNais *p2pSrvMockNodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
@@ -107,12 +113,22 @@ func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) ValidateRequest(ctx con
 func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	return errors.New("mock Error")
 }
+func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) GetHostInfo() *model.Node {
+	return &model.Node{
+		Version:  "1.0.0",
+		CodeName: "ZBC_main",
+	}
+}
 
 func (*mockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
 func (*mockBlockServiceGetLastBlockFailed) GetLastBlock() (*model.Block, error) {
 	return nil, errors.New("mock Error")
+}
+
+func (*mockNodeConfigurationService) GetHost() *model.Host {
+	return &model.Host{Info: &mockNode}
 }
 
 func TestNewP2PServerService(t *testing.T) {
@@ -1775,7 +1791,7 @@ var (
 	mockRequestDownloadFileName = "mockName"
 )
 
-func (*mockRequestDownloadFileFileServiceReadFileByNameFail) ReadFileByName(filePath, fileName string) ([]byte, error) {
+func (*mockRequestDownloadFileFileServiceReadFileByNameFail) ReadFileFromDir(dir, fileName string) ([]byte, error) {
 	return nil, errors.New("mock Error")
 }
 
@@ -1783,7 +1799,7 @@ func (*mockRequestDownloadFileFileServiceReadFileByNameFail) GetDownloadPath() s
 	return mockRequestDownloadFilePath
 }
 
-func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) ReadFileByName(filePath, fileName string) ([]byte, error) {
+func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) ReadFileFromDir(dir, fileName string) ([]byte, error) {
 	return []byte{1}, nil
 }
 func (*mockRequestDownloadFileFileServiceReadFileByNameSuccess) GetDownloadPath() string {
@@ -1860,7 +1876,7 @@ func TestP2PServerService_RequestDownloadFile(t *testing.T) {
 				NodeSecretPhrase: tt.fields.NodeSecretPhrase,
 				Observer:         tt.fields.Observer,
 			}
-			got, err := ps.RequestDownloadFile(tt.args.ctx, tt.args.fileChunkNames)
+			got, err := ps.RequestDownloadFile(tt.args.ctx, nil, tt.args.fileChunkNames)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("P2PServerService.RequestDownloadFile() error = %v, wantErr %v", err, tt.wantErr)
 				return

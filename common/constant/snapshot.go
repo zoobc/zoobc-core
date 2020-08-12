@@ -13,4 +13,8 @@ const (
 	SnapshotChunkSize int = int(100 * 1024) // 10 KB
 	// DownloadSnapshotNumberOfRetries number of times to retry downloading failed snapshot file chunks from other peers
 	DownloadSnapshotNumberOfRetries = uint32(MaxResolvedPeers)
+
+	ShardBitLength                              = 8
+	SnapshotSchedulerUnmaintainedChunksPeriod   = 3 * time.Hour // TODO: snapshotV2 will update on production
+	SnapshotSchedulerUnmaintainedChunksAtHeight = 3 * MainchainSnapshotInterval
 )

@@ -3,13 +3,14 @@ package client
 import (
 	"context"
 	"fmt"
+	"math"
+	"sync"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/util"
-	"math"
-	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -63,10 +64,7 @@ type (
 		// connection managements
 		DeleteConnection(destPeer *model.Peer) error
 		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
-		RequestDownloadFile(
-			destPeer *model.Peer,
-			fileChunkNames []string,
-		) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(destPeer *model.Peer, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
@@ -185,7 +183,11 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 // setDefaultMetadata use to set default metadata.
 // It will use in validation request
 func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
-	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo())}
+	return map[string]string{
+		p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo()),
+		"version":                         psc.NodeConfigurationService.GetHost().GetInfo().GetVersion(),
+		"codename":                        psc.NodeConfigurationService.GetHost().GetInfo().GetCodeName(),
+	}
 }
 
 // getDefaultContext use to get default context with deadline & default metadata
@@ -268,9 +270,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetPeerInfo(
 		ctx,
-		&model.GetPeerInfoRequest{
-			Version: "v1,.0.1",
-		},
+		&model.GetPeerInfoRequest{},
 	)
 	if err != nil {
 		return nil, err
@@ -561,6 +561,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 
 func (psc *PeerServiceClient) RequestDownloadFile(
 	destPeer *model.Peer,
+	snapshotHash []byte,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
@@ -578,6 +579,7 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 		cancelReq()
 	}()
 	res, err := p2pClient.RequestFileDownload(ctx, &model.FileDownloadRequest{
+		SnapshotHash:   snapshotHash,
 		FileChunkNames: fileChunkNames,
 	})
 	if err != nil {

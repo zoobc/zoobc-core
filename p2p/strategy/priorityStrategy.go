@@ -78,6 +78,8 @@ func NewPriorityStrategy(
 
 // Start method to start threads which mean goroutines for PriorityStrategy
 func (ps *PriorityStrategy) Start() {
+	monitoring.SetUnresolvedPeersCount(len(ps.NodeConfigurationService.GetHost().UnresolvedPeers))
+
 	// start p2p process threads
 	go ps.ResolvePeersThread()
 	go ps.GetMorePeersThread()
@@ -297,8 +299,16 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 		// Check have default context
 		if len(md.Get(p2pUtil.DefaultConnectionMetadata)) != 0 {
 			var (
-				host = ps.NodeConfigurationService.GetHost()
+				host     = ps.NodeConfigurationService.GetHost()
+				version  = md.Get("version")[0]
+				codename = md.Get("codename")[0]
 			)
+
+			// validate peer compatibility
+			if err := p2pUtil.CheckPeerCompatibility(host.GetInfo(), &model.Node{Version: version, CodeName: codename}); err != nil {
+				return false
+			}
+
 			// get scramble node
 			// NOTE: calling this query is highly possibility issued error `db is locked`. Need optimize
 			lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
@@ -484,6 +494,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 		errPoorig, errNodeAddressInfo, errGetPeerInfo error
 		pendingAddressesInfo, confirmedAddressesInfo  []*model.NodeAddressInfo
 		poorig                                        *model.ProofOfOrigin
+		peerInfoResult                                *model.GetPeerInfoResponse
 		destPeerInfo                                  = destPeer.GetInfo()
 		peerNodeID                                    = destPeerInfo.GetID()
 	)
@@ -552,7 +563,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	}
 
 	if poorig == nil && errPoorig == nil {
-		_, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
+		peerInfoResult, errGetPeerInfo = ps.PeerServiceClient.GetPeerInfo(destPeer)
 	}
 
 	if errPoorig != nil || errGetPeerInfo != nil {
@@ -573,6 +584,8 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 	}
 	if destPeer != nil {
 		destPeer.ResolvingTime = time.Now().UTC().Unix()
+		destPeer.Info.Version = peerInfoResult.GetHostInfo().GetVersion()
+		destPeer.Info.CodeName = peerInfoResult.GetHostInfo().GetCodeName()
 	}
 	if err := ps.RemoveUnresolvedPeer(destPeer); err != nil {
 		ps.Logger.Error(err.Error())
@@ -1000,8 +1013,21 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 		return errors.New("AddToUnresolvedPeer Err, peer is nil")
 	}
 	var (
-		host = ps.NodeConfigurationService.GetHost()
+		host             = ps.NodeConfigurationService.GetHost()
+		resolvedPeers    = ps.GetResolvedPeers()
+		blacklistedPeers = ps.GetBlacklistedPeers()
+		peerAddress      = p2pUtil.GetFullAddressPeer(peer)
+		hostAddressInfo  = &model.Peer{
+			Info: host.Info,
+		}
+		hostAddress = p2pUtil.GetFullAddressPeer(hostAddressInfo)
 	)
+	_, isInResolvedPeers := resolvedPeers[peerAddress]
+	_, isInBlacklistedPeers := blacklistedPeers[peerAddress]
+	if peerAddress == hostAddress || isInResolvedPeers || isInBlacklistedPeers {
+		return nil
+	}
+
 	ps.UnresolvedPeersLock.Lock()
 	defer func() {
 		ps.UnresolvedPeersLock.Unlock()

@@ -11,7 +11,7 @@ import (
 type (
 	SpinePublicKeyQueryInterface interface {
 		InsertSpinePublicKey(spinePublicKey *model.SpinePublicKey) [][]interface{}
-		GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth uint32) string
+		GetValidSpinePublicKeysByHeightInterval(fromHeight, toHeight uint32) string
 		GetSpinePublicKeysByBlockHeight(height uint32) string
 		ExtractModel(spk *model.SpinePublicKey) []interface{}
 		BuildModel(spinePublicKeys []*model.SpinePublicKey, rows *sql.Rows) ([]*model.SpinePublicKey, error)
@@ -30,6 +30,7 @@ func NewSpinePublicKeyQuery() *SpinePublicKeyQuery {
 	return &SpinePublicKeyQuery{
 		Fields: []string{
 			"node_public_key",
+			"node_id",
 			"public_key_action",
 			"main_block_height",
 			"latest",
@@ -65,9 +66,9 @@ func (spkq *SpinePublicKeyQuery) InsertSpinePublicKey(spinePublicKey *model.Spin
 	return queries
 }
 
-func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeightInterval(fromHeigth, toHeigth uint32) string {
+func (spkq *SpinePublicKeyQuery) GetValidSpinePublicKeysByHeightInterval(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND public_key_action=%d AND latest=1 ORDER BY height",
-		strings.Join(spkq.Fields, ", "), spkq.getTableName(), fromHeigth, toHeigth, uint32(model.SpinePublicKeyAction_AddKey))
+		strings.Join(spkq.Fields, ", "), spkq.getTableName(), fromHeight, toHeight, uint32(model.SpinePublicKeyAction_AddKey))
 }
 
 // GetSpinePublicKeysByBlockHeight returns query string to get Spine public keys for a given block
@@ -81,6 +82,7 @@ func (spkq *SpinePublicKeyQuery) GetSpinePublicKeysByBlockHeight(height uint32) 
 func (spkq *SpinePublicKeyQuery) ExtractModel(spk *model.SpinePublicKey) []interface{} {
 	return []interface{}{
 		spk.NodePublicKey,
+		spk.NodeID,
 		spk.PublicKeyAction,
 		spk.MainBlockHeight,
 		spk.Latest,
@@ -101,6 +103,7 @@ func (spkq *SpinePublicKeyQuery) BuildModel(
 		)
 		err = rows.Scan(
 			&spk.NodePublicKey,
+			&spk.NodeID,
 			&spk.PublicKeyAction,
 			&spk.MainBlockHeight,
 			&spk.Latest,
@@ -127,6 +130,7 @@ func (spkq *SpinePublicKeyQuery) BuildBlocksmith(
 		)
 		err := rows.Scan(
 			&blocksmith.NodePublicKey,
+			&blocksmith.NodeID,
 			&blockID,
 			&nodeStatus,
 			&latest,
@@ -168,6 +172,7 @@ func (spkq *SpinePublicKeyQuery) Rollback(height uint32) (multiQueries [][]inter
 func (spkq *SpinePublicKeyQuery) Scan(spk *model.SpinePublicKey, row *sql.Row) error {
 	err := row.Scan(
 		&spk.NodePublicKey,
+		&spk.NodeID,
 		&spk.PublicKeyAction,
 		&spk.MainBlockHeight,
 		&spk.Latest,
