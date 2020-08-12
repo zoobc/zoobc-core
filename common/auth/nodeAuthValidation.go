@@ -8,31 +8,47 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"time"
 )
 
 type (
-	ProofOfOwnershipValidationInterface interface {
+	NodeAuthValidationInterface interface {
 		ValidateProofOfOwnership(
 			poown *model.ProofOfOwnership,
 			nodePublicKey []byte,
 			queryExecutor query.ExecutorInterface,
 			blockQuery query.BlockQueryInterface,
 		) error
+		ValidateProofOfOrigin(
+			poorig *model.ProofOfOrigin,
+			nodePublicKey,
+			challengeResponse []byte,
+		) error
 	}
 
 	// Signature object handle signing and verifying different signature
-	ProofOfOwnershipValidation struct {
+	NodeAuthValidation struct {
+		Signature crypto.SignatureInterface
 	}
 )
 
+func NewNodeAuthValidation(
+	signature crypto.SignatureInterface,
+) *NodeAuthValidation {
+	return &NodeAuthValidation{
+		Signature: signature,
+	}
+}
+
 // ValidateProofOfOwnership validates a proof of ownership message
-func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
+func (nav *NodeAuthValidation) ValidateProofOfOwnership(
 	poown *model.ProofOfOwnership,
 	nodePublicKey []byte,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 ) error {
 
+	// TODO: use composition instead, such as per ValidateProofOfOrigin
 	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
@@ -58,5 +74,30 @@ func (*ProofOfOwnershipValidation) ValidateProofOfOwnership(
 	if !bytes.Equal(poownBlockRef.BlockHash, message.BlockHash) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 	}
+	return nil
+}
+
+// ValidateProofOfOrigin validates a proof of origin message
+func (nav *NodeAuthValidation) ValidateProofOfOrigin(
+	poorig *model.ProofOfOrigin,
+	nodePublicKey,
+	challengeResponse []byte,
+) error {
+	if poorig.Timestamp < time.Now().Unix() {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOriginExpired")
+	}
+
+	if !bytes.Equal(challengeResponse, poorig.MessageBytes) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidChallengeResponse")
+	}
+
+	if !nav.Signature.VerifyNodeSignature(
+		util.GetProofOfOriginUnsignedBytes(poorig),
+		poorig.Signature,
+		nodePublicKey,
+	) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+	}
+
 	return nil
 }

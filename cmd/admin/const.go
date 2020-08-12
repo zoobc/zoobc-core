@@ -1,4 +1,4 @@
-package noderegistry
+package admin
 
 var (
 	// Proof Of Ownership

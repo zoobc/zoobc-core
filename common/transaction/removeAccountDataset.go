@@ -16,6 +16,7 @@ type RemoveAccountDataset struct {
 	ID                  int64
 	Fee                 int64
 	SenderAddress       string
+	RecipientAddress    string
 	Height              uint32
 	Body                *model.RemoveAccountDatasetTransactionBody
 	Escrow              *model.Escrow
@@ -27,7 +28,11 @@ type RemoveAccountDataset struct {
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *RemoveAccountDataset) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *RemoveAccountDataset) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	return false, nil
 }
 
@@ -51,8 +56,8 @@ func (tx *RemoveAccountDataset) ApplyConfirmed(blockTimestamp int64) error {
 
 	// Account dataset removed, need to set IsActive false
 	datasetQ := tx.AccountDatasetQuery.InsertAccountDataset(&model.AccountDataset{
-		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
-		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+		SetterAccountAddress:    tx.SenderAddress,
+		RecipientAccountAddress: tx.RecipientAddress,
 		Property:                tx.Body.GetProperty(),
 		Value:                   tx.Body.GetValue(),
 		Height:                  tx.Height,
@@ -137,22 +142,24 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		accountDataset model.AccountDataset
 		err            error
 		row            *sql.Row
+		qry            string
+		qryArgs        []interface{}
 	)
 
 	/*
 		Check existing dataset
 		Account Dataset can only delete when account dataset exist
 	*/
-	datasetQ, datasetArgs := tx.AccountDatasetQuery.GetLatestAccountDataset(
-		tx.Body.GetSetterAccountAddress(),
-		tx.Body.GetRecipientAccountAddress(),
+	qry, qryArgs = tx.AccountDatasetQuery.GetLatestAccountDataset(
+		tx.SenderAddress,
+		tx.RecipientAddress,
 		tx.Body.GetProperty(),
 	)
 
 	// NOTE: currently dbTx became true only when calling on push block,
 	// this is will make allow to execute all of same tx in mempool if all of them selected
 	// TODO: should be using skip mempool to check double same tx in mempool
-	row, err = tx.QueryExecutor.ExecuteSelectRow(datasetQ, false, datasetArgs...)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
 	if err != nil {
 		return err
 	}
@@ -170,8 +177,8 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	qry, qryArgs = tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, qryArgs...)
 	if err != nil {
 		return err
 	}
@@ -180,7 +187,10 @@ func (tx *RemoveAccountDataset) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	if accountBalance.GetSpendableBalance() < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "RemoveAccountDataset, user balance not enough")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
 	}
 	return nil
 }
@@ -190,6 +200,8 @@ func (tx *RemoveAccountDataset) GetAmount() int64 {
 	return tx.Fee
 }
 
+// GetMinimumFee return minimum fee of transaction
+// TODO: need to calculate the minimum fee
 func (*RemoveAccountDataset) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
@@ -201,62 +213,43 @@ func (tx *RemoveAccountDataset) GetSize() uint32 {
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *RemoveAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
-	// read body bytes
-	buffer := bytes.NewBuffer(txBodyBytes)
-	setterAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	var (
+		err          error
+		chunkedBytes []byte
+		dataLength   uint32
+		txBody       model.RemoveAccountDatasetTransactionBody
+		buffer       = bytes.NewBuffer(txBodyBytes)
+	)
+	// get length of property dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
 	if err != nil {
 		return nil, err
 	}
-	setterAccountAddressLength := util.ConvertBytesToUint32(setterAccountAddressLengthBytes)
-	setterAccountAddress, err := util.ReadTransactionBytes(buffer, int(setterAccountAddressLength))
+	dataLength = util.ConvertBytesToUint32(chunkedBytes)
+	// get property of dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(dataLength))
 	if err != nil {
 		return nil, err
 	}
-	recipientAccountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	txBody.Property = string(chunkedBytes)
+	// get length of value property dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
 	if err != nil {
 		return nil, err
 	}
-	recipientAccountAddressLength := util.ConvertBytesToUint32(recipientAccountAddressLengthBytes)
-	recipientAccountAddress, err := util.ReadTransactionBytes(buffer, int(recipientAccountAddressLength))
+	dataLength = util.ConvertBytesToUint32(chunkedBytes)
+	// get value property of dataset
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(dataLength))
 	if err != nil {
 		return nil, err
 	}
-	propertyLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetPropertyLength))
-	if err != nil {
-		return nil, err
-	}
-	propertyLength := util.ConvertBytesToUint32(propertyLengthBytes)
-	property, err := util.ReadTransactionBytes(buffer, int(propertyLength))
-	if err != nil {
-		return nil, err
-	}
-	valueLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.DatasetValueLength))
-	if err != nil {
-		return nil, err
-	}
-	valueLength := util.ConvertBytesToUint32(valueLengthBytes)
-	value, err := util.ReadTransactionBytes(buffer, int(valueLength))
-	if err != nil {
-		return nil, err
-	}
-	txBody := &model.RemoveAccountDatasetTransactionBody{
-		SetterAccountAddress:    string(setterAccountAddress),
-		RecipientAccountAddress: string(recipientAccountAddress),
-		Property:                string(property),
-		Value:                   string(value),
-	}
-	return txBody, nil
+	txBody.Value = string(chunkedBytes)
+	return &txBody, nil
 }
 
 // GetBodyBytes translate tx body to bytes representation
 func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetSetterAccountAddress())))))
-	buffer.Write([]byte(tx.Body.GetSetterAccountAddress()))
-
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetRecipientAccountAddress())))))
-	buffer.Write([]byte(tx.Body.GetRecipientAccountAddress()))
-
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))
 
@@ -266,6 +259,7 @@ func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
 	return buffer.Bytes()
 }
 
+// GetTransactionBody return transaction body of RemoveAccountDataset transactions
 func (tx *RemoveAccountDataset) GetTransactionBody(transaction *model.Transaction) {
 	transaction.TransactionBody = &model.Transaction_RemoveAccountDatasetTransactionBody{
 		RemoveAccountDatasetTransactionBody: tx.Body,

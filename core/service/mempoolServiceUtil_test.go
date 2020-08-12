@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -217,6 +220,24 @@ func (*mockExecutorValidateMempoolTransactionFail) ExecuteSelect(query string, t
 	return nil, errors.New("mockExecutorValidateMempoolTransactionFail : mocked Err")
 }
 
+type (
+	mockValidateMempoolTransactionScaleServiceSuccessCache struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockValidateMempoolTransactionScaleServiceSuccessCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(feeScale *model.FeeScale) error {
+	return nil
+}
+
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -253,13 +274,14 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					nil,
 					nil,
+					nil,
 				),
 			},
 			args: args{
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
@@ -279,7 +301,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
@@ -299,7 +321,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(
 					3,
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 					false,
 				),
@@ -326,12 +348,14 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolServiceUtil{
-				QueryExecutor:          tt.fields.QueryExecutor,
-				MempoolQuery:           tt.fields.MempoolQuery,
-				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
-				TransactionQuery:       tt.fields.TransactionQuery,
-				TransactionUtil:        &transaction.Util{},
+				QueryExecutor:       tt.fields.QueryExecutor,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				TransactionQuery:    tt.fields.TransactionQuery,
+				TransactionUtil: &transaction.Util{
+					FeeScaleService: &mockValidateMempoolTransactionScaleServiceSuccessCache{},
+				},
 				TransactionCoreService: tt.fields.TransactionCoreService,
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {

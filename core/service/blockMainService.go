@@ -11,14 +11,18 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/mohae/deepcopy"
-
 	badger "github.com/dgraph-io/badger/v2"
+	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -28,9 +32,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"golang.org/x/crypto/sha3"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type (
@@ -67,11 +68,13 @@ type (
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
 		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher
 		AccountBalanceQuery         query.AccountBalanceQueryInterface
 		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
 		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
 		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
 		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		BlockPoolService            BlockPoolServiceInterface
@@ -84,6 +87,8 @@ type (
 		CoinbaseService             CoinbaseServiceInterface
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
+		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
 
@@ -103,6 +108,7 @@ func NewBlockMainService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
@@ -117,6 +123,9 @@ func NewBlockMainService(
 	coinbaseService CoinbaseServiceInterface,
 	participationScoreService ParticipationScoreServiceInterface,
 	publishedReceiptService PublishedReceiptServiceInterface,
+	feeScaleService fee.FeeScaleServiceInterface,
+	pruneQuery []query.PruneQuery,
+	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -134,6 +143,7 @@ func NewBlockMainService(
 		AccountBalanceQuery:         accountBalanceQuery,
 		ParticipationScoreQuery:     participationScoreQuery,
 		NodeRegistrationQuery:       nodeRegistrationQuery,
+		FeeVoteRevealVoteQuery:      feeVoteRevealVoteQuery,
 		BlocksmithStrategy:          blocksmithStrategy,
 		Observer:                    obsr,
 		Logger:                      logger,
@@ -148,6 +158,9 @@ func NewBlockMainService(
 		CoinbaseService:             coinbaseService,
 		ParticipationScoreService:   participationScoreService,
 		PublishedReceiptService:     publishedReceiptService,
+		FeeScaleService:             feeScaleService,
+		PruneQuery:                  pruneQuery,
+		BlockchainStatusService:     blockchainStatusService,
 	}
 }
 
@@ -411,7 +424,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	/*
-		Expiring Process: expiring the the transactions that affected by current block height.
+		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
@@ -419,6 +432,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+
+	/*
+		Stopping liquid payment that already passes the time
+	*/
+	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
@@ -545,6 +566,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		totalReward := block.TotalFee + block.TotalCoinBase
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
 			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+			block.Timestamp,
+			previousBlock.Timestamp,
 		)
 		if err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -552,16 +575,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
-		if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
-			lotteryAccounts,
-			totalReward,
-			block.GetTimestamp(),
-			block.Height,
-		); err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
+		if totalReward > 0 {
+			if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
+				lotteryAccounts,
+				totalReward,
+				block.GetTimestamp(),
+				block.Height,
+			); err != nil {
+				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					bs.Logger.Error(rollbackErr.Error())
+				}
+				return err
 			}
-			return err
 		}
 	}
 	// admit nodes from registry at genesis and regular intervals
@@ -572,7 +597,25 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		return err
 	}
-	if block.Height == 0 || block.Height%bs.NodeRegistrationService.GetNodeAdmittanceCycle() == 0 {
+	lastNextNodeAdmissionTimestamp, err := bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp(block.Height)
+	if err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
+	if block.Timestamp >= lastNextNodeAdmissionTimestamp && block.Height != 0 {
+		// insert new next node admission timestamp
+		if err := bs.NodeRegistrationService.InsertNextNodeAdmissionTimestamp(
+			lastNextNodeAdmissionTimestamp,
+			block.Height,
+			true,
+		); err != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
 		if err := bs.admitNodes(block); err != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
@@ -630,10 +673,94 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		// block is in first place continue to persist block to database ignoring the `persist` flag
 	}
+
+	// if genesis
+	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		// insert initial fee scale
+		err := bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    constant.OneZBC, // initial fee_scale 1
+			BlockHeight: 0,
+			Latest:      true,
+		})
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("initFeeScale:rollback-error=%s", rollbackErr.Error())
+			return err
+		}
+	}
+	// adjust fee if end of fee-vote period
+	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
+	if err != nil {
+		return err
+	}
+	if adjust {
+		// fetch vote-reveals
+		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
+			var (
+				result         []*model.FeeVoteInfo
+				queryResult    []*model.FeeVoteRevealVote
+				err            error
+				latestFeeScale model.FeeScale
+			)
+			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
+			if err != nil {
+				return result, err
+			}
+			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
+			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
+			if err != nil {
+				return result, err
+			}
+			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
+			if err != nil {
+				return result, err
+			}
+			for _, vote := range queryResult {
+				result = append(result, vote.VoteInfo)
+			}
+			return result, nil
+		}()
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			return err
+		}
+		// select vote
+		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
+		// insert new fee-scale
+		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    vote,
+			BlockHeight: block.Height,
+			Latest:      true,
+		})
+		if err != nil {
+			rollbackErr := bs.QueryExecutor.RollbackTx()
+			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			return err
+		}
+	}
+
+	// Delete prunable data
+	if block.GetHeight() > (2 * constant.MinRollbackBlocks) {
+		saveHeight := block.GetHeight() - (2 * constant.MinRollbackBlocks)
+		for _, pQuery := range bs.PruneQuery {
+			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
+			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
+			if err != nil {
+				rollbackErr := bs.QueryExecutor.RollbackTx()
+				if rollbackErr != nil {
+					bs.Logger.Warnf("PruneDataRollbackErr:%v", rollbackErr)
+				}
+				return err
+			}
+		}
+	}
+
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
@@ -647,6 +774,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
@@ -701,7 +830,7 @@ func (bs *BlockService) admitNodes(block *model.Block) error {
 	return nil
 }
 
-// expelNodes seelct and expel nodes from node registry
+// expelNodes select and expel nodes from node registry
 func (bs *BlockService) expelNodes(block *model.Block) error {
 	nodeRegistrations, err := bs.NodeRegistrationService.SelectNodesToBeExpelled()
 	if err != nil {
@@ -971,12 +1100,13 @@ func (bs *BlockService) GenerateBlock(
 		err                 error
 		digest              = sha3.New256()
 		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		newBlockHeight      = previousBlock.Height + 1
 	)
-	newBlockHeight := previousBlock.Height + 1
+
 	// calculate total coinbase to be added to the block
-	totalCoinbase = bs.CoinbaseService.GetCoinbase()
+	totalCoinbase = bs.CoinbaseService.GetCoinbase(timestamp, previousBlock.Timestamp)
 	if !empty {
-		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp)
+		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, newBlockHeight)
 		if err != nil {
 			return nil, errors.New("MempoolReadError")
 		}
@@ -1139,10 +1269,9 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check previous block hash of new block not same with current block hash and
-	// check new block is not better than current block
+	// or if broadcast block is our current last block
 	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
-		!(bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
-			block.Timestamp < lastBlock.Timestamp) {
+		!bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) {
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
@@ -1594,7 +1723,7 @@ func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Li
 	}
 }
 
-// ReceivedValidatedBlockTransactionsListener will send the transactions required by blocks
+// BlockTransactionsRequestedListener will send the transactions required by blocks
 func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {

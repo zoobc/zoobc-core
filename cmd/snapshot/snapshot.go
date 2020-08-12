@@ -5,17 +5,15 @@ import (
 	"math/rand"
 	"os"
 
-	"golang.org/x/crypto/sha3"
-
-	"github.com/zoobc/zoobc-core/common/model"
-
-	"github.com/ugorji/go/codec"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/ugorji/go/codec"
+	"golang.org/x/crypto/sha3"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -91,6 +89,11 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
 			query.NewSkippedBlocksmithQuery(),
+			query.NewFeeScaleQuery(),
+			query.NewFeeVoteCommitmentVoteQuery(),
+			query.NewFeeVoteRevealVoteQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
+			query.NewNodeAdmissionTimestampQuery(),
 			query.NewBlockQuery(mainChain),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),
@@ -247,6 +250,11 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
 			query.NewSkippedBlocksmithQuery(),
+			query.NewFeeScaleQuery(),
+			query.NewFeeVoteCommitmentVoteQuery(),
+			query.NewFeeVoteRevealVoteQuery(),
+			query.NewLiquidPaymentTransactionQuery(),
+			query.NewNodeAdmissionTimestampQuery(),
 			query.NewBlockQuery(mainChain),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),

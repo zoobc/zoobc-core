@@ -1115,8 +1115,13 @@ type (
 		MultisigTransactionUtilInterface
 	}
 
-// mock multisignatureTransactionValidate
+	mockAccountBalanceHelperMultisignatureValidateSuccess struct {
+		AccountBalanceHelper
+	}
+)
 
+var (
+	mockFeeMultisignatureValidate int64 = 10
 )
 
 func (*mockValidateMultisigUtilValidateSignatureInfoSucess) ValidateSignatureInfo(
@@ -1255,6 +1260,13 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatur
 	return errors.New("mockedError")
 }
 
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
+	return nil
+}
+
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                       int64
@@ -1301,12 +1313,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo invalid",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            nil,
 				},
-				MultisigUtil: &mockMultisignatureValidateMultisigUtilValidateFail{},
+				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidateFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1316,12 +1330,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo valid - unsignedTransactionBytes invalid",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: make([]byte, 32),
 					SignatureInfo:            nil,
 				},
-				MultisigUtil: &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingTxFail{},
+				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingTxFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1332,12 +1348,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo valid - " +
 				"signatureInfo invalid",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            &model.SignatureInfo{},
 				},
-				MultisigUtil: &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
+				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1347,12 +1365,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:notExist - unsignedTransactionBytes invalid",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: make([]byte, 32),
 					SignatureInfo:            nil,
 				},
-				MultisigUtil: &mockMultisignatureValidateMultisigUtilValidatePendingTxFail{},
+				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidatePendingTxFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1363,12 +1383,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - unsignedTransactionBytes valid and return multisigInfo - " +
 				"signatureInfo invalid",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: make([]byte, 32),
 					SignatureInfo:            &model.SignatureInfo{},
 				},
-				MultisigUtil: &mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSignatureInfoFail{},
+				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSignatureInfoFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1379,12 +1401,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - error getting pending transaction - " +
 				"signatureInfo provided",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            &model.SignatureInfo{},
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperErrorPendingTransaction{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1395,12 +1419,14 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - no pending transaction - " +
 				"signatureInfo provided",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            &model.SignatureInfo{},
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperNoPendingTransaction{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1411,6 +1437,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"multisigInfo not exist",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1418,6 +1445,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
 				MultisignatureInfoHelper: &mockMultisignatureValidateMultisigInfoNotExist{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1428,6 +1456,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"get multisigInfo error",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1435,6 +1464,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
 				MultisignatureInfoHelper: &mockMultisignatureValidateMultisigInfoError{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,
@@ -1445,6 +1475,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"get multisigInfo exist - ValidateSignatureSuccess",
 			fields: fields{
+				Fee: mockFeeMultisignatureValidate,
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1453,6 +1484,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
 				MultisignatureInfoHelper: &mockMultisignatureValidateMultisigInfoExist{},
 				MultisigUtil:             &mockValidateMultisigUtilValidateSignatureInfoSucess{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
 				dbTx: true,

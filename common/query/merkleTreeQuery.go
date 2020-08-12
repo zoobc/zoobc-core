@@ -16,7 +16,7 @@ type (
 			lowerHeight, upperHeight, limit uint32,
 		) string
 		GetLastMerkleRoot() (qStr string)
-		RemoveMerkleTrees(blockHeight, limit uint32) (string, []interface{})
+		PruneData(blockHeight, limit uint32) (string, []interface{})
 		ScanTree(row *sql.Row) ([]byte, error)
 		ScanRoot(row *sql.Row) ([]byte, error)
 		BuildTree(row *sql.Rows) (map[string][]byte, error)
@@ -88,8 +88,8 @@ func (mrQ *MerkleTreeQuery) SelectMerkleTree(
 	return query
 }
 
-// RemoveMerkleTrees represents query remove in range block_height with limit
-func (mrQ *MerkleTreeQuery) RemoveMerkleTrees(blockHeight, limit uint32) (qStr string, args []interface{}) {
+// PruneData represents query remove in range block_height with limit
+func (mrQ *MerkleTreeQuery) PruneData(blockHeight, limit uint32) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"DELETE FROM %s WHERE block_height IN("+
 				"SELECT block_height FROM %s WHERE block_height < ? "+

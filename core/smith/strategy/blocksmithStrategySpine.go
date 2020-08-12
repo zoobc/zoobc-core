@@ -206,9 +206,13 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		currentTime                      = time.Now().Unix()
-		ct                               = &chaintype.MainChain{}
+		ct                               = &chaintype.SpineChain{}
 		prevRoundBegin, prevRoundExpired int64
 	)
+	// avoid division by zero in case there are no blocksmiths in the network (edge case)
+	if numberOfBlocksmiths < 1 {
+		return blocker.NewBlocker(blocker.SmithingPending, "NoBlockSmiths")
+	}
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - previousBlock.GetTimestamp()

@@ -3,8 +3,9 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"fmt"
 	"time"
+
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -30,7 +30,6 @@ type (
 		ValidateReceipt(
 			receipt *model.BatchReceipt,
 		) error
-		PruningNodeReceipts() error
 		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
 		GenerateBatchReceiptWithReminder(
 			ct chaintype.ChainType,
@@ -383,6 +382,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		senderNodeRegistration    model.NodeRegistration
 		recipientNodeRegistration model.NodeRegistration
 		err                       error
+		peers                     map[string]*model.Peer
 	)
 	// get sender address at height
 	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
@@ -405,87 +405,27 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	if err != nil {
 		return err
 	}
-	recipientFullAddress := fmt.Sprintf(
-		"%s:%d", recipientNodeRegistration.NodeAddress.Address, recipientNodeRegistration.NodeAddress.Port)
 	// get or build scrambled nodes at height
 	scrambledNodes, err := rs.NodeRegistrationService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-	// get priority peer of sender from scrambledNodes
-	peers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(
-		fmt.Sprintf("%s:%d", senderNodeRegistration.NodeAddress.Address, senderNodeRegistration.NodeAddress.Port),
+
+	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
+		senderNodeRegistration.NodeID,
 		scrambledNodes,
-	)
-	if err != nil {
+	); err != nil {
 		return err
 	}
+
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
-		if p2pUtil.GetFullAddressPeer(peer) == recipientFullAddress {
+		if peer.GetInfo().ID == recipientNodeRegistration.NodeID {
 			// valid recipient and sender
 			return nil
 		}
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
-}
-
-/*
-PruningNodeReceipts will pruning the receipts that was expired by block_height + minimum rollback block, affected:
-	1. NodeReceipt
-	2. MerkleTree
-*/
-func (rs *ReceiptService) PruningNodeReceipts() error {
-	var (
-		removeReceiptArgs, removeMerkleArgs []interface{}
-		removeReceiptQ, removeMerkleQ       string
-		err, rollbackErr                    error
-		lastBlock                           model.Block
-		row                                 *sql.Row
-	)
-
-	row, _ = rs.QueryExecutor.ExecuteSelectRow(rs.BlockQuery.GetLastBlock(), false)
-	err = rs.BlockQuery.Scan(&lastBlock, row)
-	if err != nil {
-		return err
-	}
-
-	limiter := lastBlock.GetHeight() - (2 * constant.MinRollbackBlocks)
-	if lastBlock.GetHeight() > 2*constant.MinRollbackBlocks {
-		removeReceiptQ, removeReceiptArgs = rs.NodeReceiptQuery.RemoveReceipts(
-			limiter,
-			constant.PruningChunkedSize,
-		)
-		removeMerkleQ, removeMerkleArgs = rs.MerkleTreeQuery.RemoveMerkleTrees(
-			limiter,
-			constant.PruningChunkedSize,
-		)
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransaction(removeReceiptQ, removeReceiptArgs...)
-		if err != nil {
-			rollbackErr = rs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				return rollbackErr
-			}
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransaction(removeMerkleQ, removeMerkleArgs...)
-		if err != nil {
-			rollbackErr = rs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				return rollbackErr
-			}
-			return err
-		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // GetPublishedReceiptsByHeight that handling database connection to get published receipts by height

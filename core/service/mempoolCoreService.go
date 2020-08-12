@@ -30,7 +30,7 @@ type (
 		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
 		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
 		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
-		SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error)
+		SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error)
 		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
@@ -155,7 +155,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 // Note: Tx Order is important to allow every node with a same set of transactions to  build the block and always obtain
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
-func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) ([]*model.Transaction, error) {
+func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	mempoolTransactions, err := mps.MempoolGetter.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
@@ -187,14 +187,20 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64) (
 		if err := mps.TransactionUtil.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
 			continue
 		}
-
+		tx.Height = blockHeight
 		txType, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
 			return nil, err
 		}
-		toRemove, err := txType.SkipMempoolTransaction(selectedTransactions)
+
+		toRemove, err := txType.SkipMempoolTransaction(
+			selectedTransactions,
+			blockTimestamp,
+			blockHeight,
+		)
 		if err != nil {
-			return nil, err
+			mps.Logger.Errorf("skip mempool err : %v", err)
+			continue
 		}
 		if toRemove {
 			continue

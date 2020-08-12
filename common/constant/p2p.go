@@ -13,6 +13,21 @@ const (
 	SecondsToUpdatePeersConnection int64 = 15 // 3600
 	// ResolvePeersGap, interval of peer thread trying to resolve a peer (in second)
 	ResolvePeersGap uint = 10
+	// ResolvePendingPeersGap, interval of peer thread trying to resolve a peer (in second)
+	ResolvePendingPeersGap uint = 60
+	// UnresolvedPendingPeerExpirationTimeOffset max time in seconds a node should try to connect to/resolve a pending node address (one hour)
+	UnresolvedPendingPeerExpirationTimeOffset int64 = 3600
+	// UpdateNodeAddressGap, interval in seconds of peer thread to update and broadcast node dynamic address
+	UpdateNodeAddressGap uint = 120
+	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
+	SyncNodeAddressGap uint = 30 // every 30 min
+	// ScrambleNodesSafeHeight height before which scramble nodes are always recalculated (
+	// this is to allow first nodes that bootstrap the network to update their priority peers till every node has exchanged all peer
+	// node addresses)
+	ScrambleNodesSafeHeight uint32 = 10
+	// SyncNodeAddressDelay, delay in millis to execute send/get address info api call,
+	// to make sure even if many nodes start at the same time they won't execute requests at the same time
+	SyncNodeAddressDelay int = 10000
 	// UpdateBlacklistedStatusGap, interval of a tread that will update the status of blacklisted node
 	UpdateBlacklistedStatusGap uint = 60
 	// BlacklistingPeriod, how long a peer in blaclisting status
@@ -24,7 +39,7 @@ const (
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
 	NumberOfPriorityPeersToBeAdded int = PriorityStrategyMaxPriorityPeers / 2
 	// PriorityStrategyBuildScrambleNodesGap, interval of scramble thread to build scramble node (in block height)
-	PriorityStrategyBuildScrambleNodesGap uint32 = 10
+	PriorityStrategyBuildScrambleNodesGap uint32 = 40
 	// PriorityStrategyMaxStayedInUnresolvedPeers max time a peer can stay before being cycled out from unresolved peers
 	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
@@ -34,4 +49,6 @@ const (
 	// BlockchainsyncSpineTimeout timeout, in seconds, for spine blocks to be downloaded from the network
 	// download spine blocks and snapshot (if present) timeout
 	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
+	// ProofOfOriginExpirationOffset expiration offset in seconds for proof of origin response
+	ProofOfOriginExpirationOffset = 10
 )

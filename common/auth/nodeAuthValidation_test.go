@@ -3,9 +3,11 @@ package auth
 import (
 	"database/sql"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -14,7 +16,15 @@ type (
 	mockExecutorValidateSuccess struct {
 		query.Executor
 	}
+	nodeAuthMockSignature struct {
+		crypto.Signature
+		success bool
+	}
 )
+
+func (navMock *nodeAuthMockSignature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) bool {
+	return navMock.success
+}
 
 func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -45,6 +55,9 @@ func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 
 func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 	poown := GetFixturesProofOfOwnershipValidation(0, nil, nil)
+	type fields struct {
+		Signature crypto.SignatureInterface
+	}
 	type args struct {
 		poown         *model.ProofOfOwnership
 		nodePublicKey []byte
@@ -87,8 +100,9 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		p       *ProofOfOwnershipValidation
+		p       *NodeAuthValidation
 		args    args
+		fields  fields
 		wantErr bool
 	}{
 		{
@@ -98,6 +112,9 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				nodePublicKey: nodePubKey1,
 				queryExecutor: &mockExecutorValidateSuccess{},
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
 			},
 			wantErr: false,
 		},
@@ -109,6 +126,9 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				queryExecutor: &mockExecutorValidateSuccess{},
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: false},
+			},
 			wantErr: true,
 		},
 		{
@@ -118,6 +138,9 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				nodePublicKey: nodePubKey1,
 				queryExecutor: &mockExecutorValidateSuccess{},
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
 			},
 			wantErr: true,
 		},
@@ -129,6 +152,9 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				queryExecutor: &mockExecutorValidateSuccess{},
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
+			},
 			wantErr: true,
 		},
 		{
@@ -139,18 +165,114 @@ func TestProofOfOwnershipValidation_ValidateProofOfOwnership(t *testing.T) {
 				queryExecutor: &mockExecutorValidateSuccess{},
 				blockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
+			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &ProofOfOwnershipValidation{}
+			p := &NodeAuthValidation{
+				Signature: tt.fields.Signature,
+			}
 			err := p.ValidateProofOfOwnership(tt.args.poown, tt.args.nodePublicKey,
 				tt.args.queryExecutor, tt.args.blockQuery)
 			if err != nil {
 				if !tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				}
+			}
+		})
+	}
+}
+
+func TestNodeAuthValidation_ValidateProofOfOrigin(t *testing.T) {
+	type fields struct {
+		Signature crypto.SignatureInterface
+	}
+	type args struct {
+		poorig            *model.ProofOfOrigin
+		nodePublicKey     []byte
+		challengeResponse []byte
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "ValidateProofOfOrigin:fail-{ProofOfOriginExpired}",
+			args: args{
+				poorig: &model.ProofOfOrigin{
+					MessageBytes: make([]byte, 32),
+					Timestamp:    time.Now().Unix() - 1,
+					Signature:    []byte{},
+				},
+				nodePublicKey:     nodePubKey1,
+				challengeResponse: make([]byte, 32),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateProofOfOrigin:fail-{InvalidChallengeResponse}",
+			args: args{
+				poorig: &model.ProofOfOrigin{
+					MessageBytes: make([]byte, 32),
+					Timestamp:    time.Now().Unix() + 10,
+					Signature:    []byte{},
+				},
+				nodePublicKey:     nodePubKey1,
+				challengeResponse: make([]byte, 30),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateProofOfOrigin:fail-{InvalidSignature}",
+			args: args{
+				poorig: &model.ProofOfOrigin{
+					MessageBytes: make([]byte, 32),
+					Timestamp:    time.Now().Unix() + 10,
+					Signature:    []byte{},
+				},
+				nodePublicKey:     nodePubKey1,
+				challengeResponse: make([]byte, 32),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: false},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ValidateProofOfOrigin:{Success}",
+			args: args{
+				poorig: &model.ProofOfOrigin{
+					MessageBytes: make([]byte, 32),
+					Timestamp:    time.Now().Unix() + 10,
+					Signature:    []byte{},
+				},
+				nodePublicKey:     nodePubKey1,
+				challengeResponse: make([]byte, 32),
+			},
+			fields: fields{
+				Signature: &nodeAuthMockSignature{success: true},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nav := &NodeAuthValidation{
+				Signature: tt.fields.Signature,
+			}
+			if err := nav.ValidateProofOfOrigin(tt.args.poorig, tt.args.nodePublicKey, tt.args.challengeResponse); (err != nil) != tt.wantErr {
+				t.Errorf("NodeAuthValidation.ValidateProofOfOrigin() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
