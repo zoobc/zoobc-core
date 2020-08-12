@@ -199,10 +199,10 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 			},
 			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, " +
 				"(SELECT GROUP_CONCAT(account_address, ',') FROM " +
-				"multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height " +
+				"multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height " +
 				"ORDER BY account_address_index DESC) as addresses " +
 				"FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-			wantArgs: []interface{}{"A", uint32(0), "A"},
+			wantArgs: []interface{}{"A", "A", uint32(0)},
 		},
 	}
 	for _, tt := range tests {
