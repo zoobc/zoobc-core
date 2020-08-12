@@ -17,7 +17,7 @@ import (
 type (
 	mockAuthPoownClaimNR struct {
 		success bool
-		auth.ProofOfOwnershipValidation
+		auth.NodeAuthValidation
 	}
 	mockExecutorValidateSuccessClaimNR struct {
 		query.Executor
@@ -34,6 +34,19 @@ type (
 	mockExecutorApplyConfirmedFailNodeNotFoundClaimNR struct {
 		query.Executor
 	}
+	mockAccountBalanceHelperClaimNRValidateFail struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperClaimNRValidateSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+var (
+	mockFeeClaimNodeRegistrationValidate int64 = 10
 )
 
 func (mk *mockAuthPoownClaimNR) ValidateProofOfOwnership(
@@ -52,7 +65,7 @@ func (*mockExecutorApplyConfirmedFailNodeNotFoundClaimNR) ExecuteSelectRow(qe st
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, registration_status,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status,"+
 		" latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.QueryRow(""), nil
@@ -68,14 +81,13 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelectRow(qe string, _ b
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -85,7 +97,6 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelectRow(qe string, _ b
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			uint32(model.NodeRegistrationState_NodeRegistered),
 			true,
@@ -99,14 +110,13 @@ func (*mockExecutorApplyConfirmedSuccessClaimNR) ExecuteSelectRow(qe string, _ b
 func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -116,7 +126,6 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			uint32(model.NodeRegistrationState_NodeRegistered),
 			true,
@@ -130,14 +139,13 @@ func (*mockExecutorValidateSuccessClaimNR) ExecuteSelect(qe string, tx bool, arg
 func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -147,7 +155,6 @@ func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe strin
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(0),
 			uint32(model.NodeRegistrationState_NodeDeleted),
 			true,
@@ -161,12 +168,30 @@ func (*mockExecutorValidateFailClaimNRNodeAlreadyDeleted) ExecuteSelect(qe strin
 func (*mockExecutorValidateFailClaimNRNodeNotRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
 	}
 	return nil, nil
+}
+
+func (*mockAccountBalanceHelperClaimNRValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+	return errors.New("MockedError")
+}
+
+func (*mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	accountBalance.SpendableBalance = mockFeeClaimNodeRegistrationValidate - 1
+	return nil
+}
+
+func (*mockAccountBalanceHelperClaimNRValidateSuccess) GetBalanceByAccountID(
+	accountBalance *model.AccountBalance, address string, dbTx bool,
+) error {
+	accountBalance.SpendableBalance = mockFeeClaimNodeRegistrationValidate + 1
+	return nil
 }
 
 func TestClaimNodeRegistration_Validate(t *testing.T) {
@@ -189,7 +214,8 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -237,12 +263,39 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 			errText: blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted").Error(),
 		},
 		{
+			name: "Validate:fail-{GetAccountBalanceByAccountAddressFail}",
+			fields: fields{
+				Fee:                   mockFeeClaimNodeRegistrationValidate,
+				Body:                  txBodyFull,
+				AuthPoown:             &mockAuthPoown{success: true},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         &mockExecutorValidateSuccessClaimNR{},
+				AccountBalanceHelper:  &mockAccountBalanceHelperClaimNRValidateFail{},
+			},
+			wantErr: true,
+			errText: "MockedError",
+		},
+		{
+			name: "Validate:fail-{GetAccountBalanceByAccountAddressNotEnoughSpandable}",
+			fields: fields{
+				Fee:                   mockFeeClaimNodeRegistrationValidate,
+				Body:                  txBodyFull,
+				AuthPoown:             &mockAuthPoown{success: true},
+				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:         &mockExecutorValidateSuccessClaimNR{},
+				AccountBalanceHelper:  &mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable{},
+			},
+			wantErr: true,
+			errText: blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough").Error(),
+		},
+		{
 			name: "Validate:success",
 			fields: fields{
 				Body:                  txBodyFull,
 				AuthPoown:             &mockAuthPoown{success: true},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorValidateSuccessClaimNR{},
+				AccountBalanceHelper:  &mockAccountBalanceHelperClaimNRValidateSuccess{},
 			},
 			wantErr: false,
 		},
@@ -259,14 +312,15 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			err := tx.Validate(false)
 			if err != nil {
 				if !tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				if err.Error() != tt.errText {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error text = %s, wantErr text %s", err.Error(), tt.errText)
 				}
 			}
 		})
@@ -283,7 +337,8 @@ func TestClaimNodeRegistration_GetAmount(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name   string
@@ -307,6 +362,7 @@ func TestClaimNodeRegistration_GetAmount(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if got := tx.GetAmount(); got != tt.want {
 				t.Errorf("ClaimNodeRegistration.GetAmount() = %v, want %v", got, tt.want)
@@ -325,7 +381,8 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name   string
@@ -334,7 +391,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 	}{
 		{
 			name: "GetSize:success",
-			want: 220,
+			want: 264,
 		},
 	}
 	for _, tt := range tests {
@@ -349,6 +406,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if got := tx.GetSize(); got != tt.want {
 				t.Errorf("ClaimNodeRegistration.GetSize() = %v, want %v", got, tt.want)
@@ -368,7 +426,8 @@ func TestClaimNodeRegistration_GetBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name   string
@@ -395,6 +454,7 @@ func TestClaimNodeRegistration_GetBodyBytes(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ClaimNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
@@ -414,7 +474,8 @@ func TestClaimNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -447,6 +508,7 @@ func TestClaimNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("ClaimNodeRegistration.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -466,7 +528,8 @@ func TestClaimNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -511,6 +574,7 @@ func TestClaimNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("ClaimNodeRegistration.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -530,7 +594,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
@@ -584,7 +648,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				if (err == nil) != tt.wantErr {
-					t.Errorf("ProofOfOwnershipValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)
 					return
 				}
 			}
@@ -603,7 +667,8 @@ func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -697,6 +762,7 @@ func TestClaimNodeRegistration_ParseBodyBytes(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
 			if (err != nil) != tt.wantErr {
@@ -722,7 +788,8 @@ func TestClaimNodeRegistration_GetTransactionBody(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -754,6 +821,7 @@ func TestClaimNodeRegistration_GetTransactionBody(t *testing.T) {
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
 		})
@@ -772,10 +840,12 @@ func TestClaimNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
+		newBlockTimestamp    int64
+		newBlockHeight       uint32
 	}
 	tests := []struct {
 		name    string
@@ -867,7 +937,7 @@ func TestClaimNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 				QueryExecutor:           tt.fields.QueryExecutor,
 				AuthPoown:               tt.fields.AuthPoown,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return

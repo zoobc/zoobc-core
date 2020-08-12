@@ -36,6 +36,10 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewPendingTransactionQuery(),
 				NewPendingSignatureQuery(),
 				NewMultisignatureInfoQuery(),
+				NewFeeScaleQuery(),
+				NewFeeVoteCommitmentVoteQuery(),
+				NewFeeVoteRevealVoteQuery(),
+				NewNodeAdmissionTimestampQuery(),
 				NewMultiSignatureParticipantQuery(),
 			},
 		},
@@ -53,6 +57,45 @@ func TestGetDerivedQuery(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := GetDerivedQuery(tt.args.chainType); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetDerivedQuery() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_CalculateBulkSize(t *testing.T) {
+	type args struct {
+		totalFields  int
+		totalRecords int
+	}
+	tests := []struct {
+		name                 string
+		args                 args
+		wantRecordsPerPeriod int
+		wantRounds           int
+		wantRemaining        int
+	}{
+		{
+			name: "WantSuccess",
+			args: args{
+				totalRecords: 1421,
+				totalFields:  12,
+			},
+			wantRecordsPerPeriod: 83,
+			wantRounds:           17,
+			wantRemaining:        10,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotRecordsPerPeriod, gotRounds, gotRemaining := CalculateBulkSize(tt.args.totalFields, tt.args.totalRecords)
+			if gotRecordsPerPeriod != tt.wantRecordsPerPeriod {
+				t.Errorf("calculateBulkSize() gotRecordsPerPeriod = %v, want %v", gotRecordsPerPeriod, tt.wantRecordsPerPeriod)
+			}
+			if gotRounds != tt.wantRounds {
+				t.Errorf("calculateBulkSize() gotRounds = %v, want %v", gotRounds, tt.wantRounds)
+			}
+			if gotRemaining != tt.wantRemaining {
+				t.Errorf("calculateBulkSize() gotRemaining = %v, want %v", gotRemaining, tt.wantRemaining)
 			}
 		})
 	}

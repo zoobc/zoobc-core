@@ -51,73 +51,26 @@ func (NodeRegistrationState) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_df1af0ec89e31788, []int{0}
 }
 
-type NodeAddress struct {
-	Address              string   `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"`
-	Port                 uint32   `protobuf:"varint,2,opt,name=Port,proto3" json:"Port,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *NodeAddress) Reset()         { *m = NodeAddress{} }
-func (m *NodeAddress) String() string { return proto.CompactTextString(m) }
-func (*NodeAddress) ProtoMessage()    {}
-func (*NodeAddress) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{0}
-}
-
-func (m *NodeAddress) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NodeAddress.Unmarshal(m, b)
-}
-func (m *NodeAddress) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NodeAddress.Marshal(b, m, deterministic)
-}
-func (m *NodeAddress) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NodeAddress.Merge(m, src)
-}
-func (m *NodeAddress) XXX_Size() int {
-	return xxx_messageInfo_NodeAddress.Size(m)
-}
-func (m *NodeAddress) XXX_DiscardUnknown() {
-	xxx_messageInfo_NodeAddress.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NodeAddress proto.InternalMessageInfo
-
-func (m *NodeAddress) GetAddress() string {
-	if m != nil {
-		return m.Address
-	}
-	return ""
-}
-
-func (m *NodeAddress) GetPort() uint32 {
-	if m != nil {
-		return m.Port
-	}
-	return 0
-}
-
 type NodeRegistration struct {
-	NodeID               int64        `protobuf:"varint,1,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
-	NodePublicKey        []byte       `protobuf:"bytes,2,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
-	AccountAddress       string       `protobuf:"bytes,3,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	RegistrationHeight   uint32       `protobuf:"varint,4,opt,name=RegistrationHeight,proto3" json:"RegistrationHeight,omitempty"`
-	NodeAddress          *NodeAddress `protobuf:"bytes,5,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
-	LockedBalance        int64        `protobuf:"varint,6,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
-	RegistrationStatus   uint32       `protobuf:"varint,7,opt,name=RegistrationStatus,proto3" json:"RegistrationStatus,omitempty"`
-	Latest               bool         `protobuf:"varint,8,opt,name=Latest,proto3" json:"Latest,omitempty"`
-	Height               uint32       `protobuf:"varint,9,opt,name=Height,proto3" json:"Height,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
-	XXX_unrecognized     []byte       `json:"-"`
-	XXX_sizecache        int32        `json:"-"`
+	NodeID               int64            `protobuf:"varint,1,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
+	NodePublicKey        []byte           `protobuf:"bytes,2,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	AccountAddress       string           `protobuf:"bytes,3,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	RegistrationHeight   uint32           `protobuf:"varint,4,opt,name=RegistrationHeight,proto3" json:"RegistrationHeight,omitempty"`
+	LockedBalance        int64            `protobuf:"varint,5,opt,name=LockedBalance,proto3" json:"LockedBalance,omitempty"`
+	RegistrationStatus   uint32           `protobuf:"varint,6,opt,name=RegistrationStatus,proto3" json:"RegistrationStatus,omitempty"`
+	Latest               bool             `protobuf:"varint,7,opt,name=Latest,proto3" json:"Latest,omitempty"`
+	Height               uint32           `protobuf:"varint,8,opt,name=Height,proto3" json:"Height,omitempty"`
+	NodeAddressInfo      *NodeAddressInfo `protobuf:"bytes,9,opt,name=NodeAddressInfo,proto3" json:"NodeAddressInfo,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
+	XXX_unrecognized     []byte           `json:"-"`
+	XXX_sizecache        int32            `json:"-"`
 }
 
 func (m *NodeRegistration) Reset()         { *m = NodeRegistration{} }
 func (m *NodeRegistration) String() string { return proto.CompactTextString(m) }
 func (*NodeRegistration) ProtoMessage()    {}
 func (*NodeRegistration) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{1}
+	return fileDescriptor_df1af0ec89e31788, []int{0}
 }
 
 func (m *NodeRegistration) XXX_Unmarshal(b []byte) error {
@@ -166,13 +119,6 @@ func (m *NodeRegistration) GetRegistrationHeight() uint32 {
 	return 0
 }
 
-func (m *NodeRegistration) GetNodeAddress() *NodeAddress {
-	if m != nil {
-		return m.NodeAddress
-	}
-	return nil
-}
-
 func (m *NodeRegistration) GetLockedBalance() int64 {
 	if m != nil {
 		return m.LockedBalance
@@ -201,6 +147,13 @@ func (m *NodeRegistration) GetHeight() uint32 {
 	return 0
 }
 
+func (m *NodeRegistration) GetNodeAddressInfo() *NodeAddressInfo {
+	if m != nil {
+		return m.NodeAddressInfo
+	}
+	return nil
+}
+
 // GetNodeRegisterRequest create request to get a list of node registry
 type GetNodeRegistrationsRequest struct {
 	// Fetch Node Registries based on queue status
@@ -223,7 +176,7 @@ func (m *GetNodeRegistrationsRequest) Reset()         { *m = GetNodeRegistration
 func (m *GetNodeRegistrationsRequest) String() string { return proto.CompactTextString(m) }
 func (*GetNodeRegistrationsRequest) ProtoMessage()    {}
 func (*GetNodeRegistrationsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{2}
+	return fileDescriptor_df1af0ec89e31788, []int{1}
 }
 
 func (m *GetNodeRegistrationsRequest) XXX_Unmarshal(b []byte) error {
@@ -286,7 +239,7 @@ func (m *GetNodeRegistrationsResponse) Reset()         { *m = GetNodeRegistratio
 func (m *GetNodeRegistrationsResponse) String() string { return proto.CompactTextString(m) }
 func (*GetNodeRegistrationsResponse) ProtoMessage()    {}
 func (*GetNodeRegistrationsResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{3}
+	return fileDescriptor_df1af0ec89e31788, []int{2}
 }
 
 func (m *GetNodeRegistrationsResponse) XXX_Unmarshal(b []byte) error {
@@ -323,20 +276,19 @@ func (m *GetNodeRegistrationsResponse) GetNodeRegistrations() []*NodeRegistratio
 
 // GetNodeRegistrationRequest create request for single node register
 type GetNodeRegistrationRequest struct {
-	NodePublicKey        []byte       `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
-	AccountAddress       string       `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
-	RegistrationHeight   uint32       `protobuf:"varint,3,opt,name=RegistrationHeight,proto3" json:"RegistrationHeight,omitempty"`
-	NodeAddress          *NodeAddress `protobuf:"bytes,4,opt,name=NodeAddress,proto3" json:"NodeAddress,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
-	XXX_unrecognized     []byte       `json:"-"`
-	XXX_sizecache        int32        `json:"-"`
+	NodePublicKey        []byte   `protobuf:"bytes,1,opt,name=NodePublicKey,proto3" json:"NodePublicKey,omitempty"`
+	AccountAddress       string   `protobuf:"bytes,2,opt,name=AccountAddress,proto3" json:"AccountAddress,omitempty"`
+	RegistrationHeight   uint32   `protobuf:"varint,3,opt,name=RegistrationHeight,proto3" json:"RegistrationHeight,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *GetNodeRegistrationRequest) Reset()         { *m = GetNodeRegistrationRequest{} }
 func (m *GetNodeRegistrationRequest) String() string { return proto.CompactTextString(m) }
 func (*GetNodeRegistrationRequest) ProtoMessage()    {}
 func (*GetNodeRegistrationRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{4}
+	return fileDescriptor_df1af0ec89e31788, []int{3}
 }
 
 func (m *GetNodeRegistrationRequest) XXX_Unmarshal(b []byte) error {
@@ -378,13 +330,6 @@ func (m *GetNodeRegistrationRequest) GetRegistrationHeight() uint32 {
 	return 0
 }
 
-func (m *GetNodeRegistrationRequest) GetNodeAddress() *NodeAddress {
-	if m != nil {
-		return m.NodeAddress
-	}
-	return nil
-}
-
 type GetNodeRegistrationResponse struct {
 	NodeRegistration     *NodeRegistration `protobuf:"bytes,1,opt,name=NodeRegistration,proto3" json:"NodeRegistration,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
@@ -396,7 +341,7 @@ func (m *GetNodeRegistrationResponse) Reset()         { *m = GetNodeRegistration
 func (m *GetNodeRegistrationResponse) String() string { return proto.CompactTextString(m) }
 func (*GetNodeRegistrationResponse) ProtoMessage()    {}
 func (*GetNodeRegistrationResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_df1af0ec89e31788, []int{5}
+	return fileDescriptor_df1af0ec89e31788, []int{4}
 }
 
 func (m *GetNodeRegistrationResponse) XXX_Unmarshal(b []byte) error {
@@ -424,50 +369,219 @@ func (m *GetNodeRegistrationResponse) GetNodeRegistration() *NodeRegistration {
 	return nil
 }
 
+// NodeAdmissionTimestamp represent the timestamp for next node admission
+type NodeAdmissionTimestamp struct {
+	Timestamp            int64    `protobuf:"varint,1,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
+	BlockHeight          uint32   `protobuf:"varint,2,opt,name=BlockHeight,proto3" json:"BlockHeight,omitempty"`
+	Latest               bool     `protobuf:"varint,3,opt,name=Latest,proto3" json:"Latest,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *NodeAdmissionTimestamp) Reset()         { *m = NodeAdmissionTimestamp{} }
+func (m *NodeAdmissionTimestamp) String() string { return proto.CompactTextString(m) }
+func (*NodeAdmissionTimestamp) ProtoMessage()    {}
+func (*NodeAdmissionTimestamp) Descriptor() ([]byte, []int) {
+	return fileDescriptor_df1af0ec89e31788, []int{5}
+}
+
+func (m *NodeAdmissionTimestamp) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NodeAdmissionTimestamp.Unmarshal(m, b)
+}
+func (m *NodeAdmissionTimestamp) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NodeAdmissionTimestamp.Marshal(b, m, deterministic)
+}
+func (m *NodeAdmissionTimestamp) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NodeAdmissionTimestamp.Merge(m, src)
+}
+func (m *NodeAdmissionTimestamp) XXX_Size() int {
+	return xxx_messageInfo_NodeAdmissionTimestamp.Size(m)
+}
+func (m *NodeAdmissionTimestamp) XXX_DiscardUnknown() {
+	xxx_messageInfo_NodeAdmissionTimestamp.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NodeAdmissionTimestamp proto.InternalMessageInfo
+
+func (m *NodeAdmissionTimestamp) GetTimestamp() int64 {
+	if m != nil {
+		return m.Timestamp
+	}
+	return 0
+}
+
+func (m *NodeAdmissionTimestamp) GetBlockHeight() uint32 {
+	if m != nil {
+		return m.BlockHeight
+	}
+	return 0
+}
+
+func (m *NodeAdmissionTimestamp) GetLatest() bool {
+	if m != nil {
+		return m.Latest
+	}
+	return false
+}
+
+// GetNodeRegistrationsByNodePublicKeys create request to get a list of node registry by a list of NodePublicKey
+type GetNodeRegistrationsByNodePublicKeysRequest struct {
+	NodePublicKeys [][]byte `protobuf:"bytes,1,rep,name=NodePublicKeys,proto3" json:"NodePublicKeys,omitempty"`
+	// Fetch Node Registries based on Pagination field
+	Pagination           *Pagination `protobuf:"bytes,2,opt,name=Pagination,proto3" json:"Pagination,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) Reset() {
+	*m = GetNodeRegistrationsByNodePublicKeysRequest{}
+}
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) String() string {
+	return proto.CompactTextString(m)
+}
+func (*GetNodeRegistrationsByNodePublicKeysRequest) ProtoMessage() {}
+func (*GetNodeRegistrationsByNodePublicKeysRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_df1af0ec89e31788, []int{6}
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest.Unmarshal(m, b)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest.Marshal(b, m, deterministic)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest.Merge(m, src)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) XXX_Size() int {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest.Size(m)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysRequest proto.InternalMessageInfo
+
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) GetNodePublicKeys() [][]byte {
+	if m != nil {
+		return m.NodePublicKeys
+	}
+	return nil
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysRequest) GetPagination() *Pagination {
+	if m != nil {
+		return m.Pagination
+	}
+	return nil
+}
+
+type GetNodeRegistrationsByNodePublicKeysResponse struct {
+	// Number of node registry in total
+	Total uint64 `protobuf:"varint,1,opt,name=Total,proto3" json:"Total,omitempty"`
+	// NodeRegistrations list of NodeRegistration
+	NodeRegistrations    []*NodeRegistration `protobuf:"bytes,2,rep,name=NodeRegistrations,proto3" json:"NodeRegistrations,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) Reset() {
+	*m = GetNodeRegistrationsByNodePublicKeysResponse{}
+}
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) String() string {
+	return proto.CompactTextString(m)
+}
+func (*GetNodeRegistrationsByNodePublicKeysResponse) ProtoMessage() {}
+func (*GetNodeRegistrationsByNodePublicKeysResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_df1af0ec89e31788, []int{7}
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse.Unmarshal(m, b)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse.Marshal(b, m, deterministic)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse.Merge(m, src)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) XXX_Size() int {
+	return xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse.Size(m)
+}
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetNodeRegistrationsByNodePublicKeysResponse proto.InternalMessageInfo
+
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) GetTotal() uint64 {
+	if m != nil {
+		return m.Total
+	}
+	return 0
+}
+
+func (m *GetNodeRegistrationsByNodePublicKeysResponse) GetNodeRegistrations() []*NodeRegistration {
+	if m != nil {
+		return m.NodeRegistrations
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("model.NodeRegistrationState", NodeRegistrationState_name, NodeRegistrationState_value)
-	proto.RegisterType((*NodeAddress)(nil), "model.NodeAddress")
 	proto.RegisterType((*NodeRegistration)(nil), "model.NodeRegistration")
 	proto.RegisterType((*GetNodeRegistrationsRequest)(nil), "model.GetNodeRegistrationsRequest")
 	proto.RegisterType((*GetNodeRegistrationsResponse)(nil), "model.GetNodeRegistrationsResponse")
 	proto.RegisterType((*GetNodeRegistrationRequest)(nil), "model.GetNodeRegistrationRequest")
 	proto.RegisterType((*GetNodeRegistrationResponse)(nil), "model.GetNodeRegistrationResponse")
+	proto.RegisterType((*NodeAdmissionTimestamp)(nil), "model.NodeAdmissionTimestamp")
+	proto.RegisterType((*GetNodeRegistrationsByNodePublicKeysRequest)(nil), "model.GetNodeRegistrationsByNodePublicKeysRequest")
+	proto.RegisterType((*GetNodeRegistrationsByNodePublicKeysResponse)(nil), "model.GetNodeRegistrationsByNodePublicKeysResponse")
 }
 
 func init() { proto.RegisterFile("model/nodeRegistration.proto", fileDescriptor_df1af0ec89e31788) }
 
 var fileDescriptor_df1af0ec89e31788 = []byte{
-	// 505 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0x65, 0x9d, 0x8f, 0xb6, 0x13, 0x12, 0xd2, 0x91, 0x5a, 0x56, 0xa1, 0x87, 0xc8, 0x42, 0xc8,
-	0xaa, 0x84, 0x03, 0xa1, 0x37, 0x4e, 0x0d, 0x45, 0x80, 0x08, 0x55, 0x58, 0x38, 0x71, 0xf3, 0xc7,
-	0x28, 0xb5, 0x70, 0xbc, 0xc1, 0x5e, 0x4b, 0xc0, 0x85, 0xbf, 0xc8, 0x0f, 0xe9, 0x8f, 0x40, 0x5e,
-	0x3b, 0xa9, 0x63, 0x1b, 0x14, 0x2e, 0xd1, 0xee, 0x7b, 0x7e, 0x9e, 0x99, 0x37, 0x2f, 0x86, 0xb3,
-	0x95, 0xf4, 0x29, 0x9c, 0x44, 0xd2, 0x27, 0x41, 0xcb, 0x20, 0x51, 0xb1, 0xa3, 0x02, 0x19, 0xd9,
-	0xeb, 0x58, 0x2a, 0x89, 0x1d, 0xcd, 0x8e, 0x4e, 0xf3, 0x87, 0xd6, 0xce, 0x32, 0x88, 0x4a, 0xb4,
-	0xf9, 0x12, 0x7a, 0xd7, 0xd2, 0xa7, 0x4b, 0xdf, 0x8f, 0x29, 0x49, 0x90, 0xc3, 0x41, 0x71, 0xe4,
-	0x6c, 0xcc, 0xac, 0x23, 0xb1, 0xb9, 0x22, 0x42, 0x7b, 0x21, 0x63, 0xc5, 0x8d, 0x31, 0xb3, 0xfa,
-	0x42, 0x9f, 0xcd, 0x5b, 0x03, 0x86, 0xd7, 0x95, 0xb2, 0x38, 0x82, 0x6e, 0x86, 0xbd, 0xbb, 0xd2,
-	0x6f, 0x68, 0xcd, 0x8c, 0x67, 0x4c, 0x14, 0x08, 0x3e, 0x86, 0x7e, 0x76, 0x5a, 0xa4, 0x6e, 0x18,
-	0x78, 0xef, 0xe9, 0x87, 0x7e, 0xdb, 0x7d, 0xb1, 0x0b, 0xe2, 0x13, 0x18, 0x5c, 0x7a, 0x9e, 0x4c,
-	0x23, 0xb5, 0xe9, 0xa5, 0xa5, 0x7b, 0xa9, 0xa0, 0x68, 0x03, 0x96, 0x2b, 0xbf, 0xa5, 0x60, 0x79,
-	0xa3, 0x78, 0x5b, 0x37, 0xd8, 0xc0, 0xe0, 0xc5, 0xce, 0xac, 0xbc, 0x33, 0x66, 0x56, 0x6f, 0x8a,
-	0xb6, 0x76, 0xc6, 0x2e, 0x31, 0x62, 0xc7, 0x12, 0x0b, 0xfa, 0x73, 0xe9, 0x7d, 0x25, 0x7f, 0xe6,
-	0x84, 0x4e, 0xe4, 0x11, 0xef, 0x6e, 0xc7, 0xda, 0x25, 0xaa, 0xfd, 0x7c, 0x52, 0x8e, 0x4a, 0x13,
-	0x7e, 0x50, 0xef, 0x27, 0x67, 0xf0, 0x14, 0xba, 0x73, 0x47, 0x51, 0xa2, 0xf8, 0xe1, 0x98, 0x59,
-	0x87, 0xa2, 0xb8, 0x65, 0x78, 0x31, 0xcb, 0x91, 0xd6, 0x16, 0x37, 0xf3, 0x96, 0xc1, 0xa3, 0x37,
-	0xa4, 0xaa, 0x8e, 0x27, 0x82, 0xbe, 0xa5, 0x99, 0xae, 0xb9, 0x3e, 0xfb, 0x6b, 0xfd, 0x0b, 0x38,
-	0xf9, 0x10, 0x44, 0x0d, 0x16, 0xe6, 0x3b, 0x6e, 0x26, 0xb5, 0xca, 0xf9, 0xde, 0xa0, 0x6a, 0x15,
-	0xaa, 0x26, 0x12, 0x9f, 0x03, 0x2c, 0xb6, 0xd9, 0xd3, 0x3b, 0xea, 0x4d, 0x8f, 0x0b, 0xeb, 0xef,
-	0x08, 0x51, 0x7a, 0xc8, 0xfc, 0x05, 0x67, 0xcd, 0xd3, 0x26, 0x6b, 0x19, 0x25, 0x84, 0x1c, 0x3a,
-	0x9f, 0xa5, 0x72, 0x42, 0x3d, 0x61, 0x5b, 0x2f, 0x24, 0x07, 0xf0, 0x35, 0x1c, 0xd7, 0x64, 0xdc,
-	0x18, 0xb7, 0xac, 0xde, 0xf4, 0x61, 0x69, 0xdd, 0x65, 0x5e, 0xd4, 0x15, 0xe6, 0x6f, 0x06, 0xa3,
-	0x86, 0x0e, 0x36, 0x76, 0xd7, 0xc2, 0xcc, 0xf6, 0x0b, 0xb3, 0xf1, 0x1f, 0x61, 0x6e, 0xed, 0x1b,
-	0xe6, 0xf6, 0x5e, 0x61, 0x36, 0xdd, 0xc6, 0x04, 0x6d, 0x2d, 0x7d, 0x55, 0xff, 0x3f, 0xeb, 0xa9,
-	0xfe, 0xe1, 0x5b, 0x4d, 0x70, 0x3e, 0x87, 0x93, 0x2a, 0x96, 0x05, 0x8e, 0x10, 0x61, 0x70, 0x47,
-	0x50, 0x4c, 0xfe, 0xf0, 0x1e, 0x0e, 0x00, 0x32, 0xec, 0x63, 0x4a, 0x29, 0xf9, 0x43, 0x86, 0x0f,
-	0xf2, 0xb1, 0xae, 0x28, 0x24, 0x45, 0xfe, 0xd0, 0x98, 0x9d, 0x7f, 0xb1, 0x96, 0x81, 0xba, 0x49,
-	0x5d, 0xdb, 0x93, 0xab, 0xc9, 0x4f, 0x29, 0x5d, 0x2f, 0xff, 0x7d, 0xea, 0xc9, 0x98, 0x26, 0x9e,
-	0x5c, 0xad, 0x64, 0x34, 0xd1, 0xcd, 0xb9, 0x5d, 0xfd, 0x4d, 0x7b, 0xf1, 0x27, 0x00, 0x00, 0xff,
-	0xff, 0x17, 0xae, 0x37, 0x6c, 0x12, 0x05, 0x00, 0x00,
+	// 578 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x54, 0x4d, 0x6f, 0xd3, 0x40,
+	0x10, 0x65, 0xed, 0x36, 0x34, 0x93, 0x7e, 0xa4, 0x2b, 0x35, 0xac, 0xd2, 0x1e, 0x2c, 0x0b, 0x55,
+	0x56, 0x81, 0x04, 0x02, 0x3f, 0x80, 0x86, 0x22, 0xa8, 0x08, 0x55, 0x59, 0x7a, 0xe2, 0xe6, 0xd8,
+	0x43, 0x6a, 0xd5, 0xf6, 0x86, 0xec, 0x5a, 0xa2, 0x5c, 0xb8, 0x72, 0xe3, 0xce, 0x6f, 0xe4, 0x07,
+	0x70, 0x44, 0x5e, 0x9b, 0xd4, 0x5f, 0x45, 0xe1, 0xc2, 0x25, 0xca, 0xbe, 0xb7, 0x6f, 0x77, 0xe6,
+	0xed, 0x1b, 0xc3, 0x41, 0x24, 0x7c, 0x0c, 0x87, 0xb1, 0xf0, 0x91, 0xe3, 0x2c, 0x90, 0x6a, 0xe1,
+	0xaa, 0x40, 0xc4, 0x83, 0xf9, 0x42, 0x28, 0x41, 0xd7, 0x35, 0xdb, 0xef, 0x65, 0x9b, 0xe6, 0xee,
+	0x2c, 0x88, 0x0b, 0x74, 0x7f, 0xff, 0x46, 0x7c, 0xec, 0xfb, 0x0b, 0x94, 0xf2, 0x34, 0xfe, 0x28,
+	0x32, 0xd2, 0xfe, 0x65, 0x40, 0xf7, 0xac, 0x72, 0x2c, 0xed, 0x43, 0x2b, 0xc5, 0x4e, 0x4f, 0x18,
+	0xb1, 0x88, 0x63, 0x8e, 0x8d, 0xc7, 0x84, 0xe7, 0x08, 0xbd, 0x0f, 0x5b, 0xe9, 0xbf, 0xf3, 0x64,
+	0x1a, 0x06, 0xde, 0x1b, 0xbc, 0x66, 0x86, 0x45, 0x9c, 0x4d, 0x5e, 0x06, 0xe9, 0x21, 0x6c, 0x1f,
+	0x7b, 0x9e, 0x48, 0x62, 0x95, 0x5f, 0xc9, 0x4c, 0x8b, 0x38, 0x6d, 0x5e, 0x41, 0xe9, 0x00, 0x68,
+	0xf1, 0xe6, 0xd7, 0x18, 0xcc, 0x2e, 0x15, 0x5b, 0xb3, 0x88, 0xb3, 0xc5, 0x1b, 0x18, 0xea, 0xc0,
+	0xd6, 0x44, 0x78, 0x57, 0xe8, 0x8f, 0xdd, 0xd0, 0x8d, 0x3d, 0x64, 0xeb, 0xcb, 0x02, 0xcb, 0x44,
+	0xf5, 0xe4, 0xf7, 0xca, 0x55, 0x89, 0x64, 0xad, 0xfa, 0xc9, 0x19, 0x43, 0x7b, 0xd0, 0x9a, 0xb8,
+	0x0a, 0xa5, 0x62, 0x77, 0x2d, 0xe2, 0x6c, 0xf0, 0x7c, 0x95, 0xe2, 0x79, 0x55, 0x1b, 0x5a, 0x9b,
+	0xaf, 0xe8, 0x73, 0xd8, 0x39, 0x2b, 0x3b, 0xca, 0xda, 0x16, 0x71, 0x3a, 0xa3, 0xde, 0x40, 0xfb,
+	0x3d, 0xa8, 0xb0, 0xbc, 0xba, 0xdd, 0xfe, 0x49, 0x60, 0xff, 0x15, 0xaa, 0xaa, 0xfb, 0x92, 0xe3,
+	0xa7, 0x24, 0xbd, 0xb9, 0xb9, 0x03, 0x72, 0x6b, 0x07, 0xcf, 0x60, 0xef, 0x6d, 0x10, 0x37, 0xd8,
+	0x69, 0x68, 0x49, 0x33, 0xa9, 0x55, 0xee, 0xe7, 0x06, 0x95, 0x99, 0xab, 0x9a, 0x48, 0xfa, 0x04,
+	0xe0, 0x7c, 0x99, 0x33, 0xfd, 0x5e, 0x9d, 0xd1, 0x6e, 0xde, 0xf8, 0x0d, 0xc1, 0x0b, 0x9b, 0xec,
+	0xaf, 0x70, 0xd0, 0xdc, 0xad, 0x9c, 0x8b, 0x58, 0x22, 0x65, 0xb0, 0x7e, 0x21, 0x94, 0x1b, 0xea,
+	0x0e, 0xd7, 0xf4, 0x93, 0x66, 0x00, 0x7d, 0x09, 0xbb, 0x35, 0x19, 0x33, 0x2c, 0xd3, 0xe9, 0x8c,
+	0xee, 0x15, 0xcc, 0x2e, 0xf2, 0xbc, 0xae, 0xb0, 0x7f, 0x10, 0xe8, 0x37, 0x54, 0xf0, 0xc7, 0xee,
+	0x5a, 0xb0, 0xc9, 0x6a, 0xc1, 0x36, 0xfe, 0x21, 0xd8, 0xe6, 0x6d, 0xc1, 0xb6, 0xa7, 0x8d, 0x59,
+	0x58, 0x9a, 0xf3, 0xa2, 0x3e, 0xa5, 0xba, 0xbe, 0xbf, 0x38, 0x50, 0x13, 0xd8, 0x0a, 0x7a, 0x59,
+	0x06, 0xa3, 0x40, 0xca, 0x40, 0xc4, 0x17, 0x41, 0x84, 0x52, 0xb9, 0xd1, 0x9c, 0x5a, 0xd0, 0x5e,
+	0x2e, 0x0a, 0x33, 0xdf, 0x2e, 0xee, 0xe8, 0x8c, 0x43, 0xe1, 0x5d, 0x95, 0x22, 0x55, 0x84, 0x0a,
+	0x03, 0x64, 0x16, 0x07, 0xc8, 0xfe, 0x46, 0xe0, 0x41, 0xd3, 0xc3, 0x8f, 0xaf, 0x4b, 0xce, 0x2e,
+	0x63, 0x7f, 0x08, 0xdb, 0x65, 0x82, 0x11, 0xcb, 0x74, 0x36, 0x79, 0x05, 0xad, 0x44, 0xd0, 0x58,
+	0x25, 0x82, 0xdf, 0x09, 0x3c, 0x5c, 0xad, 0x94, 0xff, 0x94, 0xc9, 0xa3, 0x09, 0xec, 0x55, 0xc1,
+	0x74, 0x9a, 0x91, 0xd2, 0xcc, 0x85, 0x8c, 0xc0, 0x05, 0xfa, 0xdd, 0x3b, 0x74, 0x1b, 0x20, 0xc5,
+	0xde, 0x25, 0x98, 0xa0, 0xdf, 0x25, 0x74, 0x07, 0x3a, 0xe9, 0xfa, 0x04, 0x43, 0x54, 0xe8, 0x77,
+	0x8d, 0xf1, 0xd1, 0x07, 0x67, 0x16, 0xa8, 0xcb, 0x64, 0x3a, 0xf0, 0x44, 0x34, 0xfc, 0x22, 0xc4,
+	0xd4, 0xcb, 0x7e, 0x1f, 0x79, 0x62, 0x81, 0x43, 0x4f, 0x44, 0x91, 0x88, 0x87, 0xba, 0xba, 0x69,
+	0x4b, 0x7f, 0xff, 0x9f, 0xfe, 0x0e, 0x00, 0x00, 0xff, 0xff, 0x2d, 0xfa, 0x51, 0xec, 0x5b, 0x06,
+	0x00, 0x00,
 }

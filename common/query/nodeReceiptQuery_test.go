@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -165,7 +166,7 @@ func TestReceiptQuery_GetReceipts(t *testing.T) {
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, " +
 				"datum_hash, reference_block_height, reference_block_hash, rmr_linked, " +
 				"recipient_signature, rmr, rmr_index FROM node_receipt ORDER BY reference_block_height " +
-				"ASC LIMIT 8 OFFSET 0",
+				"ASC LIMIT 256 OFFSET 0",
 		},
 	}
 	for _, tt := range tests {
@@ -310,7 +311,7 @@ func TestReceiptQuery_BuildModel(t *testing.T) {
 	}
 }
 
-func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
+func TestNodeReceiptQuery_PruneData(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -343,13 +344,13 @@ func TestNodeReceiptQuery_RemoveReceipts(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			got, args := rq.RemoveReceipts(tt.args.blockHeight, tt.args.limit)
+			got, args := rq.PruneData(tt.args.blockHeight, tt.args.limit)
 			if got != tt.want {
-				t.Errorf("RemoveReceipts() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("PruneData() = \n%v, want \n%v", got, tt.want)
 				return
 			}
 			if !reflect.DeepEqual(args, []interface{}{tt.args.blockHeight, tt.args.limit}) {
-				t.Errorf("RemoveReceipts() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
+				t.Errorf("PruneData() = \n%v, want \n%v", args, []interface{}{tt.args.blockHeight, tt.args.limit})
 			}
 		})
 	}

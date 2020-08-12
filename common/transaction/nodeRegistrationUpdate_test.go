@@ -47,7 +47,7 @@ func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(query string, 
 func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
 		return db.Query("")
@@ -58,14 +58,13 @@ func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, t
 func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -75,7 +74,6 @@ func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, ar
 			nodePubKey2,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeDeleted,
 			true,
@@ -96,14 +94,13 @@ func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelectRow(qe string, _ boo
 func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -113,7 +110,6 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			nodePubKey2,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
@@ -121,14 +117,13 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 		))
 		return db.Query("")
 	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -138,7 +133,6 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
@@ -152,14 +146,13 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -169,7 +162,6 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
@@ -177,14 +169,13 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 		))
 		return db.Query("")
 	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -238,14 +229,13 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelectRow(qStr s
 func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, "+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -255,7 +245,6 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
@@ -263,14 +252,13 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...
 		))
 		return db.Query("")
 	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance,"+
+	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
@@ -311,7 +299,7 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, arg
 		mockedRows.AddRow(
 			senderAddress1,
 			uint32(1),
-			int64(1000000000000),
+			int64(900000000),
 			int64(1000000000000),
 			int64(100000000),
 			true,
@@ -323,7 +311,6 @@ func (*mockExecutorValidateSuccessRU) ExecuteSelectRow(qStr string, tx bool, arg
 			nodePubKey1,
 			senderAddress1,
 			uint32(1),
-			"10.10.10.10",
 			int64(1000),
 			model.NodeRegistrationState_NodeRegistered,
 			true,
@@ -356,26 +343,15 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	txBodyWithInvalidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey1,
-		NodeAddress: &model.NodeAddress{
-			Address: "127.0.1",
-		},
 	}
 	txBodyWithValidNodePubKey := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		NodePublicKey: nodePubKey2,
-		NodeAddress: &model.NodeAddress{
-			Address: "127.0.0.1",
-			Port:    8080,
-		},
 		LockedBalance: int64(1000000),
 	}
 	txBodyWithInvalidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
 		LockedBalance: int64(100),
-		NodeAddress: &model.NodeAddress{
-			Address: "127.0.0.1",
-			Port:    8080,
-		},
 	}
 	txBodyWithLockedBalanceTooHigh := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
@@ -383,33 +359,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	}
 	txBodyWithValidLockedBalance := &model.UpdateNodeRegistrationTransactionBody{
 		Poown:         poown,
-		LockedBalance: int64(1000000000),
-		NodeAddress: &model.NodeAddress{
-			Address: "127.0.0.1",
-			Port:    8080,
-		},
-	}
-	txBodyWithInvalidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
-		Poown: poown,
-		NodeAddress: &model.NodeAddress{
-			Address: "http://google.com",
-		},
-		LockedBalance: int64(10000000000),
-	}
-
-	txBodyWithValidNodeAddress := &model.UpdateNodeRegistrationTransactionBody{
-		Poown: poown,
-		NodeAddress: &model.NodeAddress{
-			Address: "10.10.10.10",
-		},
-		LockedBalance: int64(10000000000),
-	}
-	txBodyWithValidNodeURI := &model.UpdateNodeRegistrationTransactionBody{
-		Poown: poown,
-		NodeAddress: &model.NodeAddress{
-			Address: "https://google.com",
-		},
-		LockedBalance: int64(10000000000),
+		LockedBalance: int64(100000),
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -420,7 +370,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -545,45 +495,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		{
-			name: "Validate:fail-{UpdateNodeAddress.InvalidURI}",
-			fields: fields{
-				Body:                  txBodyWithInvalidNodeURI,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccessRU{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: false,
-		},
-		{
-			name: "Validate:success-{UpdateNodeAddressValidURI}",
-			fields: fields{
-				Body:                  txBodyWithValidNodeURI,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccessRU{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: false,
-		},
-		{
-			name: "Validate:success-{UpdateNodeAddress}",
-			fields: fields{
-				Body:                  txBodyWithValidNodeAddress,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockExecutorValidateSuccessRU{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &mockAuthPoown{success: true},
-			},
-			wantErr: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -618,7 +529,7 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -697,7 +608,6 @@ func (*mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess) ExecuteSelectRow(qe 
 		nodePubKey1,
 		senderAddress1,
 		uint32(1),
-		"10.10.10.10",
 		int64(1000),
 		model.NodeRegistrationState_NodeRegistered,
 		true,
@@ -723,7 +633,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
 	}
 	tests := []struct {
@@ -791,7 +701,7 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name    string
@@ -857,7 +767,7 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -893,11 +803,7 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 }
 
 func TestUpdateNodeRegistration_GetSize(t *testing.T) {
-	txBody := &model.UpdateNodeRegistrationTransactionBody{
-		NodeAddress: &model.NodeAddress{
-			Address: "11.10.10.10",
-		},
-	}
+	txBody := &model.UpdateNodeRegistrationTransactionBody{}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -907,7 +813,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -920,7 +826,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 				Body:                  txBody,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
-			want: 199,
+			want: 206,
 		},
 	}
 	for _, tt := range tests {
@@ -945,7 +851,6 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 
 func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 
-	mockNodeRegisryQ := query.NewNodeRegistrationQuery()
 	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
@@ -956,7 +861,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -1042,9 +947,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         nil,
 			},
 			args: args{
-				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 + len([]byte(
-					mockNodeRegisryQ.ExtractNodeAddress(txBody.GetNodeAddress())),
-				))],
+				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey))],
 			},
 			want:    nil,
 			wantErr: true,
@@ -1061,8 +964,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:         nil,
 			},
 			args: args{
-				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + 4 +
-					len([]byte(mockNodeRegisryQ.ExtractNodeAddress(txBody.GetNodeAddress()))) + int(constant.Balance))],
+				txBodyBytes: txBodyBytes[:(len(txBody.NodePublicKey) + int(constant.Balance))],
 			},
 			want:    nil,
 			wantErr: true,
@@ -1115,7 +1017,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	tests := []struct {
 		name   string
@@ -1162,7 +1064,7 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.ProofOfOwnershipValidationInterface
+		AuthPoown             auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -1212,10 +1114,12 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		QueryExecutor           query.ExecutorInterface
-		AuthPoown               auth.ProofOfOwnershipValidationInterface
+		AuthPoown               auth.NodeAuthValidationInterface
 	}
 	type args struct {
 		selectedTransactions []*model.Transaction
+		newBlockTimestamp    int64
+		newBlockHeight       uint32
 	}
 	tests := []struct {
 		name    string
@@ -1307,7 +1211,7 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 				QueryExecutor:           tt.fields.QueryExecutor,
 				AuthPoown:               tt.fields.AuthPoown,
 			}
-			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions)
+			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.SkipMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return

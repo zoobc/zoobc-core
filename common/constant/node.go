@@ -4,7 +4,9 @@ var (
 	// ProofOfOwnershipExpiration number of blocks after a proof of ownership message 'expires' (is considered invalid)
 	ProofOfOwnershipExpiration uint32 = 100
 	MaxNodeAdmittancePerCycle  uint32 = 1
-	// NodeAdmittanceCycle FIXME: this is for testing only. real value should be 1440, if the mainchain is set to
-	//       smith every minute on average and if we want to accept new nodes once a day
-	NodeAdmittanceCycle uint32 = 3
+
+	NodeAdmissionGenesisDelay int64 = 0            // TODO: revert after demo ,  3 months in production
+	NodeAdmissionBaseDelay    int64 = OneHour      // 1 year in production
+	NodeAdmissionMinDelay     int64 = 60           // 1 hour in production
+	NodeAdmissionMaxDelay     int64 = 72 * OneHour // 72 hours in production
 )

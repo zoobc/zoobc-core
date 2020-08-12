@@ -7,9 +7,11 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -147,18 +149,27 @@ func initialize(
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(chainType),
+		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
+		nil,
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
+	feeScaleService := fee.NewFeeScaleService(
+		query.NewFeeScaleQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		queryExecutor,
 	)
 	blockService = service.NewBlockMainService(
@@ -177,6 +188,7 @@ func initialize(
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
 		observerInstance,
 		blocksmithStrategy,
 		log.New(),
@@ -193,10 +205,15 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
+			nil,
 		),
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		feeScaleService,
+		query.GetPruneQuery(chainType),
 		nil,
 		nil,
 	)

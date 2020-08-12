@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -44,6 +45,8 @@ type (
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlocksmithService         BlocksmithServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 )
 
@@ -51,31 +54,26 @@ func NewBlockSpineService(
 	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	spineBlockQuery query.BlockQueryInterface,
-	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	signature crypto.SignatureInterface,
-	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
 	logger *log.Logger,
 	megablockQuery query.SpineBlockManifestQueryInterface,
 	blocksmithService BlocksmithServiceInterface,
 	snapshotMainblockService SnapshotBlockServiceInterface,
+	blockStateCache storage.CacheStorageInterface,
+	blockchainStatusService BlockchainStatusServiceInterface,
+	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:          ct,
-		QueryExecutor:      queryExecutor,
-		BlockQuery:         spineBlockQuery,
-		Signature:          signature,
-		BlocksmithStrategy: blocksmithStrategy,
-		Observer:           obsr,
-		Logger:             logger,
-		SpinePublicKeyService: &BlockSpinePublicKeyService{
-			Logger:                logger,
-			NodeRegistrationQuery: nodeRegistrationQuery,
-			QueryExecutor:         queryExecutor,
-			Signature:             signature,
-			SpinePublicKeyQuery:   spinePublicKeyQuery,
-		},
+		Chaintype:             ct,
+		QueryExecutor:         queryExecutor,
+		BlockQuery:            spineBlockQuery,
+		Signature:             signature,
+		BlocksmithStrategy:    blocksmithStrategy,
+		Observer:              obsr,
+		Logger:                logger,
+		SpinePublicKeyService: spinePublicKeyService,
 		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
@@ -84,6 +82,8 @@ func NewBlockSpineService(
 		),
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
+		BlockStateCache:          blockStateCache,
+		BlockchainStatusService:  blockchainStatusService,
 	}
 }
 
@@ -348,6 +348,11 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	if err != nil {
+		return err
+	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
@@ -356,6 +361,8 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
 	}
 	bs.Observer.Notify(observer.BlockPushed, block, bs.Chaintype)
+
+	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
 }
@@ -844,6 +851,17 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return nil, err
 	}
+
+	err = bs.PopulateBlockData(commonBlock)
+	if err != nil {
+		return nil, err
+	}
+	// cache last block state
+	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	if err != nil {
+		return nil, err
+	}
+
 	go func() {
 		// post rollback action:
 		// - clean snapshot data
@@ -889,8 +907,18 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		if mainchainGenesisEntry.NodePublicKey == nil {
 			continue
 		}
+		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
+			mainchainGenesisEntry.AccountAddress,
+			mainchainGenesisEntry.NodeAddress,
+			mainchainGenesisEntry.LockedBalance,
+			mainchainGenesisEntry.NodePublicKey,
+		)
+		if err != nil {
+			return nil
+		}
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
+			NodeID:          genesisNodeRegistrationTx.ID,
 			PublicKeyAction: model.SpinePublicKeyAction_AddKey,
 			MainBlockHeight: 0,
 			Height:          0,
