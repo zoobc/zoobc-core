@@ -89,6 +89,7 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+	participationScoreService := coreService.NewParticipationScoreService(query.NewParticipationScoreQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -169,6 +170,9 @@ func startGrpcServer(
 			query.NewAccountDatasetsQuery(),
 			queryExecutor,
 		),
+	})
+	rpcService.RegisterParticipationScoreServiceServer(grpcServer, &handler.ParticipationScoreHandler{
+		Service: service.NewParticipationScoreService(participationScoreService),
 	})
 	go func() {
 		// serve rpc
