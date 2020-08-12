@@ -3,8 +3,9 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -20,6 +21,8 @@ type (
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
 		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
+		GetParticipationScoresByBlockHeightRange(
+			fromBlockHeight, toBlockHeight uint32) (str string, args []interface{})
 		Scan(participationScore *model.ParticipationScore, row *sql.Row) error
 		ExtractModel(ps *model.ParticipationScore) []interface{}
 		BuildModel(participationScores []*model.ParticipationScore, rows *sql.Rows) ([]*model.ParticipationScore, error)
@@ -193,6 +196,16 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 		strings.Join(psTableFields, ", "),
 		uint32(model.NodeRegistrationState_NodeRegistered),
 	), []interface{}{nodePublicKey}
+}
+
+func (ps *ParticipationScoreQuery) GetParticipationScoresByBlockHeightRange(
+	fromBlockHeight, toBlockHeight uint32,
+) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE height BETWEEN ? AND ? ORDER BY height ASC",
+		strings.Join(ps.Fields, ", "), ps.getTableName())
+	return query, []interface{}{
+		fromBlockHeight, toBlockHeight,
+	}
 }
 
 // ExtractModel extract the model struct fields to the order of ParticipationScoreQuery.Fields

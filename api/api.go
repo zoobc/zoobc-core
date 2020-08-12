@@ -92,6 +92,7 @@ func startGrpcServer(
 		receiptService,
 		transactionCoreService,
 	)
+	participationScoreService := coreService.NewParticipationScoreService(query.NewParticipationScoreQuery(), queryExecutor)
 
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
@@ -176,6 +177,9 @@ func startGrpcServer(
 			query.NewAccountDatasetsQuery(),
 			queryExecutor,
 		),
+	})
+	rpcService.RegisterParticipationScoreServiceServer(grpcServer, &handler.ParticipationScoreHandler{
+		Service: service.NewParticipationScoreService(participationScoreService),
 	})
 
 	// Set GRPC handler for published receipt
