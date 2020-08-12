@@ -169,7 +169,8 @@ func init() {
 		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
 	}
 
-	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult))
+	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
+		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
 		loggerCoreService.Fatal("node seed is empty", err.Error())

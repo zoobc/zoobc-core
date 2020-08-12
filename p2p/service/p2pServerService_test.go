@@ -21,6 +21,8 @@ var (
 		SharedAddress: "127.0.0.1",
 		Address:       "127.0.0.1",
 		Port:          8001,
+		Version:       "1.0.0",
+		CodeName:      "ZBC_main",
 	}
 	mockPeers = map[string]*model.Peer{
 		"127.0.0.1:3000": {
@@ -72,6 +74,10 @@ type (
 	mockBlockServiceGetLastBlockFailed struct {
 		coreService.BlockService
 	}
+
+	mockNodeConfigurationService struct {
+		coreService.NodeConfigurationServiceInterface
+	}
 )
 
 func (mockNais *p2pSrvMockNodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
@@ -107,12 +113,22 @@ func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) ValidateRequest(ctx con
 func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	return errors.New("mock Error")
 }
+func (*mockPeerExplorerStrategyAddToUnresolvedPeersFail) GetHostInfo() *model.Node {
+	return &model.Node{
+		Version:  "1.0.0",
+		CodeName: "ZBC_main",
+	}
+}
 
 func (*mockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
 func (*mockBlockServiceGetLastBlockFailed) GetLastBlock() (*model.Block, error) {
 	return nil, errors.New("mock Error")
+}
+
+func (*mockNodeConfigurationService) GetHost() *model.Host {
+	return &model.Host{Info: &mockNode}
 }
 
 func TestNewP2PServerService(t *testing.T) {

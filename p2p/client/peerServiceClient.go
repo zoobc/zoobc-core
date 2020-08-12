@@ -183,7 +183,11 @@ func (psc *PeerServiceClient) GetConnection(destPeer *model.Peer) (*grpc.ClientC
 // setDefaultMetadata use to set default metadata.
 // It will use in validation request
 func (psc *PeerServiceClient) setDefaultMetadata() map[string]string {
-	return map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo())}
+	return map[string]string{
+		p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(psc.NodeConfigurationService.GetHost().GetInfo()),
+		"version":                         psc.NodeConfigurationService.GetHost().GetInfo().GetVersion(),
+		"codename":                        psc.NodeConfigurationService.GetHost().GetInfo().GetCodeName(),
+	}
 }
 
 // getDefaultContext use to get default context with deadline & default metadata
@@ -266,9 +270,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 	// context still not use ctx := cs.buildContext()
 	res, err := p2pClient.GetPeerInfo(
 		ctx,
-		&model.GetPeerInfoRequest{
-			Version: "v1,.0.1",
-		},
+		&model.GetPeerInfoRequest{},
 	)
 	if err != nil {
 		return nil, err
