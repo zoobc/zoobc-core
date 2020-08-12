@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"google.golang.org/grpc/codes"
@@ -100,15 +99,35 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model.GetNodeRegistrationsByNodePublicKeysRequest,
 ) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
-	rows, err := ns.Query.ExecuteSelect(ns.NodeRegistrationQuery.GetNodeRegistrationsByNodePublicKeys(), false, params.NodePublicKeys)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
 
-	nodeRegistrations, err := ns.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if (err != nil) || len(nodeRegistrations) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "NoRegisteredNodesFound")
+	var (
+		err               error
+		rows2             *sql.Rows
+		selectQuery       string
+		args              []interface{}
+		nodeRegistrations []*model.NodeRegistration
+	)
+
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	caseQuery := query.NewCaseQuery()
+
+	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
+	caseQuery.Where(caseQuery.In("node_public_key", params.NodePublicKeys))
+	caseQuery.And(caseQuery.Equal("latest", 1))
+	caseQuery.OrderBy("height", model.OrderBy_DESC)
+
+	selectQuery, args = caseQuery.Build()
+
+	// Get list of node registry
+	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows2.Close()
+
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &model.GetNodeRegistrationsByNodePublicKeysResponse{
