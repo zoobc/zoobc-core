@@ -64,10 +64,7 @@ type (
 		// connection managements
 		DeleteConnection(destPeer *model.Peer) error
 		GetConnection(destPeer *model.Peer) (*grpc.ClientConn, error)
-		RequestDownloadFile(
-			destPeer *model.Peer,
-			fileChunkNames []string,
-		) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(destPeer *model.Peer, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// PeerServiceClient represent peer service
 	PeerServiceClient struct {
@@ -564,6 +561,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 
 func (psc *PeerServiceClient) RequestDownloadFile(
 	destPeer *model.Peer,
+	snapshotHash []byte,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
@@ -581,6 +579,7 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 		cancelReq()
 	}()
 	res, err := p2pClient.RequestFileDownload(ctx, &model.FileDownloadRequest{
+		SnapshotHash:   snapshotHash,
 		FileChunkNames: fileChunkNames,
 	})
 	if err != nil {

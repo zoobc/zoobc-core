@@ -20,6 +20,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -50,6 +51,7 @@ var (
 		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
 	}
 	mockSpinePublicKey = &model.SpinePublicKey{
+		NodeID:          1,
 		NodePublicKey:   nrsNodePubKey1,
 		MainBlockHeight: 1,
 		PublicKeyAction: model.SpinePublicKeyAction_AddKey,
@@ -444,12 +446,13 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 				mockSpineBlockData.GetTotalCoinBase(),
 				mockSpineBlockData.GetVersion(),
 			))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
+				mockSpinePublicKey.NodeID,
 				mockSpinePublicKey.PublicKeyAction,
 				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,
@@ -824,6 +827,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
@@ -870,6 +874,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
+				BlockStateCache:         storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -939,6 +944,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 						},
 					},
 				},
+				BlockStateCache:         storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -988,6 +994,7 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast, true); (err != nil) != tt.wantErr {
@@ -1577,6 +1584,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		Logger                    *log.Logger
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	tests := []struct {
@@ -1614,6 +1622,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpineBlockManifestQuery: query.NewSpineBlockManifestQuery(),
 					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
+				BlockStateCache:         storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -1631,6 +1640,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				Logger:                    tt.fields.Logger,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
@@ -1814,11 +1824,11 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string,
 
 	switch qStr {
 
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 0 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
@@ -1945,11 +1955,11 @@ func (*mockSpineQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx 
 	defer db.Close()
 
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
 	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
@@ -2311,6 +2321,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		NodeRegistrationService   NodeRegistrationServiceInterface
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 	type args struct {
@@ -2356,6 +2367,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2397,6 +2409,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2432,6 +2445,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2475,6 +2489,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2510,6 +2525,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: true,
@@ -2550,6 +2566,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -2568,6 +2585,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 				Logger:                    log.New(),
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 			}
 			got, err := bs.ReceiveBlock(
@@ -3376,11 +3394,11 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, arg
 				mockSpineGoodCommonBlock.GetVersion(),
 			),
 		)
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height >= 0 AND height <= 1000 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -3565,6 +3583,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
+		BlockStateCache           storage.CacheStorageInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3686,33 +3705,28 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		{
 			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				Observer:                nil,
-				Logger:                  log.New(),
-				SpinePublicKeyService: &BlockSpinePublicKeyService{
-					Logger:                log.New(),
-					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-					QueryExecutor:         &mockSpineExecutorBlockPopSuccess{},
-					Signature:             nil,
-					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				},
+				RWMutex:                   sync.RWMutex{},
+				Chaintype:                 &chaintype.SpineChain{},
+				KVExecutor:                nil,
+				QueryExecutor:             &mockSpineExecutorBlockPopSuccess{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
+				MempoolQuery:              nil,
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.SpineChain{}),
+				MerkleTreeQuery:           nil,
+				PublishedReceiptQuery:     nil,
+				SkippedBlocksmithQuery:    nil,
+				Signature:                 nil,
+				MempoolService:            &mockSpineMempoolServiceBlockPopSuccess{},
+				ReceiptService:            &mockSpineReceiptSuccess{},
+				ActionTypeSwitcher:        nil,
+				AccountBalanceQuery:       nil,
+				ParticipationScoreQuery:   nil,
+				Observer:                  nil,
+				Logger:                    log.New(),
+				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3723,33 +3737,28 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		{
 			name: "GetManifestFromSpineBlockHeightPoppedOffBlocks",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
-				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.SpineChain{}),
-				MerkleTreeQuery:         nil,
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockSpineReceiptSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				Observer:                nil,
-				Logger:                  log.New(),
-				SpinePublicKeyService: &BlockSpinePublicKeyService{
-					Logger:                log.New(),
-					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-					QueryExecutor:         &mockSpineExecutorBlockPopSuccess{},
-					Signature:             nil,
-					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				},
+				RWMutex:                   sync.RWMutex{},
+				Chaintype:                 &chaintype.SpineChain{},
+				KVExecutor:                nil,
+				QueryExecutor:             &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
+				MempoolQuery:              nil,
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.SpineChain{}),
+				MerkleTreeQuery:           nil,
+				PublishedReceiptQuery:     nil,
+				SkippedBlocksmithQuery:    nil,
+				Signature:                 nil,
+				MempoolService:            &mockSpineMempoolServiceBlockPopSuccess{},
+				ReceiptService:            &mockSpineReceiptSuccess{},
+				ActionTypeSwitcher:        nil,
+				AccountBalanceQuery:       nil,
+				ParticipationScoreQuery:   nil,
+				Observer:                  nil,
+				Logger:                    log.New(),
+				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
+				BlockStateCache:           storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3777,6 +3786,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
+				BlockStateCache:           tt.fields.BlockStateCache,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -3807,12 +3817,14 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 0":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key " +
+		"WHERE height = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewSpinePublicKeyQuery().Fields,
 			).AddRow(
 				mockSpinePublicKey.NodePublicKey,
+				mockSpinePublicKey.NodeID,
 				mockSpinePublicKey.PublicKeyAction,
 				mockSpinePublicKey.MainBlockHeight,
 				mockSpinePublicKey.Latest,
