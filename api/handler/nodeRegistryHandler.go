@@ -5,6 +5,8 @@ import (
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // NodeRegistryHandler handles requests related to node registry
@@ -51,6 +53,9 @@ func (nrh NodeRegistryHandler) GetNodeRegistrationsByNodePublicKeys(
 		response *model.GetNodeRegistrationsByNodePublicKeysResponse
 		err      error
 	)
+	if len(req.NodePublicKeys) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "At least 1 node public key is required")
+	}
 	response, err = nrh.Service.GetNodeRegistrationsByNodePublicKeys(req)
 	if err != nil {
 		return nil, err
