@@ -8,6 +8,11 @@ import (
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -16,15 +21,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
 
 func startGrpcServer(
@@ -43,6 +45,7 @@ func startGrpcServer(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 
 	chainType := chaintype.GetChainType(0)
@@ -111,7 +114,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -249,6 +252,7 @@ func Start(
 	receiptService coreService.ReceiptServiceInterface,
 	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 	startGrpcServer(
 		grpcPort, httpPort,
@@ -268,5 +272,6 @@ func Start(
 		receiptService,
 		transactionCoreService,
 		maxAPIRequestPerSecond,
+		blockStateStorages,
 	)
 }

@@ -486,9 +486,9 @@ func (*mockSnapshotQueryExecutor) ExecuteSelectRow(qe string, _ bool, _ ...inter
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	return db.QueryRow(qe), nil
 }
-func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload,
-	filePath string) (fullHash []byte,
-	fileChunkHashes [][]byte, err error) {
+func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(
+	*model.SnapshotPayload,
+) (fullHash []byte, fileChunkHashes [][]byte, err error) {
 	if !mocksbcs.success {
 		return nil, nil, errors.New("GenerateSnapshotChunksFailed")
 	}
@@ -499,8 +499,7 @@ func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(snapshotP
 	return snapshotFullHash, fileChunkHashes, nil
 }
 
-func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte,
-	filePath string) (*model.SnapshotPayload, error) {
+func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks([]byte, [][]byte) (*model.SnapshotPayload, error) {
 	if !mocksbcs.success {
 		return nil, errors.New("BuildSnapshotFromChunksFailed")
 	}

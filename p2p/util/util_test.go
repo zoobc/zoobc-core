@@ -14,6 +14,8 @@ func TestNewHost(t *testing.T) {
 		address    string
 		port       uint32
 		knownPeers []*model.Peer
+		version    string
+		codename   string
 	}
 	tests := []struct {
 		name string
@@ -42,11 +44,15 @@ func TestNewHost(t *testing.T) {
 						},
 					},
 				},
+				version:  "1.0.0",
+				codename: "ZBC_main",
 			},
 			want: &model.Host{
 				Info: &model.Node{
-					Address: "127.0.0.1",
-					Port:    3000,
+					Address:  "127.0.0.1",
+					Port:     3000,
+					Version:  "1.0.0",
+					CodeName: "ZBC_main",
 				},
 				KnownPeers: map[string]*model.Peer{
 					"127.0.0.1:3001": {
@@ -85,7 +91,7 @@ func TestNewHost(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NewHost(tt.args.address, tt.args.port, tt.args.knownPeers)
+			got := NewHost(tt.args.address, tt.args.port, tt.args.knownPeers, tt.args.version, tt.args.codename)
 			if strings.Compare(got.String(), tt.want.String()) != 0 {
 				t.Errorf("\n%v \n%v", got.String(), tt.want.String())
 			}
@@ -198,6 +204,63 @@ func TestParseKnownPeers(t *testing.T) {
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("ParseKnownPeers() = %v, want %v", got, tt.want)
 				}
+			}
+		})
+	}
+}
+
+func TestCheckPeerCompatibility(t *testing.T) {
+	type args struct {
+		host *model.Node
+		peer *model.Node
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantFailed: unmatched version (breaking change)",
+			args: args{
+				host: &model.Node{
+					Version: "1.0.0",
+				},
+				peer: &model.Node{
+					Version: "2.0.0",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantFailed: unmatched CodeName",
+			args: args{
+				host: &model.Node{
+					CodeName: "ZBC_main",
+				},
+				peer: &model.Node{
+					CodeName: "ZBC_test",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess: even though different minor version",
+			args: args{
+				host: &model.Node{
+					Version:  "1.0.0",
+					CodeName: "ZBC_main",
+				},
+				peer: &model.Node{
+					Version:  "1.2.0",
+					CodeName: "ZBC_main",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := CheckPeerCompatibility(tt.args.host, tt.args.peer); (err != nil) != tt.wantErr {
+				t.Errorf("CheckPeerCompatibility() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

@@ -1,8 +1,10 @@
 package service
 
 import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
 	"google.golang.org/grpc/codes"
@@ -20,21 +22,27 @@ type (
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		BlockStateStorages      map[int32]storage.CacheStorageInterface
 	}
 )
 
 var hostServiceInstance *HostService
 
 // NewHostService create a singleton instance of PeerExplorer
-func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2PeerServiceInterface,
+func NewHostService(
+	queryExecutor query.ExecutorInterface,
+	p2pService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
-	nodeRegistrationService coreService.NodeRegistrationServiceInterface) HostServiceInterface {
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
+) HostServiceInterface {
 	if hostServiceInstance == nil {
 		hostServiceInstance = &HostService{
 			Query:                   queryExecutor,
 			P2pService:              p2pService,
 			BlockServices:           blockServices,
 			NodeRegistrationService: nodeRegistrationService,
+			BlockStateStorages:      blockStateStorages,
 		}
 	}
 	return hostServiceInstance
@@ -43,27 +51,26 @@ func NewHostService(queryExecutor query.ExecutorInterface, p2pService p2p.Peer2P
 func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	var (
 		chainStatuses = make([]*model.ChainStatus, len(hs.BlockServices))
-		lastBlock     *model.Block
 		err           error
 	)
-	for chainType, blockService := range hs.BlockServices {
-		lastBlock, err = blockService.GetLastBlock()
-
-		if lastBlock == nil || err != nil {
+	for chainType := range hs.BlockServices {
+		var lastBlock model.Block
+		err = hs.BlockStateStorages[chainType].GetItem(nil, &lastBlock)
+		if err != nil {
 			continue
 		}
 		chainStatuses[chainType] = &model.ChainStatus{
 			ChainType: chainType,
 			Height:    lastBlock.Height,
-			LastBlock: lastBlock,
+			LastBlock: &lastBlock,
 		}
 	}
 
-	if lastBlock == nil {
-		return nil, status.Error(codes.InvalidArgument, "LastBlockIsNil")
+	// check existing main chaintype
+	if len(chainStatuses) == 0 || chainStatuses[(&chaintype.MainChain{}).GetTypeInt()] == nil {
+		return nil, status.Error(codes.InvalidArgument, "mainLastBlockIsNil")
 	}
-
-	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(chainStatuses[0].GetHeight())
 	if err != nil {
 		return nil, err
 	}
