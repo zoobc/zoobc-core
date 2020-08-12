@@ -16,7 +16,7 @@ gen-output := resource
 .PHONY: test
 test: go-fmt golangci-lint
 	$(info    running unit tests...)
-	go test `go list ./... | egrep -v 'common/model|common/service'` --short
+	go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1
 
 $(GOLANGCILINT):
 	$(info    fetching golangci-lint...)
