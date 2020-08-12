@@ -34,5 +34,6 @@ var (
 		"alpha":        2,
 		"local":        3,
 		"experimental": 4,
+		"beta":         5,
 	}
 )
