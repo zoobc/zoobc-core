@@ -64,6 +64,7 @@ var (
 	snapshotSchedulers                                              *scheduler.SnapshotScheduler
 	blockServices                                                   = make(map[int32]service.BlockServiceInterface)
 	snapshotBlockServices                                           = make(map[int32]service.SnapshotBlockServiceInterface)
+	blockStateStorages                                              = make(map[int32]storage.CacheStorageInterface)
 	mainchainBlockService                                           *service.BlockService
 	spinePublicKeyService                                           *service.BlockSpinePublicKeyService
 	mainBlockSnapshotChunkStrategy                                  service.SnapshotChunkStrategyInterface
@@ -237,6 +238,9 @@ func init() {
 	// initialize services
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
+	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
+	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
+
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -496,7 +500,7 @@ func startServices() {
 		receiptService,
 		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
-		mainBlockStateStorage,
+		blockStateStorages,
 	)
 }
 
