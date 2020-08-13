@@ -64,10 +64,10 @@ jobs:
                   command: go get -u golang.org/x/lint/golint
             - run:
                   name: GO FMT
-                  comand: make go-fmt
+                  command: make go-fmt
             - run:
                   name: GOCI
-                  comamnd: make golangci-lint
+                  command: make golangci-lint
 #                  command: make test
             - run:
                   name: GOLINT RUN
