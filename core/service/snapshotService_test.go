@@ -60,15 +60,15 @@ func (mqe *mockSnapshotServiceQueryExecutor) ExecuteSelectRow(qStr string, tx bo
 	switch mqe.testName {
 	case "GenerateSnapshot:success":
 		switch qStr {
-		case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-			"version FROM main_block ORDER BY height DESC LIMIT 1":
+			"version FROM main_block":
 			mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(ssMainchain).Fields).
 				AddRow(
+					ssMockMainBlock.Height,
 					ssMockMainBlock.ID,
 					ssMockMainBlock.BlockHash,
 					ssMockMainBlock.PreviousBlockHash,
-					ssMockMainBlock.Height,
 					ssMockMainBlock.Timestamp,
 					ssMockMainBlock.BlockSeed,
 					ssMockMainBlock.BlockSignature,
@@ -81,15 +81,15 @@ func (mqe *mockSnapshotServiceQueryExecutor) ExecuteSelectRow(qStr string, tx bo
 					ssMockMainBlock.TotalCoinBase,
 					ssMockMainBlock.Version,
 				))
-		case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 			"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-			"version FROM spine_block ORDER BY height DESC LIMIT 1":
+			"version FROM spine_block":
 			mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(ssMainchain).Fields).
 				AddRow(
+					ssMockSpineBlock.Height,
 					ssMockSpineBlock.ID,
 					ssMockSpineBlock.BlockHash,
 					ssMockSpineBlock.PreviousBlockHash,
-					ssMockSpineBlock.Height,
 					ssMockSpineBlock.Timestamp,
 					ssMockSpineBlock.BlockSeed,
 					ssMockSpineBlock.BlockSignature,
