@@ -55,10 +55,10 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, arg
 	db, mock, _ := sqlmock.New()
 	mockedRow := sqlmock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockedRow.AddRow(
+		mockBlockData.GetHeight(),
 		mockBlockData.GetID(),
 		mockBlockData.GetBlockHash(),
 		mockBlockData.GetPreviousBlockHash(),
-		mockBlockData.GetHeight(),
 		mockBlockData.GetTimestamp(),
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),

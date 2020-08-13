@@ -332,15 +332,15 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, arg
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version " +
-		"FROM spine_block ORDER BY height DESC LIMIT 1":
+		"FROM spine_block":
 		mockSpineRows := mockSpine.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields)
 		mockSpineRows.AddRow(
+			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetID(),
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -407,13 +407,13 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
 			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM spine_block WHERE height = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"Height", "ID", "BlockHash", "PreviousBlockHash", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
-		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
+		).AddRow(1, 1, []byte{}, []byte{}, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
 	case "SELECT A.node_id, A.score, A.latest, A.height FROM participation_score as A INNER JOIN node_registry as B " +
 		"ON A.node_id = B.id WHERE B.node_public_key=? AND B.latest=1 AND B.registration_status=0 AND A.latest=1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
@@ -423,17 +423,17 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			"height",
 		},
 		).AddRow(-1, 100000, true, 0))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM spine_block ORDER BY " +
 		"height DESC LIMIT 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 			).AddRow(
+				mockSpineBlockData.GetHeight(),
 				mockSpineBlockData.GetID(),
 				mockSpineBlockData.GetBlockHash(),
 				mockSpineBlockData.GetPreviousBlockHash(),
-				mockSpineBlockData.GetHeight(),
 				mockSpineBlockData.GetTimestamp(),
 				mockSpineBlockData.GetBlockSeed(),
 				mockSpineBlockData.GetBlockSignature(),
@@ -1102,10 +1102,10 @@ func (*mockSpineQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr strin
 		WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 		).AddRow(
+			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetID(),
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -1201,10 +1201,10 @@ func (*mockSpineQueryExecutorGetBlocksSuccess) ExecuteSelect(qStr string, tx boo
 	mockSpine.ExpectQuery(qStr).WillReturnRows(sqlmock.NewRows(
 		query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 	).AddRow(
+		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetID(),
 		mockSpineBlockData.GetBlockHash(),
 		mockSpineBlockData.GetPreviousBlockHash(),
-		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetTimestamp(),
 		mockSpineBlockData.GetBlockSeed(),
 		mockSpineBlockData.GetBlockSignature(),
@@ -1686,10 +1686,10 @@ func (*mockSpineQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx boo
 	mockSpine.ExpectQuery("").WillReturnRows(sqlmock.NewRows(
 		query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 	).AddRow(
+		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetID(),
 		mockSpineBlockData.GetBlockHash(),
 		mockSpineBlockData.GetPreviousBlockHash(),
-		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetTimestamp(),
 		mockSpineBlockData.GetBlockSeed(),
 		mockSpineBlockData.GetBlockSignature(),
@@ -1711,10 +1711,10 @@ func (*mockSpineQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, tx 
 		WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 		).AddRow(
+			mockSpineBlockData.GetHeight(),
 			constant.SpinechainGenesisBlockID,
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -1799,10 +1799,10 @@ func (*mockSpineQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr stri
 
 	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 		query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetID(),
 		mockSpineBlockData.GetBlockHash(),
 		mockSpineBlockData.GetPreviousBlockHash(),
-		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetTimestamp(),
 		mockSpineBlockData.GetBlockSeed(),
 		mockSpineBlockData.GetBlockSignature(),
@@ -1962,15 +1962,15 @@ func (*mockSpineQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx 
 	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewSpinePublicKeyQuery().Fields))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
 		"version FROM spine_block WHERE id = 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetID(),
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -2001,10 +2001,10 @@ func (*mockSpineQueryExecutorGetBlockByIDSuccess) ExecuteSelectRow(qStr string, 
 	defer db.Close()
 	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).AddRow(
+			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetID(),
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -2142,10 +2142,10 @@ func (*mockSpineQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr stri
 	mockSpine.ExpectQuery(qStr).WillReturnRows(sqlmock.NewRows(
 		query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 	).AddRow(
+		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetID(),
 		mockSpineBlockData.GetBlockHash(),
 		mockSpineBlockData.GetPreviousBlockHash(),
-		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetTimestamp(),
 		mockSpineBlockData.GetBlockSeed(),
 		mockSpineBlockData.GetBlockSignature(),
@@ -2158,10 +2158,10 @@ func (*mockSpineQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr stri
 		mockSpineBlockData.GetTotalCoinBase(),
 		mockSpineBlockData.GetVersion(),
 	).AddRow(
+		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetID(),
 		mockSpineBlockData.GetBlockHash(),
 		mockSpineBlockData.GetPreviousBlockHash(),
-		mockSpineBlockData.GetHeight(),
 		mockSpineBlockData.GetTimestamp(),
 		mockSpineBlockData.GetBlockSeed(),
 		mockSpineBlockData.GetBlockSignature(),
@@ -2843,10 +2843,10 @@ func (*mockSpineQueryExecutorValidateBlockSuccess) ExecuteSelect(qStr string, tx
 		WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.SpineChain{}).Fields,
 		).AddRow(
+			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetID(),
 			mockSpineBlockData.GetBlockHash(),
 			mockSpineBlockData.GetPreviousBlockHash(),
-			mockSpineBlockData.GetHeight(),
 			mockSpineBlockData.GetTimestamp(),
 			mockSpineBlockData.GetBlockSeed(),
 			mockSpineBlockData.GetBlockSignature(),
@@ -3235,12 +3235,12 @@ func (*mockSpineExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 	defer db.Close()
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM spine_block ORDER BY height DESC LIMIT 1":
+		"total_fee, total_coinbase, version FROM spine_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM spine_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
@@ -3260,15 +3260,15 @@ func (*mockSpineExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 	transactionQ := query.NewTransactionQuery(&chaintype.SpineChain{})
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM spine_block ORDER BY height DESC LIMIT 1":
+		"total_fee, total_coinbase, version FROM spine_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
+				mockSpineGoodBlock.GetHeight(),
 				mockSpineGoodBlock.GetID(),
 				mockSpineGoodBlock.GetBlockHash(),
 				mockSpineGoodBlock.GetPreviousBlockHash(),
-				mockSpineGoodBlock.GetHeight(),
 				mockSpineGoodBlock.GetTimestamp(),
 				mockSpineGoodBlock.GetBlockSeed(),
 				mockSpineGoodBlock.GetBlockSignature(),
@@ -3281,7 +3281,7 @@ func (*mockSpineExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 				mockSpineGoodBlock.GetTotalCoinBase(),
 			),
 		)
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM spine_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
@@ -3302,7 +3302,7 @@ func (*mockSpineExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, 
 
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
@@ -3310,10 +3310,10 @@ func (*mockSpineExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, 
 	default:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
+				mockSpineGoodBlock.GetHeight(),
 				mockSpineGoodBlock.GetID(),
 				mockSpineGoodBlock.GetBlockHash(),
 				mockSpineGoodBlock.GetPreviousBlockHash(),
-				mockSpineGoodBlock.GetHeight(),
 				mockSpineGoodBlock.GetTimestamp(),
 				mockSpineGoodBlock.GetBlockSeed(),
 				mockSpineGoodBlock.GetBlockSignature(),
@@ -3372,15 +3372,15 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, arg
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	spinePubKeyQ := query.NewSpinePublicKeyQuery()
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM spine_block WHERE id = 0":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
+				mockSpineGoodCommonBlock.GetHeight(),
 				mockSpineGoodCommonBlock.GetID(),
 				mockSpineGoodCommonBlock.GetBlockHash(),
 				mockSpineGoodCommonBlock.GetPreviousBlockHash(),
-				mockSpineGoodCommonBlock.GetHeight(),
 				mockSpineGoodCommonBlock.GetTimestamp(),
 				mockSpineGoodCommonBlock.GetBlockSeed(),
 				mockSpineGoodCommonBlock.GetBlockSignature(),
@@ -3419,10 +3419,10 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, 
 
 	mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockSpineGoodBlock.GetHeight(),
 			mockSpineGoodBlock.GetID(),
 			mockSpineGoodBlock.GetBlockHash(),
 			mockSpineGoodBlock.GetPreviousBlockHash(),
-			mockSpineGoodBlock.GetHeight(),
 			mockSpineGoodBlock.GetTimestamp(),
 			mockSpineGoodBlock.GetBlockSeed(),
 			mockSpineGoodBlock.GetBlockSignature(),
@@ -3517,10 +3517,10 @@ func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteSelectRow(qStr strin
 	switch {
 	case strings.Contains(qStr, "WHERE height ="):
 		mockedRows.AddRow(
+			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
@@ -3535,10 +3535,10 @@ func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteSelectRow(qStr strin
 		)
 	default:
 		mockedRows.AddRow(
+			mockGoodBlock.GetHeight(),
 			int64(100),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
@@ -3954,15 +3954,15 @@ func (msExQ *mockSpineExecutorValidateSpineBlockManifest) ExecuteSelectRow(qStr 
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields))
 	}
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
 		"version FROM spine_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.SpineChain{}).Fields).
 			AddRow(
+				mockSpineBlockData.GetHeight(),
 				mockSpineBlockData.GetID(),
 				mockSpineBlockData.GetBlockHash(),
 				mockSpineBlockData.GetPreviousBlockHash(),
-				mockSpineBlockData.GetHeight(),
 				mockSpineBlockData.GetTimestamp(),
 				mockSpineBlockData.GetBlockSeed(),
 				mockSpineBlockData.GetBlockSignature(),

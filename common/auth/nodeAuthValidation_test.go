@@ -32,11 +32,11 @@ func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 
 	mockedRows := mock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields)
 	mockedRows.AddRow(
+		1,
 		0,
 		[]byte{171, 30, 155, 89, 1, 225, 53, 99, 25, 254, 37, 124, 190, 197, 187, 95, 102, 101, 185, 136, 166, 218, 170,
 			156, 49, 43, 208, 228, 157, 166, 224, 91},
 		[]byte{},
-		1,
 		1562806389280,
 		[]byte{},
 		[]byte{},
