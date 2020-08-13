@@ -66,14 +66,6 @@ func TestGetTransaction(t *testing.T) {
 		want   string
 	}{
 		{
-			name:   "transaction query without condition",
-			params: &paramsStruct{},
-			want: "SELECT id, block_id, block_height, sender_account_address, " +
-				"recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index, multisig_child from \"transaction\" WHERE multisig_child = false",
-		},
-		{
 			name: "transaction query with ID param only",
 			params: &paramsStruct{
 				ID: 1,
@@ -81,8 +73,8 @@ func TestGetTransaction(t *testing.T) {
 			want: "SELECT id, block_id, block_height, sender_account_address, " +
 				"recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index, multisig_child from \"transaction\" " +
-				"WHERE multisig_child = false AND id = 1",
+				"transaction_index, multisig_child from \"transaction\"" +
+				" WHERE id = 1",
 		},
 	}
 	for _, tt := range tests {
