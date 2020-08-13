@@ -52,6 +52,9 @@ jobs:
                       - /go/pkg/mod
     test:
         <<: *defaults
+        environment:
+            GOMAXPROCS: 2
+#           https://support.circleci.com/hc/en-us/articles/360034684273-Common-GoLang-memory-issues:
         steps:
             - checkout
             - restore_cache:
