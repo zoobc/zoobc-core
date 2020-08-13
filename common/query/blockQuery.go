@@ -3,8 +3,9 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -38,10 +39,10 @@ type (
 func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{
+			"height",
 			"id",
 			"block_hash",
 			"previous_block_hash",
-			"height",
 			"timestamp",
 			"block_seed",
 			"block_signature",
@@ -70,11 +71,11 @@ func (bq *BlockQuery) GetBlocks(height, size uint32) string {
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s ORDER BY height DESC LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT MAX(height), %s FROM %s", strings.Join(bq.Fields[1:], ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) GetGenesisBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0 LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0", strings.Join(bq.Fields, ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) InsertBlock(block *model.Block) (str string, args []interface{}) {
@@ -159,10 +160,10 @@ func (bq *BlockQuery) GetBlockFromTimestamp(startTimestamp int64, limit uint32) 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields
 func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 	return []interface{}{
+		block.Height,
 		block.ID,
 		block.BlockHash,
 		block.PreviousBlockHash,
-		block.Height,
 		block.Timestamp,
 		block.BlockSeed,
 		block.BlockSignature,
@@ -185,10 +186,10 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 		)
 
 		err = rows.Scan(
+			&block.Height,
 			&block.ID,
 			&block.BlockHash,
 			&block.PreviousBlockHash,
-			&block.Height,
 			&block.Timestamp,
 			&block.BlockSeed,
 			&block.BlockSignature,
@@ -211,10 +212,10 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 
 func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 	err := row.Scan(
+		&block.Height,
 		&block.ID,
 		&block.BlockHash,
 		&block.PreviousBlockHash,
-		&block.Height,
 		&block.Timestamp,
 		&block.BlockSeed,
 		&block.BlockSignature,

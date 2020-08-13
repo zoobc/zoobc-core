@@ -467,10 +467,10 @@ func (*mockSnapshotQueryExecutor) ExecuteSelectRow(qe string, _ bool, _ ...inter
 	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
 	mockedRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockedRows.AddRow(
+		mockedBlock.GetHeight(),
 		mockedBlock.GetID(),
 		mockedBlock.GetBlockHash(),
 		mockedBlock.GetPreviousBlockHash(),
-		mockedBlock.GetHeight(),
 		mockedBlock.GetTimestamp(),
 		mockedBlock.GetBlockSeed(),
 		mockedBlock.GetBlockSignature(),
