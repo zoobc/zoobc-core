@@ -63,8 +63,12 @@ jobs:
                   name: ↓ GOLINT
                   command: go get -u golang.org/x/lint/golint
             - run:
-                  name: GO Test
-                  command: make test
+                  name: GO FMT
+                  comand: make go-fmt
+            - run:
+                  name: GOCI
+                  comamnd: make golangci-lint
+#                  command: make test
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
