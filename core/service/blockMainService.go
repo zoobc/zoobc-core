@@ -1404,7 +1404,11 @@ func (bs *BlockService) GetBlockExtendedInfo(block *model.Block, includeReceipts
 	}
 
 	err = func() error {
-		nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.Height)
+		var height uint32
+		if block.Height > 0 {
+			height = block.Height - 1
+		}
+		nodeRegistryAtHeightQ := bs.NodeRegistrationQuery.GetNodeRegistryAtHeight(height)
 		nodeRegistryAtHeightRows, err := bs.QueryExecutor.ExecuteSelect(nodeRegistryAtHeightQ, false)
 		if err != nil {
 			return err
