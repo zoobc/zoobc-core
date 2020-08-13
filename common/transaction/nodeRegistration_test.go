@@ -306,9 +306,9 @@ func (*mockExecutorValidateSuccess) ExecuteSelect(qe string, _ bool, _ ...interf
 		))
 		return db.Query("A")
 	}
-	if qe == "SELECT id, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty,"+
+	if qe == "SELECT MAX(height), id, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty,"+
 		" payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version"+
-		" FROM main_block ORDER BY height DESC LIMIT 1" {
+		" FROM main_block" {
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"previous_block_hash",
