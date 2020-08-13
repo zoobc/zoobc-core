@@ -316,6 +316,11 @@ func (nrs *NodeRegistrationService) GetNextNodeAdmissionTimestamp(blockHeight ui
 		if err != nil {
 			return 0, err
 		}
+		if blockHeight == 0 {
+			// don't cache on genesis to avoid snapshot relative timestamp
+			// todo: this solution only work if we only import snapshot on first download
+			return nextNodeAdmission.Timestamp, nil
+		}
 		nrs.NextNodeAdmission = &nextNodeAdmission
 	}
 	return nrs.NextNodeAdmission.Timestamp, nil
