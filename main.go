@@ -359,13 +359,14 @@ func init() {
 	// initialize Observer
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
+	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
+
 	initP2pInstance()
 
 	/*
 		Snapshot Scheduler initiate
 	*/
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 	snapshotSchedulers = scheduler.NewSnapshotScheduler(
 		spineBlockManifestService,
 		fileService,
