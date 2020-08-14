@@ -316,6 +316,9 @@ func (m *Migration) Init() error {
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
 			`,
 			`
+			CREATE INDEX "node_public_key_idx" ON "node_registry" ("node_public_key")
+			`,
+			`
 			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
 			`,
 			`
@@ -323,6 +326,9 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "main_block_id_idx" ON "main_block" ("id")
+			`,
+			`
+			CREATE INDEX "main_block_height_idx" ON "main_block" ("height")
 			`,
 			`
 			CREATE INDEX "published_receipt_rmr_linked_idx" ON "published_receipt" ("rmr_linked")
@@ -436,6 +442,24 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			`,
+			`
+			CREATE INDEX "account_balance_latest_idx" ON "account_balance" ("latest")
+			`,
+			`
+			CREATE INDEX "account_balance_account_address_idx" ON "account_balance" ("account_address")
+			`,
+			`
+			CREATE INDEX "account_ledger_event_type_idx" ON "account_ledger" ("event_type")
+			`,
+			`
+			CREATE INDEX "escrow_transaction_latest_idx" ON "escrow_transaction" ("latest")
+			`,
+			`
+			CREATE INDEX "escrow_transaction_block_height_idx" ON "escrow_transaction" ("block_height")
+			`,
+			`
+			CREATE INDEX "transaction_block_id_idx" ON "transaction" ("block_id")
 			`,
 		}
 		return nil

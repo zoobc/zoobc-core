@@ -164,10 +164,10 @@ func (*mockExecutorGetLastBlockSuccess) ExecuteSelectRow(qStr string, tx bool, a
 	db, mock, _ := sqlmock.New()
 	mockRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockRows.AddRow(
+		mockBlockData.GetHeight(),
 		mockBlockData.GetID(),
 		mockBlockData.GetBlockHash(),
 		mockBlockData.GetPreviousBlockHash(),
-		mockBlockData.GetHeight(),
 		mockBlockData.GetTimestamp(),
 		mockBlockData.GetBlockSeed(),
 		mockBlockData.GetBlockSignature(),
@@ -293,10 +293,10 @@ func (*mockedQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qe string, _
 
 	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields).
 		AddRow(
+			mockBlockData.GetHeight(),
 			int64(100),
 			mockBlockData.GetBlockHash(),
 			mockBlockData.GetPreviousBlockHash(),
-			mockBlockData.GetHeight(),
 			mockBlockData.GetTimestamp(),
 			mockBlockData.GetBlockSeed(),
 			mockBlockData.GetBlockSignature(),
