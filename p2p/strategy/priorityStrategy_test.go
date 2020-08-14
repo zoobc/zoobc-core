@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -353,12 +354,12 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...in
 	defer db.Close()
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
 
-	mock.ExpectQuery(qe).WillReturnRows(
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),

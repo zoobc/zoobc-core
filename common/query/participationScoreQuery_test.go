@@ -175,7 +175,7 @@ func TestParticipationScoreQuery_GetParticipationScoresByBlockHeightRange(t *tes
 				fromBlockHeight: 20,
 				toBlockHeight:   123,
 			},
-			wantStr:  "SELECT node_id, score, latest, height FROM participation_score WHERE height BETWEEN ? AND ? ORDER BY height ASC",
+			wantStr:  "SELECT node_id, score, latest, height FROM participation_score WHERE latest = true AND height BETWEEN ? AND ? ORDER BY height ASC",
 			wantArgs: []interface{}{uint32(20), uint32(123)},
 		},
 	}

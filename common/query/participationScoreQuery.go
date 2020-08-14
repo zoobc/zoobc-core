@@ -201,7 +201,7 @@ func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePubl
 func (ps *ParticipationScoreQuery) GetParticipationScoresByBlockHeightRange(
 	fromBlockHeight, toBlockHeight uint32,
 ) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE height BETWEEN ? AND ? ORDER BY height ASC",
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE latest = true AND height BETWEEN ? AND ? ORDER BY height ASC",
 		strings.Join(ps.Fields, ", "), ps.getTableName())
 	return query, []interface{}{
 		fromBlockHeight, toBlockHeight,

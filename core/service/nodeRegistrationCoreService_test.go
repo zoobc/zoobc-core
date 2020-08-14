@@ -127,15 +127,14 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ..
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
 
 	switch qe {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block " +
-		"ORDER BY height DESC LIMIT 1":
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
+				uint32(1000),
 				mockGoodBlock.GetID(),
 				mockGoodBlock.GetBlockHash(),
 				mockGoodBlock.GetPreviousBlockHash(),
-				uint32(1000),
 				mockGoodBlock.GetTimestamp(),
 				mockGoodBlock.GetBlockSeed(),
 				mockGoodBlock.GetBlockSignature(),
@@ -149,14 +148,14 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ..
 				mockGoodBlock.GetVersion(),
 			),
 		)
-	case fmt.Sprintf("SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, "+
+	case fmt.Sprintf("SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, "+
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, "+
 		"version FROM main_block WHERE height = %d", 1000-constant.MinRollbackBlocks):
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
-			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
+			"Height", "ID", "BlockHash", "PreviousBlockHash", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
-		).AddRow(1, make([]byte, 32), []byte{}, 280, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0,
+		).AddRow(280, 1, make([]byte, 32), []byte{}, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0,
 			1))
 	default:
 		return nil, errors.New("InvalidQuery")
@@ -1284,7 +1283,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 	defer db.Close()
 	if (nrMock.nodeIDNotFound && qStr == "SELECT id, node_public_key, account_address, registration_height, locked_balance, "+
 		"registration_status, latest, height FROM node_registry WHERE id = ? AND latest=1") ||
-		(nrMock.blockNotFound && qStr == "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, "+
+		(nrMock.blockNotFound && qStr == "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, "+
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
 			"FROM main_block WHERE height = 10") {
 		mock.ExpectQuery("SELECT").WillReturnError(sql.ErrNoRows)
@@ -1309,14 +1308,14 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 			0, nrMock.nodePublicKey, "accountA", 0, 0, 0, true, 0,
 		)
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlRows)
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version " +
 		"FROM main_block WHERE height = 10":
 		sqlRows = sqlmock.NewRows([]string{
+			"height",
 			"id",
 			"block_hash",
 			"previous_block_hash",
-			"height",
 			"timestamp",
 			"block_seed",
 			"block_signature",
@@ -1330,9 +1329,9 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 			"version",
 		},
 		).AddRow(
-			0, nrMock.blockHash, nil, 0, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
+			0, 0, nrMock.blockHash, nil, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
 		)
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version " +
 		"FROM main_block WHERE height = 11":
 		sqlRows = sqlmock.NewRows([]string{
@@ -1353,7 +1352,7 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelectRow(qStr string,
 			"version",
 		},
 		).AddRow(
-			0, nrMock.blockHash, nil, 0, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
+			0, 0, nrMock.blockHash, nil, 0, nil, nil, "", 0, nil, nil, 0, 0, 0, 0,
 		)
 	default:
 		return nil, errors.New("InvalidQuery")
