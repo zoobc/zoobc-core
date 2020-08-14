@@ -84,10 +84,10 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(
 		query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 	).AddRow(
+		mockGoodBlock.GetHeight(),
 		mockGoodBlock.GetID(),
 		mockGoodBlock.GetBlockHash(),
 		mockGoodBlock.GetPreviousBlockHash(),
-		mockGoodBlock.GetHeight(),
 		mockGoodBlock.GetTimestamp(),
 		mockGoodBlock.GetBlockSeed(),
 		mockGoodBlock.GetBlockSignature(),
@@ -100,10 +100,10 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args
 		mockGoodBlock.GetTotalCoinBase(),
 		mockGoodBlock.GetVersion(),
 	).AddRow(
+		mockGoodBlock.GetHeight(),
 		mockGoodBlock.GetID(),
 		mockGoodBlock.GetBlockHash(),
 		mockGoodBlock.GetPreviousBlockHash(),
-		mockGoodBlock.GetHeight(),
 		mockGoodBlock.GetTimestamp(),
 		mockGoodBlock.GetBlockSeed(),
 		mockGoodBlock.GetBlockSignature(),
@@ -138,10 +138,10 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ..
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
@@ -251,10 +251,10 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, arg
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),
@@ -365,10 +365,10 @@ func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, args ...in
 
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
 		sqlmock.NewRows(blockQ.Fields).AddRow(
+			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
 			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetTimestamp(),
 			mockGoodBlock.GetBlockSeed(),
 			mockGoodBlock.GetBlockSignature(),

@@ -359,10 +359,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetID(),
 				mockBlockDataSelectReceipt.GetBlockHash(),
 				mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetTimestamp(),
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
@@ -424,10 +424,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetID(),
 				mockBlockDataSelectReceipt.GetBlockHash(),
 				mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetTimestamp(),
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
@@ -777,17 +777,17 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1":
+		"total_fee, total_coinbase, version FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockData.GetHeight(),
 				mockBlockData.GetID(),
 				mockBlockData.GetBlockHash(),
 				mockBlockData.GetPreviousBlockHash(),
-				mockBlockData.GetHeight(),
 				mockBlockData.GetTimestamp(),
 				mockBlockData.GetBlockSeed(),
 				mockBlockData.GetBlockSignature(),
@@ -965,10 +965,10 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 	db, mock, _ := sqlmock.New()
 	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockRow.AddRow(
+		mockBlockDataSelectReceipt.GetHeight(),
 		mockBlockDataSelectReceipt.GetID(),
 		mockBlockDataSelectReceipt.GetBlockHash(),
 		mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-		mockBlockDataSelectReceipt.GetHeight(),
 		mockBlockDataSelectReceipt.GetTimestamp(),
 		mockBlockDataSelectReceipt.GetBlockSeed(),
 		mockBlockDataSelectReceipt.GetBlockSignature(),
