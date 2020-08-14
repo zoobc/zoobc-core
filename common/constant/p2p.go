@@ -39,7 +39,7 @@ const (
 	// NumberOfPriorityPeersToBeAdded how many priority peers we want to add at once
 	NumberOfPriorityPeersToBeAdded int = PriorityStrategyMaxPriorityPeers / 2
 	// PriorityStrategyBuildScrambleNodesGap, interval of scramble thread to build scramble node (in block height)
-	PriorityStrategyBuildScrambleNodesGap uint32 = 40
+	PriorityStrategyBuildScrambleNodesGap uint32 = 100
 	// PriorityStrategyMaxStayedInUnresolvedPeers max time a peer can stay before being cycled out from unresolved peers
 	PriorityStrategyMaxStayedInUnresolvedPeers int64 = 120
 	// BlockchainsyncWaitingTime time, in seconds, to wait before start syncing the blockchain
