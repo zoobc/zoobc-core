@@ -159,5 +159,4 @@ func GenerateNodeKeysFile(*cobra.Command, []string) {
 		fmt.Println(err.Error())
 		os.Exit(2)
 	}
-	fmt.Printf("PublicKey: %s\nSeed: %s", nodeKey.PublicKey, nodeKey.Seed)
 }
