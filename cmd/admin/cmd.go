@@ -146,7 +146,9 @@ func GenerateNodeKeysFile(*cobra.Command, []string) {
 	}
 	nodeKey.PublicKey = publicKeyStr
 
-	b, err = json.MarshalIndent(nodeKey, "", "")
+	b, err = json.MarshalIndent([]*model.NodeKeyFromFile{
+		nodeKey,
+	}, "", "")
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(2)
