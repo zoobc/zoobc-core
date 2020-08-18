@@ -765,6 +765,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 	// cache last block state
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
 	if err != nil {
 		return err

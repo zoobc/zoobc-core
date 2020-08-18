@@ -459,6 +459,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	if err != nil {
 		return err
 	}
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = ss.BlockStateStorage.SetItem(ss.chainType.GetTypeInt(), *lastBlock)
 	if err != nil {
 		return err
