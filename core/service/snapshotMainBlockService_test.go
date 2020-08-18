@@ -18,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
@@ -239,6 +240,9 @@ type (
 	mockSnapshotNodeAdmissionTimestampQuery struct {
 		query.NodeAdmissionTimestampQueryInterface
 		success bool
+	}
+	mockBlockMainServiceSuccess struct {
+		BlockServiceInterface
 	}
 )
 
@@ -523,6 +527,10 @@ func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks([]byte, 
 			nr1,
 		},
 	}, nil
+}
+
+func (*mockBlockMainServiceSuccess) PopulateBlockData(block *model.Block) error {
+	return nil
 }
 
 func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
@@ -874,6 +882,8 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		DerivedQueries                []query.DerivedQuery
 		TransactionUtil               transaction.UtilInterface
 		TypeActionSwitcher            transaction.TypeActionSwitcher
+		BlockStateStorage             storage.CacheStorageInterface
+		BlockMainService              BlockServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -916,6 +926,8 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				TypeActionSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockSnapshotQueryExecutor{success: true},
 				},
+				BlockStateStorage: storage.NewBlockStateStorage(),
+				BlockMainService:  &mockBlockMainServiceSuccess{},
 			},
 		},
 	}
@@ -948,6 +960,8 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				DerivedQueries:                tt.fields.DerivedQueries,
 				TransactionUtil:               tt.fields.TransactionUtil,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
+				BlockStateStorage:             tt.fields.BlockStateStorage,
+				BlockMainService:              tt.fields.BlockMainService,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

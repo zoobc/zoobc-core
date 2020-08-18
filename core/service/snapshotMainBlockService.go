@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -10,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
@@ -42,6 +44,8 @@ type (
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
+		BlockStateStorage             storage.CacheStorageInterface
+		BlockMainService              BlockServiceInterface
 	}
 )
 
@@ -71,6 +75,8 @@ func NewSnapshotMainBlockService(
 	derivedQueries []query.DerivedQuery,
 	transactionUtil transaction.UtilInterface,
 	typeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorage storage.CacheStorageInterface,
+	blockMainService BlockServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:                  snapshotPath,
@@ -99,6 +105,8 @@ func NewSnapshotMainBlockService(
 		DerivedQueries:                derivedQueries,
 		TransactionUtil:               transactionUtil,
 		TypeActionSwitcher:            typeSwitcher,
+		BlockStateStorage:             blockStateStorage,
+		BlockMainService:              blockMainService,
 	}
 }
 
@@ -438,6 +446,20 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	}
 
 	err = ss.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+
+	// Update existing cache or internal storage
+	lastBlock, err := commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
+	if err != nil {
+		return err
+	}
+	err = ss.BlockMainService.PopulateBlockData(lastBlock)
+	if err != nil {
+		return err
+	}
+	err = ss.BlockStateStorage.SetItem(ss.chainType.GetTypeInt(), *lastBlock)
 	if err != nil {
 		return err
 	}

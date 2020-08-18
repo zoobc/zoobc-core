@@ -233,6 +233,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blockService,
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
