@@ -15,7 +15,7 @@ type (
 		WellknownPeers                                            []string
 		NodeKey                                                   *NodeKey
 		MyAddress, OwnerAccountAddress, NodeSeed                  string
-		WalletCertFileName, APICertFile, APIKeyFile               string
+		APICertFile, APIKeyFile                                   string
 		DatabaseFileName, ResourcePath, BadgerDbName,
 		NodeKeyFileName, SnapshotPath string
 
@@ -59,7 +59,6 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
-	cfg.WalletCertFileName = viper.GetString("walletCertFileName")
 }
 
 func (cfg *Config) SaveConfig() error {
@@ -71,7 +70,6 @@ func (cfg *Config) SaveConfig() error {
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
 	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
-	viper.Set("walletCertFileName", cfg.WalletCertFileName)
 	// todo: code in rush, need refactor later andy-shi88
 	_, err = os.Stat("./config.toml")
 	if err != nil {

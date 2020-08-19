@@ -127,36 +127,6 @@ func generateConfig(config model.Config) error {
 		port     int
 		err      error
 		inputStr string
-		beta     = []string{
-			"172.104.117.98:8002",
-			"172.105.185.12:8002",
-			"45.79.145.167:8002",
-			"172.105.18.138:8002",
-			"45.79.218.142:8002",
-			"198.58.111.41:8002",
-			"96.126.100.16:8002",
-			"45.79.167.148:8002",
-			"172.105.166.14:8002",
-			"173.255.248.8:8002",
-			"172.105.149.84:8002",
-			"139.162.71.117:8002",
-			"176.58.111.94:8002",
-			"173.255.202.86:8002",
-			"139.162.214.77:8002",
-			"139.162.27.172:8002",
-		}
-		alpha = []string{
-			"n0.alpha.proofofparticipation.network:8001",
-			"n1.alpha.proofofparticipation.network:8001",
-			"n2.alpha.proofofparticipation.network:8001",
-			"172.105.37.61:8001",
-			"80.85.84.163:8001",
-		}
-		dev = []string{
-			"172.104.34.10:8001",
-			"45.79.39.58:8001",
-			"85.90.246.90:8001",
-		}
 	)
 
 	// SET DEFAULT
@@ -217,57 +187,39 @@ func generateConfig(config model.Config) error {
 		config.HTTPAPIPort = 7001
 	}
 
-	// OWNER ACCOUNT ADDRESS & NODE SEED
-	if config.WalletCertFileName != "" {
-		if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), config.WalletCertFileName)); err == nil {
-			err = readCertFile(&config, config.WalletCertFileName)
-			if err != nil {
-				color.Red(err.Error())
+	/*
+		OWNER ACCOUNT ADDRESS & NODE SEED
+		Perhaps the wallet.zbc in root, otherwise will input manually
+	*/
+	if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), "wallet.zbc")); err == nil {
+		err = readCertFile(&config, "wallet.zbc")
+		if err != nil {
+			return err
+		}
+		_ = os.Remove("wallet.zbc")
+	} else {
+		color.Cyan("! Create one on zoobc.one")
+		color.White("OWNER ACCOUNT ADDRESS: ")
+		inputStr = shell.ReadLine()
+		if strings.TrimSpace(inputStr) != "" {
+			config.OwnerAccountAddress = inputStr
+		} else {
+			if config.OwnerAccountAddress != "" {
+				color.Cyan("previous ownerAccountAddress won't be replaced")
+			} else {
+				color.Yellow("! Node won't running when owner account address is empty.")
 			}
 		}
-	} else {
-		haveCertFile := shell.MultiChoice(
-			[]string{"Yes, already put in root app.", "No, want to manually input the owner address and node seed."},
-			"Have wallet certificate ?",
-		)
-		switch haveCertFile {
-		case 0:
-			color.White("Wallet certificate name: ")
-			inputStr = shell.ReadLine()
-			if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), inputStr)); err != nil {
-				color.Red("%s not found on the root app. Please input manual", inputStr)
-				break
-			}
-			err = readCertFile(&config, inputStr)
-			if err != nil {
-				color.Red(err.Error())
-				return err
-			}
-			config.WalletCertFileName = inputStr
-		default:
-			color.Cyan("! Create one on zoobc.one")
-			color.White("OWNER ACCOUNT ADDRESS: ")
-			inputStr = shell.ReadLine()
-			if strings.TrimSpace(inputStr) != "" {
-				config.OwnerAccountAddress = inputStr
-			} else {
-				if config.OwnerAccountAddress != "" {
-					color.Cyan("previous ownerAccountAddress won't be replaced")
-				} else {
-					color.Yellow("! Node won't running when owner account address is empty.")
-				}
-			}
 
-			color.White("NODE SEED: [Enter to let us generate a random for you]")
-			inputStr = shell.ReadLine()
-			if strings.TrimSpace(inputStr) != "" {
-				config.NodeSeed = inputStr
-			}
+		color.White("NODE SEED: [Enter to let us generate a random for you]")
+		inputStr = shell.ReadLine()
+		if strings.TrimSpace(inputStr) != "" {
+			config.NodeSeed = inputStr
 		}
 	}
 
-	color.Yellow("! Please don't do anything, configuration will save")
 	admin.GenerateNodeKeysFile(config.NodeSeed)
+	color.Cyan("Saving configuration")
 	err = config.SaveConfig()
 	if err != nil {
 		color.Red(err.Error())

@@ -131,10 +131,7 @@ func init() {
 	config.LoadConfigurations()
 
 	// early init configuration service
-	nodeConfigurationService = service.NewNodeConfigurationService(
-		loggerCoreService,
-		&service.NodeConfigurationServiceHelper{},
-	)
+	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
 
 	// check and validate configurations
 	err = util.NewSetupNode(config).CheckConfig()
