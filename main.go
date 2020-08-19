@@ -136,13 +136,6 @@ func init() {
 		&service.NodeConfigurationServiceHelper{},
 	)
 
-	// if wallet certificate is present in ResourcePath, import it
-	if _, err := os.Stat(config.WalletCertFileName); err == nil {
-		if err = nodeConfigurationService.ImportWalletCertificate(config); err != nil {
-			log.Error(err)
-			log.Fatal("either password is wrong or the certificate is malformed")
-		}
-	}
 	// check and validate configurations
 	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {

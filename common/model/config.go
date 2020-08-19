@@ -12,12 +12,12 @@ type (
 		PeerPort, MaxAPIRequestPerSecond                          uint32
 		RPCAPIPort, HTTPAPIPort, MonitoringPort, CPUProfilingPort int
 		Smithing, IsNodeAddressDynamic, LogOnCli, CliMonitoring   bool
-		MyAddress, OwnerAccountAddress                            string
-		DatabasePath, DatabaseFileName, ResourcePath, BadgerDbName,
-		NodeKeyFileName, NodeSeed, APICertFile, APIKeyFile, SnapshotPath string
-		WellknownPeers     []string
-		WalletCertFileName string
-		NodeKey            *NodeKey
+		WellknownPeers                                            []string
+		NodeKey                                                   *NodeKey
+		MyAddress, OwnerAccountAddress, NodeSeed                  string
+		WalletCertFileName, APICertFile, APIKeyFile               string
+		DatabaseFileName, ResourcePath, BadgerDbName,
+		NodeKeyFileName, SnapshotPath string
 
 		// validation fields
 		ConfigFileExist bool
@@ -70,6 +70,8 @@ func (cfg *Config) SaveConfig() error {
 	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
+	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
+	viper.Set("walletCertFileName", cfg.WalletCertFileName)
 	// todo: code in rush, need refactor later andy-shi88
 	_, err = os.Stat("./config.toml")
 	if err != nil {

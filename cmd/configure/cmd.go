@@ -1,7 +1,11 @@
 package configure
 
 import (
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -9,6 +13,8 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/admin"
+	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -25,10 +31,10 @@ func init() {
 	configureCmd.Flags().StringVarP(&target, "target", "t", "dev", "target configuration dev | alpha | beta")
 }
 func Commands() *cobra.Command {
-	configureCmd.Run = GenerateConfigFileCommand
+	configureCmd.Run = generateConfigFileCommand
 	return configureCmd
 }
-func GenerateConfigFileCommand(*cobra.Command, []string) {
+func generateConfigFileCommand(*cobra.Command, []string) {
 	var (
 		err        error
 		configFile = "config.toml"
@@ -40,9 +46,13 @@ func GenerateConfigFileCommand(*cobra.Command, []string) {
 	if err != nil {
 		if os.IsNotExist(err) {
 			color.Cyan("Will generate config file with prompt")
-			_ = generateConfig(config)
+			err = generateConfig(config)
+			if err == nil {
+				color.Cyan("Configuration saved")
+			}
+
 		}
-	} else {
+	} else { // Try another step
 		update := shell.MultiChoice([]string{"Yes", "No"}, "Config file exists, want to update ? [ENTER to exit]")
 		if update == 0 {
 			err = util.LoadConfig("./", "config", "toml")
@@ -52,12 +62,65 @@ func GenerateConfigFileCommand(*cobra.Command, []string) {
 			}
 			shell.Close()
 			config.LoadConfigurations()
-			_ = generateConfig(config)
+			err = generateConfig(config)
+			if err != nil {
+				color.Red(err.Error())
+			} else {
+				color.Cyan("Configuration saved")
+			}
 		}
 	}
 
 }
 
+func readCertFile(config *model.Config, fileName string) error {
+	var (
+		inputStr            string
+		shell               = ishell.New()
+		certFile, err       = os.Open(path.Join(helper.GetAbsDBPath(), fileName))
+		readBuff, certBytes []byte
+	)
+
+	if err != nil {
+		return fmt.Errorf("a wallet certificate has been found, failed to open it, %s", err.Error())
+	}
+	defer certFile.Close()
+
+	readBuff, err = ioutil.ReadAll(certFile)
+	if err != nil {
+		return fmt.Errorf("failed to read certificate file: %s", err.Error())
+	}
+	var certMap map[string]interface{}
+	for i := 0; i <= 3; i++ {
+		if i > 3 {
+			return fmt.Errorf("maximum numbers of attempts exceeded")
+		}
+		color.Cyan("! A wallet certificate has been found. Enter the password to decrypt and import from it: ")
+		inputStr = shell.ReadPassword()
+		certBytes, err = crypto.OpenSSLDecrypt(inputStr, string(readBuff))
+		if err != nil {
+			color.Red("Attempt n. %d decrypting certificate failed", i)
+			continue
+		} else {
+			err = json.Unmarshal(certBytes, &certMap)
+			if err != nil {
+				return fmt.Errorf("failed to assert certificate, %s", err.Error())
+			}
+			if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
+				config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
+			} else {
+				return fmt.Errorf("invalid certificate format, ownerAccount not found")
+			}
+			if nodeSeed, ok := certMap["nodeKey"]; ok {
+				config.NodeSeed = fmt.Sprintf("%s", nodeSeed)
+			} else {
+				return fmt.Errorf("invalid certificate format, nodeSeed not found")
+			}
+			break
+		}
+	}
+	return nil
+}
 func generateConfig(config model.Config) error {
 	var (
 		shell    = ishell.New()
@@ -154,35 +217,60 @@ func generateConfig(config model.Config) error {
 		config.HTTPAPIPort = 7001
 	}
 
-	// OWNER ACCOUNT ADDRESS
-	color.Cyan("! Create one on zoobc.one")
-	color.White("OWNER ACCOUNT ADDRESS: ")
-	inputStr = shell.ReadLine()
-	if strings.TrimSpace(inputStr) != "" {
-		config.OwnerAccountAddress = inputStr
+	// OWNER ACCOUNT ADDRESS & NODE SEED
+	if config.WalletCertFileName != "" {
+		if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), config.WalletCertFileName)); err == nil {
+			err = readCertFile(&config, config.WalletCertFileName)
+			if err != nil {
+				color.Red(err.Error())
+			}
+		}
 	} else {
-		if config.OwnerAccountAddress != "" {
-			color.Cyan("previous ownerAccountAddress won't be replaced")
-		} else {
-			color.Yellow("! Node won't running when owner account address is empty.")
+		haveCertFile := shell.MultiChoice(
+			[]string{"Yes, already put in root app.", "No, want to manually input the owner address and node seed."},
+			"Have wallet certificate ?",
+		)
+		switch haveCertFile {
+		case 0:
+			color.White("Wallet certificate name: ")
+			inputStr = shell.ReadLine()
+			if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), inputStr)); err != nil {
+				color.Red("%s not found on the root app. Please input manual", inputStr)
+				break
+			}
+			err = readCertFile(&config, inputStr)
+			if err != nil {
+				color.Red(err.Error())
+				return err
+			}
+			config.WalletCertFileName = inputStr
+		default:
+			color.Cyan("! Create one on zoobc.one")
+			color.White("OWNER ACCOUNT ADDRESS: ")
+			inputStr = shell.ReadLine()
+			if strings.TrimSpace(inputStr) != "" {
+				config.OwnerAccountAddress = inputStr
+			} else {
+				if config.OwnerAccountAddress != "" {
+					color.Cyan("previous ownerAccountAddress won't be replaced")
+				} else {
+					color.Yellow("! Node won't running when owner account address is empty.")
+				}
+			}
+
+			color.White("NODE SEED: [Enter to let us generate a random for you]")
+			inputStr = shell.ReadLine()
+			if strings.TrimSpace(inputStr) != "" {
+				config.NodeSeed = inputStr
+			}
 		}
 	}
 
-	color.White("NODE SEED: [Enter to let us generate a random for you]")
-	inputStr = shell.ReadLine()
-	if strings.TrimSpace(inputStr) != "" {
-		config.NodeSeed = inputStr
-	} else {
-		admin.GenerateNodeKeysFile(nil, []string{
-			"demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
-		})
-	}
-
 	color.Yellow("! Please don't do anything, configuration will save")
+	admin.GenerateNodeKeysFile(config.NodeSeed)
 	err = config.SaveConfig()
 	if err != nil {
 		color.Red(err.Error())
 	}
-	color.Cyan("Configuration saved")
 	return nil
 }
