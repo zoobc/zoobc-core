@@ -64,7 +64,25 @@ func generateConfig(config model.Config) error {
 		port     int
 		err      error
 		inputStr string
-		alpha    = []string{
+		beta     = []string{
+			"172.104.117.98:8002",
+			"172.105.185.12:8002",
+			"45.79.145.167:8002",
+			"172.105.18.138:8002",
+			"45.79.218.142:8002",
+			"198.58.111.41:8002",
+			"96.126.100.16:8002",
+			"45.79.167.148:8002",
+			"172.105.166.14:8002",
+			"173.255.248.8:8002",
+			"172.105.149.84:8002",
+			"139.162.71.117:8002",
+			"176.58.111.94:8002",
+			"173.255.202.86:8002",
+			"139.162.214.77:8002",
+			"139.162.27.172:8002",
+		}
+		alpha = []string{
 			"n0.alpha.proofofparticipation.network:8001",
 			"n1.alpha.proofofparticipation.network:8001",
 			"n2.alpha.proofofparticipation.network:8001",
@@ -96,6 +114,7 @@ func generateConfig(config model.Config) error {
 	case "dev":
 		config.WellknownPeers = dev
 	default:
+		config.WellknownPeers = beta
 
 	}
 	// PEER PORT
@@ -154,7 +173,9 @@ func generateConfig(config model.Config) error {
 	if strings.TrimSpace(inputStr) != "" {
 		config.NodeSeed = inputStr
 	} else {
-		admin.GenerateNodeKeysFile(nil, nil)
+		admin.GenerateNodeKeysFile(nil, []string{
+			"demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
+		})
 	}
 
 	color.Yellow("! Please don't do anything, configuration will save")
