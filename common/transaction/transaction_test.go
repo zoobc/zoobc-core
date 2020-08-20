@@ -214,6 +214,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 			},
 		},
 		{
