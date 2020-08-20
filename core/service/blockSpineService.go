@@ -780,7 +780,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 		return nil, err
 	}
 	// spine blocks don't return any receipts
-	// TODO: @iltoga make sure to manage nil in calling function
 	return nil, nil
 }
 

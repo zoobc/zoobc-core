@@ -235,10 +235,6 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.ScrambledNodes, node *model.Node) bool {
 	var nodeID = node.GetID()
 	if nodeID == 0 {
-		// @iltoga: this is a little hack to be backward compatible with previous scrambled nodes logic.
-		//  we should always be able to get the node/peer by its nodeID, if is registered in node registry.
-		// TODO: scan all code where we call nodeConfigurationService.SetHost and make sure that host has Info.ID,
-		//  if it's a registered node. then validate scrambled node only by nodeID
 		if node.Address != "" && node.Port != 0 {
 			nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(node.Address, node.Port,
 				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending,
