@@ -53,7 +53,7 @@ func init() {
 // Commands will return  proof of owner ship cmd
 func Commands() *cobra.Command {
 	generateProofOfOwnerShipCmd.Run = GenerateProofOfOwnerShip
-	generateNodeKeyCmd.Run = GenerateNodeKeysFile
+	generateNodeKeyCmd.Run = generateNodeKeysCommand
 
 	commands := &cobra.Command{
 		Use:   "node-admin",
@@ -124,7 +124,11 @@ func GetProofOfOwnerShip(
 	}
 }
 
-func GenerateNodeKeysFile(*cobra.Command, []string) {
+func generateNodeKeysCommand(*cobra.Command, []string) {
+	GenerateNodeKeysFile(nodeSeed)
+}
+
+func GenerateNodeKeysFile(seed string) {
 
 	var (
 		err     error
@@ -132,13 +136,13 @@ func GenerateNodeKeysFile(*cobra.Command, []string) {
 		nodeKey *model.NodeKeyFromFile
 	)
 
-	if len(nodeSeed) < 1 {
-		nodeSeed = util.GetSecureRandomSeed()
+	if len(seed) < 1 {
+		seed = util.GetSecureRandomSeed()
 	}
 	nodeKey = &model.NodeKeyFromFile{
-		Seed: nodeSeed,
+		Seed: seed,
 	}
-	pubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+	pubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(seed)
 	publicKeyStr, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, pubKey)
 	if err != nil {
 		fmt.Println(err.Error())
