@@ -5,6 +5,7 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/account"
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/cmd/block"
+	"github.com/zoobc/zoobc-core/cmd/configure"
 	"github.com/zoobc/zoobc-core/cmd/genesisblock"
 	"github.com/zoobc/zoobc-core/cmd/parser"
 	"github.com/zoobc/zoobc-core/cmd/rollback"
@@ -39,6 +40,7 @@ func main() {
 	rootCmd.AddCommand(admin.Commands())
 	rootCmd.AddCommand(scramblednodes.Commands()["getScrambledNodesCmd"])
 	rootCmd.AddCommand(scramblednodes.Commands()["getPriorityPeersCmd"])
+	rootCmd.AddCommand(configure.Commands())
 	parserCmd.AddCommand(parser.Commands())
 	_ = rootCmd.Execute()
 
