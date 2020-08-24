@@ -1,16 +1,10 @@
 package service
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"github.com/abiosoft/ishell"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"io/ioutil"
-	"os"
 )
 
 type (
@@ -25,20 +19,15 @@ type (
 		GetHostID() (int64, error)
 		GetNodeSecretPhrase() string
 		GetNodePublicKey() []byte
-		ImportWalletCertificate(config *model.Config) error
 		SetHost(host *model.Host)
 		SetNodeSeed(seed string)
-	}
-	NodeConfigurationServiceHelperInterface interface {
-		ReadPassword(c *ishell.Shell) string
 	}
 )
 
 type (
 	NodeConfigurationService struct {
-		Logger        *log.Logger
-		host          *model.Host
-		ServiceHelper NodeConfigurationServiceHelperInterface
+		Logger *log.Logger
+		host   *model.Host
 	}
 	NodeConfigurationServiceHelper struct{}
 )
@@ -49,14 +38,10 @@ var (
 	NodeConfigurationServiceInstance *NodeConfigurationService
 )
 
-func NewNodeConfigurationService(
-	logger *log.Logger,
-	serviceHelper NodeConfigurationServiceHelperInterface,
-) *NodeConfigurationService {
+func NewNodeConfigurationService(logger *log.Logger) *NodeConfigurationService {
 	if NodeConfigurationServiceInstance == nil {
 		NodeConfigurationServiceInstance = &NodeConfigurationService{
-			Logger:        logger,
-			ServiceHelper: serviceHelper,
+			Logger: logger,
 		}
 		return NodeConfigurationServiceInstance
 	}
@@ -125,62 +110,4 @@ func (nss *NodeConfigurationService) IsMyAddressDynamic() bool {
 
 func (nss *NodeConfigurationService) GetHost() *model.Host {
 	return nss.host
-}
-
-func (nss *NodeConfigurationService) ImportWalletCertificate(config *model.Config) error {
-	var (
-		certMap               map[string]interface{}
-		nodeKeyFieldName      = "nodeKey"
-		ownerAccountFieldName = "ownerAccount"
-	)
-
-	jsonFile, err := os.Open(config.WalletCertFileName)
-	// if we os.Open returns an error then handle it
-	if err != nil {
-		return err
-	}
-	defer jsonFile.Close()
-	byteValue, _ := ioutil.ReadAll(jsonFile)
-	c := ishell.New()
-	c.Print("A wallet certificate has been found. Please enter the password to decrypt and import it: ")
-	var i int
-	for {
-		i++
-		if i > 3 {
-			return errors.New("maximum numbers of attempts exceeded")
-		}
-		pwd := nss.ServiceHelper.ReadPassword(c)
-		nodeKeyDecryptedBytes, err := crypto.OpenSSLDecrypt(pwd, string(byteValue))
-		if err != nil {
-			c.Printf("Attempt n. %d decrypting certificate failed...", i)
-			c.Print("Please try again: ")
-			continue
-		}
-
-		if err := json.Unmarshal(nodeKeyDecryptedBytes, &certMap); err != nil {
-			return err
-		}
-		// validate certificate fields
-		nodeSeed, ok := certMap[nodeKeyFieldName]
-		if !ok {
-			return errors.New("wallet certificate malformed: nodeKey not found")
-		}
-		ownerAccount, ok := certMap[ownerAccountFieldName]
-		if !ok {
-			return errors.New("wallet certificate malformed: ownerAccount not found")
-		}
-		// import into node configuration
-		config.NodeSeed = fmt.Sprintf("%s", nodeSeed)
-		config.NodeKey = &model.NodeKey{
-			Seed: config.NodeSeed,
-		}
-		config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccount)
-		break
-	}
-	return nil
-}
-
-// ReadPassword wrapper around the ishell ReadPassword method, which is not testable otherwise
-func (nssH *NodeConfigurationServiceHelper) ReadPassword(c *ishell.Shell) string {
-	return c.ReadPassword()
 }
