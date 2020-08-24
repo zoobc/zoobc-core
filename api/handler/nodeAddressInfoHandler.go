@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -18,11 +17,10 @@ type NodeAddressInfoHandler struct {
 func (naih *NodeAddressInfoHandler) GetNodeAddressInfo(ctx context.Context,
 	req *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error) {
 	response, err := naih.Service.GetNodeAddressesInfo(req)
-	fmt.Println("err::", err)
+
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("req.NodeIDs::", req.NodeIDs)
 
 	if len(req.NodeIDs) == 0 {
 		return nil, status.Error(codes.Internal, "nodeIDs required")
