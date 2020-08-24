@@ -17,11 +17,9 @@ type NodeAddressInfoHandler struct {
 func (naih *NodeAddressInfoHandler) GetNodeAddressInfo(ctx context.Context,
 	req *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error) {
 	response, err := naih.Service.GetNodeAddressesInfo(req)
-
 	if err != nil {
 		return nil, err
 	}
-
 	if len(req.NodeIDs) == 0 {
 		return nil, status.Error(codes.Internal, "nodeIDs required")
 	}
