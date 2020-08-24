@@ -97,7 +97,7 @@ func (cm *CLIMonitoring) Start() {
 		cm.print("Well Known Peers", strings.Join(cm.ConfigInfo.WellknownPeers, ", "))
 
 		if errNodeAddress == nil {
-			cm.print("Node Account Address", nodeAccountAddress)
+			cm.print("Node Public Key", nodeAccountAddress)
 		}
 		cm.print("Owner Account Address", cm.ConfigInfo.OwnerAccountAddress)
 		cm.print("Smithing Status", cm.ConfigInfo.Smithing)
