@@ -698,3 +698,31 @@ func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKeyWithNo
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetPendingNodeRegistrations(t *testing.T) {
+	type args struct {
+		limit uint32
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "wantSuccess",
+			args: args{
+				limit: 1,
+			},
+			want: "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
+				"registration_status, latest, height FROM node_registry WHERE registration_status=1 AND latest=1 ORDER BY locked_balance DESC LIMIT 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrq := NewNodeRegistrationQuery()
+			if got := nrq.GetPendingNodeRegistrations(tt.args.limit); got != tt.want {
+				t.Errorf("NodeRegistrationQuery.GetPendingNodeRegistrations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
