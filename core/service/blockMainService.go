@@ -818,7 +818,8 @@ func (bs *BlockService) nodeRegistryProcess(
 	)
 	// admit nodes from registry at genesis and regular intervals
 	// expel nodes from node registry as soon as they reach zero participation score
-	if err = bs.expelNodes(block); err != nil {
+	err = bs.expelNodes(block)
+	if err != nil {
 		return nil, err
 	}
 	nextNodeAdmission, err = bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp()
@@ -835,7 +836,8 @@ func (bs *BlockService) nodeRegistryProcess(
 		if err != nil {
 			return nil, err
 		}
-		if err := bs.admitNodes(block); err != nil {
+		err = bs.admitNodes(block)
+		if err != nil {
 			return nil, err
 		}
 	}
