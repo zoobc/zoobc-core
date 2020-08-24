@@ -446,7 +446,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
-	// update or clear or cache storage
+	// update or clear all cache storage
 	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return err
