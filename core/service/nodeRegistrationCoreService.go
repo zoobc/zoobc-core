@@ -296,6 +296,17 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		)
 
 		queries := append(updateAccountBalanceQ, nodeQueries...)
+		// remove the node_address_info
+		removeNodeAddressInfoQ, removeNodeAddressInfoArgs := nrs.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+			nodeRegistration.NodeID,
+			[]model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressPending,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_Unset,
+			},
+		)
+		removeNodeAddressInfoQueries := append([]interface{}{removeNodeAddressInfoQ}, removeNodeAddressInfoArgs...)
+		queries = append(queries, removeNodeAddressInfoQueries)
 		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
@@ -844,20 +855,19 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 // ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
 func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	queries := nrs.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-	executor := nrs.QueryExecutor
-	err := executor.BeginTx()
+	err := nrs.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	err = executor.ExecuteTransactions(queries)
+	err = nrs.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		rollbackErr := executor.RollbackTx()
+		rollbackErr := nrs.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return err
 	}
-	err = executor.CommitTx()
+	err = nrs.QueryExecutor.CommitTx()
 	if err != nil {
 		return err
 	}

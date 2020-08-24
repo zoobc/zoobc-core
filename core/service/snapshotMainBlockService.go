@@ -129,9 +129,6 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				fromHeight uint32
 				rows       *sql.Rows
 			)
-			// if current query repo is blocksmith safe,
-			// include more blocks to make sure we don't break smithing process due to missing data such as blocks,
-			// published receipts and node registrations
 			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
 				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
 			}

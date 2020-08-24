@@ -388,6 +388,7 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
 		NodeAdmittanceCycle     uint32
 	}
 	type args struct {
@@ -407,6 +408,7 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{nrsRegisteredNode1},
@@ -422,6 +424,7 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				NodeAddressInfoQuery:    tt.fields.NodeAddressInfoQuery,
 			}
 			if err := nrs.ExpelNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.ExpelNodes() error = %v, wantErr %v", err, tt.wantErr)
