@@ -650,6 +650,7 @@ func startMainchain() {
 		if err := service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
+			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
@@ -663,7 +664,12 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	// set all storage cache
 	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}

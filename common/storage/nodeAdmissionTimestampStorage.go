@@ -17,7 +17,6 @@ type (
 
 // NewNodeAdmissionTimestampStorage returns new NodeAdmissionTimesatmpStorage instance
 func NewNodeAdmissionTimestampStorage() *NodeAdmissionTimestampStorage {
-
 	return &NodeAdmissionTimestampStorage{
 		nextNodeAdmissionTimestamp: model.NodeAdmissionTimestamp{},
 	}

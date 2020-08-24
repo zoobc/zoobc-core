@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -137,7 +138,11 @@ func GetGenesisNodeRegistrationTx(
 }
 
 // AddGenesisNextNodeAdmission create genesis next node admission timestamp
-func AddGenesisNextNodeAdmission(executor query.ExecutorInterface, genesisBlockTimestamp int64) error {
+func AddGenesisNextNodeAdmission(
+	executor query.ExecutorInterface,
+	genesisBlockTimestamp int64,
+	nextNodeAdmissionTimestampStorage storage.CacheStorageInterface,
+) error {
 	var (
 		err           error
 		nodeAdmission = &model.NodeAdmissionTimestamp{
@@ -162,6 +167,11 @@ func AddGenesisNextNodeAdmission(executor query.ExecutorInterface, genesisBlockT
 
 	}
 	err = executor.CommitTx()
+	if err != nil {
+		return err
+	}
+	// update storage cache of next node admission timestamp
+	err = nextNodeAdmissionTimestampStorage.SetItem(nil, *nodeAdmission)
 	if err != nil {
 		return err
 	}
