@@ -21,6 +21,7 @@ type RemoveNodeRegistration struct {
 	Escrow                *model.Escrow
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
 	AccountBalanceHelper  AccountBalanceHelperInterface
@@ -90,7 +91,17 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		AccountAddress: nodeReg.GetAccountAddress(),
 	})
 	queries = append(queries, nodeQueries...)
-
+	// remove the node_address_info
+	removeNodeAddressInfoQ, removeNodeAddressInfoArgs := tx.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+		nodeReg.NodeID,
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressPending,
+			model.NodeAddressStatus_NodeAddressConfirmed,
+			model.NodeAddressStatus_Unset,
+		},
+	)
+	removeNodeAddressInfoQueries := append([]interface{}{removeNodeAddressInfoQ}, removeNodeAddressInfoArgs...)
+	queries = append(queries, removeNodeAddressInfoQueries)
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  nodeReg.GetLockedBalance() - tx.Fee,

@@ -25,36 +25,38 @@ func GetGenesisTransactions(
 	switch chainType.(type) {
 	case *chaintype.MainChain:
 		for _, genesisEntry := range genesisEntries {
-			// send funds from genesis account to the fund receiver
-			genesisTx := &model.Transaction{
-				Version:                 1,
-				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-				Height:                  0,
-				Timestamp:               constant.MainchainGenesisBlockTimestamp,
-				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
-				RecipientAccountAddress: genesisEntry.AccountAddress,
-				Fee:                     0,
-				TransactionBodyLength:   8,
-				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-						Amount: genesisEntry.AccountBalance,
+			// send funds from genesis account to the fund receiver if the `accountBalance` is non-zero
+			if uint64(genesisEntry.AccountBalance) != 0 {
+				genesisTx := &model.Transaction{
+					Version:                 1,
+					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
+					Height:                  0,
+					Timestamp:               constant.MainchainGenesisBlockTimestamp,
+					SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
+					RecipientAccountAddress: genesisEntry.AccountAddress,
+					Fee:                     0,
+					TransactionBodyLength:   8,
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: genesisEntry.AccountBalance,
+						},
 					},
-				},
-				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
-				Signature:            constant.MainchainGenesisTransactionSignature,
-			}
+					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
+					Signature:            constant.MainchainGenesisTransactionSignature,
+				}
 
-			transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
-			if err != nil {
-				return nil, err
+				transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
+				if err != nil {
+					return nil, err
+				}
+				transactionHash := sha3.Sum256(transactionBytes)
+				genesisTx.TransactionHash = transactionHash[:]
+				genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
+				if err != nil {
+					return nil, err
+				}
+				genesisTxs = append(genesisTxs, genesisTx)
 			}
-			transactionHash := sha3.Sum256(transactionBytes)
-			genesisTx.TransactionHash = transactionHash[:]
-			genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
-			if err != nil {
-				return nil, err
-			}
-			genesisTxs = append(genesisTxs, genesisTx)
 
 			// register the node for the fund receiver, if relative element in GenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
@@ -109,7 +111,7 @@ func GetGenesisNodeRegistrationTx(
 		Version:                 1,
 		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
 		Height:                  0,
-		Timestamp:               1562806389,
+		Timestamp:               constant.MainchainGenesisBlockTimestamp,
 		SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 		RecipientAccountAddress: accountAddress,
 		Fee:                     0,
