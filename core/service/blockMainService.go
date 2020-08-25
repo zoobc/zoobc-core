@@ -593,40 +593,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 	}
-	// admit nodes from registry at genesis and regular intervals
-	// expel nodes from node registry as soon as they reach zero participation score
-	if err := bs.expelNodes(block); err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
-		return err
-	}
-	lastNextNodeAdmissionTimestamp, err := bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp(block.Height)
+	// nodeRegistryProcess precess to admit & expel node registry
+	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
 	if err != nil {
 		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
-	if block.Timestamp >= lastNextNodeAdmissionTimestamp && block.Height != 0 {
-		// insert new next node admission timestamp
-		if err := bs.NodeRegistrationService.InsertNextNodeAdmissionTimestamp(
-			lastNextNodeAdmissionTimestamp,
-			block.Height,
-			true,
-		); err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-		if err := bs.admitNodes(block); err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
+
 	// building scrambled node registry
 	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
@@ -769,7 +744,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return err
 	}
-
+	// cache next node admissiom timestamp
+	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nodeAdmissionTimestamp)
+	if err != nil {
+		return err
+	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
@@ -827,6 +806,42 @@ func (bs *BlockService) ScanBlockPool() error {
 		break
 	}
 	return nil
+}
+
+// nodeRegistryProcess all process related with node registry at the end of push block
+func (bs *BlockService) nodeRegistryProcess(
+	block *model.Block,
+) (*model.NodeAdmissionTimestamp, error) {
+	var (
+		err               error
+		nextNodeAdmission *model.NodeAdmissionTimestamp
+	)
+	// admit nodes from registry at genesis and regular intervals
+	// expel nodes from node registry as soon as they reach zero participation score
+	err = bs.expelNodes(block)
+	if err != nil {
+		return nil, err
+	}
+	nextNodeAdmission, err = bs.NodeRegistrationService.GetNextNodeAdmissionTimestamp()
+	if err != nil {
+		return nil, err
+	}
+	if block.Timestamp >= nextNodeAdmission.Timestamp && block.Height != 0 {
+		// insert new next node admission timestamp
+		nextNodeAdmission, err = bs.NodeRegistrationService.InsertNextNodeAdmissionTimestamp(
+			nextNodeAdmission.Timestamp,
+			block.Height,
+			true,
+		)
+		if err != nil {
+			return nil, err
+		}
+		err = bs.admitNodes(block)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nextNodeAdmission, nil
 }
 
 // adminNodes select and admit nodes from node registry
@@ -1290,6 +1305,11 @@ func (bs *BlockService) ReceiveBlock(
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
+	// check if received the exact same block as current node's last block
+	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
+	}
+
 	// check new block is better than current block
 	if bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
 		block.Timestamp < lastBlock.Timestamp {
@@ -1301,7 +1321,7 @@ func (bs *BlockService) ReceiveBlock(
 
 	// pre validation block
 	if err = bs.PreValidateBlock(block, lastBlock); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+		return nil, status.Error(codes.InvalidArgument, "BlockFailPrevalidation")
 	}
 
 	isQueued, err := bs.ProcessQueueBlock(block, peer)
@@ -1502,6 +1522,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	// cache last block state
 	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	if err != nil {
+		return nil, err
+	}
+
+	// update cache next node admissiom timestamp after rollback
+	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return nil, err
 	}
