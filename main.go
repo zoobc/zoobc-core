@@ -680,25 +680,25 @@ func startMainchain() {
 		if err != nil {
 			loggerCoreService.Fatal(err)
 		} else if node == nil {
-			// no nodes registered with current node public key
+			// no nodes registered with current node public key, only warn the user but we keep running smithing goroutine
+			// so it immediately start when register+admitted to the registry
 			loggerCoreService.Error(
 				"Current node is not in node registry and won't be able to smith until registered!",
 			)
 		}
-		if node != nil {
-			// register node config public key, so node registration service can detect if node has been admitted
-			nodeRegistrationService.SetCurrentNodePublicKey(config.NodeKey.PublicKey)
-			// default to isBlocksmith=true
-			blockchainStatusService.SetIsBlocksmith(true)
-			mainchainProcessor = smith.NewBlockchainProcessor(
-				mainchainBlockService.GetChainType(),
-				model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, node.NodeID),
-				mainchainBlockService,
-				loggerCoreService,
-				blockchainStatusService,
-			)
-			mainchainProcessor.Start(sleepPeriod)
-		}
+		// register node config public key, so node registration service can detect if node has been admitted
+		nodeRegistrationService.SetCurrentNodePublicKey(config.NodeKey.PublicKey)
+		// default to isBlocksmith=true
+		blockchainStatusService.SetIsBlocksmith(true)
+		mainchainProcessor = smith.NewBlockchainProcessor(
+			mainchainBlockService.GetChainType(),
+			model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, node.GetNodeID()),
+			mainchainBlockService,
+			loggerCoreService,
+			blockchainStatusService,
+			nodeRegistrationService,
+		)
+		mainchainProcessor.Start(sleepPeriod)
 	}
 	mainchainDownloader = blockchainsync.NewBlockchainDownloader(
 		mainchainBlockService,
@@ -802,6 +802,7 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
+			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
