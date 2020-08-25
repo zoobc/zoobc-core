@@ -132,8 +132,16 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 	}, nil
 }
 
-func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
-	return mockBlockPushBlock.Timestamp + 1, nil
+func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
+	return &model.NodeAdmissionTimestamp{
+		Timestamp: mockBlockPushBlock.Timestamp + 1,
+	}, nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceFail) AddParticipationScore(
@@ -155,8 +163,15 @@ func (*mockNodeRegistrationServiceFail) ExpelNodes(nodeRegistrations []*model.No
 	return nil
 }
 
-func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
-	return mockBlockPushBlock.Timestamp + 1, nil
+func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
+	return &model.NodeAdmissionTimestamp{
+		Timestamp: mockBlockPushBlock.Timestamp + 1,
+	}, nil
+}
+func (*mockNodeRegistrationServiceFail) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
@@ -4110,6 +4125,12 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) ResetScrambledNodes() {
 
 }
 
+func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
+}
+
 func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	height uint32,
 ) ([]*model.MempoolTransaction, error) {
@@ -4256,6 +4277,9 @@ type (
 	mockPublishedReceiptUtilSuccess struct {
 		coreUtil.PublishedReceiptUtil
 	}
+	mockPopOffToBlockNodeRegistrationServiceSucess struct {
+		NodeRegistrationServiceInterface
+	}
 )
 
 func (*mockPopOffToBlockTransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
@@ -4335,6 +4359,11 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 	}
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil
+}
+
+func (*mockPopOffToBlockNodeRegistrationServiceSucess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
+	return nil
 }
 
 func TestBlockService_PopOffToBlock(t *testing.T) {
