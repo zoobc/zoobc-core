@@ -11,13 +11,13 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -921,119 +921,63 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 }
 
 type (
-	mockQueryExecutorGetNextNodeAdmissionTimestampFail struct {
-		query.Executor
+	mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageFail struct {
+		storage.CacheStorageInterface
 	}
-	mockQueryExecutorGetNextNodeAdmissionTimestampSuccess struct {
-		query.Executor
-	}
-	mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampFail struct {
-		query.NodeAdmissionTimestampQuery
-	}
-	mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampSuccess struct {
-		query.NodeAdmissionTimestampQuery
+	mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageSuccess struct {
+		storage.CacheStorageInterface
 	}
 )
 
-func (*mockQueryExecutorGetNextNodeAdmissionTimestampFail) ExecuteSelectRow(
-	query string, tx bool, args ...interface{},
-) (*sql.Row, error) {
-	return nil, errors.New("mockedError")
-}
-func (*mockQueryExecutorGetNextNodeAdmissionTimestampSuccess) ExecuteSelectRow(
-	query string, tx bool, args ...interface{},
-) (*sql.Row, error) {
-	return nil, nil
-}
-
-func (*mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampFail) Scan(
-	nextNodeAdmission *model.NodeAdmissionTimestamp, row *sql.Row,
-) error {
+func (*mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageFail) GetItem(
+	lastChange, item interface{}) error {
 	return errors.New("mockedError")
 }
-func (*mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampSuccess) Scan(
-	nextNodeAdmission *model.NodeAdmissionTimestamp, row *sql.Row,
-) error {
+
+func (*mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageSuccess) GetItem(
+	lastChange, item interface{}) error {
+
 	return nil
 }
 
 func TestNodeRegistrationService_GetNextNodeAdmissionTimestamp(t *testing.T) {
-	var (
-		mockNodeAdmissionTimesatamp = model.NodeAdmissionTimestamp{
-			Timestamp:   1,
-			BlockHeight: 1,
-		}
-	)
 	type fields struct {
 		QueryExecutor                query.ExecutorInterface
+		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
 		BlockQuery                   query.BlockQueryInterface
 		NodeAdmissionTimestampQuery  query.NodeAdmissionTimestampQueryInterface
-		NextNodeAdmission            *model.NodeAdmissionTimestamp
+		NextNodeAdmissionStorage     storage.CacheStorageInterface
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
-		ScrambledNodesLock           sync.RWMutex
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
-	}
-	type args struct {
-		blockHeight uint32
+		Signature                    crypto.SignatureInterface
+		NodeAddressInfoService       NodeAddressInfoServiceInterface
 	}
 	tests := []struct {
 		name    string
 		fields  fields
-		args    args
-		want    int64
+		want    *model.NodeAdmissionTimestamp
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess:NextNodeAdmissionNotNil",
+			name: "wantFail:GetItem",
 			fields: fields{
-				NextNodeAdmission: &mockNodeAdmissionTimesatamp,
+				NextNodeAdmissionStorage: &mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageFail{},
 			},
-			args: args{
-				blockHeight: mockNodeAdmissionTimesatamp.BlockHeight + 1,
-			},
-			want:    mockNodeAdmissionTimesatamp.Timestamp,
-			wantErr: false,
-		},
-		{
-			name: "wantFail:ExecuteSelectRow",
-			fields: fields{
-				QueryExecutor:               &mockQueryExecutorGetNextNodeAdmissionTimestampFail{},
-				NodeAdmissionTimestampQuery: query.NewNodeAdmissionTimestampQuery(),
-			},
-			args: args{
-				blockHeight: 1,
-			},
-			want:    0,
+			want:    nil,
 			wantErr: true,
 		},
 		{
-			name: "wantFail:ScanQuery",
+			name: "wantSuccess",
 			fields: fields{
-				QueryExecutor:               &mockQueryExecutorGetNextNodeAdmissionTimestampSuccess{},
-				NodeAdmissionTimestampQuery: &mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampFail{},
+				NextNodeAdmissionStorage: &mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageSuccess{},
 			},
-			args: args{
-				blockHeight: 1,
-			},
-			want:    0,
-			wantErr: true,
-		},
-		{
-			name: "wantSuccess_2",
-			fields: fields{
-				QueryExecutor:               &mockQueryExecutorGetNextNodeAdmissionTimestampSuccess{},
-				NodeAdmissionTimestampQuery: &mockNodeAdmissionTimestampQueryGetNextNodeAdmissionTimestampSuccess{},
-			},
-			args: args{
-				blockHeight: 1,
-			},
-			want:    0,
+			want:    &model.NodeAdmissionTimestamp{},
 			wantErr: false,
 		},
 	}
@@ -1041,25 +985,27 @@ func TestNodeRegistrationService_GetNextNodeAdmissionTimestamp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
 				QueryExecutor:                tt.fields.QueryExecutor,
+				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
 				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
 				BlockQuery:                   tt.fields.BlockQuery,
 				NodeAdmissionTimestampQuery:  tt.fields.NodeAdmissionTimestampQuery,
-				NextNodeAdmission:            tt.fields.NextNodeAdmission,
+				NextNodeAdmissionStorage:     tt.fields.NextNodeAdmissionStorage,
 				Logger:                       tt.fields.Logger,
 				ScrambledNodes:               tt.fields.ScrambledNodes,
-				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
 				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
+				Signature:                    tt.fields.Signature,
+				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
 			}
-			got, err := nrs.GetNextNodeAdmissionTimestamp(tt.args.blockHeight)
+			got, err := nrs.GetNextNodeAdmissionTimestamp()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.GetNextNodeAdmissionTimestamp() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistrationService.GetNextNodeAdmissionTimestamp() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1150,10 +1096,9 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
 		BlockQuery                   query.BlockQueryInterface
 		NodeAdmissionTimestampQuery  query.NodeAdmissionTimestampQueryInterface
-		NextNodeAdmission            *model.NodeAdmissionTimestamp
+		NextNodeAdmissionStorage     storage.CacheStorageInterface
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
-		ScrambledNodesLock           sync.RWMutex
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
@@ -1167,6 +1112,7 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 		name    string
 		fields  fields
 		args    args
+		want    *model.NodeAdmissionTimestamp
 		wantErr bool
 	}{
 		{
@@ -1180,6 +1126,7 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				blockHeight:            1,
 				dbTx:                   false,
 			},
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -1193,6 +1140,7 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				blockHeight:            1,
 				dbTx:                   false,
 			},
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -1207,6 +1155,7 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				blockHeight:            1,
 				dbTx:                   false,
 			},
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -1221,6 +1170,11 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				blockHeight:            1,
 				dbTx:                   false,
 			},
+			want: &model.NodeAdmissionTimestamp{
+				Timestamp:   1801,
+				BlockHeight: 1,
+				Latest:      true,
+			},
 			wantErr: false,
 		},
 	}
@@ -1233,16 +1187,19 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
 				BlockQuery:                   tt.fields.BlockQuery,
 				NodeAdmissionTimestampQuery:  tt.fields.NodeAdmissionTimestampQuery,
-				NextNodeAdmission:            tt.fields.NextNodeAdmission,
+				NextNodeAdmissionStorage:     tt.fields.NextNodeAdmissionStorage,
 				Logger:                       tt.fields.Logger,
 				ScrambledNodes:               tt.fields.ScrambledNodes,
-				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
 				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
 			}
-			if err := nrs.InsertNextNodeAdmissionTimestamp(tt.args.lastAdmissionTimestamp, tt.args.blockHeight, tt.args.dbTx); (err != nil) != tt.wantErr {
+			got, err := nrs.InsertNextNodeAdmissionTimestamp(tt.args.lastAdmissionTimestamp, tt.args.blockHeight, tt.args.dbTx)
+			if (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.InsertNextNodeAdmissionTimestamp() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistrationService.InsertNextNodeAdmissionTimestamp() = %v, want %v", got, tt.want)
 			}
 		})
 	}

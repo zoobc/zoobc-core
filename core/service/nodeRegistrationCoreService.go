@@ -15,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -30,8 +31,11 @@ type (
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
-		GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error)
-		InsertNextNodeAdmissionTimestamp(lastAdmissionTimestamp int64, blockHeight uint32, dbTx bool) error
+		GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error)
+		InsertNextNodeAdmissionTimestamp(
+			lastAdmissionTimestamp int64, blockHeight uint32, dbTx bool,
+		) (*model.NodeAdmissionTimestamp, error)
+		UpdateNextNodeAdmissionCache(newNextNodeAdmission *model.NodeAdmissionTimestamp) error
 		BuildScrambledNodes(block *model.Block) error
 		ResetScrambledNodes()
 		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
@@ -72,7 +76,7 @@ type (
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
 		BlockQuery                   query.BlockQueryInterface
 		NodeAdmissionTimestampQuery  query.NodeAdmissionTimestampQueryInterface
-		NextNodeAdmission            *model.NodeAdmissionTimestamp
+		NextNodeAdmissionStorage     storage.CacheStorageInterface
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
 		ScrambledNodesLock           sync.RWMutex
@@ -96,6 +100,7 @@ func NewNodeRegistrationService(
 	blockchainStatusService BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
 	nodeAddressInfoService NodeAddressInfoServiceInterface,
+	nextNodeAdmissionStorage storage.CacheStorageInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:               queryExecutor,
@@ -110,6 +115,7 @@ func NewNodeRegistrationService(
 		Signature:                   signature,
 		NodeAddressInfoService:      nodeAddressInfoService,
 		NodeAdmissionTimestampQuery: nodeAdmissionTimestampQuery,
+		NextNodeAdmissionStorage:    nextNodeAdmissionStorage,
 	}
 }
 
@@ -309,32 +315,15 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 }
 
 // GetNextNodeAdmissionTimestamp get the next node admission timestamp
-func (nrs *NodeRegistrationService) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
-	if nrs.NextNodeAdmission == nil || blockHeight <= nrs.NextNodeAdmission.BlockHeight {
-		var (
-			err               error
-			row               *sql.Row
-			nextNodeAdmission model.NodeAdmissionTimestamp
-		)
-		row, err = nrs.QueryExecutor.ExecuteSelectRow(
-			nrs.NodeAdmissionTimestampQuery.GetNextNodeAdmision(),
-			false,
-		)
-		if err != nil {
-			return 0, err
-		}
-		err = nrs.NodeAdmissionTimestampQuery.Scan(&nextNodeAdmission, row)
-		if err != nil {
-			return 0, err
-		}
-		if blockHeight == 0 {
-			// don't cache on genesis to avoid snapshot relative timestamp
-			// todo: this solution only work if we only import snapshot on first download
-			return nextNodeAdmission.Timestamp, nil
-		}
-		nrs.NextNodeAdmission = &nextNodeAdmission
+func (nrs *NodeRegistrationService) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
+	var (
+		nextNodeAdmission model.NodeAdmissionTimestamp
+		err               = nrs.NextNodeAdmissionStorage.GetItem(nil, &nextNodeAdmission)
+	)
+	if err != nil {
+		return nil, err
 	}
-	return nrs.NextNodeAdmission.Timestamp, nil
+	return &nextNodeAdmission, nil
 }
 
 // InsertNextNodeAdmissionTimestamp set new next node admission timestamp
@@ -342,7 +331,7 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	lastAdmissionTimestamp int64,
 	blockHeight uint32,
 	dbTx bool,
-) error {
+) (*model.NodeAdmissionTimestamp, error) {
 	var (
 		rows              *sql.Rows
 		err               error
@@ -358,12 +347,12 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 		dbTx,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// calculate next delay node admission timestamp
 	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
@@ -379,10 +368,41 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	insertQueries = nrs.NodeAdmissionTimestampQuery.InsertNextNodeAdmission(nextNodeAdmission)
 	err = nrs.QueryExecutor.ExecuteTransactions(insertQueries)
 	if err != nil {
+		return nil, err
+	}
+	return nextNodeAdmission, nil
+}
+
+func (nrs *NodeRegistrationService) UpdateNextNodeAdmissionCache(newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
+	var (
+		err               error
+		row               *sql.Row
+		nextNodeAdmission model.NodeAdmissionTimestamp
+	)
+	if newNextNodeAdmission != nil {
+		err = nrs.NextNodeAdmissionStorage.SetItem(nil, *newNextNodeAdmission)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	// get next node admission from DB
+	row, err = nrs.QueryExecutor.ExecuteSelectRow(
+		nrs.NodeAdmissionTimestampQuery.GetNextNodeAdmision(),
+		false,
+	)
+	if err != nil {
 		return err
 	}
-
-	nrs.NextNodeAdmission = nextNodeAdmission
+	err = nrs.NodeAdmissionTimestampQuery.Scan(&nextNodeAdmission, row)
+	if err != nil {
+		return err
+	}
+	// update next node admission timestamp storage
+	err = nrs.NextNodeAdmissionStorage.SetItem(nil, nextNodeAdmission)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
