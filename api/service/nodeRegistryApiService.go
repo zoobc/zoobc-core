@@ -15,6 +15,7 @@ type (
 		GetNodeRegistration(*model.GetNodeRegistrationRequest) (*model.GetNodeRegistrationResponse, error)
 		GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest,
 		) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error)
+		GetPendingNodeRegistrations(*model.GetPendingNodeRegistrationsRequest) (*model.GetPendingNodeRegistrationsResponse, error)
 	}
 
 	NodeRegistryService struct {
@@ -174,5 +175,34 @@ func (ns NodeRegistryService) GetNodeRegistration(
 
 	return &model.GetNodeRegistrationResponse{
 		NodeRegistration: &nodeRegistration,
+	}, nil
+}
+
+func (ns NodeRegistryService) GetPendingNodeRegistrations(
+	req *model.GetPendingNodeRegistrationsRequest) (*model.GetPendingNodeRegistrationsResponse, error) {
+	var (
+		err               error
+		rows              *sql.Rows
+		args              []interface{}
+		nodeRegistrations []*model.NodeRegistration
+		limit             = req.Limit
+	)
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	selectQuery := nodeRegistrationQuery.GetPendingNodeRegistrations(limit)
+
+	// Get list of node registry
+	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &model.GetPendingNodeRegistrationsResponse{
+		NodeRegistrations: nodeRegistrations,
 	}, nil
 }

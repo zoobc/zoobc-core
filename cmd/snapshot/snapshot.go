@@ -100,6 +100,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
 			&transaction.TypeSwitcher{Executor: executor},
+			nil,
 		)
 		snapshotService = service.NewSnapshotService(
 			service.NewSpineBlockManifestService(
@@ -261,6 +262,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
 			&transaction.TypeSwitcher{Executor: executor},
+			nil,
 		)
 
 		spineBlockManifestService := service.NewSpineBlockManifestService(

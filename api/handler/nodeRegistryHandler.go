@@ -2,9 +2,12 @@ package handler
 
 import (
 	"context"
+	"io"
+	"time"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/model"
+	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -61,4 +64,27 @@ func (nrh NodeRegistryHandler) GetNodeRegistrationsByNodePublicKeys(
 		return nil, err
 	}
 	return response, nil
+}
+
+func (nrh *NodeRegistryHandler) GetPendingNodeRegistrations(
+	stream rpcService.NodeRegistrationService_GetPendingNodeRegistrationsServer,
+) error {
+	in, err := stream.Recv()
+	if err == io.EOF {
+		return nil
+	}
+	if in == nil {
+		return nil
+	}
+	for {
+		pendingNodes, err := nrh.Service.GetPendingNodeRegistrations(in)
+		if err != nil {
+			return err
+		}
+		err = stream.Send(pendingNodes)
+		if err != nil {
+			return err // close connection if sending response to client result in error
+		}
+		time.Sleep(5 * time.Second)
+	}
 }
