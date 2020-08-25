@@ -1290,6 +1290,11 @@ func (bs *BlockService) ReceiveBlock(
 		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 
+	// check if received the exact same block as current node's last block
+	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
+	}
+
 	// check new block is better than current block
 	if bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) &&
 		block.Timestamp < lastBlock.Timestamp {
@@ -1301,7 +1306,7 @@ func (bs *BlockService) ReceiveBlock(
 
 	// pre validation block
 	if err = bs.PreValidateBlock(block, lastBlock); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+		return nil, status.Error(codes.InvalidArgument, "BlockFailPrevalidation")
 	}
 
 	isQueued, err := bs.ProcessQueueBlock(block, peer)
