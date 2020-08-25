@@ -25,7 +25,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 0,
 				maxReceipt:      10,
 			},
-			want:    -1000000000,
+			want:    -1 * (constant.MaxScoreChange),
 			wantErr: false,
 		},
 		{
@@ -35,7 +35,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 0,
 				maxReceipt:      10,
 			},
-			want:    1000000000,
+			want:    constant.MaxScoreChange,
 			wantErr: false,
 		},
 		{
@@ -45,7 +45,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 5,
 				maxReceipt:      10,
 			},
-			want:    250000000,
+			want:    constant.MaxScoreChange / 4,
 			wantErr: false,
 		},
 		{
@@ -55,7 +55,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 20,
 				maxReceipt:      20,
 			},
-			want:    -500000000,
+			want:    -1 * (constant.MaxScoreChange / 2),
 			wantErr: false,
 		},
 		{
