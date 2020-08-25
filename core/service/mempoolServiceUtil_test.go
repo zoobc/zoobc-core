@@ -71,6 +71,7 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, arg
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
 	)
+
 	mock.ExpectQuery("").WillReturnRows(mockedRow)
 	return db.QueryRow(""), nil
 }
@@ -79,6 +80,16 @@ func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
 }
 func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
 	return nil
+}
+
+type (
+	mockMempoolGetterSuccess struct {
+		MempoolGetter
+	}
+)
+
+func (*mockMempoolGetterSuccess) GetTotalMempoolTransactions() (int, error) {
+	return 10, nil
 }
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
@@ -106,6 +117,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				BlockQuery:         query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
+				MempoolGetter:      &mockMempoolGetterSuccess{},
 			},
 			args: args{
 				mpTx: transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
@@ -122,10 +134,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				MempoolQuery:       tt.fields.MempoolQuery,
 				BlockQuery:         tt.fields.BlockQuery,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				MempoolGetter: &MempoolGetter{
-					QueryExecutor: tt.fields.QueryExecutor,
-					MempoolQuery:  tt.fields.MempoolQuery,
-				},
+				MempoolGetter:      tt.fields.MempoolGetter,
 			}
 			if err := mps.AddMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.AddMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)

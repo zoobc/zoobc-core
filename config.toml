@@ -7,7 +7,7 @@ snapshotPath = "./resource/snapshots"
 # Peer
 peerPort=8001
 myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+wellknownPeers=["n1.alpha.proofofparticipation.network:8001","n2.alpha.proofofparticipation.network:8001","n3.alpha.proofofparticipation.network:8001"]
 
 apiRPCPort=7000
 apiHTTPPort=7001
@@ -16,6 +16,7 @@ maxAPIRequestPerSecond=10
 monitoringPort=9090
 cpuProfilingPort=6060
 apiReqTimeoutSec=2
+
 
 ownerAccountAddress = "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7"
 

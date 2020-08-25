@@ -25,7 +25,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 0,
 				maxReceipt:      10,
 			},
-			want:    (-1 * constant.MaxScoreChange) + constant.BetaBlockBonus,
+			want:    -1*(constant.MaxScoreChange) + constant.BetaBlockBonus,
 			wantErr: false,
 		},
 		{
@@ -55,7 +55,7 @@ func TestCalculateParticipationScore(t *testing.T) {
 				unlinkedReceipt: 20,
 				maxReceipt:      20,
 			},
-			want:    -1*constant.MaxScoreChange/2 + constant.BetaBlockBonus,
+			want:    -1*(constant.MaxScoreChange/2) + constant.BetaBlockBonus,
 			wantErr: false,
 		},
 		{

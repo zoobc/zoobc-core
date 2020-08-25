@@ -10,7 +10,7 @@ const (
 	// MaxMempoolTransactions is maximum transaction in mempool
 	// For consideration, max mempool tx should equal or greater than MaxNumberOfTransactionsInBlock
 	// Or just leave it 0 for unlimited mempool transaction
-	MaxMempoolTransactions = 0
+	MaxMempoolTransactions = 5000
 	// Timeout of the transaction candidate in second
 	TxCachedTimeout = 300
 	// Gap of the CleanTimedoutTxCandidateThread
