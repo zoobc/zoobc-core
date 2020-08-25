@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -42,6 +43,7 @@ type (
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
+		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
 )
 
@@ -71,6 +73,7 @@ func NewSnapshotMainBlockService(
 	derivedQueries []query.DerivedQuery,
 	transactionUtil transaction.UtilInterface,
 	typeSwitcher transaction.TypeActionSwitcher,
+	nodeRegistrationService NodeRegistrationServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:                  snapshotPath,
@@ -99,6 +102,7 @@ func NewSnapshotMainBlockService(
 		DerivedQueries:                derivedQueries,
 		TransactionUtil:               transactionUtil,
 		TypeActionSwitcher:            typeSwitcher,
+		NodeRegistrationService:       nodeRegistrationService,
 	}
 }
 
@@ -438,6 +442,13 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	if err != nil {
 		return err
 	}
+
+	// update or clear all cache storage
+	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
+	if err != nil {
+		return err
+	}
+
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }
