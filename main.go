@@ -55,6 +55,7 @@ var (
 	db                                                              *sql.DB
 	badgerDb                                                        *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
+	nextNodeAdmissionStorage                                        storage.CacheStorageInterface
 	snapshotChunkUtil                                               util.ChunkUtilInterface
 	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                                   *query.Executor
@@ -226,12 +227,14 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	// initialize services
+	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
+	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 
+	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -257,6 +260,7 @@ func init() {
 		blockchainStatusService,
 		crypto.NewSignature(),
 		nodeAddressInfoService,
+		nextNodeAdmissionStorage,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -313,6 +317,7 @@ func init() {
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
 		&transaction.TypeSwitcher{Executor: queryExecutor},
+		nodeRegistrationService,
 	)
 
 	snapshotService = service.NewSnapshotService(
@@ -635,6 +640,7 @@ func startMainchain() {
 		if err := service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
+			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
@@ -648,7 +654,12 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	// set all storage cache
 	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
