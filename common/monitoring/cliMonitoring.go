@@ -77,9 +77,9 @@ func (cm *CLIMonitoring) UpdateSmithingInfo(sortedBlocksmiths []*model.Blocksmit
 
 func (cm *CLIMonitoring) Start() {
 	var (
-		mainChain                          = &chaintype.MainChain{}
-		spainChain                         = &chaintype.SpineChain{}
-		nodeAccountAddress, errNodeAddress = address.EncodeZbcID(
+		mainChain                       = &chaintype.MainChain{}
+		spainChain                      = &chaintype.SpineChain{}
+		nodePublicKey, errNodePublicKey = address.EncodeZbcID(
 			constant.PrefixZoobcNodeAccount,
 			cm.ConfigInfo.NodeKey.PublicKey,
 		)
@@ -96,8 +96,8 @@ func (cm *CLIMonitoring) Start() {
 		cm.print("Monitoring Port", cm.ConfigInfo.MonitoringPort)
 		cm.print("Well Known Peers", strings.Join(cm.ConfigInfo.WellknownPeers, ", "))
 
-		if errNodeAddress == nil {
-			cm.print("Node Account Address", nodeAccountAddress)
+		if errNodePublicKey == nil {
+			cm.print("Node Public Key", nodePublicKey)
 		}
 		cm.print("Owner Account Address", cm.ConfigInfo.OwnerAccountAddress)
 		cm.print("Smithing Status", cm.ConfigInfo.Smithing)
