@@ -257,6 +257,8 @@ func authRequest(ctx context.Context, method, ownerAddress string) error {
 		requestType = model.RequestType_GetProofOfOwnership
 	case "/service.NodeAdminService/GenerateNodeKey":
 		requestType = model.RequestType_GeneratetNodeKey
+	case "/service.NodeAdminService/GetPendingNodeRegistrations":
+		requestType = model.RequestType_GetPendingNodeRegistrationsStream
 	default:
 		// unprotected service, by pass the auth checking
 		requestType = -1

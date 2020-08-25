@@ -159,6 +159,7 @@ func initialize(
 		&mockBlockchainStatusService{},
 		nil,
 		nil,
+		nil,
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
@@ -233,6 +234,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blockService,
 		log.New(),
 		&mockBlockchainStatusService{},
+		nodeRegistrationService,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

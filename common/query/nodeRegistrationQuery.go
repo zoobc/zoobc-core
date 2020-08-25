@@ -31,6 +31,7 @@ type (
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
+		GetPendingNodeRegistrations(limit uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
@@ -313,6 +314,12 @@ func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsWithNodeAddress() st
 		"WHERE registration_status = 0 "+
 		"ORDER BY height DESC",
 		joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName)
+}
+
+// GetPendingNodeRegistrations returns pending node registrations
+func (nrq *NodeRegistrationQuery) GetPendingNodeRegistrations(limit uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status=1 AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), limit)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
