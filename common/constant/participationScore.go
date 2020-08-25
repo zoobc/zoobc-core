@@ -22,5 +22,9 @@ const (
 	// Starting score for newly registered nodes
 	DefaultParticipationScore int64 = MaxParticipationScore / 10
 	// Starting score for pre seed nodes (registered at genesis)
-	GenesisParticipationScore int64 = MaxParticipationScore / 2
+	GenesisParticipationScore int64 = MaxParticipationScore
+	// BetaBlockBonus beta only additional participation score
+	BetaBlockBonus = MaxParticipationScore / 420
+	// BetaBlockBonusSkipMultiplier beta only additional participation score decrease
+	BetaBlockBonusSkipMultiplier = 5
 )
