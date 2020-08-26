@@ -783,16 +783,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 	return nil, nil
 }
 
-// GetBlockExtendedInfo spine blocks have no extended info so far, so we just return the 'basic' block info (from model.Block)
-func (bs *BlockSpineService) GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error) {
-	var (
-		blExt = &model.BlockExtendedInfo{}
-	)
-	blExt.Block = block
-	// block extra (computed) info
-	return blExt, nil
-}
-
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
 		err error
