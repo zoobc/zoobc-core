@@ -18,9 +18,9 @@ type BlockHandler struct {
 }
 
 // GetBlock handles request to get data of a single Block
-func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest) (*model.BlockExtendedInfo, error) {
+func (bs *BlockHandler) GetBlock(ctx context.Context, req *model.GetBlockRequest) (*model.GetBlockResponse, error) {
 	var (
-		blockResponse *model.BlockExtendedInfo
+		blockResponse *model.GetBlockResponse
 		err           error
 	)
 	chainType := chaintype.GetChainType(req.ChainType)
