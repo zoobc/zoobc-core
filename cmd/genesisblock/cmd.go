@@ -48,8 +48,8 @@ type (
 		Smithing            bool   `json:"smithing,omitempty"`
 	}
 	accountNodeEntry struct {
-		NodeAddress    string
-		AccountAddress string
+		NodeAccountAddress string
+		AccountAddress     string
 	}
 )
 
@@ -72,8 +72,6 @@ func Commands() *cobra.Command {
 }
 
 func init() {
-	// TODO: this is broken since implementation of proof of participation mechanism (needs more than just last blockchain status).
-	//  see snapshots implementation as reference
 	// genesisGeneratorCmd.Flags().BoolVarP(&withDbLastState, "withDbLastState", "w", false,
 	// 	"add to genesis all registered nodes and account balances from current database")
 	genesisGeneratorCmd.Flags().StringVarP(&dbPath, "dbPath", "f", "../resource/",
@@ -113,52 +111,42 @@ func init() {
 //  (account balances and registered nodes/participation scores)
 func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount int) {
 	var (
-		bcState, preRegisteredNodes, preRegisteredAccountAddresses []genesisEntry
-		accountNodes                                               []accountNodeEntry
-		err                                                        error
+		bcState      []genesisEntry
+		accountNodes []accountNodeEntry
+		err          error
+		bcStateMap   = make(map[string]genesisEntry)
 	)
 
-	if withDbLastState {
-		bcState, err = getDbLastState(dbPath)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
-	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
+	// import pre-registered-nodes
+	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.seatSale.json", envTarget)))
 	if err == nil {
+		var preRegisteredNodes []genesisEntry
+		err = json.Unmarshal(file, &preRegisteredNodes)
+		if err != nil {
+			log.Fatalf("seatSale.json parsing error: %s", err)
+		}
+		bcStateMap = buildPreregisteredNodes(preRegisteredNodes, withDbLastState)
+	}
+
+	// import company-managed nodes and merge with previous entries (overriding duplicates,
+	// that might have been added to pre-registered-nodes list)
+	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
+	if err == nil {
+		var (
+			preRegisteredNodes []genesisEntry
+		)
+
 		err = json.Unmarshal(file, &preRegisteredNodes)
 		if err != nil {
 			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 		}
 
-		// merge duplicates: if preRegisteredNodes contains entries that are in db too, add the parameters that are't available in db,
-		// which is are NodeSeed and Smithing
-		for _, prNode := range preRegisteredNodes {
-			found := false
-			var pubKey = make([]byte, 32)
-			for i, e := range bcState {
-				if prNode.AccountAddress != e.AccountAddress {
-					continue
-				}
-				bcState[i].NodeSeed = prNode.NodeSeed
-				bcState[i].Smithing = prNode.Smithing
-				err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
-				if err != nil {
-					log.Fatal(err)
-				}
-				bcState[i].NodePublicKey = pubKey
-				found = true
-				break
-			}
-			if !found {
-				err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
-				if err != nil {
-					log.Fatal(err)
-				}
-				prNode.NodePublicKey = pubKey
-				bcState = append(bcState, prNode)
-			}
+		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState) {
+			bcStateMap[key] = preRegisteredNode
 		}
+	}
+	for _, preRegisteredNode := range bcStateMap {
+		bcState = append(bcState, preRegisteredNode)
 	}
 
 	var idx int
@@ -169,6 +157,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	// generate extra nodes from a json file containing only account addresses
 	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.genesisAccountAddresses.json", envTarget)))
 	if err == nil {
+		var preRegisteredAccountAddresses []genesisEntry
 		// read custom addresses from file
 		err = json.Unmarshal(file, &preRegisteredAccountAddresses)
 		if err != nil {
@@ -206,6 +195,57 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	fmt.Printf("Command executed successfully\ngenesis.go.new has been generated in %s\n", outPath)
 	fmt.Printf("to apply new genesis to the core-node, please overwrite common/constant/genesis."+
 		"go with the new one: %s/genesis.go", outPath)
+}
+
+// buildPreregisteredNodes merge duplicates: if preRegisteredNodes contains entries that are in db too,
+// add the parameters that are't available in db,
+// which is are NodeSeed and Smithing
+func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState bool) map[string]genesisEntry {
+	var (
+		bcState          []genesisEntry
+		err              error
+		preRegisteredMap = make(map[string]genesisEntry)
+	)
+	if withDbLastState {
+		bcState, err = getDbLastState(dbPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	// merge duplicates: if preRegisteredNodes contains entries that are in db too, add the parameters that are't available in db,
+	// which is are NodeSeed and Smithing
+	for _, prNode := range preRegisteredNodes {
+		found := false
+		var pubKey = make([]byte, 32)
+		for i, e := range bcState {
+			if prNode.AccountAddress != e.AccountAddress {
+				continue
+			}
+			if prNode.NodeSeed != "" {
+				bcState[i].NodeSeed = prNode.NodeSeed
+			}
+			bcState[i].Smithing = prNode.Smithing
+			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			if err != nil {
+				log.Fatal(err)
+			}
+			bcState[i].NodePublicKey = pubKey
+			preRegisteredMap[prNode.AccountAddress] = bcState[i]
+			found = true
+			break
+		}
+		if !found {
+			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			if err != nil {
+				log.Fatal(err)
+			}
+			prNode.NodePublicKey = pubKey
+			bcState = append(bcState, prNode)
+			preRegisteredMap[prNode.AccountAddress] = prNode
+		}
+	}
+	return preRegisteredMap
 }
 
 // generateRandomGenesisEntry randomly generates a genesis node entry
@@ -466,7 +506,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFilePath string) (clusterConfig []clusterConfigEntry) {
 	for _, genEntry := range genesisEntries {
 		// exclude entries that don't have NodeSeed set from cluster_config.json
-		// (they should be nodes already registered/run by someone, thus they shouldn't be deployed automatically)
+		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
 		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
 				NodePublicKey:       genEntry.NodeAccountAddress,
@@ -495,8 +535,8 @@ func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFileP
 
 	for _, e := range accountNodeEntries {
 		entry := accountNodeEntry{
-			NodeAddress:    e.NodeAddress,
-			AccountAddress: e.AccountAddress,
+			NodeAccountAddress: e.NodeAccountAddress,
+			AccountAddress:     e.AccountAddress,
 		}
 		accountNodes = append(accountNodes, entry)
 	}
