@@ -16,8 +16,8 @@ import (
 type (
 	// BlockServiceInterface represents interface for BlockService
 	BlockServiceInterface interface {
-		GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.BlockExtendedInfo, error)
-		GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.BlockExtendedInfo, error)
+		GetBlockByID(chainType chaintype.ChainType, ID int64) (*model.GetBlockResponse, error)
+		GetBlockByHeight(chainType chaintype.ChainType, Height uint32) (*model.GetBlockResponse, error)
 		GetBlocks(chainType chaintype.ChainType, Count uint32, Height uint32) (*model.GetBlocksResponse, error)
 	}
 
@@ -43,62 +43,48 @@ func NewBlockService(queryExecutor query.ExecutorInterface, blockCoreServices ma
 }
 
 // GetBlockByID fetch a single block from Blockchain by providing block ID
-func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
+func (bs *BlockService) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.GetBlockResponse, error) {
 	var (
-		err  error
-		bl   []*model.Block
-		rows *sql.Rows
+		err   error
+		block model.Block
+		row   *sql.Row
 	)
 	blockQuery := query.NewBlockQuery(chainType)
-	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByID(id), false)
+
+	row, _ = bs.Query.ExecuteSelectRow(blockQuery.GetBlockByID(id), false)
+	err = blockQuery.Scan(&block, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "block not found")
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	bl, err = blockQuery.BuildModel(bl, rows)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "failed build block into model")
-	}
-	if len(bl) == 0 {
-		return nil, status.Error(codes.NotFound, "block not found")
-	}
-
-	// Get block extended info
-	blExt, err := bs.BlockCoreServices[chainType.GetTypeInt()].GetBlockExtendedInfo(bl[0], false)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "fail to get block extended information")
-	}
-
-	return blExt, nil
-
+	return &model.GetBlockResponse{
+		ChainType: chainType.GetTypeInt(),
+		Block:     &block,
+	}, nil
 }
 
 // GetBlockByHeight fetches a single block from Blockchain by providing block size
-func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
+func (bs *BlockService) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.GetBlockResponse, error) {
 	var (
-		err  error
-		bl   []*model.Block
-		rows *sql.Rows
+		err   error
+		block model.Block
+		row   *sql.Row
 	)
-
 	blockQuery := query.NewBlockQuery(chainType)
-
-	rows, err = bs.Query.ExecuteSelect(blockQuery.GetBlockByHeight(height), false)
+	row, _ = bs.Query.ExecuteSelectRow(blockQuery.GetBlockByHeight(height), false)
+	err = blockQuery.Scan(&block, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "block not found")
+		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows.Close()
-
-	bl, err = blockQuery.BuildModel(bl, rows)
-	if err != nil {
-		return nil, status.Error(codes.Internal, "failed build block into model")
-	}
-
-	if len(bl) == 0 {
-		return nil, status.Error(codes.NotFound, "block not found")
-	}
-	return bs.BlockCoreServices[chainType.GetTypeInt()].GetBlockExtendedInfo(bl[0], bs.isDebugMode)
+	return &model.GetBlockResponse{
+		ChainType: chainType.GetTypeInt(),
+		Block:     &block,
+	}, nil
 }
 
 // GetBlocks fetches multiple blocks from Blockchain system
@@ -120,17 +106,8 @@ func (bs *BlockService) GetBlocks(chainType chaintype.ChainType, blockSize, heig
 	if err != nil {
 		return nil, status.Error(codes.Internal, "failed build block into model")
 	}
-
-	blocksExt := make([]*model.BlockExtendedInfo, 0)
-	for _, block := range blocks {
-		blExt, err := bs.BlockCoreServices[chainType.GetTypeInt()].GetBlockExtendedInfo(block, false)
-		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-		blocksExt = append(blocksExt, blExt)
-	}
 	blocksResponse := &model.GetBlocksResponse{
-		Blocks: blocksExt,
+		Blocks: blocks,
 		Height: height,
 		Count:  uint32(len(blocks)),
 	}

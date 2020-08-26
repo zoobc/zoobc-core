@@ -16,8 +16,7 @@ import (
 
 func main() {
 	var (
-		ip         string
-		apiRPCPort int
+		ip string
 	)
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
@@ -29,7 +28,7 @@ func main() {
 		}
 	}
 
-	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
