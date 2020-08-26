@@ -139,7 +139,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 		}
 
-		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbpath) {
+		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath) {
 			bcStateMap[key] = preRegisteredNode
 		}
 	}
