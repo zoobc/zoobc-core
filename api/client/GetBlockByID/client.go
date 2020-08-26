@@ -16,8 +16,7 @@ import (
 
 func main() {
 	var (
-		ip         string
-		apiRPCPort int
+		ip string
 	)
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
@@ -28,8 +27,7 @@ func main() {
 			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
-
-	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
@@ -38,7 +36,7 @@ func main() {
 	c := rpc_service.NewBlockServiceClient(conn)
 
 	response, err := c.GetBlock(context.Background(), &rpc_model.GetBlockRequest{
-		ID: 7339863030352842209,
+		ID: -4250430912947963780,
 	})
 
 	if err != nil {
