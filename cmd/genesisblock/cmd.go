@@ -72,8 +72,6 @@ func Commands() *cobra.Command {
 }
 
 func init() {
-	// genesisGeneratorCmd.Flags().BoolVarP(&withDbLastState, "withDbLastState", "w", false,
-	// 	"add to genesis all registered nodes and account balances from current database")
 	genesisGeneratorCmd.Flags().StringVarP(&dbPath, "dbPath", "f", "../resource/",
 		"path of blockchain's database to be used as data source in case the -w flag is used. If not set, the default resource folder is used")
 	genesisGeneratorCmd.Flags().IntVarP(&extraNodesCount, "extraNodes", "n", 0,
@@ -125,7 +123,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		if err != nil {
 			log.Fatalf("seatSale.json parsing error: %s", err)
 		}
-		bcStateMap = buildPreregisteredNodes(preRegisteredNodes, withDbLastState)
+		bcStateMap = buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath)
 	}
 
 	// import company-managed nodes and merge with previous entries (overriding duplicates,
@@ -141,7 +139,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 		}
 
-		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState) {
+		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbpath) {
 			bcStateMap[key] = preRegisteredNode
 		}
 	}
@@ -200,7 +198,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 // buildPreregisteredNodes merge duplicates: if preRegisteredNodes contains entries that are in db too,
 // add the parameters that are't available in db,
 // which is are NodeSeed and Smithing
-func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState bool) map[string]genesisEntry {
+func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState bool, dbPath string) map[string]genesisEntry {
 	var (
 		bcState          []genesisEntry
 		err              error
