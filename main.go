@@ -233,6 +233,7 @@ func init() {
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
+	nodeShardStorage = storage.NewNodeShardCacheStorage()
 
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
@@ -363,7 +364,6 @@ func init() {
 	/*
 		Snapshot Scheduler initiate
 	*/
-	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	snapshotSchedulers = scheduler.NewSnapshotScheduler(
 		spineBlockManifestService,
 		fileService,
