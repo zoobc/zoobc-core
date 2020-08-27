@@ -94,7 +94,6 @@ func NewP2PService(
 func (s *Peer2PeerService) StartP2P(
 	myAddress, ownerAccountAddress string,
 	peerPort uint32,
-	// nodeSecretPhrase needed in on-going feature by @iltoga
 	nodeSecretPhrase string,
 	queryExecutor query.ExecutorInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,

@@ -132,8 +132,16 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 	}, nil
 }
 
-func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
-	return mockBlockPushBlock.Timestamp + 1, nil
+func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
+	return &model.NodeAdmissionTimestamp{
+		Timestamp: mockBlockPushBlock.Timestamp + 1,
+	}, nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceFail) AddParticipationScore(
@@ -155,8 +163,15 @@ func (*mockNodeRegistrationServiceFail) ExpelNodes(nodeRegistrations []*model.No
 	return nil
 }
 
-func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp(blockHeight uint32) (int64, error) {
-	return mockBlockPushBlock.Timestamp + 1, nil
+func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
+	return &model.NodeAdmissionTimestamp{
+		Timestamp: mockBlockPushBlock.Timestamp + 1,
+	}, nil
+}
+func (*mockNodeRegistrationServiceFail) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
@@ -3255,226 +3270,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	}
 }
 
-type (
-	// GetBlockExtendedInfo mocks
-	mockGetBlockExtendedInfoBlocksmithServiceSuccess struct {
-		BlocksmithService
-	}
-	mockGetBlockExtendedInfoPublishedReceiptUtilSuccess struct {
-		coreUtil.PublishedReceiptUtil
-	}
-	// GetBlockExtendedInfo mocks
-)
-
-func (*mockGetBlockExtendedInfoBlocksmithServiceSuccess) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
-	return "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", nil
-}
-
-func (*mockGetBlockExtendedInfoPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(
-	blockHeight uint32,
-) ([]*model.PublishedReceipt, error) {
-	return mockPublishedReceipt, nil
-}
-
-func TestBlockService_GetBlockExtendedInfo(t *testing.T) {
-	block := &model.Block{
-		ID:                   999,
-		PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
-		Height:               1,
-		Timestamp:            1562806389280,
-		BlockSeed:            []byte{},
-		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
-		PayloadLength:        0,
-		PayloadHash:          []byte{},
-		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
-		Version:              0,
-	}
-	genesisBlock := &model.Block{
-		ID:                   999,
-		PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
-		Height:               0,
-		Timestamp:            1562806389280,
-		BlockSeed:            []byte{},
-		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
-		PayloadLength:        0,
-		PayloadHash:          []byte{},
-		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          100000000,
-		TotalFee:             10000000,
-		TotalCoinBase:        1,
-		Version:              0,
-	}
-	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithService       BlocksmithServiceInterface
-		PublishedReceiptUtil    coreUtil.PublishedReceiptUtilInterface
-		Observer                *observer.Observer
-	}
-	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *model.BlockExtendedInfo
-		wantErr bool
-	}{
-		{
-			name: "GetBlockExtendedInfo:fail - {VersionedNodeRegistrationNotFound}",
-			args: args{
-				block: block,
-			},
-			fields: fields{
-				QueryExecutor:          &mockQueryExecutorNotFound{},
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
-				BlocksmithService:      &mockGetBlockExtendedInfoBlocksmithServiceSuccess{},
-				PublishedReceiptUtil:   &mockGetBlockExtendedInfoPublishedReceiptUtilSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "GetBlockExtendedInfo:success-{genesisBlock}",
-			args: args{
-				block: genesisBlock,
-			},
-			fields: fields{
-				QueryExecutor:          &mockQueryExecutorSuccess{},
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
-				BlocksmithService:      &mockGetBlockExtendedInfoBlocksmithServiceSuccess{},
-				PublishedReceiptUtil:   &mockGetBlockExtendedInfoPublishedReceiptUtilSuccess{},
-			},
-			wantErr: false,
-			want: &model.BlockExtendedInfo{
-				Block: &model.Block{
-					ID:                   999,
-					PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
-					Height:               0,
-					Timestamp:            1562806389280,
-					BlockSeed:            []byte{},
-					BlockSignature:       []byte{},
-					CumulativeDifficulty: string(100000000),
-					PayloadLength:        0,
-					PayloadHash:          []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          100000000,
-					TotalFee:             10000000,
-					TotalCoinBase:        1,
-					Version:              0,
-				},
-				BlocksmithAccountAddress: constant.MainchainGenesisAccountAddress,
-				TotalReceipts:            1,
-				ReceiptValue:             50000000,
-				PopChange:                1000000000,
-				SkippedBlocksmiths: []*model.SkippedBlocksmith{
-					{
-						BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-						POPChange:           5000,
-						BlockHeight:         1,
-					},
-				},
-			},
-		},
-		{
-			name: "GetBlockExtendedInfo:success",
-			args: args{
-				block: block,
-			},
-			fields: fields{
-				QueryExecutor:          &mockQueryExecutorSuccess{},
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				PublishedReceiptQuery:  query.NewPublishedReceiptQuery(),
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
-				BlocksmithService:      &mockGetBlockExtendedInfoBlocksmithServiceSuccess{},
-				PublishedReceiptUtil:   &mockGetBlockExtendedInfoPublishedReceiptUtilSuccess{},
-			},
-			wantErr: false,
-			want: &model.BlockExtendedInfo{
-				Block: &model.Block{
-					ID:                   999,
-					PreviousBlockHash:    []byte{1, 1, 1, 1, 1, 1, 1, 1},
-					Height:               1,
-					Timestamp:            1562806389280,
-					BlockSeed:            []byte{},
-					BlockSignature:       []byte{},
-					CumulativeDifficulty: string(100000000),
-					PayloadLength:        0,
-					PayloadHash:          []byte{},
-					BlocksmithPublicKey:  bcsNodePubKey1,
-					TotalAmount:          100000000,
-					TotalFee:             10000000,
-					TotalCoinBase:        1,
-					Version:              0,
-				},
-				BlocksmithAccountAddress: bcsAddress1,
-				TotalReceipts:            int64(len(mockPublishedReceipt)),
-				ReceiptValue:             50000000,
-				PopChange:                1000000000,
-				SkippedBlocksmiths: []*model.SkippedBlocksmith{
-					{
-						BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-						POPChange:           5000,
-						BlockHeight:         1,
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				Observer:                tt.fields.Observer,
-				ReceiptUtil:             &coreUtil.ReceiptUtil{},
-				BlocksmithService:       tt.fields.BlocksmithService,
-				PublishedReceiptUtil:    tt.fields.PublishedReceiptUtil,
-			}
-			got, err := bs.GetBlockExtendedInfo(tt.args.block, false)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.GetBlockExtendedInfo() error = \n%v, wantErr \n%v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.GetBlockExtendedInfo() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
-}
-
 var mockSmithTime int64 = 1
 
 func TestBlockService_GenerateGenesisBlock(t *testing.T) {
@@ -3560,7 +3355,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    -5768731141969274708,
+			want:    2181321930526879108,
 		},
 	}
 	for _, tt := range tests {
@@ -4110,6 +3905,12 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) ResetScrambledNodes() {
 
 }
 
+func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp,
+) error {
+	return nil
+}
+
 func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
 	height uint32,
 ) ([]*model.MempoolTransaction, error) {
@@ -4256,6 +4057,9 @@ type (
 	mockPublishedReceiptUtilSuccess struct {
 		coreUtil.PublishedReceiptUtil
 	}
+	mockPopOffToBlockNodeRegistrationServiceSucess struct {
+		NodeRegistrationServiceInterface
+	}
 )
 
 func (*mockPopOffToBlockTransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
@@ -4335,6 +4139,11 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 	}
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil
+}
+
+func (*mockPopOffToBlockNodeRegistrationServiceSucess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
+	return nil
 }
 
 func TestBlockService_PopOffToBlock(t *testing.T) {

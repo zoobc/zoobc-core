@@ -614,6 +614,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountLedgerQuery    query.AccountLedgerQueryInterface
+		NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
 	}
 	tests := []struct {
 		name    string
@@ -642,6 +643,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 			},
 			wantErr: false,
 		},
@@ -657,6 +659,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
+				NodeAddressInfoQuery:  tt.fields.NodeAddressInfoQuery,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

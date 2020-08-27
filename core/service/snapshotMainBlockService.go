@@ -46,6 +46,7 @@ type (
 		DerivedQueries                []query.DerivedQuery
 		BlockStateStorage             storage.CacheStorageInterface
 		BlockMainService              BlockServiceInterface
+		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
 )
 
@@ -77,6 +78,7 @@ func NewSnapshotMainBlockService(
 	typeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorage storage.CacheStorageInterface,
 	blockMainService BlockServiceInterface,
+	nodeRegistrationService NodeRegistrationServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:                  snapshotPath,
@@ -107,6 +109,7 @@ func NewSnapshotMainBlockService(
 		TypeActionSwitcher:            typeSwitcher,
 		BlockStateStorage:             blockStateStorage,
 		BlockMainService:              blockMainService,
+		NodeRegistrationService:       nodeRegistrationService,
 	}
 }
 
@@ -133,9 +136,6 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				fromHeight uint32
 				rows       *sql.Rows
 			)
-			// if current query repo is blocksmith safe,
-			// include more blocks to make sure we don't break smithing process due to missing data such as blocks,
-			// published receipts and node registrations
 			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
 				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
 			}
@@ -450,7 +450,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
-	// Update existing cache or internal storage
+	// update or clear all cache storage
 	lastBlock, err := commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
 	if err != nil {
 		return err
@@ -464,6 +464,12 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	if err != nil {
 		return err
 	}
+
+	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
+	if err != nil {
+		return err
+	}
+
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }

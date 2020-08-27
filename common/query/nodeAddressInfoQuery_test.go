@@ -529,6 +529,12 @@ func TestNodeAddressInfoQuery_ConfirmNodeAddressInfo(t *testing.T) {
 			},
 			want: [][]interface{}{
 				{
+					"DELETE FROM node_address_info WHERE address = ? AND port = ? AND node_id != ?",
+					"127.0.0.1",
+					uint32(3000),
+					int64(111),
+				},
+				{
 					"DELETE FROM node_address_info WHERE node_id = ? AND status != ?",
 					int64(111),
 					uint32(model.NodeAddressStatus_NodeAddressPending),

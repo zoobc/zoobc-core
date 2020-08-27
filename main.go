@@ -55,6 +55,7 @@ var (
 	db                                                              *sql.DB
 	badgerDb                                                        *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
+	nextNodeAdmissionStorage                                        storage.CacheStorageInterface
 	snapshotChunkUtil                                               util.ChunkUtilInterface
 	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                                   *query.Executor
@@ -131,18 +132,8 @@ func init() {
 	config.LoadConfigurations()
 
 	// early init configuration service
-	nodeConfigurationService = service.NewNodeConfigurationService(
-		loggerCoreService,
-		&service.NodeConfigurationServiceHelper{},
-	)
+	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
 
-	// if wallet certificate is present in ResourcePath, import it
-	if _, err := os.Stat(config.WalletCertFileName); err == nil {
-		if err = nodeConfigurationService.ImportWalletCertificate(config); err != nil {
-			log.Error(err)
-			log.Fatal("either password is wrong or the certificate is malformed")
-		}
-	}
 	// check and validate configurations
 	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
@@ -236,12 +227,14 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	// initialize services
+	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
+	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 
+	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
@@ -267,6 +260,7 @@ func init() {
 		blockchainStatusService,
 		crypto.NewSignature(),
 		nodeAddressInfoService,
+		nextNodeAdmissionStorage,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -325,6 +319,7 @@ func init() {
 		&transaction.TypeSwitcher{Executor: queryExecutor},
 		mainBlockStateStorage,
 		mainchainBlockService,
+		nodeRegistrationService,
 	)
 
 	snapshotService = service.NewSnapshotService(
@@ -647,6 +642,7 @@ func startMainchain() {
 		if err := service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
+			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
@@ -660,7 +656,12 @@ func startMainchain() {
 	}
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 
+	// set all storage cache
 	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -681,26 +682,26 @@ func startMainchain() {
 		if err != nil {
 			loggerCoreService.Fatal(err)
 		} else if node == nil {
-			// no nodes registered with current node public key
+			// no nodes registered with current node public key, only warn the user but we keep running smithing goroutine
+			// so it immediately start when register+admitted to the registry
 			loggerCoreService.Error(
 				"Current node is not in node registry and won't be able to smith until registered!",
 			)
 		}
-		if node != nil {
-			// register node config public key, so node registration service can detect if node has been admitted
-			nodeRegistrationService.SetCurrentNodePublicKey(config.NodeKey.PublicKey)
-			// default to isBlocksmith=true
-			blockchainStatusService.SetIsBlocksmith(true)
-			mainchainProcessor = smith.NewBlockchainProcessor(
-				mainchainBlockService.GetChainType(),
-				model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, node.NodeID),
-				mainchainBlockService,
-				loggerCoreService,
-				blockchainStatusService,
-				mainBlockStateStorage,
-			)
-			mainchainProcessor.Start(sleepPeriod)
-		}
+		// register node config public key, so node registration service can detect if node has been admitted
+		nodeRegistrationService.SetCurrentNodePublicKey(config.NodeKey.PublicKey)
+		// default to isBlocksmith=true
+		blockchainStatusService.SetIsBlocksmith(true)
+		mainchainProcessor = smith.NewBlockchainProcessor(
+			mainchainBlockService.GetChainType(),
+			model.NewBlocksmith(config.NodeKey.Seed, config.NodeKey.PublicKey, node.GetNodeID()),
+			mainchainBlockService,
+			loggerCoreService,
+			blockchainStatusService,
+			mainBlockStateStorage,
+			nodeRegistrationService,
+		)
+		mainchainProcessor.Start(sleepPeriod)
 	}
 	mainchainDownloader = blockchainsync.NewBlockchainDownloader(
 		mainchainBlockService,
@@ -805,6 +806,7 @@ func startSpinechain() {
 			loggerCoreService,
 			blockchainStatusService,
 			spineBlockStateStorage,
+			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}

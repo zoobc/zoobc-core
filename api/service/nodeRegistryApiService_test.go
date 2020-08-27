@@ -266,3 +266,74 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistryService_GetPendingNodeRegistrations(t *testing.T) {
+	type fields struct {
+		Query                 query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	}
+	type args struct {
+		req *model.GetPendingNodeRegistrationsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetPendingNodeRegistrationsResponse
+		wantErr bool
+	}{
+		{
+			name: "wantError",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsFail{},
+			},
+			args: args{
+				req: &model.GetPendingNodeRegistrationsRequest{
+					Limit: 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsSuccess{},
+			},
+			args: args{
+				req: &model.GetPendingNodeRegistrationsRequest{
+					Limit: 1,
+				},
+			},
+			want: &model.GetPendingNodeRegistrationsResponse{
+				NodeRegistrations: []*model.NodeRegistration{
+					{
+						NodeID:             1,
+						NodePublicKey:      []byte{1, 2},
+						AccountAddress:     "AccountA",
+						RegistrationHeight: 1,
+						LockedBalance:      1,
+						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
+						Latest:             true,
+						Height:             1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := NodeRegistryService{
+				Query:                 tt.fields.Query,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+			}
+			got, err := ns.GetPendingNodeRegistrations(tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistryService.GetPendingNodeRegistrations() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistryService.GetPendingNodeRegistrations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

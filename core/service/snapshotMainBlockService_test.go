@@ -854,6 +854,17 @@ func (*mockSnapshotQueryExecutor) ExecuteTransactions(queries [][]interface{}) e
 	return nil
 }
 
+type (
+	mockImportSnapshotFileNodeRegistrationServiceSuccess struct {
+		NodeRegistrationServiceInterface
+	}
+)
+
+func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) UpdateNextNodeAdmissionCache(
+	newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
+	return nil
+}
+
 func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 	type fields struct {
 		SnapshotPath                  string
@@ -884,6 +895,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		TypeActionSwitcher            transaction.TypeActionSwitcher
 		BlockStateStorage             storage.CacheStorageInterface
 		BlockMainService              BlockServiceInterface
+		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -926,8 +938,9 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				TypeActionSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockSnapshotQueryExecutor{success: true},
 				},
-				BlockStateStorage: storage.NewBlockStateStorage(),
-				BlockMainService:  &mockBlockMainServiceSuccess{},
+				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlockMainService:        &mockBlockMainServiceSuccess{},
+				NodeRegistrationService: &mockImportSnapshotFileNodeRegistrationServiceSuccess{},
 			},
 		},
 	}
@@ -962,6 +975,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 				BlockStateStorage:             tt.fields.BlockStateStorage,
 				BlockMainService:              tt.fields.BlockMainService,
+				NodeRegistrationService:       tt.fields.NodeRegistrationService,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

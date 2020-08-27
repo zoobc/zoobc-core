@@ -15,7 +15,7 @@ type OpenSSLCreds struct {
 	iv  []byte
 }
 
-// Decrypt string that was encrypted using OpenSSL and AES-256-CBC
+// OpenSSLDecrypt string that was encrypted using OpenSSL and AES-256-CBC
 func OpenSSLDecrypt(passphrase, encryptedBase64String string) ([]byte, error) {
 	data, err := base64.StdEncoding.DecodeString(encryptedBase64String)
 	if err != nil {

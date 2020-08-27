@@ -2,8 +2,6 @@ package util
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -29,7 +27,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("snapshotPath", "./resource/snapshots")
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", true)
-	viper.SetDefault("walletCertFileName", "wallet.zbc")
+	viper.SetDefault("maxAPIRequestPerSecond", 10)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed
@@ -48,18 +46,4 @@ func LoadConfig(path, name, extension string) error {
 		return err
 	}
 	return nil
-}
-
-func OverrideConfigKey(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		viper.Set(cfgFileKey, strValue)
-	}
-}
-func OverrideConfigKeyArray(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		ary := strings.Split(strValue, ",")
-		viper.Set(cfgFileKey, ary)
-	}
 }

@@ -66,16 +66,16 @@ func (*mockBlockService) GetBlockExtendedInfo(block *model.Block, includeReceipt
 	return &model.BlockExtendedInfo{}, nil
 }
 
-func (*mockQueryExecutorBlockByIDFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	return nil, errors.New("mockError:executeSelectFail")
+func (*mockQueryExecutorBlockByIDFail) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(query)).WillReturnRows(sqlmock.NewRows([]string{"one", "two"}).AddRow(1, 2))
+	return db.QueryRow(query), nil
 }
 
-func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryExecutorBlockByIDNotFound) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields))
-	rows, _ := db.Query(qe)
-	return rows, nil
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"one", "two"}).AddRow(1, 2))
+	return db.QueryRow(qe), nil
 }
 
 func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -130,14 +130,10 @@ type (
 	}
 )
 
-func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetBlockByIDSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
-
-	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
-
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
-		sqlmock.NewRows(blockQ.Fields).AddRow(
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
@@ -153,9 +149,8 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool, args ..
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
-		),
-	)
-	return db.Query(qStr)
+		))
+	return db.QueryRow(qStr), nil
 }
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
@@ -170,7 +165,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.BlockExtendedInfo
+		want    *model.GetBlockResponse
 		wantErr bool
 	}{
 		{
@@ -183,10 +178,12 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
-				id:        1,
+				id:        mockGoodBlock.ID,
 			},
 			wantErr: false,
-			want:    &model.BlockExtendedInfo{},
+			want: &model.GetBlockResponse{
+				Block: &mockGoodBlock,
+			},
 		},
 		{
 			name: "GetBlockByID:fail-{ExecuteSelectFail}",
@@ -243,14 +240,10 @@ type (
 	}
 )
 
-func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockQueryGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
-	defer db.Close()
-
-	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
-
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
-		sqlmock.NewRows(blockQ.Fields).AddRow(
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
+		WillReturnRows(sqlmock.NewRows(query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockGoodBlock.GetHeight(),
 			mockGoodBlock.GetID(),
 			mockGoodBlock.GetBlockHash(),
@@ -266,9 +259,8 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx bool, arg
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
-		),
-	)
-	return db.Query(qStr)
+		))
+	return db.QueryRow(qStr), nil
 }
 
 func TestBlockService_GetBlockByHeight(t *testing.T) {
@@ -284,7 +276,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.BlockExtendedInfo
+		want    *model.GetBlockResponse
 		wantErr bool
 	}{
 		{
@@ -297,10 +289,12 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 			},
 			args: args{
 				chainType: &chaintype.MainChain{},
-				height:    1,
+				height:    mockGoodBlock.Height,
 			},
 			wantErr: false,
-			want:    &model.BlockExtendedInfo{},
+			want: &model.GetBlockResponse{
+				Block: &mockGoodBlock,
+			},
 		},
 		{
 			name: "GetBlockByHeight:fail-{ExecuteSelectFail}",
@@ -418,7 +412,9 @@ func TestBlockService_GetBlocks(t *testing.T) {
 			want: &model.GetBlocksResponse{
 				Height: 1,
 				Count:  1,
-				Blocks: []*model.BlockExtendedInfo{{}},
+				Blocks: []*model.Block{
+					&mockGoodBlock,
+				},
 			},
 			wantErr: false,
 		},

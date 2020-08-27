@@ -153,6 +153,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,

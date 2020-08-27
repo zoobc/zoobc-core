@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"time"
@@ -20,7 +21,8 @@ import (
 
 func main() {
 	var (
-		ip string
+		ip         string
+		apiRPCPort = 7000
 	)
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
@@ -31,24 +33,24 @@ func main() {
 			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
-	conn, err := grpc.Dial(ip, grpc.WithInsecure())
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
 	defer conn.Close()
 
-	c := rpcService.NewNodeHardwareServiceClient(conn)
-	var stream rpcService.NodeHardwareService_GetNodeHardwareClient
+	c := rpcService.NewNodeRegistrationServiceClient(conn)
+	var stream rpcService.NodeRegistrationService_GetPendingNodeRegistrationsClient
 
 	if err != nil {
-		log.Fatalf("error calling rpcService.GetAccountBalance: %s", err)
+		log.Fatalf("error calling rpcService.GetPendingNodeRegistrations: %s", err)
 	}
 	waitC := make(chan struct{})
 	signature := crypto.Signature{}
 	currentTime := uint64(time.Now().Unix())
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
-	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetPendingNodeRegistrationsStream)))
 	sig, err := signature.Sign(
 		buffer.Bytes(),
 		rpcModel.SignatureType_DefaultSignature,
@@ -63,21 +65,24 @@ func main() {
 
 	md := metadata.Pairs("authorization", base64.StdEncoding.EncodeToString(buffer.Bytes()))
 	ctx = metadata.NewOutgoingContext(ctx, md)
-	stream, err = c.GetNodeHardware(ctx)
+	stream, err = c.GetPendingNodeRegistrations(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = stream.Send(&rpcModel.GetNodeHardwareRequest{})
+	err = stream.Send(&rpcModel.GetPendingNodeRegistrationsRequest{
+		Limit: 2,
+	})
 	if err != nil {
-		log.Fatalf("error sending request to rpcService.GetNodeHardware: %s", err)
+		log.Fatalf("error sending request to rpcService.GetPendingNodeRegistrations: %s", err)
 	}
 	go func() {
 		for {
 			response, err := stream.Recv()
 			if err != nil {
-				log.Fatalf("error receiving response from rpcService.GetNodeHardware: %s", err)
+				log.Fatalf("error receiving response from rpcService.GetPendingNodeRegistrations: %s", err)
 			}
-			log.Printf("response from remote rpcService.GetNodeHardware(): %s", response)
+			j, _ := json.MarshalIndent(response, "", "  ")
+			log.Printf("response from remote rpcService.GetPendingNodeRegistrations(): %s", j)
 		}
 	}()
 	<-waitC

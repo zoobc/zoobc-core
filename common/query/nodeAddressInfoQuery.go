@@ -91,10 +91,15 @@ func (paq *NodeAddressInfoQuery) ConfirmNodeAddressInfo(nodeAddressInfo *model.N
 	var (
 		queries [][]interface{}
 	)
+	qryDeleteDuplicateAddress := fmt.Sprintf(
+		"DELETE FROM %s WHERE address = ? AND port = ? AND node_id != ?",
+		paq.getTableName(),
+	)
 	qryDeleteOld := fmt.Sprintf(
 		"DELETE FROM %s WHERE node_id = ? AND status != ?",
 		paq.getTableName(),
 	)
+
 	nodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	qryInsertReplace := fmt.Sprintf(
 		"INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
@@ -103,6 +108,7 @@ func (paq *NodeAddressInfoQuery) ConfirmNodeAddressInfo(nodeAddressInfo *model.N
 		fmt.Sprintf("? %s", strings.Repeat(", ? ", len(paq.Fields)-1)),
 	)
 	queries = append(queries,
+		append([]interface{}{qryDeleteDuplicateAddress}, nodeAddressInfo.Address, nodeAddressInfo.Port, nodeAddressInfo.NodeID),
 		append([]interface{}{qryDeleteOld}, nodeAddressInfo.GetNodeID(), uint32(model.NodeAddressStatus_NodeAddressPending)),
 		append([]interface{}{qryInsertReplace}, paq.ExtractModel(nodeAddressInfo)...),
 	)

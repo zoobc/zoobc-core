@@ -22,6 +22,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
 		blockStateStorage       storage.CacheStorageInterface
+		nodeRegistrationService service.NodeRegistrationServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -36,6 +37,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				blockService:            &service.BlockService{},
 				blockchainStatusService: &service.BlockchainStatusService{},
 				blockStateStorage:       storage.NewBlockStateStorage(),
+				nodeRegistrationService: &service.NodeRegistrationService{},
 			},
 			want: &BlockchainProcessor{
 				ChainType:               &chaintype.MainChain{},
@@ -43,6 +45,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				BlockService:            &service.BlockService{},
 				BlockchainStatusService: &service.BlockchainStatusService{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
+				NodeRegistrationService: &service.NodeRegistrationService{},
 			},
 		},
 	}
@@ -55,6 +58,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.logger,
 				tt.args.blockchainStatusService,
 				tt.args.blockStateStorage,
+				tt.args.nodeRegistrationService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}

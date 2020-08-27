@@ -235,10 +235,6 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.ScrambledNodes, node *model.Node) bool {
 	var nodeID = node.GetID()
 	if nodeID == 0 {
-		// @iltoga: this is a little hack to be backward compatible with previous scrambled nodes logic.
-		//  we should always be able to get the node/peer by its nodeID, if is registered in node registry.
-		// TODO: scan all code where we call nodeConfigurationService.SetHost and make sure that host has Info.ID,
-		//  if it's a registered node. then validate scrambled node only by nodeID
 		if node.Address != "" && node.Port != 0 {
 			nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(node.Address, node.Port,
 				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending,
@@ -748,20 +744,18 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 		)
 
 		if !ps.NodeConfigurationService.IsMyAddressDynamic() {
-			if err = ps.UpdateOwnNodeAddressInfo(
+			err = ps.UpdateOwnNodeAddressInfo(
 				currentAddr,
 				host.GetInfo().GetPort(),
 				true,
-			); err == nil {
-				// break the loop if address is static (from config file)
-				ticker.Stop()
-				return
-			}
-			errCasted, ok := err.(blocker.Blocker)
-			if ok && errCasted.Message == "AddressAlreadyUpdatedForNode" {
-				// break the loop if address is static (from config file)
-				ticker.Stop()
-				return
+			)
+			if err != nil {
+				errCasted, ok := err.(blocker.Blocker)
+				if ok && errCasted.Message == "AddressAlreadyUpdatedForNode" {
+					// break the loop if address is static (from config file)
+					ticker.Stop()
+					return
+				}
 			}
 			// get node's public ip address from external source internet and check if differs from current one
 		} else if ipAddr, err := (&util.IPUtil{}).DiscoverNodeAddress(); err == nil && ipAddr != nil {
@@ -810,7 +804,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 		err := ps.getRegistryAndSyncAddressInfoTable()
 		if err == nil && ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
 			bootstrapTicker.Stop()
-			ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
+			ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute) // todo:andy-shi88 revert this later
 		}
 		select {
 		case <-bootstrapTicker.C:
@@ -1361,13 +1355,20 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 		return nil
 	}
 
-	// add it to nodeAddressInfo table
-	if updated, _ := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
-		// re-broadcast updated node address info
-		for _, peer := range ps.GetResolvedPeers() {
-			go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
+	nodeRegistry, err := ps.NodeRegistrationService.GetNodeRegistrationByNodeID(nodeAddressInfo.NodeID)
+	if err != nil {
+		return err
+	}
+	if nodeRegistry.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
+		// add it to nodeAddressInfo table
+		if updated, _ := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
+			// re-broadcast updated node address info
+			for _, peer := range ps.GetResolvedPeers() {
+				go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
+			}
 		}
 	}
+	// do not add to address info if still in queue or node got deleted
 	return nil
 }
 
@@ -1402,14 +1403,18 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 			return err
 		}
 		// set status to 'confirmed' when updating own address
-		updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(
-			nodeAddressInfo,
-			model.NodeAddressStatus_NodeAddressConfirmed,
-		)
-		if err != nil {
-			ps.Logger.Warnf("cannot update nodeAddressInfo: %s", err)
+		if nr.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
+			// only update own address info table if node is registered (out of queue or not removed)
+			updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(
+				nodeAddressInfo,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+			)
+			if err != nil {
+				ps.Logger.Warnf("cannot update nodeAddressInfo: %s", err)
+			}
 		}
-		// broadcast, if node addressInfo has been updated
+
+		// broadcast, wether or not node is in queue
 		if updated || forceBroadcast {
 			if len(resolvedPeers) == 0 {
 				return blocker.NewBlocker(blocker.P2PPeerError,
