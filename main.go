@@ -318,6 +318,8 @@ func init() {
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
 		&transaction.TypeSwitcher{Executor: queryExecutor},
+		mainBlockStateStorage,
+		mainchainBlockService,
 		nodeRegistrationService,
 	)
 
@@ -696,6 +698,7 @@ func startMainchain() {
 			mainchainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
+			mainBlockStateStorage,
 			nodeRegistrationService,
 		)
 		mainchainProcessor.Start(sleepPeriod)
@@ -802,6 +805,7 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
+			spineBlockStateStorage,
 			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
