@@ -45,7 +45,7 @@ type (
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlocksmithService         BlocksmithServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
-		BlockStateCache           storage.CacheStorageInterface
+		BlockStateStorage         storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 	}
 )
@@ -61,7 +61,7 @@ func NewBlockSpineService(
 	megablockQuery query.SpineBlockManifestQueryInterface,
 	blocksmithService BlocksmithServiceInterface,
 	snapshotMainblockService SnapshotBlockServiceInterface,
-	blockStateCache storage.CacheStorageInterface,
+	blockStateStorage storage.CacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
 ) *BlockSpineService {
@@ -82,7 +82,7 @@ func NewBlockSpineService(
 		),
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
-		BlockStateCache:          blockStateCache,
+		BlockStateStorage:        blockStateStorage,
 		BlockchainStatusService:  blockchainStatusService,
 	}
 }
@@ -349,7 +349,8 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
+	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
 	if err != nil {
 		return err
 	}
@@ -845,8 +846,9 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return nil, err
 	}
-	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	// cache last block state.
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
+	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
 	if err != nil {
 		return nil, err
 	}
