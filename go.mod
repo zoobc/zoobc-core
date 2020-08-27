@@ -41,7 +41,7 @@ require (
 	github.com/tyler-smith/go-bip39 v1.0.2
 	github.com/ugorji/go/codec v1.1.7
 	github.com/zoobc/lib v0.0.0-20200611035436-693560334368
-	github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463
+	github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc
 	golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9
 	golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 	golang.org/x/sys v0.0.0-20200724161237-0e2f3a69832c // indirect
