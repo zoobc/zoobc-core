@@ -97,6 +97,13 @@ var (
 	blockchainStatusService                                         service.BlockchainStatusServiceInterface
 	nodeConfigurationService                                        service.NodeConfigurationServiceInterface
 	nodeAddressInfoService                                          service.NodeAddressInfoServiceInterface
+	mempoolService                                                  service.MempoolServiceInterface
+	mainchainPublishedReceiptService                                service.PublishedReceiptServiceInterface
+	mainchainPublishedReceiptUtil                                   coreUtil.PublishedReceiptUtilInterface
+	mainchainCoinbaseService                                        service.CoinbaseServiceInterface
+	mainchainBlocksmithService                                      service.BlocksmithServiceInterface
+	mainchainParticipationScoreService                              service.ParticipationScoreServiceInterface
+	actionSwitcher                                                  transaction.TypeActionSwitcher
 	feeScaleService                                                 fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader                       blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
@@ -241,6 +248,14 @@ func init() {
 	transactionUtil = &transaction.Util{
 		FeeScaleService: feeScaleService,
 	}
+	// initialize Observer
+	observerInstance = observer.NewObserver()
+	schedulerInstance = util.NewScheduler(loggerScheduler)
+	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
+
+	actionSwitcher = &transaction.TypeSwitcher{
+		Executor: queryExecutor,
+	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
 		queryExecutor,
@@ -292,6 +307,115 @@ func init() {
 		constant.SnapshotChunkSize,
 		fileService,
 	)
+
+	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
+		loggerCoreService,
+	)
+	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
+		mainchain,
+		observerInstance,
+	)
+	mainchainBlockPool := service.NewBlockPoolService()
+	mainchainBlocksmithService = service.NewBlocksmithService(
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+		mainchain,
+	)
+	mainchainCoinbaseService = service.NewCoinbaseService(
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+		mainchain,
+	)
+	mainchainParticipationScoreService = service.NewParticipationScoreService(
+		query.NewParticipationScoreQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptUtil = coreUtil.NewPublishedReceiptUtil(
+		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
+	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
+		query.NewPublishedReceiptQuery(),
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		receiptService,
+		queryExecutor,
+	)
+
+	mempoolService = service.NewMempoolService(
+		transactionUtil,
+		mainchain,
+		kvExecutor,
+		queryExecutor,
+		query.NewMempoolQuery(mainchain),
+		query.NewMerkleTreeQuery(),
+		actionSwitcher,
+		query.NewAccountBalanceQuery(),
+		query.NewBlockQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		crypto.NewSignature(),
+		observerInstance,
+		loggerCoreService,
+		receiptUtil,
+		receiptService,
+		transactionCoreServiceIns,
+	)
+
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
+
+	mainchainBlockService = service.NewBlockMainService(
+		mainchain,
+		kvExecutor,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		query.NewMempoolQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
+		query.NewSkippedBlocksmithQuery(),
+		crypto.NewSignature(),
+		mempoolService,
+		receiptService,
+		nodeRegistrationService,
+		actionSwitcher,
+		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
+		observerInstance,
+		blocksmithStrategyMain,
+		loggerCoreService,
+		query.NewAccountLedgerQuery(),
+		blockIncompleteQueueService,
+		transactionUtil,
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		transactionCoreServiceIns,
+		mainchainBlockPool,
+		mainchainBlocksmithService,
+		mainchainCoinbaseService,
+		mainchainParticipationScoreService,
+		mainchainPublishedReceiptService,
+		feeScaleService,
+		query.GetPruneQuery(mainchain),
+		mainBlockStateStorage,
+		blockchainStatusService,
+	)
+
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
 		config.SnapshotPath,
 		queryExecutor,
@@ -323,24 +447,13 @@ func init() {
 		nodeRegistrationService,
 	)
 
+	initP2pInstance()
+
 	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
 		blockchainStatusService,
 		snapshotBlockServices,
 		loggerCoreService,
-	)
-
-	transactionCoreServiceIns = service.NewTransactionCoreService(
-		loggerCoreService,
-		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
-		transactionUtil,
-		query.NewTransactionQuery(mainchain),
-		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
-		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
@@ -354,12 +467,36 @@ func init() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-	// initialize Observer
-	observerInstance = observer.NewObserver()
-	schedulerInstance = util.NewScheduler(loggerScheduler)
-	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 
-	initP2pInstance()
+	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
+		queryExecutor,
+		query.NewSpinePublicKeyQuery(),
+		loggerCoreService,
+		query.NewBlockQuery(spinechain),
+	)
+	spinechainBlocksmithService := service.NewBlocksmithService(
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		query.NewNodeRegistrationQuery(),
+		queryExecutor,
+		spinechain,
+	)
+
+	spinechainBlockService = service.NewBlockSpineService(
+		spinechain,
+		queryExecutor,
+		query.NewBlockQuery(spinechain),
+		crypto.NewSignature(),
+		observerInstance,
+		blocksmithStrategySpine,
+		loggerCoreService,
+		query.NewSpineBlockManifestQuery(),
+		spinechainBlocksmithService,
+		snapshotBlockServices[mainchain.GetTypeInt()],
+		spineBlockStateStorage,
+		blockchainStatusService,
+		spinePublicKeyService,
+	)
 
 	/*
 		Snapshot Scheduler initiate
@@ -381,6 +518,12 @@ func init() {
 		nodeConfigurationService,
 		fileDownloader,
 	)
+	// assign chain services to the map
+	mempoolServices[mainchain.GetTypeInt()] = mempoolService
+	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
+	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
+	// register event listeners
+	initObserverListeners()
 }
 
 func initLogInstance() {
@@ -460,8 +603,8 @@ func initObserverListeners() {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
-	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, blockServices[0].ReceivedValidatedBlockTransactionsListener())
-	observerInstance.AddListener(observer.BlockTransactionsRequested, blockServices[0].BlockTransactionsRequestedListener())
+	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, mainchainBlockService.ReceivedValidatedBlockTransactionsListener())
+	observerInstance.AddListener(observer.BlockTransactionsRequested, mainchainBlockService.BlockTransactionsRequestedListener())
 	observerInstance.AddListener(observer.SendBlockTransactions, p2pServiceInstance.SendBlockTransactionsListener())
 }
 
@@ -533,106 +676,6 @@ func startMainchain() {
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
-	mempoolService := service.NewMempoolService(
-		transactionUtil,
-		mainchain,
-		kvExecutor,
-		queryExecutor,
-		query.NewMempoolQuery(mainchain),
-		query.NewMerkleTreeQuery(),
-		&transaction.TypeSwitcher{Executor: queryExecutor},
-		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
-		crypto.NewSignature(),
-		observerInstance,
-		loggerCoreService,
-		receiptUtil,
-		receiptService,
-		transactionCoreServiceIns,
-	)
-	mempoolServices[mainchain.GetTypeInt()] = mempoolService
-
-	actionSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
-	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
-		loggerCoreService,
-	)
-	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
-		mainchain,
-		observerInstance,
-	)
-	mainchainBlockPool := service.NewBlockPoolService()
-	mainchainBlocksmithService := service.NewBlocksmithService(
-		query.NewAccountBalanceQuery(),
-		query.NewAccountLedgerQuery(),
-		query.NewNodeRegistrationQuery(),
-		queryExecutor,
-		mainchain,
-	)
-	mainchainCoinbaseService := service.NewCoinbaseService(
-		query.NewNodeRegistrationQuery(),
-		queryExecutor,
-		mainchain,
-	)
-	mainchainParticipationScoreService := service.NewParticipationScoreService(
-		query.NewParticipationScoreQuery(),
-		queryExecutor,
-	)
-	mainchainPublishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
-		query.NewPublishedReceiptQuery(),
-		queryExecutor,
-	)
-	mainchainPublishedReceiptService := service.NewPublishedReceiptService(
-		query.NewPublishedReceiptQuery(),
-		receiptUtil,
-		mainchainPublishedReceiptUtil,
-		receiptService,
-		queryExecutor,
-	)
-
-	mainchainBlockService = service.NewBlockMainService(
-		mainchain,
-		kvExecutor,
-		queryExecutor,
-		query.NewBlockQuery(mainchain),
-		query.NewMempoolQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
-		query.NewSkippedBlocksmithQuery(),
-		crypto.NewSignature(),
-		mempoolService,
-		receiptService,
-		nodeRegistrationService,
-		actionSwitcher,
-		query.NewAccountBalanceQuery(),
-		query.NewParticipationScoreQuery(),
-		query.NewNodeRegistrationQuery(),
-		query.NewFeeVoteRevealVoteQuery(),
-		observerInstance,
-		blocksmithStrategyMain,
-		loggerCoreService,
-		query.NewAccountLedgerQuery(),
-		blockIncompleteQueueService,
-		transactionUtil,
-		receiptUtil,
-		mainchainPublishedReceiptUtil,
-		transactionCoreServiceIns,
-		mainchainBlockPool,
-		mainchainBlocksmithService,
-		mainchainCoinbaseService,
-		mainchainParticipationScoreService,
-		mainchainPublishedReceiptService,
-		feeScaleService,
-		query.GetPruneQuery(mainchain),
-		mainBlockStateStorage,
-		blockchainStatusService,
-	)
-	blockServices[mainchain.GetTypeInt()] = mainchainBlockService
-
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
@@ -749,36 +792,6 @@ func startSpinechain() {
 		sleepPeriod = constant.SpineChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-	)
-	spinechainBlocksmithService := service.NewBlocksmithService(
-		query.NewAccountBalanceQuery(),
-		query.NewAccountLedgerQuery(),
-		query.NewNodeRegistrationQuery(),
-		queryExecutor,
-		spinechain,
-	)
-
-	spinechainBlockService = service.NewBlockSpineService(
-		spinechain,
-		queryExecutor,
-		query.NewBlockQuery(spinechain),
-		crypto.NewSignature(),
-		observerInstance,
-		blocksmithStrategySpine,
-		loggerCoreService,
-		query.NewSpineBlockManifestQuery(),
-		spinechainBlocksmithService,
-		snapshotBlockServices[mainchain.GetTypeInt()],
-		spineBlockStateStorage,
-		blockchainStatusService,
-		spinePublicKeyService,
-	)
-	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 
 	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
 		if err := spinechainBlockService.AddGenesis(); err != nil {
@@ -947,7 +960,6 @@ func main() {
 	startSpinechain()
 	startMainchain()
 	startServices()
-	initObserverListeners()
 	startScheduler()
 	go startBlockchainSynchronizers()
 
