@@ -253,6 +253,10 @@ func init() {
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 
+	actionSwitcher = &transaction.TypeSwitcher{
+		Executor: queryExecutor,
+	}
+
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
@@ -350,7 +354,7 @@ func init() {
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		query.NewMerkleTreeQuery(),
-		&transaction.TypeSwitcher{Executor: queryExecutor},
+		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
@@ -361,10 +365,6 @@ func init() {
 		receiptService,
 		transactionCoreServiceIns,
 	)
-
-	actionSwitcher = &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
 
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
