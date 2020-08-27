@@ -47,7 +47,6 @@ type (
 			nodeSecretPhrase string,
 			peer *model.Peer,
 		) (*model.BatchReceipt, error)
-		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener

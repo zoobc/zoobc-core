@@ -52,7 +52,12 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", 1))
-	caseQuery.And(caseQuery.Equal("registration_status", params.GetRegistrationStatus()))
+
+	var statuses []interface{}
+	for _, s := range params.GetRegistrationStatuses() {
+		statuses = append(statuses, s)
+	}
+	caseQuery.Where(caseQuery.In("registration_status", statuses...))
 	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
 	if maxHeight > 0 {
 		caseQuery.And(caseQuery.LessEqual("registration_height", maxHeight))

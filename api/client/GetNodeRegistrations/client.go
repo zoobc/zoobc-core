@@ -32,6 +32,7 @@ func main() {
 		&rpcModel.GetNodeRegistrationsRequest{
 			MinRegistrationHeight: 0,
 			MaxRegistrationHeight: 1,
+			RegistrationStatuses:  []uint32{1, 2},
 		})
 
 	if err != nil {

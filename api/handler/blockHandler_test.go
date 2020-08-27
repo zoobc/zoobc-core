@@ -20,20 +20,20 @@ type (
 	}
 )
 
-func (*mockGetBlockError) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockError) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.GetBlockResponse, error) {
 	return nil, errors.New("Error GetBlockByID")
 }
 
-func (*mockGetBlockError) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
+func (*mockGetBlockError) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.GetBlockResponse, error) {
 	return nil, errors.New("Error GetBlockByHeight")
 }
 
-func (*mockGetBlockSuccess) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.BlockExtendedInfo, error) {
-	return &model.BlockExtendedInfo{}, nil
+func (*mockGetBlockSuccess) GetBlockByID(chainType chaintype.ChainType, id int64) (*model.GetBlockResponse, error) {
+	return &model.GetBlockResponse{}, nil
 }
 
-func (*mockGetBlockSuccess) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.BlockExtendedInfo, error) {
-	return &model.BlockExtendedInfo{}, nil
+func (*mockGetBlockSuccess) GetBlockByHeight(chainType chaintype.ChainType, height uint32) (*model.GetBlockResponse, error) {
+	return &model.GetBlockResponse{}, nil
 }
 
 func TestBlockHandler_GetBlock(t *testing.T) {
@@ -48,7 +48,7 @@ func TestBlockHandler_GetBlock(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.BlockExtendedInfo
+		want    *model.GetBlockResponse
 		wantErr bool
 	}{
 		{
@@ -76,7 +76,7 @@ func TestBlockHandler_GetBlock(t *testing.T) {
 					Height: 1,
 				},
 			},
-			want:    &model.BlockExtendedInfo{},
+			want:    &model.GetBlockResponse{},
 			wantErr: false,
 		},
 	}
