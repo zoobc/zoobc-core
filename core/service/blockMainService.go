@@ -89,7 +89,7 @@ type (
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		PruneQuery                  []query.PruneQuery
-		BlockStateCache             storage.CacheStorageInterface
+		BlockStateStorage           storage.CacheStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
 	}
 )
@@ -127,7 +127,7 @@ func NewBlockMainService(
 	publishedReceiptService PublishedReceiptServiceInterface,
 	feeScaleService fee.FeeScaleServiceInterface,
 	pruneQuery []query.PruneQuery,
-	blockStateCache storage.CacheStorageInterface,
+	blockStateStorage storage.CacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 ) *BlockService {
 	return &BlockService{
@@ -163,7 +163,7 @@ func NewBlockMainService(
 		PublishedReceiptService:     publishedReceiptService,
 		FeeScaleService:             feeScaleService,
 		PruneQuery:                  pruneQuery,
-		BlockStateCache:             blockStateCache,
+		BlockStateStorage:           blockStateStorage,
 		BlockchainStatusService:     blockchainStatusService,
 	}
 }
@@ -740,7 +740,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
+	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
 	if err != nil {
 		return err
 	}
@@ -776,7 +777,7 @@ func (bs *BlockService) ScanBlockPool() error {
 		previousBlock model.Block
 		err           error
 	)
-	err = bs.BlockStateCache.GetItem(bs.Chaintype.GetTypeInt(), &previousBlock)
+	err = bs.BlockStateStorage.GetItem(bs.Chaintype.GetTypeInt(), &previousBlock)
 	if err != nil {
 		return err
 	}
@@ -1433,7 +1434,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, err
 	}
 	// cache last block state
-	err = bs.BlockStateCache.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
+	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
 	if err != nil {
 		return nil, err
 	}

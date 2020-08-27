@@ -1042,7 +1042,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
 		FeeScaleService         fee.FeeScaleServiceInterface
-		BlockStateCache         storage.CacheStorageInterface
+		BlockStateStorage       storage.CacheStorageInterface
 		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	type args struct {
@@ -1118,7 +1118,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -1159,7 +1159,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -1202,7 +1202,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -1245,7 +1245,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				),
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			args: args{
@@ -1283,7 +1283,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         tt.fields.FeeScaleService,
-				BlockStateCache:         tt.fields.BlockStateCache,
+				BlockStateStorage:       tt.fields.BlockStateStorage,
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
@@ -1890,7 +1890,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		Logger                  *log.Logger
 		TransactionCoreService  TransactionCoreServiceInterface
 		PublishedReceiptService PublishedReceiptServiceInterface
-		BlockStateCache         storage.CacheStorageInterface
+		BlockStateStorage       storage.CacheStorageInterface
 		BlockchainStatusService BlockchainStatusServiceInterface
 	}
 	tests := []struct {
@@ -1928,7 +1928,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -1954,7 +1954,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionCoreService:  tt.fields.TransactionCoreService,
 				PublishedReceiptService: tt.fields.PublishedReceiptService,
 				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
-				BlockStateCache:         tt.fields.BlockStateCache,
+				BlockStateStorage:       tt.fields.BlockStateStorage,
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
@@ -4179,7 +4179,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		CoinbaseService             CoinbaseServiceInterface
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
-		BlockStateCache             storage.CacheStorageInterface
+		BlockStateStorage           storage.CacheStorageInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -4304,7 +4304,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4336,7 +4336,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4368,7 +4368,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4400,7 +4400,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateCache:         storage.NewBlockStateStorage(),
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4463,7 +4463,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				CoinbaseService:             tt.fields.CoinbaseService,
 				ParticipationScoreService:   tt.fields.ParticipationScoreService,
 				PublishedReceiptService:     tt.fields.PublishedReceiptService,
-				BlockStateCache:             tt.fields.BlockStateCache,
+				BlockStateStorage:           tt.fields.BlockStateStorage,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

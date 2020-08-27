@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
@@ -43,6 +44,8 @@ type (
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
+		BlockStateStorage             storage.CacheStorageInterface
+		BlockMainService              BlockServiceInterface
 		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
 )
@@ -73,6 +76,8 @@ func NewSnapshotMainBlockService(
 	derivedQueries []query.DerivedQuery,
 	transactionUtil transaction.UtilInterface,
 	typeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorage storage.CacheStorageInterface,
+	blockMainService BlockServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
@@ -102,6 +107,8 @@ func NewSnapshotMainBlockService(
 		DerivedQueries:                derivedQueries,
 		TransactionUtil:               transactionUtil,
 		TypeActionSwitcher:            typeSwitcher,
+		BlockStateStorage:             blockStateStorage,
+		BlockMainService:              blockMainService,
 		NodeRegistrationService:       nodeRegistrationService,
 	}
 }
@@ -444,6 +451,20 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	}
 
 	// update or clear all cache storage
+	lastBlock, err := commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
+	if err != nil {
+		return err
+	}
+	err = ss.BlockMainService.PopulateBlockData(lastBlock)
+	if err != nil {
+		return err
+	}
+	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
+	err = ss.BlockStateStorage.SetItem(ss.chainType.GetTypeInt(), *lastBlock)
+	if err != nil {
+		return err
+	}
+
 	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return err

@@ -1,9 +1,11 @@
 package smith
 
 import (
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,6 +21,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		blockService            service.BlockServiceInterface
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
+		blockStateStorage       storage.CacheStorageInterface
 		nodeRegistrationService service.NodeRegistrationServiceInterface
 	}
 	tests := []struct {
@@ -33,6 +36,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				blocksmith:              &model.Blocksmith{},
 				blockService:            &service.BlockService{},
 				blockchainStatusService: &service.BlockchainStatusService{},
+				blockStateStorage:       storage.NewBlockStateStorage(),
 				nodeRegistrationService: &service.NodeRegistrationService{},
 			},
 			want: &BlockchainProcessor{
@@ -40,6 +44,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				Generator:               &model.Blocksmith{},
 				BlockService:            &service.BlockService{},
 				BlockchainStatusService: &service.BlockchainStatusService{},
+				BlockStateStorage:       storage.NewBlockStateStorage(),
 				NodeRegistrationService: &service.NodeRegistrationService{},
 			},
 		},
@@ -52,6 +57,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.blockService,
 				tt.args.logger,
 				tt.args.blockchainStatusService,
+				tt.args.blockStateStorage,
 				tt.args.nodeRegistrationService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
