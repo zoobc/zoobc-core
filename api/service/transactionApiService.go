@@ -217,13 +217,12 @@ func (ts *TransactionService) PostTransaction(
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		txBytes = req.TransactionBytes
+		txBytes = req.GetTransactionBytes()
 		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
 	)
 	// get unsigned bytes
-
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -233,16 +232,8 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Save to mempool
-	mpTx := &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
-		ID:                      tx.GetID(),
-		TransactionBytes:        txBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.GetSenderAccountAddress(),
-		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
-	}
-	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+
+	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
@@ -265,6 +256,15 @@ func (ts *TransactionService) PostTransaction(
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+	// Save to mempool
+	mpTx := &model.MempoolTransaction{
+		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
+		ID:                      tx.GetID(),
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.GetSenderAccountAddress(),
+		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
 	}
 	err = ts.MempoolService.AddMempoolTransaction(mpTx)
 	if err != nil {

@@ -246,7 +246,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			RecipientAccountAddress: tx.RecipientAccountAddress,
 		}
 
-		err = fp.MempoolService.ValidateMempoolTransaction(mpTx)
+		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
 			return err
 		}
@@ -324,7 +324,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			SenderAccountAddress:    tx.SenderAccountAddress,
 			RecipientAccountAddress: tx.RecipientAccountAddress,
 		}
-		err = fp.MempoolService.ValidateMempoolTransaction(mempoolTX)
+		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
 			// no need to break the process in this case
 			fp.Logger.Warnf("Invalid mempool want to restore with ID: %d", tx.GetID())

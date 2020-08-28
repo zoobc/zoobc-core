@@ -1496,14 +1496,26 @@ func TestBlockService_GetBlocks(t *testing.T) {
 		})
 	}
 }
-func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
+
+type (
+	mockMempoolCacheStorageRemoveMempoolTransactionsSuccess struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockMempoolCacheStorageRemoveMempoolTransactionsSuccess) RemoveItem(item interface{}) error {
+	return nil
+}
+
+func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype     chaintype.ChainType
-		QueryExecutor query.ExecutorInterface
-		BlockQuery    query.BlockQueryInterface
-		MempoolQuery  query.MempoolQueryInterface
-		Signature     crypto.SignatureInterface
-		Logger        *log.Logger
+		Chaintype           chaintype.ChainType
+		QueryExecutor       query.ExecutorInterface
+		BlockQuery          query.BlockQueryInterface
+		MempoolQuery        query.MempoolQueryInterface
+		Signature           crypto.SignatureInterface
+		MempoolCacheStorage storage.CacheStorageInterface
+		Logger              *log.Logger
 	}
 	type args struct {
 		transactions []*model.Transaction
@@ -1517,10 +1529,11 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 		{
 			name: "RemoveMempoolTransaction:Success",
 			fields: fields{
-				Chaintype:     &chaintype.MainChain{},
-				MempoolQuery:  query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor: &mockQueryExecutorSuccess{},
-				Logger:        log.New(),
+				Chaintype:           &chaintype.MainChain{},
+				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:       &mockQueryExecutorSuccess{},
+				MempoolCacheStorage: &mockMempoolCacheStorageRemoveMempoolTransactionsSuccess{},
+				Logger:              log.New(),
 			},
 			args: args{
 				transactions: []*model.Transaction{
@@ -1557,13 +1570,14 @@ func TestBlockService_RemoveMempoolTransactions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:     tt.fields.Chaintype,
-				QueryExecutor: tt.fields.QueryExecutor,
-				BlockQuery:    tt.fields.BlockQuery,
-				MempoolQuery:  tt.fields.MempoolQuery,
-				Signature:     tt.fields.Signature,
-				Logger:        tt.fields.Logger,
+			bs := &MempoolService{
+				Chaintype:           tt.fields.Chaintype,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				BlockQuery:          tt.fields.BlockQuery,
+				MempoolQuery:        tt.fields.MempoolQuery,
+				Signature:           tt.fields.Signature,
+				Logger:              tt.fields.Logger,
+				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
 			}
 			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)

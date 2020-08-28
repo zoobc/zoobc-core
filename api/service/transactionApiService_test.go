@@ -111,11 +111,11 @@ func (*mockMempoolServiceFailAdd) AddMempoolTransaction(mpTx *model.MempoolTrans
 	return errors.New("mockError:addTxFail")
 }
 
-func (*mockMempoolServiceFailAdd) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailAdd) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
 
-func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return errors.New("mockedError")
 }
 
@@ -123,7 +123,7 @@ func (*mockMempoolServiceSuccess) AddMempoolTransaction(mpTx *model.MempoolTrans
 	return nil
 }
 
-func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
 
@@ -247,10 +247,10 @@ func (*mockQueryExecutorPostApprovalEscrowTX) ExecuteTransaction(query string, a
 	return nil
 }
 
-func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return errors.New("test")
 }
-func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
 func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
