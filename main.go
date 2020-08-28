@@ -17,7 +17,9 @@ import (
 
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
@@ -110,6 +112,22 @@ var (
 	cpuProfile                                                      bool
 	cliMonitoring                                                   monitoring.CLIMonitoringInteface
 )
+var (
+	daemonCommand = &cobra.Command{
+		Use:                   "daemon",
+		Short:                 "run node on daemon service, which mean running in the background. seems like launchd or systemd",
+		Example:               "daemon install | start | stop | remove | status",
+		ValidArgs:             []string{"install", "start", "stop", "remove", "status"},
+		SuggestFor:            []string{"up", "stats", "run", "remove", "deamon", "demon"},
+		DisableFlagsInUseLine: true,
+		SilenceErrors:         true,
+		SilenceUsage:          true,
+	}
+)
+
+type goDaemon struct {
+	daemon.Daemon
+}
 
 func init() {
 	var (
@@ -197,9 +215,6 @@ func init() {
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
 		}
-	}
-	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
-		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
 
 	initLogInstance()
@@ -932,6 +947,55 @@ func startBlockchainSynchronizers() {
 }
 
 func main() {
+
+	// Override help to make sure not going through when run daemon
+	daemonCommand.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		_ = daemonCommand.Usage()
+		os.Exit(1)
+	})
+	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 && args[0] == "daemon" {
+			if len(args) < 2 {
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+			var (
+				god           goDaemon
+				daemonMessage string
+			)
+			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemon.GlobalDaemon)
+			if err != nil {
+				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
+			}
+			god = goDaemon{srvDaemon}
+
+			switch args[1] {
+			case "install":
+				daemonMessage, err = god.Install()
+			case "start":
+				daemonMessage, err = god.Start()
+			case "stop":
+				daemonMessage, err = god.Stop()
+			case "remove":
+				daemonMessage, err = god.Remove()
+			case "status":
+				daemonMessage, err = god.Status()
+			default:
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+			if err != nil {
+				loggerCoreService.Fatal(err)
+			}
+			fmt.Println(daemonMessage)
+		}
+	}
+	_ = daemonCommand.Execute()
+
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
+
 	// start cpu profiling if enabled
 	if cpuProfile {
 		go func() {
@@ -967,6 +1031,7 @@ func main() {
 		go cliMonitoring.Start()
 	}
 
+	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
