@@ -2,19 +2,16 @@ package service
 
 import (
 	"database/sql"
-	"math"
-	"time"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math"
 )
 
 type (
@@ -258,15 +255,8 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Save to mempool
-	mpTx := &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
-		ID:                      tx.GetID(),
-		TransactionBytes:        txBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.GetSenderAccountAddress(),
-		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
-	}
-	err = ts.MempoolService.AddMempoolTransaction(mpTx)
+
+	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
@@ -279,7 +269,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
+	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction
 	return tx, nil
 }

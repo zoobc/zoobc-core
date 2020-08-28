@@ -30,7 +30,7 @@ type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
 		InitMempoolTransaction() error
-		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
+		AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error
 		RemoveMempoolTransactions(mempoolTxs []*model.Transaction) error
 		GetMempoolTransactions() ([]storage.MempoolCacheObject, error)
 		GetTotalMempoolTransactions() (int, error)
@@ -62,7 +62,6 @@ type (
 		MerkleTreeQuery        query.MerkleTreeQueryInterface
 		ActionTypeSwitcher     transaction.TypeActionSwitcher
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
-		BlockQuery             query.BlockQueryInterface
 		TransactionQuery       query.TransactionQueryInterface
 		Signature              crypto.SignatureInterface
 		Observer               *observer.Observer
@@ -70,10 +69,50 @@ type (
 		ReceiptUtil            coreUtil.ReceiptUtilInterface
 		ReceiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockService           BlockService
+		BlockStateStorage      storage.CacheStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
 	}
 )
+
+// NewMempoolService returns an instance of mempool service
+func NewMempoolService(
+	transactionUtil transaction.UtilInterface,
+	ct chaintype.ChainType,
+	kvExecutor kvdb.KVExecutorInterface,
+	queryExecutor query.ExecutorInterface,
+	mempoolQuery query.MempoolQueryInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+	transactionQuery query.TransactionQueryInterface,
+	signature crypto.SignatureInterface,
+	observer *observer.Observer,
+	logger *log.Logger,
+	receiptUtil coreUtil.ReceiptUtilInterface,
+	receiptService ReceiptServiceInterface,
+	transactionCoreService TransactionCoreServiceInterface,
+	blockStateStorage, mempoolCacheStorage storage.CacheStorageInterface,
+) *MempoolService {
+	return &MempoolService{
+		TransactionUtil:        transactionUtil,
+		Chaintype:              ct,
+		KVExecutor:             kvExecutor,
+		QueryExecutor:          queryExecutor,
+		MempoolQuery:           mempoolQuery,
+		MerkleTreeQuery:        merkleTreeQuery,
+		ActionTypeSwitcher:     actionTypeSwitcher,
+		AccountBalanceQuery:    accountBalanceQuery,
+		Signature:              signature,
+		TransactionQuery:       transactionQuery,
+		Observer:               observer,
+		Logger:                 logger,
+		ReceiptUtil:            receiptUtil,
+		ReceiptService:         receiptService,
+		TransactionCoreService: transactionCoreService,
+		BlockStateStorage:      blockStateStorage,
+		MempoolCacheStorage:    mempoolCacheStorage,
+	}
+}
 
 func (mps *MempoolService) InitMempoolTransaction() error {
 	var (
@@ -151,49 +190,8 @@ func (mps *MempoolService) GetMempoolTransactions() ([]storage.MempoolCacheObjec
 	return mempoolTransactions, nil
 }
 
-// NewMempoolService returns an instance of mempool service
-func NewMempoolService(
-	transactionUtil transaction.UtilInterface,
-	ct chaintype.ChainType,
-	kvExecutor kvdb.KVExecutorInterface,
-	queryExecutor query.ExecutorInterface,
-	mempoolQuery query.MempoolQueryInterface,
-	merkleTreeQuery query.MerkleTreeQueryInterface,
-	actionTypeSwitcher transaction.TypeActionSwitcher,
-	accountBalanceQuery query.AccountBalanceQueryInterface,
-	blockQuery query.BlockQueryInterface,
-	transactionQuery query.TransactionQueryInterface,
-	signature crypto.SignatureInterface,
-	observer *observer.Observer,
-	logger *log.Logger,
-	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService ReceiptServiceInterface,
-	transactionCoreService TransactionCoreServiceInterface,
-	mempoolCacheStorage storage.CacheStorageInterface,
-) *MempoolService {
-	return &MempoolService{
-		TransactionUtil:        transactionUtil,
-		Chaintype:              ct,
-		KVExecutor:             kvExecutor,
-		QueryExecutor:          queryExecutor,
-		MempoolQuery:           mempoolQuery,
-		MerkleTreeQuery:        merkleTreeQuery,
-		ActionTypeSwitcher:     actionTypeSwitcher,
-		AccountBalanceQuery:    accountBalanceQuery,
-		Signature:              signature,
-		TransactionQuery:       transactionQuery,
-		Observer:               observer,
-		Logger:                 logger,
-		BlockQuery:             blockQuery,
-		ReceiptUtil:            receiptUtil,
-		ReceiptService:         receiptService,
-		TransactionCoreService: transactionCoreService,
-		MempoolCacheStorage:    mempoolCacheStorage,
-	}
-}
-
 // AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
-func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	// check maximum mempool
 	if constant.MaxMempoolTransactions > 0 {
 		var count, err = mps.GetTotalMempoolTransactions()
@@ -205,8 +203,18 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 		}
 	}
 
+	mpTx := &model.MempoolTransaction{
+		FeePerByte:              commonUtils.FeePerByteTransaction(tx.GetFee(), txBytes),
+		ID:                      tx.GetID(),
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.GetSenderAccountAddress(),
+		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
+	}
+
 	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	lastBlock, err := mps.BlockService.GetLastBlock()
+	var lastBlock model.Block
+	err := mps.BlockStateStorage.GetItem(nil, &lastBlock)
 	if err != nil {
 		return err
 	}
@@ -216,7 +224,11 @@ func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction)
 	if err != nil {
 		return err
 	}
-	err = mps.MempoolCacheStorage.SetItem(mpTx.GetID(), mpTx)
+	err = mps.MempoolCacheStorage.SetItem(tx.GetID(), storage.MempoolCacheObject{
+		Tx:               *tx,
+		ArrivalTimestamp: time.Now().UTC().Unix(),
+		FeePerByte:       mpTx.FeePerByte,
+	})
 	if err != nil {
 		return err
 	}
@@ -344,7 +356,6 @@ func (mps *MempoolService) ReceivedTransaction(
 	var (
 		err          error
 		receivedTx   *model.Transaction
-		mempoolTx    *model.MempoolTransaction
 		batchReceipt *model.BatchReceipt
 	)
 	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(
@@ -357,14 +368,6 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, err
 	}
 
-	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
-		ID:                      receivedTx.ID,
-		TransactionBytes:        receivedTxBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    receivedTx.SenderAccountAddress,
-		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
-	}
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -386,7 +389,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Store to Mempool Transaction
-	if err = mps.AddMempoolTransaction(mempoolTx); err != nil {
+	if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
 		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
@@ -664,7 +667,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	}
 
 	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.BlockService.GetChainType())
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.Chaintype)
 		err = mps.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
 		if err != nil {
 			return err

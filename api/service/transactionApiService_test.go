@@ -107,7 +107,7 @@ func (*mockTxTypeSuccess) ApplyUnconfirmed() error {
 	return nil
 }
 
-func (*mockMempoolServiceFailAdd) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailAdd) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return errors.New("mockError:addTxFail")
 }
 
@@ -119,7 +119,7 @@ func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.Tr
 	return errors.New("mockedError")
 }
 
-func (*mockMempoolServiceSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceSuccess) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return nil
 }
 
@@ -253,7 +253,7 @@ func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *
 func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
-func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return nil
 }
 

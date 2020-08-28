@@ -1105,7 +1105,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				BlockQuery:         tt.fields.BlockQuery,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			if err := mps.AddMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
+			if err := mps.AddMempoolTransaction(tt.args.mpTx, nil); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolService.AddMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

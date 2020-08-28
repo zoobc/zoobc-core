@@ -118,6 +118,7 @@ func initialize(
 		Executor: queryExecutor,
 	}
 	mempoolStorage := storage.NewMempoolStorage()
+	blockStorage := storage.NewBlockStateStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		nil,
@@ -140,7 +141,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		crypto.NewSignature(),
 		observerInstance,
@@ -148,6 +148,7 @@ func initialize(
 		receiptUtil,
 		receiptService,
 		nil,
+		blockStorage,
 		mempoolStorage,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(

@@ -2,9 +2,6 @@ package blockchainsync
 
 import (
 	"bytes"
-	"math/big"
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -18,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"math/big"
 )
 
 type (
@@ -236,16 +234,6 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			return err
 		}
 
-		// Save to mempool
-		mpTx := &model.MempoolTransaction{
-			FeePerByte:              commonUtil.FeePerByteTransaction(tx.GetFee(), txBytes),
-			ID:                      tx.ID,
-			TransactionBytes:        txBytes,
-			ArrivalTimestamp:        time.Now().Unix(),
-			SenderAccountAddress:    tx.SenderAccountAddress,
-			RecipientAccountAddress: tx.RecipientAccountAddress,
-		}
-
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
 			return err
@@ -263,7 +251,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			}
 			return err
 		}
-		err = fp.MempoolService.AddMempoolTransaction(mpTx)
+		err = fp.MempoolService.AddMempoolTransaction(tx, txBytes)
 		if err != nil {
 			errRollback := fp.QueryExecutor.RollbackTx()
 			if errRollback != nil {
@@ -301,7 +289,6 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 	for int(prev) < len(mempoolsBackupBytes) {
 		var (
 			transactionBytes []byte
-			mempoolTX        *model.MempoolTransaction
 			txType           transaction.TypeAction
 			tx               *model.Transaction
 			size             uint32
@@ -315,14 +302,6 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		tx, err = fp.TransactionUtil.ParseTransactionBytes(transactionBytes, true)
 		if err != nil {
 			return err
-		}
-		mempoolTX = &model.MempoolTransaction{
-			FeePerByte:              commonUtil.FeePerByteTransaction(tx.GetFee(), transactionBytes),
-			ID:                      tx.ID,
-			TransactionBytes:        transactionBytes,
-			ArrivalTimestamp:        time.Now().Unix(),
-			SenderAccountAddress:    tx.SenderAccountAddress,
-			RecipientAccountAddress: tx.RecipientAccountAddress,
 		}
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
@@ -347,7 +326,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			}
 			return err
 		}
-		err = fp.MempoolService.AddMempoolTransaction(mempoolTX)
+		err = fp.MempoolService.AddMempoolTransaction(tx, transactionBytes)
 		if err != nil {
 			rollbackErr := fp.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
