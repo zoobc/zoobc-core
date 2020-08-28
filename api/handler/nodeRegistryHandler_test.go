@@ -153,3 +153,96 @@ func TestNodeRegistryHandler_GetNodeRegistration(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetNodeRegistrationsByNodePublicKeysError struct {
+		service.NodeRegistryServiceInterface
+	}
+	mockGetNodeRegistrationsByNodePublicKeysSuccess struct {
+		service.NodeRegistryServiceInterface
+	}
+)
+
+func (*mockGetNodeRegistrationsByNodePublicKeysError) GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest,
+) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+	return nil, errors.New("Error GetNodeRegistrationsByNodePublicKeys")
+}
+func (*mockGetNodeRegistrationsByNodePublicKeysSuccess) GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest,
+) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+	return &model.GetNodeRegistrationsByNodePublicKeysResponse{}, nil
+}
+
+func TestNodeRegistryHandler_GetNodeRegistrationsByNodePublicKeys(t *testing.T) {
+	type fields struct {
+		Service service.NodeRegistryServiceInterface
+	}
+	type args struct {
+		ctx context.Context
+		req *model.GetNodeRegistrationsByNodePublicKeysRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetNodeRegistrationsByNodePublicKeysResponse
+		wantErr bool
+	}{
+		{
+			name: "GetNodeRegistrationsByNodePublicKeys:InvalidArgument",
+			args: args{
+				req: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetNodeRegistrationsByNodePublicKeys:Error",
+			args: args{
+				req: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 0},
+						{1, 0, 1},
+					},
+				},
+			},
+			fields: fields{
+				Service: &mockGetNodeRegistrationsByNodePublicKeysError{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetNodeRegistrationsByNodePublicKeys:Success",
+			args: args{
+				req: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 0},
+						{1, 0, 1},
+					},
+				},
+			},
+			fields: fields{
+				Service: &mockGetNodeRegistrationsByNodePublicKeysSuccess{},
+			},
+			want:    &model.GetNodeRegistrationsByNodePublicKeysResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nrh := NodeRegistryHandler{
+				Service: tt.fields.Service,
+			}
+			got, err := nrh.GetNodeRegistrationsByNodePublicKeys(tt.args.ctx, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistryHandler.GetNodeRegistrationsByNodePublicKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistryHandler.GetNodeRegistrationsByNodePublicKeys() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
