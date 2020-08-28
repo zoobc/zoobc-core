@@ -1,36 +1,36 @@
-resourcePath = "./resource"
+badgerDbName = "zoobc_3_kv/"
 dbName = "zoobc_3.db"
-badgerDbName="zoobc_3_kv/"
 nodeKeyFile = "node_keys_3.json"
+resourcePath = "./resource"
 snapshotPath = "./resource/snapshots_3"
 
 # Peer
-peerPort=8003
-myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8001"]
+myAddress = "127.0.0.1"
+peerPort = 8003
+wellknownPeers = ["127.0.0.1:8001"]
 
-apiRPCPort=3003
-apiHTTPPort=7003
-maxAPIRequestPerSecond=10
+apiHTTPPort = 7003
+apiRPCPort = 3003
+maxAPIRequestPerSecond = 10
 # comment out or set to 0 to disable http proxy, only enable in dev mode
-monitoringPort=9093
-cpuProfilingPort=6063
-apiReqTimeoutSec=2
+apiReqTimeoutSec = 2
+cpuProfilingPort = 6063
+monitoringPort = 9093
 
-ownerAccountAddress = "ZBC_RERG3XD7_GAKOZZKY_VMZP2SQE_LBP45DC6_VDFGDTFK_3BZFBQGK_JMWELLO7"
+ownerAccountAddress = "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU"
 
-smithing=true
 proofOfOwnershipReqTimeoutSec = 1
+smithing = true
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
-logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
+logLevels = ["debug", "warn", "info", "fatal", "error", "panic"]
 
 # to show all log on terminal/cli that recoreded in .log/log_files
-logOnCli= false
+logOnCli = false
 # to show usefull information on terminal/cli. The logOnCli must be false
-cliMonitoring=true
+cliMonitoring = true
 
-walletCertFileName= "wallet3.zbc"
+walletCertFileName = "wallet3.zbc"
 
 #apiCertFile="./resource/network.crt"
 #apiKeyFile="./resource/network.key"

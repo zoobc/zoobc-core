@@ -234,6 +234,9 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
@@ -456,10 +459,6 @@ func init() {
 		blockchainStatusService,
 		snapshotBlockServices,
 		loggerCoreService,
-	)
-
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
 	)
 
 	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
