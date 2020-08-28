@@ -125,6 +125,7 @@ var (
 	}
 )
 
+// goDaemon instance that needed  to implement whole method of daemon
 type goDaemon struct {
 	daemon.Daemon
 }
