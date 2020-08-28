@@ -76,6 +76,14 @@ func (n *NodeShardCacheStorage) GetItem(lastChange, item interface{}) error {
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType lastChange")
 }
 
+func (n *NodeShardCacheStorage) GetAllItems(item interface{}) error {
+	return nil
+}
+
+func (n *NodeShardCacheStorage) RemoveItem(key interface{}) error {
+	return nil
+}
+
 func (n *NodeShardCacheStorage) GetSize() int64 {
 	var result int64
 	for _, uint64s := range n.shardMap.NodeShards {
