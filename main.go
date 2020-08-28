@@ -349,6 +349,18 @@ func init() {
 		receiptService,
 		queryExecutor,
 	)
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
@@ -367,19 +379,6 @@ func init() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-	)
-
-	transactionCoreServiceIns = service.NewTransactionCoreService(
-		loggerCoreService,
-		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
-		transactionUtil,
-		query.NewTransactionQuery(mainchain),
-		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
-		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
