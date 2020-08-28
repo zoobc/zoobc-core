@@ -45,7 +45,7 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
 	var (
 		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
-		slip10Key, err = slip10.DeriveForPath(slip10.StellarPrimaryAccountPath, seedBytes)
+		slip10Key, err = slip10.DeriveForPath(slip10.ZoobcPrimaryAccountPath, seedBytes)
 	)
 	if err != nil {
 		return nil, err

@@ -291,6 +291,8 @@ github.com/zoobc/lib v0.0.0-20200611035436-693560334368 h1:BnkLmnoTPvU++nafNQoMz
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
 github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463 h1:VT+3e3kFWHFjyiyL1uhWNi8/HEJSITcKnK2DI3/Owds=
 github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463/go.mod h1:fVWvLoClMGMgRkkrZYODyLwrIWySyC6v87VBzm/D4RU=
+github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc h1:dUgptqJn/jI5uaJTuJtUNnNFih8joYy9MuFTfBQ7bxg=
+github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc/go.mod h1:fVWvLoClMGMgRkkrZYODyLwrIWySyC6v87VBzm/D4RU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.uber.org/atomic v1.4.0/go.mod h1:gD2HeocX3+yG+ygLZcrzQJaqmWj9AIm7n08wl/qW/PE=
 go.uber.org/multierr v1.1.0/go.mod h1:wR5kodmAFQ0UK8QlbwjlSNy0Z68gJhDJUG5sjR94q/0=

@@ -249,6 +249,9 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
@@ -361,6 +364,18 @@ func init() {
 		receiptService,
 		queryExecutor,
 	)
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
@@ -379,19 +394,6 @@ func init() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-	)
-
-	transactionCoreServiceIns = service.NewTransactionCoreService(
-		loggerCoreService,
-		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
-		transactionUtil,
-		query.NewTransactionQuery(mainchain),
-		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
-		query.NewLiquidPaymentTransactionQuery(),
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
@@ -469,10 +471,6 @@ func init() {
 		blockchainStatusService,
 		snapshotBlockServices,
 		loggerCoreService,
-	)
-
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
 	)
 
 	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
