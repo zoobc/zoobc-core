@@ -2,13 +2,14 @@ package auth
 
 import (
 	"bytes"
+	"time"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
-	"time"
 )
 
 type (
@@ -83,6 +84,9 @@ func (nav *NodeAuthValidation) ValidateProofOfOrigin(
 	nodePublicKey,
 	challengeResponse []byte,
 ) error {
+	if poorig == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOriginNotProvided")
+	}
 	if poorig.Timestamp < time.Now().Unix() {
 		return blocker.NewBlocker(blocker.ValidationErr, "ProofOfOriginExpired")
 	}
