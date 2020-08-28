@@ -359,7 +359,7 @@ var (
 			ParticipationScore: GenesisParticipationScore,
 		},
 		{
-			AccountAddress: "ZBC_RERG3XD7_GAKOZZKY_VMZP2SQE_LBP45DC6_VDFGDTFK_3BZFBQGK_JMWELLO7",
+			AccountAddress: "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU",
 			AccountBalance: 0,
 			NodePublicKey: []byte{170, 183, 88, 172, 12, 251, 227, 191, 181, 213, 94, 106, 210, 175, 131, 150, 72, 155, 131,
 				43, 219, 57, 214, 209, 195, 93, 1, 128, 232, 110, 4, 191},
