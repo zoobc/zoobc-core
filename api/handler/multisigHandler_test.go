@@ -277,3 +277,111 @@ func TestMultisigHandler_GetMultisignatureInfo(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetMultisigAddressByParticipantAddressesError struct {
+		service.MultisigServiceInterface
+	}
+	mockGetMultisigAddressByParticipantAddressesSuccess struct {
+		service.MultisigServiceInterface
+	}
+)
+
+func (*mockGetMultisigAddressByParticipantAddressesError) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
+) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
+	return nil, errors.New("Error GetMultisigAddressByParticipantAddresses")
+}
+
+func (*mockGetMultisigAddressByParticipantAddressesSuccess) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
+) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
+	return &model.GetMultisigAddressByParticipantAddressesResponse{}, nil
+}
+
+func TestMultisigHandler_GetMultisigAddressByParticipantAddresses(t *testing.T) {
+	type fields struct {
+		MultisigService service.MultisigServiceInterface
+	}
+	type args struct {
+		in0 context.Context
+		req *model.GetMultisigAddressByParticipantAddressesRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisigAddressByParticipantAddressesResponse
+		wantErr bool
+	}{
+		{
+			name:   "getError:PageCannotBeLessThanOne",
+			fields: fields{},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressesRequest{
+					Pagination: &model.Pagination{
+						Page: 0,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:   "getError:LimitCannotBeMoreThan30",
+			fields: fields{},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressesRequest{
+					Pagination: &model.Pagination{
+						Page: 31,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "getError",
+			fields: fields{
+				MultisigService: &mockGetMultisigAddressByParticipantAddressesError{},
+			},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressesRequest{
+					Pagination: &model.Pagination{
+						Page: 1,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "getSuccess",
+			fields: fields{
+				MultisigService: &mockGetMultisigAddressByParticipantAddressesSuccess{},
+			},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressesRequest{
+					Pagination: &model.Pagination{
+						Page: 1,
+					},
+				},
+			},
+			want:    &model.GetMultisigAddressByParticipantAddressesResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msh := &MultisigHandler{
+				MultisigService: tt.fields.MultisigService,
+			}
+			got, err := msh.GetMultisigAddressByParticipantAddresses(tt.args.in0, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MultisigHandler.GetMultisigAddressByParticipantAddresses() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MultisigHandler.GetMultisigAddressByParticipantAddresses() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
