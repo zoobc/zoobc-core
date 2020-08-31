@@ -13,9 +13,10 @@ type (
 		mempoolMap MempoolMap
 	}
 	MempoolCacheObject struct {
-		Tx               model.Transaction
-		ArrivalTimestamp int64
-		FeePerByte       int64
+		Tx                  model.Transaction
+		ArrivalTimestamp    int64
+		FeePerByte          int64
+		TransactionByteSize uint32
 	}
 	MempoolMap map[int64]MempoolCacheObject
 )
@@ -95,7 +96,7 @@ func (m *MempoolCacheStorage) GetSize() int64 {
 	var size int64
 	for _, memObj := range m.mempoolMap {
 		size += 8 * 3 // key + feePerByte + arrivalTimestamp
-		size += int64(memObj.Tx.XXX_Size())
+		size += int64(memObj.TransactionByteSize)
 	}
 	return size
 }
