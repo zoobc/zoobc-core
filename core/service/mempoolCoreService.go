@@ -134,7 +134,12 @@ func (mps *MempoolService) InitMempoolTransaction() error {
 		if err != nil {
 			return err
 		}
-		mps.MempoolCacheStorage.SetItem(mempool.ID, tx)
+		mps.MempoolCacheStorage.SetItem(mempool.ID, storage.MempoolCacheObject{
+			Tx:                  *tx,
+			ArrivalTimestamp:    mempool.ArrivalTimestamp,
+			FeePerByte:          mempool.FeePerByte,
+			TransactionByteSize: uint32(len(mempool.TransactionBytes)),
+		})
 	}
 	return nil
 }
@@ -225,9 +230,10 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 		return err
 	}
 	err = mps.MempoolCacheStorage.SetItem(tx.GetID(), storage.MempoolCacheObject{
-		Tx:               *tx,
-		ArrivalTimestamp: time.Now().UTC().Unix(),
-		FeePerByte:       mpTx.FeePerByte,
+		Tx:                  *tx,
+		ArrivalTimestamp:    time.Now().UTC().Unix(),
+		FeePerByte:          mpTx.FeePerByte,
+		TransactionByteSize: uint32(len(txBytes)),
 	})
 	if err != nil {
 		return err
@@ -303,7 +309,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 		if len(selectedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
 			break
 		}
-		transactionLength := memObj.Tx.XXX_Size()
+		transactionLength := int(memObj.TransactionByteSize)
 		if payloadLength+transactionLength > constant.MaxPayloadLengthInBlock {
 			continue
 		}
