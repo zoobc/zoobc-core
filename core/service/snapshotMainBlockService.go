@@ -13,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	commonUtil "github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -230,7 +229,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		Need to manually ApplyUnconfirmed the pending transaction
 		after finished insert snapshot payload into DB
 	*/
-	currentBlock, err = commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
+	currentBlock, err = ss.BlockMainService.GetLastBlock()
 	if err != nil {
 		return err
 	}
@@ -451,20 +450,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 	}
 
 	// update or clear all cache storage
-	lastBlock, err := commonUtil.GetLastBlock(ss.QueryExecutor, ss.BlockQuery)
+	err = ss.BlockMainService.UpdateLastBlockCache(nil)
 	if err != nil {
 		return err
 	}
-	err = ss.BlockMainService.PopulateBlockData(lastBlock)
-	if err != nil {
-		return err
-	}
-	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
-	err = ss.BlockStateStorage.SetItem(ss.chainType.GetTypeInt(), *lastBlock)
-	if err != nil {
-		return err
-	}
-
 	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return err

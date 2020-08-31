@@ -18,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -33,8 +32,7 @@ type (
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
-		QueryExecutor            query.ExecutorInterface
-		BlockQuery               query.BlockQueryInterface
+		BlockMainService         coreService.BlockServiceInterface
 		ResolvedPeersLock        sync.RWMutex
 		UnresolvedPeersLock      sync.RWMutex
 		BlacklistedPeersLock     sync.RWMutex
@@ -52,8 +50,7 @@ type (
 func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	queryExecutor query.ExecutorInterface,
-	blockQuery query.BlockQueryInterface,
+	blockMainService coreService.BlockServiceInterface,
 	logger *log.Logger,
 	peerStrategyHelper PeerStrategyHelperInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
@@ -65,8 +62,7 @@ func NewPriorityStrategy(
 		NodeConfigurationService:    nodeConfigurationService,
 		PeerServiceClient:           peerServiceClient,
 		NodeRegistrationService:     nodeRegistrationService,
-		QueryExecutor:               queryExecutor,
-		BlockQuery:                  blockQuery,
+		BlockMainService:            blockMainService,
 		MaxUnresolvedPeers:          constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:            constant.MaxResolvedPeers,
 		Logger:                      logger,
@@ -195,7 +191,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		priorityPeers = make(map[string]*model.Peer)
 		host          = ps.NodeConfigurationService.GetHost()
 	)
-	lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
+	lastBlock, err := ps.BlockMainService.GetLastBlock()
 	if err != nil {
 		return priorityPeers
 	}
@@ -306,8 +302,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			}
 
 			// get scramble node
-			// NOTE: calling this query is highly possibility issued error `db is locked`. Need optimize
-			lastBlock, err := util.GetLastBlock(ps.QueryExecutor, ps.BlockQuery)
+			lastBlock, err := ps.BlockMainService.GetLastBlock()
 			if err != nil {
 				ps.Logger.Errorf("ValidateRequestFailGetLastBlock: %v", err)
 				return false

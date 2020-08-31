@@ -566,8 +566,7 @@ func initP2pInstance() {
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		peerServiceClient,
 		nodeRegistrationService,
-		queryExecutor,
-		query.NewBlockQuery(mainchain),
+		mainchainBlockService,
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
 		nodeConfigurationService,
@@ -671,7 +670,7 @@ func startNodeMonitoring() {
 
 func startMainchain() {
 	var (
-		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
+		blockToBuildScrambleNodes, lastBlockAtStart *model.Block
 		err                                         error
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
@@ -693,14 +692,8 @@ func startMainchain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
-	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
-
-	// set all storage cache
-	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	// set all needed cache
+	err = mainchainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -708,6 +701,12 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
+
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
@@ -741,7 +740,6 @@ func startMainchain() {
 			mainchainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			mainBlockStateStorage,
 			nodeRegistrationService,
 		)
 		mainchainProcessor.Start(sleepPeriod)
@@ -788,8 +786,10 @@ func startMainchain() {
 
 func startSpinechain() {
 	var (
-		nodeID      int64
-		sleepPeriod = constant.SpineChainSmithIdlePeriod
+		err              error
+		nodeID           int64
+		lastBlockAtStart *model.Block
+		sleepPeriod      = constant.SpineChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
@@ -798,15 +798,17 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
+	// update cache last spine block  block
+	err = spinechainBlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
-	err = spineBlockStateStorage.SetItem(0, *lastBlockAtStart)
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
+
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
@@ -818,7 +820,6 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			spineBlockStateStorage,
 			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
