@@ -11,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
@@ -43,7 +42,6 @@ type (
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
-		BlockStateStorage             storage.CacheStorageInterface
 		BlockMainService              BlockServiceInterface
 		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
@@ -75,7 +73,6 @@ func NewSnapshotMainBlockService(
 	derivedQueries []query.DerivedQuery,
 	transactionUtil transaction.UtilInterface,
 	typeSwitcher transaction.TypeActionSwitcher,
-	blockStateStorage storage.CacheStorageInterface,
 	blockMainService BlockServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 ) *SnapshotMainBlockService {
@@ -106,7 +103,6 @@ func NewSnapshotMainBlockService(
 		DerivedQueries:                derivedQueries,
 		TransactionUtil:               transactionUtil,
 		TypeActionSwitcher:            typeSwitcher,
-		BlockStateStorage:             blockStateStorage,
 		BlockMainService:              blockMainService,
 		NodeRegistrationService:       nodeRegistrationService,
 	}

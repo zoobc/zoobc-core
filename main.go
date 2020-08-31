@@ -444,7 +444,6 @@ func init() {
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
 		&transaction.TypeSwitcher{Executor: queryExecutor},
-		mainBlockStateStorage,
 		mainchainBlockService,
 		nodeRegistrationService,
 	)

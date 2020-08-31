@@ -67,7 +67,10 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 	var (
 		timeNow int64
 	)
-	bp.BlockService.UpdateLastBlockCache(nil)
+	err := bp.BlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		return err
+	}
 	// creating a virtual time
 	if !fromGenesis {
 		lastBlock, err := bp.BlockService.GetLastBlock()

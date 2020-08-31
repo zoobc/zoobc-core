@@ -1004,15 +1004,25 @@ func TestBlockSpineService_PushBlock(t *testing.T) {
 	}
 }
 
-func TestBlockSpineService_GetLastBlock(t *testing.T) {
-	var (
-		mockSpineBlockGetLastBlock = mockSpineBlockData
-	)
-	mockSpineBlockGetLastBlock.SpinePublicKeys = []*model.SpinePublicKey{
-		mockSpinePublicKey,
+type (
+	mockSpineBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
 	}
-	mockSpineBlockGetLastBlock.SpineBlockManifests = make([]*model.SpineBlockManifest, 0)
+	mockSpineBlockStateStorageFail struct {
+		storage.CacheStorageInterface
+	}
+)
 
+func (*mockSpineBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = mockSpineBlockData
+	return nil
+}
+
+func (*mockSpineBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("MockedError")
+}
+func TestBlockSpineService_GetLastBlock(t *testing.T) {
 	type fields struct {
 		Chaintype                 chaintype.ChainType
 		QueryExecutor             query.ExecutorInterface
@@ -1024,6 +1034,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 		ActionTypeSwitcher        transaction.TypeActionSwitcher
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
+		BlockStateStorage         storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -1047,8 +1058,9 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateStorage:         &mockSpineBlockStateStorageSuccess{},
 			},
-			want:    &mockSpineBlockGetLastBlock,
+			want:    &mockSpineBlockData,
 			wantErr: false,
 		},
 		{
@@ -1059,6 +1071,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
 				SpinePublicKeyQuery:       query.NewSpinePublicKeyQuery(),
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateStorage:         &mockSpineBlockStateStorageFail{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -1073,6 +1086,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				Signature:                 tt.fields.Signature,
 				SpinePublicKeyService:     tt.fields.SpinePublicKeyService,
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
+				BlockStateStorage:         tt.fields.BlockStateStorage,
 			}
 			got, err := bs.GetLastBlock()
 			if (err != nil) != tt.wantErr {
@@ -2260,6 +2274,22 @@ func TestBlockSpineService_GetBlocksFromHeight(t *testing.T) {
 	}
 }
 
+type (
+	mockSpineReceiveBlockBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockSpineReceiveBlockBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = mockSpineBlockData
+	return nil
+}
+
+func (*mockSpineReceiveBlockBlockStateStorageSuccess) SetItem(lastChange, item interface{}) error {
+	return nil
+}
+
 func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 
 	mockSpineLastBlockData := model.Block{
@@ -2566,7 +2596,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
-				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockStateStorage:         &mockSpineReceiveBlockBlockStateStorageSuccess{},
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 			},
 			wantErr: false,
@@ -3327,7 +3357,27 @@ type (
 	mockSpineExecutorBlockPopSuccessPoppedBlocks struct {
 		query.Executor
 	}
+	mockSpinePopOffBlockBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+	mockSpinePopOffBlockBlockStateStorageFail struct {
+		storage.CacheStorageInterface
+	}
 )
+
+func (*mockSpinePopOffBlockBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = *mockSpineGoodCommonBlock
+	return nil
+}
+
+func (*mockSpinePopOffBlockBlockStateStorageSuccess) SetItem(lastChange, item interface{}) error {
+	return nil
+}
+
+func (*mockSpinePopOffBlockBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("mockedError")
+}
 
 func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
 	return errors.New("mockedError")
@@ -3428,7 +3478,6 @@ func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteSelectRow(qStr strin
 
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
-		RWMutex                   sync.RWMutex
 		Chaintype                 chaintype.ChainType
 		KVExecutor                kvdb.KVExecutorInterface
 		QueryExecutor             query.ExecutorInterface
@@ -3465,7 +3514,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Fail - GetLastBlock",
+			name: "Fail-GetLastBlock",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
 				KVExecutor:              nil,
@@ -3492,6 +3541,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageFail{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3500,9 +3550,8 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Fail - HardFork",
+			name: "Fail-HardFork",
 			fields: fields{
-				RWMutex:                 sync.RWMutex{},
 				Chaintype:               &chaintype.SpineChain{},
 				KVExecutor:              nil,
 				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
@@ -3528,6 +3577,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineBadCommonBlockHardFork,
@@ -3536,7 +3586,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Fail - CommonBlockNotFound",
+			name: "Fail-CommonBlockNotFound",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
 				KVExecutor:              nil,
@@ -3564,6 +3614,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
+				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3574,7 +3625,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		{
 			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
-				RWMutex:                   sync.RWMutex{},
 				Chaintype:                 &chaintype.SpineChain{},
 				KVExecutor:                nil,
 				QueryExecutor:             &mockSpineExecutorBlockPopSuccess{},
@@ -3595,50 +3645,12 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
-				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
 			},
 			want:    nil,
-			wantErr: false,
-		},
-		{
-			name: "GetManifestFromSpineBlockHeightPoppedOffBlocks",
-			fields: fields{
-				RWMutex:                   sync.RWMutex{},
-				Chaintype:                 &chaintype.SpineChain{},
-				KVExecutor:                nil,
-				QueryExecutor:             &mockSpineExecutorBlockPopSuccessPoppedBlocks{},
-				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
-				MempoolQuery:              nil,
-				TransactionQuery:          query.NewTransactionQuery(&chaintype.SpineChain{}),
-				MerkleTreeQuery:           nil,
-				PublishedReceiptQuery:     nil,
-				SkippedBlocksmithQuery:    nil,
-				Signature:                 nil,
-				MempoolService:            &mockSpineMempoolServiceBlockPopSuccess{},
-				ReceiptService:            &mockSpineReceiptSuccess{},
-				ActionTypeSwitcher:        nil,
-				AccountBalanceQuery:       nil,
-				ParticipationScoreQuery:   nil,
-				Observer:                  nil,
-				Logger:                    log.New(),
-				SpinePublicKeyService:     &mockBlockSpinePublicKeyService{},
-				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
-				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
-				BlockStateStorage:         storage.NewBlockStateStorage(),
-			},
-			args: args{
-				commonBlock: mockSpineGoodCommonBlock,
-			},
-			want: []*model.Block{
-				{
-					ID:                  int64(100),
-					Height:              mockGoodBlock.GetHeight(),
-					SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
-				},
-			},
 			wantErr: false,
 		},
 	}
