@@ -1511,7 +1511,6 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
 		QueryExecutor       query.ExecutorInterface
-		BlockQuery          query.BlockQueryInterface
 		MempoolQuery        query.MempoolQueryInterface
 		Signature           crypto.SignatureInterface
 		MempoolCacheStorage storage.CacheStorageInterface
@@ -1573,7 +1572,6 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 			bs := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
 				QueryExecutor:       tt.fields.QueryExecutor,
-				BlockQuery:          tt.fields.BlockQuery,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				Signature:           tt.fields.Signature,
 				Logger:              tt.fields.Logger,
