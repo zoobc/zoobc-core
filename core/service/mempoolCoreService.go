@@ -134,12 +134,15 @@ func (mps *MempoolService) InitMempoolTransaction() error {
 		if err != nil {
 			return err
 		}
-		mps.MempoolCacheStorage.SetItem(mempool.ID, storage.MempoolCacheObject{
+		err = mps.MempoolCacheStorage.SetItem(mempool.ID, storage.MempoolCacheObject{
 			Tx:                  *tx,
 			ArrivalTimestamp:    mempool.ArrivalTimestamp,
 			FeePerByte:          mempool.FeePerByte,
 			TransactionByteSize: uint32(len(mempool.TransactionBytes)),
 		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -304,7 +307,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 	}
 	var payloadLength int
 	selectedTransactions := make([]*model.Transaction, 0)
-	selectedMempoolTxs := make([]*storage.MempoolCacheObject, 0)
+	selectedMempoolTxs := make([]storage.MempoolCacheObject, 0)
 	for _, memObj := range mempoolTransactions {
 		if len(selectedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
 			break
@@ -345,11 +348,14 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 			continue
 		}
 		memObjCopy := memObj
-		selectedTransactions = append(selectedTransactions, &memObjCopy.Tx)
-		selectedMempoolTxs = append(selectedMempoolTxs, &memObjCopy)
+		selectedMempoolTxs = append(selectedMempoolTxs, memObjCopy)
 		payloadLength += transactionLength
 	}
-	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempoolTxs)
+	sortFeePerByteThenTimestampThenID(selectedMempoolTxs)
+	for _, mpTx := range selectedMempoolTxs {
+		txCopy := mpTx.Tx
+		selectedTransactions = append(selectedTransactions, &txCopy)
+	}
 	return selectedTransactions, nil
 }
 
@@ -497,8 +503,8 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 // sortFeePerByteThenTimestampThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
 // this sort the transaction by the mempool fields, mean both slice should have the same number of elements, and same
 // order for this to work
-func sortFeePerByteThenTimestampThenID(txs []*model.Transaction, memTxs []*storage.MempoolCacheObject) {
-	sort.SliceStable(txs, func(i, j int) bool {
+func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
+	sort.SliceStable(memTxs, func(i, j int) bool {
 		mi, mj := memTxs[i], memTxs[j]
 		switch {
 		case mi.FeePerByte != mj.FeePerByte:
