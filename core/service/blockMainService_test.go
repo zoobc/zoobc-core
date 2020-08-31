@@ -1019,6 +1019,16 @@ func (*mockPushBlockFeeScaleServiceNoAdjust) GetCurrentPhase(
 	return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
 }
 
+type (
+	mockMempoolServiceRemoveTransactionsSuccess struct {
+		MempoolService
+	}
+)
+
+func (*mockMempoolServiceRemoveTransactionsSuccess) RemoveMempoolTransactions(mempoolTxs []*model.Transaction) error {
+	return nil
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1044,6 +1054,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		FeeScaleService         fee.FeeScaleServiceInterface
 		BlockStateStorage       storage.CacheStorageInterface
 		BlockchainStatusService BlockchainStatusServiceInterface
+		MempoolService          MempoolServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1077,6 +1088,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1120,6 +1132,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1161,6 +1174,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1204,6 +1218,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1247,6 +1262,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1285,6 +1301,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:         tt.fields.FeeScaleService,
 				BlockStateStorage:       tt.fields.BlockStateStorage,
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
+				MempoolService:          tt.fields.MempoolService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -2797,6 +2814,12 @@ func (*mockBlockIncompleteQueueServiceReceiveBlock) GetBlockQueue(blockID int64)
 	}
 }
 
+func (*mockBlockIncompleteQueueServiceReceiveBlock) AddBlockQueue(block *model.Block) {
+}
+
+func (*mockBlockIncompleteQueueServiceReceiveBlock) SetTransactionsRequired(blockIDs int64, requiredTxIDs TransactionIDsMap) {
+}
+
 func (*mockQueryExecutorReceiveBlockFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("Mock Error")
 }
@@ -2814,6 +2837,16 @@ func (bss *mockBlocksmithServiceReceiveBlock) IsValidSmithTime(
 	previousBlock *model.Block,
 ) error {
 	return nil
+}
+
+type (
+	mockMempoolServiceGetMempoolTransactionSuccess struct {
+		MempoolService
+	}
+)
+
+func (*mockMempoolServiceGetMempoolTransactionSuccess) GetMempoolTransactions() ([]storage.MempoolCacheObject, error) {
+	return []storage.MempoolCacheObject{}, nil
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
@@ -2871,7 +2904,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -2903,7 +2936,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:        nil,
 				Signature:               &mockSignature{},
-				MempoolService:          nil,
+				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
 				AccountLedgerQuery:      nil,
@@ -2935,7 +2968,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:            nil,
 				TransactionQuery:        nil,
 				Signature:               nil,
-				MempoolService:          nil,
+				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
 				AccountLedgerQuery:      nil,
@@ -2966,7 +2999,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:            nil,
 				TransactionQuery:        nil,
 				Signature:               nil,
-				MempoolService:          nil,
+				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:      nil,
 				AccountBalanceQuery:     nil,
 				AccountLedgerQuery:      nil,
@@ -2975,44 +3008,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ReceiptService:          &mockReceiptServiceSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-ProcessQueue-fail",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued + 1,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  nil,
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              nil,
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
 			},
 			wantErr: true,
 			want:    nil,
@@ -3037,7 +3032,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -3075,7 +3070,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -3113,7 +3108,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -3151,7 +3146,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -3189,7 +3184,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -3227,7 +3222,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
 				TransactionQuery:            nil,
 				Signature:                   nil,
-				MempoolService:              nil,
+				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
 				ActionTypeSwitcher:          nil,
 				AccountBalanceQuery:         nil,
 				AccountLedgerQuery:          nil,
@@ -4501,6 +4496,10 @@ type (
 		BlockIncompleteQueueService
 	}
 )
+
+func (*mockMempoolServiceProcessQueuedBlockSuccess) GetMempoolTransactions() ([]storage.MempoolCacheObject, error) {
+	return []storage.MempoolCacheObject{}, nil
+}
 
 func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
 	return mockBlocksmiths
