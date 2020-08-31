@@ -1070,7 +1070,7 @@ func (bs *BlockService) UpdateLastBlockCache(block *model.Block) error {
 	// direct update storage cache if block is not nil
 	// Note: make sure block already populate their data before cache
 	if block != nil {
-		err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
+		err = bs.BlockStateStorage.SetItem(nil, *block)
 		if err != nil {
 			return err
 		}
@@ -1087,7 +1087,7 @@ func (bs *BlockService) UpdateLastBlockCache(block *model.Block) error {
 	if err != nil {
 		return err
 	}
-	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *lastBlock)
+	err = bs.BlockStateStorage.SetItem(nil, *lastBlock)
 	if err != nil {
 		return err
 	}
