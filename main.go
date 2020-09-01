@@ -280,6 +280,7 @@ func init() {
 		crypto.NewSignature(),
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
+		mainBlockStateStorage,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -294,6 +295,7 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
+		mainBlockStateStorage,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,

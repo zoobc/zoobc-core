@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
@@ -53,6 +54,7 @@ type (
 		Signature               crypto.SignatureInterface
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
 		ReceiptUtil             coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage   storage.CacheStorageInterface
 	}
 )
 
@@ -68,6 +70,7 @@ func NewReceiptService(
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
+	mainBlockStateStorage storage.CacheStorageInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -81,6 +84,7 @@ func NewReceiptService(
 		Signature:               signature,
 		PublishedReceiptQuery:   publishedReceiptQuery,
 		ReceiptUtil:             receiptUtil,
+		MainBlockStateStorage:   mainBlockStateStorage,
 	}
 }
 
@@ -310,9 +314,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			removeBatchReceiptQ, removeBatchReceiptArgs := rs.BatchReceiptQuery.RemoveBatchReceipt(br.DatumType, br.DatumHash)
 			queries[(constant.ReceiptBatchMaximum)+uint32(k)] = append([]interface{}{removeBatchReceiptQ}, removeBatchReceiptArgs...)
 		}
-		lastBlockQ := rs.BlockQuery.GetLastBlock()
-		lastBlockRow, _ := rs.QueryExecutor.ExecuteSelectRow(lastBlockQ, false)
-		err = rs.BlockQuery.Scan(&lastBlock, lastBlockRow)
+		err = rs.MainBlockStateStorage.GetItem(nil, &lastBlock)
 		if err != nil {
 			return err
 		}

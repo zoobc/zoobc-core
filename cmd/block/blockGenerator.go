@@ -128,6 +128,7 @@ func initialize(
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -157,6 +158,7 @@ func initialize(
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
 		nil,
 		nil,
 		nil,

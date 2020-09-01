@@ -158,7 +158,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ..
 		).AddRow(280, 1, make([]byte, 32), []byte{}, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0,
 			1))
 	default:
-		return nil, errors.New("InvalidQuery")
+		return nil, errors.New("InvalidQueryRow")
 
 	}
 	return db.QueryRow(qe), nil
@@ -1587,6 +1587,20 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 	}
 }
 
+type (
+	mockGenerateNodeAddressInfoMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockGenerateNodeAddressInfoMainBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	var mockLastGoodBlock = mockGoodBlock
+	mockLastGoodBlock.Height = uint32(1000)
+	*blockCopy = *mockLastGoodBlock
+	return nil
+}
+
 func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 	type fields struct {
 		QueryExecutor                query.ExecutorInterface
@@ -1604,6 +1618,7 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 		CurrentNodePublicKey         []byte
 		Signature                    crypto.SignatureInterface
 		NodeAddressInfoService       NodeAddressInfoServiceInterface
+		MainBlockStateStorage        storage.CacheStorageInterface
 	}
 	type args struct {
 		nodeID           int64
@@ -1635,7 +1650,8 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 				NodeAddressInfoService: &nodeAddressInfoServiceMock{
 					nodeAddressInfoBytes: make([]byte, 64),
 				},
-				Logger: log.New(),
+				Logger:                log.New(),
+				MainBlockStateStorage: &mockGenerateNodeAddressInfoMainBlockStateStorageSuccess{},
 			},
 			want: &model.NodeAddressInfo{
 				NodeID:      int64(111),
@@ -1664,6 +1680,7 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
 				Signature:                    tt.fields.Signature,
 				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
+				MainBlockStateStorage:        tt.fields.MainBlockStateStorage,
 			}
 			got, err := nrs.GenerateNodeAddressInfo(tt.args.nodeID, tt.args.nodeAddress, tt.args.port, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {
