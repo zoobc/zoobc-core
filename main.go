@@ -350,6 +350,18 @@ func init() {
 		receiptService,
 		queryExecutor,
 	)
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
