@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"strings"
 	"time"
 
@@ -116,6 +117,8 @@ func initialize(
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
+	mempoolStorage := storage.NewMempoolStorage()
+	blockStorage := storage.NewBlockStateStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		nil,
@@ -139,7 +142,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		crypto.NewSignature(),
 		observerInstance,
@@ -147,6 +149,8 @@ func initialize(
 		receiptUtil,
 		receiptService,
 		nil,
+		blockStorage,
+		mempoolStorage,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,

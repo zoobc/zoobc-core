@@ -55,7 +55,7 @@ var (
 	db                                                              *sql.DB
 	badgerDb                                                        *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
-	nextNodeAdmissionStorage                                        storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage                        storage.CacheStorageInterface
 	snapshotChunkUtil                                               util.ChunkUtilInterface
 	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                                   *query.Executor
@@ -244,12 +244,13 @@ func init() {
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-
+	mempoolStorage = storage.NewMempoolStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
-		FeeScaleService: feeScaleService,
+		FeeScaleService:     feeScaleService,
+		MempoolCacheStorage: mempoolStorage,
 	}
 	// initialize Observer
 	observerInstance = observer.NewObserver()
@@ -364,6 +365,18 @@ func init() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		&transaction.TypeSwitcher{
+			Executor: queryExecutor,
+		},
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -373,7 +386,6 @@ func init() {
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		crypto.NewSignature(),
 		observerInstance,
@@ -381,6 +393,8 @@ func init() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
+		mainBlockStateStorage,
+		mempoolStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
@@ -622,25 +636,18 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		config.RPCAPIPort,
-		config.HTTPAPIPort,
-		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
-		config.OwnerAccountAddress,
-		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
+		mempoolService,
+		transactionUtil,
+		blockStateStorages,
+		config.RPCAPIPort, config.HTTPAPIPort, config.OwnerAccountAddress, filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
-		config.APICertFile,
-		config.APIKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreServiceIns,
+		config.APICertFile, config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
-		blockStateStorages,
 	)
 }
 
@@ -953,6 +960,12 @@ func main() {
 	if isDebugMode {
 		startNodeMonitoring()
 		blocker.SetIsDebugMode(true)
+	}
+
+	// preload-caches
+	err := mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
