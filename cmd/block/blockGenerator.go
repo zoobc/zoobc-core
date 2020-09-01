@@ -131,6 +131,7 @@ func initialize(
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -161,6 +162,7 @@ func initialize(
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
 		nil,
 		nil,
 		nil,
@@ -238,7 +240,6 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blockService,
 		log.New(),
 		&mockBlockchainStatusService{},
-		nil,
 		nodeRegistrationService,
 	)
 	startTime := time.Now().UnixNano() / 1e6

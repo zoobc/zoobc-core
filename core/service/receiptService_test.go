@@ -18,6 +18,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
@@ -770,7 +771,23 @@ type (
 	mockQueryExecutorGenerateReceiptsMerkleRootSelectFail struct {
 		query.Executor
 	}
+	mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+	mockGenerateReceiptsMerkleRootMainBlockStateStorageFail struct {
+		storage.CacheStorageInterface
+	}
 )
+
+func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = mockBlockData
+	return nil
+}
+
+func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("mockedError")
+}
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	qStr string, tx bool, args ...interface{},
@@ -880,11 +897,12 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransaction
 
 func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	type fields struct {
-		NodeReceiptQuery  query.NodeReceiptQueryInterface
-		BatchReceiptQuery query.BatchReceiptQueryInterface
-		MerkleTreeQuery   query.MerkleTreeQueryInterface
-		KVExecutor        kvdb.KVExecutorInterface
-		QueryExecutor     query.ExecutorInterface
+		NodeReceiptQuery      query.NodeReceiptQueryInterface
+		BatchReceiptQuery     query.BatchReceiptQueryInterface
+		MerkleTreeQuery       query.MerkleTreeQueryInterface
+		KVExecutor            kvdb.KVExecutorInterface
+		QueryExecutor         query.ExecutorInterface
+		MainBlockStateStorage storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -894,33 +912,36 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				NodeReceiptQuery:  query.NewNodeReceiptQuery(),
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   query.NewMerkleTreeQuery(),
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
+				NodeReceiptQuery:      query.NewNodeReceiptQuery(),
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "wantError:SelectRowFail",
 			fields: fields{
-				NodeReceiptQuery:  nil,
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   nil,
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
+				NodeReceiptQuery:      nil,
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       nil,
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageFail{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "wantError:SelectFail",
 			fields: fields{
-				NodeReceiptQuery:  nil,
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   nil,
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
+				NodeReceiptQuery:      nil,
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       nil,
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
 			wantErr: true,
 		},
@@ -928,13 +949,14 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:  tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery: tt.fields.BatchReceiptQuery,
-				MerkleTreeQuery:   tt.fields.MerkleTreeQuery,
-				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				KVExecutor:        tt.fields.KVExecutor,
-				QueryExecutor:     tt.fields.QueryExecutor,
-				ReceiptUtil:       &coreUtil.ReceiptUtil{},
+				NodeReceiptQuery:      tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:     tt.fields.BatchReceiptQuery,
+				MerkleTreeQuery:       tt.fields.MerkleTreeQuery,
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				KVExecutor:            tt.fields.KVExecutor,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				ReceiptUtil:           &coreUtil.ReceiptUtil{},
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
 				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)

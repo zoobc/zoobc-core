@@ -2678,6 +2678,12 @@ type (
 	mockQueryExecutorReceiveBlockFail struct {
 		query.Executor
 	}
+	mockBlockStateStorageReceiveBlockFail struct {
+		storage.CacheStorageInterface
+	}
+	mockBlockStateStorageReceiveBlockSuccess struct {
+		storage.CacheStorageInterface
+	}
 )
 
 func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
@@ -2700,6 +2706,13 @@ func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
 	return nil, errors.New("mockedErr")
+}
+
+func (*mockBlockStateStorageReceiveBlockFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("mockedErr")
+}
+func (*mockBlockStateStorageReceiveBlockSuccess) GetItem(lastChange, item interface{}) error {
+	return nil
 }
 
 // mocks for ReceiveBlock tests
@@ -2873,6 +2886,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		ReceiptService              ReceiptServiceInterface
 		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		BlockPoolService            BlockPoolServiceInterface
+		BlockStateStorage           storage.CacheStorageInterface
 	}
 	type args struct {
 		senderPublicKey  []byte
@@ -3042,6 +3056,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            nil,
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockFail{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -3080,6 +3095,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -3118,6 +3134,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -3156,6 +3173,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -3194,6 +3212,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            nil,
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
 			},
 			wantErr: true,
 			want:    nil,
@@ -3232,6 +3251,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				BlockPoolService:            nil,
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
+				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
 			},
 			wantErr: false,
 			want:    nil,
@@ -3262,6 +3282,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				ReceiptUtil:                 &coreUtil.ReceiptUtil{},
 				ReceiptService:              tt.fields.ReceiptService,
 				BlockPoolService:            tt.fields.BlockPoolService,
+				BlockStateStorage:           tt.fields.BlockStateStorage,
 			}
 			got, err := bs.ReceiveBlock(
 				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase, &model.Peer{},
@@ -4067,6 +4088,15 @@ type (
 	mockPopOffToBlockNodeRegistrationServiceSucess struct {
 		NodeRegistrationServiceInterface
 	}
+	mockPopOffToBlockBlockStateStorageFail struct {
+		storage.CacheStorageInterface
+	}
+	mockPopOffToBlockBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+	mockPopOffToBlockBlockStateStorageHardForkSuccess struct {
+		storage.CacheStorageInterface
+	}
 )
 
 func (*mockPopOffToBlockTransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error) {
@@ -4153,9 +4183,34 @@ func (*mockPopOffToBlockNodeRegistrationServiceSucess) UpdateNextNodeAdmissionCa
 	return nil
 }
 
+func (*mockPopOffToBlockBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("mockedErr")
+}
+func (*mockPopOffToBlockBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = *mockGoodCommonBlock
+	return nil
+}
+
+func (*mockPopOffToBlockBlockStateStorageSuccess) SetItem(lastChange, item interface{}) error {
+	return nil
+}
+
+func (*mockPopOffToBlockBlockStateStorageHardForkSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = *mockGoodCommonBlock
+	return nil
+}
+
+func (*mockPopOffToBlockBlockStateStorageHardForkSuccess) SetItem(lastChange, item interface{}) error {
+	return nil
+}
+
 func TestBlockService_PopOffToBlock(t *testing.T) {
+	var mockPopedBlock = mockGoodBlock
+	mockPopedBlock.ID = 100
+	mockPopedBlock.Height = 100
 	type fields struct {
-		RWMutex                     sync.RWMutex
 		Chaintype                   chaintype.ChainType
 		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
@@ -4199,7 +4254,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Fail - GetLastBlock",
+			name: "Fail-GetLastBlock",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
@@ -4220,6 +4275,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				Observer:                nil,
 				Logger:                  log.New(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageFail{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4228,7 +4284,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Fail - HardFork",
+			name: "Fail-HardFork",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
@@ -4250,6 +4306,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageHardForkSuccess{},
 			},
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
@@ -4258,7 +4315,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Fail - CommonBlockNotFound",
+			name: "Fail-CommonBlockNotFound",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
@@ -4280,6 +4337,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4288,7 +4346,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "Fail - GetPublishedReceiptError",
+			name: "Fail-GetPublishedReceiptError",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
@@ -4311,7 +4369,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4320,7 +4378,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Fail - GetMempoolToBackupFail",
+			name: "Fail-GetMempoolToBackupFail",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
 				KVExecutor:              nil,
@@ -4343,7 +4401,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4375,7 +4433,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4383,63 +4441,10 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			want:    nil,
 			wantErr: false,
 		},
-		{
-			name: "SuccessWithPoppingBlocks",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockedExecutorPopOffToBlockSuccessPopping{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
-				PublishedReceiptQuery:   nil,
-				SkippedBlocksmithQuery:  nil,
-				Signature:               nil,
-				MempoolService:          &mockMempoolServiceBlockPopSuccess{},
-				ReceiptService:          &mockReceiptSuccess{},
-				NodeRegistrationService: &mockNodeRegistrationServiceBlockPopSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				ParticipationScoreQuery: nil,
-				NodeRegistrationQuery:   nil,
-				Observer:                nil,
-				BlockPoolService:        &mockBlockPoolServicePopOffToBlockSuccess{},
-				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
-				Logger:                  log.New(),
-				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-			},
-			args: args{
-				commonBlock: mockGoodCommonBlock,
-			},
-			want: []*model.Block{
-				{
-					ID:                   int64(100),
-					BlockHash:            mockGoodBlock.GetBlockHash(),
-					PreviousBlockHash:    mockGoodBlock.GetPreviousBlockHash(),
-					Height:               mockGoodBlock.GetHeight(),
-					Timestamp:            mockGoodBlock.GetTimestamp(),
-					BlockSeed:            mockGoodBlock.GetBlockSeed(),
-					BlockSignature:       mockGoodBlock.GetBlockSignature(),
-					CumulativeDifficulty: mockGoodBlock.GetCumulativeDifficulty(),
-					PayloadLength:        mockGoodBlock.GetPayloadLength(),
-					PayloadHash:          mockGoodBlock.GetPayloadHash(),
-					BlocksmithPublicKey:  mockGoodBlock.GetBlocksmithPublicKey(),
-					TotalAmount:          mockGoodBlock.GetTotalAmount(),
-					TotalFee:             mockGoodBlock.GetTotalFee(),
-					TotalCoinBase:        mockGoodBlock.GetTotalCoinBase(),
-					Version:              mockGoodBlock.GetVersion(),
-					PublishedReceipts:    make([]*model.PublishedReceipt, 0),
-					Transactions:         make([]*model.Transaction, 0),
-				},
-			},
-			wantErr: false,
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				RWMutex:                     tt.fields.RWMutex,
 				Chaintype:                   tt.fields.Chaintype,
 				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,

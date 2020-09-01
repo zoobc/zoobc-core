@@ -2,17 +2,13 @@ package strategy
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"reflect"
-	"regexp"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -155,8 +151,8 @@ var (
 )
 
 type (
-	mockQueryExecutorSuccess struct {
-		query.Executor
+	mockBlockMainServiceSuccess struct {
+		coreService.BlockServiceInterface
 	}
 	mockPeerServiceClientSuccess struct {
 		client.PeerServiceClient
@@ -349,38 +345,15 @@ func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, n
 func (*mockPeerServiceClientFail) DeleteConnection(destPeer *model.Peer) error {
 	return errors.New("mockedError")
 }
-func (*mockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
-
-	mock.ExpectQuery(regexp.QuoteMeta(`SELECT`)).WillReturnRows(
-		sqlmock.NewRows(blockQ.Fields).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-		),
-	)
-	return db.QueryRow(qe), nil
+func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
+	return mockGoodBlock, nil
 }
 
 func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -405,7 +378,7 @@ func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -420,7 +393,7 @@ func TestPriorityStrategy_GetAnyResolvedPeer(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -445,7 +418,7 @@ func TestPriorityStrategy_GetAnyResolvedPeer(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -460,7 +433,7 @@ func TestPriorityStrategy_AddToResolvedPeer(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -497,7 +470,7 @@ func TestPriorityStrategy_AddToResolvedPeer(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -512,7 +485,7 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -558,7 +531,7 @@ func TestPriorityStrategy_RemoveResolvedPeer(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -573,7 +546,7 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -703,7 +676,7 @@ func TestPriorityStrategy_GetUnresolvedPeers(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -718,7 +691,7 @@ func TestPriorityStrategy_GetAnyUnresolvedPeer(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -743,7 +716,7 @@ func TestPriorityStrategy_GetAnyUnresolvedPeer(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -759,7 +732,7 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -799,7 +772,7 @@ func TestPriorityStrategy_AddToUnresolvedPeer(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -866,7 +839,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
+			ps := NewPriorityStrategy(nil, nil, nil,
 				log.New(), nil, tt.args.nodeConfigurationService, nil, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
@@ -939,7 +912,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil, nil)
+				nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -986,7 +959,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
+			ps := NewPriorityStrategy(nil, nil, nil,
 				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
@@ -1045,7 +1018,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
+			ps := NewPriorityStrategy(nil, nil, nil,
 				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
@@ -1111,7 +1084,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
+			ps := NewPriorityStrategy(nil, nil, nil,
 				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
@@ -1157,7 +1130,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
+			ps := NewPriorityStrategy(nil, nil, nil,
 				nil, nil, tt.args.nodeConfigurationService, nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
@@ -1173,7 +1146,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 		},
 	}
 	mockNodeRegistrationService := &p2pMockNodeRegistraionService{}
-	ps := NewPriorityStrategy(nil, mockNodeRegistrationService, nil, nil, nil,
+	ps := NewPriorityStrategy(nil, mockNodeRegistrationService, nil, nil,
 		nil, mockNodeConfigurationService, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
@@ -1206,7 +1179,7 @@ func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 			ResolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
@@ -1280,8 +1253,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				NodeRegistrationService:  mockNodeRegistrationServiceInstance,
-				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:            &mockQueryExecutorSuccess{},
+				BlockMainService:         &mockBlockMainServiceSuccess{},
 			}
 			if got := ps.GetPriorityPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetPriorityPeers() = %v, want %v", got, tt.want)
@@ -1294,7 +1266,7 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
-		QueryExecutor            query.ExecutorInterface
+		BlockMainService         coreService.BlockServiceInterface
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
@@ -1321,7 +1293,7 @@ func TestPriorityStrategy_GetHostInfo(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
-				QueryExecutor:            tt.fields.QueryExecutor,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 			}
@@ -1358,8 +1330,7 @@ func TestPriorityStrategy_ValidatePriorityPeer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:           &mockQueryExecutorSuccess{},
+				BlockMainService:        &mockBlockMainServiceSuccess{},
 			}
 			if got := ps.ValidatePriorityPeer(tt.args.scrambledNodes, tt.args.host, tt.args.peer); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidatePriorityPeer() = %v, want %v", got, tt.want)
@@ -1523,8 +1494,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
-				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:            &mockQueryExecutorSuccess{},
+				BlockMainService:         &mockBlockMainServiceSuccess{},
 			}
 			if got := ps.ValidateRequest(tt.args.ctx); got != tt.want {
 				t.Errorf("PriorityStrategy.ValidateRequest() = %v, want %v", got, tt.want)
@@ -1567,8 +1537,7 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 				Logger:                   tt.fields.Logger,
-				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:            &mockQueryExecutorSuccess{},
+				BlockMainService:         &mockBlockMainServiceSuccess{},
 			}
 			ps.ConnectPriorityPeersGradually()
 		})
@@ -1688,11 +1657,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
-		QueryExecutor            query.ExecutorInterface
-		BlockQuery               query.BlockQueryInterface
-		ResolvedPeersLock        sync.RWMutex
-		UnresolvedPeersLock      sync.RWMutex
-		BlacklistedPeersLock     sync.RWMutex
+		BlockMainService         coreService.BlockServiceInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
 		Logger                   *log.Logger
@@ -1882,11 +1847,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
-				QueryExecutor:            tt.fields.QueryExecutor,
-				BlockQuery:               tt.fields.BlockQuery,
-				ResolvedPeersLock:        tt.fields.ResolvedPeersLock,
-				UnresolvedPeersLock:      tt.fields.UnresolvedPeersLock,
-				BlacklistedPeersLock:     tt.fields.BlacklistedPeersLock,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 				Logger:                   tt.fields.Logger,
@@ -1909,11 +1870,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
-		QueryExecutor            query.ExecutorInterface
-		BlockQuery               query.BlockQueryInterface
-		ResolvedPeersLock        sync.RWMutex
-		UnresolvedPeersLock      sync.RWMutex
-		BlacklistedPeersLock     sync.RWMutex
+		BlockMainService         coreService.BlockServiceInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
 		Logger                   *log.Logger
@@ -1951,11 +1908,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
-				QueryExecutor:            tt.fields.QueryExecutor,
-				BlockQuery:               tt.fields.BlockQuery,
-				ResolvedPeersLock:        tt.fields.ResolvedPeersLock,
-				UnresolvedPeersLock:      tt.fields.UnresolvedPeersLock,
-				BlacklistedPeersLock:     tt.fields.BlacklistedPeersLock,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 				Logger:                   tt.fields.Logger,
@@ -1973,11 +1926,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
-		QueryExecutor            query.ExecutorInterface
-		BlockQuery               query.BlockQueryInterface
-		ResolvedPeersLock        sync.RWMutex
-		UnresolvedPeersLock      sync.RWMutex
-		BlacklistedPeersLock     sync.RWMutex
+		BlockMainService         coreService.BlockServiceInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
 		Logger                   *log.Logger
@@ -2047,11 +1996,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
-				QueryExecutor:            tt.fields.QueryExecutor,
-				BlockQuery:               tt.fields.BlockQuery,
-				ResolvedPeersLock:        tt.fields.ResolvedPeersLock,
-				UnresolvedPeersLock:      tt.fields.UnresolvedPeersLock,
-				BlacklistedPeersLock:     tt.fields.BlacklistedPeersLock,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 				Logger:                   tt.fields.Logger,
@@ -2071,11 +2016,7 @@ func TestPriorityStrategy_GenerateProofOfOrigin(t *testing.T) {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
-		QueryExecutor            query.ExecutorInterface
-		BlockQuery               query.BlockQueryInterface
-		ResolvedPeersLock        sync.RWMutex
-		UnresolvedPeersLock      sync.RWMutex
-		BlacklistedPeersLock     sync.RWMutex
+		BlockMainService         coreService.BlockServiceInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
 		Logger                   *log.Logger
@@ -2117,11 +2058,7 @@ func TestPriorityStrategy_GenerateProofOfOrigin(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				PeerServiceClient:        tt.fields.PeerServiceClient,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
-				QueryExecutor:            tt.fields.QueryExecutor,
-				BlockQuery:               tt.fields.BlockQuery,
-				ResolvedPeersLock:        tt.fields.ResolvedPeersLock,
-				UnresolvedPeersLock:      tt.fields.UnresolvedPeersLock,
-				BlacklistedPeersLock:     tt.fields.BlacklistedPeersLock,
+				BlockMainService:         tt.fields.BlockMainService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
 				Logger:                   tt.fields.Logger,
