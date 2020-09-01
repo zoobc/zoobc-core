@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"reflect"
 	"sort"
-	"strconv"
 	"sync"
 
 	badger "github.com/dgraph-io/badger/v2"
@@ -47,7 +46,6 @@ type (
 			blockReceipts []*model.PublishedReceipt,
 			secretPhrase string,
 		) (*model.Block, error)
-		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
 		ScanBlockPool() error
@@ -522,7 +520,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	if block.Height != 0 {
-		if errRemoveMempool := bs.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
+		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -1075,20 +1073,6 @@ func (bs *BlockService) PopulateBlockData(block *model.Block) error {
 	return nil
 }
 
-// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
-func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
-	var idsStr []string
-	for _, tx := range transactions {
-		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
-	}
-	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(idsStr))
-	if err != nil {
-		return err
-	}
-	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
-	return nil
-}
-
 func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
 	var (
 		digest = sha3.New256()
@@ -1606,44 +1590,24 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		return true, nil
 	}
 	var (
-		txRequiredByBlock     = make(TransactionIDsMap)
-		txRequiredByBlockArgs []interface{}
+		txRequiredByBlock = make(TransactionIDsMap)
 	)
 	block.Transactions = make([]*model.Transaction, len(block.GetTransactionIDs()))
 	for idx, txID := range block.TransactionIDs {
 		txRequiredByBlock[txID] = idx
-		// used as argument when quermockBlockDataying in mempool
-		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
 	}
 
 	// find needed transactions in mempool
-	var (
-		caseQuery    = query.NewCaseQuery()
-		mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
-		mempools     []*model.MempoolTransaction
-	)
-	// build query to select transaction in mempool transaction
-	caseQuery.Select(mempoolQuery.TableName, mempoolQuery.Fields...)
-	caseQuery.Where(caseQuery.In("id", txRequiredByBlockArgs...))
-	selectQuery, args := caseQuery.Build()
-	rows, err := bs.QueryExecutor.ExecuteSelect(selectQuery, false, args...)
+	mempoolCacheObjects, err := bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
-	mempools, err = mempoolQuery.BuildModel(mempools, rows)
-	if err != nil {
-		return false, err
+
+	for _, memObj := range mempoolCacheObjects {
+		block.Transactions[txRequiredByBlock[memObj.Tx.GetID()]] = &memObj.Tx
+		delete(txRequiredByBlock, memObj.Tx.GetID())
 	}
-	for _, mempool := range mempools {
-		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.TransactionBytes, true)
-		if err != nil {
-			continue
-		}
-		block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
-		delete(txRequiredByBlock, tx.GetID())
-	}
-	// process when needed trasacntions are completed
+	// process when needed transactions are completed
 	if len(txRequiredByBlock) == 0 {
 		err := bs.ProcessCompletedBlock(block)
 		if err != nil {

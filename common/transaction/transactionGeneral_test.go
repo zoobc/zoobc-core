@@ -3,6 +3,7 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
@@ -252,6 +253,14 @@ func TestGetTransactionBytes(t *testing.T) {
 	}
 }
 
+type (
+	mockMempoolCacheStorageSuccessGet struct {
+		storage.MempoolCacheStorage
+	}
+)
+
+func (*mockMempoolCacheStorageSuccessGet) GetItem(key, item interface{}) error { return nil }
+
 func TestParseTransactionBytes(t *testing.T) {
 	var mockTransactionWithEscrow = &model.Transaction{
 		ID:                      4870989829983641364,
@@ -329,9 +338,13 @@ func TestParseTransactionBytes(t *testing.T) {
 		transactionBytes []byte
 		sign             bool
 	}
+	type fields struct {
+		mempoolCacheStorage storage.CacheStorageInterface
+	}
 	tests := []struct {
 		name    string
 		args    args
+		fields  fields
 		want    *model.Transaction
 		wantErr bool
 	}{
@@ -341,6 +354,9 @@ func TestParseTransactionBytes(t *testing.T) {
 				transactionBytes: transactionWithEscrowBytes,
 				sign:             true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want:    mockTransactionWithEscrow,
 			wantErr: false,
 		},
@@ -349,6 +365,9 @@ func TestParseTransactionBytes(t *testing.T) {
 			args: args{
 				transactionBytes: successWithoutSig,
 				sign:             false,
+			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
 			},
 			want: &model.Transaction{
 				ID:                      4956766951297472907,
@@ -377,6 +396,9 @@ func TestParseTransactionBytes(t *testing.T) {
 				transactionBytes: approvalTXBytes,
 				sign:             true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want: approvalTX,
 		},
 		{
@@ -388,13 +410,18 @@ func TestParseTransactionBytes(t *testing.T) {
 					6, 7, 8, 93, 3},
 				sign: true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := (&Util{}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
+			got, err := (&Util{
+				MempoolCacheStorage: tt.fields.mempoolCacheStorage,
+			}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return
