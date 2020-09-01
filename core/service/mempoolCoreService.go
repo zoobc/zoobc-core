@@ -379,7 +379,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	if err != nil {
 		return nil, err
 	}
-
+	// receivedTx == nil when it's a duplicate but we haven't send receipt to this peer for this particular data yet
+	if receivedTx == nil {
+		return batchReceipt, nil
+	}
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -417,6 +420,8 @@ func (mps *MempoolService) ReceivedTransaction(
 	return batchReceipt, nil
 }
 
+// ProcessReceivedTransaction process the transaction received from peer
+// will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
 	senderPublicKey,
 	receivedTxBytes []byte,
@@ -424,8 +429,9 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, *model.Transaction, error) {
 	var (
-		err        error
-		receivedTx *model.Transaction
+		err         error
+		receivedTx  *model.Transaction
+		duplicateTx bool
 	)
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
@@ -454,6 +460,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		if len(val) != 0 {
 			return nil, nil, status.Error(codes.Internal, "the sender has already received receipt for this data")
 		}
+		duplicateTx = true
 	}
 
 	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
@@ -468,6 +475,9 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 
 	if err != nil {
 		return nil, nil, status.Error(codes.Internal, err.Error())
+	}
+	if duplicateTx {
+		return batchReceipt, nil, nil
 	}
 	return batchReceipt, receivedTx, nil
 }
@@ -488,11 +498,11 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
+		batchReceiptArray = append(batchReceiptArray, batchReceipt)
 		if receivedTx == nil {
 			continue
 		}
 		receivedTransactions = append(receivedTransactions, receivedTx)
-		batchReceiptArray = append(batchReceiptArray, batchReceipt)
 	}
 
 	go mps.Observer.Notify(observer.ReceivedBlockTransactionsValidated, receivedTransactions, mps.Chaintype)
