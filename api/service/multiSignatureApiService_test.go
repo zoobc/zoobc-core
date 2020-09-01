@@ -832,9 +832,6 @@ type (
 	mockGetMultisigAddressByParticipantAddressesInternalError struct {
 		query.Executor
 	}
-	mockGetMultisigAddressByParticipantAddressesSuccessToGetTotal struct {
-		query.Executor
-	}
 	mockGetMultisigAddressByParticipantAddressesError struct {
 		query.Executor
 	}

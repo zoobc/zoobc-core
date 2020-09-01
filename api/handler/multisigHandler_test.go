@@ -287,12 +287,14 @@ type (
 	}
 )
 
-func (*mockGetMultisigAddressByParticipantAddressesError) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
+func (*mockGetMultisigAddressByParticipantAddressesError,
+) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
 ) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
 	return nil, errors.New("Error GetMultisigAddressByParticipantAddresses")
 }
 
-func (*mockGetMultisigAddressByParticipantAddressesSuccess) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
+func (*mockGetMultisigAddressByParticipantAddressesSuccess,
+) GetMultisigAddressByParticipantAddresses(param *model.GetMultisigAddressByParticipantAddressesRequest,
 ) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
 	return &model.GetMultisigAddressByParticipantAddressesResponse{}, nil
 }
