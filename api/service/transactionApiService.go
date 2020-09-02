@@ -2,19 +2,16 @@ package service
 
 import (
 	"database/sql"
-	"math"
-	"time"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
-	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math"
 )
 
 type (
@@ -217,13 +214,12 @@ func (ts *TransactionService) PostTransaction(
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		txBytes = req.TransactionBytes
+		txBytes = req.GetTransactionBytes()
 		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
 	)
 	// get unsigned bytes
-
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -233,16 +229,8 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Save to mempool
-	mpTx := &model.MempoolTransaction{
-		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
-		ID:                      tx.GetID(),
-		TransactionBytes:        txBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    tx.GetSenderAccountAddress(),
-		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
-	}
-	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+
+	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
@@ -266,7 +254,9 @@ func (ts *TransactionService) PostTransaction(
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = ts.MempoolService.AddMempoolTransaction(mpTx)
+	// Save to mempool
+
+	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
 		if errRollback != nil {
@@ -279,7 +269,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	ts.Observer.Notify(observer.TransactionAdded, mpTx.GetTransactionBytes(), chaintype)
+	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction
 	return tx, nil
 }

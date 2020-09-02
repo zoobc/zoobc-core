@@ -77,6 +77,7 @@ type (
 		BlockQuery                   query.BlockQueryInterface
 		NodeAdmissionTimestampQuery  query.NodeAdmissionTimestampQueryInterface
 		NextNodeAdmissionStorage     storage.CacheStorageInterface
+		MainBlockStateStorage        storage.CacheStorageInterface
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
 		ScrambledNodesLock           sync.RWMutex
@@ -100,7 +101,7 @@ func NewNodeRegistrationService(
 	blockchainStatusService BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
 	nodeAddressInfoService NodeAddressInfoServiceInterface,
-	nextNodeAdmissionStorage storage.CacheStorageInterface,
+	nextNodeAdmissionStorage, mainBlockStateStorage storage.CacheStorageInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:               queryExecutor,
@@ -116,6 +117,7 @@ func NewNodeRegistrationService(
 		NodeAddressInfoService:      nodeAddressInfoService,
 		NodeAdmissionTimestampQuery: nodeAdmissionTimestampQuery,
 		NextNodeAdmissionStorage:    nextNodeAdmissionStorage,
+		MainBlockStateStorage:       mainBlockStateStorage,
 	}
 }
 
@@ -817,10 +819,10 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 	port uint32,
 	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
 	var (
-		safeBlockHeight uint32
-		safeBlock       model.Block
+		safeBlockHeight      uint32
+		safeBlock, lastBlock model.Block
+		err                  = nrs.MainBlockStateStorage.GetItem(nil, &lastBlock)
 	)
-	lastBlock, err := commonUtils.GetLastBlock(nrs.QueryExecutor, nrs.BlockQuery)
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"testing"
 	"time"
 
@@ -18,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
@@ -464,32 +462,6 @@ func (*mockSnapshotQueryExecutor) ExecuteSelect(query string, tx bool, args ...i
 	return db.Query("")
 }
 
-func (*mockSnapshotQueryExecutor) ExecuteSelectRow(qe string, _ bool, _ ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-
-	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
-	mockedRows := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
-	mockedRows.AddRow(
-		mockedBlock.GetHeight(),
-		mockedBlock.GetID(),
-		mockedBlock.GetBlockHash(),
-		mockedBlock.GetPreviousBlockHash(),
-		mockedBlock.GetTimestamp(),
-		mockedBlock.GetBlockSeed(),
-		mockedBlock.GetBlockSignature(),
-		mockedBlock.GetCumulativeDifficulty(),
-		mockedBlock.GetPayloadLength(),
-		mockedBlock.GetPayloadHash(),
-		mockedBlock.GetBlocksmithPublicKey(),
-		mockedBlock.GetTotalAmount(),
-		mockedBlock.GetTotalFee(),
-		mockedBlock.GetTotalCoinBase(),
-		mockedBlock.GetVersion(),
-	)
-	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	return db.QueryRow(qe), nil
-}
 func (mocksbcs *mockSnapshotBasicChunkStrategy) GenerateSnapshotChunks(
 	*model.SnapshotPayload,
 ) (fullHash []byte, fileChunkHashes [][]byte, err error) {
@@ -529,8 +501,13 @@ func (mocksbcs *mockSnapshotBasicChunkStrategy) BuildSnapshotFromChunks([]byte, 
 	}, nil
 }
 
-func (*mockBlockMainServiceSuccess) PopulateBlockData(block *model.Block) error {
+func (*mockBlockMainServiceSuccess) UpdateLastBlockCache(block *model.Block) error {
 	return nil
+}
+
+func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
+	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
+	return mockedBlock, nil
 }
 
 func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
@@ -893,7 +870,6 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		DerivedQueries                []query.DerivedQuery
 		TransactionUtil               transaction.UtilInterface
 		TypeActionSwitcher            transaction.TypeActionSwitcher
-		BlockStateStorage             storage.CacheStorageInterface
 		BlockMainService              BlockServiceInterface
 		NodeRegistrationService       NodeRegistrationServiceInterface
 	}
@@ -938,7 +914,6 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				TypeActionSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockSnapshotQueryExecutor{success: true},
 				},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockMainService:        &mockBlockMainServiceSuccess{},
 				NodeRegistrationService: &mockImportSnapshotFileNodeRegistrationServiceSuccess{},
 			},
@@ -973,7 +948,6 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				DerivedQueries:                tt.fields.DerivedQueries,
 				TransactionUtil:               tt.fields.TransactionUtil,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
-				BlockStateStorage:             tt.fields.BlockStateStorage,
 				BlockMainService:              tt.fields.BlockMainService,
 				NodeRegistrationService:       tt.fields.NodeRegistrationService,
 			}

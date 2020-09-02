@@ -55,7 +55,7 @@ var (
 	db                                                              *sql.DB
 	badgerDb                                                        *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
-	nextNodeAdmissionStorage                                        storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage                        storage.CacheStorageInterface
 	snapshotChunkUtil                                               util.ChunkUtilInterface
 	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
 	queryExecutor                                                   *query.Executor
@@ -234,6 +234,9 @@ func init() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 	spineBlockStateStorage = storage.NewBlockStateStorage()
@@ -241,12 +244,13 @@ func init() {
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-
+	mempoolStorage = storage.NewMempoolStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
-		FeeScaleService: feeScaleService,
+		FeeScaleService:     feeScaleService,
+		MempoolCacheStorage: mempoolStorage,
 	}
 	// initialize Observer
 	observerInstance = observer.NewObserver()
@@ -254,7 +258,8 @@ func init() {
 	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor: queryExecutor,
+		Executor:            queryExecutor,
+		MempoolCacheStorage: mempoolStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -277,6 +282,7 @@ func init() {
 		crypto.NewSignature(),
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
+		mainBlockStateStorage,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -291,6 +297,7 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
+		mainBlockStateStorage,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
@@ -346,7 +353,27 @@ func init() {
 		receiptService,
 		queryExecutor,
 	)
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		actionSwitcher,
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		actionSwitcher,
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -356,7 +383,6 @@ func init() {
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		crypto.NewSignature(),
 		observerInstance,
@@ -364,19 +390,8 @@ func init() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-	)
-
-	transactionCoreServiceIns = service.NewTransactionCoreService(
-		loggerCoreService,
-		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
-		transactionUtil,
-		query.NewTransactionQuery(mainchain),
-		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
-		query.NewLiquidPaymentTransactionQuery(),
+		mainBlockStateStorage,
+		mempoolStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
@@ -441,8 +456,7 @@ func init() {
 		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
-		&transaction.TypeSwitcher{Executor: queryExecutor},
-		mainBlockStateStorage,
+		actionSwitcher,
 		mainchainBlockService,
 		nodeRegistrationService,
 	)
@@ -454,10 +468,6 @@ func init() {
 		blockchainStatusService,
 		snapshotBlockServices,
 		loggerCoreService,
-	)
-
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
 	)
 
 	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
@@ -566,8 +576,7 @@ func initP2pInstance() {
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		peerServiceClient,
 		nodeRegistrationService,
-		queryExecutor,
-		query.NewBlockQuery(mainchain),
+		mainchainBlockService,
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
 		nodeConfigurationService,
@@ -624,25 +633,23 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		config.RPCAPIPort,
-		config.HTTPAPIPort,
-		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
+		mempoolService,
+		transactionUtil,
+		actionSwitcher,
+		blockStateStorages,
+		config.RPCAPIPort,
+		config.HTTPAPIPort,
 		config.OwnerAccountAddress,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
 		config.APICertFile,
 		config.APIKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
-		blockStateStorages,
 	)
 }
 
@@ -671,7 +678,7 @@ func startNodeMonitoring() {
 
 func startMainchain() {
 	var (
-		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
+		blockToBuildScrambleNodes, lastBlockAtStart *model.Block
 		err                                         error
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
@@ -693,14 +700,8 @@ func startMainchain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
-	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
-
-	// set all storage cache
-	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	// set all needed cache
+	err = mainchainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -708,6 +709,12 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
+
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
@@ -741,7 +748,6 @@ func startMainchain() {
 			mainchainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			mainBlockStateStorage,
 			nodeRegistrationService,
 		)
 		mainchainProcessor.Start(sleepPeriod)
@@ -766,9 +772,7 @@ func startMainchain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
@@ -788,8 +792,10 @@ func startMainchain() {
 
 func startSpinechain() {
 	var (
-		nodeID      int64
-		sleepPeriod = constant.SpineChainSmithIdlePeriod
+		err              error
+		nodeID           int64
+		lastBlockAtStart *model.Block
+		sleepPeriod      = constant.SpineChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
@@ -798,15 +804,17 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
+	// update cache last spine block  block
+	err = spinechainBlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
-	err = spineBlockStateStorage.SetItem(0, *lastBlockAtStart)
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
+
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
@@ -818,7 +826,6 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			spineBlockStateStorage,
 			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
@@ -843,9 +850,7 @@ func startSpinechain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
@@ -953,6 +958,12 @@ func main() {
 	if isDebugMode {
 		startNodeMonitoring()
 		blocker.SetIsDebugMode(true)
+	}
+
+	// preload-caches
+	err := mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)

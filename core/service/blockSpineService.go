@@ -350,7 +350,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	}
 	// cache last block state
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
-	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	err = bs.UpdateLastBlockCache(block)
 	if err != nil {
 		return err
 	}
@@ -427,16 +427,14 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, with
 
 // GetLastBlock return the last pushed block
 func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
-	lastBlock, err := commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	var (
+		lastBlock model.Block
+		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
+	)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, err
 	}
-
-	err = bs.PopulateBlockData(lastBlock)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	return lastBlock, nil
+	return &lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
@@ -509,6 +507,37 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
 	}
 	block.SpineBlockManifests = spineBlockManifests
+	return nil
+}
+
+// UpdateLastBlockCache to update the state of last block cache
+func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
+	var err error
+	// direct update storage cache if block is not nil
+	// Note: make sure block already populate their data before cache
+	if block != nil {
+		err = bs.BlockStateStorage.SetItem(nil, *block)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// getting last Block from DB when incoming block nil
+	var lastBlock *model.Block
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	err = bs.PopulateBlockData(lastBlock)
+	if err != nil {
+		return err
+	}
+	err = bs.BlockStateStorage.SetItem(nil, *lastBlock)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -842,13 +871,9 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		return nil, err
 	}
 
-	err = bs.PopulateBlockData(commonBlock)
-	if err != nil {
-		return nil, err
-	}
 	// cache last block state.
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
-	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	err = bs.UpdateLastBlockCache(nil)
 	if err != nil {
 		return nil, err
 	}

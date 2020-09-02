@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"reflect"
 	"sort"
-	"strconv"
 	"sync"
 
 	badger "github.com/dgraph-io/badger/v2"
@@ -47,7 +46,6 @@ type (
 			blockReceipts []*model.PublishedReceipt,
 			secretPhrase string,
 		) (*model.Block, error)
-		RemoveMempoolTransactions(transactions []*model.Transaction) error
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
 		ScanBlockPool() error
@@ -522,7 +520,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 	if block.Height != 0 {
-		if errRemoveMempool := bs.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
+		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
@@ -741,7 +739,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	// cache last block state
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
-	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *block)
+	err = bs.UpdateLastBlockCache(block)
 	if err != nil {
 		return err
 	}
@@ -970,26 +968,16 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 	return blocks, nil
 }
 
-// GetLastBlock return the last pushed block
+// GetLastBlock return the last pushed block from block state storage
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	var (
-		transactions []*model.Transaction
-		lastBlock    *model.Block
-		err          error
+		lastBlock model.Block
+		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
 	)
-
-	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, err
 	}
-
-	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(lastBlock.ID)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	lastBlock.Transactions = transactions
-	return lastBlock, nil
+	return &lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include transactions)
@@ -1000,7 +988,6 @@ func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
 	}
 	block.Transactions = transactions
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
-
 }
 
 // GetBlockByHeight return the last pushed block
@@ -1075,17 +1062,33 @@ func (bs *BlockService) PopulateBlockData(block *model.Block) error {
 	return nil
 }
 
-// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
-func (bs *BlockService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
-	var idsStr []string
-	for _, tx := range transactions {
-		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.ID, 10)+"'")
+// UpdateLastBlockCache to update the state of last block cache
+func (bs *BlockService) UpdateLastBlockCache(block *model.Block) error {
+	var err error
+	// direct update storage cache if block is not nil
+	// Note: make sure block already populate their data before cache
+	if block != nil {
+		err = bs.BlockStateStorage.SetItem(nil, *block)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
-	err := bs.QueryExecutor.ExecuteTransaction(bs.MempoolQuery.DeleteMempoolTransactions(idsStr))
+
+	// getting last Block from DB when incoming block nil
+	var lastBlock *model.Block
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return err
 	}
-	bs.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
+	err = bs.BlockStateStorage.SetItem(nil, *lastBlock)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1427,17 +1430,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, err
 	}
 
-	err = bs.PopulateBlockData(commonBlock)
-	if err != nil {
-		return nil, err
-	}
 	// cache last block state
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
-	err = bs.BlockStateStorage.SetItem(bs.Chaintype.GetTypeInt(), *commonBlock)
+	err = bs.UpdateLastBlockCache(nil)
 	if err != nil {
 		return nil, err
 	}
-
 	// update cache next node admissiom timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
@@ -1606,44 +1604,24 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		return true, nil
 	}
 	var (
-		txRequiredByBlock     = make(TransactionIDsMap)
-		txRequiredByBlockArgs []interface{}
+		txRequiredByBlock = make(TransactionIDsMap)
 	)
 	block.Transactions = make([]*model.Transaction, len(block.GetTransactionIDs()))
 	for idx, txID := range block.TransactionIDs {
 		txRequiredByBlock[txID] = idx
-		// used as argument when quermockBlockDataying in mempool
-		txRequiredByBlockArgs = append(txRequiredByBlockArgs, txID)
 	}
 
 	// find needed transactions in mempool
-	var (
-		caseQuery    = query.NewCaseQuery()
-		mempoolQuery = query.NewMempoolQuery(bs.Chaintype)
-		mempools     []*model.MempoolTransaction
-	)
-	// build query to select transaction in mempool transaction
-	caseQuery.Select(mempoolQuery.TableName, mempoolQuery.Fields...)
-	caseQuery.Where(caseQuery.In("id", txRequiredByBlockArgs...))
-	selectQuery, args := caseQuery.Build()
-	rows, err := bs.QueryExecutor.ExecuteSelect(selectQuery, false, args...)
+	mempoolCacheObjects, err := bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
-	mempools, err = mempoolQuery.BuildModel(mempools, rows)
-	if err != nil {
-		return false, err
+
+	for _, memObj := range mempoolCacheObjects {
+		block.Transactions[txRequiredByBlock[memObj.Tx.GetID()]] = &memObj.Tx
+		delete(txRequiredByBlock, memObj.Tx.GetID())
 	}
-	for _, mempool := range mempools {
-		tx, err := bs.TransactionUtil.ParseTransactionBytes(mempool.TransactionBytes, true)
-		if err != nil {
-			continue
-		}
-		block.Transactions[txRequiredByBlock[tx.GetID()]] = tx
-		delete(txRequiredByBlock, tx.GetID())
-	}
-	// process when needed trasacntions are completed
+	// process when needed transactions are completed
 	if len(txRequiredByBlock) == 0 {
 		err := bs.ProcessCompletedBlock(block)
 		if err != nil {

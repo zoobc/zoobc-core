@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/storage"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -33,7 +32,6 @@ type (
 		Logger                  *log.Logger
 		smithError              error
 		BlockchainStatusService service.BlockchainStatusServiceInterface
-		BlockStateStorage       storage.CacheStorageInterface
 		NodeRegistrationService service.NodeRegistrationServiceInterface
 	}
 )
@@ -49,7 +47,6 @@ func NewBlockchainProcessor(
 	blockService service.BlockServiceInterface,
 	logger *log.Logger,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
-	blockStateStorage storage.CacheStorageInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
@@ -58,7 +55,6 @@ func NewBlockchainProcessor(
 		BlockService:            blockService,
 		Logger:                  logger,
 		BlockchainStatusService: blockchainStatusService,
-		BlockStateStorage:       blockStateStorage,
 		NodeRegistrationService: nodeRegistrationService,
 	}
 }
@@ -71,6 +67,10 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 	var (
 		timeNow int64
 	)
+	err := bp.BlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		return err
+	}
 	// creating a virtual time
 	if !fromGenesis {
 		lastBlock, err := bp.BlockService.GetLastBlock()
@@ -153,12 +153,9 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
 	var (
-		err             error
 		blocksmithIndex int64
-		lastBlock       model.Block
+		lastBlock, err  = bp.BlockService.GetLastBlock()
 	)
-
-	err = bp.BlockStateStorage.GetItem(bp.ChainType.GetTypeInt(), &lastBlock)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
@@ -173,7 +170,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	timestamp := time.Now().Unix()
 	block, err := bp.BlockService.GenerateBlock(
-		&lastBlock,
+		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
 		blocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
@@ -182,7 +179,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// validate
-	err = bp.BlockService.ValidateBlock(block, &lastBlock)
+	err = bp.BlockService.ValidateBlock(block, lastBlock)
 	if err != nil {
 		blockerErr, ok := err.(blocker.Blocker)
 		if ok && blockerErr.Type != blocker.InvalidBlockTimestamp {
@@ -195,7 +192,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return err
 	}
 	// if validated push
-	err = bp.BlockService.PushBlock(&lastBlock, block, true, false)
+	err = bp.BlockService.PushBlock(lastBlock, block, true, false)
 	if err != nil {
 		blockerUsed := blocker.PushMainBlockErr
 		if chaintype.IsSpineChain(bp.ChainType) {
