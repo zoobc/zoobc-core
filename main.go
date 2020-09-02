@@ -1080,15 +1080,19 @@ func main() {
 
 			var (
 				daemonMessage string
+				daemonKind    = daemon.SystemDaemon
 			)
-			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemon.GlobalDaemon)
+			if runtime.GOOS == "darwin" {
+				daemonKind = daemon.GlobalDaemon
+			}
+			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemonKind)
 			if err != nil {
 				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
 			}
 			god = goDaemon{srvDaemon}
 			if runtime.GOOS == "darwin" {
 				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
-					loggerCoreService.Fatal(dErr)
+					log.Fatal(dErr)
 				}
 			}
 
@@ -1098,6 +1102,8 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
+				fmt.Println(daemonMessage)
+				os.Exit(1)
 			case "start":
 				initiateMainInstance()
 				daemonMessage, err = god.Start()
@@ -1132,6 +1138,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
+			fmt.Println("baypass")
 			initiateMainInstance()
 			start()
 		}
