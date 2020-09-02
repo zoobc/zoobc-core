@@ -112,7 +112,6 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
 	cpuProfile                                                      bool
 	cliMonitoring                                                   monitoring.CLIMonitoringInteface
-	flagDaemon                                                      bool
 )
 var (
 	daemonCommand = &cobra.Command{
@@ -144,7 +143,6 @@ func init() {
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
-	flag.BoolVar(&flagDaemon, "daemon", true, "running node daemonize")
 	flag.Parse()
 
 	// spawn config object
@@ -226,19 +224,18 @@ func init() {
 			log.Fatal("Fail to save new configuration")
 		}
 	}
+	cliMonitoring = monitoring.NewCLIMonitoring(config)
+	monitoring.SetCLIMonitoring(cliMonitoring)
 
 }
 
 // initiateMainInstance initiation all instance that must be needed and exists before running the node
 func initiateMainInstance() {
-	fmt.Println("initiate main instance")
 	var (
 		err error
 	)
 
 	initLogInstance()
-	cliMonitoring = monitoring.NewCLIMonitoring(config)
-	monitoring.SetCLIMonitoring(cliMonitoring)
 
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -1014,10 +1011,6 @@ func start() {
 	startScheduler()
 	go startBlockchainSynchronizers()
 
-	if !config.LogOnCli && config.CliMonitoring || !flagDaemon {
-		go cliMonitoring.Start()
-	}
-
 	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
@@ -1098,48 +1091,35 @@ func main() {
 
 			switch args[1] {
 			case "install":
-				daemonMessage, err = god.Install("--daemon")
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(daemonMessage)
-				os.Exit(1)
+				daemonMessage, err = god.Install("daemon run")
 			case "start":
 				initiateMainInstance()
 				daemonMessage, err = god.Start()
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(daemonMessage)
 			case "stop":
 				daemonMessage, err = god.Stop()
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(daemonMessage)
-
-				os.Exit(1)
 			case "remove":
 				daemonMessage, err = god.Remove()
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(daemonMessage)
-				os.Exit(1)
 			case "status":
 				daemonMessage, err = god.Status()
-				if err != nil {
-					log.Fatal(err)
-				}
-				fmt.Println(daemonMessage)
-				os.Exit(1)
+			case "run":
+				// sub command used by system
+				initiateMainInstance()
+				start()
 			default:
 				_ = daemonCommand.Usage()
 				os.Exit(1)
 			}
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(daemonMessage)
+			}
 		} else {
-			fmt.Println("baypass")
+			// running as usual
 			initiateMainInstance()
+			if !config.LogOnCli && config.CliMonitoring {
+				go cliMonitoring.Start()
+			}
 			start()
 		}
 	}
