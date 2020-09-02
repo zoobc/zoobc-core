@@ -15,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 )
@@ -100,7 +101,6 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
 			&transaction.TypeSwitcher{Executor: executor},
-			nil,
 			nil,
 			nil,
 		)
@@ -235,6 +235,22 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			snapshotFile,
 		)
 		executor = query.NewQueryExecutor(sqliteDB)
+		mainBlockService := service.NewBlockMainService(
+			mainChain,
+			nil,
+			executor,
+			query.NewBlockQuery(mainChain),
+			nil, nil, nil, nil, nil, nil, nil,
+			&transaction.TypeSwitcher{Executor: executor},
+			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			storage.NewBlockStateStorage(),
+			nil,
+		)
+		err = mainBlockService.UpdateLastBlockCache(nil)
+		if err != nil {
+			logger.Errorf("Snapshot Failed: %s", err.Error())
+			os.Exit(0)
+		}
 		snapshotMainService := service.NewSnapshotMainBlockService(
 			snapshotFile,
 			executor,
@@ -264,8 +280,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
 			&transaction.TypeSwitcher{Executor: executor},
-			nil,
-			nil,
+			mainBlockService,
 			nil,
 		)
 

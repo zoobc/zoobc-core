@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -41,7 +42,8 @@ type (
 	}
 	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
-		Executor query.ExecutorInterface
+		Executor            query.ExecutorInterface
+		MempoolCacheStorage storage.CacheStorageInterface
 	}
 )
 
@@ -53,7 +55,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		accountLedgerHelper  = NewAccountLedgerHelper(query.NewAccountLedgerQuery(), ts.Executor)
 		transactionHelper    = NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
 		transactionBody      model.TransactionBodyInterface
-		err                  error
+		feeScaleService      = fee.NewFeeScaleService(
+			query.NewFeeScaleQuery(),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+			ts.Executor,
+		)
+		transactionUtil = &Util{
+			MempoolCacheStorage: ts.MempoolCacheStorage,
+			FeeScaleService:     feeScaleService,
+		}
+		err error
 	)
 
 	switch buf[0] {
@@ -261,7 +272,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			pendingTransactionHelper := &PendingTransactionHelper{
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
-				TransactionUtil:         &Util{},
+				TransactionUtil:         transactionUtil,
 				TypeSwitcher:            typeSwitcher,
 				QueryExecutor:           ts.Executor,
 			}
@@ -287,7 +298,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Fee:                      tx.GetFee(),
 				SenderAddress:            tx.GetSenderAccountAddress(),
 				NormalFee:                fee.NewConstantFeeModel(constant.OneZBC / 100),
-				TransactionUtil:          &Util{},
+				TransactionUtil:          transactionUtil,
 				TypeSwitcher:             typeSwitcher,
 				Signature:                &crypto.Signature{},
 				Height:                   tx.Height,
@@ -366,11 +377,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
-				FeeScaleService: fee.NewFeeScaleService(
-					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(&chaintype.MainChain{}),
-					ts.Executor,
-				),
+				FeeScaleService:            feeScaleService,
 			}, nil
 		case 1:
 			transactionBody, err = new(FeeVoteRevealTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
@@ -392,11 +399,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				SignatureInterface:     crypto.NewSignature(),
-				FeeScaleService: fee.NewFeeScaleService(
-					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(chaintype.GetChainType(0)),
-					ts.Executor,
-				),
+				FeeScaleService:        feeScaleService,
 			}, nil
 		default:
 			return nil, nil
