@@ -109,6 +109,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			nil,
 			nil,
 			nil,
+			nil,
 		)
 	)
 

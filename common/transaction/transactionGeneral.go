@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"math"
 	"sort"
 	"time"
@@ -35,7 +36,8 @@ type (
 	}
 
 	Util struct {
-		FeeScaleService fee.FeeScaleServiceInterface
+		FeeScaleService     fee.FeeScaleServiceInterface
+		MempoolCacheStorage storage.CacheStorageInterface
 	}
 
 	MultisigTransactionUtilInterface interface {
@@ -131,12 +133,27 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 // ParseTransactionBytes build transaction from transaction bytes
 func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
 	var (
-		chunkedBytes []byte
-		transaction  model.Transaction
-		buffer       = bytes.NewBuffer(transactionBytes)
-		escrow       model.Escrow
-		err          error
+		chunkedBytes  []byte
+		mempoolObject storage.MempoolCacheObject
+		transaction   model.Transaction
+		buffer        *bytes.Buffer
+		escrow        model.Escrow
+		err           error
 	)
+	txHash := sha3.Sum256(transactionBytes)
+	txID, err := u.GetTransactionID(txHash[:])
+	if err != nil {
+		return &transaction, err
+	}
+	err = u.MempoolCacheStorage.GetItem(txID, &mempoolObject)
+	if err != nil {
+		return nil, err
+	}
+	if mempoolObject.Tx.TransactionHash != nil {
+		return &mempoolObject.Tx, nil
+	}
+
+	buffer = bytes.NewBuffer(transactionBytes)
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionType))
 	if err != nil {
@@ -248,7 +265,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	}
 	// compute and return tx hash and ID too
 	transactionHash := sha3.Sum256(transactionBytes)
-	txID, _ := u.GetTransactionID(transactionHash[:])
+	txID, _ = u.GetTransactionID(transactionHash[:])
 	transaction.ID = txID
 	transaction.TransactionHash = transactionHash[:]
 	return &transaction, nil

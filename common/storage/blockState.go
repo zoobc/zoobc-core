@@ -67,6 +67,14 @@ func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 	return nil
 }
 
+func (bs *BlockStateStorage) GetAllItems(item interface{}) error {
+	return nil
+}
+
+func (bs *BlockStateStorage) RemoveItem(key interface{}) error {
+	return nil
+}
+
 // GetSize return the size of BlockStateStorage
 func (bs *BlockStateStorage) GetSize() int64 {
 	return int64(bs.lastBlock.XXX_Size())

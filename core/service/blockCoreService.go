@@ -30,6 +30,7 @@ type (
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
+		UpdateLastBlockCache(block *model.Block) error
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
 		PopulateBlockData(block *model.Block) error
