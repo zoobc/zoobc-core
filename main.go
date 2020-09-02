@@ -1098,8 +1098,6 @@ func main() {
 				if err != nil {
 					log.Fatal(err)
 				}
-				fmt.Println(daemonMessage)
-				os.Exit(1)
 			case "start":
 				initiateMainInstance()
 				daemonMessage, err = god.Start()
@@ -1134,7 +1132,7 @@ func main() {
 				os.Exit(1)
 			}
 		} else {
-			// initiateMainInstance()
+			initiateMainInstance()
 			start()
 		}
 	}
