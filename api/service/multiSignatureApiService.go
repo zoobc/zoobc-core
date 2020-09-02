@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"encoding/hex"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -290,47 +291,52 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddresses(
 	for _, v := range param.Addresses {
 		accountAddresses = append(accountAddresses, v)
 	}
-	caseQuery.In("account_address", accountAddresses...)
+	caseQuery.Where(caseQuery.In("account_address", accountAddresses...))
 	caseQuery.GroupBy("account_address")
 	selectQuery, args = caseQuery.Build()
+
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 
 	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
 	err = countRow.Scan(
 		&totalRecords,
 	)
+
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, status.Error(codes.NotFound, "FailToGetTotal")
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
 	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
-	caseQuery.Paginate(
-		param.GetPagination().GetLimit(),
-		param.GetPagination().GetPage(),
-	)
+
 	selectQuery, args = caseQuery.Build()
 	multiSignatureAddressesRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer multiSignatureAddressesRows.Close()
+
 	for multiSignatureAddressesRows.Next() {
 		var accountAddress string
+		var multisigAddressesString string
 		var multisigAddresses model.Addresses
 		err = multiSignatureAddressesRows.Scan(
 			&accountAddress,
-			&multisigAddresses,
+			&multisigAddressesString,
 		)
 		if err != nil {
-			multiSignatureAddresses[accountAddress] = &multisigAddresses
+			if err != sql.ErrNoRows {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return nil, status.Error(codes.Internal, err.Error())
 		}
+		multisigAddresses.Addresses = strings.Split(multisigAddressesString, ",")
+		multiSignatureAddresses[accountAddress] = &multisigAddresses
 	}
-
 	return &model.GetMultisigAddressByParticipantAddressesResponse{
-		Count:                   totalRecords,
-		Page:                    param.GetPagination().GetPage(),
+		Total:                   totalRecords,
 		MultiSignatureAddresses: multiSignatureAddresses,
 	}, err
 }
