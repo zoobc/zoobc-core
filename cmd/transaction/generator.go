@@ -309,7 +309,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 	}
 }
 
-// GenerateSignedTxBytes retrun signed transaction bytes
+// GenerateSignedTxBytes return signed transaction bytes
 func GenerateSignedTxBytes(
 	tx *model.Transaction,
 	senderSeed string,

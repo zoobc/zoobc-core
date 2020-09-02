@@ -35,10 +35,13 @@ func startGrpcServer(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
 	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
-	rpcPort, httpPort int, ownerAccountAddress, nodefilePath string,
+	rpcPort, httpPort int,
+	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
-	isDebugMode bool, apiCertFile, apiKeyFile string,
+	isDebugMode bool,
+	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 ) {
 	grpcServer := grpc.NewServer(
@@ -61,9 +64,6 @@ func startGrpcServer(
 	if err != nil {
 		logger.Fatalf("failed to listen: %v\n", err)
 		return
-	}
-	actionTypeSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
 	}
 	participationScoreService := coreService.NewParticipationScoreService(query.NewParticipationScoreQuery(), queryExecutor)
 
@@ -220,10 +220,12 @@ func Start(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
 	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
-	grpcPort, httpPort int,
-	ownerAccountAddress, nodefilePath string,
-	logger *log.Logger, isDebugMode bool,
+	grpcPort, httpPort int, ownerAccountAddress,
+	nodefilePath string,
+	logger *log.Logger,
+	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 ) {
@@ -234,9 +236,14 @@ func Start(
 		nodeRegistrationService,
 		mempoolService,
 		transactionUtil,
+		actionTypeSwitcher,
 		blockStateStorages,
-		grpcPort, httpPort, ownerAccountAddress, nodefilePath,
+		grpcPort, httpPort,
+		ownerAccountAddress,
+		nodefilePath,
 		logger,
-		isDebugMode, apiCertFile, apiKeyFile, maxAPIRequestPerSecond,
+		isDebugMode,
+		apiCertFile, apiKeyFile,
+		maxAPIRequestPerSecond,
 	)
 }
