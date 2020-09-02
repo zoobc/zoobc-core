@@ -461,8 +461,6 @@ func init() {
 		nodeRegistrationService,
 	)
 
-	initP2pInstance()
-
 	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
 		blockchainStatusService,
@@ -477,7 +475,6 @@ func init() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
@@ -491,6 +488,8 @@ func init() {
 		queryExecutor,
 		spinechain,
 	)
+
+	initP2pInstance()
 
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
