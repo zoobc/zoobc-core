@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
@@ -111,6 +112,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
 	cpuProfile                                                      bool
 	cliMonitoring                                                   monitoring.CLIMonitoringInteface
+	flagDaemon                                                      bool
 )
 var (
 	daemonCommand = &cobra.Command{
@@ -142,12 +144,18 @@ func init() {
 	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
+	flag.BoolVar(&flagDaemon, "daemon", true, "running node daemonize")
 	flag.Parse()
 
 	// spawn config object
 	config = model.NewConfig()
+	configPath, err = util.GetRootPath()
+	if err != nil {
+		configPath = "./"
+	}
+
 	// load config for default value to be feed to viper
-	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
+	if err = util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok && useEnvVar {
 			config.ConfigFileExist = true
 		}
@@ -173,7 +181,8 @@ func init() {
 		if err != nil {
 			log.Fatal("Fail to generate node key")
 		}
-	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+	} else {
+		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
 			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
@@ -183,14 +192,14 @@ func init() {
 
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
-		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+		log.Fatalf("ParseKnownPeers Err: %s", err.Error())
 	}
 
 	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
 		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
-		loggerCoreService.Fatal("node seed is empty", err.Error())
+		log.Fatal("node seed is empty")
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
@@ -212,11 +221,20 @@ func init() {
 			log.Fatal("Fail generating address from node's seed")
 		}
 		config.OwnerAccountAddress = id
-		err = config.SaveConfig()
+		err = config.SaveConfig(configPath)
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
 		}
 	}
+
+}
+
+// initiateMainInstance initiation all instance that must be needed and exists before running the node
+func initiateMainInstance() {
+	fmt.Println("initiate main instance")
+	var (
+		err error
+	)
 
 	initLogInstance()
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
@@ -224,7 +242,7 @@ func init() {
 
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
-	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
+	if err = dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(
@@ -240,7 +258,7 @@ func init() {
 	}
 	// initialize k-v db
 	badgerDbInstance = database.NewBadgerDB()
-	if err := badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
+	if err = badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	badgerDb, err = badgerDbInstance.OpenBadgerDB(config.ResourcePath, config.BadgerDbName)
@@ -538,13 +556,14 @@ func init() {
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 	// register event listeners
 	initObserverListeners()
+
 }
 
 func initLogInstance() {
 	var (
 		err       error
 		logLevels = viper.GetStringSlice("logLevels")
-		t         = time.Now().Format("2-Jan-2006_")
+		t         = time.Now().Format("01-02-2006_")
 	)
 
 	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
@@ -692,18 +711,18 @@ func startMainchain() {
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
-		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
 		// genesis next node admission timestamp will be inserted in the very beginning
-		if err := service.AddGenesisNextNodeAdmission(
+		if err = service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
 			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
-		if err := mainchainBlockService.AddGenesis(); err != nil {
+		if err = mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}
 	}
@@ -945,52 +964,8 @@ func startBlockchainSynchronizers() {
 	}()
 }
 
-func main() {
-
-	// Override help to make sure not going through when run daemon
-	daemonCommand.SetHelpFunc(func(command *cobra.Command, strings []string) {
-		_ = daemonCommand.Usage()
-		os.Exit(1)
-	})
-	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
-		if len(args) > 0 && args[0] == "daemon" {
-			if len(args) < 2 {
-				_ = daemonCommand.Usage()
-				os.Exit(1)
-			}
-			var (
-				god           goDaemon
-				daemonMessage string
-			)
-			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemon.GlobalDaemon)
-			if err != nil {
-				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
-			}
-			god = goDaemon{srvDaemon}
-
-			switch args[1] {
-			case "install":
-				daemonMessage, err = god.Install()
-			case "start":
-				daemonMessage, err = god.Start()
-			case "stop":
-				daemonMessage, err = god.Stop()
-			case "remove":
-				daemonMessage, err = god.Remove()
-			case "status":
-				daemonMessage, err = god.Status()
-			default:
-				_ = daemonCommand.Usage()
-				os.Exit(1)
-			}
-			if err != nil {
-				loggerCoreService.Fatal(err)
-			}
-			fmt.Println(daemonMessage)
-		}
-	}
-	_ = daemonCommand.Execute()
-
+// start will start all existence instance
+func start() {
 	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
 		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
 	}
@@ -1026,7 +1001,7 @@ func main() {
 	startScheduler()
 	go startBlockchainSynchronizers()
 
-	if !config.LogOnCli && config.CliMonitoring {
+	if !config.LogOnCli && config.CliMonitoring || !flagDaemon {
 		go cliMonitoring.Start()
 	}
 
@@ -1069,4 +1044,87 @@ func main() {
 			os.Exit(0)
 		}
 	}
+
+}
+
+func main() {
+
+	var (
+		god = goDaemon{}
+	)
+
+	// Override help to make sure not going through when run daemon
+	daemonCommand.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		_ = daemonCommand.Usage()
+		os.Exit(1)
+	})
+	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 && args[0] == "daemon" {
+			if len(args) < 2 {
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+
+			var (
+				daemonMessage string
+			)
+			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemon.GlobalDaemon)
+			if err != nil {
+				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
+			}
+			god = goDaemon{srvDaemon}
+			if runtime.GOOS == "darwin" {
+				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
+					loggerCoreService.Fatal(dErr)
+				}
+			}
+
+			switch args[1] {
+			case "install":
+				daemonMessage, err = god.Install("--daemon")
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(daemonMessage)
+				os.Exit(1)
+			case "start":
+				initiateMainInstance()
+				daemonMessage, err = god.Start()
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(daemonMessage)
+			case "stop":
+				daemonMessage, err = god.Stop()
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(daemonMessage)
+
+				os.Exit(1)
+			case "remove":
+				daemonMessage, err = god.Remove()
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(daemonMessage)
+				os.Exit(1)
+			case "status":
+				daemonMessage, err = god.Status()
+				if err != nil {
+					log.Fatal(err)
+				}
+				fmt.Println(daemonMessage)
+				os.Exit(1)
+			default:
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+		} else {
+			// initiateMainInstance()
+			start()
+		}
+	}
+	_ = daemonCommand.Execute()
+
 }
