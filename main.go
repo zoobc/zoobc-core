@@ -292,7 +292,8 @@ func initiateMainInstance() {
 	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor: queryExecutor,
+		Executor:            queryExecutor,
+		MempoolCacheStorage: mempoolStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -389,9 +390,7 @@ func initiateMainInstance() {
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
 		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		actionSwitcher,
 		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
@@ -402,9 +401,7 @@ func initiateMainInstance() {
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
 		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		actionSwitcher,
 		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
@@ -493,7 +490,7 @@ func initiateMainInstance() {
 		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
-		&transaction.TypeSwitcher{Executor: queryExecutor},
+		actionSwitcher,
 		mainchainBlockService,
 		nodeRegistrationService,
 	)
@@ -677,11 +674,16 @@ func startServices() {
 		nodeRegistrationService,
 		mempoolService,
 		transactionUtil,
+		actionSwitcher,
 		blockStateStorages,
-		config.RPCAPIPort, config.HTTPAPIPort, config.OwnerAccountAddress, filepath.Join(config.ResourcePath, config.NodeKeyFileName),
+		config.RPCAPIPort,
+		config.HTTPAPIPort,
+		config.OwnerAccountAddress,
+		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		isDebugMode,
-		config.APICertFile, config.APIKeyFile,
+		config.APICertFile,
+		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
 	)
 }
@@ -805,9 +807,7 @@ func startMainchain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
@@ -885,9 +885,7 @@ func startSpinechain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),

@@ -297,8 +297,10 @@ func (u *Util) ValidateTransaction(
 			"TxFeeZero",
 		)
 	}
-
-	txAction, err := (&TypeSwitcher{Executor: queryExecutor}).GetTransactionType(tx)
+	txAction, err := (&TypeSwitcher{
+		Executor:            queryExecutor,
+		MempoolCacheStorage: u.MempoolCacheStorage,
+	}).GetTransactionType(tx)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.AppErr,
