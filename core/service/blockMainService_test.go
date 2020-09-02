@@ -2858,8 +2858,8 @@ type (
 	}
 )
 
-func (*mockMempoolServiceGetMempoolTransactionSuccess) GetMempoolTransactions() ([]storage.MempoolCacheObject, error) {
-	return []storage.MempoolCacheObject{}, nil
+func (*mockMempoolServiceGetMempoolTransactionSuccess) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
 }
 
 func TestBlockService_ReceiveBlock(t *testing.T) {
@@ -4502,8 +4502,8 @@ type (
 	}
 )
 
-func (*mockMempoolServiceProcessQueuedBlockSuccess) GetMempoolTransactions() ([]storage.MempoolCacheObject, error) {
-	return []storage.MempoolCacheObject{}, nil
+func (*mockMempoolServiceProcessQueuedBlockSuccess) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
 }
 
 func (*mockBlocksmithServiceProcessQueued) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
@@ -4529,6 +4529,36 @@ func (*mockBlockIncompleteQueueServiceAlreadyExist) GetBlockQueue(blockID int64)
 	return &model.Block{
 		ID: constant.MainchainGenesisBlockID,
 	}
+}
+
+type (
+	mockTransactionCoreServiceProcessQueueBlockDuplicateFound struct {
+		TransactionCoreService
+	}
+	mockTransactionCoreServiceProcessQueueBlockGetTransactionsError struct {
+		TransactionCoreService
+	}
+	mockTransactionCoreServiceProcessQueueBlockNoDuplicateFound struct {
+		TransactionCoreService
+	}
+)
+
+func (*mockTransactionCoreServiceProcessQueueBlockDuplicateFound) GetTransactionsByIds(
+	transactionIds []int64,
+) ([]*model.Transaction, error) {
+	return make([]*model.Transaction, 2), nil
+}
+
+func (*mockTransactionCoreServiceProcessQueueBlockGetTransactionsError) GetTransactionsByIds(
+	transactionIds []int64,
+) ([]*model.Transaction, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockTransactionCoreServiceProcessQueueBlockNoDuplicateFound) GetTransactionsByIds(
+	transactionIds []int64,
+) ([]*model.Transaction, error) {
+	return make([]*model.Transaction, 0), nil
 }
 
 func TestBlockService_ProcessQueueBlock(t *testing.T) {
@@ -4595,6 +4625,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
 		Observer                    *observer.Observer
 		Logger                      *log.Logger
+		TransactionCoreService      TransactionCoreServiceInterface
 	}
 	type args struct {
 		block *model.Block
@@ -4627,6 +4658,70 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			wantErr:      false,
 		},
 		{
+			name: "wantErr:DuplicateTxFound",
+			args: args{
+				block: &mockBlockWithTransactionIDs,
+			},
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				KVExecutor:       &mockKVExecutorSuccess{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+				MempoolService:   &mockMempoolServiceProcessQueuedBlockSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockQueryExecutorSuccess{},
+				},
+				AccountBalanceQuery:         query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:          query.NewAccountLedgerQuery(),
+				SkippedBlocksmithQuery:      query.NewSkippedBlocksmithQuery(),
+				NodeRegistrationQuery:       query.NewNodeRegistrationQuery(),
+				Observer:                    observer.NewObserver(),
+				NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
+				BlocksmithStrategy:          &mockBlocksmithServiceProcessQueued{},
+				BlockIncompleteQueueService: NewBlockIncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
+				Logger:                      log.New(),
+				TransactionCoreService:      &mockTransactionCoreServiceProcessQueueBlockDuplicateFound{},
+			},
+			wantIsQueued: false,
+			wantErr:      true,
+		},
+		{
+			name: "wantErr:GetTransactionIDsFail",
+			args: args{
+				block: &mockBlockWithTransactionIDs,
+			},
+			fields: fields{
+				Chaintype:        &chaintype.MainChain{},
+				KVExecutor:       &mockKVExecutorSuccess{},
+				QueryExecutor:    &mockQueryExecutorSuccess{},
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+				Signature:        &mockSignature{},
+				MempoolService:   &mockMempoolServiceProcessQueuedBlockSuccess{},
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					Executor: &mockQueryExecutorSuccess{},
+				},
+				AccountBalanceQuery:         query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:          query.NewAccountLedgerQuery(),
+				SkippedBlocksmithQuery:      query.NewSkippedBlocksmithQuery(),
+				NodeRegistrationQuery:       query.NewNodeRegistrationQuery(),
+				Observer:                    observer.NewObserver(),
+				NodeRegistrationService:     &mockNodeRegistrationServiceSuccess{},
+				BlocksmithStrategy:          &mockBlocksmithServiceProcessQueued{},
+				BlockIncompleteQueueService: NewBlockIncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
+				Logger:                      log.New(),
+				TransactionCoreService:      &mockTransactionCoreServiceProcessQueueBlockGetTransactionsError{},
+			},
+			wantIsQueued: false,
+			wantErr:      true,
+		},
+		{
 			name: "wantSuccess:AllTxInCached",
 			args: args{
 				block: &mockBlockWithTransactionIDs,
@@ -4653,6 +4748,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				BlocksmithStrategy:          &mockBlocksmithServiceProcessQueued{},
 				BlockIncompleteQueueService: NewBlockIncompleteQueueService(&chaintype.MainChain{}, observer.NewObserver()),
 				Logger:                      log.New(),
+				TransactionCoreService:      &mockTransactionCoreServiceProcessQueueBlockNoDuplicateFound{},
 			},
 			wantIsQueued: true,
 			wantErr:      false,
@@ -4683,6 +4779,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 				Observer:                    tt.fields.Observer,
 				Logger:                      tt.fields.Logger,
 				TransactionUtil:             &transaction.Util{},
+				TransactionCoreService:      tt.fields.TransactionCoreService,
 			}
 			gotIsQueued, err := bs.ProcessQueueBlock(tt.args.block, mockPeer)
 			if (err != nil) != tt.wantErr {
