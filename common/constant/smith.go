@@ -6,7 +6,7 @@ import (
 
 var (
 	CoinbaseTotalDistribution        int64   = 3000000 * OneZBC // 3 million * 10^8 in production
-	CoinbaseTime                     int64   = 5 * OneYear      // 5 years in production
+	CoinbaseTime                     int64   = OneYear          // 15 years in production
 	CoinbaseSigmoidStart             float64 = 3
 	CoinbaseSigmoidEnd               float64 = 6
 	CoinbaseNumberRewardsPerSecond   int64   = 1 // probably this will always be 1

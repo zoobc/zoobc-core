@@ -623,7 +623,9 @@ func init() {
 	proto.RegisterType((*GetPendingNodeRegistrationsResponse)(nil), "model.GetPendingNodeRegistrationsResponse")
 }
 
-func init() { proto.RegisterFile("model/nodeRegistration.proto", fileDescriptor_df1af0ec89e31788) }
+func init() {
+	proto.RegisterFile("model/nodeRegistration.proto", fileDescriptor_df1af0ec89e31788)
+}
 
 var fileDescriptor_df1af0ec89e31788 = []byte{
 	// 624 bytes of a gzipped FileDescriptorProto

@@ -24,7 +24,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
-	viper.SetDefault("apiHTTPPort", 7001)
+	viper.SetDefault("apiHTTPPort", 7003)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
 	viper.Set("snapshotPath", filepath.Join(path, "./resource/snapshots"))
 	viper.SetDefault("logOnCli", false)
@@ -39,6 +39,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.AddConfigPath(path)
 	viper.AddConfigPath("$HOME/zoobc")
 
+	fmt.Printf("full_path: %s", filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
 	configFile, err := os.Open(filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
 	if err != nil {
 		fmt.Printf("Config not found : %s\n", err.Error())
