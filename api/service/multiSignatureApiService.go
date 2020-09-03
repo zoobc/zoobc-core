@@ -287,10 +287,11 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 
 	caseQuery.Select(multisignatureParticipantQuery.TableName, []string{"multisig_address"}...)
 	caseQuery.Where(caseQuery.Equal("account_address", param.ParticipantAddress))
+
 	selectQuery, args = caseQuery.Build()
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-
 	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
+
 	err = countRow.Scan(
 		&totalRecords,
 	)
@@ -301,11 +302,11 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
 	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
 
 	selectQuery, args = caseQuery.Build()
 	multiSignatureAddressesRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
+
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -324,6 +325,7 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 		}
 		multiSignatureAddresses = append(multiSignatureAddresses, multisigAddress)
 	}
+
 	return &model.GetMultisigAddressByParticipantAddressResponse{
 		Total:              totalRecords,
 		MultiSignAddresses: multiSignatureAddresses,
