@@ -6,5 +6,5 @@ import "regexp"
 // into one for getting total record
 func GetTotalRecordOfSelect(selectQuery string) string {
 	re := regexp.MustCompile(`(?i)SELECT(.*)FROM`)
-	return "SELECT count() as total_record FROM (" + re.ReplaceAllString(selectQuery, `SELECT NULL FROM`) + ")"
+	return re.ReplaceAllString(selectQuery, `SELECT count() as total_record FROM`)
 }
