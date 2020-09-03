@@ -124,6 +124,7 @@ func init() {
 	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
 	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
 	flag.Parse()
+
 	// spawn config object
 	config = model.NewConfig()
 	// load config for default value to be feed to viper
