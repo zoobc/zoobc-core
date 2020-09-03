@@ -161,11 +161,11 @@ func initiateMainInstance() {
 	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
 
 	// check and validate configurations
-	// err = util.NewSetupNode(config).CheckConfig()
-	// if err != nil {
-	// 	log.Fatalf("Unknown error occurred - error: %s", err.Error())
-	// 	return
-	// }
+	err = util.NewSetupNode(config).CheckConfig()
+	if err != nil {
+		log.Fatalf("Unknown error occurred - error: %s", err.Error())
+		return
+	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 	if len(config.NodeKey.Seed) > 0 {
