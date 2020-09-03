@@ -527,37 +527,28 @@ func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (
+		qStr           string
 		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
-		selectQ, qStr  string
 		err            error
-		mempools       []*model.MempoolTransaction
+		cachedTxs      = make(storage.MempoolMap)
 	)
-
-	selectQ = mps.MempoolQuery.GetExpiredMempoolTransactions(expirationTime)
-	rows, err := mps.QueryExecutor.ExecuteSelect(selectQ, false)
+	err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
-	if err != nil {
-		return err
+	if len(cachedTxs) == 0 {
+		return nil
 	}
-
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	for _, m := range mempools {
-		tx, err := mps.TransactionUtil.ParseTransactionBytes(m.GetTransactionBytes(), true)
-		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				mps.Logger.Error(rollbackErr.Error())
-			}
-			return err
+	for _, memObj := range cachedTxs {
+		if memObj.ArrivalTimestamp > expirationTime {
+			continue
 		}
-		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		tx := memObj.Tx
+		action, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
