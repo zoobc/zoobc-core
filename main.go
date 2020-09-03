@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"time"
 
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -47,7 +49,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 var (
@@ -120,6 +121,7 @@ var (
 		Use:   "run",
 		Short: "Run node as without daemon.",
 	}
+	rootCmd *cobra.Command
 )
 
 // goDaemon instance that needed  to implement whole method of daemon
@@ -127,13 +129,11 @@ type goDaemon struct {
 	daemon.Daemon
 }
 
-func init() {
+// initiateMainInstance initiation all instance that must be needed and exists before running the node
+func initiateMainInstance() {
 	var (
 		err error
 	)
-
-	// spawn config object
-	config = model.NewConfig()
 
 	if flagConfigPath == "" {
 		flagConfigPath, err = util.GetRootPath()
@@ -217,14 +217,7 @@ func init() {
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
 
-}
-
-// initiateMainInstance initiation all instance that must be needed and exists before running the node
-func initiateMainInstance() {
-	var (
-		err error
-	)
-
+	// break
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err = dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
@@ -1040,28 +1033,19 @@ func start() {
 	}
 
 }
-
-func main() {
-
-	var (
-		god = goDaemon{}
-	)
-
-	rootCmd := &cobra.Command{}
+func init() {
+	rootCmd = &cobra.Command{}
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
+	config = model.NewConfig()
+}
 
-	runCommand.Run = func(cmd *cobra.Command, args []string) {
-		initLogInstance(filepath.Join(flagConfigPath, "/.log"))
-		initiateMainInstance()
-		if !config.LogOnCli && config.CliMonitoring {
-			go cliMonitoring.Start()
-		}
-		start()
-	}
+func main() {
+
+	var god = goDaemon{}
 
 	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
@@ -1110,6 +1094,14 @@ func main() {
 		} else {
 			_ = daemonCommand.Usage()
 		}
+	}
+	runCommand.Run = func(cmd *cobra.Command, args []string) {
+		initLogInstance(filepath.Join(flagConfigPath, "/.log"))
+		initiateMainInstance()
+		if !config.LogOnCli && config.CliMonitoring {
+			go cliMonitoring.Start()
+		}
+		start()
 	}
 
 	rootCmd.AddCommand(runCommand)
