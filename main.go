@@ -135,7 +135,7 @@ func init() {
 	// spawn config object
 	config = model.NewConfig()
 
-	if flagConfigPath != "" {
+	if flagConfigPath == "" {
 		flagConfigPath, err = util.GetRootPath()
 		if err != nil {
 			flagConfigPath = "./"
