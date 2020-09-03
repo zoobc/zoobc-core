@@ -134,10 +134,10 @@ func init() {
 
 	// spawn config object
 	config = model.NewConfig()
-	// flagConfigPath, err = util.GetRootPath()
-	// if err != nil {
-	// 	flagConfigPath = "./"
-	// }
+	flagConfigPath, err = util.GetRootPath()
+	if err != nil {
+		flagConfigPath = "./"
+	}
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
