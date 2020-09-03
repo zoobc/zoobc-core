@@ -3,7 +3,6 @@ package model
 import (
 	"errors"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -62,7 +61,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
 }
 
-func (cfg *Config) SaveConfig(filePath string) error {
+func (cfg *Config) SaveConfig() error {
 	var err error
 	viper.Set("smithing", cfg.Smithing)
 	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddress)
@@ -72,10 +71,10 @@ func (cfg *Config) SaveConfig(filePath string) error {
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
 	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
 	// todo: code in rush, need refactor later andy-shi88
-	_, err = os.Stat(filepath.Join(filePath, "./config.toml"))
+	_, err = os.Stat("./config.toml")
 	if err != nil {
 		if ok := os.IsNotExist(err); ok {
-			err = viper.SafeWriteConfigAs(filepath.Join(filePath, "./config.toml"))
+			err = viper.SafeWriteConfigAs("./config.toml")
 			if err != nil {
 				return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
 			}
@@ -83,7 +82,7 @@ func (cfg *Config) SaveConfig(filePath string) error {
 			return err
 		}
 	}
-	err = viper.WriteConfigAs(filepath.Join(filePath, "./config.toml"))
+	err = viper.WriteConfigAs("./config.toml")
 	if err != nil {
 		return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
 	}

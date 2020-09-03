@@ -220,7 +220,7 @@ func generateConfig(config model.Config) error {
 
 	admin.GenerateNodeKeysFile(config.NodeSeed)
 	color.Cyan("Saving configuration")
-	err = config.SaveConfig("./")
+	err = config.SaveConfig()
 	if err != nil {
 		color.Red(err.Error())
 	}

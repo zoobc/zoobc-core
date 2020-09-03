@@ -3,7 +3,6 @@ package util
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +33,7 @@ func (h hooker) Levels() []logrus.Level {
 }
 
 /*
-InitLogger is function that should be implemented with interceptor. That can centralized the log action.
+InitLogger is function that should be implemeneted with interceptor. That can centralized the log action.
 `[]logrus.Level` can inject dynamically switch on development or production mode
 */
 func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.Logger, error) {
@@ -47,11 +46,12 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 	)
 	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
-		if e := os.Mkdir(path, os.ModePerm); e != nil {
-			return nil, e
+		if err := os.Mkdir(path, os.ModePerm); err != nil {
+			return nil, err
 		}
 	}
-	logFile, err = os.OpenFile(filepath.Join(path, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
+
+	logFile, err = os.OpenFile(path+filename, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,6 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 	logger = logrus.New()
 	for _, v := range levels {
 		switch v {
-		case "debug":
-			logLevels = append(logLevels, logrus.DebugLevel)
 		case "info":
 			logLevels = append(logLevels, logrus.InfoLevel)
 		case "warn":
@@ -71,6 +69,8 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 			logLevels = append(logLevels, logrus.FatalLevel)
 		case "panic":
 			logLevels = append(logLevels, logrus.PanicLevel)
+		case "debug":
+			logLevels = append(logLevels, logrus.DebugLevel)
 		}
 		// lowestLevel will based on the list log level will use
 		if lowestLevel < logLevels[len(logLevels)-1] {
@@ -96,12 +96,7 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 		// only record log on file
 		logger.SetOutput(logFile)
 	}
-	logger.ExitFunc = func(i int) {
-		if logFile == nil {
-			return
-		}
-		_ = logFile.Close()
-	}
+
 	// lowestLevel use to set lowest level will fire
 	logger.SetLevel(lowestLevel)
 
