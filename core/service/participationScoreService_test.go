@@ -281,3 +281,101 @@ func TestParticipationScoreService_GetParticipationScoreByBlockHeightRange(t *te
 		})
 	}
 }
+
+var (
+	mockParticipationQueryGetLatestSuccess = &model.ParticipationScore{
+		NodeID: 100,
+		Score:  1000,
+		Latest: true,
+		Height: 1001,
+	}
+)
+
+type (
+	mockExecutorGetLatestParticipationScoreByNodeIDSuccess struct {
+		query.Executor
+	}
+	mockExecutorGetLatestParticipationScoreByNodeIDFail struct {
+		query.Executor
+	}
+)
+
+func (*mockExecutorGetLatestParticipationScoreByNodeIDFail) ExecuteSelectRow(
+	query string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockExecutorGetLatestParticipationScoreByNodeIDSuccess) ExecuteSelectRow(
+	qStr string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	dbMocked, mock, _ := sqlmock.New()
+	mockedRows := mock.NewRows(query.NewParticipationScoreQuery().Fields)
+	mockedRows.AddRow(
+		mockParticipationQueryGetLatestSuccess.NodeID,
+		mockParticipationQueryGetLatestSuccess.Score,
+		mockParticipationQueryGetLatestSuccess.Latest,
+		mockParticipationQueryGetLatestSuccess.Height,
+	)
+
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
+	return dbMocked.QueryRow(qStr), nil
+}
+
+func TestParticipationScoreService_GetLatestParticipationScoreByNodeID(t *testing.T) {
+	type fields struct {
+		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		QueryExecutor           query.ExecutorInterface
+	}
+	type args struct {
+		nodeID int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.ParticipationScore
+		wantErr bool
+	}{
+		{
+			name: "getLatestParticipationScoreByNodeID - success",
+			fields: fields{
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				QueryExecutor:           &mockExecutorGetLatestParticipationScoreByNodeIDSuccess{},
+			},
+			args: args{
+				nodeID: mockParticipationQueryGetLatestSuccess.NodeID,
+			},
+			want:    mockParticipationQueryGetLatestSuccess,
+			wantErr: false,
+		},
+		{
+			name: "getLatestParticipationScoreByNodeID - error executor",
+			fields: fields{
+				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				QueryExecutor:           &mockExecutorGetLatestParticipationScoreByNodeIDFail{},
+			},
+			args: args{
+				nodeID: mockParticipationQueryGetLatestSuccess.NodeID,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pss := &ParticipationScoreService{
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+			}
+			got, err := pss.GetLatestParticipationScoreByNodeID(tt.args.nodeID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetLatestParticipationScoreByNodeID() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetLatestParticipationScoreByNodeID() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

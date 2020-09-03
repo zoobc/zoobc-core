@@ -9,6 +9,7 @@ import (
 type (
 	ParticipationScoreServiceInterface interface {
 		GetParticipationScore(nodePublicKey []byte) (int64, error)
+		GetLatestParticipationScoreByNodeID(nodeID int64) (*model.ParticipationScore, error)
 		GetParticipationScoreByBlockHeightRange(fromBlockHeight, toBlockHeight uint32) ([]*model.ParticipationScore, error)
 	}
 
@@ -45,6 +46,24 @@ func (pss *ParticipationScoreService) GetParticipationScore(nodePublicKey []byte
 		return 0, nil
 	}
 	return participationScores[0].Score, nil
+}
+
+// GetParticipationScoreByNodeID get latest participation score of a node
+func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeID(nodeID int64) (*model.ParticipationScore, error) {
+	var (
+		participationScore model.ParticipationScore
+	)
+	participationScoreQ, args := pss.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
+	row, err := pss.QueryExecutor.ExecuteSelectRow(participationScoreQ, false, args...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = pss.ParticipationScoreQuery.Scan(&participationScore, row)
+	// if there aren't participation scores for this address/node, return 0
+	if err != nil {
+		return nil, nil
+	}
+	return &participationScore, nil
 }
 
 // GetParticipationScoreByBlockHeightRange get list of participation score change in the range Heights
