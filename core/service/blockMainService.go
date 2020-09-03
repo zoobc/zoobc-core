@@ -1617,9 +1617,11 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		return false, err
 	}
 
-	for _, memObj := range mempoolCacheObjects {
-		block.Transactions[txRequiredByBlock[memObj.Tx.GetID()]] = &memObj.Tx
-		delete(txRequiredByBlock, memObj.Tx.GetID())
+	for txID, txIdx := range txRequiredByBlock {
+		if memObj, ok := mempoolCacheObjects[txID]; ok {
+			block.Transactions[txIdx] = &memObj.Tx
+			delete(txRequiredByBlock, memObj.Tx.GetID())
+		}
 	}
 	// process when needed transactions are completed
 	if len(txRequiredByBlock) == 0 {
@@ -1629,18 +1631,25 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 		}
 		return true, nil
 	}
-
+	// check if block has any txIDs that're already in `transactions` table, if yes, the block is rejected for
+	// including applied txs
+	var txIds []int64
+	for txID := range txRequiredByBlock {
+		txIds = append(txIds, txID)
+	}
+	duplicateTxs, err := bs.TransactionCoreService.GetTransactionsByIds(txIds)
+	if err != nil {
+		return false, err
+	}
+	if len(duplicateTxs) > 0 {
+		return false, blocker.NewBlocker(blocker.ValidationErr, "BlockContainAppliedTransactions")
+	}
 	// saving temporary block
 	bs.BlockIncompleteQueueService.AddBlockQueue(block)
 	bs.BlockIncompleteQueueService.SetTransactionsRequired(block.GetID(), txRequiredByBlock)
 
 	if peer == nil {
 		bs.Logger.Errorf("Error peer is null, can not request block transactions from the Peer")
-	}
-
-	var txIds []int64
-	for txID := range txRequiredByBlock {
-		txIds = append(txIds, txID)
 	}
 
 	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)

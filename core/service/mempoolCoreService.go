@@ -32,7 +32,7 @@ type (
 		InitMempoolTransaction() error
 		AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error
 		RemoveMempoolTransactions(mempoolTxs []*model.Transaction) error
-		GetMempoolTransactions() ([]storage.MempoolCacheObject, error)
+		GetMempoolTransactions() (storage.MempoolMap, error)
 		GetTotalMempoolTransactions() (int, error)
 		SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error)
 		ValidateMempoolTransaction(mpTx *model.Transaction) error
@@ -182,20 +182,16 @@ func (mps *MempoolService) GetTotalMempoolTransactions() (int, error) {
 }
 
 // GetMempoolTransactions fetch transactions from mempool
-func (mps *MempoolService) GetMempoolTransactions() ([]storage.MempoolCacheObject, error) {
+func (mps *MempoolService) GetMempoolTransactions() (storage.MempoolMap, error) {
 	var (
-		mempoolCache        = make(storage.MempoolMap)
-		mempoolTransactions = make([]storage.MempoolCacheObject, 0)
-		err                 error
+		mempoolCache = make(storage.MempoolMap)
+		err          error
 	)
 	err = mps.MempoolCacheStorage.GetAllItems(mempoolCache)
 	if err != nil {
 		return nil, err
 	}
-	for _, memObj := range mempoolCache {
-		mempoolTransactions = append(mempoolTransactions, memObj)
-	}
-	return mempoolTransactions, nil
+	return mempoolCache, nil
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
