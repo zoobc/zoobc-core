@@ -3,6 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/sirupsen/logrus"
 )
@@ -50,24 +51,7 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 			return nil, err
 		}
 	}
-
-	// group, err := user.Lookup("root")
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// uid, _ := strconv.Atoi(group.Uid)
-	// gid, _ := strconv.Atoi(group.Gid)
-	// fmt.Println(uid, gid)
-	// err = os.Chown(path, uid, gid)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// err = os.Chmod(path, os.ModePerm)
-	// if err != nil {
-	// 	return nil, err
-	// }
-	//
-	logFile, err = os.OpenFile(path+filename, os.O_WRONLY|os.O_CREATE, os.ModePerm)
+	logFile, err = os.OpenFile(filepath.Join(path, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +86,7 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 		)
 	}
 	logger.SetReportCaller(true)
-	logger.SetFormatter(&logrus.JSONFormatter{})
+	// logger.SetFormatter(&logrus.JSONFormatter{})
 	if logOnCLI {
 		logger.AddHook(&hooker{
 			Writer:      logFile,
@@ -112,7 +96,12 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 		// only record log on file
 		logger.SetOutput(logFile)
 	}
-
+	logger.ExitFunc = func(i int) {
+		if logFile == nil {
+			return
+		}
+		_ = logFile.Close()
+	}
 	// lowestLevel use to set lowest level will fire
 	logger.SetLevel(lowestLevel)
 

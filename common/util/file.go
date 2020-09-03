@@ -33,7 +33,7 @@ func GetRootPath() (string, error) {
 		return os.Getwd()
 	}
 	// gops executable must be in the path. See https://github.com/google/gops
-	gopsOut, err := exec.Command("gops", strconv.Itoa(os.Getppid())).Output()
+	gopsOut, err := exec.Command("gops", strconv.Itoa(os.Getppid())).Output() //nolint:gosec no need to lint this line
 	if err == nil && strings.Contains(string(gopsOut), "\\dlv.exe") {
 		// our parent process is (probably) the Delve debugger
 		return os.Getwd()

@@ -112,6 +112,7 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
 	cpuProfile                                                      bool
 	cliMonitoring                                                   monitoring.CLIMonitoringInteface
+	configPath                                                      string
 )
 var (
 	daemonCommand = &cobra.Command{
@@ -134,7 +135,6 @@ type goDaemon struct {
 func init() {
 	var (
 		configPostfix string
-		configPath    string
 		err           error
 	)
 	// parse custom flag in running the node
@@ -234,8 +234,6 @@ func initiateMainInstance() {
 	var (
 		err error
 	)
-
-	initLogInstance()
 
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
@@ -568,23 +566,23 @@ func initiateMainInstance() {
 
 }
 
-func initLogInstance() {
+func initLogInstance(logPath string) {
 	var (
 		err       error
 		logLevels = viper.GetStringSlice("logLevels")
 		t         = time.Now().Format("01-02-2006_")
 	)
 
-	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerAPIService, err = util.InitLogger(logPath, t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerCoreService, err = util.InitLogger(logPath, t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerP2PService, err = util.InitLogger(logPath, t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
+	if loggerScheduler, err = util.InitLogger(logPath, t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
 }
@@ -1093,7 +1091,6 @@ func main() {
 			case "install":
 				daemonMessage, err = god.Install("daemon run")
 			case "start":
-				initiateMainInstance()
 				daemonMessage, err = god.Start()
 			case "stop":
 				daemonMessage, err = god.Stop()
@@ -1103,6 +1100,7 @@ func main() {
 				daemonMessage, err = god.Status()
 			case "run":
 				// sub command used by system
+				initLogInstance(fmt.Sprintf("%s/.log", configPath))
 				initiateMainInstance()
 				start()
 			default:
@@ -1116,6 +1114,7 @@ func main() {
 			}
 		} else {
 			// running as usual
+			initLogInstance(filepath.Join(configPath, "/.log"))
 			initiateMainInstance()
 			if !config.LogOnCli && config.CliMonitoring {
 				go cliMonitoring.Start()

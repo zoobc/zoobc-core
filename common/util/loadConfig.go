@@ -51,15 +51,4 @@ func LoadConfig(path, name, extension string) error {
 		return err
 	}
 	return viper.WriteConfig()
-
-	// if err := viper.ReadInConfig(); err != nil {
-	// 	if _, ok := err.(viper.ConfigFileNotFoundError); ok && name == "config" {
-	// 		fmt.Printf("Config not found : %s\n", err.Error())
-	// 		// Config file not found; ignore error if desired
-	// 		return err
-	// 	}
-	// 	// Config file was found but another error was produced
-	// 	return err
-	// }
-	// return nil
 }
