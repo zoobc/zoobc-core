@@ -75,15 +75,30 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
 ### Run
 
 > If already build, just run the binary
-
 ```bash
-./zoobc
+Usage:
+   [command]
+
+Available Commands:
+  daemon      Run node on daemon service, which mean running in the background. Similar to launchd or systemd
+  help        Help about any command
+  run         Run node as without daemon.
+
+Flags:
+      --config-path string      Configuration path (default "./")
+      --config-postfix string   Configuration version
+      --debug                   Run on debug mode
+  -h, --help                    help for this command
+      --profiling               Run with profiling
+      --use-env                 Running node without configuration file
+
+Use " [command] --help" for more information about a command.
 ```
 
 > Main node application run manually
 
 ```bash
-go run main.go
+go run main.go run
 ```
 
 -   Flags:
