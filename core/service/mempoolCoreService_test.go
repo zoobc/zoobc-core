@@ -431,6 +431,38 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, 
 	return db.Query("")
 }
 
+type (
+	mockMempoolCacheStorageEmpty struct {
+		storage.MempoolCacheStorage
+	}
+	mockMempoolCacheStorageExpiryExist struct {
+		storage.MempoolCacheStorage
+	}
+)
+
+func (*mockMempoolCacheStorageEmpty) GetAllItems(item interface{}) error {
+	return nil
+}
+
+func (*mockMempoolCacheStorageExpiryExist) GetAllItems(item interface{}) error {
+	itemCopy, ok := item.(storage.MempoolMap)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItem")
+	}
+	mTx := transaction.GetFixturesForTransaction(
+		1562893302,
+		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		true,
+	)
+	itemCopy[1111] = storage.MempoolCacheObject{
+		ArrivalTimestamp: 10,
+		Tx:               *mTx,
+	}
+
+	return nil
+}
+
 func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -441,6 +473,7 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 		Signature              crypto.SignatureInterface
 		TransactionQuery       query.TransactionQueryInterface
 		Observer               *observer.Observer
+		MempoolCacheStorage    storage.CacheStorageInterface
 		TransactionCoreService TransactionCoreServiceInterface
 	}
 	tests := []struct {
@@ -451,8 +484,9 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 		{
 			name: "wantSuccess:EmptyMempool",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty{},
-				MempoolQuery:  mockMempoolQuery,
+				QueryExecutor:       &mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty{},
+				MempoolQuery:        mockMempoolQuery,
+				MempoolCacheStorage: &mockMempoolCacheStorageEmpty{},
 			},
 			wantErr: false,
 		},
@@ -464,6 +498,7 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
 				},
+				MempoolCacheStorage: &mockMempoolCacheStorageExpiryExist{},
 				TransactionCoreService: NewTransactionCoreService(
 					log.New(),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
@@ -493,6 +528,7 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 				TransactionQuery:       tt.fields.TransactionQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				MempoolCacheStorage:    tt.fields.MempoolCacheStorage,
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
