@@ -30,6 +30,7 @@ type (
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
+		UpdateLastBlockCache(block *model.Block) error
 		GetBlockHash(block *model.Block) ([]byte, error)
 		GetBlocks() ([]*model.Block, error)
 		PopulateBlockData(block *model.Block) error
@@ -47,7 +48,6 @@ type (
 			nodeSecretPhrase string,
 			peer *model.Peer,
 		) (*model.BatchReceipt, error)
-		GetBlockExtendedInfo(block *model.Block, includeReceipts bool) (*model.BlockExtendedInfo, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener

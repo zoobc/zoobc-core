@@ -24,7 +24,7 @@ func (*mockNodeRegistrationQueryExecutorSuccess) ExecuteSelect(qStr string, tx b
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
 	switch qStr {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
 		"FROM main_block AS mb1 WHERE mb1.timestamp >= 1) AND height <= (SELECT MAX(height) " +
 		"FROM main_block AS mb2 WHERE mb2.timestamp < 2) AND registration_status != 1 AND latest=1 ORDER BY height":

@@ -141,7 +141,7 @@ func TestBatchReceiptQuery_GetBatchReceipts(t *testing.T) {
 			}},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, " +
 				"reference_block_height, reference_block_hash, rmr_linked, recipient_signature " +
-				"FROM batch_receipt ORDER BY reference_block_height ASC LIMIT 8 OFFSET 0",
+				"FROM batch_receipt ORDER BY reference_block_height ASC LIMIT 256 OFFSET 0",
 		},
 	}
 	for _, tt := range tests {

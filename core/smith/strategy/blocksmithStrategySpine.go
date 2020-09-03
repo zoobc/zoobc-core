@@ -8,13 +8,10 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-
-	log "github.com/sirupsen/logrus"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -206,9 +203,13 @@ func (*BlocksmithStrategySpine) CanPersistBlock(
 func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error {
 	var (
 		currentTime                      = time.Now().Unix()
-		ct                               = &chaintype.MainChain{}
+		ct                               = &chaintype.SpineChain{}
 		prevRoundBegin, prevRoundExpired int64
 	)
+	// avoid division by zero in case there are no blocksmiths in the network (edge case)
+	if numberOfBlocksmiths < 1 {
+		return blocker.NewBlocker(blocker.SmithingPending, "NoBlockSmiths")
+	}
 	// calculate total time before every blocksmiths are skipped
 	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
 	timeSinceLastBlock := currentTime - previousBlock.GetTimestamp()
@@ -218,6 +219,10 @@ func (bss *BlocksmithStrategySpine) IsValidSmithTime(blocksmithIndex, numberOfBl
 	}
 	modTimeSinceLastBlock := timeSinceLastBlock - ct.GetSmithingPeriod()
 	timeRound := math.Floor(float64(modTimeSinceLastBlock) / float64(timeForOneRound))
+	if timeForOneRound <= 0 || numberOfBlocksmiths <= 0 {
+
+		return blocker.NewBlocker(blocker.SmithingPending, "NUmberOfBlockSmithsLessThanWhatIsNeeded")
+	}
 	remainder := modTimeSinceLastBlock % timeForOneRound
 	nearestRoundBeginning := currentTime - remainder
 	if timeRound > 0 { // if more than one round has passed, calculate previous round start-expiry time for overlap

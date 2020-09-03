@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"crypto/rand"
 	"errors"
 	"hash"
 	"io/ioutil"
@@ -72,4 +73,16 @@ func GetChecksumByte(bytes []byte) byte {
 		a += bytes[i]
 	}
 	return a
+}
+
+// GenerateRandomBytes returns securely generated random bytes
+func GenerateRandomBytes(n int) ([]byte, error) {
+	b := make([]byte, n)
+	_, err := rand.Read(b)
+	// Note that err == nil only if we read len(b) bytes.
+	if err != nil {
+		return nil, err
+	}
+
+	return b, nil
 }

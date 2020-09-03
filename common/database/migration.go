@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -100,7 +101,6 @@ func (m *Migration) Init() error {
 				"node_public_key" BLOB,
 				"account_address" VARCHAR(255),
 				"registration_height" INTEGER,
-				"node_address" VARCHAR(255),
 				"locked_balance" INTEGER,
 				"queued" INTEGER,
 				"latest" INTEGER,
@@ -316,6 +316,9 @@ func (m *Migration) Init() error {
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
 			`,
 			`
+			CREATE INDEX "node_public_key_idx" ON "node_registry" ("node_public_key")
+			`,
+			`
 			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
 			`,
 			`
@@ -323,6 +326,9 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "main_block_id_idx" ON "main_block" ("id")
+			`,
+			`
+			CREATE INDEX "main_block_height_idx" ON "main_block" ("height")
 			`,
 			`
 			CREATE INDEX "published_receipt_rmr_linked_idx" ON "published_receipt" ("rmr_linked")
@@ -361,6 +367,55 @@ func (m *Migration) Init() error {
 			CREATE INDEX "pending_signature_transaction_hash_idx" ON "pending_signature" ("transaction_hash")
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
+				"id" INTEGER,
+				"sender_address" VARCHAR(255),
+				"recipient_address" VARCHAR(255),
+				"amount" INTEGER,
+				"applied_time" INTEGER,
+				"complete_minutes" INTEGER,
+				"status" INTEGER,
+				"block_height" INTEGER,
+				"latest" INTEGER,
+				PRIMARY KEY("id", "block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
+				"vote_hash" BLOB,		-- hash of fee vote object
+				"voter_address" VARCHAR(255), -- sender account address of commit vote
+				"block_height" INTEGER,	-- height when commit vote inserted
+				PRIMARY KEY("vote_hash", "block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_scale" (
+				"fee_scale" INTEGER,		-- current fee scale
+				"block_height" INTEGER,		-- block_height when the fee scale apply
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "fee_vote_reveal_vote" (
+				"recent_block_hash" BLOB, 
+				"recent_block_height" INTEGER,
+				"fee_vote" INTEGER, -- fee value voted
+				"voter_address" VARCHAR(255), -- sender account address as voter
+				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
+				"block_height" INTEGER, -- height when revealed
+				PRIMARY KEY("block_height", "voter_address")
+			)
+			`,
+			`
+			CREATE TABLE IF NOT EXISTS "node_admission_timestamp" (
+				"timestamp" INTEGER,	-- timestamp to remind the next node admission for queued node
+				"block_height" INTEGER,		-- block height when the next node admission timestamp set
+				"latest" INTEGER,
+				PRIMARY KEY("block_height")
+			)
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
 				"multisig_address" VARCHAR(255), -- address of multisig account / hash of multisignature_info
 				"account_address" VARCHAR(255), --  exists in addresses / participants of the multisig account
@@ -369,6 +424,42 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,
 				PRIMARY KEY("multisig_address", "account_address", "block_height")
 			)
+			`,
+			`
+			ALTER TABLE "spine_public_key"
+				ADD COLUMN "node_id" INTEGER AFTER "node_public_key"
+			`,
+			`CREATE TABLE IF NOT EXISTS "node_address_info" (
+				"node_id"		INTEGER,					-- node_id relative to this node address
+				"address"		VARCHAR(255),				-- peer/node address
+				"port"			INTEGER,					-- peer rpc port
+				"block_height"	INTEGER,					-- last blockchain height when broadcasting the address
+				"block_hash"	BLOB,						-- hash of last block when broadcasting the address
+				"signature"		BLOB,						-- signature of above fields (signed using node private key)
+				"status" 		INTEGER,					-- pending or confirmed
+				PRIMARY KEY("node_id","address","port")		-- primary key
+			)
+			`,
+			`
+			CREATE INDEX "node_address_info_address_idx" ON "node_address_info" ("address")
+			`,
+			`
+			CREATE INDEX "account_balance_latest_idx" ON "account_balance" ("latest")
+			`,
+			`
+			CREATE INDEX "account_balance_account_address_idx" ON "account_balance" ("account_address")
+			`,
+			`
+			CREATE INDEX "account_ledger_event_type_idx" ON "account_ledger" ("event_type")
+			`,
+			`
+			CREATE INDEX "escrow_transaction_latest_idx" ON "escrow_transaction" ("latest")
+			`,
+			`
+			CREATE INDEX "escrow_transaction_block_height_idx" ON "escrow_transaction" ("block_height")
+			`,
+			`
+			CREATE INDEX "transaction_block_id_idx" ON "transaction" ("block_id")
 			`,
 		}
 		return nil

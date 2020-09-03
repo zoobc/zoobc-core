@@ -102,6 +102,7 @@ func TestBadgerDB_OpenBadgerDB(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bdb := &BadgerDB{}
+			_ = bdb.InitializeBadgerDB(tt.args.dbPath, tt.args.dbName)
 			conn, err := bdb.OpenBadgerDB(tt.args.dbPath, tt.args.dbName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OpenBadgerDB() error = %v, wantErr %v", err, tt.wantErr)

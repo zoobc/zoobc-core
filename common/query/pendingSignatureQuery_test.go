@@ -498,8 +498,8 @@ func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
 			},
 			want: "SELECT transaction_hash,account_address,signature,block_height,latest FROM pending_signature WHERE (account_address, " +
 				"transaction_hash, block_height) IN (SELECT t2.account_address, t2.transaction_hash, " +
-				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2." +
-				"account_address, t2.transaction_hash) ORDER BY block_height",
+				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+				"GROUP BY t2.account_address, t2.transaction_hash) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -540,7 +540,7 @@ func TestPendingSignatureQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM pending_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

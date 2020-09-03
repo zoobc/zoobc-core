@@ -44,6 +44,7 @@ var (
 	ValidateMainBlockErr      TypeBlocker = "ValidateMainBlockErr"
 	PushSpineBlockErr         TypeBlocker = "PushSpineBlockErr"
 	ValidateSpineBlockErr     TypeBlocker = "ValidateSpineBlockErr"
+	SchedulerError            TypeBlocker = "SchedulerError"
 )
 
 func SetIsDebugMode(val bool) {

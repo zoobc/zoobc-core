@@ -1,15 +1,16 @@
 package transaction
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -25,6 +26,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	mockRemoveAccountDatasetBody, mockBytesRemoveAccountDataset := GetFixturesForRemoveAccountDataset()
 
 	approvalEscrowBody, approvalEscrowBytes := GetFixturesForApprovalEscrowTransaction()
+	feeVoteCommitTransactionBody, feeVoteCommitTransactionBodyBytes := GetFixtureForFeeVoteCommitTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   []byte{},
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	feeVoteRevealBody := GetFixtureForFeeVoteRevealTransaction(&model.FeeVoteInfo{
+		RecentBlockHash:   sha256.New().Sum([]byte{}),
+		RecentBlockHeight: 100,
+		FeeVote:           10,
+	}, "ZOOBC")
+	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
+	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
 
 	type fields struct {
 		Executor query.ExecutorInterface
@@ -117,26 +130,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "wantNil",
-			fields: fields{
-				Executor: &query.Executor{},
-			},
-			args: args{
-				tx: &model.Transaction{
-					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-							Amount: 10,
-						},
-					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
-				},
-			},
-			want: nil,
-		},
-		{
 			name: "wantNodeRegistration",
 			fields: fields{
 				Executor: &query.Executor{},
@@ -159,7 +152,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:               &auth.ProofOfOwnershipValidation{},
+				AuthPoown:               &auth.NodeAuthValidation{},
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
@@ -191,7 +184,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 			},
 		},
@@ -220,6 +213,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 			},
 		},
 		{
@@ -247,8 +242,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.ProofOfOwnershipValidation{},
+				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
 			},
 		},
 		{
@@ -259,7 +255,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockSetupAccountDatasetBody.GetSetterAccountAddress(),
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
@@ -271,7 +267,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &SetupAccountDataset{
 				Body:                mockSetupAccountDatasetBody,
 				Height:              5,
-				SenderAddress:       mockSetupAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -286,8 +282,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
 						RemoveAccountDatasetTransactionBody: mockRemoveAccountDatasetBody,
 					},
@@ -298,7 +294,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &RemoveAccountDataset{
 				Body:                mockRemoveAccountDatasetBody,
 				Height:              5,
-				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				RecipientAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				QueryExecutor:       &query.Executor{},
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -313,7 +310,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 					RecipientAccountAddress: "",
 					TransactionBody: &model.Transaction_ApprovalEscrowTransactionBody{
 						ApprovalEscrowTransactionBody: approvalEscrowBody,
@@ -324,7 +321,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &ApprovalEscrowTransaction{
 				ID:                  0,
-				SenderAddress:       mockRemoveAccountDatasetBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				Body:                approvalEscrowBody,
 				Height:              5,
 				QueryExecutor:       &query.Executor{},
@@ -333,6 +330,138 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowQuery:         query.NewEscrowTransactionQuery(),
 				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
+			},
+		},
+		{
+			name: "wantFeeVoteCommitTransaction",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_FeeVoteCommitTransactionBody{
+						FeeVoteCommitTransactionBody: feeVoteCommitTransactionBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 0, 0, 0}),
+					TransactionBodyBytes: feeVoteCommitTransactionBodyBytes,
+				},
+			},
+			want: &FeeVoteCommitTransaction{
+				Body:                       feeVoteCommitTransactionBody,
+				Height:                     5,
+				SenderAddress:              "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:              &query.Executor{},
+				AccountBalanceHelper:       NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:        NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
+				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					&query.Executor{},
+				),
+			},
+		},
+		{
+			name: "wantFeeVoteRevealTransaction",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					RecipientAccountAddress: "",
+					TransactionBody: &model.Transaction_FeeVoteRevealTransactionBody{
+						FeeVoteRevealTransactionBody: feeVoteRevealBody,
+					},
+					TransactionType: binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
+					TransactionBodyBytes: (&FeeVoteRevealTransaction{
+						Body: feeVoteRevealBody,
+					}).GetBodyBytes(),
+				},
+			},
+			want: &FeeVoteRevealTransaction{
+				Body:                   feeVoteRevealBody,
+				Height:                 5,
+				SenderAddress:          "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:          &query.Executor{},
+				AccountBalanceHelper:   NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:    NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
+				SignatureInterface:     crypto.NewSignature(),
+				FeeVoteCommitVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
+				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					query.NewBlockQuery(&chaintype.MainChain{}),
+					&query.Executor{},
+				),
+			},
+		},
+		{
+			name: "wantLiquidPayment",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 0, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentBytes,
+				},
+			},
+			want: &LiquidPaymentTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+			},
+		},
+		{
+			name: "wantLiquidPaymentStop",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         liquidPaymentStopBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 1, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentStopBytes,
+				},
+			},
+			want: &LiquidPaymentStopTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				RecipientAddress:              mockTxRecipientAccountAddress,
+				Body:                          liquidPaymentStopBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
+				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},

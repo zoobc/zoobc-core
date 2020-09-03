@@ -8,10 +8,9 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -19,7 +18,12 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
+	sendAddressInfoToPeer            prometheus.Counter
+	getAddressInfoTableFromPeer      prometheus.Counter
 	receiptCounter                   prometheus.Counter
+	nodeAddressInfoCounter           prometheus.Gauge
+	confirmedAddressCounter          prometheus.Gauge
+	pendingAddressCounter            prometheus.Gauge
 	unresolvedPeersCounter           prometheus.Gauge
 	resolvedPeersCounter             prometheus.Gauge
 	unresolvedPriorityPeersCounter   prometheus.Gauge
@@ -40,8 +44,9 @@ var (
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
 
-	badgerMetrics     map[string]prometheus.Gauge
-	badgerMetricsLock sync.Mutex
+	badgerMetrics         map[string]prometheus.Gauge
+	badgerMetricsLock     sync.Mutex
+	cliMonitoringInstance CLIMonitoringInteface
 )
 
 const (
@@ -56,18 +61,21 @@ const (
 	P2pGetNextBlockIDsServer            = "P2pGetNextBlockIDsServer"
 	P2pGetNextBlocksServer              = "P2pGetNextBlocksServer"
 	P2pRequestFileDownloadServer        = "P2pRequestFileDownloadServer"
+	P2pGetNodeProofOfOriginServer       = "P2pGetNodeProofOfOriginServer"
 
-	P2pGetPeerInfoClient                = "P2pGetPeerInfoClient"
-	P2pGetMorePeersClient               = "P2pGetMorePeersClient"
-	P2pSendPeersClient                  = "P2pSendPeersClient"
-	P2pSendBlockClient                  = "P2pSendBlockClient"
-	P2pSendTransactionClient            = "P2pSendTransactionClient"
-	P2pRequestBlockTransactionsClient   = "P2pRequestBlockTransactionsClient"
-	P2pGetCumulativeDifficultyClient    = "P2pGetCumulativeDifficultyClient"
-	P2pGetCommonMilestoneBlockIDsClient = "P2pGetCommonMilestoneBlockIDsClient"
-	P2pGetNextBlockIDsClient            = "P2pGetNextBlockIDsClient"
-	P2pGetNextBlocksClient              = "P2pGetNextBlocksClient"
-	P2pRequestFileDownloadClient        = "P2pRequestFileDownloadClient"
+	P2pGetPeerInfoClient                 = "P2pGetPeerInfoClient"
+	P2pGetMorePeersClient                = "P2pGetMorePeersClient"
+	P2pSendPeersClient                   = "P2pSendPeersClient"
+	P2pSendNodeAddressInfoClient         = "P2pSendNodeAddressInfoClient"
+	P2pGetNodeProofOfOwnershipInfoClient = "P2pGetNodeProofOfOwnershipInfoClient"
+	P2pSendBlockClient                   = "P2pSendBlockClient"
+	P2pSendTransactionClient             = "P2pSendTransactionClient"
+	P2pRequestBlockTransactionsClient    = "P2pRequestBlockTransactionsClient"
+	P2pGetCumulativeDifficultyClient     = "P2pGetCumulativeDifficultyClient"
+	P2pGetCommonMilestoneBlockIDsClient  = "P2pGetCommonMilestoneBlockIDsClient"
+	P2pGetNextBlockIDsClient             = "P2pGetNextBlockIDsClient"
+	P2pGetNextBlocksClient               = "P2pGetNextBlocksClient"
+	P2pRequestFileDownloadClient         = "P2pRequestFileDownloadClient"
 )
 
 func Handler() http.Handler {
@@ -77,11 +85,41 @@ func Handler() http.Handler {
 func SetMonitoringActive(isActive bool) {
 	isMonitoringActive = isActive
 
+	sendAddressInfoToPeer = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zoobc_send_address_info_request",
+		Help: "send address info req",
+	})
+	prometheus.MustRegister(sendAddressInfoToPeer)
+
+	getAddressInfoTableFromPeer = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zoobc_get_address_info_table_request",
+		Help: "get address info table req",
+	})
+	prometheus.MustRegister(getAddressInfoTableFromPeer)
+
 	receiptCounter = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "zoobc_receipts",
 		Help: "receipts counter",
 	})
 	prometheus.MustRegister(receiptCounter)
+
+	nodeAddressInfoCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count",
+		Help: "nodeAddressInfo counter",
+	})
+	prometheus.MustRegister(nodeAddressInfoCounter)
+
+	confirmedAddressCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count_status_confirmed",
+		Help: "confirmed addresses by node counter",
+	})
+	prometheus.MustRegister(confirmedAddressCounter)
+
+	pendingAddressCounter = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_node_address_info_count_status_pending",
+		Help: "pending addresses by node counter",
+	})
+	prometheus.MustRegister(pendingAddressCounter)
 
 	unresolvedPeersCounter = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_unresolved_peers",
@@ -199,12 +237,32 @@ func SetMonitoringActive(isActive bool) {
 
 }
 
+func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
+	cliMonitoringInstance = cliMonitoring
+}
+
 func SetNodePublicKey(pk []byte) {
 	nodePublicKey = pk
 }
 
 func IsMonitoringActive() bool {
 	return isMonitoringActive
+}
+
+func IncrementSendAddressInfoToPeer() {
+	if !isMonitoringActive {
+		return
+	}
+
+	sendAddressInfoToPeer.Inc()
+}
+
+func IncrementGetAddressInfoTableFromPeer() {
+	if !isMonitoringActive {
+		return
+	}
+
+	getAddressInfoTableFromPeer.Inc()
 }
 
 func IncrementReceiptCounter() {
@@ -215,7 +273,34 @@ func IncrementReceiptCounter() {
 	receiptCounter.Inc()
 }
 
+func SetNodeAddressInfoCount(count int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	nodeAddressInfoCounter.Set(float64(count))
+}
+
+func SetNodeAddressStatusCount(count int, status model.NodeAddressStatus) {
+	if !isMonitoringActive {
+		return
+	}
+
+	switch status {
+	case model.NodeAddressStatus_NodeAddressPending:
+		pendingAddressCounter.Set(float64(count))
+	case model.NodeAddressStatus_NodeAddressConfirmed:
+		confirmedAddressCounter.Set(float64(count))
+	default:
+		return
+	}
+}
+
 func SetUnresolvedPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringUnresolvedPeersNumber, count)
+	}
+
 	if !isMonitoringActive {
 		return
 	}
@@ -224,6 +309,9 @@ func SetUnresolvedPeersCount(count int) {
 }
 
 func SetResolvedPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringResolvePeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -232,6 +320,9 @@ func SetResolvedPeersCount(count int) {
 }
 
 func SetResolvedPriorityPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringResolvedPriorityPeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -240,6 +331,9 @@ func SetResolvedPriorityPeersCount(count int) {
 }
 
 func SetUnresolvedPriorityPeersCount(count int) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdatePeersInfo(CLIMonitoringUnresolvedPriorityPeersNumber, count)
+	}
 	if !isMonitoringActive {
 		return
 	}
@@ -311,7 +405,17 @@ func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
 	nodeScore.Set(float64(scoreInt64))
 }
 
+func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdateSmithingInfo(sortedBlocksmiths, sortedBlocksmithsMap)
+	}
+}
+
 func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
+	if cliMonitoringInstance != nil {
+		cliMonitoringInstance.UpdateBlockState(chainType, block)
+	}
+
 	if !isMonitoringActive {
 		return
 	}

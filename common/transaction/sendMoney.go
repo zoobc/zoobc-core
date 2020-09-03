@@ -36,7 +36,11 @@ type (
 )
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SendMoney) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+func (tx *SendMoney) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	return false, nil
 }
 
@@ -213,7 +217,7 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"balance not enough",
+				"UserBalanceNotEnough",
 			)
 		}
 	}
@@ -347,7 +351,7 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
-				"balance not enough",
+				"UserBalanceNotEnough",
 			)
 		}
 	}

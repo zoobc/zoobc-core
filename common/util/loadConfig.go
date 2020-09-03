@@ -3,7 +3,7 @@ package util
 import (
 	"fmt"
 	"os"
-	"strings"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -17,18 +17,19 @@ func LoadConfig(path, name, extension string) error {
 	}
 
 	viper.SetDefault("dbName", "zoobc.db")
-	viper.SetDefault("dbPath", "./resource")
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
-	viper.SetDefault("badgerDbPath", "./resource")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
-	viper.SetDefault("configPath", "./resource")
+	viper.Set("resourcePath", filepath.Join(path, "./resource"))
 	viper.SetDefault("peerPort", 8001)
-	viper.SetDefault("myAddress", "127.0.0.1")
+	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
-	viper.SetDefault("apiHTTPPort", 0)
+	viper.SetDefault("apiHTTPPort", 7001)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
-	viper.SetDefault("snapshotPath", "./resource/snapshots")
+	viper.Set("snapshotPath", filepath.Join(path, "./resource/snapshots"))
+	viper.SetDefault("logOnCli", false)
+	viper.SetDefault("cliMonitoring", false)
+	viper.SetDefault("maxAPIRequestPerSecond", 10)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed
@@ -36,29 +37,18 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetConfigName(name)
 	viper.SetConfigType(extension)
 	viper.AddConfigPath(path)
-	viper.AddConfigPath(".")
+	viper.AddConfigPath("$HOME/zoobc")
 
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && path == "./resource" && name == "config" {
-			// Config file not found; ignore error if desired
-			return nil
-		}
-		// Config file was found but another error was produced
+	configFile, err := os.Open(filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
+	if err != nil {
+		fmt.Printf("Config not found : %s\n", err.Error())
 		return err
 	}
-	return nil
-}
+	defer configFile.Close()
 
-func OverrideConfigKey(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		viper.Set(cfgFileKey, strValue)
+	err = viper.ReadConfig(configFile)
+	if err != nil {
+		return err
 	}
-}
-func OverrideConfigKeyArray(envKey, cfgFileKey string) {
-	strValue, exists := os.LookupEnv(envKey)
-	if exists {
-		ary := strings.Split(strValue, ",")
-		viper.Set(cfgFileKey, ary)
-	}
+	return viper.WriteConfig()
 }

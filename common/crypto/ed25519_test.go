@@ -3,10 +3,12 @@ package crypto
 import (
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 var (
-	ed25519MockAddress   = "BCZxuVDVJUdEsbB-8ToDIIEBnEHHb_GCsHQ_I-jx0qw7"
+	ed25519MockAddress   = "ZBC_AQTHDOKQ_2USUORFR_WB7PCOQD_ECAQDHCB_Y5X7DAVQ_OQ7SH2HR_2KWPQ7UC"
 	ed25519MockSeed      = "compile fernlike laptop scouring bobsled tremble probably immunity babble elsewhere throwing thrill"
 	ed25519MockPublicKey = []byte{4, 38, 113, 185, 80, 213, 37, 71, 68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111,
 		241, 130, 176, 116, 63, 35, 232, 241, 210, 172}
@@ -82,7 +84,7 @@ func TestEd25519Signature_GetAddressFromSeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			if got := es.GetAddressFromSeed(tt.args.seed); got != tt.want {
+			if got := es.GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, tt.args.seed); got != tt.want {
 				t.Errorf("Ed25519Signature.GetAddressFromSeed() = %v, want %v", got, tt.want)
 			}
 		})
@@ -106,7 +108,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 				publicKey: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
 					84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
 			},
-			want:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			want:    "ZBC_AQTGOSP2_VE7ZW2QV_BFGE3CID_PAKUKWTW_6JKK53ZO_XZHEIWST_RYFXR672",
 			wantErr: false,
 		},
 		{
@@ -122,7 +124,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			got, err := es.GetAddressFromPublicKey(tt.args.publicKey)
+			got, err := es.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, tt.args.publicKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Ed25519Signature.GetAddressFromPublicKey() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -148,27 +150,11 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				address: "ZBC_AQTGOSP2_VE7ZW2QV_BFGE3CID_PAKUKWTW_6JKK53ZO_XZHEIWST_RYFXR672",
 			},
 			want: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
 				84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
 			wantErr: false,
-		},
-		{
-			name: "wantFail-{decode-error-wrong-address-format/length}",
-			args: args{
-				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgt",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "wantFail:fail-{checksum-error-wrong-address-format}",
-			args: args{
-				address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtM",
-			},
-			want:    nil,
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -245,18 +231,20 @@ func TestEd25519Signature_GetPrivateKeyFromSeed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				seed: ed25519MockAddress,
+				seed: ed25519MockSeed,
 			},
-			want: []byte{188, 149, 6, 52, 103, 250, 141, 133, 84, 93, 225, 77, 118, 252, 111, 71, 115, 7, 109, 188, 229, 212,
-				31, 2, 189, 96, 77, 11, 89, 44, 125, 12, 183, 227, 106, 207, 27, 80, 168, 160, 252, 110, 172, 177, 36, 171,
-				249, 50, 21, 23, 18, 168, 96, 125, 32, 72, 124, 33, 96, 51, 231, 163, 156, 224},
+			want: []byte{64, 146, 182, 11, 22, 166, 212, 34, 188, 208, 94, 27, 124, 93, 182, 102, 136, 68, 246,
+				28, 225, 249, 230, 196, 189, 79, 108, 178, 194, 39, 16, 203, 4, 38, 113, 185, 80, 213, 37, 71,
+				68, 177, 176, 126, 241, 58, 3, 32, 129, 1, 156, 65, 199, 111, 241, 130, 176, 116, 63, 35, 232,
+				241, 210, 172,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			e := &Ed25519Signature{}
 			if got := e.GetPrivateKeyFromSeed(tt.args.seed); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeed() = %v, want %v", got, tt.want)
+				t.Errorf("Ed25519Signature.GetPrivateKeyFromSeed() = %v\nwant %v", got, tt.want)
 			}
 		})
 	}
@@ -278,8 +266,8 @@ func TestEd25519Signature_GetPrivateKeyFromSeedUseSlip10(t *testing.T) {
 			args: args{
 				seed: ed25519MockSeed,
 			},
-			want: []byte{28, 187, 31, 185, 115, 15, 68, 41, 91, 146, 30, 50, 233, 74, 207, 177, 84, 58, 87,
-				180, 69, 50, 232, 116, 223, 54, 71, 100, 177, 196, 171, 106},
+			want: []byte{28, 54, 122, 202, 22, 213, 226, 171, 212, 4, 201, 23, 18, 83, 234, 116,
+				168, 202, 38, 81, 62, 84, 121, 59, 175, 165, 81, 161, 131, 173, 227, 20},
 			wantErr: false,
 		},
 	}

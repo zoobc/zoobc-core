@@ -2,14 +2,17 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -114,6 +117,8 @@ func initialize(
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor: queryExecutor,
 	}
+	mempoolStorage := storage.NewMempoolStorage()
+	blockStorage := storage.NewBlockStateStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		nil,
@@ -126,6 +131,7 @@ func initialize(
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -136,7 +142,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewTransactionQuery(chainType),
 		crypto.NewSignature(),
 		observerInstance,
@@ -144,21 +149,34 @@ func initialize(
 		receiptUtil,
 		receiptService,
 		nil,
+		blockStorage,
+		mempoolStorage,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewBlockQuery(chainType),
+		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nil,
+		nil,
+		nil,
+		nil,
 	)
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
+		queryExecutor,
+	)
+	feeScaleService := fee.NewFeeScaleService(
+		query.NewFeeScaleQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
 		queryExecutor,
 	)
 	blockService = service.NewBlockMainService(
@@ -177,6 +195,7 @@ func initialize(
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
 		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
 		observerInstance,
 		blocksmithStrategy,
 		log.New(),
@@ -193,10 +212,15 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
+			nil,
 		),
 		nil,
 		nil,
 		nil,
+		nil,
+		nil,
+		feeScaleService,
+		query.GetPruneQuery(chainType),
 		nil,
 		nil,
 	)
@@ -216,6 +240,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		blockService,
 		log.New(),
 		&mockBlockchainStatusService{},
+		nodeRegistrationService,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

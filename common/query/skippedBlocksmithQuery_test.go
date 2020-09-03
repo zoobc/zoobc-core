@@ -46,8 +46,8 @@ func TestSkippedBlocksmithQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "SELECT blocksmith_public_key, pop_change, block_height, " +
-				"blocksmith_index FROM skipped_blocksmith WHERE block_height >= 0 AND block_height <= 10 ORDER BY block_height",
+			want: "SELECT blocksmith_public_key, pop_change, block_height, blocksmith_index FROM skipped_blocksmith " +
+				"WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0 ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -92,7 +92,7 @@ func TestSkippedBlocksmithQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM skipped_blocksmith WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM skipped_blocksmith WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

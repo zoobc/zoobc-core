@@ -1,15 +1,16 @@
 package transaction
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
-	"math"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/fee"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -252,6 +253,14 @@ func TestGetTransactionBytes(t *testing.T) {
 	}
 }
 
+type (
+	mockMempoolCacheStorageSuccessGet struct {
+		storage.MempoolCacheStorage
+	}
+)
+
+func (*mockMempoolCacheStorageSuccessGet) GetItem(key, item interface{}) error { return nil }
+
 func TestParseTransactionBytes(t *testing.T) {
 	var mockTransactionWithEscrow = &model.Transaction{
 		ID:                      4870989829983641364,
@@ -329,9 +338,13 @@ func TestParseTransactionBytes(t *testing.T) {
 		transactionBytes []byte
 		sign             bool
 	}
+	type fields struct {
+		mempoolCacheStorage storage.CacheStorageInterface
+	}
 	tests := []struct {
 		name    string
 		args    args
+		fields  fields
 		want    *model.Transaction
 		wantErr bool
 	}{
@@ -341,6 +354,9 @@ func TestParseTransactionBytes(t *testing.T) {
 				transactionBytes: transactionWithEscrowBytes,
 				sign:             true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want:    mockTransactionWithEscrow,
 			wantErr: false,
 		},
@@ -349,6 +365,9 @@ func TestParseTransactionBytes(t *testing.T) {
 			args: args{
 				transactionBytes: successWithoutSig,
 				sign:             false,
+			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
 			},
 			want: &model.Transaction{
 				ID:                      4956766951297472907,
@@ -377,6 +396,9 @@ func TestParseTransactionBytes(t *testing.T) {
 				transactionBytes: approvalTXBytes,
 				sign:             true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want: approvalTX,
 		},
 		{
@@ -388,56 +410,24 @@ func TestParseTransactionBytes(t *testing.T) {
 					6, 7, 8, 93, 3},
 				sign: true,
 			},
+			fields: fields{
+				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := (&Util{}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
+			got, err := (&Util{
+				MempoolCacheStorage: tt.fields.mempoolCacheStorage,
+			}).ParseTransactionBytes(tt.args.transactionBytes, tt.args.sign)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseTransactionBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ParseTransactionBytes() = \n%v, want \n%v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReadAccountAddress(t *testing.T) {
-	type args struct {
-		accountType uint32
-		buf         *bytes.Buffer
-	}
-	tests := []struct {
-		name string
-		args args
-		want []byte
-	}{
-		{
-			name: "TestReadAccountAddress:defult",
-			args: args{
-				accountType: math.MaxUint32,
-				buf: bytes.NewBuffer([]byte{2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122,
-					105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80, 57, 56, 71, 69, 65, 85, 67, 55,
-					0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106, 116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80,
-					118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122, 68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4,
-					5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190,
-					78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
-					229, 184, 77, 80, 80, 39, 254, 173, 28, 169}),
-			},
-			want: []byte{
-				2, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50, 83, 57, 97, 122, 105, 73, 76, 51, 99, 110,
-				95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := (&Util{}).ReadAccountAddress(tt.args.accountType, tt.args.buf); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReadAccountAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -500,24 +490,42 @@ func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...
 	db, mock, _ := sqlmock.New()
 	mockRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
 	mockRow.AddRow(
-		"BCZ", 1, 10000, 10000, 0, 1,
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7", 1, 10000, 10000, 0, 1,
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
 	row := db.QueryRow(qStr)
 	return row, nil
 }
 
+type (
+	mockValidateTransactionFeeScaleServiceCache struct {
+		fee.FeeScaleServiceInterface
+	}
+)
+
+func (*mockValidateTransactionFeeScaleServiceCache) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	*feeScale = model.FeeScale{
+		FeeScale:    constant.OneZBC,
+		BlockHeight: 0,
+		Latest:      true,
+	}
+	return nil
+}
+
 func TestValidateTransaction(t *testing.T) {
-	transactionUtil := &Util{}
+	transactionUtil := &Util{
+		FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
+	}
 	type args struct {
 		tx                  *model.Transaction
 		queryExecutor       query.ExecutorInterface
 		accountBalanceQuery query.AccountBalanceQueryInterface
 		verifySignature     bool
 	}
+
 	txEscrowValidate := GetFixturesForTransaction(
 		1562893303,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		true,
 	)
@@ -528,7 +536,7 @@ func TestValidateTransaction(t *testing.T) {
 
 	txValidate := GetFixturesForTransaction(
 		1562893303,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
 		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 		false,
 	)
@@ -632,7 +640,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 					"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 				},
 			}},
-			want: "C1Jgm37Y-xW6ls1l9JW5XsRnsifX0CkWB4QTwZE9keVt",
+			want: "ZBC_BNJGBG36_3D5RLOUW_ZVS7JFNZ_L3CGPMRH_27ICSFQH_QQJ4DEJ5_SHS5UQQQ",
 		},
 	}
 	for _, tt := range tests {

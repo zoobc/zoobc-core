@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -37,10 +39,10 @@ type (
 func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 	return &BlockQuery{
 		Fields: []string{
+			"height",
 			"id",
 			"block_hash",
 			"previous_block_hash",
-			"height",
 			"timestamp",
 			"block_seed",
 			"block_signature",
@@ -69,11 +71,11 @@ func (bq *BlockQuery) GetBlocks(height, size uint32) string {
 }
 
 func (bq *BlockQuery) GetLastBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s ORDER BY height DESC LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT MAX(height), %s FROM %s", strings.Join(bq.Fields[1:], ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) GetGenesisBlock() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0 LIMIT 1", strings.Join(bq.Fields, ", "), bq.getTableName())
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height = 0", strings.Join(bq.Fields, ", "), bq.getTableName())
 }
 
 func (bq *BlockQuery) InsertBlock(block *model.Block) (str string, args []interface{}) {
@@ -105,6 +107,34 @@ func (bq *BlockQuery) InsertBlocks(blocks []*model.Block) (str string, args []in
 	return str, args
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (bq *BlockQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	blocks, ok := payload.([]*model.Block)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+bq.TableName)
+	}
+	if len(blocks) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(bq.Fields), len(blocks))
+		for i := 0; i < rounds; i++ {
+			qry, args := bq.InsertBlocks(blocks[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := bq.InsertBlocks(blocks[len(blocks)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (bq *BlockQuery) RecalibrateVersionedTable() []string {
+	return []string{} // only table with `latest` column need this
+}
+
 // GetBlockByID returns query string to get block by ID
 func (bq *BlockQuery) GetBlockByID(id int64) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), id)
@@ -130,10 +160,10 @@ func (bq *BlockQuery) GetBlockFromTimestamp(startTimestamp int64, limit uint32) 
 // ExtractModel extract the model struct fields to the order of BlockQuery.Fields
 func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 	return []interface{}{
+		block.Height,
 		block.ID,
 		block.BlockHash,
 		block.PreviousBlockHash,
-		block.Height,
 		block.Timestamp,
 		block.BlockSeed,
 		block.BlockSignature,
@@ -156,10 +186,10 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 		)
 
 		err = rows.Scan(
+			&block.Height,
 			&block.ID,
 			&block.BlockHash,
 			&block.PreviousBlockHash,
-			&block.Height,
 			&block.Timestamp,
 			&block.BlockSeed,
 			&block.BlockSignature,
@@ -182,10 +212,10 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 
 func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 	err := row.Scan(
+		&block.Height,
 		&block.ID,
 		&block.BlockHash,
 		&block.PreviousBlockHash,
-		&block.Height,
 		&block.Timestamp,
 		&block.BlockSeed,
 		&block.BlockSignature,
@@ -217,16 +247,12 @@ func (bq *BlockQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
 
 // SelectDataForSnapshot select only the block at snapshot height (fromHeight is unused)
 func (bq *BlockQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		strings.Join(bq.Fields, ","), bq.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (bq *BlockQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	// do not delete genesis block
-	if fromHeight == 0 {
-		fromHeight++
-	}
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		bq.getTableName(), fromHeight, toHeight)
 }

@@ -54,6 +54,56 @@ var (
 		225, 0, 112, 83, 112, 101, 110, 100, 97, 98, 108, 101, 66, 97, 108, 97, 110, 99, 101, 27, 0, 0, 0, 23, 72, 118,
 		232, 0,
 	}
+
+	fixtureFullHash = []byte{219, 136, 65, 65, 124, 127, 36, 66, 204, 103, 161, 208, 102, 96, 215, 177, 43, 232, 209,
+		239, 96, 206, 159, 126, 87, 50, 247, 69, 190, 199, 168, 54}
+	fixtureFileChunkHashes = [][]byte{
+		{140, 13, 138, 215, 186, 111, 67, 198, 243, 121, 123, 212, 187, 46, 236, 143, 143, 18, 65, 181, 126, 213,
+			160, 206, 12, 84, 244, 80, 29, 90, 224, 180},
+		{148, 58, 57, 206, 161, 147, 212, 197, 217, 248, 13, 211, 255, 2, 212, 149, 245, 160, 158, 238, 120,
+			23, 56, 186, 123, 179, 84, 240, 197, 98, 135, 106},
+		{47, 66, 144, 80, 129, 91, 202, 56, 165, 245, 169, 188, 155, 74, 84, 150, 205, 75, 142, 244, 200,
+			35, 18, 79, 204, 221, 63, 5, 146, 49, 165, 130},
+		{181, 41, 188, 232, 83, 44, 195, 184, 185, 225, 124, 188, 79, 240, 98, 3, 17, 223, 195, 84,
+			147, 20, 120, 169, 29, 228, 72, 222, 128, 228, 61, 159},
+	}
+	fixtureSnapshotPayload = &model.SnapshotPayload{
+		Blocks: []*model.Block{
+			{
+				ID:                   123456789,
+				Timestamp:            98765432210,
+				BlockSignature:       []byte{3},
+				CumulativeDifficulty: "1",
+				PayloadLength:        1,
+				TotalAmount:          1000,
+				TotalFee:             0,
+				TotalCoinBase:        1,
+				Version:              0,
+			},
+			{
+				ID:                   234567890,
+				Timestamp:            98765432211,
+				BlockSignature:       []byte{3},
+				CumulativeDifficulty: "1",
+				PayloadLength:        1,
+				TotalAmount:          1000,
+				TotalFee:             0,
+				TotalCoinBase:        1,
+				Version:              0,
+			},
+			{
+				ID:                   3456789012,
+				Timestamp:            98765432212,
+				BlockSignature:       []byte{3},
+				CumulativeDifficulty: "1",
+				PayloadLength:        1,
+				TotalAmount:          1000,
+				TotalFee:             0,
+				TotalCoinBase:        1,
+				Version:              0,
+			},
+		},
+	}
 )
 
 type (
@@ -79,7 +129,7 @@ func (mfs *bcsMockFileService) EncodePayload(v interface{}) (b []byte, err error
 }
 
 func (mfs *bcsMockFileService) GetFileNameFromHash(fileHash []byte) string {
-	return "vXu9Q01j1OWLRoqmIHW-KpyJBticdBS207Lg3OscPgyO"
+	return mfs.GetFileNameFromBytes(fileHash)
 }
 
 func (mfs *bcsMockFileService) SaveBytesToFile(fileBasePath, fileName string, b []byte) error {
@@ -87,6 +137,14 @@ func (mfs *bcsMockFileService) SaveBytesToFile(fileBasePath, fileName string, b 
 		return nil
 	}
 	return errors.New("SaveBytesToFileFail")
+}
+
+func (mfs *bcsMockFileService) SaveSnapshotChunks(string, [][]byte) (fileHashes [][]byte, err error) {
+	if mfs.successSaveBytesToFile {
+		return [][]byte{bcsSnapshotFullHash}, nil
+	}
+	return nil, errors.New("SaveBytesToFileFail")
+
 }
 
 func (mfs *bcsMockFileService) DeleteFilesByHash(filePath string, fileHashes [][]byte) error {
@@ -126,7 +184,6 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 	}
 	type args struct {
 		snapshotPayload *model.SnapshotPayload
-		filePath        string
 	}
 	tests := []struct {
 		name                string
@@ -139,25 +196,15 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 		{
 			name: "GenerateSnapshotChunks:success-{singleChunk}",
 			fields: fields{
-				ChunkSize: 10000000, // 10MB chunks
-				FileService: &bcsMockFileService{
-					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
-					},
-					successEncode:             true,
-					successSaveBytesToFile:    true,
-					successVerifyFileChecksum: true,
-				},
+				// ChunkSize:   10000000, // 10MB chunks
+				ChunkSize:   100,
+				FileService: NewFileService(log.New(), new(codec.CborHandle), "testdata/snapshots"),
 			},
 			args: args{
-				filePath:        "testdata/snapshots",
-				snapshotPayload: &model.SnapshotPayload{},
+				snapshotPayload: fixtureSnapshotPayload,
 			},
-			wantFullHash: bcsSnapshotFullHash,
-			wantFileChunkHashes: [][]byte{
-				bcsSnapshotFullHash,
-			},
+			wantFullHash:        fixtureFullHash,
+			wantFileChunkHashes: fixtureFileChunkHashes,
 		},
 		{
 			name: "GenerateSnapshotChunks:fail-{saveFile}",
@@ -165,8 +212,9 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 				ChunkSize: 10000000, // 10MB chunks
 				FileService: &bcsMockFileService{
 					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
+						Logger:       log.New(),
+						h:            new(codec.CborHandle),
+						snapshotPath: "testdata/snapshots",
 					},
 					successEncode:             true,
 					successSaveBytesToFile:    false,
@@ -174,27 +222,6 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 				},
 			},
 			args: args{
-				filePath:        "testdata/snapshots",
-				snapshotPayload: &model.SnapshotPayload{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "GenerateSnapshotChunks:fail-{verifyFile}",
-			fields: fields{
-				ChunkSize: 10000000, // 10MB chunks
-				FileService: &bcsMockFileService{
-					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
-					},
-					successEncode:             true,
-					successSaveBytesToFile:    true,
-					successVerifyFileChecksum: false,
-				},
-			},
-			args: args{
-				filePath:        "testdata/snapshots",
 				snapshotPayload: &model.SnapshotPayload{},
 			},
 			wantErr: true,
@@ -206,17 +233,17 @@ func TestSnapshotBasicChunkStrategy_GenerateSnapshotChunks(t *testing.T) {
 				ChunkSize:   tt.fields.ChunkSize,
 				FileService: tt.fields.FileService,
 			}
-			gotFullHash, gotFileChunkHashes, err := ss.GenerateSnapshotChunks(tt.args.snapshotPayload, tt.args.filePath)
+			gotFullHash, gotFileChunkHashes, err := ss.GenerateSnapshotChunks(tt.args.snapshotPayload)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(gotFullHash, tt.wantFullHash) {
-				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFullHash = %v, want %v", gotFullHash,
+				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFullHash = \n%v, want \n%v", gotFullHash,
 					tt.wantFullHash)
 			}
 			if !reflect.DeepEqual(gotFileChunkHashes, tt.wantFileChunkHashes) {
-				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFileChunkHashes = %v, want %v",
+				t.Errorf("SnapshotBasicChunkStrategy.GenerateSnapshotChunks() gotFileChunkHashes = \n%v, want \n%v",
 					gotFileChunkHashes, tt.wantFileChunkHashes)
 			}
 		})
@@ -243,22 +270,16 @@ func TestSnapshotBasicChunkStrategy_BuildSnapshotFromChunks(t *testing.T) {
 		{
 			name: "BuildSnapshotFromChunks:success",
 			fields: fields{
-				ChunkSize: 10000000, // 10MB chunks
-				FileService: &bcsMockFileService{
-					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
-					},
-				},
+				// ChunkSize:   10000000, // 10MB chunks
+				ChunkSize:   100,
+				FileService: NewFileService(log.New(), new(codec.CborHandle), "testdata/snapshots"),
 			},
 			args: args{
-				filePath: "testdata/snapshots",
-				fileChunkHashes: [][]byte{
-					bcsSnapshotChunk1Hash,
-					bcsSnapshotChunk2Hash,
-				},
-				fullHash: bcsSnapshotFullHash,
+				filePath:        "testdata/snapshots",
+				fileChunkHashes: fixtureFileChunkHashes,
+				fullHash:        fixtureFullHash,
 			},
+			want: fixtureSnapshotPayload,
 		},
 		{
 			name: "BuildSnapshotFromChunks:fail-{invalidFileHash}",
@@ -266,8 +287,9 @@ func TestSnapshotBasicChunkStrategy_BuildSnapshotFromChunks(t *testing.T) {
 				ChunkSize: 10000000, // 10MB chunks
 				FileService: &bcsMockFileService{
 					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
+						Logger:       log.New(),
+						h:            new(codec.CborHandle),
+						snapshotPath: "testdata/snapshots",
 					},
 				},
 			},
@@ -281,27 +303,6 @@ func TestSnapshotBasicChunkStrategy_BuildSnapshotFromChunks(t *testing.T) {
 			},
 			wantErr: true,
 		},
-		{
-			name: "BuildSnapshotFromChunks:success-{decodePayload-integrationTest}",
-			fields: fields{
-				ChunkSize: 10000000, // 10MB chunks
-				FileService: &bcsMockFileService{
-					FileService: FileService{
-						Logger: log.New(),
-						h:      new(codec.CborHandle),
-					},
-					integrationTest: true,
-				},
-			},
-			args: args{
-				filePath: "testdata/snapshots",
-				fileChunkHashes: [][]byte{
-					bcsSnapshotChunk1Hash,
-					bcsSnapshotChunk2Hash,
-				},
-				fullHash: bcsSnapshotFullHash,
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -309,13 +310,13 @@ func TestSnapshotBasicChunkStrategy_BuildSnapshotFromChunks(t *testing.T) {
 				ChunkSize:   tt.fields.ChunkSize,
 				FileService: tt.fields.FileService,
 			}
-			got, err := ss.BuildSnapshotFromChunks(tt.args.fullHash, tt.args.fileChunkHashes, tt.args.filePath)
+			got, err := ss.BuildSnapshotFromChunks(tt.args.fullHash, tt.args.fileChunkHashes)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SnapshotBasicChunkStrategy.BuildSnapshotFromChunks() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SnapshotBasicChunkStrategy.BuildSnapshotFromChunks() = %v, want %v", got, tt.want)
+				t.Errorf("SnapshotBasicChunkStrategy.BuildSnapshotFromChunks() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}

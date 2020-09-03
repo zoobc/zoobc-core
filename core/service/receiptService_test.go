@@ -5,21 +5,22 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"errors"
-	"fmt"
 	"reflect"
 	"regexp"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -123,32 +124,34 @@ var (
 
 	// node registry
 	mockNodeRegistrationData = model.NodeRegistration{
-		NodeID:             0,
+		NodeID:             111,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
-		NodeAddress: &model.NodeAddress{
-			Address: "0.0.0.0",
-			Port:    8001,
-		},
 		LockedBalance:      0,
 		RegistrationStatus: 0,
 		Latest:             false,
 		Height:             0,
+		NodeAddressInfo: &model.NodeAddressInfo{
+			Address: "127.0.0.1",
+			Port:    8001,
+			Status:  model.NodeAddressStatus_NodeAddressConfirmed,
+		},
 	}
 	mockNodeRegistrationDataB = model.NodeRegistration{
-		NodeID:             0,
+		NodeID:             222,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
 		AccountAddress:     "",
 		RegistrationHeight: 0,
-		NodeAddress: &model.NodeAddress{
-			Address: "0.0.0.0",
-			Port:    8002,
-		},
 		LockedBalance:      0,
 		RegistrationStatus: 0,
 		Latest:             false,
 		Height:             0,
+		NodeAddressInfo: &model.NodeAddressInfo{
+			Address: "127.0.0.1",
+			Port:    8002,
+			Status:  model.NodeAddressStatus_NodeAddressConfirmed,
+		},
 	}
 )
 
@@ -239,8 +242,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 	defer db.Close()
 	switch qe {
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS " +
-		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) " +
-		"AND block_height BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
+		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND block_height " +
+		"BETWEEN 280 AND 1000 ORDER BY block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHeight", "Tree", "Timestamp",
 		}).AddRow(
@@ -279,10 +282,9 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE NOT " +
-		"EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) AND " +
-		"reference_block_height BETWEEN 0 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height ASC " +
-		"LIMIT 5":
+		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE NOT EXISTS " +
+		"(SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) AND reference_block_height " +
+		"BETWEEN 280 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height ASC LIMIT 5":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key",
 			"recipient_public_key",
@@ -294,7 +296,18 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			"recipient_signature",
 			"rmr",
 			"rmr_index",
-		}))
+		}).AddRow(
+			mockLinkedReceipt.BatchReceipt.SenderPublicKey,
+			mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
+			mockLinkedReceipt.BatchReceipt.DatumType,
+			mockLinkedReceipt.BatchReceipt.DatumHash,
+			mockLinkedReceipt.BatchReceipt.ReferenceBlockHeight,
+			mockLinkedReceipt.BatchReceipt.ReferenceBlockHash,
+			mockLinkedReceipt.BatchReceipt.RMRLinked,
+			mockLinkedReceipt.BatchReceipt.RecipientSignature,
+			mockReceiptRMR.Bytes(),
+			0,
+		))
 
 	}
 
@@ -308,9 +321,9 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY " +
-		"height DESC LIMIT 1":
+
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, latest, " +
+		"height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -321,9 +334,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationData.NodePublicKey,
 					mockNodeRegistrationData.AccountAddress,
 					mockNodeRegistrationData.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationData.NodeAddress.Address, mockNodeRegistrationData.NodeAddress.Port,
-					),
 					mockNodeRegistrationData.LockedBalance,
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
@@ -338,9 +348,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 					mockNodeRegistrationDataB.NodePublicKey,
 					mockNodeRegistrationDataB.AccountAddress,
 					mockNodeRegistrationDataB.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationDataB.NodeAddress.Address, mockNodeRegistrationDataB.NodeAddress.Port,
-					),
 					mockNodeRegistrationDataB.LockedBalance,
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
@@ -353,10 +360,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetID(),
 				mockBlockDataSelectReceipt.GetBlockHash(),
 				mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetTimestamp(),
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
@@ -380,9 +387,8 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT id, node_public_key, account_address, registration_height, node_address, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY " +
-		"height DESC LIMIT 1":
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, latest, " +
+		"height FROM node_registry WHERE node_public_key = ? AND height <= ? ORDER BY height DESC LIMIT 1":
 		nodePublicKey := args[0].([]byte)
 		if !reflect.DeepEqual(nodePublicKey, mockNodeRegistrationData.NodePublicKey) {
 			mock.ExpectQuery(regexp.QuoteMeta(qe)).
@@ -393,9 +399,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationData.NodePublicKey,
 					mockNodeRegistrationData.AccountAddress,
 					mockNodeRegistrationData.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationData.NodeAddress.Address, mockNodeRegistrationData.NodeAddress.Port,
-					),
 					mockNodeRegistrationData.LockedBalance,
 					mockNodeRegistrationData.RegistrationStatus,
 					mockNodeRegistrationData.Latest,
@@ -410,9 +413,6 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 					mockNodeRegistrationDataB.NodePublicKey,
 					mockNodeRegistrationDataB.AccountAddress,
 					mockNodeRegistrationDataB.RegistrationHeight,
-					fmt.Sprintf("%s:%d",
-						mockNodeRegistrationDataB.NodeAddress.Address, mockNodeRegistrationDataB.NodeAddress.Port,
-					),
 					mockNodeRegistrationDataB.LockedBalance,
 					mockNodeRegistrationDataB.RegistrationStatus,
 					mockNodeRegistrationDataB.Latest,
@@ -425,10 +425,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetID(),
 				mockBlockDataSelectReceipt.GetBlockHash(),
 				mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-				mockBlockDataSelectReceipt.GetHeight(),
 				mockBlockDataSelectReceipt.GetTimestamp(),
 				mockBlockDataSelectReceipt.GetBlockSeed(),
 				mockBlockDataSelectReceipt.GetBlockSignature(),
@@ -575,41 +575,46 @@ func (*mockNodeRegistrationSelectReceiptSuccess) GetScrambleNodesByHeight(
 		AddressNodes: []*model.Peer{
 			{
 				Info: &model.Node{
+					ID:      111,
 					Address: "0.0.0.0",
 					Port:    8001,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      222,
 					Address: "0.0.0.0",
 					Port:    8002,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      333,
 					Address: "0.0.0.0",
 					Port:    8003,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      444,
 					Address: "0.0.0.0",
 					Port:    8004,
 				},
 			},
 			{
 				Info: &model.Node{
+					ID:      555,
 					Address: "0.0.0.0",
 					Port:    8005,
 				},
 			},
 		},
 		IndexNodes: map[string]*int{
-			"0.0.0.0:8001": &indexA,
-			"0.0.0.0:8002": &indexB,
-			"0.0.0.0:8003": &indexC,
-			"0.0.0.0:8004": &indexD,
-			"0.0.0.0:8005": &indexE,
+			"111": &indexA,
+			"222": &indexB,
+			"333": &indexC,
+			"444": &indexD,
+			"555": &indexE,
 		},
 		BlockHeight: blockHeight,
 	}, nil
@@ -766,24 +771,40 @@ type (
 	mockQueryExecutorGenerateReceiptsMerkleRootSelectFail struct {
 		query.Executor
 	}
+	mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+	mockGenerateReceiptsMerkleRootMainBlockStateStorageFail struct {
+		storage.CacheStorageInterface
+	}
 )
+
+func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
+	var blockCopy, _ = item.(*model.Block)
+	*blockCopy = mockBlockData
+	return nil
+}
+
+func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
+	return errors.New("mockedError")
+}
 
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	qStr string, tx bool, args ...interface{},
 ) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	switch qStr {
-	case "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1":
+		"total_fee, total_coinbase, version FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
+				mockBlockData.GetHeight(),
 				mockBlockData.GetID(),
 				mockBlockData.GetBlockHash(),
 				mockBlockData.GetPreviousBlockHash(),
-				mockBlockData.GetHeight(),
 				mockBlockData.GetTimestamp(),
 				mockBlockData.GetBlockSeed(),
 				mockBlockData.GetBlockSignature(),
@@ -876,11 +897,12 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransaction
 
 func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	type fields struct {
-		NodeReceiptQuery  query.NodeReceiptQueryInterface
-		BatchReceiptQuery query.BatchReceiptQueryInterface
-		MerkleTreeQuery   query.MerkleTreeQueryInterface
-		KVExecutor        kvdb.KVExecutorInterface
-		QueryExecutor     query.ExecutorInterface
+		NodeReceiptQuery      query.NodeReceiptQueryInterface
+		BatchReceiptQuery     query.BatchReceiptQueryInterface
+		MerkleTreeQuery       query.MerkleTreeQueryInterface
+		KVExecutor            kvdb.KVExecutorInterface
+		QueryExecutor         query.ExecutorInterface
+		MainBlockStateStorage storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -890,33 +912,36 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				NodeReceiptQuery:  query.NewNodeReceiptQuery(),
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   query.NewMerkleTreeQuery(),
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
+				NodeReceiptQuery:      query.NewNodeReceiptQuery(),
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "wantError:SelectRowFail",
 			fields: fields{
-				NodeReceiptQuery:  nil,
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   nil,
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
+				NodeReceiptQuery:      nil,
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       nil,
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageFail{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "wantError:SelectFail",
 			fields: fields{
-				NodeReceiptQuery:  nil,
-				BatchReceiptQuery: query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:   nil,
-				KVExecutor:        nil,
-				QueryExecutor:     &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
+				NodeReceiptQuery:      nil,
+				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       nil,
+				KVExecutor:            nil,
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
 			wantErr: true,
 		},
@@ -924,13 +949,14 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:  tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery: tt.fields.BatchReceiptQuery,
-				MerkleTreeQuery:   tt.fields.MerkleTreeQuery,
-				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				KVExecutor:        tt.fields.KVExecutor,
-				QueryExecutor:     tt.fields.QueryExecutor,
-				ReceiptUtil:       &coreUtil.ReceiptUtil{},
+				NodeReceiptQuery:      tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:     tt.fields.BatchReceiptQuery,
+				MerkleTreeQuery:       tt.fields.MerkleTreeQuery,
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				KVExecutor:            tt.fields.KVExecutor,
+				QueryExecutor:         tt.fields.QueryExecutor,
+				ReceiptUtil:           &coreUtil.ReceiptUtil{},
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
 				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
@@ -961,10 +987,10 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 	db, mock, _ := sqlmock.New()
 	mockRow := mock.NewRows(query.NewBlockQuery(chaintype.GetChainType(0)).Fields)
 	mockRow.AddRow(
+		mockBlockDataSelectReceipt.GetHeight(),
 		mockBlockDataSelectReceipt.GetID(),
 		mockBlockDataSelectReceipt.GetBlockHash(),
 		mockBlockDataSelectReceipt.GetPreviousBlockHash(),
-		mockBlockDataSelectReceipt.GetHeight(),
 		mockBlockDataSelectReceipt.GetTimestamp(),
 		mockBlockDataSelectReceipt.GetBlockSeed(),
 		mockBlockDataSelectReceipt.GetBlockSignature(),
@@ -979,53 +1005,6 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
 	return db.QueryRow(qStr), nil
-}
-func TestReceiptService_PruningNodeReceipts(t *testing.T) {
-	type fields struct {
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
-		BatchReceiptQuery       query.BatchReceiptQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlockQuery              query.BlockQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		NodeRegistrationService NodeRegistrationServiceInterface
-		Signature               crypto.SignatureInterface
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "WantSuccess",
-			fields: fields{
-				NodeReceiptQuery: query.NewNodeReceiptQuery(),
-				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				BlockQuery:       query.NewBlockQuery(chaintype.GetChainType(0)),
-				QueryExecutor:    &mockExecutorPruningNodeReceiptsSuccess{},
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rs := &ReceiptService{
-				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockQuery:              tt.fields.BlockQuery,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				Signature:               tt.fields.Signature,
-			}
-			if err := rs.PruningNodeReceipts(); (err != nil) != tt.wantErr {
-				t.Errorf("PruningNodeReceipts() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
 }
 
 type (

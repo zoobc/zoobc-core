@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 
+	"github.com/zoobc/lib/address"
 	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
@@ -39,13 +39,13 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 	return ed25519.NewKeyFromSeed(seedHash[:])
 }
 
-// GetPrivateKeyFromSeedUseSlip10 generate privite key form seed using slip10, this private used by hdwallet
+// GetPrivateKeyFromSeedUseSlip10 generate private key form seed using slip10, this private used by hdwallet
 // NOTE: currently this private cannot use to sign message using golang ed25519,
 // The output private key is first 32 bytes from private key golang ed25519
 func (*Ed25519Signature) GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error) {
 	var (
 		seedBytes      = slip10.NewSeed(seed, slip10.DefaultPassword)
-		slip10Key, err = slip10.DeriveForPath(slip10.StellarPrimaryAccountPath, seedBytes)
+		slip10Key, err = slip10.DeriveForPath(slip10.ZoobcPrimaryAccountPath, seedBytes)
 	)
 	if err != nil {
 		return nil, err
@@ -74,8 +74,8 @@ func (es *Ed25519Signature) GetPublicKeyFromSeed(seed string) []byte {
 }
 
 // GetAddressFromSeed Get the address corresponding to a seed (secret phrase)
-func (es *Ed25519Signature) GetAddressFromSeed(seed string) string {
-	result, _ := es.GetAddressFromPublicKey(es.GetPublicKeyFromSeed(seed))
+func (es *Ed25519Signature) GetAddressFromSeed(prefix, seed string) string {
+	result, _ := es.GetAddressFromPublicKey(prefix, es.GetPublicKeyFromSeed(seed))
 	return result
 }
 
@@ -93,37 +93,19 @@ func (*Ed25519Signature) GetPublicKeyString(publicKey []byte) string {
 }
 
 // GetPublicKeyFromAddress Get the raw public key from a formatted address
-func (*Ed25519Signature) GetPublicKeyFromAddress(address string) ([]byte, error) {
+func (*Ed25519Signature) GetPublicKeyFromAddress(addr string) ([]byte, error) {
 	// decode base64 back to byte
-	publicKey, err := base64.URLEncoding.DecodeString(address)
-	if err != nil {
-
-		return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
-	}
-	// Needs to check the checksum bit at the end, and if valid,
-	if publicKey[32] != util.GetChecksumByte(publicKey[:32]) {
-		return nil, blocker.NewBlocker(blocker.AppErr, "address checksum failed")
-	}
-	return publicKey[:32], nil
+	var (
+		publicKey = make([]byte, 32)
+		err       error
+	)
+	err = address.DecodeZbcID(addr, publicKey)
+	return publicKey, err
 }
 
 // GetAddressFromPublicKey Get the formatted address from a raw public key
-func (*Ed25519Signature) GetAddressFromPublicKey(publicKey []byte) (string, error) {
+func (*Ed25519Signature) GetAddressFromPublicKey(prefix string, publicKey []byte) (string, error) {
 	// public key should be 32 long
-	if len(publicKey) != 32 {
-		return "", blocker.NewBlocker(
-			blocker.ServerError,
-			"invalid public key length",
-		)
-	}
-	// Make 33 byte buffer for Public Key + Checksum Byte
-	rawAddress := make([]byte, 33)
-	copy(rawAddress, publicKey)
-
-	// Add Checksum Byte to end
-	rawAddress[32] = util.GetChecksumByte(publicKey)
-
-	// Convert the raw address (public key + checksum) to Base64 notation
-	address := base64.URLEncoding.EncodeToString(rawAddress)
-	return address, nil
+	id, err := address.EncodeZbcID(prefix, publicKey)
+	return id, err
 }

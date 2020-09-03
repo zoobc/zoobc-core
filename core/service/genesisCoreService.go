@@ -2,14 +2,16 @@ package service
 
 import (
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 var transactionUtil = &transaction.Util{}
@@ -24,36 +26,38 @@ func GetGenesisTransactions(
 	switch chainType.(type) {
 	case *chaintype.MainChain:
 		for _, genesisEntry := range genesisEntries {
-			// send funds from genesis account to the fund receiver
-			genesisTx := &model.Transaction{
-				Version:                 1,
-				TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
-				Height:                  0,
-				Timestamp:               1562806389,
-				SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
-				RecipientAccountAddress: genesisEntry.AccountAddress,
-				Fee:                     0,
-				TransactionBodyLength:   8,
-				TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-					SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
-						Amount: genesisEntry.AccountBalance,
+			// send funds from genesis account to the fund receiver if the `accountBalance` is non-zero
+			if uint64(genesisEntry.AccountBalance) != 0 {
+				genesisTx := &model.Transaction{
+					Version:                 1,
+					TransactionType:         util.ConvertBytesToUint32([]byte{1, 0, 0, 0}),
+					Height:                  0,
+					Timestamp:               constant.MainchainGenesisBlockTimestamp,
+					SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
+					RecipientAccountAddress: genesisEntry.AccountAddress,
+					Fee:                     0,
+					TransactionBodyLength:   8,
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: genesisEntry.AccountBalance,
+						},
 					},
-				},
-				TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
-				Signature:            constant.MainchainGenesisTransactionSignature,
-			}
+					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
+					Signature:            constant.MainchainGenesisTransactionSignature,
+				}
 
-			transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
-			if err != nil {
-				return nil, err
+				transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
+				if err != nil {
+					return nil, err
+				}
+				transactionHash := sha3.Sum256(transactionBytes)
+				genesisTx.TransactionHash = transactionHash[:]
+				genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
+				if err != nil {
+					return nil, err
+				}
+				genesisTxs = append(genesisTxs, genesisTx)
 			}
-			transactionHash := sha3.Sum256(transactionBytes)
-			genesisTx.TransactionHash = transactionHash[:]
-			genesisTx.ID, err = transactionUtil.GetTransactionID(transactionHash[:])
-			if err != nil {
-				return nil, err
-			}
-			genesisTxs = append(genesisTxs, genesisTx)
 
 			// register the node for the fund receiver, if relative element in GenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
@@ -96,7 +100,6 @@ func GetGenesisNodeRegistrationTx(
 		Body: &model.NodeRegistrationTransactionBody{
 			AccountAddress: accountAddress,
 			LockedBalance:  lockedBalance,
-			NodeAddress:    nodeRegistrationQuery.BuildNodeAddress(nodeAddress),
 			NodePublicKey:  nodePublicKey,
 			Poown: &model.ProofOfOwnership{
 				MessageBytes: util.GetProofOfOwnershipMessageBytes(poownMessage),
@@ -109,7 +112,7 @@ func GetGenesisNodeRegistrationTx(
 		Version:                 1,
 		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
 		Height:                  0,
-		Timestamp:               1562806389,
+		Timestamp:               constant.MainchainGenesisBlockTimestamp,
 		SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 		RecipientAccountAddress: accountAddress,
 		Fee:                     0,
@@ -132,6 +135,47 @@ func GetGenesisNodeRegistrationTx(
 		return nil, err
 	}
 	return genesisTx, nil
+}
+
+// AddGenesisNextNodeAdmission create genesis next node admission timestamp
+func AddGenesisNextNodeAdmission(
+	executor query.ExecutorInterface,
+	genesisBlockTimestamp int64,
+	nextNodeAdmissionTimestampStorage storage.CacheStorageInterface,
+) error {
+	var (
+		err           error
+		nodeAdmission = &model.NodeAdmissionTimestamp{
+			Timestamp:   genesisBlockTimestamp + constant.NodeAdmissionGenesisDelay,
+			BlockHeight: 0,
+			Latest:      true,
+		}
+		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+	)
+	err = executor.BeginTx()
+	if err != nil {
+		return err
+	}
+	err = executor.ExecuteTransactions(insertQueries)
+	if err != nil {
+
+		rollbackErr := executor.RollbackTx()
+		if rollbackErr != nil {
+			log.Errorln(rollbackErr.Error())
+		}
+		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
+
+	}
+	err = executor.CommitTx()
+	if err != nil {
+		return err
+	}
+	// update storage cache of next node admission timestamp
+	err = nextNodeAdmissionTimestampStorage.SetItem(nil, *nodeAdmission)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // AddGenesisAccount create genesis account into `account` and `account_balance` table

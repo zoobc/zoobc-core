@@ -60,6 +60,7 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
     -   darwin: `make VERSION=v1.10.1 core-darwin`
     -   linux (386 & amd64): `make VERSION=v1.10.1 core-linux`
     -   windows (32 & 64bit): `make VERSION=v1.10.1 core-windows`
+    -   common os (darwin, linux, windows) : `make VERSION=v1.10.1 core-common-os`
     > With genesis replacement, you can add argument `genesis=true` and what your target is {develop,staging,alhpa(default),local}, like:
     `make build genesis=true gen-target=develop gen-output=dist` for the local target you need create `local.preRegisteredNodes.json`.
 -   CMD
@@ -70,7 +71,7 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
     -   darwin: `make VERSION=v1.10.1 cmd-darwin`
     -   linux (386 & amd64): `make VERSION=v1.10.1 cmd-linux`
     -   windows (32 & 64bit): `make VERSION=v1.10.1 cmd-windows`
-
+    -   common os (darwin, linux, windows) : `make VERSION=v1.10.1 cmd-common-os`
 ### Run
 
 > If already build, just run the binary
@@ -118,11 +119,3 @@ go run main.go
 ### Contributing
 
 please refer to [contribute.md](contribute.md) and [code of conduct](code_of_conduct.md).
-
-### GRPC web proxy for browser
-
-[GRPC Web Proxy](https://github.com/improbable-eng/grpc-web/tree/master/go/grpcwebproxy)
-
-```
-nohup grpcwebproxy --backend_addr=localhost:7000 --run_tls_server=false --allow_all_origins --server_http_debug_port=7001 --server_http_max_write_timeout 1h &
-```

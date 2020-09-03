@@ -3,10 +3,9 @@ package signature
 import (
 	"encoding/hex"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"golang.org/x/crypto/sha3"
@@ -96,7 +95,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 			panic("failed to decode data hex")
 		}
 	} else {
-		unsignedBytes, err = parseBytesArgs(dataBytes, ", ")
+		unsignedBytes, err = helper.ParseBytesArgument(dataBytes, ", ")
 		if err != nil {
 			panic("failed to parse data bytes")
 		}
@@ -145,7 +144,7 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 			panic("failed to decode data hex")
 		}
 	} else {
-		unsignedBytes, err = parseBytesArgs(dataBytes, ", ")
+		unsignedBytes, err = helper.ParseBytesArgument(dataBytes, ", ")
 		if err != nil {
 			panic("failed to parse data bytes")
 		}
@@ -157,7 +156,7 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 			panic("failed to decode signature hex")
 		}
 	} else {
-		signature, err = parseBytesArgs(signatureBytes, ", ")
+		signature, err = helper.ParseBytesArgument(signatureBytes, ", ")
 		if err != nil {
 			panic("failed to parse data bytes")
 		}
@@ -178,19 +177,4 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 	fmt.Printf("signature-hex:\t%v\n", hex.EncodeToString(signature))
 	fmt.Printf("signature-bytes:%v\n", signature)
 
-}
-
-func parseBytesArgs(argsBytesString, separated string) ([]byte, error) {
-	var (
-		parsedByte    []byte
-		byteCharSlice = strings.Split(argsBytesString, separated)
-	)
-	for _, v := range byteCharSlice {
-		byteValue, err := strconv.Atoi(v)
-		if err != nil {
-			return nil, err
-		}
-		parsedByte = append(parsedByte, byte(byteValue))
-	}
-	return parsedByte, nil
 }

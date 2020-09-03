@@ -1,61 +1,50 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"net/http"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
 )
 
 func startGrpcServer(
-	port int,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	mempoolService coreService.MempoolServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
+	rpcPort, httpPort int,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
-	transactionUtil transaction.UtilInterface,
-	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService coreService.ReceiptServiceInterface,
-	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
 ) {
-
-	chainType := chaintype.GetChainType(0)
-
-	// load/enable TLS over grpc
-	creds, err := credentials.NewServerTLSFromFile(apiCertFile, apiKeyFile)
-	if err != nil {
-		logger.Infof("Failed to generate credentials %v. TLS encryption won't be enabled for grpc api", err)
-	} else {
-		logger.Info("TLS certificate loaded. rpc api will use encryption at transport level")
-	}
 	grpcServer := grpc.NewServer(
-		grpc.Creds(creds),
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
 			interceptor.NewServerRateLimiterInterceptor(maxAPIRequestPerSecond),
 			interceptor.NewServerInterceptor(
@@ -71,32 +60,14 @@ func startGrpcServer(
 		),
 		grpc.StreamInterceptor(interceptor.NewStreamInterceptor(ownerAccountAddress)),
 	)
-	actionTypeSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
-	mempoolService := coreService.NewMempoolService(
-		transactionUtil,
-		chainType,
-		kvExecutor,
-		queryExecutor,
-		query.NewMempoolQuery(chainType),
-		query.NewMerkleTreeQuery(),
-		actionTypeSwitcher,
-		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(chainType),
-		query.NewTransactionQuery(chainType),
-		crypto.NewSignature(),
-		observer.NewObserver(),
-		logger,
-		receiptUtil,
-		receiptService,
-		transactionCoreService,
-	)
-	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	serv, err := net.Listen("tcp", fmt.Sprintf(":%d", rpcPort))
 	if err != nil {
 		logger.Fatalf("failed to listen: %v\n", err)
 		return
 	}
+	participationScoreService := coreService.NewParticipationScoreService(query.NewParticipationScoreQuery(), queryExecutor)
+
+	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
 	// *************************************
 	// RPC Services Init
 	// *************************************
@@ -117,7 +88,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -134,7 +105,6 @@ func startGrpcServer(
 			blockServices[(&chaintype.MainChain{}).GetTypeInt()],
 			ownerAccountAddress, nodefilePath),
 	})
-
 	// Set GRPC handler for unconfirmed
 	rpcService.RegisterNodeHardwareServiceServer(grpcServer, &handler.NodeHardwareHandler{
 		Service: service.NewNodeHardwareService(
@@ -142,16 +112,20 @@ func startGrpcServer(
 			crypto.NewSignature(),
 		),
 	})
+	// Set GRPC handler for node address info requests
+	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
+		Service: service.NewNodeAddressInfoAPIService(
+			nodeRegistrationService,
+		),
+	})
 	// Set GRPC handler for node registry request
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
 		Service: service.NewNodeRegistryService(queryExecutor),
 	})
-
 	// Set GRPC handler for account ledger request
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
 		Service: service.NewAccountLedgerService(queryExecutor),
 	})
-
 	// Set GRPC handler for escrow transaction request
 	rpcService.RegisterEscrowTransactionServiceServer(grpcServer, &handler.EscrowTransactionHandler{
 		Service: service.NewEscrowTransactionService(queryExecutor),
@@ -166,6 +140,7 @@ func startGrpcServer(
 			query.NewMultisignatureInfoQuery(),
 			query.NewMultiSignatureParticipantQuery(),
 		)})
+
 	// Set GRPC handler for health check
 	rpcService.RegisterHealthCheckServiceServer(grpcServer, &handler.HealthCheckHandler{})
 
@@ -176,84 +151,99 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
-	// run grpc-gateway handler
+	rpcService.RegisterParticipationScoreServiceServer(grpcServer, &handler.ParticipationScoreHandler{
+		Service: service.NewParticipationScoreService(participationScoreService),
+	})
+
+	// Set GRPC handler for published receipt
+	rpcService.RegisterPublishedReceiptServiceServer(grpcServer, &handler.PublishedReceiptHandler{
+		Service: service.NewPublishedReceiptService(publishedReceiptUtil),
+	})
+
+	// Set GRPC handler for skipped block smith
+	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
+		Service: service.NewSkippedBlockSmithService(
+			query.NewSkippedBlocksmithQuery(),
+			queryExecutor,
+		),
+	})
 	go func() {
+		// serve rpc
 		if err := grpcServer.Serve(serv); err != nil {
 			panic(err)
 		}
 	}()
-	logger.Infof("GRPC listening to http:%d\n", port)
+	go func() {
+		// serve webrpc
+		wrappedServer := grpcweb.WrapServer(
+			grpcServer,
+			grpcweb.WithCorsForRegisteredEndpointsOnly(true),
+			grpcweb.WithOriginFunc(func(origin string) bool {
+				return true // origin: '*'
+			}))
+		httpServer := &http.Server{
+			Addr: fmt.Sprintf(":%d", httpPort),
+			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Access-Control-Allow-Origin", "*")
+				w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+				w.Header().Set("Access-Control-Allow-Headers",
+					"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
+						"Authorization, X-User-Agent, X-Grpc-Web")
+				if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
+					wrappedServer.ServeHTTP(w, r)
+				}
+			}), &http2.Server{}),
+		}
+		if apiKeyFile == "" || apiCertFile == "" {
+			// no certificate provided, run on http
+			if err := httpServer.ListenAndServe(); err != nil {
+				panic(err)
+			}
+		} else {
+			if err := httpServer.ListenAndServeTLS(apiCertFile, apiKeyFile); err != nil {
+				// invalid or not found certificate, falling back to http
+				if err := httpServer.ListenAndServe(); err != nil {
+					panic(err)
+				}
+			}
+		}
+
+	}()
+	logger.Infof("Client API Served on [rpc] http:%d\t [browser] http:%d", rpcPort, httpPort)
 }
 
 // Start starts api servers in the given port and passing query executor
 func Start(
-	grpcPort, restPort int,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	ownerAccountAddress, nodefilePath string,
+	mempoolService coreService.MempoolServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
+	grpcPort, httpPort int, ownerAccountAddress,
+	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
-	transactionUtil transaction.UtilInterface,
-	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService coreService.ReceiptServiceInterface,
-	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
 ) {
 	startGrpcServer(
-		grpcPort,
-		kvExecutor,
 		queryExecutor,
 		p2pHostService,
 		blockServices,
 		nodeRegistrationService,
+		mempoolService,
+		transactionUtil,
+		actionTypeSwitcher,
+		blockStateStorages,
+		grpcPort, httpPort,
 		ownerAccountAddress,
 		nodefilePath,
 		logger,
 		isDebugMode,
-		apiCertFile,
-		apiKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreService,
+		apiCertFile, apiKeyFile,
 		maxAPIRequestPerSecond,
 	)
-	if restPort > 0 { // only start proxy service if apiHTTPPort set with value > 0
-		go func() {
-			err := runProxy(restPort, grpcPort)
-			if err != nil {
-				panic(err)
-			}
-		}()
-	}
-}
-
-/**
-runProxy only ran when `Debug` flag is set to `true` in `config.toml`
-this function open a http endpoint that will be proxy to our rpc service
-*/
-func runProxy(apiPort, rpcPort int) error {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	_ = rpcService.RegisterAccountBalanceServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterBlockServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterHostServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterMempoolServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeHardwareServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeRegistrationServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterNodeAdminServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterAccountLedgerServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterEscrowTransactionServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterMultisigServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterHealthCheckServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	_ = rpcService.RegisterAccountDatasetServiceHandlerFromEndpoint(ctx, mux, fmt.Sprintf("localhost:%d", rpcPort), opts)
-	return http.ListenAndServe(fmt.Sprintf(":%d", apiPort), mux)
 }

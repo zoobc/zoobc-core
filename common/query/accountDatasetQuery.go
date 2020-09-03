@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/model"
@@ -63,6 +64,45 @@ func (adq *AccountDatasetQuery) InsertAccountDatasets(datasets []*model.AccountD
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (adq *AccountDatasetQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	accountDatasets, ok := payload.([]*model.AccountDataset)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+adq.TableName)
+	}
+	if len(accountDatasets) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(adq.Fields), len(accountDatasets))
+		for i := 0; i < rounds; i++ {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := adq.InsertAccountDatasets(accountDatasets[len(accountDatasets)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (adq *AccountDatasetQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (setter_account_address, recipient_account_address, property, height) NOT IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (setter_account_address, recipient_account_address, property, height) IN "+
+				"(select t2.setter_account_address, t2.recipient_account_address, t2.property, max(t2.height) from %s t2 "+
+				"group by t2.setter_account_address, t2.recipient_account_address, t2.property)",
+			adq.getTableName(), adq.getTableName()),
+	}
 }
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
@@ -221,7 +261,7 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 			SELECT %s FROM %s
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM %s
-				WHERE height >= %d AND height <= %d
+				WHERE height >= %d AND height <= %d AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		strings.Join(adq.Fields, ", "),
@@ -234,6 +274,6 @@ func (adq *AccountDatasetQuery) SelectDataForSnapshot(fromHeight, toHeight uint3
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (adq *AccountDatasetQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		adq.TableName, fromHeight, toHeight)
 }

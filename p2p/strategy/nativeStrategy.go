@@ -214,6 +214,16 @@ func (ns *NativeStrategy) UpdateBlacklistedStatusThread() {
 	}()
 }
 
+func (ns *NativeStrategy) GetPriorityPeersByFullAddress(priorityPeers map[string]*model.Peer) map[string]*model.Peer {
+	var priorityPeersByAddr = make(map[string]*model.Peer)
+	for _, pp := range priorityPeers {
+		if pp.GetInfo().Address != "" && pp.GetInfo().Port != 0 {
+			priorityPeersByAddr[p2pUtil.GetFullAddress(pp.GetInfo())] = pp
+		}
+	}
+	return priorityPeersByAddr
+}
+
 // GetPriorityPeers returns resolved peers in thread-safe manner
 func (ns *NativeStrategy) GetPriorityPeers() map[string]*model.Peer {
 	return make(map[string]*model.Peer)
@@ -499,4 +509,32 @@ func (ns *NativeStrategy) DisconnectPeer(peer *model.Peer) {
 
 func (ns *NativeStrategy) ValidateRequest(context.Context) bool {
 	return true
+}
+
+// TODO implement this method
+// GetNodeAddressesInfo request a list of node addresses from peers
+func (ns *NativeStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error) {
+	return nil, nil
+}
+
+// TODO implement this method
+// ReceiveNodeAddressInfo receive a node address info from a peer (server side of SendNodeAddressInfo client api call)
+func (ns *NativeStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+	return nil
+}
+
+// TODO implement this method
+// UpdateOwnNodeAddressInfo check if nodeAddress in db must be updated and broadcast the new address
+func (ns *NativeStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, nodeSecretPhrase string) error {
+	return nil
+}
+
+// TODO implement this method
+// GenerateProofOfOrigin generate a proof of origin message from a challenge request and sign it
+func (ns *NativeStrategy) GenerateProofOfOrigin(
+	challenge []byte,
+	timestamp int64,
+	nodeSecretPhrase string,
+) *model.ProofOfOrigin {
+	return nil
 }

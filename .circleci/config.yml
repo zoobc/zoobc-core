@@ -52,6 +52,9 @@ jobs:
                       - /go/pkg/mod
     test:
         <<: *defaults
+        environment:
+            GOMAXPROCS: 2
+#           https://support.circleci.com/hc/en-us/articles/360034684273-Common-GoLang-memory-issues:
         steps:
             - checkout
             - restore_cache:
@@ -60,8 +63,12 @@ jobs:
                   name: ↓ GOLINT
                   command: go get -u golang.org/x/lint/golint
             - run:
-                  name: GO Test
-                  command: make test
+                  name: GO FMT
+                  command: make go-fmt
+            - run:
+                  name: GOCI
+                  command: make golangci-lint
+#                  command: make test
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`

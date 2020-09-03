@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/big"
 
+	"github.com/zoobc/zoobc-core/common/constant"
+
 	"github.com/tyler-smith/go-bip39"
 )
 
@@ -16,9 +18,9 @@ func GetSecureRandom() int64 {
 	return newNumber.Int64()
 }
 
-// GetSecureRandomSeed generates a new randome seed, a mnemonic that can be used to derive a private key
+// GetSecureRandomSeed generates a new random seed, a mnemonic that can be used to derive a private key
 func GetSecureRandomSeed() string {
-	entropy, _ := bip39.NewEntropy(128)
+	entropy, _ := bip39.NewEntropy(constant.SecureRandomSeedBitSize)
 	seed, _ := bip39.NewMnemonic(entropy)
 	return seed
 }

@@ -421,8 +421,7 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 			want: "SELECT id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,latest," +
 				"instruction FROM escrow_transaction WHERE (id, block_height) IN (SELECT t2.id, " +
 				"MAX(t2.block_height) FROM escrow_transaction as t2 WHERE t2." +
-				"block_height >= 0 AND t2.block_height <= 1 GROUP BY t2.id) ORDER BY" +
-				" block_height",
+				"block_height >= 0 AND t2.block_height <= 1 AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -522,7 +521,7 @@ func TestEscrowTransactionQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10",
+			want: "DELETE FROM escrow_transaction WHERE block_height >= 0 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

@@ -13,10 +13,14 @@ type (
 	NodeRegistryServiceInterface interface {
 		GetNodeRegistrations(*model.GetNodeRegistrationsRequest) (*model.GetNodeRegistrationsResponse, error)
 		GetNodeRegistration(*model.GetNodeRegistrationRequest) (*model.GetNodeRegistrationResponse, error)
+		GetNodeRegistrationsByNodePublicKeys(*model.GetNodeRegistrationsByNodePublicKeysRequest,
+		) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error)
+		GetPendingNodeRegistrations(*model.GetPendingNodeRegistrationsRequest) (*model.GetPendingNodeRegistrationsResponse, error)
 	}
 
 	NodeRegistryService struct {
-		Query query.ExecutorInterface
+		Query                 query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	}
 )
 
@@ -48,7 +52,14 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 
 	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", 1))
-	caseQuery.And(caseQuery.Equal("registration_status", params.GetRegistrationStatus()))
+
+	var statuses []interface{}
+	for _, s := range params.GetRegistrationStatuses() {
+		statuses = append(statuses, s)
+	}
+	if len(statuses) > 0 {
+		caseQuery.Where(caseQuery.In("registration_status", statuses...))
+	}
 	caseQuery.And(caseQuery.GreaterEqual("registration_height", params.GetMinRegistrationHeight()))
 	if maxHeight > 0 {
 		caseQuery.And(caseQuery.LessEqual("registration_height", maxHeight))
@@ -94,6 +105,44 @@ func (ns NodeRegistryService) GetNodeRegistrations(params *model.GetNodeRegistra
 	}, nil
 }
 
+func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model.GetNodeRegistrationsByNodePublicKeysRequest,
+) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
+
+	var (
+		err               error
+		rows2             *sql.Rows
+		selectQuery       string
+		args              []interface{}
+		nodeRegistrations []*model.NodeRegistration
+	)
+
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	caseQuery := query.NewCaseQuery()
+
+	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
+	caseQuery.Where(caseQuery.In("node_public_key", params.NodePublicKeys))
+	caseQuery.And(caseQuery.Equal("latest", 1))
+	caseQuery.OrderBy("height", model.OrderBy_DESC)
+
+	selectQuery, args = caseQuery.Build()
+
+	// Get list of node registry
+	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows2.Close()
+
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &model.GetNodeRegistrationsByNodePublicKeysResponse{
+		NodeRegistrations: nodeRegistrations,
+	}, nil
+}
+
 func (ns NodeRegistryService) GetNodeRegistration(
 	params *model.GetNodeRegistrationRequest,
 ) (*model.GetNodeRegistrationResponse, error) {
@@ -117,9 +166,6 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	if params.GetRegistrationHeight() != 0 {
 		caseQuery.And(caseQuery.Equal("registration_height", params.GetRegistrationHeight()))
 	}
-	if params.GetNodeAddress() != nil {
-		caseQuery.And(caseQuery.Equal("node_address", nodeRegistrationQuery.ExtractNodeAddress(params.GetNodeAddress())))
-	}
 	caseQuery.And(caseQuery.Equal("latest", 1))
 	caseQuery.OrderBy("height", model.OrderBy_DESC)
 	caseQuery.Limit(1)
@@ -136,5 +182,34 @@ func (ns NodeRegistryService) GetNodeRegistration(
 
 	return &model.GetNodeRegistrationResponse{
 		NodeRegistration: &nodeRegistration,
+	}, nil
+}
+
+func (ns NodeRegistryService) GetPendingNodeRegistrations(
+	req *model.GetPendingNodeRegistrationsRequest) (*model.GetPendingNodeRegistrationsResponse, error) {
+	var (
+		err               error
+		rows              *sql.Rows
+		args              []interface{}
+		nodeRegistrations []*model.NodeRegistration
+		limit             = req.Limit
+	)
+	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
+	selectQuery := nodeRegistrationQuery.GetPendingNodeRegistrations(limit)
+
+	// Get list of node registry
+	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &model.GetPendingNodeRegistrationsResponse{
+		NodeRegistrations: nodeRegistrations,
 	}, nil
 }

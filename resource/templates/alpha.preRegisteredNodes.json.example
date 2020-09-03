@@ -1,41 +1,41 @@
 [
   {
-    "AccountAddress": "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+    "AccountAddress": "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
     "AccountBalance": 0,
     "NodeSeed": "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness",
-    "NodePublicKeyB64": "mToyyAc9bOXMMMeRFWN9SzEtdmHbUPL0ZIaQ9iWQ1Yc=",
+    "NodeAccountAddress": "ZNK_TE5DFSAH_HVWOLTBQ_Y6IRKY35_JMYS25TB_3NIPF5DE_Q2IPMJMQ_2WDWZB5Q",
     "LockedBalance": 0,
     "NodeAddress": "li1627-168.members.linode.com:4041",
     "ParticipationScore": 0,
     "Smithing": true
   },
   {
-    "AccountAddress": "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+    "AccountAddress": "ZBC_HJYRRTEP_QQYV5FCN_7IKBGOSQ_KI4RFFT2_QHZW7EWJ_CN56HL3F_EU2SGEHU",
     "NodeSeed": "demanding unlined hazard neuter condone anime asleep ascent capitol sitter marathon armband",
-    "NodePublicKeyB64": "AA4G2qo2PDICQoJ34ut+ywUMmMKqkis/4GV/8T6Yu/8=",
+    "NodeAccountAddress": "ZNK_AAHANWVK_GY6DEASC_QJ36F236_ZMCQZGGC_VKJCWP7A_MV77CPUY_XP7XERUV",
     "NodeAddress": "li1627-168.members.linode.com:5051",
     "Smithing": true
   },
   {
-    "AccountAddress": "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+    "AccountAddress": "ZBC_AQTEULXY_CRQZ2SRL_D6R3IX2K_UCNSJDKT_54D5R2JC_G7Z4ZDVT_BVWZN2RX",
     "NodeSeed": "street roast immovable escalator stinger nervy provider debug flavoring hubcap creature remix",
-    "NodePublicKeyB64": "jHMjM58W6sAmaGAYUEZW03tINN1heTuXnlqnEW79ep4=",
+    "NodeAccountAddress": "ZNK_RRZSGM47_C3VMAJTI_MAMFARSW_2N5UQNG5_MF4TXF46_LKTRC3X5_PKPITRJR",
     "NodeAddress": "li1627-168.members.linode.com:6061",
     "Smithing": true
   },
   {
     "AccountBalance": 0,
-    "AccountAddress": "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd",
+    "AccountAddress": "ZBC_TSX6ROYX_IMHQXCMK_RARAYCF7_Z3GUXKPD_PN7ZM3C5_WFWVY2UG_ONB5YZD6",
     "NodeSeed": "spree uplifted stapling quotable disfigure lair deduct untying timothy maggot cryptic unrigged",
-    "NodePublicKeyB64": "Keu41kYXmVloKfr4MwdFWeq1ZKMtRZhGNMmTRgbyNNw=",
+    "NodeAccountAddress": "ZNK_FHV3RVSG_C6MVS2BJ_7L4DGB2F_LHVLKZFD_FVCZQRRU_ZGJUMBXS_GTOHZ26S",
     "NodeAddress": "li1627-168.members.linode.com:7071",
     "Smithing": true
   },
   {
     "AccountBalance": 0,
-    "AccountAddress": "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
+    "AccountAddress": "ZBC_RERG3XD7_GAKOZZKY_VMZP2SQE_LBP45DC6_VDFGDTFK_3BZFBQGK_JMWELLO7",
     "NodeSeed": "merge plug donor drop cancel inherit extra toss cabbage awkward destroy rail",
-    "NodePublicKeyB64": "WyTkRmVeuva6BE6OraK7rcpR81yNeJTcKaDQXq6mPs8=",
+    "NodeAccountAddress": "ZNK_LMSOIRTF_L25PNOQE_J2HK3IV3_VXFFD424_RV4JJXBJ_UDIF5LVG_H3HZ477D",
     "NodeAddress": "li1382-87.members.linode.com:4040",
     "Smithing": true
   }

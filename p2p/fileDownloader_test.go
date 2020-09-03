@@ -1,9 +1,13 @@
 package p2p
 
 import (
-	"github.com/pkg/errors"
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 	"reflect"
 	"testing"
+
+	"github.com/pkg/errors"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -17,7 +21,10 @@ func TestNewFileDownloader(t *testing.T) {
 		fileService             service.FileServiceInterface
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
+		chunkUtil               util.ChunkUtilInterface
 	}
+	chunkUtil := util.NewChunkUtil(sha3.New256().Size(), storage.NewNodeShardCacheStorage(), &log.Logger{})
+
 	tests := []struct {
 		name string
 		args args
@@ -30,19 +37,22 @@ func TestNewFileDownloader(t *testing.T) {
 				blockchainStatusService: &service.BlockchainStatusService{},
 				logger:                  &log.Logger{},
 				fileService:             &service.FileService{},
+				chunkUtil:               chunkUtil,
 			},
 			want: &FileDownloader{
 				FileService:             &service.FileService{},
 				Logger:                  &log.Logger{},
 				BlockchainStatusService: &service.BlockchainStatusService{},
 				P2pService:              &Peer2PeerService{},
+				ChunkUtil:               chunkUtil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewFileDownloader(tt.args.p2pService, tt.args.fileService, tt.args.logger,
-				tt.args.blockchainStatusService); !reflect.DeepEqual(got, tt.want) {
+			if got := NewFileDownloader(
+				tt.args.p2pService, tt.args.fileService, tt.args.blockchainStatusService,
+				nil, tt.args.chunkUtil, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFileDownloader() = %v, want %v", got, tt.want)
 			}
 		})
@@ -89,7 +99,12 @@ func (mfs *mockFileService) GetFileNameFromHash(fileHash []byte) string {
 	return "testFileName"
 }
 
-func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string, retryCount uint32) (failed []string, err error) {
+func (mp2p *mockP2pService) DownloadFilesFromPeer(
+	fullHash []byte,
+	fileChunksNames []string,
+	validNodeIDs map[int64]bool,
+	retryCount uint32,
+) (failed []string, err error) {
 	failed = make([]string, 0)
 	if mp2p.success {
 		return
@@ -97,17 +112,34 @@ func (mp2p *mockP2pService) DownloadFilesFromPeer(fileChunksNames []string, retr
 	return []string{"testFailedFile1"}, errors.New("DownloadFilesFromPeerFailed")
 }
 
+type (
+	mockBlockSpinePublicKeyServiceSuccess struct {
+		service.BlockSpinePublicKeyService
+	}
+)
+
+func (*mockBlockSpinePublicKeyServiceSuccess) GetValidSpinePublicKeyByBlockHeightInterval(
+	fromHeight, toHeight uint32,
+) (
+	[]*model.SpinePublicKey, error,
+) {
+	return []*model.SpinePublicKey{}, nil
+}
+
 func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 	type fields struct {
-		FileService             service.FileServiceInterface
-		P2pService              Peer2PeerServiceInterface
-		BlockchainStatusService service.BlockchainStatusServiceInterface
-		Logger                  *log.Logger
+		FileService                service.FileServiceInterface
+		P2pService                 Peer2PeerServiceInterface
+		BlockchainStatusService    service.BlockchainStatusServiceInterface
+		BlockSpinePublicKeyService service.BlockSpinePublicKeyServiceInterface
+		ChunkUtil                  util.ChunkUtilInterface
+		Logger                     *log.Logger
 	}
 	type args struct {
 		ct                 chaintype.ChainType
 		spineBlockManifest *model.SpineBlockManifest
 	}
+	chunkUtil := util.NewChunkUtil(sha3.New256().Size(), storage.NewNodeShardCacheStorage(), &log.Logger{})
 	tests := []struct {
 		name    string
 		fields  fields
@@ -127,7 +159,9 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
-				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
+				ChunkUtil:                  chunkUtil,
+				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
+				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
 		},
 		{
@@ -143,7 +177,9 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
-				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
+				ChunkUtil:                  chunkUtil,
+				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
+				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
 			wantErr: true,
 		},
@@ -161,15 +197,19 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: true,
 				},
-				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
+				ChunkUtil:                  chunkUtil,
+				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
+				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "DownloadSnapshot:fail-{DownloadFilesFromPeer}",
 			args: args{
-				ct:                 &chaintype.MainChain{},
-				spineBlockManifest: &model.SpineBlockManifest{},
+				ct: &chaintype.MainChain{},
+				spineBlockManifest: &model.SpineBlockManifest{
+					FileChunkHashes: append(fdChunk1Hash, fdChunk2Hash...),
+				},
 			},
 			fields: fields{
 				FileService: &mockFileService{
@@ -178,8 +218,10 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 				P2pService: &mockP2pService{
 					success: false,
 				},
-				Logger:                  log.New(),
-				BlockchainStatusService: service.NewBlockchainStatusService(false, log.New()),
+				ChunkUtil:                  chunkUtil,
+				Logger:                     log.New(),
+				BlockchainStatusService:    service.NewBlockchainStatusService(false, log.New()),
+				BlockSpinePublicKeyService: &mockBlockSpinePublicKeyServiceSuccess{},
 			},
 			wantErr: true,
 		},
@@ -187,10 +229,12 @@ func TestFileDownloader_DownloadSnapshot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &FileDownloader{
-				FileService:             tt.fields.FileService,
-				P2pService:              tt.fields.P2pService,
-				BlockchainStatusService: tt.fields.BlockchainStatusService,
-				Logger:                  tt.fields.Logger,
+				FileService:                tt.fields.FileService,
+				P2pService:                 tt.fields.P2pService,
+				BlockchainStatusService:    tt.fields.BlockchainStatusService,
+				BlockSpinePublicKeyService: tt.fields.BlockSpinePublicKeyService,
+				ChunkUtil:                  tt.fields.ChunkUtil,
+				Logger:                     tt.fields.Logger,
 			}
 			if _, err := ss.DownloadSnapshot(tt.args.ct, tt.args.spineBlockManifest); (err != nil) != tt.wantErr {
 				t.Errorf("FileDownloader.DownloadSnapshot() error = %v, wantErr %v", err, tt.wantErr)

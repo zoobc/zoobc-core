@@ -2,6 +2,7 @@ package util
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ import (
 const DefaultConnectionMetadata = "requester"
 
 // NewHost to initialize new server node
-func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host {
+func NewHost(address string, port uint32, knownPeers []*model.Peer, version, codeName string) *model.Host {
 	knownPeersMap := make(map[string]*model.Peer)
 	unresolvedPeersMap := make(map[string]*model.Peer)
 	for _, peer := range knownPeers {
@@ -28,8 +29,10 @@ func NewHost(address string, port uint32, knownPeers []*model.Peer) *model.Host 
 
 	return &model.Host{
 		Info: &model.Node{
-			Address: address,
-			Port:    port,
+			Address:  address,
+			Port:     port,
+			Version:  version,
+			CodeName: codeName,
 		},
 		ResolvedPeers:    make(map[string]*model.Peer),
 		UnresolvedPeers:  unresolvedPeersMap,
@@ -52,6 +55,9 @@ func NewPeer(address string, port int) *model.Peer {
 // ParsePeer to parse an address to a peer model
 func ParsePeer(peerStr string) (*model.Peer, error) {
 	peerInfo := strings.Split(peerStr, ":")
+	if len(peerInfo) != 2 {
+		return nil, errors.New("peer address must be provided in address:port format")
+	}
 	peerAddress := peerInfo[0]
 	peerPort, err := strconv.Atoi(peerInfo[1])
 	if err != nil {
@@ -149,4 +155,46 @@ func GetPriorityPeersByNodeFullAddress(
 		addedPosition++
 	}
 	return priorityPeers, nil
+}
+
+// GetPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
+func GetPriorityPeersByNodeID(
+	senderPeerID int64,
+	scrambledNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var (
+		priorityPeers = make(map[string]*model.Peer)
+		nodeIDStr     = fmt.Sprintf("%d", senderPeerID)
+	)
+	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
+	if hostIndex == nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
+	}
+	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+	addedPosition := 0
+	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+		var (
+			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
+			peer          = scrambledNodes.AddressNodes[peersPosition]
+			peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
+		)
+		if priorityPeers[peerIDStr] != nil {
+			break
+		}
+		if peerIDStr != nodeIDStr {
+			priorityPeers[peerIDStr] = peer
+		}
+		addedPosition++
+	}
+	return priorityPeers, nil
+}
+
+func CheckPeerCompatibility(host, peer *model.Node) error {
+	if peer.GetCodeName() != host.GetCodeName() {
+		return blocker.NewBlocker(blocker.P2PPeerError, "peer code name does not match")
+	}
+	if strings.Split(peer.GetVersion(), ".")[0] != strings.Split(host.GetVersion(), ".")[0] {
+		return blocker.NewBlocker(blocker.P2PPeerError, "peer version does not match")
+	}
+	return nil
 }

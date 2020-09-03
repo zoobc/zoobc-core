@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	"math/big"
-	"net"
-	"strconv"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
 
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -19,25 +19,31 @@ type (
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string
+		GetActiveNodeRegistrations() string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
+		GetActiveNodeRegistrationsWithNodeAddress() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
+		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
+		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
+		GetPendingNodeRegistrations(limit uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
+		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
-		BuildNodeAddress(fullNodeAddress string) *model.NodeAddress
-		ExtractNodeAddress(nodeAddress *model.NodeAddress) string
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
+		ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error
 	}
 
 	NodeRegistrationQuery struct {
-		Fields    []string
-		TableName string
+		Fields                  []string
+		JoinedAddressInfoFields []string
+		TableName               string
 	}
 )
 
@@ -48,11 +54,23 @@ func NewNodeRegistrationQuery() *NodeRegistrationQuery {
 			"node_public_key",
 			"account_address",
 			"registration_height",
-			"node_address",
 			"locked_balance",
 			"registration_status",
 			"latest",
 			"height",
+		},
+		JoinedAddressInfoFields: []string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+			"%s.address AS node_address",
+			"%s.port AS node_address_port",
+			"%s.status AS node_address_status",
 		},
 		TableName: "node_registry",
 	}
@@ -92,6 +110,44 @@ func (nrq *NodeRegistrationQuery) InsertNodeRegistrations(nodeRegistrations []*m
 		}
 	}
 	return str, args
+}
+
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (nrq *NodeRegistrationQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	nodeRegistrations, ok := payload.([]*model.NodeRegistration)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+nrq.TableName)
+	}
+	if len(nodeRegistrations) > 0 {
+
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(nrq.Fields), len(nodeRegistrations))
+		for i := 0; i < rounds; i++ {
+			qry, args := nrq.InsertNodeRegistrations(nodeRegistrations[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args := nrq.InsertNodeRegistrations(nodeRegistrations[len(nodeRegistrations)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (nrq *NodeRegistrationQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (id, height) NOT IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (id, height) IN "+
+				"(select t2.id, max(height) from %s t2 group by t2.id)",
+			nrq.getTableName(), nrq.getTableName()),
+	}
 }
 
 // UpdateNodeRegistration returns a slice of two queries.
@@ -176,6 +232,18 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKey(no
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{nodePublicKey, height}
 }
 
+// GetLastVersionedNodeRegistrationByPublicKey returns query string to get Node Registration
+// by node public key at a given height (versioned)
+func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte,
+	height uint32) (str string, args []interface{}) {
+	joinedFields := strings.Join(nrq.JoinedAddressInfoFields, ", ")
+	joinedFieldsStr := fmt.Sprintf(joinedFields, "t2", "t2", "t2")
+	return fmt.Sprintf("SELECT %s FROM %s LEFT JOIN %s AS t2 ON id = t2.node_id "+
+			"WHERE (node_public_key = ? OR t2.node_id IS NULL) AND height <= ? ORDER BY height DESC LIMIT 1",
+			joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName),
+		[]interface{}{nodePublicKey, height}
+}
+
 // GetNodeRegistrationByAccountAddress returns query string to get Node Registration by account public key
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1",
@@ -219,6 +287,41 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string 
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
 }
 
+// GetRegisteredNodes the full node registry
+func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status = 0 AND latest = 1",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName())
+}
+
+// GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
+// Note: this query is to be used during node scrambling. Only nodes that have a peerAddress will be selected
+func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeightWithNodeAddress(height uint32) string {
+	joinedFields := strings.Join(nrq.JoinedAddressInfoFields, ", ")
+	joinedFieldsStr := fmt.Sprintf(joinedFields, "t2", "t2", "t2")
+	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
+		"WHERE registration_status = 0 AND (id,height) in (SELECT t1.id,MAX(t1.height) "+
+		"FROM %s AS t1 WHERE t1.height <= %d GROUP BY t1.id) "+
+		"ORDER BY id, t2.status",
+		joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName, nrq.getTableName(), height)
+}
+
+// GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
+// Note: this query is to be used during node scrambling. Only nodes that have a peerAddress will be selected
+func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsWithNodeAddress() string {
+	joinedFields := strings.Join(nrq.JoinedAddressInfoFields, ", ")
+	joinedFieldsStr := fmt.Sprintf(joinedFields, "t2", "t2", "t2")
+	return fmt.Sprintf("SELECT %s FROM %s INNER JOIN %s AS t2 ON id = t2.node_id "+
+		"WHERE registration_status = 0 "+
+		"ORDER BY height DESC",
+		joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName)
+}
+
+// GetPendingNodeRegistrations returns pending node registrations
+func (nrq *NodeRegistrationQuery) GetPendingNodeRegistrations(limit uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status=1 AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), limit)
+}
+
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
 func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []interface{} {
 	return []interface{}{
@@ -226,7 +329,6 @@ func (nrq *NodeRegistrationQuery) ExtractModel(tx *model.NodeRegistration) []int
 		tx.NodePublicKey,
 		tx.AccountAddress,
 		tx.RegistrationHeight,
-		nrq.ExtractNodeAddress(tx.GetNodeAddress()),
 		tx.LockedBalance,
 		tx.RegistrationStatus,
 		tx.Latest,
@@ -256,7 +358,6 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 
 	for rows.Next() {
 		var (
-			fullNodeAddress     string
 			nr                  model.NodeRegistration
 			basicFieldsReceiver []interface{}
 		)
@@ -266,7 +367,6 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 			&nr.NodePublicKey,
 			&nr.AccountAddress,
 			&nr.RegistrationHeight,
-			&fullNodeAddress,
 			&nr.LockedBalance,
 			&nr.RegistrationStatus,
 			&nr.Latest,
@@ -277,7 +377,46 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 		if err != nil {
 			return nil, err
 		}
-		nr.NodeAddress = nrq.BuildNodeAddress(fullNodeAddress)
+		nodeRegistrations = append(nodeRegistrations, &nr)
+	}
+	return nodeRegistrations, nil
+}
+
+// BuildModelWithAddressInfo will only be used for mapping the result of `select` query, which will guarantee that
+// the result of build model will be correctly mapped based on the modelQuery.Fields order.
+// note: this is to be used with queries that join node_address_info table
+func (nrq *NodeRegistrationQuery) BuildModelWithAddressInfo(
+	nodeRegistrations []*model.NodeRegistration,
+	rows *sql.Rows,
+) ([]*model.NodeRegistration, error) {
+	for rows.Next() {
+		var (
+			nr                  model.NodeRegistration
+			nrAddress           string
+			nrAddressPort       uint32
+			nrAddressInfoStatus model.NodeAddressStatus
+		)
+		err := rows.Scan(
+			&nr.NodeID,
+			&nr.NodePublicKey,
+			&nr.AccountAddress,
+			&nr.RegistrationHeight,
+			&nr.LockedBalance,
+			&nr.RegistrationStatus,
+			&nr.Latest,
+			&nr.Height,
+			&nrAddress,
+			&nrAddressPort,
+			&nrAddressInfoStatus,
+		)
+		if err != nil {
+			return nil, err
+		}
+		nr.NodeAddressInfo = &model.NodeAddressInfo{
+			Address: nrAddress,
+			Port:    nrAddressPort,
+			Status:  nrAddressInfoStatus,
+		}
 		nodeRegistrations = append(nodeRegistrations, &nr)
 	}
 	return nodeRegistrations, nil
@@ -331,52 +470,14 @@ func (nrq *NodeRegistrationQuery) Rollback(height uint32) (multiQueries [][]inte
 	}
 }
 
-// BuildNodeAddress to build joining the NodeAddress.Address and NodeAddress.Port
-func (*NodeRegistrationQuery) BuildNodeAddress(fullNodeAddress string) *model.NodeAddress {
-	var (
-		host, port string
-		err        error
-	)
-
-	host, port, err = net.SplitHostPort(fullNodeAddress)
-	if err != nil {
-		host = fullNodeAddress
-	}
-
-	uintPort, _ := strconv.ParseUint(port, 0, 32)
-	return &model.NodeAddress{
-		Address: host,
-		Port:    uint32(uintPort),
-	}
-}
-
-// ExtractNodeAddress to build fully node address include port to NodeAddress struct
-func (*NodeRegistrationQuery) ExtractNodeAddress(nodeAddress *model.NodeAddress) string {
-
-	if nodeAddress == nil {
-		return ""
-	}
-
-	if nodeAddress.GetPort() != 0 {
-		return fmt.Sprintf("%s:%d", nodeAddress.GetAddress(), nodeAddress.GetPort())
-	}
-
-	return nodeAddress.GetAddress()
-}
-
 // Scan represents `sql.Scan`
 func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row) error {
 
-	var (
-		stringAddress string
-		err           error
-	)
-	err = row.Scan(
+	err := row.Scan(
 		&nr.NodeID,
 		&nr.NodePublicKey,
 		&nr.AccountAddress,
 		&nr.RegistrationHeight,
-		&stringAddress,
 		&nr.LockedBalance,
 		&nr.RegistrationStatus,
 		&nr.Latest,
@@ -385,8 +486,40 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 	if err != nil {
 		return err
 	}
-	nodeAddress := nrq.BuildNodeAddress(stringAddress)
-	nr.NodeAddress = nodeAddress
+	return nil
+}
+
+// ScanWithNodeAddress represents `sql.Scan` and includes address info
+func (nrq *NodeRegistrationQuery) ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error {
+
+	var (
+		err       error
+		nrAddress string
+		nrPort    uint32
+		nrStatus  model.NodeAddressStatus
+	)
+	err = row.Scan(
+		&nr.NodeID,
+		&nr.NodePublicKey,
+		&nr.AccountAddress,
+		&nr.RegistrationHeight,
+		&nr.LockedBalance,
+		&nr.RegistrationStatus,
+		&nr.Latest,
+		&nr.Height,
+		&nrAddress,
+		&nrPort,
+		&nrStatus,
+	)
+	nrAddressInfo := &model.NodeAddressInfo{
+		Address: nrAddress,
+		Port:    nrPort,
+		Status:  nrStatus,
+	}
+	nr.NodeAddressInfo = nrAddressInfo
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -397,18 +530,18 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 func (nrq *NodeRegistrationQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	if fromHeight > 0 {
 		return fmt.Sprintf("SELECT %s FROM %s WHERE (id, height) IN (SELECT t2.id, "+
-			"MAX(t2.height) FROM %s as t2 WHERE t2.height >= 0 AND t2.height < %d GROUP BY t2.id) "+
+			"MAX(t2.height) FROM %s as t2 WHERE t2.height > 0 AND t2.height < %d GROUP BY t2.id) "+
 			"UNION ALL SELECT %s FROM %s WHERE height >= %d AND height <= %d "+
 			"ORDER BY height, id",
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), nrq.getTableName(), fromHeight,
 			strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 	}
-	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d ORDER BY height, id",
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0 ORDER BY height, id",
 		strings.Join(nrq.Fields, ","), nrq.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (nrq *NodeRegistrationQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
 		nrq.TableName, fromHeight, toHeight)
 }

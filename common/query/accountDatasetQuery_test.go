@@ -434,7 +434,7 @@ func TestAccountDatasetsQuery_SelectDataForSnapshot(t *testing.T) {
 			SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset
 			WHERE (setter_account_address, recipient_account_address, property, height) IN (
 				SELECT setter_account_address, recipient_account_address, property, MAX(height) FROM account_dataset
-				WHERE height >= 0 AND height <= 1
+				WHERE height >= 0 AND height <= 1 AND height != 0
 				GROUP BY setter_account_address, recipient_account_address, property
 			) ORDER BY height`,
 		},
@@ -474,7 +474,7 @@ func TestAccountDatasetsQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10",
+			want: "DELETE FROM account_dataset WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
