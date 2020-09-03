@@ -134,9 +134,12 @@ func init() {
 
 	// spawn config object
 	config = model.NewConfig()
-	flagConfigPath, err = util.GetRootPath()
-	if err != nil {
-		flagConfigPath = "./"
+
+	if flagConfigPath != "" {
+		flagConfigPath, err = util.GetRootPath()
+		if err != nil {
+			flagConfigPath = "./"
+		}
 	}
 
 	// load config for default value to be feed to viper
@@ -255,6 +258,7 @@ func initiateMainInstance() {
 	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
+
 	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
@@ -1045,7 +1049,7 @@ func main() {
 
 	rootCmd := &cobra.Command{}
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
-	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "./", "Configuration path")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
