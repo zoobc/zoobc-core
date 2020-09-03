@@ -1076,6 +1076,12 @@ func main() {
 				if flagProfiling {
 					args = append(args, "--profiling")
 				}
+				if flagConfigPath != "" {
+					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+				}
+				if flagUseEnv {
+					args = append(args, "--use-env")
+				}
 				daemonMessage, err = god.Install(args...)
 			case "start":
 				daemonMessage, err = god.Start()
