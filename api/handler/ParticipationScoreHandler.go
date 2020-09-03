@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -39,5 +38,21 @@ func (psh *ParticipationScoreHandler) GetParticipationScores(
 		return nil, err
 	}
 
+	return response, nil
+}
+
+// GetLatestParticipationScoreByNodeID return latest participation score of a node
+func (psh *ParticipationScoreHandler) GetLatestParticipationScoreByNodeID(
+	ctx context.Context,
+	req *model.GetLatestParticipationScoreByNodeIDRequest,
+) (*model.ParticipationScore, error) {
+	var (
+		response *model.ParticipationScore
+		err      error
+	)
+	response, err = psh.Service.GetLatestParticipationScoreByNodeID(req)
+	if err != nil {
+		return nil, err
+	}
 	return response, nil
 }
