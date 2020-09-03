@@ -12,12 +12,15 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
@@ -109,12 +112,29 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
 	cpuProfile                                                      bool
 	cliMonitoring                                                   monitoring.CLIMonitoringInteface
+	configPath                                                      string
 )
+var (
+	daemonCommand = &cobra.Command{
+		Use:                   "daemon",
+		Short:                 "Run node on daemon service, which mean running in the background. Similar to launchd or systemd",
+		Example:               "daemon install | start | stop | remove | status",
+		ValidArgs:             []string{"install", "start", "stop", "remove", "status"},
+		SuggestFor:            []string{"up", "stats", "run", "remove", "deamon", "demon"},
+		DisableFlagsInUseLine: true,
+		SilenceErrors:         true,
+		SilenceUsage:          true,
+	}
+)
+
+// goDaemon instance that needed  to implement whole method of daemon
+type goDaemon struct {
+	daemon.Daemon
+}
 
 func init() {
 	var (
 		configPostfix string
-		configPath    string
 		err           error
 	)
 	// parse custom flag in running the node
@@ -127,8 +147,13 @@ func init() {
 
 	// spawn config object
 	config = model.NewConfig()
+	configPath, err = util.GetRootPath()
+	if err != nil {
+		configPath = "./"
+	}
+
 	// load config for default value to be feed to viper
-	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
+	if err = util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok && useEnvVar {
 			config.ConfigFileExist = true
 		}
@@ -154,7 +179,8 @@ func init() {
 		if err != nil {
 			log.Fatal("Fail to generate node key")
 		}
-	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+	} else {
+		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
 			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
@@ -164,14 +190,14 @@ func init() {
 
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
-		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+		log.Fatalf("ParseKnownPeers Err: %s", err.Error())
 	}
 
 	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
 		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
-		loggerCoreService.Fatal("node seed is empty", err.Error())
+		log.Fatal("node seed is empty")
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
@@ -193,22 +219,25 @@ func init() {
 			log.Fatal("Fail generating address from node's seed")
 		}
 		config.OwnerAccountAddress = id
-		err = config.SaveConfig()
+		err = config.SaveConfig(configPath)
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
 		}
 	}
-	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
-		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
-	}
-
-	initLogInstance()
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
 
+}
+
+// initiateMainInstance initiation all instance that must be needed and exists before running the node
+func initiateMainInstance() {
+	var (
+		err error
+	)
+
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
-	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
+	if err = dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(
@@ -224,7 +253,7 @@ func init() {
 	}
 	// initialize k-v db
 	badgerDbInstance = database.NewBadgerDB()
-	if err := badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
+	if err = badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	badgerDb, err = badgerDbInstance.OpenBadgerDB(config.ResourcePath, config.BadgerDbName)
@@ -533,25 +562,26 @@ func init() {
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 	// register event listeners
 	initObserverListeners()
+
 }
 
-func initLogInstance() {
+func initLogInstance(logPath string) {
 	var (
 		err       error
 		logLevels = viper.GetStringSlice("logLevels")
-		t         = time.Now().Format("2-Jan-2006_")
+		t         = time.Now().Format("01-02-2006_")
 	)
 
-	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerAPIService, err = util.InitLogger(logPath, t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerCoreService, err = util.InitLogger(logPath, t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerP2PService, err = util.InitLogger(logPath, t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
+	if loggerScheduler, err = util.InitLogger(logPath, t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
 }
@@ -684,18 +714,18 @@ func startMainchain() {
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
-		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
 		// genesis next node admission timestamp will be inserted in the very beginning
-		if err := service.AddGenesisNextNodeAdmission(
+		if err = service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
 			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
-		if err := mainchainBlockService.AddGenesis(); err != nil {
+		if err = mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}
 	}
@@ -935,7 +965,12 @@ func startBlockchainSynchronizers() {
 	}()
 }
 
-func main() {
+// start will start all existence instance
+func start() {
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
+
 	// start cpu profiling if enabled
 	if cpuProfile {
 		go func() {
@@ -973,10 +1008,7 @@ func main() {
 	startScheduler()
 	go startBlockchainSynchronizers()
 
-	if !config.LogOnCli && config.CliMonitoring {
-		go cliMonitoring.Start()
-	}
-
+	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -1015,4 +1047,80 @@ func main() {
 			os.Exit(0)
 		}
 	}
+
+}
+
+func main() {
+
+	var (
+		god = goDaemon{}
+	)
+
+	// Override help to make sure not going through when run daemon
+	daemonCommand.SetHelpFunc(func(command *cobra.Command, strings []string) {
+		_ = daemonCommand.Usage()
+		os.Exit(1)
+	})
+	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 && args[0] == "daemon" {
+			if len(args) < 2 {
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+
+			var (
+				daemonMessage string
+				daemonKind    = daemon.SystemDaemon
+			)
+			if runtime.GOOS == "darwin" {
+				daemonKind = daemon.GlobalDaemon
+			}
+			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemonKind)
+			if err != nil {
+				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
+			}
+			god = goDaemon{srvDaemon}
+			if runtime.GOOS == "darwin" {
+				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
+					log.Fatal(dErr)
+				}
+			}
+
+			switch args[1] {
+			case "install":
+				daemonMessage, err = god.Install("daemon run")
+			case "start":
+				daemonMessage, err = god.Start()
+			case "stop":
+				daemonMessage, err = god.Stop()
+			case "remove":
+				daemonMessage, err = god.Remove()
+			case "status":
+				daemonMessage, err = god.Status()
+			case "run":
+				// sub command used by system
+				initLogInstance(fmt.Sprintf("%s/.log", configPath))
+				initiateMainInstance()
+				start()
+			default:
+				_ = daemonCommand.Usage()
+				os.Exit(1)
+			}
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(daemonMessage)
+			}
+		} else {
+			// running as usual
+			initLogInstance(filepath.Join(configPath, "/.log"))
+			initiateMainInstance()
+			if !config.LogOnCli && config.CliMonitoring {
+				go cliMonitoring.Start()
+			}
+			start()
+		}
+	}
+	_ = daemonCommand.Execute()
+
 }
