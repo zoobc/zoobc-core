@@ -47,8 +47,8 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 	)
 	_, err = os.Stat(path)
 	if err != nil && os.IsNotExist(err) {
-		if err = os.Mkdir(path, os.ModePerm); err != nil {
-			return nil, err
+		if e := os.Mkdir(path, os.ModePerm); e != nil {
+			return nil, e
 		}
 	}
 	logFile, err = os.OpenFile(filepath.Join(path, filename), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.ModePerm)
@@ -86,7 +86,7 @@ func InitLogger(path, filename string, levels []string, logOnCLI bool) (*logrus.
 		)
 	}
 	logger.SetReportCaller(true)
-	// logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetFormatter(&logrus.JSONFormatter{})
 	if logOnCLI {
 		logger.AddHook(&hooker{
 			Writer:      logFile,
