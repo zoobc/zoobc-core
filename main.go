@@ -117,7 +117,7 @@ var (
 var (
 	daemonCommand = &cobra.Command{
 		Use:                   "daemon",
-		Short:                 "run node on daemon service, which mean running in the background. seems like launchd or systemd",
+		Short:                 "Run node on daemon service, which mean running in the background. Similar to launchd or systemd",
 		Example:               "daemon install | start | stop | remove | status",
 		ValidArgs:             []string{"install", "start", "stop", "remove", "status"},
 		SuggestFor:            []string{"up", "stats", "run", "remove", "deamon", "demon"},

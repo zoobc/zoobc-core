@@ -37,7 +37,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetConfigName(name)
 	viper.SetConfigType(extension)
 	viper.AddConfigPath(path)
-	viper.AddConfigPath("$OME/zoobc")
+	viper.AddConfigPath("$HOME/zoobc")
 
 	configFile, err := os.Open(filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
 	if err != nil {
