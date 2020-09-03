@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -23,11 +24,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Suppress "imported and not used" errors
 var _ codes.Code
 var _ io.Reader
 var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
+var _ = descriptor.ForMessage
 
 var (
 	filter_MultisigService_GetPendingTransactions_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
@@ -45,6 +48,22 @@ func request_MultisigService_GetPendingTransactions_0(ctx context.Context, marsh
 	}
 
 	msg, err := client.GetPendingTransactions(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MultisigService_GetPendingTransactions_0(ctx context.Context, marshaler runtime.Marshaler, server MultisigServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetPendingTransactionsRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetPendingTransactions_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetPendingTransactions(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -69,6 +88,22 @@ func request_MultisigService_GetPendingTransactionDetailByTransactionHash_0(ctx 
 
 }
 
+func local_request_MultisigService_GetPendingTransactionDetailByTransactionHash_0(ctx context.Context, marshaler runtime.Marshaler, server MultisigServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetPendingTransactionDetailByTransactionHashRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetPendingTransactionDetailByTransactionHash_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetPendingTransactionDetailByTransactionHash(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 var (
 	filter_MultisigService_GetMultisignatureInfo_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
@@ -89,24 +124,145 @@ func request_MultisigService_GetMultisignatureInfo_0(ctx context.Context, marsha
 
 }
 
-var (
-	filter_MultisigService_GetMultisigAddressByParticipantAddresses_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
-)
-
-func request_MultisigService_GetMultisigAddressByParticipantAddresses_0(ctx context.Context, marshaler runtime.Marshaler, client MultisigServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq model.GetMultisigAddressByParticipantAddressesRequest
+func local_request_MultisigService_GetMultisignatureInfo_0(ctx context.Context, marshaler runtime.Marshaler, server MultisigServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetMultisignatureInfoRequest
 	var metadata runtime.ServerMetadata
 
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetMultisigAddressByParticipantAddresses_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetMultisignatureInfo_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.GetMultisigAddressByParticipantAddresses(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := server.GetMultisignatureInfo(ctx, &protoReq)
 	return msg, metadata, err
 
+}
+
+var (
+	filter_MultisigService_GetMultisigAddressByParticipantAddress_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_MultisigService_GetMultisigAddressByParticipantAddress_0(ctx context.Context, marshaler runtime.Marshaler, client MultisigServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetMultisigAddressByParticipantAddressRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetMultisigAddressByParticipantAddress_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := client.GetMultisigAddressByParticipantAddress(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MultisigService_GetMultisigAddressByParticipantAddress_0(ctx context.Context, marshaler runtime.Marshaler, server MultisigServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.GetMultisigAddressByParticipantAddressRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MultisigService_GetMultisigAddressByParticipantAddress_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.GetMultisigAddressByParticipantAddress(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+// RegisterMultisigServiceHandlerServer registers the http handlers for service MultisigService to "mux".
+// UnaryRPC     :call MultisigServiceServer directly.
+// StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+// Note that using this registration option will cause many gRPC library features (such as grpc.SendHeader, etc) to stop working. Consider using RegisterMultisigServiceHandlerFromEndpoint instead.
+func RegisterMultisigServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server MultisigServiceServer) error {
+
+	mux.Handle("GET", pattern_MultisigService_GetPendingTransactions_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_MultisigService_GetPendingTransactions_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MultisigService_GetPendingTransactions_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_MultisigService_GetPendingTransactionDetailByTransactionHash_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_MultisigService_GetPendingTransactionDetailByTransactionHash_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MultisigService_GetPendingTransactionDetailByTransactionHash_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_MultisigService_GetMultisignatureInfo_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_MultisigService_GetMultisignatureInfo_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MultisigService_GetMultisignatureInfo_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	mux.Handle("GET", pattern_MultisigService_GetMultisigAddressByParticipantAddress_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := local_request_MultisigService_GetMultisigAddressByParticipantAddress_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MultisigService_GetMultisigAddressByParticipantAddress_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	return nil
 }
 
 // RegisterMultisigServiceHandlerFromEndpoint is same as RegisterMultisigServiceHandler but
@@ -207,7 +363,7 @@ func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 
 	})
 
-	mux.Handle("GET", pattern_MultisigService_GetMultisigAddressByParticipantAddresses_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_MultisigService_GetMultisigAddressByParticipantAddress_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -216,14 +372,14 @@ func RegisterMultisigServiceHandlerClient(ctx context.Context, mux *runtime.Serv
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_MultisigService_GetMultisigAddressByParticipantAddresses_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_MultisigService_GetMultisigAddressByParticipantAddress_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_MultisigService_GetMultisigAddressByParticipantAddresses_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_MultisigService_GetMultisigAddressByParticipantAddress_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -237,7 +393,7 @@ var (
 
 	pattern_MultisigService_GetMultisignatureInfo_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetMultisignatureInfo"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MultisigService_GetMultisigAddressByParticipantAddresses_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetMultisigAddressByParticipantAddresses"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_MultisigService_GetMultisigAddressByParticipantAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "multisig", "GetMultisigAddressByParticipantAddress"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
@@ -247,5 +403,5 @@ var (
 
 	forward_MultisigService_GetMultisignatureInfo_0 = runtime.ForwardResponseMessage
 
-	forward_MultisigService_GetMultisigAddressByParticipantAddresses_0 = runtime.ForwardResponseMessage
+	forward_MultisigService_GetMultisigAddressByParticipantAddress_0 = runtime.ForwardResponseMessage
 )
