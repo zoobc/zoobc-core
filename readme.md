@@ -33,6 +33,7 @@ Table of Contents:
 -   [protoc](https://github.com/protocolbuffers/protobuf), optional as we are pushing the generated go file to the repo.
 -   [protoc-gen-go](https://github.com/golang/protobuf), optional as we are pushing the generated go file to the repo.
 -   [golangci-lint](https://github.com/golangci/golangci-lint) lint tools we used to keep the code clean and well structured.
+-   [tdm-gcc](https://jmeubank.github.io/tdm-gcc/) (windows-only), if you are running on windows you'll need to install this to build the binary.
 
 ### Install
 
