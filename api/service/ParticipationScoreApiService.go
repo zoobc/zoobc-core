@@ -9,6 +9,7 @@ type (
 	// ParticipationScoreInterface represents interface for ParticipationScoreService
 	ParticipationScoreInterface interface {
 		GetParticipationScores(params *model.GetParticipationScoresRequest) (*model.GetParticipationScoresResponse, error)
+		GetLatestParticipationScoreByNodeID(params *model.GetLatestParticipationScoreByNodeIDRequest) (*model.ParticipationScore, error)
 	}
 
 	// ParticipationScoreService represents struct of ParticipationScoreService
@@ -36,4 +37,11 @@ func (pss *ParticipationScoreService) GetParticipationScores(
 ) (*model.GetParticipationScoresResponse, error) {
 	participationScores, err := pss.ParticipationScoreService.GetParticipationScoreByBlockHeightRange(params.FromHeight, params.ToHeight)
 	return &model.GetParticipationScoresResponse{ParticipationScores: participationScores}, err
+}
+
+// GetParticipationScores fetches participation scores for given height range
+func (pss *ParticipationScoreService) GetLatestParticipationScoreByNodeID(
+	params *model.GetLatestParticipationScoreByNodeIDRequest,
+) (*model.ParticipationScore, error) {
+	return pss.ParticipationScoreService.GetLatestParticipationScoreByNodeID(params.NodeID)
 }
