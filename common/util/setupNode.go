@@ -102,7 +102,7 @@ func (sn *SetupNode) discoverNodeAddress() error {
 func (sn *SetupNode) checkResourceFolder() error {
 	_, err := os.Stat(sn.Config.ResourcePath)
 	if ok := os.IsNotExist(err); ok {
-		color.Cyan("resource folder not found, creating directory...")
+		color.Cyan("resource folder not found in %s, creating directory...", sn.Config.ResourcePath)
 		if err := os.Mkdir("resource", os.ModePerm); err != nil {
 			return errors.New("fail to create directory")
 		}
