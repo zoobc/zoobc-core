@@ -26,7 +26,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("apiRPCPort", 7000)
 	viper.SetDefault("apiHTTPPort", 7003)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
-	viper.Set("snapshotPath", filepath.Join(path, "./resource/snapshots"))
+	viper.Set("snapshotPath", filepath.Join(path, "../resource/snapshots"))
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", false)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
