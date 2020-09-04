@@ -5,19 +5,21 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"syscall"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
@@ -49,87 +51,99 @@ import (
 )
 
 var (
-	config                                                          *model.Config
-	dbInstance                                                      *database.SqliteDB
-	badgerDbInstance                                                *database.BadgerDB
-	db                                                              *sql.DB
-	badgerDb                                                        *badger.DB
-	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage storage.CacheStorageInterface
-	nextNodeAdmissionStorage                                        storage.CacheStorageInterface
-	snapshotChunkUtil                                               util.ChunkUtilInterface
-	p2pServiceInstance                                              p2p.Peer2PeerServiceInterface
-	queryExecutor                                                   *query.Executor
-	kvExecutor                                                      *kvdb.KVExecutor
-	observerInstance                                                *observer.Observer
-	schedulerInstance                                               *util.Scheduler
-	snapshotSchedulers                                              *scheduler.SnapshotScheduler
-	blockServices                                                   = make(map[int32]service.BlockServiceInterface)
-	snapshotBlockServices                                           = make(map[int32]service.SnapshotBlockServiceInterface)
-	blockStateStorages                                              = make(map[int32]storage.CacheStorageInterface)
-	mainchainBlockService                                           *service.BlockService
-	spinePublicKeyService                                           *service.BlockSpinePublicKeyService
-	mainBlockSnapshotChunkStrategy                                  service.SnapshotChunkStrategyInterface
-	spinechainBlockService                                          *service.BlockSpineService
-	fileDownloader                                                  p2p.FileDownloaderInterface
-	mempoolServices                                                 = make(map[int32]service.MempoolServiceInterface)
-	blockIncompleteQueueService                                     service.BlockIncompleteQueueServiceInterface
-	receiptService                                                  service.ReceiptServiceInterface
-	peerServiceClient                                               client.PeerServiceClientInterface
-	peerExplorer                                                    p2pStrategy.PeerExplorerStrategyInterface
-	isDebugMode, useEnvVar                                          bool
-	nodeRegistrationService                                         service.NodeRegistrationServiceInterface
-	nodeAuthValidationService                                       auth.NodeAuthValidationInterface
-	mainchainProcessor                                              smith.BlockchainProcessorInterface
-	spinechainProcessor                                             smith.BlockchainProcessorInterface
-	loggerAPIService                                                *log.Logger
-	loggerCoreService                                               *log.Logger
-	loggerP2PService                                                *log.Logger
-	loggerScheduler                                                 *log.Logger
-	spinechainSynchronizer, mainchainSynchronizer                   blockchainsync.BlockchainSyncServiceInterface
-	spineBlockManifestService                                       service.SpineBlockManifestServiceInterface
-	snapshotService                                                 service.SnapshotServiceInterface
-	transactionUtil                                                 transaction.UtilInterface
-	receiptUtil                                                     = &coreUtil.ReceiptUtil{}
-	transactionCoreServiceIns                                       service.TransactionCoreServiceInterface
-	fileService                                                     service.FileServiceInterface
-	mainchain                                                       = &chaintype.MainChain{}
-	spinechain                                                      = &chaintype.SpineChain{}
-	blockchainStatusService                                         service.BlockchainStatusServiceInterface
-	nodeConfigurationService                                        service.NodeConfigurationServiceInterface
-	nodeAddressInfoService                                          service.NodeAddressInfoServiceInterface
-	mempoolService                                                  service.MempoolServiceInterface
-	mainchainPublishedReceiptService                                service.PublishedReceiptServiceInterface
-	mainchainPublishedReceiptUtil                                   coreUtil.PublishedReceiptUtilInterface
-	mainchainCoinbaseService                                        service.CoinbaseServiceInterface
-	mainchainBlocksmithService                                      service.BlocksmithServiceInterface
-	mainchainParticipationScoreService                              service.ParticipationScoreServiceInterface
-	actionSwitcher                                                  transaction.TypeActionSwitcher
-	feeScaleService                                                 fee.FeeScaleServiceInterface
-	mainchainDownloader, spinechainDownloader                       blockchainsync.BlockchainDownloadInterface
-	mainchainForkProcessor, spinechainForkProcessor                 blockchainsync.ForkingProcessorInterface
-	cpuProfile                                                      bool
-	cliMonitoring                                                   monitoring.CLIMonitoringInteface
+	config                                                                 *model.Config
+	dbInstance                                                             *database.SqliteDB
+	badgerDbInstance                                                       *database.BadgerDB
+	db                                                                     *sql.DB
+	badgerDb                                                               *badger.DB
+	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage                               storage.CacheStorageInterface
+	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
+	snapshotChunkUtil                                                      util.ChunkUtilInterface
+	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
+	queryExecutor                                                          *query.Executor
+	kvExecutor                                                             *kvdb.KVExecutor
+	observerInstance                                                       *observer.Observer
+	schedulerInstance                                                      *util.Scheduler
+	snapshotSchedulers                                                     *scheduler.SnapshotScheduler
+	blockServices                                                          = make(map[int32]service.BlockServiceInterface)
+	snapshotBlockServices                                                  = make(map[int32]service.SnapshotBlockServiceInterface)
+	mainchainBlockService                                                  *service.BlockService
+	spinePublicKeyService                                                  *service.BlockSpinePublicKeyService
+	mainBlockSnapshotChunkStrategy                                         service.SnapshotChunkStrategyInterface
+	spinechainBlockService                                                 *service.BlockSpineService
+	fileDownloader                                                         p2p.FileDownloaderInterface
+	mempoolServices                                                        = make(map[int32]service.MempoolServiceInterface)
+	blockIncompleteQueueService                                            service.BlockIncompleteQueueServiceInterface
+	receiptService                                                         service.ReceiptServiceInterface
+	peerServiceClient                                                      client.PeerServiceClientInterface
+	peerExplorer                                                           p2pStrategy.PeerExplorerStrategyInterface
+	nodeRegistrationService                                                service.NodeRegistrationServiceInterface
+	nodeAuthValidationService                                              auth.NodeAuthValidationInterface
+	mainchainProcessor                                                     smith.BlockchainProcessorInterface
+	spinechainProcessor                                                    smith.BlockchainProcessorInterface
+	loggerAPIService, loggerCoreService, loggerP2PService, loggerScheduler *log.Logger
+	spinechainSynchronizer, mainchainSynchronizer                          blockchainsync.BlockchainSyncServiceInterface
+	spineBlockManifestService                                              service.SpineBlockManifestServiceInterface
+	snapshotService                                                        service.SnapshotServiceInterface
+	transactionUtil                                                        transaction.UtilInterface
+	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
+	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
+	fileService                                                            service.FileServiceInterface
+	mainchain                                                              = &chaintype.MainChain{}
+	spinechain                                                             = &chaintype.SpineChain{}
+	blockchainStatusService                                                service.BlockchainStatusServiceInterface
+	nodeConfigurationService                                               service.NodeConfigurationServiceInterface
+	nodeAddressInfoService                                                 service.NodeAddressInfoServiceInterface
+	mempoolService                                                         service.MempoolServiceInterface
+	mainchainPublishedReceiptService                                       service.PublishedReceiptServiceInterface
+	mainchainPublishedReceiptUtil                                          coreUtil.PublishedReceiptUtilInterface
+	mainchainCoinbaseService                                               service.CoinbaseServiceInterface
+	mainchainBlocksmithService                                             service.BlocksmithServiceInterface
+	mainchainParticipationScoreService                                     service.ParticipationScoreServiceInterface
+	actionSwitcher                                                         transaction.TypeActionSwitcher
+	feeScaleService                                                        fee.FeeScaleServiceInterface
+	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
+	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
+	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+)
+var (
+	flagConfigPath, flagConfigPostfix        string
+	flagDebugMode, flagProfiling, flagUseEnv bool
+	daemonCommand                            = &cobra.Command{
+		Use:        "daemon",
+		Short:      "Run node on daemon service, which mean running in the background. Similar to launchd or systemd",
+		Example:    "daemon install | start | stop | remove | status",
+		SuggestFor: []string{"up", "stats", "delete", "deamon", "demon"},
+	}
+	runCommand = &cobra.Command{
+		Use:   "run",
+		Short: "Run node without daemon.",
+	}
+	rootCmd *cobra.Command
 )
 
-func init() {
-	var (
-		configPostfix string
-		configPath    string
-		err           error
-	)
-	// parse custom flag in running the node
-	flag.StringVar(&configPostfix, "config-postfix", "", "Usage")
-	flag.StringVar(&configPath, "config-path", "./", "Usage")
-	flag.BoolVar(&isDebugMode, "debug", false, "Usage")
-	flag.BoolVar(&cpuProfile, "cpu-profile", false, "if this flag is used, write cpu profile to file")
-	flag.BoolVar(&useEnvVar, "use-env", false, "if this flag is enabled, node can run without config file")
-	flag.Parse()
+// goDaemon instance that needed  to implement whole method of daemon
+type goDaemon struct {
+	daemon.Daemon
+}
 
-	// spawn config object
-	config = model.NewConfig()
+// initiateMainInstance initiation all instance that must be needed and exists before running the node
+func initiateMainInstance() {
+	var (
+		err error
+	)
+
+	if flagConfigPath == "" {
+		flagConfigPath, err = util.GetRootPath()
+		if err != nil {
+			flagConfigPath = "./"
+		}
+	}
+
 	// load config for default value to be feed to viper
-	if err := util.LoadConfig(configPath, "config"+configPostfix, "toml"); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && useEnvVar {
+	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
@@ -154,7 +168,8 @@ func init() {
 		if err != nil {
 			log.Fatal("Fail to generate node key")
 		}
-	} else { // setup wizard don't set node key, meaning ./resource/node_keys.json exist
+	} else {
+		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
 			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
@@ -164,14 +179,14 @@ func init() {
 
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
-		loggerCoreService.Fatal("ParseKnownPeers Err : ", err.Error())
+		log.Fatalf("ParseKnownPeers Err: %s", err.Error())
 	}
 
 	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
 		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
-		loggerCoreService.Fatal("node seed is empty", err.Error())
+		log.Fatal("node seed is empty")
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
@@ -193,22 +208,19 @@ func init() {
 			log.Fatal("Fail generating address from node's seed")
 		}
 		config.OwnerAccountAddress = id
-		err = config.SaveConfig()
+		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
 		}
 	}
-	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
-		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
-	}
-
-	initLogInstance()
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
+	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 
+	// break
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
-	if err := dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
+	if err = dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	db, err = dbInstance.OpenDB(
@@ -224,7 +236,7 @@ func init() {
 	}
 	// initialize k-v db
 	badgerDbInstance = database.NewBadgerDB()
-	if err := badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
+	if err = badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	badgerDb, err = badgerDbInstance.OpenBadgerDB(config.ResourcePath, config.BadgerDbName)
@@ -239,17 +251,19 @@ func init() {
 	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
+
 	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-
+	mempoolStorage = storage.NewMempoolStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
 	transactionUtil = &transaction.Util{
-		FeeScaleService: feeScaleService,
+		FeeScaleService:     feeScaleService,
+		MempoolCacheStorage: mempoolStorage,
 	}
 	// initialize Observer
 	observerInstance = observer.NewObserver()
@@ -257,7 +271,8 @@ func init() {
 	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
 
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor: queryExecutor,
+		Executor:            queryExecutor,
+		MempoolCacheStorage: mempoolStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -280,6 +295,7 @@ func init() {
 		crypto.NewSignature(),
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
+		mainBlockStateStorage,
 	)
 
 	receiptService = service.NewReceiptService(
@@ -294,6 +310,7 @@ func init() {
 		crypto.NewSignature(),
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
+		mainBlockStateStorage,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
@@ -352,9 +369,7 @@ func init() {
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
 		queryExecutor,
-		&transaction.TypeSwitcher{
-			Executor: queryExecutor,
-		},
+		actionSwitcher,
 		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
@@ -362,6 +377,16 @@ func init() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
+	transactionCoreServiceIns = service.NewTransactionCoreService(
+		loggerCoreService,
+		queryExecutor,
+		actionSwitcher,
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewEscrowTransactionQuery(),
+		query.NewPendingTransactionQuery(),
+		query.NewLiquidPaymentTransactionQuery(),
+	)
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -371,7 +396,6 @@ func init() {
 		query.NewMerkleTreeQuery(),
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
 		crypto.NewSignature(),
 		observerInstance,
@@ -379,6 +403,8 @@ func init() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
+		mainBlockStateStorage,
+		mempoolStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
@@ -443,13 +469,10 @@ func init() {
 		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
 		transactionUtil,
-		&transaction.TypeSwitcher{Executor: queryExecutor},
-		mainBlockStateStorage,
+		actionSwitcher,
 		mainchainBlockService,
 		nodeRegistrationService,
 	)
-
-	initP2pInstance()
 
 	snapshotService = service.NewSnapshotService(
 		spineBlockManifestService,
@@ -465,7 +488,6 @@ func init() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
-
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
@@ -479,6 +501,8 @@ func init() {
 		queryExecutor,
 		spinechain,
 	)
+
+	initP2pInstance()
 
 	spinechainBlockService = service.NewBlockSpineService(
 		spinechain,
@@ -522,25 +546,26 @@ func init() {
 	blockServices[spinechain.GetTypeInt()] = spinechainBlockService
 	// register event listeners
 	initObserverListeners()
+
 }
 
-func initLogInstance() {
+func initLogInstance(logPath string) {
 	var (
 		err       error
 		logLevels = viper.GetStringSlice("logLevels")
-		t         = time.Now().Format("2-Jan-2006_")
+		t         = time.Now().Format("01-02-2006_")
 	)
 
-	if loggerAPIService, err = util.InitLogger(".log/", t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerAPIService, err = util.InitLogger(logPath, t+"APIdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerCoreService, err = util.InitLogger(".log/", t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerCoreService, err = util.InitLogger(logPath, t+"Coredebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerP2PService, err = util.InitLogger(".log/", t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
+	if loggerP2PService, err = util.InitLogger(logPath, t+"P2Pdebug.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
-	if loggerScheduler, err = util.InitLogger(".log/", t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
+	if loggerScheduler, err = util.InitLogger(logPath, t+"Scheduler.log", logLevels, config.LogOnCli); err != nil {
 		panic(err)
 	}
 }
@@ -564,8 +589,7 @@ func initP2pInstance() {
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		peerServiceClient,
 		nodeRegistrationService,
-		queryExecutor,
-		query.NewBlockQuery(mainchain),
+		mainchainBlockService,
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
 		nodeConfigurationService,
@@ -622,25 +646,23 @@ func startServices() {
 		observerInstance,
 	)
 	api.Start(
-		config.RPCAPIPort,
-		config.HTTPAPIPort,
-		kvExecutor,
 		queryExecutor,
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
+		mempoolService,
+		transactionUtil,
+		actionSwitcher,
+		blockStateStorages,
+		config.RPCAPIPort,
+		config.HTTPAPIPort,
 		config.OwnerAccountAddress,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
-		isDebugMode,
+		flagDebugMode,
 		config.APICertFile,
 		config.APIKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreServiceIns,
 		config.MaxAPIRequestPerSecond,
-		blockStateStorages,
 	)
 }
 
@@ -669,36 +691,30 @@ func startNodeMonitoring() {
 
 func startMainchain() {
 	var (
-		lastBlockAtStart, blockToBuildScrambleNodes *model.Block
+		blockToBuildScrambleNodes, lastBlockAtStart *model.Block
 		err                                         error
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
-		if err := service.AddGenesisAccount(queryExecutor); err != nil {
+		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
 		}
 		// genesis next node admission timestamp will be inserted in the very beginning
-		if err := service.AddGenesisNextNodeAdmission(
+		if err = service.AddGenesisNextNodeAdmission(
 			queryExecutor,
 			mainchain.GetGenesisBlockTimestamp(),
 			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
 		}
-		if err := mainchainBlockService.AddGenesis(); err != nil {
+		if err = mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
-	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
-
-	// set all storage cache
-	err = mainBlockStateStorage.SetItem(0, *lastBlockAtStart)
+	// set all needed cache
+	err = mainchainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
@@ -706,6 +722,12 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
+
+	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
@@ -739,7 +761,6 @@ func startMainchain() {
 			mainchainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			mainBlockStateStorage,
 			nodeRegistrationService,
 		)
 		mainchainProcessor.Start(sleepPeriod)
@@ -764,9 +785,7 @@ func startMainchain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
@@ -786,8 +805,10 @@ func startMainchain() {
 
 func startSpinechain() {
 	var (
-		nodeID      int64
-		sleepPeriod = constant.SpineChainSmithIdlePeriod
+		err              error
+		nodeID           int64
+		lastBlockAtStart *model.Block
+		sleepPeriod      = constant.SpineChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
@@ -796,15 +817,17 @@ func startSpinechain() {
 			loggerCoreService.Fatal(err)
 		}
 	}
-	lastBlockAtStart, err := spinechainBlockService.GetLastBlock()
+	// update cache last spine block  block
+	err = spinechainBlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
 	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
-	err = spineBlockStateStorage.SetItem(0, *lastBlockAtStart)
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
+
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
@@ -816,7 +839,6 @@ func startSpinechain() {
 			spinechainBlockService,
 			loggerCoreService,
 			blockchainStatusService,
-			spineBlockStateStorage,
 			nodeRegistrationService,
 		)
 		spinechainProcessor.Start(sleepPeriod)
@@ -841,9 +863,7 @@ func startSpinechain() {
 		TransactionCorService: service.NewTransactionCoreService(
 			loggerCoreService,
 			queryExecutor,
-			&transaction.TypeSwitcher{
-				Executor: queryExecutor,
-			},
+			actionSwitcher,
 			transactionUtil,
 			query.NewTransactionQuery(mainchain),
 			query.NewEscrowTransactionQuery(),
@@ -929,9 +949,14 @@ func startBlockchainSynchronizers() {
 	}()
 }
 
-func main() {
+// start will start all existence instance
+func start() {
+	if binaryChecksum, err := util.GetExecutableHash(); err == nil {
+		log.Printf("binary checksum: %s", hex.EncodeToString(binaryChecksum))
+	}
+
 	// start cpu profiling if enabled
-	if cpuProfile {
+	if flagProfiling {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.CPUProfilingPort), nil); err != nil {
 				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
@@ -948,9 +973,15 @@ func main() {
 		loggerCoreService.Fatal(err)
 	}
 
-	if isDebugMode {
+	if flagDebugMode {
 		startNodeMonitoring()
 		blocker.SetIsDebugMode(true)
+	}
+
+	// preload-caches
+	err := mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)
@@ -961,10 +992,7 @@ func main() {
 	startScheduler()
 	go startBlockchainSynchronizers()
 
-	if !config.LogOnCli && config.CliMonitoring {
-		go cliMonitoring.Start()
-	}
-
+	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -1003,4 +1031,92 @@ func main() {
 			os.Exit(0)
 		}
 	}
+
+}
+func init() {
+	rootCmd = &cobra.Command{}
+	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
+	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
+	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
+	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
+	config = model.NewConfig()
+}
+
+func main() {
+
+	var god = goDaemon{}
+
+	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
+		if len(args) > 0 {
+			var (
+				daemonMessage string
+				daemonKind    = daemon.SystemDaemon
+			)
+			if runtime.GOOS == "darwin" {
+				daemonKind = daemon.GlobalDaemon
+			}
+			srvDaemon, err := daemon.New("zoobc.node", "zoobc node service", daemonKind)
+			if err != nil {
+				loggerCoreService.Fatalf("failed to run daemon: %s", err.Error())
+			}
+			god = goDaemon{srvDaemon}
+			if runtime.GOOS == "darwin" {
+				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
+					log.Fatal(dErr)
+				}
+			}
+
+			switch args[0] {
+			case "install":
+				args := []string{"daemon", "run"}
+				if flagDebugMode {
+					args = append(args, "--debug")
+				}
+				if flagProfiling {
+					args = append(args, "--profiling")
+				}
+				if flagConfigPath != "" {
+					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+				}
+				if flagUseEnv {
+					args = append(args, "--use-env")
+				}
+				daemonMessage, err = god.Install(args...)
+			case "start":
+				daemonMessage, err = god.Start()
+			case "stop":
+				daemonMessage, err = god.Stop()
+			case "remove":
+				daemonMessage, err = god.Remove()
+			case "status":
+				daemonMessage, err = god.Status()
+			case "run":
+				// sub command used by system
+				initiateMainInstance()
+				start()
+			default:
+				_ = daemonCommand.Usage()
+			}
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(daemonMessage)
+			}
+		} else {
+			_ = daemonCommand.Usage()
+		}
+	}
+	runCommand.Run = func(cmd *cobra.Command, args []string) {
+		initiateMainInstance()
+		if !config.LogOnCli && config.CliMonitoring {
+			go cliMonitoring.Start()
+		}
+		start()
+	}
+
+	rootCmd.AddCommand(runCommand)
+	rootCmd.AddCommand(daemonCommand)
+	_ = rootCmd.Execute()
+
 }
