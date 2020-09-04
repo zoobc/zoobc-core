@@ -170,7 +170,7 @@ func initiateMainInstance() {
 	if len(config.NodeKey.Seed) > 0 {
 		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
 		if err != nil {
-			log.Fatal("Fail to generate node key")
+			log.Fatalf("Fail to generate node key: %v", err)
 		}
 	} else {
 		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
