@@ -143,7 +143,8 @@ func initiateMainInstance() {
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+		fmt.Printf("loadConfig.Err: %v\n", err)
+		if flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
