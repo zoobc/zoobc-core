@@ -153,8 +153,6 @@ func initiateMainInstance() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
-	// TODO: ariasa
-	fmt.Printf("flagConfigPath main.go: %s", flagConfigPath)
 
 	// early init configuration service
 	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
