@@ -49,7 +49,12 @@ func LoadConfig(path, name, extension string) error {
 
 	err = viper.ReadConfig(configFile)
 	if err != nil {
+		fmt.Printf("ReadConfig.Err %v\n\n", err)
 		return err
 	}
-	return viper.WriteConfig()
+	err = viper.WriteConfig()
+	if err != nil {
+		fmt.Printf("WriteConfig.Err %v\n\n", err)
+	}
+	return nil
 }
