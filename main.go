@@ -143,7 +143,9 @@ func initiateMainInstance() {
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+		fmt.Printf("LoadConfig.Err %v\n\n", err)
+		if flagUseEnv {
+			fmt.Printf("UseEnv %v\n\n", flagUseEnv)
 			config.ConfigFileExist = true
 		}
 	} else {
@@ -194,6 +196,8 @@ func initiateMainInstance() {
 
 	if config.OwnerAccountAddress == "" {
 		// todo: andy-shi88 refactor this
+		fmt.Printf("extra log %v\n\n", "HEllo there")
+
 		ed25519 := crypto.NewEd25519Signature()
 		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
 			config.NodeKey.Seed,
