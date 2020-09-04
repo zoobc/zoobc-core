@@ -55,6 +55,7 @@ func LoadConfig(path, name, extension string) error {
 	err = viper.WriteConfig()
 	if err != nil {
 		fmt.Printf("WriteConfig.Err %v\n\n", err)
+		return err
 	}
 	return nil
 }
