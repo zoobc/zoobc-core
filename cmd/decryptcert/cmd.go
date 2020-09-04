@@ -57,7 +57,9 @@ func decryptCertCommand(*cobra.Command, []string) {
 			if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 				log.Fatalf("can't create folder %s. error: %s", outPath, err)
 			}
-			generateClusterConfigFile(decryptedCertEntries, path.Join(outPath, "cluster_config_seatSale.json"))
+			if _, err := generateClusterConfigFile(decryptedCertEntries, path.Join(outPath, "cluster_config_seatSale.json")); err != nil {
+				log.Fatalf("error generating output file. error: %s", err)
+			}
 		}
 	}
 
