@@ -48,7 +48,8 @@ func decryptCertCommand(*cobra.Command, []string) {
 		for _, encryptedEntry := range encryptedCertEntries {
 			decryptedEntry, err := readCertEntry(encryptedEntry)
 			if err != nil {
-				log.Fatal(err)
+				log.Print(err)
+				continue
 			}
 			decryptedCertEntries = append(decryptedCertEntries, *decryptedEntry)
 		}
