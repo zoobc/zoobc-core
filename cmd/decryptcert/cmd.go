@@ -2,7 +2,6 @@ package decryptcert
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -82,7 +81,7 @@ func readCertEntry(encryptedEntry encryptedCertEntry) (*certEntry, error) {
 	)
 	certBytes, err := crypto.OpenSSLDecrypt(encryptedEntry.Password, encryptedEntry.EncryptedCert)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("encrypted entry: %s ERROR: %s", encryptedEntry.EncryptedCert, err))
+		return nil, fmt.Errorf("encrypted entry: %s ERROR: %s", encryptedEntry.EncryptedCert, err)
 	}
 	err = json.Unmarshal(certBytes, &entry)
 	if err != nil {
