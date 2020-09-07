@@ -447,10 +447,6 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	if err != nil {
 		return err
 	}
-
-	if err != nil {
-		return err
-	}
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {
 		ni, nj := nodeRegistries[i], nodeRegistries[j]
