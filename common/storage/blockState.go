@@ -31,11 +31,11 @@ func (bs *BlockStateStorage) SetItem(lastUpdate, block interface{}) error {
 		newBlock, ok = (block).(model.Block)
 	)
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item ")
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	newBlockBytes, err := json.Marshal(newBlock)
 	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "WrongType item ")
+		return blocker.NewBlocker(blocker.BlockErr, "Failed marshal block")
 	}
 	bs.lastBlockBytes = newBlockBytes
 	return nil
@@ -62,7 +62,7 @@ func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 	}
 	err = json.Unmarshal(bs.lastBlockBytes, blockCopy)
 	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "failed to Unmarshal last block bytes")
+		return blocker.NewBlocker(blocker.BlockErr, "Failed unmarshal block bytes")
 	}
 	return nil
 }
