@@ -2,6 +2,8 @@ package service
 
 import (
 	"database/sql"
+	"math"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -11,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math"
 )
 
 type (
@@ -229,7 +230,6 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-
 	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -255,7 +255,6 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Save to mempool
-
 	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
 		errRollback := ts.Query.RollbackTx()
