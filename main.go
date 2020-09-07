@@ -1035,7 +1035,7 @@ func start() {
 }
 func init() {
 	rootCmd = &cobra.Command{}
-	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPostfix, "config-postfix", "", "Configuration version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
