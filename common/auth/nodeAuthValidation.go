@@ -49,8 +49,7 @@ func (nav *NodeAuthValidation) ValidateProofOfOwnership(
 	blockQuery query.BlockQueryInterface,
 ) error {
 
-	// TODO: use composition instead, such as per ValidateProofOfOrigin
-	if !crypto.NewSignature().VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
+	if !nav.Signature.VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
 
