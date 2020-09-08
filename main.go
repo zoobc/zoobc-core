@@ -108,9 +108,9 @@ var (
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
 )
 var (
-	flagConfigPath, flagConfigPostfix        string
-	flagDebugMode, flagProfiling, flagUseEnv bool
-	daemonCommand                            = &cobra.Command{
+	flagConfigPath, flagConfigPostfix, flagResourcePath string
+	flagDebugMode, flagProfiling, flagUseEnv            bool
+	daemonCommand                                       = &cobra.Command{
 		Use:        "daemon",
 		Short:      "Run node on daemon service, which mean running in the background. Similar to launchd or systemd",
 		Example:    "daemon install | start | stop | remove | status",
@@ -246,9 +246,6 @@ func initiateMainInstance() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
-	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 
@@ -501,6 +498,9 @@ func initiateMainInstance() {
 		queryExecutor,
 		spinechain,
 	)
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 
 	initP2pInstance()
 
@@ -663,6 +663,7 @@ func startServices() {
 		config.APICertFile,
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
+		config.NodeKey.PublicKey,
 	)
 }
 
@@ -1044,11 +1045,12 @@ func start() {
 }
 func init() {
 	rootCmd = &cobra.Command{}
-	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPostfix, "config-postfix", "", "Configuration version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
+	rootCmd.PersistentFlags().StringVar(&flagResourcePath, "resource-path", "", "Resource path location")
 	config = model.NewConfig()
 }
 
@@ -1078,20 +1080,23 @@ func main() {
 
 			switch args[0] {
 			case "install":
-				args := []string{"daemon", "run"}
+				daemonArgs := []string{"daemon", "run"}
 				if flagDebugMode {
-					args = append(args, "--debug")
+					daemonArgs = append(daemonArgs, "--debug")
 				}
 				if flagProfiling {
-					args = append(args, "--profiling")
+					daemonArgs = append(daemonArgs, "--profiling")
 				}
 				if flagConfigPath != "" {
-					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+					daemonArgs = append(daemonArgs, fmt.Sprintf("--config-path=%s", flagConfigPath))
 				}
 				if flagUseEnv {
-					args = append(args, "--use-env")
+					daemonArgs = append(daemonArgs, "--use-env")
 				}
-				daemonMessage, err = god.Install(args...)
+				if flagResourcePath != "" {
+					daemonArgs = append(daemonArgs, fmt.Sprintf("--resource-path=%s", flagResourcePath))
+				}
+				daemonMessage, err = god.Install(daemonArgs...)
 			case "start":
 				daemonMessage, err = god.Start()
 			case "stop":
