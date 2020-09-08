@@ -143,7 +143,8 @@ func initiateMainInstance() {
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+		fmt.Printf("loadConfig.Err: %v\n", err)
+		if flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
@@ -697,7 +698,12 @@ func startMainchain() {
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
-	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
+
+	exist, errGenesis := mainchainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
@@ -813,9 +819,13 @@ func startSpinechain() {
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
-	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
-		if err := spinechainBlockService.AddGenesis(); err != nil {
-			loggerCoreService.Fatal(err)
+	exist, errGenesis := spinechainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
+		if err = spinechainBlockService.AddGenesis(); err != nil {
+			log.Fatal(err)
 		}
 	}
 	// update cache last spine block  block

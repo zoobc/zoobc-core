@@ -895,9 +895,11 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
 	for i, bsm := range (bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))[:blocksmithIndex] {
+		// BETA-ONLY
+		skippedBlockPunishment := -1 * (constant.BetaBlockBonus * constant.BetaBlockBonusSkipMultiplier)
 		skippedBlocksmith := &model.SkippedBlocksmith{
 			BlocksmithPublicKey: bsm.NodePublicKey,
-			POPChange:           constant.ParticipationScorePunishAmount,
+			POPChange:           skippedBlockPunishment,
 			BlockHeight:         block.Height,
 			BlocksmithIndex:     int32(i),
 		}
@@ -910,7 +912,7 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			return err
 		}
 		// punish score
-		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height, true)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, skippedBlockPunishment, block.Height, true)
 		if err != nil {
 			return err
 		}
@@ -1276,15 +1278,15 @@ func (bs *BlockService) AddGenesis() error {
 }
 
 // CheckGenesis check if genesis has been added
-func (bs *BlockService) CheckGenesis() bool {
+func (bs *BlockService) CheckGenesis() (bool, error) {
 	genesisBlock, err := bs.GetGenesisBlock()
 	if err != nil { // Genesis is not in the blockchain yet
-		return false
+		return false, nil
 	}
 	if genesisBlock.ID != bs.Chaintype.GetGenesisBlockID() {
-		bs.Logger.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+		return false, fmt.Errorf("genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
-	return true
+	return true, nil
 }
 
 // ReceiveBlock handle the block received from connected peers

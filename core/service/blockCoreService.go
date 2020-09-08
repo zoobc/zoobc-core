@@ -37,7 +37,7 @@ type (
 		GetGenesisBlock() (*model.Block, error)
 		GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error)
 		AddGenesis() error
-		CheckGenesis() bool
+		CheckGenesis() (exist bool, err error)
 		GetChainType() chaintype.ChainType
 		ChainWriteLock(int)
 		ChainWriteUnlock(actionType int)
