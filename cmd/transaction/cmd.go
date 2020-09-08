@@ -99,6 +99,7 @@ func init() {
 	/*
 		TXCommandRoot
 	*/
+	txCmd.PersistentFlags().BoolVarP(&sign, "sign", "s", true, "defines transaction should be signed")
 	txCmd.PersistentFlags().StringVar(&outputType, "output", "bytes", "defines the type of the output to be generated [\"bytes\", \"hex\"]")
 	txCmd.PersistentFlags().Uint32Var(&version, "version", 1, "defines version of the transaction")
 	txCmd.PersistentFlags().Int64Var(&timestamp, "timestamp", time.Now().Unix(), "defines timestamp of the transaction")
@@ -277,7 +278,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -313,7 +314,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -350,7 +351,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -371,7 +372,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -405,7 +406,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -432,7 +433,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -452,7 +453,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -469,7 +470,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			recipientAccountAddress,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -489,7 +490,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 		}
 	}
 }
@@ -564,7 +565,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 		}
 	}
 }
@@ -649,7 +650,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 		}
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
 
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, 0), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -666,7 +667,7 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			recipientAccountAddress,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -683,6 +684,6 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			recipientAccountAddress,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
