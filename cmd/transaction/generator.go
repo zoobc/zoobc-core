@@ -227,7 +227,18 @@ func GenerateBasicTransaction(
 	} else if senderSeed != "" {
 		switch model.SignatureType(senderSignatureType) {
 		case model.SignatureType_DefaultSignature:
-			senderAccountAddress = crypto.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, senderSeed)
+			b, err := crypto.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
+			if err != nil {
+				panic(err.Error())
+			}
+			bb, err := crypto.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			if err != nil {
+				panic(err.Error())
+			}
+			senderAccountAddress, err = crypto.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			if err != nil {
+				panic(err.Error())
+			}
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
@@ -305,7 +316,9 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 			fmt.Printf("\n\nresult: %v\n", response)
 		}
 	} else {
-		fmt.Println(resultStr)
+		fmt.Println("")
+		fmt.Printf("Length: %d\n", len(signedTxBytes))
+		fmt.Printf("bytes: %s\n", resultStr)
 	}
 }
 
