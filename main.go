@@ -698,7 +698,12 @@ func startMainchain() {
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
-	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
+
+	exist, errGenesis := mainchainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
@@ -814,9 +819,13 @@ func startSpinechain() {
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
-	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
-		if err := spinechainBlockService.AddGenesis(); err != nil {
-			loggerCoreService.Fatal(err)
+	exist, errGenesis := spinechainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
+		if err = spinechainBlockService.AddGenesis(); err != nil {
+			log.Fatal(err)
 		}
 	}
 	// update cache last spine block  block
