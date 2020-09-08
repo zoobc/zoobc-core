@@ -32,3 +32,5 @@ github.token
 dist/
 local.preRegisteredNodes.json
 core/service/testdata/snapshots/
+resource/templates/beta.*
+resource/templates/_*

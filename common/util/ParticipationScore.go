@@ -10,7 +10,7 @@ import (
 // CalculateParticipationScore to calculate score change of node
 func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint32) (int64, error) {
 	if maxReceipt == 0 {
-		return constant.MaxScoreChange, nil
+		return constant.MaxScoreChange + constant.BetaBlockBonus, nil
 	}
 	if (linkedReceipt + unlinkedReceipt) > maxReceipt {
 		return 0, blocker.NewBlocker(
@@ -30,6 +30,8 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	scoreDiffBig := new(big.Int).SetInt64(blockScore - halfMaxBlockScore)
 	scoreDiffBigMul := new(big.Int).Mul(scoreDiffBig, new(big.Int).SetInt64(constant.MaxScoreChange))
 	scoreChangeOfANode := new(big.Int).Div(scoreDiffBigMul, new(big.Int).SetInt64(halfMaxBlockScore))
+	// BETA-ONLY
+	scoreChangeOfANode = scoreChangeOfANode.Add(scoreChangeOfANode, big.NewInt(constant.BetaBlockBonus))
 	return scoreChangeOfANode.Int64(), nil
 }
 
