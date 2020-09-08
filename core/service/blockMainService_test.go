@@ -2124,7 +2124,7 @@ func TestBlockService_CheckGenesis(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				Logger:             tt.fields.Logger,
 			}
-			if got := bs.CheckGenesis(); got != tt.want {
+			if got, _ := bs.CheckGenesis(); got != tt.want {
 				t.Errorf("BlockService.CheckGenesis() = %v, want %v", got, tt.want)
 			}
 		})
