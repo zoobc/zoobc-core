@@ -561,6 +561,39 @@ func (*mockGetMempoolTransactionsByBlockHeightExecutor) ExecuteSelect(qStr strin
 	return db.Query("")
 }
 
+type (
+	mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess struct {
+		storage.MempoolCacheStorage
+	}
+	mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired struct {
+		storage.MempoolCacheStorage
+	}
+)
+
+func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess) GetAllItems(item interface{}) error {
+	itemCopy := item.(storage.MempoolMap)
+	itemCopy[mockTransaction.ID] = storage.MempoolCacheObject{
+		Tx:                  *mockTransaction,
+		ArrivalTimestamp:    mockMempoolTransaction.ArrivalTimestamp,
+		FeePerByte:          mockMempoolTransaction.FeePerByte,
+		TransactionByteSize: uint32(len(mockMempoolTransaction.TransactionBytes)),
+		BlockHeight:         mockTransaction.Height,
+	}
+	return nil
+}
+
+func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired) GetAllItems(item interface{}) error {
+	itemCopy := item.(storage.MempoolMap)
+	itemCopy[mockTransaction.ID] = storage.MempoolCacheObject{
+		Tx:                  *mockTransactionExpired,
+		ArrivalTimestamp:    mockMempoolTransaction.ArrivalTimestamp,
+		FeePerByte:          mockMempoolTransaction.FeePerByte,
+		TransactionByteSize: uint32(len(mockMempoolTransaction.TransactionBytes)),
+		BlockHeight:         mockTransactionExpired.Height,
+	}
+	return nil
+}
+
 func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
@@ -573,6 +606,7 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		Signature           crypto.SignatureInterface
 		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
+		MempoolCacheStorage storage.CacheStorageInterface
 		Logger              *log.Logger
 	}
 	type args struct {
@@ -582,17 +616,26 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*model.MempoolTransaction
+		want    []*model.Transaction
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess",
+			name: "wantSuccess - no expired",
 			fields: fields{
-				QueryExecutor: &mockGetMempoolTransactionsByBlockHeightExecutor{},
-				MempoolQuery:  query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolCacheStorage: &mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess{},
 			},
 			args: args{height: 0},
-			want: []*model.MempoolTransaction{mockMempoolTransaction},
+			want: make([]*model.Transaction, 0),
+		},
+		{
+			name: "wantSuccess - with expired",
+			fields: fields{
+				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolCacheStorage: &mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired{},
+			},
+			args: args{height: 0},
+			want: []*model.Transaction{mockTransactionExpired},
 		},
 	}
 	for _, tt := range tests {
@@ -609,6 +652,7 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 				TransactionQuery:    tt.fields.TransactionQuery,
 				Observer:            tt.fields.Observer,
 				Logger:              tt.fields.Logger,
+				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
 			}
 			got, err := mps.GetMempoolTransactionsWantToBackup(tt.args.height)
 			if (err != nil) != tt.wantErr {

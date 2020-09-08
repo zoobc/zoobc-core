@@ -48,7 +48,7 @@ type (
 			nodeSecretPhrase string,
 		) ([]*model.BatchReceipt, error)
 		DeleteExpiredMempoolTransactions() error
-		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error)
+		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error)
 		BackupMempools(commonBlock *model.Block) error
 	}
 
@@ -119,6 +119,11 @@ func (mps *MempoolService) InitMempoolTransaction() error {
 		err      error
 		mempools []*model.MempoolTransaction
 	)
+	// clearing cache before initialize
+	err = mps.MempoolCacheStorage.ClearCache()
+	if err != nil {
+		return err
+	}
 	mpQuery := mps.MempoolQuery.GetMempoolTransactions()
 	rows, err := mps.QueryExecutor.ExecuteSelect(mpQuery, false)
 	if err != nil {
@@ -139,6 +144,7 @@ func (mps *MempoolService) InitMempoolTransaction() error {
 			ArrivalTimestamp:    mempool.ArrivalTimestamp,
 			FeePerByte:          mempool.FeePerByte,
 			TransactionByteSize: uint32(len(mempool.TransactionBytes)),
+			BlockHeight:         mempool.BlockHeight,
 		})
 		if err != nil {
 			return err
@@ -233,6 +239,7 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 		ArrivalTimestamp:    time.Now().UTC().Unix(),
 		FeePerByte:          mpTx.FeePerByte,
 		TransactionByteSize: uint32(len(txBytes)),
+		BlockHeight:         mpTx.BlockHeight,
 	})
 	if err != nil {
 		return err
@@ -527,10 +534,11 @@ func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (
-		qStr           string
-		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
-		err            error
-		cachedTxs      = make(storage.MempoolMap)
+		qStr              string
+		expirationTime    = time.Now().Add(-constant.MempoolExpiration).Unix()
+		err               error
+		cachedTxs         = make(storage.MempoolMap)
+		expiredMempoolIDs []int64
 	)
 	err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
 	if err != nil {
@@ -562,6 +570,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 			}
 			return err
 		}
+		expiredMempoolIDs = append(expiredMempoolIDs, memObj.Tx.ID)
 	}
 
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
@@ -572,6 +581,13 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		}
 		return err
 	}
+	err = mps.MempoolCacheStorage.RemoveItem(expiredMempoolIDs)
+	if err != nil {
+		initMempoolErr := mps.InitMempoolTransaction()
+		if initMempoolErr != nil {
+			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
+		}
+	}
 	err = mps.QueryExecutor.CommitTx()
 	if err != nil {
 		return err
@@ -579,31 +595,31 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	return nil
 }
 
-func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.MempoolTransaction, error) {
+func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
 	var (
-		mempools []*model.MempoolTransaction
-		rows     *sql.Rows
-		err      error
+		txs = make([]*model.Transaction, 0)
+		err error
 	)
 
-	rows, err = mps.QueryExecutor.ExecuteSelect(mps.MempoolQuery.GetMempoolTransactionsWantToByHeight(height), false)
+	mempoolMap, err := mps.GetMempoolTransactions()
 	if err != nil {
-		return nil, err
+		return txs, err
 	}
-	defer rows.Close()
-	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
-	if err != nil {
-		return nil, err
+	for _, memObj := range mempoolMap {
+		if memObj.BlockHeight > height {
+			txs = append(txs, &memObj.Tx)
+		}
 	}
 
-	return mempools, nil
+	return txs, nil
 }
 
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
 		mempoolsBackupBytes *bytes.Buffer
-		mempoolsBackup      []*model.MempoolTransaction
+		mempoolsBackup      []*model.Transaction
+		mempoolsBackupIDs   []int64
 		err                 error
 	)
 
@@ -619,20 +635,11 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	}
 
 	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
-	for _, mempool := range mempoolsBackup {
+	for _, mempoolTx := range mempoolsBackup {
 		var (
-			tx     *model.Transaction
 			txType transaction.TypeAction
 		)
-		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.GetTransactionBytes(), true)
-		if err != nil {
-			rollbackErr := mps.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
-			}
-			return err
-		}
-		txType, err = mps.ActionTypeSwitcher.GetTransactionType(tx)
+		txType, err = mps.ActionTypeSwitcher.GetTransactionType(mempoolTx)
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
@@ -654,9 +661,18 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 			mempoolsBackupBytes format is
 			[...{4}byteSize,{bytesSize}transactionBytes]
 		*/
-		sizeMempool := uint32(len(mempool.GetTransactionBytes()))
+		mempoolByte, err := mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
+		if err != nil {
+			rollbackErr := mps.QueryExecutor.RollbackTx()
+			if rollbackErr != nil {
+				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+			}
+			return err
+		}
+		sizeMempool := uint32(len(mempoolByte))
 		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
-		mempoolsBackupBytes.Write(mempool.GetTransactionBytes())
+		mempoolsBackupBytes.Write(mempoolByte)
+		mempoolsBackupIDs = append(mempoolsBackupIDs, mempoolTx.GetID())
 	}
 
 	for _, dQuery := range derivedQueries {
@@ -668,6 +684,13 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
 			}
 			return err
+		}
+	}
+	err = mps.MempoolCacheStorage.RemoveItem(mempoolsBackupIDs)
+	if err != nil {
+		initMempoolErr := mps.InitMempoolTransaction()
+		if initMempoolErr != nil {
+			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
 		}
 	}
 	err = mps.QueryExecutor.CommitTx()
