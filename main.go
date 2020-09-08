@@ -246,9 +246,6 @@ func initiateMainInstance() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
-	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 
@@ -501,6 +498,9 @@ func initiateMainInstance() {
 		queryExecutor,
 		spinechain,
 	)
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 
 	initP2pInstance()
 
@@ -663,6 +663,7 @@ func startServices() {
 		config.APICertFile,
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
+		config.NodeKey.PublicKey,
 	)
 }
 
