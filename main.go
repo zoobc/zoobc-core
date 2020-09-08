@@ -118,8 +118,9 @@ var (
 	}
 	runCommand = &cobra.Command{
 		Use:   "run",
-		Short: "Run node as without daemon.",
+		Short: "Run node without daemon.",
 	}
+	rootCmd *cobra.Command
 )
 
 // goDaemon instance that needed  to implement whole method of daemon
@@ -127,15 +128,13 @@ type goDaemon struct {
 	daemon.Daemon
 }
 
-func init() {
+// initiateMainInstance initiation all instance that must be needed and exists before running the node
+func initiateMainInstance() {
 	var (
 		err error
 	)
 
-	// spawn config object
-	config = model.NewConfig()
-
-	if flagConfigPath != "" {
+	if flagConfigPath == "" {
 		flagConfigPath, err = util.GetRootPath()
 		if err != nil {
 			flagConfigPath = "./"
@@ -216,15 +215,9 @@ func init() {
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
+	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 
-}
-
-// initiateMainInstance initiation all instance that must be needed and exists before running the node
-func initiateMainInstance() {
-	var (
-		err error
-	)
-
+	// break
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
 	if err = dbInstance.InitializeDB(config.ResourcePath, config.DatabaseFileName); err != nil {
@@ -1040,28 +1033,19 @@ func start() {
 	}
 
 }
-
-func main() {
-
-	var (
-		god = goDaemon{}
-	)
-
-	rootCmd := &cobra.Command{}
+func init() {
+	rootCmd = &cobra.Command{}
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
+	config = model.NewConfig()
+}
 
-	runCommand.Run = func(cmd *cobra.Command, args []string) {
-		initLogInstance(filepath.Join(flagConfigPath, "/.log"))
-		initiateMainInstance()
-		if !config.LogOnCli && config.CliMonitoring {
-			go cliMonitoring.Start()
-		}
-		start()
-	}
+func main() {
+
+	var god = goDaemon{}
 
 	daemonCommand.Run = func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
@@ -1085,7 +1069,20 @@ func main() {
 
 			switch args[0] {
 			case "install":
-				daemonMessage, err = god.Install("daemon run")
+				args := []string{"daemon", "run"}
+				if flagDebugMode {
+					args = append(args, "--debug")
+				}
+				if flagProfiling {
+					args = append(args, "--profiling")
+				}
+				if flagConfigPath != "" {
+					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+				}
+				if flagUseEnv {
+					args = append(args, "--use-env")
+				}
+				daemonMessage, err = god.Install(args...)
 			case "start":
 				daemonMessage, err = god.Start()
 			case "stop":
@@ -1096,7 +1093,6 @@ func main() {
 				daemonMessage, err = god.Status()
 			case "run":
 				// sub command used by system
-				initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 				initiateMainInstance()
 				start()
 			default:
@@ -1110,6 +1106,13 @@ func main() {
 		} else {
 			_ = daemonCommand.Usage()
 		}
+	}
+	runCommand.Run = func(cmd *cobra.Command, args []string) {
+		initiateMainInstance()
+		if !config.LogOnCli && config.CliMonitoring {
+			go cliMonitoring.Start()
+		}
+		start()
 	}
 
 	rootCmd.AddCommand(runCommand)
