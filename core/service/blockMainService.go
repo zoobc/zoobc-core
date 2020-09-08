@@ -1273,15 +1273,15 @@ func (bs *BlockService) AddGenesis() error {
 }
 
 // CheckGenesis check if genesis has been added
-func (bs *BlockService) CheckGenesis() bool {
+func (bs *BlockService) CheckGenesis() (bool, error) {
 	genesisBlock, err := bs.GetGenesisBlock()
 	if err != nil { // Genesis is not in the blockchain yet
-		return false
+		return false, nil
 	}
 	if genesisBlock.ID != bs.Chaintype.GetGenesisBlockID() {
-		bs.Logger.Fatalf("Genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
+		return false, fmt.Errorf("genesis ID does not match, expect: %d, get: %d", bs.Chaintype.GetGenesisBlockID(), genesisBlock.ID)
 	}
-	return true
+	return true, nil
 }
 
 // ReceiveBlock handle the block received from connected peers

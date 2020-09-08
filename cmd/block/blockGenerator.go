@@ -2,9 +2,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -254,7 +255,8 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		panic(err)
 	}
 	fmt.Println("checking genesis...")
-	if !blockService.CheckGenesis() { // Add genesis if not exist
+
+	if exist, _ := blockService.CheckGenesis(); !exist { // Add genesis if not exist
 		fmt.Println("genesis does not exist, adding genesis")
 		// genesis account will be inserted in the very beginning
 		if err := service.AddGenesisAccount(queryExecutor); err != nil {
