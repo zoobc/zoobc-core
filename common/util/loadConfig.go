@@ -20,7 +20,7 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
 	viper.Set("resourcePath", filepath.Join(path, "../resource"))
-	viper.SetDefault("peerPort", 8001)
+	viper.SetDefault("peerPort", 8002)
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
