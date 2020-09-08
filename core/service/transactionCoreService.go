@@ -61,7 +61,7 @@ func NewTransactionCoreService(
 
 func (tg *TransactionCoreService) GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error) {
 	var (
-		transactions []*model.Transaction
+		transactions = make([]*model.Transaction, 0)
 		escrows      []*model.Escrow
 		txMap        = make(map[int64]*model.Transaction)
 		rows         *sql.Rows

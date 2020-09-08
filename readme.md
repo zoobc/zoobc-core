@@ -33,6 +33,7 @@ Table of Contents:
 -   [protoc](https://github.com/protocolbuffers/protobuf), optional as we are pushing the generated go file to the repo.
 -   [protoc-gen-go](https://github.com/golang/protobuf), optional as we are pushing the generated go file to the repo.
 -   [golangci-lint](https://github.com/golangci/golangci-lint) lint tools we used to keep the code clean and well structured.
+-   [tdm-gcc](https://jmeubank.github.io/tdm-gcc/) (windows-only), if you are running on windows you'll need to install this to build the binary.
 
 ### Install
 
@@ -74,15 +75,30 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
 ### Run
 
 > If already build, just run the binary
-
 ```bash
-./zoobc
+Usage:
+   [command]
+
+Available Commands:
+  daemon      Run node on daemon service, which mean running in the background. Similar to launchd or systemd
+  help        Help about any command
+  run         Run node as without daemon.
+
+Flags:
+      --config-path string      Configuration path (default "./")
+      --config-postfix string   Configuration version
+      --debug                   Run on debug mode
+  -h, --help                    help for this command
+      --profiling               Run with profiling
+      --use-env                 Running node without configuration file
+
+Use " [command] --help" for more information about a command.
 ```
 
 > Main node application run manually
 
 ```bash
-go run main.go
+go run main.go run
 ```
 
 -   Flags:

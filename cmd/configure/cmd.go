@@ -137,7 +137,7 @@ func generateConfig(config model.Config) error {
 	config.ResourcePath = "./resource"
 	config.DatabaseFileName = "zoobc.db"
 	config.BadgerDbName = "zoobc_kv"
-	config.CliMonitoring = true
+	config.CliMonitoring = false
 	config.SnapshotPath = "./resource/snapshots"
 
 	// WELL KNOWN PEERS
@@ -220,7 +220,7 @@ func generateConfig(config model.Config) error {
 
 	admin.GenerateNodeKeysFile(config.NodeSeed)
 	color.Cyan("Saving configuration")
-	err = config.SaveConfig()
+	err = config.SaveConfig("./")
 	if err != nil {
 		color.Red(err.Error())
 	}
