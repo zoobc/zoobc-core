@@ -3,7 +3,7 @@ package constant
 import "time"
 
 var (
-	MaxNumberOfTransactionsInBlock       = 255
+	MaxNumberOfTransactionsInBlock       = 330
 	MinTransactionSizeInBlock            = 176
 	MaxPayloadLengthInBlock              = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
 	TransactionExpirationOffset    int64 = 3600 // 3600 seconds

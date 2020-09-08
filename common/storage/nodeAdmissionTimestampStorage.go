@@ -59,6 +59,14 @@ func (ns *NodeAdmissionTimestampStorage) GetItem(lastChange, item interface{}) e
 	return nil
 }
 
+func (ns *NodeAdmissionTimestampStorage) GetAllItems(item interface{}) error {
+	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) RemoveItem(key interface{}) error {
+	return nil
+}
+
 // GetSize return the size of NodeAdmissionTimestampStorage
 func (ns *NodeAdmissionTimestampStorage) GetSize() int64 {
 	return int64(ns.nextNodeAdmissionTimestamp.XXX_Size())

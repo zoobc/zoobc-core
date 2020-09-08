@@ -18,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -30,26 +29,21 @@ import (
 )
 
 func startGrpcServer(
-	rpcPort, httpPort int,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	mempoolService coreService.MempoolServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
+	rpcPort, httpPort int,
 	ownerAccountAddress, nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
-	transactionUtil transaction.UtilInterface,
-	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService coreService.ReceiptServiceInterface,
-	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
-	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
-
-	chainType := chaintype.GetChainType(0)
-
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
 			interceptor.NewServerRateLimiterInterceptor(maxAPIRequestPerSecond),
@@ -71,27 +65,6 @@ func startGrpcServer(
 		logger.Fatalf("failed to listen: %v\n", err)
 		return
 	}
-	actionTypeSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
-	mempoolService := coreService.NewMempoolService(
-		transactionUtil,
-		chainType,
-		kvExecutor,
-		queryExecutor,
-		query.NewMempoolQuery(chainType),
-		query.NewMerkleTreeQuery(),
-		actionTypeSwitcher,
-		query.NewAccountBalanceQuery(),
-		query.NewBlockQuery(chainType),
-		query.NewTransactionQuery(chainType),
-		crypto.NewSignature(),
-		observer.NewObserver(),
-		logger,
-		receiptUtil,
-		receiptService,
-		transactionCoreService,
-	)
 	participationScoreService := coreService.NewParticipationScoreService(query.NewParticipationScoreQuery(), queryExecutor)
 
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(query.NewPublishedReceiptQuery(), queryExecutor)
@@ -241,41 +214,36 @@ func startGrpcServer(
 
 // Start starts api servers in the given port and passing query executor
 func Start(
-	grpcPort, httpPort int,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	ownerAccountAddress, nodefilePath string,
+	mempoolService coreService.MempoolServiceInterface,
+	transactionUtil transaction.UtilInterface,
+	actionTypeSwitcher transaction.TypeActionSwitcher,
+	blockStateStorages map[int32]storage.CacheStorageInterface,
+	grpcPort, httpPort int, ownerAccountAddress,
+	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
-	transactionUtil transaction.UtilInterface,
-	receiptUtil coreUtil.ReceiptUtilInterface,
-	receiptService coreService.ReceiptServiceInterface,
-	transactionCoreService coreService.TransactionCoreServiceInterface,
 	maxAPIRequestPerSecond uint32,
-	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) {
 	startGrpcServer(
-		grpcPort, httpPort,
-		kvExecutor,
 		queryExecutor,
 		p2pHostService,
 		blockServices,
 		nodeRegistrationService,
+		mempoolService,
+		transactionUtil,
+		actionTypeSwitcher,
+		blockStateStorages,
+		grpcPort, httpPort,
 		ownerAccountAddress,
 		nodefilePath,
 		logger,
 		isDebugMode,
-		apiCertFile,
-		apiKeyFile,
-		transactionUtil,
-		receiptUtil,
-		receiptService,
-		transactionCoreService,
+		apiCertFile, apiKeyFile,
 		maxAPIRequestPerSecond,
-		blockStateStorages,
 	)
 }

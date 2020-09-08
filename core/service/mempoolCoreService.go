@@ -3,7 +3,9 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/dgraph-io/badger/v2"
@@ -27,11 +29,13 @@ import (
 type (
 	// MempoolServiceInterface represents interface for MempoolService
 	MempoolServiceInterface interface {
-		GetMempoolTransactions() ([]*model.MempoolTransaction, error)
-		GetMempoolTransaction(id int64) (*model.MempoolTransaction, error)
-		AddMempoolTransaction(mpTx *model.MempoolTransaction) error
+		InitMempoolTransaction() error
+		AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error
+		RemoveMempoolTransactions(mempoolTxs []*model.Transaction) error
+		GetMempoolTransactions() (storage.MempoolMap, error)
+		GetTotalMempoolTransactions() (int, error)
 		SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error)
-		ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error
+		ValidateMempoolTransaction(mpTx *model.Transaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
 			lastBlock *model.Block,
@@ -50,8 +54,6 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		MempoolServiceUtil     MempoolServiceUtilInterface
-		MempoolGetter          MempoolGetterInterface
 		TransactionUtil        transaction.UtilInterface
 		Chaintype              chaintype.ChainType
 		KVExecutor             kvdb.KVExecutorInterface
@@ -60,7 +62,6 @@ type (
 		MerkleTreeQuery        query.MerkleTreeQueryInterface
 		ActionTypeSwitcher     transaction.TypeActionSwitcher
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
-		BlockQuery             query.BlockQueryInterface
 		TransactionQuery       query.TransactionQueryInterface
 		Signature              crypto.SignatureInterface
 		Observer               *observer.Observer
@@ -68,7 +69,8 @@ type (
 		ReceiptUtil            coreUtil.ReceiptUtilInterface
 		ReceiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockService           BlockService
+		BlockStateStorage      storage.CacheStorageInterface
+		MempoolCacheStorage    storage.CacheStorageInterface
 	}
 )
 
@@ -82,7 +84,6 @@ func NewMempoolService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
-	blockQuery query.BlockQueryInterface,
 	transactionQuery query.TransactionQueryInterface,
 	signature crypto.SignatureInterface,
 	observer *observer.Observer,
@@ -90,25 +91,9 @@ func NewMempoolService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
 	transactionCoreService TransactionCoreServiceInterface,
+	blockStateStorage, mempoolCacheStorage storage.CacheStorageInterface,
 ) *MempoolService {
-	mempoolGetter := &MempoolGetter{
-		MempoolQuery:  mempoolQuery,
-		QueryExecutor: queryExecutor,
-	}
-
 	return &MempoolService{
-		MempoolServiceUtil: NewMempoolServiceUtil(
-			transactionUtil,
-			transactionQuery,
-			queryExecutor,
-			mempoolQuery,
-			actionTypeSwitcher,
-			accountBalanceQuery,
-			blockQuery,
-			mempoolGetter,
-			transactionCoreService,
-		),
-		MempoolGetter:          mempoolGetter,
 		TransactionUtil:        transactionUtil,
 		Chaintype:              ct,
 		KVExecutor:             kvExecutor,
@@ -121,30 +106,186 @@ func NewMempoolService(
 		TransactionQuery:       transactionQuery,
 		Observer:               observer,
 		Logger:                 logger,
-		BlockQuery:             blockQuery,
 		ReceiptUtil:            receiptUtil,
 		ReceiptService:         receiptService,
 		TransactionCoreService: transactionCoreService,
+		BlockStateStorage:      blockStateStorage,
+		MempoolCacheStorage:    mempoolCacheStorage,
 	}
 }
 
-// GetMempoolTransactions fetch transactions from mempool
-func (mps *MempoolService) GetMempoolTransactions() ([]*model.MempoolTransaction, error) {
-	return mps.MempoolGetter.GetMempoolTransactions()
+func (mps *MempoolService) InitMempoolTransaction() error {
+	var (
+		err      error
+		mempools []*model.MempoolTransaction
+	)
+	mpQuery := mps.MempoolQuery.GetMempoolTransactions()
+	rows, err := mps.QueryExecutor.ExecuteSelect(mpQuery, false)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
+	if err != nil {
+		return err
+	}
+	for _, mempool := range mempools {
+		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempool.TransactionBytes, true)
+		if err != nil {
+			return err
+		}
+		err = mps.MempoolCacheStorage.SetItem(mempool.ID, storage.MempoolCacheObject{
+			Tx:                  *tx,
+			ArrivalTimestamp:    mempool.ArrivalTimestamp,
+			FeePerByte:          mempool.FeePerByte,
+			TransactionByteSize: uint32(len(mempool.TransactionBytes)),
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// GetMempoolTransaction return a mempool transaction by its ID
-func (mps *MempoolService) GetMempoolTransaction(id int64) (*model.MempoolTransaction, error) {
-	return mps.MempoolGetter.GetMempoolTransaction(id)
+// RemoveMempoolTransactions removes a list of transactions tx from mempool given their Ids
+func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Transaction) error {
+	var (
+		idsStr []string
+		ids    []int64
+	)
+	for _, tx := range transactions {
+		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.GetID(), 10)+"'")
+		ids = append(ids, tx.GetID())
+	}
+	err := mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.DeleteMempoolTransactions(idsStr))
+	if err != nil {
+		return err
+	}
+	err = mps.MempoolCacheStorage.RemoveItem(ids)
+	if err != nil {
+		return err
+	}
+	mps.Logger.Infof("mempool transaction with IDs = %s deleted", idsStr)
+	return nil
+}
+
+func (mps *MempoolService) GetTotalMempoolTransactions() (int, error) {
+	var (
+		err      error
+		mempools = make(storage.MempoolMap)
+	)
+	err = mps.MempoolCacheStorage.GetAllItems(mempools)
+	if err != nil {
+		return 0, err
+	}
+	return len(mempools), nil
+}
+
+// GetMempoolTransactions fetch transactions from mempool
+func (mps *MempoolService) GetMempoolTransactions() (storage.MempoolMap, error) {
+	var (
+		mempoolCache = make(storage.MempoolMap)
+		err          error
+	)
+	err = mps.MempoolCacheStorage.GetAllItems(mempoolCache)
+	if err != nil {
+		return nil, err
+	}
+	return mempoolCache, nil
 }
 
 // AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
-func (mps *MempoolService) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
-	return mps.MempoolServiceUtil.AddMempoolTransaction(mpTx)
+func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
+	// check maximum mempool
+	if constant.MaxMempoolTransactions > 0 {
+		var count, err = mps.GetTotalMempoolTransactions()
+		if err != nil {
+			return err
+		}
+		if count >= constant.MaxMempoolTransactions {
+			return blocker.NewBlocker(blocker.ValidationErr, "Mempool already full")
+		}
+	}
+
+	mpTx := &model.MempoolTransaction{
+		FeePerByte:              commonUtils.FeePerByteTransaction(tx.GetFee(), txBytes),
+		ID:                      tx.GetID(),
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.GetSenderAccountAddress(),
+		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
+	}
+
+	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
+	var lastBlock model.Block
+	err := mps.BlockStateStorage.GetItem(nil, &lastBlock)
+	if err != nil {
+		return err
+	}
+	mpTx.BlockHeight = lastBlock.GetHeight()
+	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
+	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
+	if err != nil {
+		return err
+	}
+	err = mps.MempoolCacheStorage.SetItem(tx.GetID(), storage.MempoolCacheObject{
+		Tx:                  *tx,
+		ArrivalTimestamp:    time.Now().UTC().Unix(),
+		FeePerByte:          mpTx.FeePerByte,
+		TransactionByteSize: uint32(len(txBytes)),
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
-	return mps.MempoolServiceUtil.ValidateMempoolTransaction(mpTx)
+func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) error {
+	var (
+		mempoolObj storage.MempoolCacheObject
+		tx         model.Transaction
+		err        error
+		row        *sql.Row
+		txType     transaction.TypeAction
+	)
+	// check duplication in mempool cache
+	err = mps.MempoolCacheStorage.GetItem(mpTx.GetID(), &mempoolObj)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "FailReadingMempoolCache")
+	}
+	if mpTx.GetID() == mempoolObj.Tx.GetID() {
+		return blocker.NewBlocker(blocker.DuplicateMempoolErr, "MempoolDuplicated")
+	}
+
+	// check for duplication in transaction table
+	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.GetID())
+	row, err = mps.QueryExecutor.ExecuteSelectRow(transactionQ, false)
+	if err != nil {
+		return err
+	}
+
+	err = mps.TransactionQuery.Scan(&tx, row)
+	if err != nil && err != sql.ErrNoRows {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
+	if mpTx.GetID() == tx.GetID() {
+		return blocker.NewBlocker(blocker.ValidationErr, "TransactionAlreadyConfirmed")
+	}
+
+	if errVal := mps.TransactionUtil.ValidateTransaction(mpTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); errVal != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, errVal.Error())
+	}
+	txType, err = mps.ActionTypeSwitcher.GetTransactionType(mpTx)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+
+	err = mps.TransactionCoreService.ValidateTransaction(txType, false)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+	return nil
 }
 
 // SelectTransactionsFromMempool Select transactions from mempool to be included in the block and return an ordered list.
@@ -156,39 +297,36 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.MempoolTransac
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
 func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
-	mempoolTransactions, err := mps.MempoolGetter.GetMempoolTransactions()
+	mempoolTransactions, err := mps.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
 	}
-
 	var payloadLength int
 	selectedTransactions := make([]*model.Transaction, 0)
-	selectedMempool := make([]*model.MempoolTransaction, 0)
-	for _, mempoolTransaction := range mempoolTransactions {
+	selectedMempoolTxs := make([]storage.MempoolCacheObject, 0)
+	for _, memObj := range mempoolTransactions {
 		if len(selectedTransactions) >= constant.MaxNumberOfTransactionsInBlock {
 			break
 		}
-		transactionLength := len(mempoolTransaction.TransactionBytes)
+		transactionLength := int(memObj.TransactionByteSize)
 		if payloadLength+transactionLength > constant.MaxPayloadLengthInBlock {
 			continue
 		}
 
-		tx, err := mps.TransactionUtil.ParseTransactionBytes(mempoolTransaction.TransactionBytes, true)
-		if err != nil {
-			continue
-		}
 		// compute transaction expiration time
-		txExpirationTime := tx.Timestamp + constant.TransactionExpirationOffset
+		txExpirationTime := memObj.Tx.Timestamp + constant.TransactionExpirationOffset
 		// compare to millisecond representation of block timestamp
 		if blockTimestamp == 0 || blockTimestamp > txExpirationTime {
 			continue
 		}
 
-		if err := mps.TransactionUtil.ValidateTransaction(tx, mps.QueryExecutor, mps.AccountBalanceQuery, true); err != nil {
+		if err := mps.TransactionUtil.ValidateTransaction(
+			&memObj.Tx, mps.QueryExecutor, mps.AccountBalanceQuery, true,
+		); err != nil {
 			continue
 		}
-		tx.Height = blockHeight
-		txType, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		memObj.Tx.Height = blockHeight
+		txType, err := mps.ActionTypeSwitcher.GetTransactionType(&memObj.Tx)
 		if err != nil {
 			return nil, err
 		}
@@ -205,12 +343,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 		if toRemove {
 			continue
 		}
-
-		selectedTransactions = append(selectedTransactions, tx)
-		selectedMempool = append(selectedMempool, mempoolTransaction)
+		memObjCopy := memObj
+		selectedMempoolTxs = append(selectedMempoolTxs, memObjCopy)
 		payloadLength += transactionLength
 	}
-	sortFeePerByteThenTimestampThenID(selectedTransactions, selectedMempool)
+	sortFeePerByteThenTimestampThenID(selectedMempoolTxs)
+	for _, mpTx := range selectedMempoolTxs {
+		txCopy := mpTx.Tx
+		selectedTransactions = append(selectedTransactions, &txCopy)
+	}
 	return selectedTransactions, nil
 }
 
@@ -223,7 +364,6 @@ func (mps *MempoolService) ReceivedTransaction(
 	var (
 		err          error
 		receivedTx   *model.Transaction
-		mempoolTx    *model.MempoolTransaction
 		batchReceipt *model.BatchReceipt
 	)
 	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(
@@ -235,14 +375,9 @@ func (mps *MempoolService) ReceivedTransaction(
 	if err != nil {
 		return nil, err
 	}
-
-	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
-		ID:                      receivedTx.ID,
-		TransactionBytes:        receivedTxBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    receivedTx.SenderAccountAddress,
-		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
+	// receivedTx == nil when it's a duplicate but we haven't send receipt to this peer for this particular data yet
+	if receivedTx == nil {
+		return batchReceipt, nil
 	}
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
@@ -265,7 +400,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	// Store to Mempool Transaction
-	if err = mps.MempoolServiceUtil.AddMempoolTransaction(mempoolTx); err != nil {
+	if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
 		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
 		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
@@ -281,6 +416,8 @@ func (mps *MempoolService) ReceivedTransaction(
 	return batchReceipt, nil
 }
 
+// ProcessReceivedTransaction process the transaction received from peer
+// will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
 	senderPublicKey,
 	receivedTxBytes []byte,
@@ -288,21 +425,13 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, *model.Transaction, error) {
 	var (
-		err        error
-		receivedTx *model.Transaction
-		mempoolTx  *model.MempoolTransaction
+		err         error
+		receivedTx  *model.Transaction
+		duplicateTx bool
 	)
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	mempoolTx = &model.MempoolTransaction{
-		FeePerByte:              commonUtils.FeePerByteTransaction(receivedTx.GetFee(), receivedTxBytes),
-		ID:                      receivedTx.ID,
-		TransactionBytes:        receivedTxBytes,
-		ArrivalTimestamp:        time.Now().Unix(),
-		SenderAccountAddress:    receivedTx.SenderAccountAddress,
-		RecipientAccountAddress: receivedTx.RecipientAccountAddress,
 	}
 	receivedTxHash := sha3.Sum256(receivedTxBytes)
 	receiptKey, err := mps.ReceiptUtil.GetReceiptKey(
@@ -313,7 +442,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 	}
 
 	// Validate received transaction
-	if err = mps.MempoolServiceUtil.ValidateMempoolTransaction(mempoolTx); err != nil {
+	if err = mps.ValidateMempoolTransaction(receivedTx); err != nil {
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type != blocker.DuplicateMempoolErr {
 			return nil, nil, status.Error(codes.InvalidArgument, err.Error())
@@ -327,6 +456,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		if len(val) != 0 {
 			return nil, nil, status.Error(codes.Internal, "the sender has already received receipt for this data")
 		}
+		duplicateTx = true
 	}
 
 	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
@@ -341,6 +471,9 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 
 	if err != nil {
 		return nil, nil, status.Error(codes.Internal, err.Error())
+	}
+	if duplicateTx {
+		return batchReceipt, nil, nil
 	}
 	return batchReceipt, receivedTx, nil
 }
@@ -361,11 +494,11 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
+		batchReceiptArray = append(batchReceiptArray, batchReceipt)
 		if receivedTx == nil {
 			continue
 		}
 		receivedTransactions = append(receivedTransactions, receivedTx)
-		batchReceiptArray = append(batchReceiptArray, batchReceipt)
 	}
 
 	go mps.Observer.Notify(observer.ReceivedBlockTransactionsValidated, receivedTransactions, mps.Chaintype)
@@ -376,16 +509,16 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 // sortFeePerByteThenTimestampThenID sort a slice of mpTx by feePerByte, timestamp, id DESC
 // this sort the transaction by the mempool fields, mean both slice should have the same number of elements, and same
 // order for this to work
-func sortFeePerByteThenTimestampThenID(members []*model.Transaction, mempools []*model.MempoolTransaction) {
-	sort.SliceStable(members, func(i, j int) bool {
-		mi, mj := mempools[i], mempools[j]
+func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
+	sort.SliceStable(memTxs, func(i, j int) bool {
+		mi, mj := memTxs[i], memTxs[j]
 		switch {
 		case mi.FeePerByte != mj.FeePerByte:
 			return mi.FeePerByte > mj.FeePerByte
 		case mi.ArrivalTimestamp != mj.ArrivalTimestamp:
 			return mi.ArrivalTimestamp < mj.ArrivalTimestamp
 		default:
-			return mi.ID < mj.ID
+			return mi.Tx.ID < mj.Tx.ID
 		}
 	})
 }
@@ -394,37 +527,28 @@ func sortFeePerByteThenTimestampThenID(members []*model.Transaction, mempools []
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (
+		qStr           string
 		expirationTime = time.Now().Add(-constant.MempoolExpiration).Unix()
-		selectQ, qStr  string
 		err            error
-		mempools       []*model.MempoolTransaction
+		cachedTxs      = make(storage.MempoolMap)
 	)
-
-	selectQ = mps.MempoolQuery.GetExpiredMempoolTransactions(expirationTime)
-	rows, err := mps.QueryExecutor.ExecuteSelect(selectQ, false)
+	err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
-
-	mempools, err = mps.MempoolQuery.BuildModel(mempools, rows)
-	if err != nil {
-		return err
+	if len(cachedTxs) == 0 {
+		return nil
 	}
-
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
-	for _, m := range mempools {
-		tx, err := mps.TransactionUtil.ParseTransactionBytes(m.GetTransactionBytes(), true)
-		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				mps.Logger.Error(rollbackErr.Error())
-			}
-			return err
+	for _, memObj := range cachedTxs {
+		if memObj.ArrivalTimestamp > expirationTime {
+			continue
 		}
-		action, err := mps.ActionTypeSwitcher.GetTransactionType(tx)
+		tx := memObj.Tx
+		action, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
 			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
@@ -552,7 +676,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	}
 
 	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.BlockService.GetChainType())
+		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.Chaintype)
 		err = mps.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
 		if err != nil {
 			return err

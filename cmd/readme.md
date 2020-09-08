@@ -159,6 +159,38 @@ go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWn
 
 ## Other Commands
 
+### Wallet certificate decryption (aid to Genesis generation)
+
+```bash
+Usage:
+  zoobc decryptcert
+```
+
+or
+
+```bash
+go run main.go decryptcert
+```
+
+The command outputs resource/generated/decrypted/cluster_config_seatSale.json file containing all decrypted certificates in a form that
+ can be
+ easily imported for 'genesis generate' command (see command 'Genesis' below)
+
+note: 
+this command requires this specific input file: 
+```bash
+resource/templates/certificates.json
+```
+with this structure (the one below is an example):
+```json
+[
+  {
+  "encryptedCert": "U2FsdGVkX18gZYg7TxccQYcSbs5Q4ToyFfD1d7ROI85lz8zka5N9FW0StDo3OXckj3Nyq9El+f9s68+F328R/fB4MxCpBJ/8uInt4sLY67dz1ps8trFmAowXYxT/gCjQqaFOttrfYXOhVteiOOV0pM+G9vZzDQ+GuwZFkMI+zqE4LlE/Do4WvWMaKofMiHlqBMzsTvLSG17o6k4VnvkSNAbpbxzaR8KE6iqzjFgB2xiZEMjeWJ9BgCODVrY+mAopVd1sL0aZ9Ya/Y0ZaVZ0Kiw==",
+  "password": "123123"
+  }
+]
+```
+
 ### Genesis
 
 ```bash
