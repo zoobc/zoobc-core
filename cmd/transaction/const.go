@@ -33,6 +33,7 @@ var (
 	postHost                string
 	senderAddress           string
 	senderSignatureType     int32
+	sign                    bool
 
 	// Send money transaction
 	sendAmount int64
