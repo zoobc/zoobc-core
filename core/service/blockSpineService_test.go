@@ -3229,15 +3229,11 @@ func (*mockSpineExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, 
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockSpineMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
-	return make([]*model.MempoolTransaction, 0), nil
+func (*mockSpineMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
+	return make([]*model.Transaction, 0), nil
 }
 
-func (*mockSpineMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
+func (*mockSpineMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("mockSpineedError")
 }
 

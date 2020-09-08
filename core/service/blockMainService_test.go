@@ -250,6 +250,22 @@ var (
 		Version:                 1,
 		TransactionIndex:        1,
 	}
+	mockTransactionExpired = &model.Transaction{
+		ID:                      1,
+		BlockID:                 1,
+		Height:                  12,
+		SenderAccountAddress:    "BCZ",
+		RecipientAccountAddress: "ZCB",
+		TransactionType:         1,
+		Fee:                     10,
+		Timestamp:               1000,
+		TransactionHash:         []byte{},
+		TransactionBodyLength:   8,
+		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
+		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:                 1,
+		TransactionIndex:        1,
+	}
 
 	mockAccountBalance = &model.AccountBalance{
 		AccountAddress:   mockTransaction.GetSenderAccountAddress(),
@@ -1029,6 +1045,10 @@ func (*mockMempoolServiceRemoveTransactionsSuccess) RemoveMempoolTransactions(me
 	return nil
 }
 
+func (*mockMempoolServiceRemoveTransactionsSuccess) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1693,6 +1713,11 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 // mockMempoolServiceSelectFail
 func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("want error on select")
+}
+
+// mockMempoolServiceSelectFail
+func (*mockMempoolServiceSelectFail) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
 }
 
 // mockMempoolServiceSelectSuccess
@@ -3939,19 +3964,15 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
 	return nil
 }
 
-func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
-	return make([]*model.MempoolTransaction, 0), nil
+func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
+	return make([]*model.Transaction, 0), nil
 }
 
 func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) error {
 	return nil
 }
 
-func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
+func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("mockedError")
 }
 
