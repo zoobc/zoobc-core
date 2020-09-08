@@ -1,9 +1,10 @@
 package storage
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"sync"
 
-	"github.com/mohae/deepcopy"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -12,15 +13,14 @@ type (
 	// BlockStateStorage represent last state of block
 	BlockStateStorage struct {
 		sync.RWMutex
-		lastBlock model.Block
+		// save last block in bytes to make esier to convert when requesting the block
+		lastBlockBytes []byte
 	}
 )
 
 // NewBlockStateStorage returns BlockStateStorage instance
 func NewBlockStateStorage() *BlockStateStorage {
-	return &BlockStateStorage{
-		lastBlock: model.Block{},
-	}
+	return &BlockStateStorage{}
 }
 
 // SetItem setter of BlockStateStorage
@@ -28,16 +28,16 @@ func (bs *BlockStateStorage) SetItem(lastUpdate, block interface{}) error {
 	bs.Lock()
 	defer bs.Unlock()
 	var (
-		ok       bool
-		newBlock model.Block
+		newBlock, ok = (block).(model.Block)
 	)
-
-	// copy block
-	newBlock, ok = (deepcopy.Copy(block)).(model.Block)
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item or FailCopyingBlock")
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
-	bs.lastBlock = newBlock
+	newBlockBytes, err := json.Marshal(newBlock)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, "Failed marshal block")
+	}
+	bs.lastBlockBytes = newBlockBytes
 	return nil
 }
 
@@ -48,10 +48,11 @@ func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 
 	var (
 		ok        bool
+		err       error
 		blockCopy *model.Block
 	)
 
-	if bs.lastBlock.BlockHash == nil {
+	if bs.lastBlockBytes == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "EmptyCache")
 	}
 
@@ -59,10 +60,9 @@ func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
 	}
-	// copy cache block value into reference variable requester
-	*blockCopy, ok = (deepcopy.Copy(bs.lastBlock)).(model.Block)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
+	err = json.Unmarshal(bs.lastBlockBytes, blockCopy)
+	if err != nil {
+		return blocker.NewBlocker(blocker.BlockErr, "Failed unmarshal block bytes")
 	}
 	return nil
 }
@@ -77,11 +77,11 @@ func (bs *BlockStateStorage) RemoveItem(key interface{}) error {
 
 // GetSize return the size of BlockStateStorage
 func (bs *BlockStateStorage) GetSize() int64 {
-	return int64(bs.lastBlock.XXX_Size())
+	return int64(binary.Size(bs.lastBlockBytes))
 }
 
 // ClearCache cleaner of BlockStateStorage
 func (bs *BlockStateStorage) ClearCache() error {
-	bs.lastBlock = model.Block{}
+	bs.lastBlockBytes = nil
 	return nil
 }
