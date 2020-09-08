@@ -819,7 +819,7 @@ func startSpinechain() {
 
 	exist, errGenesis := spinechainBlockService.CheckGenesis()
 	if errGenesis != nil {
-		loggerCoreService.Fatal(errGenesis)
+		log.Fatal(errGenesis)
 	}
 	if !exist { // Add genesis if not exist
 		if err = spinechainBlockService.AddGenesis(); err != nil {
