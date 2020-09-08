@@ -49,7 +49,7 @@ func (nav *NodeAuthValidation) ValidateProofOfOwnership(
 	blockQuery query.BlockQueryInterface,
 ) error {
 
-	if !nav.Signature.VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
+	if !(&crypto.Signature{}).VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
 
