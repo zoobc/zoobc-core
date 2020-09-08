@@ -15,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -49,6 +47,7 @@ import (
 	"github.com/zoobc/zoobc-core/p2p"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
 
 var (
@@ -119,7 +118,7 @@ var (
 	}
 	runCommand = &cobra.Command{
 		Use:   "run",
-		Short: "Run node as without daemon.",
+		Short: "Run node without daemon.",
 	}
 	rootCmd *cobra.Command
 )
@@ -216,6 +215,7 @@ func initiateMainInstance() {
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
+	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -1070,7 +1070,20 @@ func main() {
 
 			switch args[0] {
 			case "install":
-				daemonMessage, err = god.Install("daemon run")
+				args := []string{"daemon", "run"}
+				if flagDebugMode {
+					args = append(args, "--debug")
+				}
+				if flagProfiling {
+					args = append(args, "--profiling")
+				}
+				if flagConfigPath != "" {
+					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+				}
+				if flagUseEnv {
+					args = append(args, "--use-env")
+				}
+				daemonMessage, err = god.Install(args...)
 			case "start":
 				daemonMessage, err = god.Start()
 			case "stop":
@@ -1081,7 +1094,6 @@ func main() {
 				daemonMessage, err = god.Status()
 			case "run":
 				// sub command used by system
-				initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 				initiateMainInstance()
 				start()
 			default:
@@ -1097,7 +1109,6 @@ func main() {
 		}
 	}
 	runCommand.Run = func(cmd *cobra.Command, args []string) {
-		initLogInstance(filepath.Join(flagConfigPath, "/.log"))
 		initiateMainInstance()
 		if !config.LogOnCli && config.CliMonitoring {
 			go cliMonitoring.Start()
