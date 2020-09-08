@@ -262,7 +262,7 @@ go run main.go signature verify --data-bytes='1, 222, 54, 12, 32' --signature-he
 ### Scrambled Nodes
 
 ```
-go run main.go generate scrambledNodes --db-name zoobc_2.db --height 11153
+go run main.go scrambledNodes --db-name zoobc_2.db --height 0
 ```
 
 ### Priority Peers
