@@ -4,10 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 )
 
@@ -47,9 +45,6 @@ func (*nodeAdminCoreServiceMocked) GenerateNodeKey(seed string) ([]byte, error) 
 }
 
 func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
-	if err := util.LoadConfig("../../", "config", "toml"); err != nil {
-		logrus.Fatal(err)
-	}
 	type fields struct {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
@@ -89,9 +84,6 @@ func TestNodeAdminService_GetProofOfOwnership(t *testing.T) {
 }
 
 func TestNodeAdminService_GenerateNodeKey(t *testing.T) {
-	if err := util.LoadConfig("../../resource", "config", "toml"); err != nil {
-		logrus.Fatal(err)
-	}
 	type fields struct {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface

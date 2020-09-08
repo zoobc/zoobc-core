@@ -1791,7 +1791,7 @@ func TestBlockSpineService_CheckGenesis(t *testing.T) {
 				Signature:     tt.fields.Signature,
 				Logger:        tt.fields.Logger,
 			}
-			if got := bs.CheckGenesis(); got != tt.want {
+			if got, _ := bs.CheckGenesis(); got != tt.want {
 				t.Errorf("BlockSpineService.CheckGenesis() = %v, want %v", got, tt.want)
 			}
 		})
