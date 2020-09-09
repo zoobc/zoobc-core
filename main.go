@@ -140,8 +140,6 @@ func initiateMainInstance() {
 			flagConfigPath = "./"
 		}
 	}
-	//STEF
-	fmt.Printf("CONFIG PATH: %s", flagConfigPath)
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
