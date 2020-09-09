@@ -109,18 +109,22 @@ func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model
 ) (*model.GetNodeRegistrationsByNodePublicKeysResponse, error) {
 
 	var (
-		err               error
-		rows2             *sql.Rows
-		selectQuery       string
-		args              []interface{}
-		nodeRegistrations []*model.NodeRegistration
+		err                 error
+		rows2               *sql.Rows
+		selectQuery         string
+		args                []interface{}
+		nodeRegistrations   []*model.NodeRegistration
+		publicKeyInterfaces []interface{}
 	)
 
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	caseQuery := query.NewCaseQuery()
 
 	caseQuery.Select(nodeRegistrationQuery.TableName, nodeRegistrationQuery.Fields...)
-	caseQuery.Where(caseQuery.In("node_public_key", params.NodePublicKeys))
+	for _, npk := range params.NodePublicKeys {
+		publicKeyInterfaces = append(publicKeyInterfaces, npk)
+	}
+	caseQuery.Where(caseQuery.In("node_public_key", publicKeyInterfaces...))
 	caseQuery.And(caseQuery.Equal("latest", 1))
 	caseQuery.OrderBy("height", model.OrderBy_DESC)
 
