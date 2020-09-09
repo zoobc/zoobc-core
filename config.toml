@@ -1,21 +1,36 @@
-apihttpport = 7001
-apireqtimeoutsec = 2
-apirpcport = 7000
-badgerdbname = "zoobc_1_kv/"
-climonitoring = true
-cpuprofilingport = 6060
-dbname = "zoobc.db"
-loglevels = ["fatal","error","panic"]
-logoncli = false
-maxapirequestpersecond = 10
-monitoringport = 9090
-myaddress = "127.0.0.1"
-nodekeyfile = "node_keys.json"
-owneraccountaddress = "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML"
-peerport = 8001
-proofofownershipreqtimeoutsec = 2
-resourcepath = "/home/demo/go/src/github.com/zoobc/zoobc-core/resource"
+badgerDbName = "zoobc_1_kv/"
+dbName = "zoobc.db"
+nodeKeyFile = "node_keys.json"
+resourcePath = "./resource"
+snapshotPath = "./resource/snapshots"
+
+# Peer
+myAddress = "127.0.0.1"
+peerPort = 8001
+wellknownPeers = ["127.0.0.1:8002"]
+
+apiHTTPPort = 7001
+apiRPCPort = 7000
+maxAPIRequestPerSecond = 10
+# comment out or set to 0 to disable http proxy, only enable in dev mode
+apiReqTimeoutSec = 2
+cpuProfilingPort = 6060
+monitoringPort = 9090
+
+ownerAccountAddress = "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML"
+
+proofOfOwnershipReqTimeoutSec = 2
 smithing = true
-snapshotpath = "/home/demo/go/src/github.com/zoobc/zoobc-core/resource/snapshots"
-walletcertfilename = "wallet.zbc"
-wellknownpeers = ["127.0.0.1:8002"]
+# Log Levels
+# Available log level: info, warn, error, fatal, panic
+logLevels = ["fatal", "error", "panic"]
+
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli = false
+# to show usefull information on terminal/cli. The logOnCli must be false
+cliMonitoring = true
+
+walletCertFileName = "wallet.zbc"
+
+#apiCertFile="./resource/network.crt"
+#apiKeyFile="./resource/network.key"
