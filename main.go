@@ -378,16 +378,6 @@ func initiateMainInstance() {
 		query.NewLiquidPaymentTransactionQuery(),
 	)
 
-	transactionCoreServiceIns = service.NewTransactionCoreService(
-		loggerCoreService,
-		queryExecutor,
-		actionSwitcher,
-		transactionUtil,
-		query.NewTransactionQuery(mainchain),
-		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
-		query.NewLiquidPaymentTransactionQuery(),
-	)
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
 		mainchain,
@@ -780,25 +770,16 @@ func startMainchain() {
 		blockchainStatusService,
 	)
 	mainchainForkProcessor = &blockchainsync.ForkingProcessor{
-		ChainType:          mainchainBlockService.GetChainType(),
-		BlockService:       mainchainBlockService,
-		QueryExecutor:      queryExecutor,
-		ActionTypeSwitcher: actionSwitcher,
-		MempoolService:     mempoolService,
-		KVExecutor:         kvExecutor,
-		PeerExplorer:       peerExplorer,
-		Logger:             loggerCoreService,
-		TransactionUtil:    transactionUtil,
-		TransactionCorService: service.NewTransactionCoreService(
-			loggerCoreService,
-			queryExecutor,
-			actionSwitcher,
-			transactionUtil,
-			query.NewTransactionQuery(mainchain),
-			query.NewEscrowTransactionQuery(),
-			query.NewPendingTransactionQuery(),
-			query.NewLiquidPaymentTransactionQuery(),
-		),
+		ChainType:             mainchainBlockService.GetChainType(),
+		BlockService:          mainchainBlockService,
+		QueryExecutor:         queryExecutor,
+		ActionTypeSwitcher:    actionSwitcher,
+		MempoolService:        mempoolService,
+		KVExecutor:            kvExecutor,
+		PeerExplorer:          peerExplorer,
+		Logger:                loggerCoreService,
+		TransactionUtil:       transactionUtil,
+		TransactionCorService: transactionCoreServiceIns,
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
@@ -862,25 +843,16 @@ func startSpinechain() {
 		blockchainStatusService,
 	)
 	spinechainForkProcessor = &blockchainsync.ForkingProcessor{
-		ChainType:          spinechainBlockService.GetChainType(),
-		BlockService:       spinechainBlockService,
-		QueryExecutor:      queryExecutor,
-		ActionTypeSwitcher: nil, // no mempool for spine blocks
-		MempoolService:     nil, // no transaction types for spine blocks
-		KVExecutor:         kvExecutor,
-		PeerExplorer:       peerExplorer,
-		Logger:             loggerCoreService,
-		TransactionUtil:    transactionUtil,
-		TransactionCorService: service.NewTransactionCoreService(
-			loggerCoreService,
-			queryExecutor,
-			actionSwitcher,
-			transactionUtil,
-			query.NewTransactionQuery(mainchain),
-			query.NewEscrowTransactionQuery(),
-			query.NewPendingTransactionQuery(),
-			query.NewLiquidPaymentTransactionQuery(),
-		),
+		ChainType:             spinechainBlockService.GetChainType(),
+		BlockService:          spinechainBlockService,
+		QueryExecutor:         queryExecutor,
+		ActionTypeSwitcher:    nil, // no mempool for spine blocks
+		MempoolService:        nil, // no transaction types for spine blocks
+		KVExecutor:            kvExecutor,
+		PeerExplorer:          peerExplorer,
+		Logger:                loggerCoreService,
+		TransactionUtil:       transactionUtil,
+		TransactionCorService: transactionCoreServiceIns,
 	}
 	spinechainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		spinechainBlockService,
