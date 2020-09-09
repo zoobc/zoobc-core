@@ -218,6 +218,9 @@ func initiateMainInstance() {
 	monitoring.SetCLIMonitoring(cliMonitoring)
 	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
 
+	//STEF
+	loggerCoreService.Errorf("CONFIG PATH: %s", flagConfigPath)
+
 	// break
 	// initialize/open db and queryExecutor
 	dbInstance = database.NewSqliteDB()
