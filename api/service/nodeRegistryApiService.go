@@ -110,7 +110,7 @@ func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model
 
 	var (
 		err                 error
-		rows2               *sql.Rows
+		rows                *sql.Rows
 		selectQuery         string
 		args                []interface{}
 		nodeRegistrations   []*model.NodeRegistration
@@ -131,13 +131,13 @@ func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model
 	selectQuery, args = caseQuery.Build()
 
 	// Get list of node registry
-	rows2, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
+	rows, err = ns.Query.ExecuteSelect(selectQuery, false, args...)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	defer rows2.Close()
+	defer rows.Close()
 
-	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows2)
+	nodeRegistrations, err = nodeRegistrationQuery.BuildModel(nodeRegistrations, rows)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
