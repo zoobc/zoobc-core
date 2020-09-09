@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"io/ioutil"
 	"log"
 	"os"
@@ -440,7 +442,10 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 
 func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID int64) {
 	var (
-		genesisConfig []constant.GenesisConfigEntry
+		signature                 = crypto.NewSignature()
+		nodeAuthValidationService = auth.NewNodeAuthValidation(signature)
+		mempoolStorage            = storage.NewMempoolStorage()
+		genesisConfig             []constant.GenesisConfigEntry
 	)
 	for _, entry := range genesisEntries {
 		cfgEntry := constant.GenesisConfigEntry{
@@ -464,7 +469,10 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
-		&transaction.TypeSwitcher{},
+		&transaction.TypeSwitcher{
+			MempoolCacheStorage: mempoolStorage,
+			NodeAuthValidation:  nodeAuthValidationService,
+		},
 		nil,
 		nil,
 		nil,

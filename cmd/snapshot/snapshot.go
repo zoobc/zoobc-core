@@ -2,6 +2,8 @@ package snapshot
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
 
@@ -44,6 +46,7 @@ func Commands() *cobra.Command {
 func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
+			signature        = crypto.NewSignature()
 			snapshotFileInfo *model.SnapshotFileInfo
 			sqliteInstance   = database.NewSqliteDB()
 			snapshotService  *service.SnapshotService
@@ -72,6 +75,8 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			snapshotFile,
 		)
 		executor = query.NewQueryExecutor(sqliteDB)
+		mempoolStorage := storage.NewMempoolStorage()
+		nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 		snapshotMainService := service.NewSnapshotMainBlockService(
 			snapshotFile,
 			executor,
@@ -100,7 +105,11 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetBlocksmithSafeQuery(mainChain),
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
-			&transaction.TypeSwitcher{Executor: executor},
+			&transaction.TypeSwitcher{
+				Executor:            executor,
+				MempoolCacheStorage: mempoolStorage,
+				NodeAuthValidation:  nodeAuthValidation,
+			},
 			nil,
 			nil,
 		)
@@ -198,14 +207,17 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 	return func(ccmd *cobra.Command, args []string) {
 		var (
-			snapshotFileInfo   *model.SnapshotFileInfo
-			sqliteInstance     = database.NewSqliteDB()
-			mainChain          = &chaintype.MainChain{}
-			spineBlockManifest *model.SpineBlockManifest
-			sqliteDB           *sql.DB
-			executor           *query.Executor
-			logger             = logrus.New()
-			err                error
+			signature                 = crypto.NewSignature()
+			nodeAuthValidationService = auth.NewNodeAuthValidation(signature)
+			mempoolStorage            = storage.NewMempoolStorage()
+			snapshotFileInfo          *model.SnapshotFileInfo
+			sqliteInstance            = database.NewSqliteDB()
+			mainChain                 = &chaintype.MainChain{}
+			spineBlockManifest        *model.SpineBlockManifest
+			sqliteDB                  *sql.DB
+			executor                  *query.Executor
+			logger                    = logrus.New()
+			err                       error
 		)
 
 		if dump {
@@ -235,13 +247,18 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			snapshotFile,
 		)
 		executor = query.NewQueryExecutor(sqliteDB)
+		typeSwitcher := &transaction.TypeSwitcher{
+			Executor:            executor,
+			NodeAuthValidation:  nodeAuthValidationService,
+			MempoolCacheStorage: mempoolStorage,
+		}
 		mainBlockService := service.NewBlockMainService(
 			mainChain,
 			nil,
 			executor,
 			query.NewBlockQuery(mainChain),
 			nil, nil, nil, nil, nil, nil, nil,
-			&transaction.TypeSwitcher{Executor: executor},
+			typeSwitcher,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			storage.NewBlockStateStorage(),
 			nil,
@@ -279,7 +296,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.GetBlocksmithSafeQuery(mainChain),
 			query.GetDerivedQuery(mainChain),
 			&transaction.Util{},
-			&transaction.TypeSwitcher{Executor: executor},
+			typeSwitcher,
 			mainBlockService,
 			nil,
 		)

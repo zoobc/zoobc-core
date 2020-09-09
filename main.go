@@ -267,10 +267,13 @@ func initiateMainInstance() {
 	observerInstance = observer.NewObserver()
 	schedulerInstance = util.NewScheduler(loggerScheduler)
 	snapshotChunkUtil = util.NewChunkUtil(sha256.Size, nodeShardStorage, loggerScheduler)
-
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 	actionSwitcher = &transaction.TypeSwitcher{
 		Executor:            queryExecutor,
 		MempoolCacheStorage: mempoolStorage,
+		NodeAuthValidation:  nodeAuthValidationService,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -498,9 +501,6 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		spinechain,
-	)
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
 	)
 
 	initP2pInstance()

@@ -43,6 +43,7 @@ type (
 	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
 		Executor            query.ExecutorInterface
+		NodeAuthValidation  auth.NodeAuthValidationInterface
 		MempoolCacheStorage storage.CacheStorageInterface
 	}
 )
@@ -125,7 +126,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AuthPoown:               &auth.NodeAuthValidation{},
+				AuthPoown:               ts.NodeAuthValidation,
 				QueryExecutor:           ts.Executor,
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Escrow:                  tx.GetEscrow(),
@@ -146,7 +147,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
+				AuthPoown:             ts.NodeAuthValidation,
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
@@ -183,7 +184,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
+				AuthPoown:             ts.NodeAuthValidation,
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
