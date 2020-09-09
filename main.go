@@ -140,6 +140,8 @@ func initiateMainInstance() {
 			flagConfigPath = "./"
 		}
 	}
+	//STEF
+	fmt.Printf("CONFIG PATH: %s", flagConfigPath)
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
@@ -217,9 +219,6 @@ func initiateMainInstance() {
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
 	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
-
-	//STEF
-	loggerCoreService.Errorf("CONFIG PATH: %s", flagConfigPath)
 
 	// break
 	// initialize/open db and queryExecutor
