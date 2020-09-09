@@ -24,7 +24,7 @@ func main() {
 	if strings.Contains(dir, "api") {
 		configPath = "../../../resource"
 	}
-	if err := util.LoadConfig(configPath, "config", "toml"); err != nil {
+	if err := util.LoadConfig(configPath, "config", "toml", false); err != nil {
 		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")

@@ -134,15 +134,8 @@ func initiateMainInstance() {
 		err error
 	)
 
-	if flagConfigPath == "" {
-		flagConfigPath, err = util.GetRootPath()
-		if err != nil {
-			flagConfigPath = "./"
-		}
-	}
-
 	// load config for default value to be feed to viper
-	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
+	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
@@ -215,7 +208,7 @@ func initiateMainInstance() {
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor

@@ -23,7 +23,7 @@ func main() {
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
-		if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
+		if err := util.LoadConfig("../../../", "config", "toml", false); err != nil {
 			log.Fatal(err)
 		} else {
 			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
