@@ -173,7 +173,6 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 		row            *sql.Row
 		err            error
 	)
-
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}

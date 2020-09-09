@@ -1171,7 +1171,7 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 				dbTx:                   false,
 			},
 			want: &model.NodeAdmissionTimestamp{
-				Timestamp:   1801,
+				Timestamp:   259201,
 				BlockHeight: 1,
 				Latest:      true,
 			},

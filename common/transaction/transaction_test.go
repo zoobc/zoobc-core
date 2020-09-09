@@ -3,6 +3,7 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
@@ -40,7 +41,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
 
 	type fields struct {
-		Executor query.ExecutorInterface
+		Executor            query.ExecutorInterface
+		NodeAuthValidation  auth.NodeAuthValidationInterface
+		MempoolCacheStorage storage.CacheStorageInterface
 	}
 	type args struct {
 		tx *model.Transaction
@@ -132,7 +135,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:           &query.Executor{},
+				NodeAuthValidation: &auth.NodeAuthValidation{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -162,7 +166,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantUpdateNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:           &query.Executor{},
+				NodeAuthValidation: &auth.NodeAuthValidation{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -191,7 +196,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantRemoveNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:           &query.Executor{},
+				NodeAuthValidation: &auth.NodeAuthValidation{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -220,7 +226,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantClaimNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:           &query.Executor{},
+				NodeAuthValidation: &auth.NodeAuthValidation{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -471,7 +478,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := &TypeSwitcher{
-				Executor: tt.fields.Executor,
+				Executor:            tt.fields.Executor,
+				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
+				NodeAuthValidation:  tt.fields.NodeAuthValidation,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)

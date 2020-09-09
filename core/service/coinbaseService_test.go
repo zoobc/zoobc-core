@@ -174,8 +174,8 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 		Chaintype             chaintype.ChainType
 	}
 	type args struct {
-		blockTimesatamp         int64
-		previousBlockTimesatamp int64
+		blockTimestamp         int64
+		previousBlockTimestamp int64
 	}
 	tests := []struct {
 		name   string
@@ -189,10 +189,10 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 				Chaintype: &chaintype.MainChain{},
 			},
 			args: args{
-				blockTimesatamp:         (&chaintype.MainChain{}).GetGenesisBlockTimestamp() + 15,
-				previousBlockTimesatamp: (&chaintype.MainChain{}).GetGenesisBlockTimestamp(),
+				blockTimestamp:         (&chaintype.MainChain{}).GetGenesisBlockTimestamp() + 15,
+				previousBlockTimestamp: (&chaintype.MainChain{}).GetGenesisBlockTimestamp(),
 			},
-			want: 86041924,
+			want: 31548707,
 		},
 	}
 	for _, tt := range tests {
@@ -202,7 +202,7 @@ func TestCoinbaseService_GetCoinbase(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				Chaintype:             tt.fields.Chaintype,
 			}
-			if got := cbs.GetCoinbase(tt.args.blockTimesatamp, tt.args.previousBlockTimesatamp); got != tt.want {
+			if got := cbs.GetCoinbase(tt.args.blockTimestamp, tt.args.previousBlockTimestamp); got != tt.want {
 				t.Errorf("CoinbaseService.GetCoinbase() = %v, want %v", got, tt.want)
 			}
 		})

@@ -1,23 +1,19 @@
 package transaction
 
 import (
-	"database/sql"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/fee"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 )
 
 var (
@@ -482,21 +478,6 @@ func TestGetTransactionID(t *testing.T) {
 	}
 }
 
-type mockQueryExecutorSuccess struct {
-	query.Executor
-}
-
-func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	mockRow := mock.NewRows(query.NewAccountBalanceQuery().Fields)
-	mockRow.AddRow(
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7", 1, 10000, 10000, 0, 1,
-	)
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
-	row := db.QueryRow(qStr)
-	return row, nil
-}
-
 type (
 	mockValidateTransactionFeeScaleServiceCache struct {
 		fee.FeeScaleServiceInterface
@@ -512,15 +493,24 @@ func (*mockValidateTransactionFeeScaleServiceCache) GetLatestFeeScale(feeScale *
 	return nil
 }
 
+type (
+	mockTypeActionValidateTransactionSuccess struct {
+		TypeAction
+	}
+)
+
+func (mockTypeActionValidateTransactionSuccess) GetMinimumFee() (int64, error) {
+	return 0, nil
+}
+
 func TestValidateTransaction(t *testing.T) {
 	transactionUtil := &Util{
 		FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
 	}
 	type args struct {
-		tx                  *model.Transaction
-		queryExecutor       query.ExecutorInterface
-		accountBalanceQuery query.AccountBalanceQueryInterface
-		verifySignature     bool
+		tx              *model.Transaction
+		typeAction      TypeAction
+		verifySignature bool
 	}
 
 	txEscrowValidate := GetFixturesForTransaction(
@@ -559,28 +549,25 @@ func TestValidateTransaction(t *testing.T) {
 					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 					false,
 				),
-				queryExecutor:       &mockQueryExecutorSuccess{},
-				accountBalanceQuery: query.NewAccountBalanceQuery(),
-				verifySignature:     false,
+				typeAction:      &mockTypeActionValidateTransactionSuccess{},
+				verifySignature: false,
 			},
 			wantErr: false,
 		},
 		{
 			name: "TestValidateTransactionWithEscrow:success",
 			args: args{
-				tx:                  txEscrowValidate,
-				queryExecutor:       &mockQueryExecutorSuccess{},
-				accountBalanceQuery: query.NewAccountBalanceQuery(),
-				verifySignature:     true,
+				tx:              txEscrowValidate,
+				typeAction:      &mockTypeActionValidateTransactionSuccess{},
+				verifySignature: true,
 			},
 		},
 		{
 			name: "TestValidateTransaction:success - verify signature",
 			args: args{
-				tx:                  txValidate,
-				queryExecutor:       &mockQueryExecutorSuccess{},
-				accountBalanceQuery: query.NewAccountBalanceQuery(),
-				verifySignature:     true,
+				tx:              txValidate,
+				typeAction:      &mockTypeActionValidateTransactionSuccess{},
+				verifySignature: true,
 			},
 			wantErr: false,
 		},
@@ -591,6 +578,7 @@ func TestValidateTransaction(t *testing.T) {
 					Height: 1,
 					Fee:    0,
 				},
+				typeAction: &mockTypeActionValidateTransactionSuccess{},
 			},
 			wantErr: true,
 		},
@@ -601,18 +589,14 @@ func TestValidateTransaction(t *testing.T) {
 					Height: 1,
 					Fee:    1,
 				},
+				typeAction: &mockTypeActionValidateTransactionSuccess{},
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transactionUtil.ValidateTransaction(
-				tt.args.tx,
-				tt.args.queryExecutor,
-				tt.args.accountBalanceQuery,
-				tt.args.verifySignature,
-			); (err != nil) != tt.wantErr {
+			if err := transactionUtil.ValidateTransaction(tt.args.tx, tt.args.typeAction, tt.args.verifySignature); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
