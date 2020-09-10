@@ -55,7 +55,7 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 	} else { // Try another step
 		update := shell.MultiChoice([]string{"Yes", "No"}, "Config file exists, want to update ? [ENTER to exit]")
 		if update == 0 {
-			err = util.LoadConfig("./", "config", "toml")
+			err = util.LoadConfig("./", "config", "toml", "")
 			if err != nil {
 				color.Red(err.Error())
 				return
@@ -137,7 +137,7 @@ func generateConfig(config model.Config) error {
 	config.ResourcePath = "./resource"
 	config.DatabaseFileName = "zoobc.db"
 	config.BadgerDbName = "zoobc_kv"
-	config.CliMonitoring = false
+	config.CliMonitoring = true
 	config.SnapshotPath = "./resource/snapshots"
 
 	// WELL KNOWN PEERS

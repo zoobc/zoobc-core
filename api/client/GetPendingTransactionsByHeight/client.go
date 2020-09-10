@@ -2,14 +2,14 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/sirupsen/logrus"
+
 	"github.com/spf13/viper"
-	rpcModel "github.com/zoobc/zoobc-core/common/model"
-	rpcService "github.com/zoobc/zoobc-core/common/service"
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
 )
@@ -31,16 +31,19 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := rpcService.NewEscrowTransactionServiceClient(conn)
+	c := rpc_service.NewMultisigServiceClient(conn)
 
-	response, err := c.GetEscrowTransaction(context.Background(), &rpcModel.GetEscrowTransactionRequest{
-		ID: -2747806915165203447,
-	})
+	response, err := c.GetPendingTransactionsByHeight(context.Background(),
+		&rpc_model.GetPendingTransactionsByHeightRequest{
+			FromHeight: 0,
+			ToHeight:   500,
+		},
+	)
 
 	if err != nil {
-		log.Fatalf("error calling : %s", err)
+		log.Fatalf("error calling remote.GetPendingTransactionsByHeight: %s", err)
 	}
-	j, _ := json.MarshalIndent(response, "", "  ")
-	log.Printf("response from remote : %s", j)
+
+	log.Printf("response from remote.GetPendingTransactionsByHeight(): %v", response)
 
 }
