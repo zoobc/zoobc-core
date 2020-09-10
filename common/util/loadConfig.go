@@ -21,7 +21,7 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 		}
 	}
 	if resourcePath == "" {
-		resourcePath = path
+		resourcePath = filepath.Join(path, "./resource")
 	}
 	if len(path) < 1 || len(name) < 1 || len(extension) < 1 {
 		return fmt.Errorf("path and extension cannot be nil")
@@ -50,7 +50,6 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	viper.AddConfigPath(path)
 	viper.AddConfigPath("$HOME/zoobc")
 
-	fmt.Printf("full_path: %s", filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
 	configFile, err := os.Open(filepath.Join(path, fmt.Sprintf("%s.%s", name, extension)))
 	if err != nil {
 		fmt.Printf("Config not found : %s\n", err.Error())
