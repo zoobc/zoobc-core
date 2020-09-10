@@ -784,7 +784,8 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 
 	var (
 		// first sync cycle: wait until the blockchain is fully downloaded, then sync
-		bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap*2) * time.Second)
+		// bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap*2) * time.Second)
+		bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap) * time.Minute)
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
 		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
