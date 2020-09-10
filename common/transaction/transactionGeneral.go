@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/storage"
+	"math"
 	"sort"
 	"time"
 
@@ -294,7 +295,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 	if err != nil {
 		return err
 	}
-	if tx.Fee < minimumFee*feeScale.FeeScale {
+	if tx.Fee < int64(math.Floor(float64(minimumFee)*(float64(feeScale.FeeScale)/float64(constant.OneZBC)))) {
 		return blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("MinimumFeeIs:%v", minimumFee*feeScale.FeeScale))
 	}
 
