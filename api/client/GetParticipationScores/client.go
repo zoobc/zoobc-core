@@ -15,7 +15,7 @@ import (
 
 func main() {
 	var apiRPCPort int
-	if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
+	if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
 		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
