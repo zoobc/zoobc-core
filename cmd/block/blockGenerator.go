@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"strings"
 	"time"
 
@@ -98,6 +99,8 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	signature := crypto.NewSignature()
+	nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
@@ -115,10 +118,13 @@ func initialize(
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
-	actionSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
 	mempoolStorage := storage.NewMempoolStorage()
+
+	actionSwitcher := &transaction.TypeSwitcher{
+		Executor:            queryExecutor,
+		NodeAuthValidation:  nodeAuthValidation,
+		MempoolCacheStorage: mempoolStorage,
+	}
 	blockStorage := storage.NewBlockStateStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),

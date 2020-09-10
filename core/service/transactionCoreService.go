@@ -404,7 +404,6 @@ func (tg *TransactionCoreService) CompletePassedLiquidPayment(block *model.Block
 }
 
 func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {
-
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:

@@ -280,12 +280,13 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 		return blocker.NewBlocker(blocker.ValidationErr, "TransactionAlreadyConfirmed")
 	}
 
-	if errVal := mps.TransactionUtil.ValidateTransaction(mpTx, mps.QueryExecutor, mps.AccountBalanceQuery, true); errVal != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, errVal.Error())
-	}
 	txType, err = mps.ActionTypeSwitcher.GetTransactionType(mpTx)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+
+	if errVal := mps.TransactionUtil.ValidateTransaction(mpTx, txType, true); errVal != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, errVal.Error())
 	}
 
 	err = mps.TransactionCoreService.ValidateTransaction(txType, false)
@@ -327,15 +328,15 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 			continue
 		}
 
-		if err := mps.TransactionUtil.ValidateTransaction(
-			&memObj.Tx, mps.QueryExecutor, mps.AccountBalanceQuery, true,
-		); err != nil {
-			continue
-		}
 		memObj.Tx.Height = blockHeight
+
 		txType, err := mps.ActionTypeSwitcher.GetTransactionType(&memObj.Tx)
 		if err != nil {
 			return nil, err
+		}
+
+		if err := mps.TransactionUtil.ValidateTransaction(&memObj.Tx, txType, true); err != nil {
+			continue
 		}
 
 		toRemove, err := txType.SkipMempoolTransaction(
