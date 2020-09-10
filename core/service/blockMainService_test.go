@@ -2124,7 +2124,7 @@ func TestBlockService_CheckGenesis(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				Logger:             tt.fields.Logger,
 			}
-			if got := bs.CheckGenesis(); got != tt.want {
+			if got, _ := bs.CheckGenesis(); got != tt.want {
 				t.Errorf("BlockService.CheckGenesis() = %v, want %v", got, tt.want)
 			}
 		})
@@ -3383,7 +3383,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    4131377287970028523,
+			want:    2181321930526879108,
 		},
 	}
 	for _, tt := range tests {

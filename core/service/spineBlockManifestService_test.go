@@ -98,13 +98,13 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 			},
 			wantErr: false,
 			want: &model.SpineBlockManifest{
-				ID:                      int64(-305181351797751567),
+				ID:                      int64(-6343438915916024408),
 				FullFileHash:            make([]byte, 32),
 				ManifestReferenceHeight: ssMockMainBlock.Height,
-				ExpirationTimestamp:     int64(1598250615),
+				ExpirationTimestamp:     int64(1596708015),
 				FileChunkHashes:         make([]byte, 0),
 				SpineBlockManifestType:  model.SpineBlockManifestType_Snapshot,
-				ChainType:               int32(0),
+				ChainType:               0,
 			},
 		},
 	}
@@ -122,7 +122,7 @@ func TestBlockSpineSnapshotService_CreateSpineBlockManifest(t *testing.T) {
 				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = \n%v, want \n%v", got, tt.want)
+				t.Errorf("SnapshotService.CreateSpineBlockManifest() error = %v, want %v", got, tt.want)
 			}
 		})
 	}

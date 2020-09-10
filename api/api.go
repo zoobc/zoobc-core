@@ -43,6 +43,7 @@ func startGrpcServer(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
+	nodePublicKey []byte,
 ) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
@@ -120,7 +121,8 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for node registry request
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
-		Service: service.NewNodeRegistryService(queryExecutor),
+		Service:       service.NewNodeRegistryService(queryExecutor),
+		NodePublicKey: nodePublicKey,
 	})
 	// Set GRPC handler for account ledger request
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
@@ -228,6 +230,7 @@ func Start(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
+	nodePublicKey []byte,
 ) {
 	startGrpcServer(
 		queryExecutor,
@@ -245,5 +248,6 @@ func Start(
 		isDebugMode,
 		apiCertFile, apiKeyFile,
 		maxAPIRequestPerSecond,
+		nodePublicKey,
 	)
 }

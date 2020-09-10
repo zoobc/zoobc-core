@@ -11,7 +11,18 @@ import (
 /*
 LoadConfig must be called at first time while start the app
 */
-func LoadConfig(path, name, extension string) error {
+func LoadConfig(path, name, extension, resourcePath string) error {
+	if path == "" {
+		p, err := GetRootPath()
+		if err != nil {
+			path = "./"
+		} else {
+			path = p
+		}
+	}
+	if resourcePath == "" {
+		resourcePath = path
+	}
 	if len(path) < 1 || len(name) < 1 || len(extension) < 1 {
 		return fmt.Errorf("path and extension cannot be nil")
 	}
@@ -19,16 +30,16 @@ func LoadConfig(path, name, extension string) error {
 	viper.SetDefault("dbName", "zoobc.db")
 	viper.SetDefault("badgerDbName", "zoobc_kv/")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
-	viper.Set("resourcePath", filepath.Join(path, "../resource"))
+	viper.Set("resourcePath", filepath.Join(resourcePath, "./resource"))
 	viper.SetDefault("peerPort", 8001)
 	viper.SetDefault("myAddress", "")
 	viper.SetDefault("monitoringPort", 9090)
 	viper.SetDefault("apiRPCPort", 7000)
-	viper.SetDefault("apiHTTPPort", 7003)
+	viper.SetDefault("apiHTTPPort", 7001)
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
-	viper.Set("snapshotPath", filepath.Join(path, "../resource/snapshots"))
+	viper.Set("snapshotPath", filepath.Join(resourcePath, "./resource/snapshots"))
 	viper.SetDefault("logOnCli", false)
-	viper.SetDefault("cliMonitoring", false)
+	viper.SetDefault("cliMonitoring", true)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically

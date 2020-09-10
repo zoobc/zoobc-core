@@ -108,9 +108,9 @@ var (
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
 )
 var (
-	flagConfigPath, flagConfigPostfix        string
-	flagDebugMode, flagProfiling, flagUseEnv bool
-	daemonCommand                            = &cobra.Command{
+	flagConfigPath, flagConfigPostfix, flagResourcePath string
+	flagDebugMode, flagProfiling, flagUseEnv            bool
+	daemonCommand                                       = &cobra.Command{
 		Use:        "daemon",
 		Short:      "Run node on daemon service, which mean running in the background. Similar to launchd or systemd",
 		Example:    "daemon install | start | stop | remove | status",
@@ -134,18 +134,9 @@ func initiateMainInstance() {
 		err error
 	)
 
-	if flagConfigPath == "" {
-		flagConfigPath, err = util.GetRootPath()
-		if err != nil {
-			flagConfigPath = "./"
-		}
-	}
-
 	// load config for default value to be feed to viper
-	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml"); err != nil {
-		fmt.Printf("LoadConfig.Err %v\n\n", err)
-		if flagUseEnv {
-			fmt.Printf("UseEnv %v\n\n", flagUseEnv)
+	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
@@ -219,7 +210,7 @@ func initiateMainInstance() {
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", flagConfigPath))
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -250,9 +241,6 @@ func initiateMainInstance() {
 	queryExecutor = query.NewQueryExecutor(db)
 	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
-	nodeAuthValidationService = auth.NewNodeAuthValidation(
-		crypto.NewSignature(),
-	)
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
 
@@ -505,6 +493,9 @@ func initiateMainInstance() {
 		queryExecutor,
 		spinechain,
 	)
+	nodeAuthValidationService = auth.NewNodeAuthValidation(
+		crypto.NewSignature(),
+	)
 
 	initP2pInstance()
 
@@ -667,6 +658,7 @@ func startServices() {
 		config.APICertFile,
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
+		config.NodeKey.PublicKey,
 	)
 }
 
@@ -700,7 +692,12 @@ func startMainchain() {
 		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
-	if !mainchainBlockService.CheckGenesis() { // Add genesis if not exist
+
+	exist, errGenesis := mainchainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
@@ -816,9 +813,13 @@ func startSpinechain() {
 	)
 	monitoring.SetBlockchainStatus(spinechain, constant.BlockchainStatusIdle)
 
-	if !spinechainBlockService.CheckGenesis() { // Add genesis if not exist
-		if err := spinechainBlockService.AddGenesis(); err != nil {
-			loggerCoreService.Fatal(err)
+	exist, errGenesis := spinechainBlockService.CheckGenesis()
+	if errGenesis != nil {
+		log.Fatal(errGenesis)
+	}
+	if !exist { // Add genesis if not exist
+		if err = spinechainBlockService.AddGenesis(); err != nil {
+			log.Fatal(err)
 		}
 	}
 	// update cache last spine block  block
@@ -1039,11 +1040,12 @@ func start() {
 }
 func init() {
 	rootCmd = &cobra.Command{}
-	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-postfix", "", "Configuration version")
+	rootCmd.PersistentFlags().StringVar(&flagConfigPostfix, "config-postfix", "", "Configuration version")
 	rootCmd.PersistentFlags().StringVar(&flagConfigPath, "config-path", "", "Configuration path")
 	rootCmd.PersistentFlags().BoolVar(&flagDebugMode, "debug", false, "Run on debug mode")
 	rootCmd.PersistentFlags().BoolVar(&flagProfiling, "profiling", false, "Run with profiling")
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
+	rootCmd.PersistentFlags().StringVar(&flagResourcePath, "resource-path", "", "Resource path location")
 	config = model.NewConfig()
 }
 
@@ -1073,20 +1075,23 @@ func main() {
 
 			switch args[0] {
 			case "install":
-				args := []string{"daemon", "run"}
+				daemonArgs := []string{"daemon", "run"}
 				if flagDebugMode {
-					args = append(args, "--debug")
+					daemonArgs = append(daemonArgs, "--debug")
 				}
 				if flagProfiling {
-					args = append(args, "--profiling")
+					daemonArgs = append(daemonArgs, "--profiling")
 				}
 				if flagConfigPath != "" {
-					args = append(args, fmt.Sprintf("--config-path=%s", flagConfigPath))
+					daemonArgs = append(daemonArgs, fmt.Sprintf("--config-path=%s", flagConfigPath))
 				}
 				if flagUseEnv {
-					args = append(args, "--use-env")
+					daemonArgs = append(daemonArgs, "--use-env")
 				}
-				daemonMessage, err = god.Install(args...)
+				if flagResourcePath != "" {
+					daemonArgs = append(daemonArgs, fmt.Sprintf("--resource-path=%s", flagResourcePath))
+				}
+				daemonMessage, err = god.Install(daemonArgs...)
 			case "start":
 				daemonMessage, err = god.Start()
 			case "stop":
