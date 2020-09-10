@@ -18,6 +18,9 @@ type (
 		GetPendingTransactions(
 			param *model.GetPendingTransactionsRequest,
 		) (*model.GetPendingTransactionsResponse, error)
+		GetPendingTransactionsByHeight(
+			fromHeight, toHeight uint32,
+		) ([]*model.PendingTransaction, error)
 		GetPendingTransactionDetailByTransactionHash(
 			param *model.GetPendingTransactionDetailByTransactionHashRequest,
 		) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
@@ -330,4 +333,31 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 		Total:              totalRecords,
 		MultiSignAddresses: multiSignatureAddresses,
 	}, err
+}
+
+func (ms *MultisigService) GetPendingTransactionsByHeight(
+	fromHeight, toHeight uint32,
+) ([]*model.PendingTransaction, error) {
+	var (
+		result         []*model.PendingTransaction
+		err            error
+		pendingTxQuery = query.NewPendingTransactionQuery()
+		caseQuery      = query.NewCaseQuery()
+		selectQuery    string
+		args           []interface{}
+	)
+	caseQuery.Select(pendingTxQuery.TableName, pendingTxQuery.Fields...)
+	caseQuery.OrderBy("block_height", model.OrderBy_ASC)
+	selectQuery, args = caseQuery.Build()
+	pendingTransactionsRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer pendingTransactionsRows.Close()
+	result, err = ms.PendingTransactionQuery.BuildModel(result, pendingTransactionsRows)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }
