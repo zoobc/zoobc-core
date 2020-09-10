@@ -39,6 +39,29 @@ func (msh *MultisigHandler) GetPendingTransactions(
 	return msh.MultisigService.GetPendingTransactions(req)
 }
 
+func (msh *MultisigHandler) GetPendingTransactionsByHeight(
+	ctx context.Context,
+	req *model.GetPendingTransactionsByHeightRequest,
+) (*model.GetPendingTransactionsByHeightResponse, error) {
+
+	if req.GetToHeight() < 1 {
+		return nil, status.Error(codes.InvalidArgument, "ToHeightMustBeGreaterThanZero")
+	}
+	if req.GetFromHeight() >= req.GetToHeight() {
+		return nil, status.Error(codes.InvalidArgument, "FromHeightMustBeLowerThanToHeight")
+	}
+	if req.GetToHeight()-req.GetFromHeight() > constant.MaxAPILimitPerPage {
+		return nil, status.Error(codes.InvalidArgument, "HeightRangeMustBeLessThanOrEqualTo500")
+	}
+	pendingTxs, err := msh.MultisigService.GetPendingTransactionsByHeight(req.GetFromHeight(), req.GetToHeight())
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetPendingTransactionsByHeightResponse{
+		PendingTransactions: pendingTxs,
+	}, nil
+}
+
 func (msh *MultisigHandler) GetPendingTransactionDetailByTransactionHash(
 	_ context.Context,
 	req *model.GetPendingTransactionDetailByTransactionHashRequest,
