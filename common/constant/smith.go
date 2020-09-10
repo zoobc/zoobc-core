@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	CoinbaseTotalDistribution        int64   = 3_300_000 * OneZBC // 3 million * 10^8 in production
-	CoinbaseTime                     int64   = 15 * OneYear       // 15 years in production
+	CoinbaseTotalDistribution        int64   = 3000000 * OneZBC // 3 million * 10^8 in production
+	CoinbaseTime                     int64   = 5 * OneYear      // 5 years in production
 	CoinbaseSigmoidStart             float64 = 3
 	CoinbaseSigmoidEnd               float64 = 6
 	CoinbaseNumberRewardsPerSecond   int64   = 1 // probably this will always be 1
@@ -23,7 +23,7 @@ var (
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod intervals between spine blocks in seconds
 	// reduce to 60 for testing locally (300 in production)
-	SpineChainSmithingPeriod = int64(3600)
+	SpineChainSmithingPeriod = int64(300)
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -14,7 +15,7 @@ import (
 
 func main() {
 	var apiRPCPort int
-	if err := util.LoadConfig("../../../", "config", "toml"); err != nil {
+	if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
 		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")

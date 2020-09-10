@@ -892,11 +892,9 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
 	for i, bsm := range (bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))[:blocksmithIndex] {
-		// BETA-ONLY
-		skippedBlockPunishment := -1 * (constant.BetaBlockBonus * constant.BetaBlockBonusSkipMultiplier)
 		skippedBlocksmith := &model.SkippedBlocksmith{
 			BlocksmithPublicKey: bsm.NodePublicKey,
-			POPChange:           skippedBlockPunishment,
+			POPChange:           constant.ParticipationScorePunishAmount,
 			BlockHeight:         block.Height,
 			BlocksmithIndex:     int32(i),
 		}
@@ -909,7 +907,7 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			return err
 		}
 		// punish score
-		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, skippedBlockPunishment, block.Height, true)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height, true)
 		if err != nil {
 			return err
 		}
