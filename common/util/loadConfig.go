@@ -39,7 +39,7 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	viper.SetDefault("logLevels", []string{"fatal", "error", "panic"})
 	viper.Set("snapshotPath", filepath.Join(resourcePath, "./resource/snapshots"))
 	viper.SetDefault("logOnCli", false)
-	viper.SetDefault("cliMonitoring", false)
+	viper.SetDefault("cliMonitoring", true)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically

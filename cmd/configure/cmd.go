@@ -137,7 +137,7 @@ func generateConfig(config model.Config) error {
 	config.ResourcePath = "./resource"
 	config.DatabaseFileName = "zoobc.db"
 	config.BadgerDbName = "zoobc_kv"
-	config.CliMonitoring = false
+	config.CliMonitoring = true
 	config.SnapshotPath = "./resource/snapshots"
 
 	// WELL KNOWN PEERS
