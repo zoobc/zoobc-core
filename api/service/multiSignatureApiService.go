@@ -30,6 +30,9 @@ type (
 		GetMultisigAddressByParticipantAddress(
 			param *model.GetMultisigAddressByParticipantAddressRequest,
 		) (*model.GetMultisigAddressByParticipantAddressResponse, error)
+		GetMultisigAddressesByBlockHeightRange(
+			param *model.GetMultisigAddressesByBlockHeightRangeRequest,
+		) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error)
 	}
 
 	MultisigService struct {
@@ -360,4 +363,67 @@ func (ms *MultisigService) GetPendingTransactionsByHeight(
 	}
 
 	return result, nil
+}
+
+func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
+	param *model.GetMultisigAddressesByBlockHeightRangeRequest,
+) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
+	var (
+		result            []*model.MultiSignatureInfo
+		subQ              = query.NewCaseQuery()
+		caseQuery         = query.NewCaseQuery()
+		multisigInfoQuery = query.NewMultisignatureInfoQuery()
+		selectQuery       string
+		args              []interface{}
+		totalRecords      uint32
+		err               error
+	)
+	// sub query for getting addresses from multisignature_participant
+	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
+	subQ.Where(caseQuery.Equal("multisig_address", multisigInfoQuery.TableName+".multisig_address"))
+	subQ.GroupBy("multisig_address", "block_height")
+	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
+	subQ.As("addresses")
+	subStr, subArgs := subQ.SubBuild()
+
+	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
+	caseQuery.Args = append(caseQuery.Args, subArgs...)
+
+	caseQuery.Where(caseQuery.Equal("latest", true))
+	caseQuery.And(caseQuery.GreaterEqual("block_height", param.FromBlockHeight))
+	caseQuery.And(caseQuery.LessEqual("block_height", param.ToBlockHeight))
+
+	selectQuery, args = caseQuery.Build()
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+
+	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
+	err = countRow.Scan(
+		&totalRecords,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "FailToGetTotalItemInMultisigInfo")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
+	caseQuery.Paginate(
+		param.GetPagination().GetLimit(),
+		param.GetPagination().GetPage(),
+	)
+	selectQuery, args = caseQuery.Build()
+	multisigInfoRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer multisigInfoRows.Close()
+	result, err = ms.MultisignatureInfoQuery.BuildModel(result, multisigInfoRows)
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetMultisigAddressesByBlockHeightRangeResponse{
+		Count:              totalRecords,
+		Page:               param.GetPagination().GetPage(),
+		MultisignatureInfo: result,
+	}, err
 }
