@@ -394,6 +394,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	var (
 		blocksmithIndex *int64
 		err             error
+		mempoolMap      storage.MempoolMap
 	)
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
@@ -455,6 +456,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 	var transactionIDs = make([]int64, len(block.GetTransactions()))
+	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
+	if err != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+		return err
+	}
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
 		// assign block id and block height to tx
@@ -463,35 +471,24 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		tx.TransactionIndex = uint32(index) + 1
 		transactionIDs[index] = tx.GetID()
 		// validate tx here
-		// check if is in mempool : if yes, undo unconfirmed
-		rows, err := bs.QueryExecutor.ExecuteSelect(bs.MempoolQuery.GetMempoolTransaction(), false, tx.ID)
-		if err != nil {
-			rows.Close()
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			rows.Close()
 			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
-
-		if rows.Next() {
+		// check if is in mempool : if yes, undo unconfirmed
+		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
-				rows.Close()
 				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 					bs.Logger.Error(rollbackErr.Error())
 				}
 				return err
 			}
 		}
-		rows.Close()
+
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
@@ -519,14 +516,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
-	if block.Height != 0 {
-		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return errRemoveMempool
-		}
-	}
+
 	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {
 		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
@@ -688,6 +678,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			if err != nil {
 				return result, err
 			}
+			defer rows.Close()
 			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
 			if err != nil {
 				return result, err
@@ -732,7 +723,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 	}
-
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			// reset mempool cache
+			initMempoolErr := bs.MempoolService.InitMempoolTransaction()
+			if initMempoolErr != nil {
+				bs.Logger.Errorf(initMempoolErr.Error())
+			}
+			return err
+		}
+	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err

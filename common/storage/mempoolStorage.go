@@ -17,6 +17,7 @@ type (
 		ArrivalTimestamp    int64
 		FeePerByte          int64
 		TransactionByteSize uint32
+		BlockHeight         uint32
 	}
 	MempoolMap map[int64]MempoolCacheObject
 )
@@ -95,7 +96,7 @@ func (m *MempoolCacheStorage) RemoveItem(keys interface{}) error {
 func (m *MempoolCacheStorage) GetSize() int64 {
 	var size int64
 	for _, memObj := range m.mempoolMap {
-		size += 8 * 3 // key + feePerByte + arrivalTimestamp
+		size += 8 * 3 // key + feePerByte + arrivalTimestamp + blockHeight
 		size += int64(memObj.TransactionByteSize)
 	}
 	return size
