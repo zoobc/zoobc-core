@@ -463,13 +463,6 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		if duplicated {
 			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
 		}
-		// val, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
-		// if err != nil && err != badger.ErrKeyNotFound {
-		// 	return nil, nil, status.Error(codes.Internal, err.Error())
-		// }
-		// if len(val) != 0 {
-		// 	return nil, nil, status.Error(codes.Internal, "the sender has already received receipt for this data")
-		// }
 		duplicateTx = true
 	}
 

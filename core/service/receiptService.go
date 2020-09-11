@@ -521,9 +521,6 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 	if err != nil {
 		return nil, err
 	}
-	// err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
-	// if err != nil {
-	// 	return nil, err
-	// }
+
 	return batchReceipt, nil
 }

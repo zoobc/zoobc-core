@@ -10,7 +10,6 @@ import (
 	"sort"
 	"sync"
 
-	badger "github.com/dgraph-io/badger/v2"
 	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/sha3"
@@ -315,8 +314,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithPubKeyString := string(block.BlocksmithPublicKey)
-	blocksmithIndex := blocksmithsMap[blocksmithPubKeyString]
+	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
@@ -1363,18 +1361,6 @@ func (bs *BlockService) ReceiveBlock(
 	}
 	if duplicated {
 		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
-	}
-	// err = bs.ReceiptReminderStorage.GetItem(string(receiptKey), new(*[]byte))
-	// if err != nil {
-	// 	return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
-	// }
-	// _, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-	// if err == nil {
-	// 	return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
-	// }
-
-	if err != badger.ErrKeyNotFound {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "failed get receipt key")
 	}
 
 	// generate receipt and return as response
