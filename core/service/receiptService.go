@@ -350,9 +350,9 @@ func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated 
 	)
 	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
 	if err != nil {
-		return duplicated, blocker.NewBlocker(
+		return true, blocker.NewBlocker(
 			blocker.ValidationErr,
-			"FailedGetReceiptKey",
+			err.Error(),
 		)
 	}
 

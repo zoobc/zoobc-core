@@ -3,7 +3,6 @@ package storage
 import (
 	"sync"
 
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 )
 
@@ -16,7 +15,9 @@ type (
 )
 
 func NewReceiptReminderStorage() *ReceiptReminderStorage {
-	return &ReceiptReminderStorage{}
+	return &ReceiptReminderStorage{
+		reminders: make(map[string][]byte),
+	}
 }
 
 // SetItem add new item into storage
@@ -29,7 +30,6 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 		nItem    []byte
 		ok       bool
 	)
-	log.Debugf("SetItem")
 	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 	}
@@ -39,7 +39,6 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 
 	}
 	rs.reminders[reminder] = append(rs.reminders[reminder], nItem...)
-	log.Debugf("reminder: %v", rs.reminders)
 	return nil
 }
 
@@ -53,8 +52,7 @@ func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 		ok       bool
 	)
 
-	log.Debug("GetItem")
-	if reminder, ok = key.(string); ok {
+	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 	}
 	if nItem, ok = item.(*[]byte); !ok {
