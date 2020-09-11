@@ -315,7 +315,8 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
+	blocksmithPubKeyString := string(block.BlocksmithPublicKey)
+	blocksmithIndex := blocksmithsMap[blocksmithPubKeyString]
 	if blocksmithIndex == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
 	}
@@ -1353,10 +1354,24 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	// check if already broadcast receipt to this node
-	_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-	if err == nil {
+	duplicated, err := bs.ReceiptService.IsDuplicated(senderPublicKey, block.GetBlockHash())
+	if err != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			err.Error(),
+		)
+	}
+	if duplicated {
 		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
 	}
+	// err = bs.ReceiptReminderStorage.GetItem(string(receiptKey), new(*[]byte))
+	// if err != nil {
+	// 	return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	// }
+	// _, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
+	// if err == nil {
+	// 	return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	// }
 
 	if err != badger.ErrKeyNotFound {
 		return nil, blocker.NewBlocker(blocker.BlockErr, "failed get receipt key")

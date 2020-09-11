@@ -3,12 +3,10 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"sort"
 	"strconv"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -17,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -457,13 +456,20 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		}
 
 		// already exist in mempool, check if already generated a receipt for this sender
-		val, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
-		if err != nil && err != badger.ErrKeyNotFound {
-			return nil, nil, status.Error(codes.Internal, err.Error())
+		duplicated, duplicatedErr := mps.ReceiptService.IsDuplicated(senderPublicKey, receivedTxHash[:])
+		if duplicatedErr != nil {
+			return nil, nil, status.Errorf(codes.Internal, err.Error())
 		}
-		if len(val) != 0 {
-			return nil, nil, status.Error(codes.Internal, "the sender has already received receipt for this data")
+		if duplicated {
+			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
 		}
+		// val, err := mps.KVExecutor.Get(constant.KVdbTableTransactionReminderKey + string(receiptKey))
+		// if err != nil && err != badger.ErrKeyNotFound {
+		// 	return nil, nil, status.Error(codes.Internal, err.Error())
+		// }
+		// if len(val) != 0 {
+		// 	return nil, nil, status.Error(codes.Internal, "the sender has already received receipt for this data")
+		// }
 		duplicateTx = true
 	}
 

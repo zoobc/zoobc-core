@@ -57,7 +57,7 @@ var (
 	db                                                                     *sql.DB
 	badgerDb                                                               *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
-	nextNodeAdmissionStorage, mempoolStorage                               storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -255,6 +255,7 @@ func initiateMainInstance() {
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
+	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -311,6 +312,7 @@ func initiateMainInstance() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 		mainBlockStateStorage,
+		receiptReminderStorage,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,

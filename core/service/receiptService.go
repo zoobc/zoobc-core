@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"time"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -18,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -40,6 +39,7 @@ type (
 			nodeSecretPhrase, receiptKey string,
 			datumType uint32,
 		) (*model.BatchReceipt, error)
+		IsDuplicated(publicKey []byte, datumHash []byte) (duplicated bool, err error)
 	}
 
 	ReceiptService struct {
@@ -55,6 +55,7 @@ type (
 		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
 		ReceiptUtil             coreUtil.ReceiptUtilInterface
 		MainBlockStateStorage   storage.CacheStorageInterface
+		ReceiptReminderStorage  storage.CacheStorageInterface
 	}
 )
 
@@ -70,7 +71,7 @@ func NewReceiptService(
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	mainBlockStateStorage storage.CacheStorageInterface,
+	mainBlockStateStorage, receiptReminderStorage storage.CacheStorageInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:        nodeReceiptQuery,
@@ -85,6 +86,7 @@ func NewReceiptService(
 		PublishedReceiptQuery:   publishedReceiptQuery,
 		ReceiptUtil:             receiptUtil,
 		MainBlockStateStorage:   mainBlockStateStorage,
+		ReceiptReminderStorage:  receiptReminderStorage,
 	}
 }
 
@@ -341,6 +343,29 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	return nil
 }
 
+// IsDuplicated check existing batch receipt in cache
+func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated bool, err error) {
+	var (
+		receiptKey, duplicatedReceipt []byte
+	)
+	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
+	if err != nil {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailedGetReceiptKey",
+		)
+	}
+
+	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &duplicatedReceipt)
+	if err != nil {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailedGetReceiptKey",
+		)
+	}
+	return duplicatedReceipt != nil, nil
+}
+
 func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.BatchReceipt,
 ) error {
@@ -492,9 +517,13 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash for reminder
-	err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
+	err = rs.ReceiptReminderStorage.SetItem(receiptKey, receivedDatumHash)
 	if err != nil {
 		return nil, err
 	}
+	// err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
+	// if err != nil {
+	// 	return nil, err
+	// }
 	return batchReceipt, nil
 }

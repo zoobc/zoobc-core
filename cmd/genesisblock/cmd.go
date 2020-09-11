@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,16 +12,16 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/zoobc/lib/address"
-
 	"github.com/spf13/cobra"
-
+	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -500,7 +498,21 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 	if err != nil {
 		log.Fatal(err)
 	}
-	sb := service.NewBlockSpineService(&chaintype.SpineChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	sb := service.NewBlockSpineService(
+		&chaintype.SpineChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+	)
 	spine, err := sb.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
 		log.Fatal(err)
