@@ -346,7 +346,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 // IsDuplicated check existing batch receipt in cache
 func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated bool, err error) {
 	var (
-		receiptKey, duplicatedReceipt []byte
+		receiptKey []byte
+		cType      chaintype.ChainType
 	)
 	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
 	if err != nil {
@@ -356,14 +357,14 @@ func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated 
 		)
 	}
 
-	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &duplicatedReceipt)
+	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &cType)
 	if err != nil {
 		return duplicated, blocker.NewBlocker(
 			blocker.ValidationErr,
 			"FailedGetReceiptKey",
 		)
 	}
-	return duplicatedReceipt != nil, nil
+	return cType != nil, nil
 }
 
 func (rs *ReceiptService) ValidateReceipt(
@@ -517,7 +518,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash for reminder
-	err = rs.ReceiptReminderStorage.SetItem(receiptKey, receivedDatumHash)
+	err = rs.ReceiptReminderStorage.SetItem(receiptKey, ct)
 	if err != nil {
 		return nil, err
 	}

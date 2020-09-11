@@ -4,19 +4,21 @@ import (
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 type (
 	ReceiptReminderStorage struct {
 		sync.RWMutex
-		// reminders map[nodeKeys]datumHash
-		reminders map[string][]byte
+		// reminders map[receipt_key]
+		reminders map[string]chaintype.ChainType
 	}
 )
 
 func NewReceiptReminderStorage() *ReceiptReminderStorage {
 	return &ReceiptReminderStorage{
-		reminders: make(map[string][]byte),
+		reminders: make(map[string]chaintype.ChainType),
 	}
 }
 
@@ -27,18 +29,24 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 
 	var (
 		reminder string
-		nItem    []byte
+		nItem    chaintype.ChainType
 		ok       bool
 	)
 	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 	}
 
-	if nItem, ok = item.([]byte); !ok {
+	if nItem, ok = item.(chaintype.ChainType); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 
 	}
-	rs.reminders[reminder] = append(rs.reminders[reminder], nItem...)
+
+	if rs.GetSize() >= constant.PriorityStrategyMaxPriorityPeers*int64(constant.MinRollbackBlocks) {
+		if err := rs.ClearCache(); err != nil {
+			return err
+		}
+	}
+	rs.reminders[reminder] = nItem
 	return nil
 }
 
@@ -48,14 +56,14 @@ func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 
 	var (
 		reminder string
-		nItem    *[]byte
+		nItem    *chaintype.ChainType
 		ok       bool
 	)
 
 	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 	}
-	if nItem, ok = item.(*[]byte); !ok {
+	if nItem, ok = item.(*chaintype.ChainType); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	*nItem = rs.reminders[reminder]
@@ -63,7 +71,7 @@ func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 }
 
 func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
-	if k, ok := key.(*map[string][]byte); ok {
+	if k, ok := key.(*map[string]chaintype.ChainType); ok {
 		*k = rs.reminders
 		return nil
 	}
@@ -77,14 +85,10 @@ func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
 func (rs *ReceiptReminderStorage) GetSize() int64 {
-	var size int
-	for _, v := range rs.reminders {
-		size += len(v)
-	}
-	return int64(size)
+	return int64(len(rs.reminders))
 }
 
 func (rs *ReceiptReminderStorage) ClearCache() error {
-	rs.reminders = nil
+	rs.reminders = make(map[string]chaintype.ChainType)
 	return nil
 }
