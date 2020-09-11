@@ -43,6 +43,9 @@ func (s *ScrambleCacheStackStorage) Push(item interface{}) error {
 	}
 	s.Lock()
 	defer s.Unlock()
+	if len(s.scrambledNodes) >= s.itemLimit {
+		s.scrambledNodes = s.scrambledNodes[1:] // remove first (oldest) cache to make room for new scramble
+	}
 	marshaledScramble, err := json.Marshal(scrambleCopy)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "MarshalFail")
