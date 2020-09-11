@@ -48,6 +48,7 @@ func NewScrambleNodeService(
 }
 
 func (sns *ScrambleNodeService) InitializeScrambleCache() error {
+
 	return nil
 }
 
@@ -60,7 +61,7 @@ func (*ScrambleNodeService) GetBlockHeightToBuildScrambleNodes(lastBlockHeight u
 	return lastBlockHeight - (lastBlockHeight % constant.PriorityStrategyBuildScrambleNodesGap)
 }
 
-// ResetScrambledNodes todo: update this to `PopOffScrambleToHeight`
+// PopOffScrambleToHeight delete cache of scrambles to given height's nearest scramble
 func (sns *ScrambleNodeService) PopOffScrambleToHeight(height uint32) error {
 	var (
 		firstCachedScramble model.ScrambledNodes
@@ -174,6 +175,6 @@ func (sns *ScrambleNodeService) sortNodeRegistries(
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  block.Height,
 	}
-	err = sns.cacheStorage.Push(newScramble)
+	err = sns.cacheStorage.Push(*newScramble)
 	return err
 }
