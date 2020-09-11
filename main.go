@@ -58,6 +58,7 @@ var (
 	badgerDb                                                               *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage                               storage.CacheStorageInterface
+	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -101,6 +102,7 @@ var (
 	mainchainCoinbaseService                                               service.CoinbaseServiceInterface
 	mainchainBlocksmithService                                             service.BlocksmithServiceInterface
 	mainchainParticipationScoreService                                     service.ParticipationScoreServiceInterface
+	scrambleNodeService                                                    service.ScrambleNodeServiceInterface
 	actionSwitcher                                                         transaction.TypeActionSwitcher
 	feeScaleService                                                        fee.FeeScaleServiceInterface
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
@@ -248,6 +250,7 @@ func initiateMainInstance() {
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
+	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -274,7 +277,6 @@ func initiateMainInstance() {
 		query.NewNodeAddressInfoQuery(),
 		loggerCoreService,
 	)
-
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
@@ -290,6 +292,13 @@ func initiateMainInstance() {
 		nextNodeAdmissionStorage,
 		mainBlockStateStorage,
 	)
+	scrambleNodeService = service.NewScrambleNodeService(
+		nodeRegistrationService,
+		nodeAddressInfoService,
+		queryExecutor,
+		query.NewBlockQuery(mainchain),
+		scrambleNodeStorage,
+	)
 
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
@@ -304,6 +313,7 @@ func initiateMainInstance() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 		mainBlockStateStorage,
+		scrambleNodeService,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
@@ -412,8 +422,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		query.NewAccountLedgerQuery(),
 		blockIncompleteQueueService,
-		transactionUtil,
-		receiptUtil,
+		transactionUtil, receiptUtil,
 		mainchainPublishedReceiptUtil,
 		transactionCoreServiceIns,
 		mainchainBlockPool,
@@ -425,6 +434,7 @@ func initiateMainInstance() {
 		query.GetPruneQuery(mainchain),
 		mainBlockStateStorage,
 		blockchainStatusService,
+		scrambleNodeService,
 	)
 
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(
@@ -578,6 +588,7 @@ func initP2pInstance() {
 		nodeConfigurationService,
 		blockchainStatusService,
 		crypto.NewSignature(),
+		scrambleNodeService,
 	)
 	p2pServiceInstance, _ = p2p.NewP2PService(
 		peerServiceClient,
@@ -634,6 +645,7 @@ func startServices() {
 		blockServices,
 		nodeRegistrationService,
 		mempoolService,
+		scrambleNodeService,
 		transactionUtil,
 		actionSwitcher,
 		blockStateStorages,
@@ -719,12 +731,12 @@ func startMainchain() {
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
-	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
+	heightToBuildScrambleNodes := scrambleNodeService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
 	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	err = nodeRegistrationService.BuildScrambledNodes(blockToBuildScrambleNodes)
+	err = scrambleNodeService.BuildScrambledNodes(blockToBuildScrambleNodes)
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}

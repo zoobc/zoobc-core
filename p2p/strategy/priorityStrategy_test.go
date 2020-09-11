@@ -839,8 +839,7 @@ func TestPriorityStrategy_AddToUnresolvedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil,
-				log.New(), nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, log.New(), nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			changeMaxUnresolvedPeers(ps, tt.args.MaxUnresolvedPeers)
 			err := ps.AddToUnresolvedPeers([]*model.Node{tt.args.newNode}, tt.args.toForceAdd)
 			if (err != nil) != tt.wantErr {
@@ -911,8 +910,7 @@ func TestPriorityStrategy_RemoveUnresolvedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil, nil,
-				nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, nil, nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			err := ps.RemoveUnresolvedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveUnresolvedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -959,8 +957,7 @@ func TestPriorityStrategy_GetBlacklistedPeers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, nil, nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			if got := ps.GetBlacklistedPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBlacklistedPeers() = %v, want %v", got, tt.want)
 			}
@@ -1018,8 +1015,7 @@ func TestPriorityStrategy_AddToBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, nil, nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			err := ps.AddToBlacklistedPeer(tt.args.newPeer, tt.reason)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddToBlacklistedPeer error = %v, wantErr %v", err, tt.wantErr)
@@ -1084,8 +1080,7 @@ func TestPriorityStrategy_RemoveBlacklistedPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, nil, nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			err := ps.RemoveBlacklistedPeer(tt.args.peerToRemove)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RemoveBlacklistedPeer() error = %v, wantErr %v", err, tt.wantErr)
@@ -1130,8 +1125,7 @@ func TestPriorityStrategy_GetAnyKnownPeer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps := NewPriorityStrategy(nil, nil, nil,
-				nil, nil, tt.args.nodeConfigurationService, nil, nil)
+			ps := NewPriorityStrategy(nil, nil, nil, nil, nil, tt.args.nodeConfigurationService, nil, nil, nil)
 			if got := ps.GetAnyKnownPeer(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetAnyKnownPeer() = %v, want %v", got, tt.want)
 			}
@@ -1146,8 +1140,7 @@ func TestPriorityStrategy_GetExceedMaxUnresolvedPeers(t *testing.T) {
 		},
 	}
 	mockNodeRegistrationService := &p2pMockNodeRegistraionService{}
-	ps := NewPriorityStrategy(nil, mockNodeRegistrationService, nil, nil,
-		nil, mockNodeConfigurationService, nil, nil)
+	ps := NewPriorityStrategy(nil, mockNodeRegistrationService, nil, nil, nil, mockNodeConfigurationService, nil, nil, nil)
 	changeMaxUnresolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxUnresolvedPeers int32
@@ -1179,7 +1172,7 @@ func TestPriorityStrategy_GetExceedMaxResolvedPeers(t *testing.T) {
 			ResolvedPeers: make(map[string]*model.Peer),
 		},
 	}
-	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil)
+	ps := NewPriorityStrategy(nil, nil, nil, nil, nil, mockNodeConfigurationService, nil, nil, nil)
 	changeMaxResolvedPeers(ps, 1)
 
 	var expectedResult, exceedMaxResolvedPeers int32
