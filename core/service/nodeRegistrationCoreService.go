@@ -615,7 +615,7 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 		}
 		return true, nil
 	}
-	err = nrs.NodeAddressInfoService.UpdateAddrressInfo(nodeAddressInfo)
+	err = nrs.NodeAddressInfoService.InsertAddressInfo(nodeAddressInfo)
 	if err != nil {
 		return false, err
 	}

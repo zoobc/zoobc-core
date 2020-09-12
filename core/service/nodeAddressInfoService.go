@@ -254,7 +254,7 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 	if err != nil {
 		return err
 	}
-	// Add into node address info storage  Cache
+	// Add into node address info storage cache
 	err = nru.NodeAddressInfoStorage.SetItem(nil, *nodeAddressInfo)
 	if err != nil {
 		return err
@@ -278,7 +278,7 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 	if err != nil {
 		return err
 	}
-	// followed update query, will direcly replace the old one of node address info based on node ID
+	// followed update query, will directly replace the old  node address info based on node ID
 	err = nru.NodeAddressInfoStorage.SetItem(nil, *nodeAddressInfo)
 	if err != nil {
 		return err
