@@ -66,6 +66,7 @@ type (
 		MempoolService              MempoolServiceInterface
 		ReceiptService              ReceiptServiceInterface
 		NodeRegistrationService     NodeRegistrationServiceInterface
+		NodeAddressInfoService      NodeAddressInfoServiceInterface
 		BlocksmithService           BlocksmithServiceInterface
 		FeeScaleService             fee.FeeScaleServiceInterface
 		ActionTypeSwitcher          transaction.TypeActionSwitcher

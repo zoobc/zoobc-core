@@ -33,6 +33,7 @@ func startGrpcServer(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
@@ -116,7 +117,7 @@ func startGrpcServer(
 	// Set GRPC handler for node address info requests
 	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
 		Service: service.NewNodeAddressInfoAPIService(
-			nodeRegistrationService,
+			nodeAddressInfoService,
 		),
 	})
 	// Set GRPC handler for node registry request
@@ -220,6 +221,7 @@ func Start(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
@@ -237,6 +239,7 @@ func Start(
 		p2pHostService,
 		blockServices,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		mempoolService,
 		transactionUtil,
 		actionTypeSwitcher,

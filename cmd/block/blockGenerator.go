@@ -2,9 +2,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/auth"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/auth"
 
 	"github.com/zoobc/zoobc-core/common/storage"
 
@@ -161,7 +162,6 @@ func initialize(
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
-		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),

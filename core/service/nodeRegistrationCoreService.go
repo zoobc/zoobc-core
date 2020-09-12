@@ -48,10 +48,6 @@ type (
 			nodeIDs []int64,
 			addressStatuses []model.NodeAddressStatus,
 		) ([]*model.NodeAddressInfo, error)
-		GetNodeAddressInfoFromDbByAddressPort(
-			address string,
-			port uint32,
-			nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GenerateNodeAddressInfo(
 			nodeID int64,
 			nodeAddress string,
@@ -61,16 +57,13 @@ type (
 			nodeAddressInfo *model.NodeAddressInfo,
 			updatedStatus model.NodeAddressStatus,
 		) (updated bool, err error)
-		DeletePendingNodeAddressInfo(nodeID int64) error
 		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
-		CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error)
 	}
 
 	// NodeRegistrationService mockable service methods
 	NodeRegistrationService struct {
 		QueryExecutor                query.ExecutorInterface
-		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
@@ -91,7 +84,6 @@ type (
 
 func NewNodeRegistrationService(
 	queryExecutor query.ExecutorInterface,
-	nodeAddressInfoQuery query.NodeAddressInfoQueryInterface,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -105,7 +97,6 @@ func NewNodeRegistrationService(
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
 		QueryExecutor:               queryExecutor,
-		NodeAddressInfoQuery:        nodeAddressInfoQuery,
 		AccountBalanceQuery:         accountBalanceQuery,
 		NodeRegistrationQuery:       nodeRegistrationQuery,
 		ParticipationScoreQuery:     participationScoreQuery,
@@ -181,39 +172,6 @@ func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*mode
 	}
 
 	return nodeRegistry, nil
-}
-
-// CountNodesAddressByStatus return a map with a count of nodes addresses in db for every node address status
-func (nrs *NodeRegistrationService) CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error) {
-	qry := nrs.NodeAddressInfoQuery.GetNodeAddressInfo()
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
-	if err != nil {
-		return nil, err
-	}
-
-	if err != nil {
-		return nil, err
-	}
-	addressStatusCounter := make(map[model.NodeAddressStatus]int)
-	for _, nai := range nodeAddressesInfo {
-		addressStatus := nai.GetStatus()
-		// init map key to avoid npe
-		if _, ok := addressStatusCounter[addressStatus]; !ok {
-			addressStatusCounter[addressStatus] = 0
-		}
-		addressStatusCounter[addressStatus]++
-	}
-	for status, counter := range addressStatusCounter {
-		monitoring.SetNodeAddressStatusCount(counter, status)
-	}
-
-	return addressStatusCounter, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
@@ -296,22 +254,16 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 				"block_height":    height,
 			},
 		)
-
 		queries := append(updateAccountBalanceQ, nodeQueries...)
-		// remove the node_address_info
-		removeNodeAddressInfoQ, removeNodeAddressInfoArgs := nrs.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
-			nodeRegistration.NodeID,
-			[]model.NodeAddressStatus{
-				model.NodeAddressStatus_NodeAddressPending,
-				model.NodeAddressStatus_NodeAddressConfirmed,
-				model.NodeAddressStatus_Unset,
-			},
-		)
-		removeNodeAddressInfoQueries := append([]interface{}{removeNodeAddressInfoQ}, removeNodeAddressInfoArgs...)
-		queries = append(queries, removeNodeAddressInfoQueries)
 		if err := nrs.QueryExecutor.ExecuteTransactions(queries); err != nil {
 			return err
 		}
+		// remove the node_address_info
+		err := nrs.NodeAddressInfoService.DeleteNodeAddressInfoByNodeIDInDBTx(nodeRegistration.NodeID)
+		if err != nil {
+			return err
+		}
+
 	}
 	return nil
 }
@@ -467,7 +419,10 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	})
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
-		nai, err := nrs.NodeAddressInfoService.GetAddressInfoByNodeID(node.GetNodeID(), model.NodeAddressStatus_NodeAddressPending)
+		nai, err := nrs.NodeAddressInfoService.GetAddressInfoByNodeIDWithPreferredStatus(
+			node.GetNodeID(),
+			model.NodeAddressStatus_NodeAddressPending,
+		)
 		if err != nil {
 			return err
 		}
@@ -608,46 +563,25 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
 	nodeIDs []int64,
 	addressStatuses []model.NodeAddressStatus,
 ) ([]*model.NodeAddressInfo, error) {
-	var qry string
+	var nodeAddressesInfo []*model.NodeAddressInfo
+	var err error
 	if len(nodeIDs) > 0 {
-		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+		nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeIDs(nodeIDs, addressStatuses)
+		if err != nil {
+			return nil, err
+		}
 	} else {
-		qry = nrs.NodeAddressInfoQuery.GetNodeAddressInfoByStatus(addressStatuses)
-	}
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
-	if err != nil {
-		return nil, err
-	}
-
-	return nodeAddressesInfo, nil
-}
-
-// GetNodeAddressInfoFromDbByAddressPort returns a node address info given and address and port pairs
-func (nrs *NodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
-	address string,
-	port uint32,
-	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
-	qry, args := nrs.NodeAddressInfoQuery.GetNodeAddressInfoByAddressPort(address, port, nodeAddressStatuses)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	nodeAddressesInfo, err := nrs.NodeAddressInfoQuery.BuildModel([]*model.NodeAddressInfo{}, rows)
-	if err != nil {
-		return nil, err
+		nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByStatus(addressStatuses)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return nodeAddressesInfo, nil
 }
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
+// TODO @sukrawidhyawan: will completely move this fucntion into node address info service
+// after node address info cache stable
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 	nodeAddressInfo *model.NodeAddressInfo,
 	updatedStatus model.NodeAddressStatus,
@@ -664,8 +598,8 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 
 	nodeAddressInfo.Status = updatedStatus
 	// if a node with same id and status already exist, update
-	if nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb(
-		[]int64{nodeAddressInfo.NodeID},
+	if nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeID(
+		nodeAddressInfo.NodeID,
 		[]model.NodeAddressStatus{nodeAddressInfo.Status},
 	); err != nil {
 		return false, err
@@ -675,36 +609,13 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
 			return false, nil
 		}
-		err = nrs.QueryExecutor.BeginTx()
-		if err != nil {
-			return false, err
-		}
-		qryArgs := nrs.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
-		err = nrs.QueryExecutor.ExecuteTransactions(qryArgs)
-		if err != nil {
-			_ = nrs.QueryExecutor.RollbackTx()
-			nrs.Logger.Error(err)
-			return false, err
-		}
-		err = nrs.QueryExecutor.CommitTx()
+		err = nrs.NodeAddressInfoService.UpdateAddrressInfo(nodeAddressInfo)
 		if err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-
-	err = nrs.QueryExecutor.BeginTx()
-	if err != nil {
-		return false, err
-	}
-	qry, args := nrs.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressInfo)
-	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
-	if err != nil {
-		_ = nrs.QueryExecutor.RollbackTx()
-		nrs.Logger.Error(err)
-		return false, err
-	}
-	err = nrs.QueryExecutor.CommitTx()
+	err = nrs.NodeAddressInfoService.UpdateAddrressInfo(nodeAddressInfo)
 	if err != nil {
 		return false, err
 	}
@@ -712,32 +623,13 @@ func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
 			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
 		}
-		if cna, err := nrs.CountNodesAddressByStatus(); err == nil {
+		if cna, err := nrs.NodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
 			for status, counter := range cna {
 				monitoring.SetNodeAddressStatusCount(counter, status)
 			}
 		}
 	}
 	return true, nil
-}
-
-func (nrs *NodeRegistrationService) DeletePendingNodeAddressInfo(nodeID int64) error {
-	qry, args := nrs.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
-		nodeID,
-		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
-	// start db transaction here
-	err := nrs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-	err = nrs.QueryExecutor.ExecuteTransaction(qry, args...)
-	if err != nil {
-		if rollbackErr := nrs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			nrs.Logger.Error(rollbackErr.Error())
-		}
-		return err
-	}
-	return nrs.QueryExecutor.CommitTx()
 }
 
 // ValidateNodeAddressInfo validate message data against:
@@ -851,21 +743,10 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 }
 
 // ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
+// TODO @sukrawidhyawan: will completely move this fucntion into node address info service
+// after node address info cache stable
 func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error {
-	queries := nrs.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-	err := nrs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-	err = nrs.QueryExecutor.ExecuteTransactions(queries)
-	if err != nil {
-		rollbackErr := nrs.QueryExecutor.RollbackTx()
-		if rollbackErr != nil {
-			log.Errorln(rollbackErr.Error())
-		}
-		return err
-	}
-	err = nrs.QueryExecutor.CommitTx()
+	var err = nrs.NodeAddressInfoService.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
 	if err != nil {
 		return err
 	}
@@ -873,7 +754,7 @@ func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddress
 		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
 			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
 		}
-		if cna, err := nrs.CountNodesAddressByStatus(); err == nil {
+		if cna, err := nrs.NodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
 			for status, counter := range cna {
 				monitoring.SetNodeAddressStatusCount(counter, status)
 			}

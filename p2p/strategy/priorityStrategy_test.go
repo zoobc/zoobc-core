@@ -235,7 +235,7 @@ func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
 	return nil, nil
 }
 
-func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressInfoFromDbByAddressPort(
+func (p2pNr *p2pMockNodeRegistraionService) GetNodeAddressInfoByAddressPort(
 	address string,
 	port uint32,
 	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
@@ -1217,7 +1217,7 @@ func (*mockNodeRegistrationService) GetScrambleNodesByHeight(
 	return mockGoodScrambledNodes, nil
 }
 
-func (*mockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
+func (*mockNodeRegistrationService) GetNodeAddressInfoByAddressPort(
 	address string,
 	port uint32,
 	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
@@ -1610,7 +1610,7 @@ func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs 
 	return nil, nil
 }
 
-func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
+func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoByAddressPort(
 	address string,
 	port uint32,
 	nodeAddressStatuses []model.NodeAddressStatus,
