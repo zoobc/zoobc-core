@@ -12,13 +12,11 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -80,18 +78,6 @@ type (
 	}
 	mockTypeActionSuccess struct {
 		mockTypeAction
-	}
-
-	mockKVExecutorSuccess struct {
-		kvdb.KVExecutor
-	}
-
-	mockKVExecutorSuccessKeyNotFound struct {
-		mockKVExecutorSuccess
-	}
-
-	mockKVExecutorFailOtherError struct {
-		mockKVExecutorSuccess
 	}
 
 	mockNodeRegistrationServiceSuccess struct {
@@ -195,26 +181,6 @@ func (*mockNodeRegistrationServiceFail) BuildScrambledNodes(block *model.Block) 
 
 func (*mockNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
 	return lastBlockHeight
-}
-
-func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
-	return nil, nil
-}
-
-func (*mockKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
-	return nil
-}
-
-func (*mockKVExecutorSuccessKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockKVExecutorFailOtherError) Get(key string) ([]byte, error) {
-	return nil, badger.ErrInvalidKey
-}
-
-func (*mockKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
-	return badger.ErrInvalidKey
 }
 
 var (

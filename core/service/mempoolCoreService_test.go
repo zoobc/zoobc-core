@@ -10,14 +10,12 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -42,35 +40,6 @@ var (
 )
 
 var _ = mockMempoolTransaction
-
-type mockMempoolQueryExecutorFail struct {
-	query.Executor
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	// before adding mempool transactions to db we check for duplicate transactions
-	case getTxByIDQuery:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
-			query.NewMempoolQuery(chaintype.GetChainType(0)).Fields,
-		).AddRow(3, 0, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
-	default:
-		return nil, errors.New("MockedError")
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, errors.New("MockedError")
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...interface{}) error {
-	return errors.New("MockedError")
-}
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
@@ -683,22 +652,6 @@ type (
 		WantErr        bool
 		WantDuplicated bool
 	}
-
-	mockReceiptServiceError struct {
-		ReceiptServiceInterface
-	}
-
-	mockKvExecutorErrKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorErrNonKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorFoundKey struct {
-		kvdb.KVExecutorInterface
-	}
 )
 
 func (*mockTransactionUtilSuccess) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error) {
@@ -741,82 +694,15 @@ func (mrs *mockReceiptServiceSucces) IsDuplicated(_, _ []byte) (bool, error) {
 	}
 	return false, nil
 }
-func (*mockReceiptServiceError) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-) (*model.BatchReceipt, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorErrKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockKvExecutorErrNonKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorFoundKey) Get(key string) ([]byte, error) {
-	return []byte{1}, nil
-}
 
 type (
 	mockMempoolCacheStorageFailGetItem struct {
-		storage.MempoolCacheStorage
-	}
-	mockMempoolCacheStorageSuccessGetItem struct {
 		storage.MempoolCacheStorage
 	}
 )
 
 func (*mockMempoolCacheStorageFailGetItem) GetItem(key, item interface{}) error {
 	return errors.New("mocked error")
-}
-
-func (*mockMempoolCacheStorageSuccessGetItem) GetItem(key, item interface{}) error {
-	txCopy, ok := item.(*storage.MempoolCacheObject)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
-	}
-	mptx := model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		FeePerByte:              10,
-		ArrivalTimestamp:        1000,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		Escrow:                  nil,
-	}
-	*txCopy = storage.MempoolCacheObject{
-		Tx: model.Transaction{
-			Version:                 0,
-			ID:                      1,
-			BlockID:                 0,
-			Height:                  0,
-			SenderAccountAddress:    "BCZ",
-			RecipientAccountAddress: "ZCB",
-			TransactionType:         0,
-			Fee:                     0,
-			Timestamp:               0,
-			TransactionHash:         nil,
-			TransactionBodyLength:   0,
-			TransactionBodyBytes:    nil,
-			TransactionIndex:        0,
-			MultisigChild:           false,
-			TransactionBody:         nil,
-			Signature:               nil,
-			Escrow:                  nil,
-		},
-		ArrivalTimestamp:    1000,
-		FeePerByte:          10,
-		TransactionByteSize: uint32(len(mptx.TransactionBytes)),
-	}
-	return nil
 }
 
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {

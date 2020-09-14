@@ -1,18 +1,12 @@
 package util
 
 import (
-	"database/sql"
 	"reflect"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -49,38 +43,6 @@ var (
 		Transactions:         nil,
 	}
 )
-
-type (
-	mockGenerateBatchReceiptWithReminderKVExecutorSuccess struct {
-		kvdb.KVExecutor
-	}
-	mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError struct {
-		kvdb.KVExecutor
-	}
-	mockGenerateBatchReceiptWithReminderQueryExecutorSuccess struct {
-		query.Executor
-	}
-)
-
-func (*mockGenerateBatchReceiptWithReminderKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
-	return nil
-}
-func (*mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
-	return badger.ErrInvalidKey
-}
-
-func (*mockGenerateBatchReceiptWithReminderQueryExecutorSuccess) ExecuteSelectRow(
-	qStr string,
-	tx bool, args ...interface{},
-) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "Tree", "Timestamp",
-	}))
-	row := db.QueryRow(qStr)
-	return row, nil
-}
 
 func TestGetNumberOfMaxReceipts(t *testing.T) {
 	type args struct {

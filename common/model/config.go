@@ -17,7 +17,7 @@ type (
 		NodeKey                                                   *NodeKey
 		MyAddress, OwnerAccountAddress, NodeSeed                  string
 		APICertFile, APIKeyFile                                   string
-		DatabaseFileName, ResourcePath, BadgerDbName,
+		DatabaseFileName, ResourcePath,
 		NodeKeyFileName, SnapshotPath string
 
 		// validation fields
@@ -51,7 +51,6 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.WellknownPeers = viper.GetStringSlice("wellknownPeers")
 	cfg.Smithing = viper.GetBool("smithing")
 	cfg.DatabaseFileName = viper.GetString("dbName")
-	cfg.BadgerDbName = viper.GetString("badgerDbName")
 	cfg.ResourcePath = viper.GetString("resourcePath")
 	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
 	cfg.NodeSeed = viper.GetString("nodeSeed")
