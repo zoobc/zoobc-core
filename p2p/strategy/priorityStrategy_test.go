@@ -1217,10 +1217,23 @@ func (*mockNodeRegistrationService) GetNodeAddressInfoFromDbByAddressPort(
 	return nil, nil
 }
 
+type (
+	mockScrambleNodeServiceGetPriorityPeersSuccess struct {
+		coreService.ScrambleNodeService
+	}
+)
+
+func (*mockScrambleNodeServiceGetPriorityPeersSuccess) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return mockGoodScrambledNodes, nil
+}
+
 func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 	var mockNodeRegistrationServiceInstance = &mockNodeRegistrationService{}
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name   string
@@ -1235,6 +1248,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 						Info: mockHostInfo,
 					},
 				},
+				ScrambleNodeService: &mockScrambleNodeServiceGetPriorityPeersSuccess{},
 			},
 			want: map[string]*model.Peer{
 				"222": mockPeer,
@@ -1247,6 +1261,7 @@ func TestPriorityStrategy_GetPriorityPeers(t *testing.T) {
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				NodeRegistrationService:  mockNodeRegistrationServiceInstance,
 				BlockMainService:         &mockBlockMainServiceSuccess{},
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 			}
 			if got := ps.GetPriorityPeers(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("PriorityStrategy.GetPriorityPeers() = %v, want %v", got, tt.want)
@@ -1410,6 +1425,27 @@ func TestPriorityStrategy_ValidateRangePriorityPeers(t *testing.T) {
 	}
 }
 
+type (
+	mockScrambleNodeServiceValidateRequestSuccess struct {
+		coreService.ScrambleNodeService
+	}
+	mockScrambleNodeServiceValidateRequestEmptyScramble struct {
+		coreService.ScrambleNodeService
+	}
+)
+
+func (*mockScrambleNodeServiceValidateRequestSuccess) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return mockGoodScrambledNodes, nil
+}
+
+func (*mockScrambleNodeServiceValidateRequestEmptyScramble) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return &model.ScrambledNodes{}, nil
+}
+
 func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 	var (
 		mockMetadata = map[string]string{
@@ -1425,6 +1461,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 		Logger                   *log.Logger
 	}
 	type args struct {
@@ -1446,6 +1483,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 					},
 				},
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
+				ScrambleNodeService:     &mockScrambleNodeServiceValidateRequestSuccess{},
 			},
 			args: args{
 				ctx: mockGoodMetadata,
@@ -1459,6 +1497,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 					host: priorityStrategyGoodHostInstance,
 				},
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
+				ScrambleNodeService:     &mockScrambleNodeServiceValidateRequestEmptyScramble{},
 			},
 			args: args{
 				ctx: mockGoodMetadata,
@@ -1487,6 +1526,7 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 			ps := &PriorityStrategy{
 				NodeConfigurationService: tt.fields.NodeConfigurationService,
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 				BlockMainService:         &mockBlockMainServiceSuccess{},
 			}
 			if got := ps.ValidateRequest(tt.args.ctx); got != tt.want {
@@ -1496,6 +1536,17 @@ func TestPriorityStrategy_ValidateRequest(t *testing.T) {
 	}
 }
 
+type (
+	mockScrambleNodeServiceConnectPriorityPeersGraduallySuccess struct {
+		coreService.ScrambleNodeService
+	}
+)
+
+func (*mockScrambleNodeServiceConnectPriorityPeersGraduallySuccess) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return mockGoodScrambledNodes, nil
+}
 func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 	var mockNodeRegistrationServiceInstance = &mockNodeRegistrationService{}
 	type fields struct {
@@ -1503,6 +1554,7 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		MaxUnresolvedPeers       int32
 		MaxResolvedPeers         int32
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 		Logger                   *log.Logger
 	}
 	tests := []struct {
@@ -1516,6 +1568,7 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 					host: priorityStrategyGoodHostInstance,
 				},
 				NodeRegistrationService: mockNodeRegistrationServiceInstance,
+				ScrambleNodeService:     &mockScrambleNodeServiceConnectPriorityPeersGraduallySuccess{},
 				MaxResolvedPeers:        2,
 				MaxUnresolvedPeers:      2,
 				Logger:                  log.New(),
@@ -1529,6 +1582,7 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 				NodeRegistrationService:  tt.fields.NodeRegistrationService,
 				MaxUnresolvedPeers:       tt.fields.MaxUnresolvedPeers,
 				MaxResolvedPeers:         tt.fields.MaxResolvedPeers,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 				Logger:                   tt.fields.Logger,
 				BlockMainService:         &mockBlockMainServiceSuccess{},
 			}

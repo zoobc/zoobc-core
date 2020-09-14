@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -101,7 +102,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewNodeRegistrationQuery(),
 			query.NewNodeAddressInfoQuery(),
 			logrus.New(),
-			)
+		)
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,
@@ -118,9 +119,12 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			nil,
 			nil,
 		)
+		scramblecache       = storage.NewScrambleCacheStackStorage()
+		scrambleNodeService = service.NewScrambleNodeService(
+			nodeRegistrationService, nodeAddressInfoService, queryExecutor, query.NewBlockQuery(&chaintype.MainChain{}), scramblecache)
 	)
 
-	scrambledNodes, err := nodeRegistrationService.GetScrambleNodesByHeight(wantedBlockHeight)
+	scrambledNodes, err := scrambleNodeService.GetScrambleNodesByHeight(wantedBlockHeight)
 	if err != nil {
 		panic(err)
 	}

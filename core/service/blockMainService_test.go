@@ -1049,6 +1049,31 @@ func (*mockMempoolServiceRemoveTransactionsSuccess) GetMempoolTransactions() (st
 	return make(storage.MempoolMap), nil
 }
 
+type (
+	mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess struct {
+		ScrambleNodeService
+	}
+	mockScrambleNodeServicePushBlockBuildScrambleNodeFail struct {
+		ScrambleNodeService
+	}
+)
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeFail) BuildScrambledNodes(block *model.Block) error {
+	return errors.New("mockedError")
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1075,6 +1100,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		BlockStateStorage       storage.CacheStorageInterface
 		BlockchainStatusService BlockchainStatusServiceInterface
 		MempoolService          MempoolServiceInterface
+		ScrambleNodeService     ScrambleNodeServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1153,6 +1179,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1195,6 +1222,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1239,6 +1267,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1283,6 +1312,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeFail{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1322,6 +1352,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockStateStorage:       tt.fields.BlockStateStorage,
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
 				MempoolService:          tt.fields.MempoolService,
+				ScrambleNodeService:     tt.fields.ScrambleNodeService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1926,6 +1957,20 @@ func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(bl
 	return 0, nil
 }
 
+type (
+	mockScrambleServiceAddGenesisSuccess struct {
+		ScrambleNodeService
+	}
+)
+
+func (*mockScrambleServiceAddGenesisSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockScrambleServiceAddGenesisSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -1946,6 +1991,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		PublishedReceiptService PublishedReceiptServiceInterface
 		BlockStateStorage       storage.CacheStorageInterface
 		BlockchainStatusService BlockchainStatusServiceInterface
+		ScrambleNodeService     ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1984,6 +2030,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
 				BlockchainStatusService: &mockBlockchainStatusService{},
+				ScrambleNodeService:     &mockScrambleServiceAddGenesisSuccess{},
 			},
 			wantErr: false,
 		},
@@ -2010,6 +2057,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
 				BlockStateStorage:       tt.fields.BlockStateStorage,
 				BlockchainStatusService: tt.fields.BlockchainStatusService,
+				ScrambleNodeService:     tt.fields.ScrambleNodeService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -4227,6 +4275,16 @@ func (*mockPopOffToBlockBlockStateStorageHardForkSuccess) SetItem(lastChange, it
 	return nil
 }
 
+type (
+	mockScrambleServicePopOffToBlockSuccess struct {
+		ScrambleNodeService
+	}
+)
+
+func (*mockScrambleServicePopOffToBlockSuccess) PopOffScrambleToHeight(height uint32) error {
+	return nil
+}
+
 func TestBlockService_PopOffToBlock(t *testing.T) {
 	var mockPopedBlock = mockGoodBlock
 	mockPopedBlock.ID = 100
@@ -4263,6 +4321,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		BlockStateStorage           storage.CacheStorageInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -4297,6 +4356,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageFail{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4328,6 +4388,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageHardForkSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
@@ -4359,6 +4420,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4391,6 +4453,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4423,6 +4486,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4455,6 +4519,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4497,6 +4562,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				ParticipationScoreService:   tt.fields.ParticipationScoreService,
 				PublishedReceiptService:     tt.fields.PublishedReceiptService,
 				BlockStateStorage:           tt.fields.BlockStateStorage,
+				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

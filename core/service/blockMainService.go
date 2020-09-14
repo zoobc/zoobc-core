@@ -1454,7 +1454,10 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	//
 
 	// remove peer memoization
-	bs.ScrambleNodeService.PopOffScrambleToHeight(0)
+	err = bs.ScrambleNodeService.PopOffScrambleToHeight(0)
+	if err != nil {
+		return nil, err
+	}
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
 
