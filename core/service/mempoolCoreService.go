@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"database/sql"
 	"sort"
 	"strconv"
@@ -12,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -55,7 +53,6 @@ type (
 	MempoolService struct {
 		TransactionUtil        transaction.UtilInterface
 		Chaintype              chaintype.ChainType
-		KVExecutor             kvdb.KVExecutorInterface
 		QueryExecutor          query.ExecutorInterface
 		MempoolQuery           query.MempoolQueryInterface
 		MerkleTreeQuery        query.MerkleTreeQueryInterface
@@ -70,6 +67,7 @@ type (
 		TransactionCoreService TransactionCoreServiceInterface
 		BlockStateStorage      storage.CacheStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
+		MempoolBackupStorage   storage.CacheStorageInterface
 	}
 )
 
@@ -77,7 +75,6 @@ type (
 func NewMempoolService(
 	transactionUtil transaction.UtilInterface,
 	ct chaintype.ChainType,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	mempoolQuery query.MempoolQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
@@ -90,12 +87,11 @@ func NewMempoolService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
 	transactionCoreService TransactionCoreServiceInterface,
-	blockStateStorage, mempoolCacheStorage storage.CacheStorageInterface,
+	blockStateStorage, mempoolCacheStorage, mempoolBackupStorage storage.CacheStorageInterface,
 ) *MempoolService {
 	return &MempoolService{
 		TransactionUtil:        transactionUtil,
 		Chaintype:              ct,
-		KVExecutor:             kvExecutor,
 		QueryExecutor:          queryExecutor,
 		MempoolQuery:           mempoolQuery,
 		MerkleTreeQuery:        merkleTreeQuery,
@@ -110,6 +106,7 @@ func NewMempoolService(
 		TransactionCoreService: transactionCoreService,
 		BlockStateStorage:      blockStateStorage,
 		MempoolCacheStorage:    mempoolCacheStorage,
+		MempoolBackupStorage:   mempoolBackupStorage,
 	}
 }
 
@@ -472,7 +469,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		lastBlock,
 		senderPublicKey,
 		nodeSecretPhrase,
-		constant.KVdbTableTransactionReminderKey+string(receiptKey),
+		string(receiptKey),
 		constant.ReceiptDatumTypeTransaction,
 	)
 
@@ -617,10 +614,10 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
-		mempoolsBackupBytes *bytes.Buffer
-		mempoolsBackup      []*model.Transaction
-		mempoolsBackupIDs   []int64
-		err                 error
+		mempoolsBackup    []*model.Transaction
+		mempoolsBackupIDs []int64
+		err               error
+		backupMempools    = make(map[int64][]byte)
 	)
 
 	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
@@ -634,7 +631,6 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		return err
 	}
 
-	mempoolsBackupBytes = bytes.NewBuffer([]byte{})
 	for _, mempoolTx := range mempoolsBackup {
 		var (
 			txType transaction.TypeAction
@@ -657,10 +653,6 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 			return err
 		}
 
-		/*
-			mempoolsBackupBytes format is
-			[...{4}byteSize,{bytesSize}transactionBytes]
-		*/
 		mempoolByte, err := mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
@@ -669,10 +661,9 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 			}
 			return err
 		}
-		sizeMempool := uint32(len(mempoolByte))
-		mempoolsBackupBytes.Write(commonUtils.ConvertUint32ToBytes(sizeMempool))
-		mempoolsBackupBytes.Write(mempoolByte)
+
 		mempoolsBackupIDs = append(mempoolsBackupIDs, mempoolTx.GetID())
+		backupMempools[mempoolTx.GetID()] = mempoolByte
 	}
 
 	for _, dQuery := range derivedQueries {
@@ -698,12 +689,9 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		return err
 	}
 
-	if mempoolsBackupBytes.Len() > 0 {
-		kvdbMempoolsBackupKey := commonUtils.GetKvDbMempoolDBKey(mps.Chaintype)
-		err = mps.KVExecutor.Insert(kvdbMempoolsBackupKey, mempoolsBackupBytes.Bytes(), int(constant.KVDBMempoolsBackupExpiry))
-		if err != nil {
-			return err
-		}
+	err = mps.MempoolBackupStorage.SetItems(backupMempools)
+	if err != nil {
+		return err
 	}
 
 	return nil

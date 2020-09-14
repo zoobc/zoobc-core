@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// NodeAdmissionTimesatmpStorage store next node admission timestamp
+	// NodeAdmissionTimestampStorage store next node admission timestamp
 	NodeAdmissionTimestampStorage struct {
 		sync.RWMutex
 		nextNodeAdmissionTimestamp model.NodeAdmissionTimestamp
@@ -37,6 +37,10 @@ func (ns *NodeAdmissionTimestampStorage) SetItem(lastChange, item interface{}) e
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item. Expected model.NodeAdmissionTimestamp")
 	}
 	ns.nextNodeAdmissionTimestamp = newNodeAdmissionTimesatamp
+	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) SetItems(_ interface{}) error {
 	return nil
 }
 

@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -48,7 +47,6 @@ type (
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
@@ -65,7 +63,6 @@ func NewReceiptService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
@@ -79,7 +76,6 @@ func NewReceiptService(
 		MerkleTreeQuery:         merkleTreeQuery,
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		BlockQuery:              blockQuery,
-		KVExecutor:              kvExecutor,
 		QueryExecutor:           queryExecutor,
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
@@ -343,15 +339,21 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	return nil
 }
 
-// IsDuplicated check existing batch receipt in cache
+// IsDuplicated check existing batch receipt in cache storage
 func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated bool, err error) {
 	var (
 		receiptKey []byte
 		cType      chaintype.ChainType
 	)
+	if len(publicKey) == 0 && len(datumHash) == 0 {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"EmptyParams",
+		)
+	}
 	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
 	if err != nil {
-		return true, blocker.NewBlocker(
+		return duplicated, blocker.NewBlocker(
 			blocker.ValidationErr,
 			err.Error(),
 		)

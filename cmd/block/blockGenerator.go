@@ -130,7 +130,6 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
-		nil,
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
@@ -142,7 +141,6 @@ func initialize(
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -157,6 +155,7 @@ func initialize(
 		nil,
 		blockStorage,
 		mempoolStorage,
+		nil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -187,7 +186,6 @@ func initialize(
 	)
 	blockService = service.NewBlockMainService(
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),

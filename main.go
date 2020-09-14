@@ -15,7 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -30,7 +29,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -53,16 +51,14 @@ import (
 var (
 	config                                                                 *model.Config
 	dbInstance                                                             *database.SqliteDB
-	badgerDbInstance                                                       *database.BadgerDB
 	db                                                                     *sql.DB
-	badgerDb                                                               *badger.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
+	mempoolBackupStorage                                                   storage.CacheStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
 	queryExecutor                                                          *query.Executor
-	kvExecutor                                                             *kvdb.KVExecutor
 	observerInstance                                                       *observer.Observer
 	schedulerInstance                                                      *util.Scheduler
 	snapshotSchedulers                                                     *scheduler.SnapshotScheduler
@@ -234,21 +230,10 @@ func initiateMainInstance() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	// initialize k-v db
-	badgerDbInstance = database.NewBadgerDB()
-	if err = badgerDbInstance.InitializeBadgerDB(config.ResourcePath, config.BadgerDbName); err != nil {
-		loggerCoreService.Fatal(err)
-	}
-	badgerDb, err = badgerDbInstance.OpenBadgerDB(config.ResourcePath, config.BadgerDbName)
-	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
 	queryExecutor = query.NewQueryExecutor(db)
-	kvExecutor = kvdb.NewKVExecutor(badgerDb)
 
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
-
 	spineBlockStateStorage = storage.NewBlockStateStorage()
 	blockStateStorages[mainchain.GetTypeInt()] = mainBlockStateStorage
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
@@ -256,6 +241,7 @@ func initiateMainInstance() {
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
+	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -305,7 +291,6 @@ func initiateMainInstance() {
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
-		kvExecutor,
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
@@ -382,7 +367,6 @@ func initiateMainInstance() {
 	mempoolService = service.NewMempoolService(
 		transactionUtil,
 		mainchain,
-		kvExecutor,
 		queryExecutor,
 		query.NewMempoolQuery(mainchain),
 		query.NewMerkleTreeQuery(),
@@ -397,11 +381,11 @@ func initiateMainInstance() {
 		transactionCoreServiceIns,
 		mainBlockStateStorage,
 		mempoolStorage,
+		mempoolBackupStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
 		mainchain,
-		kvExecutor,
 		queryExecutor,
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
@@ -776,11 +760,11 @@ func startMainchain() {
 		QueryExecutor:         queryExecutor,
 		ActionTypeSwitcher:    actionSwitcher,
 		MempoolService:        mempoolService,
-		KVExecutor:            kvExecutor,
 		PeerExplorer:          peerExplorer,
 		Logger:                loggerCoreService,
 		TransactionUtil:       transactionUtil,
 		TransactionCorService: transactionCoreServiceIns,
+		MempoolBackupStorage:  mempoolBackupStorage,
 	}
 	mainchainSynchronizer = blockchainsync.NewBlockchainSyncService(
 		mainchainBlockService,
@@ -849,7 +833,6 @@ func startSpinechain() {
 		QueryExecutor:         queryExecutor,
 		ActionTypeSwitcher:    nil, // no mempool for spine blocks
 		MempoolService:        nil, // no transaction types for spine blocks
-		KVExecutor:            kvExecutor,
 		PeerExplorer:          peerExplorer,
 		Logger:                loggerCoreService,
 		TransactionUtil:       transactionUtil,

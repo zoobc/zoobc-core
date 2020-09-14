@@ -75,7 +75,6 @@ func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...inter
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                     chaintype.ChainType
-		kvExecutor             kvdb.KVExecutorInterface
 		queryExecutor          query.ExecutorInterface
 		mempoolQuery           query.MempoolQueryInterface
 		merkleTreeQuery        query.MerkleTreeQueryInterface
@@ -112,7 +111,6 @@ func TestNewMempoolService(t *testing.T) {
 	got := NewMempoolService(
 		test.args.transactionUtil,
 		test.args.ct,
-		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.merkleTreeQuery,
@@ -127,6 +125,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.TransactionCoreService,
 		test.args.BlockStateStorage,
 		test.args.MempoolCacheStorage,
+		nil,
 	)
 
 	if !reflect.DeepEqual(got, test.want) {
@@ -595,7 +594,6 @@ func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnEx
 func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -640,7 +638,6 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
@@ -683,6 +680,8 @@ type (
 
 	mockReceiptServiceSucces struct {
 		ReceiptServiceInterface
+		WantErr        bool
+		WantDuplicated bool
 	}
 
 	mockReceiptServiceError struct {
@@ -733,6 +732,15 @@ func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
 	return &model.BatchReceipt{}, nil
 }
 
+func (mrs *mockReceiptServiceSucces) IsDuplicated(_, _ []byte) (bool, error) {
+	if mrs.WantErr {
+		return false, errors.New("want error")
+	}
+	if mrs.WantDuplicated {
+		return true, nil
+	}
+	return false, nil
+}
 func (*mockReceiptServiceError) GenerateBatchReceiptWithReminder(
 	ct chaintype.ChainType,
 	receivedDatumHash []byte,
@@ -814,7 +822,6 @@ func (*mockMempoolCacheStorageSuccessGetItem) GetItem(key, item interface{}) err
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -888,8 +895,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorErrNonKeyNotFound{},
+				ReceiptService:      &mockReceiptServiceSucces{WantErr: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -903,8 +909,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorFoundKey{},
+				ReceiptService:      &mockReceiptServiceSucces{WantDuplicated: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -916,7 +921,6 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
@@ -942,6 +946,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 			}
 			if !reflect.DeepEqual(batchReceipt, tt.want.batchReceipt) {
 				t.Errorf("ProcessReceivedTransaction() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
+				return
 			}
 			if !reflect.DeepEqual(tx, tt.want.transaction) {
 				t.Errorf("ProcessReceivedTransaction() transaction = \n%v, want \n%v", tx, tt.want.transaction)

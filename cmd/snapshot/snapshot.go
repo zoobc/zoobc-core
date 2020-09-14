@@ -253,7 +253,6 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 		}
 		mainBlockService := service.NewBlockMainService(
 			mainChain,
-			nil,
 			executor,
 			query.NewBlockQuery(mainChain),
 			nil,

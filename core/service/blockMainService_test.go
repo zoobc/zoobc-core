@@ -14,8 +14,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -29,6 +27,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -2688,6 +2687,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 type (
 	mockReceiptServiceSuccess struct {
 		ReceiptService
+		WantDuplicated bool
 	}
 	mockReceiptServiceFail struct {
 		ReceiptService
@@ -2720,6 +2720,13 @@ func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
 	return nil, nil
+}
+
+func (mrs *mockReceiptServiceSuccess) IsDuplicated([]byte, []byte) (duplicated bool, err error) {
+	if mrs.WantDuplicated {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
@@ -2891,7 +2898,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 	mockBlockData.BlockHash = mockGoodLastBlockHash
 	type fields struct {
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -2969,7 +2975,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -2988,7 +2993,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:wamtErr-{same-height}-fail-get-block-by-height",
+			name: "ReceiveBlock:wantErr-{same-height}-fail-get-block-by-height",
 			args: args{
 				senderPublicKey: nil,
 				lastBlock:       &mockLastBlockData,
@@ -3001,7 +3006,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockQueryExecutorGetBlockByHeightFail{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -3032,7 +3036,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            nil,
@@ -3065,7 +3068,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  nil,
 				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
 				BlockQuery:                  query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -3104,7 +3106,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccess{},
 				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
 				BlockQuery:                  nil,
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -3128,7 +3129,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		{
 			name: "ReceiveBlock:wantErr-already-send-receipt",
 			args: args{
-				senderPublicKey: nil,
+				senderPublicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
 				lastBlock:       &mockLastBlockData,
 				block: &model.Block{
 					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
@@ -3143,7 +3144,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccess{},
 				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
 				BlockQuery:                  nil,
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -3155,46 +3155,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:          nil,
 				Observer:                    nil,
 				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-failed-get-receipt",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorFailOtherError{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
+				ReceiptService:              &mockReceiptServiceSuccess{WantDuplicated: true},
 				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
@@ -3221,7 +3182,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
 				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
 				BlockQuery:                  nil,
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -3243,9 +3203,9 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "ReceiveBlock:wantErr-generate-receipt-success",
+			name: "ReceiveBlock:generate-receipt-success",
 			args: args{
-				senderPublicKey: nil,
+				senderPublicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9},
 				lastBlock:       &mockLastBlockData,
 				block: &model.Block{
 					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
@@ -3260,7 +3220,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
 				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
 				BlockQuery:                  nil,
 				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -3272,7 +3231,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 				AccountLedgerQuery:          nil,
 				Observer:                    nil,
 				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
+				ReceiptService:              &mockReceiptServiceSuccess{WantDuplicated: false},
 				BlockPoolService:            nil,
 				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
 				NodeRegistrationService:     nil,
@@ -3286,7 +3245,6 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,
@@ -3328,7 +3286,6 @@ var mockSmithTime int64 = 1
 func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -3357,7 +3314,6 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 			name: "GenerateGenesisBlock:success",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            nil,
@@ -3415,7 +3371,6 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
@@ -3531,7 +3486,6 @@ func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(blocksmithInd
 func TestBlockService_ValidateBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -3646,7 +3600,6 @@ func TestBlockService_ValidateBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
@@ -4233,7 +4186,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 	mockPopedBlock.Height = 100
 	type fields struct {
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -4278,7 +4230,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetLastBlock",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopGetLastBlockFail{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4308,7 +4259,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-HardFork",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4339,7 +4289,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-CommonBlockNotFound",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopFailCommonNotFound{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4370,7 +4319,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetPublishedReceiptError",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4402,7 +4350,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetMempoolToBackupFail",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4434,7 +4381,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Success",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4467,7 +4413,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,
@@ -4624,7 +4569,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 
 	type fields struct {
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -4685,7 +4629,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4717,7 +4660,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4749,7 +4691,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4779,7 +4720,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,
@@ -4918,7 +4858,6 @@ func (*mockPopulateBlockDataPublishedReceiptUtilFail) GetPublishedReceiptsByBloc
 func TestBlockMainService_PopulateBlockData(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -4997,7 +4936,6 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
@@ -5063,7 +5001,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 	type fields struct {
 		RWMutex                     sync.RWMutex
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -5135,7 +5072,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 			bs := &BlockService{
 				RWMutex:                     tt.fields.RWMutex,
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,

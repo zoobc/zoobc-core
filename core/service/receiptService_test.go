@@ -10,17 +10,15 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -627,7 +625,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery        query.NodeReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 	}
@@ -647,7 +644,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery: nil,
 				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				KVExecutor:       nil,
 				QueryExecutor:    &mockQueryExecutorFailExecuteSelect{},
 			},
 			args: args{
@@ -662,7 +658,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery: nil,
 				MerkleTreeQuery:  &mockMerkleTreeQueryFailBuildTree{},
-				KVExecutor:       nil,
 				QueryExecutor:    &mockQueryExecutorSuccessMerkle{},
 			},
 			args: args{
@@ -677,7 +672,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery: query.NewNodeReceiptQuery(),
 				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				KVExecutor:       nil,
 				QueryExecutor:    &mockQueryExecutorFailExecuteSelectReceipt{},
 			},
 			args: args{
@@ -692,7 +686,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-				KVExecutor:              nil,
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 			},
@@ -716,7 +709,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
-				KVExecutor:              nil,
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
 			},
@@ -742,7 +734,6 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				Signature:               crypto.NewSignature(),
@@ -900,7 +891,6 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		NodeReceiptQuery      query.NodeReceiptQueryInterface
 		BatchReceiptQuery     query.BatchReceiptQueryInterface
 		MerkleTreeQuery       query.MerkleTreeQueryInterface
-		KVExecutor            kvdb.KVExecutorInterface
 		QueryExecutor         query.ExecutorInterface
 		MainBlockStateStorage storage.CacheStorageInterface
 	}
@@ -915,7 +905,6 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				NodeReceiptQuery:      query.NewNodeReceiptQuery(),
 				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
-				KVExecutor:            nil,
 				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
 				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
@@ -927,7 +916,6 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				NodeReceiptQuery:      nil,
 				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:       nil,
-				KVExecutor:            nil,
 				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
 				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageFail{},
 			},
@@ -939,7 +927,6 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				NodeReceiptQuery:      nil,
 				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:       nil,
-				KVExecutor:            nil,
 				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
 				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 			},
@@ -953,7 +940,6 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				BatchReceiptQuery:     tt.fields.BatchReceiptQuery,
 				MerkleTreeQuery:       tt.fields.MerkleTreeQuery,
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				KVExecutor:            tt.fields.KVExecutor,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				ReceiptUtil:           &coreUtil.ReceiptUtil{},
 				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
@@ -1042,7 +1028,6 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
@@ -1079,7 +1064,6 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				Signature:               tt.fields.Signature,
@@ -1092,6 +1076,98 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetPublishedReceiptsByHeight() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockReceiptReminderStorageDuplicated struct {
+		storage.ReceiptReminderStorage
+	}
+)
+
+func (*mockReceiptReminderStorageDuplicated) GetItem(_, item interface{}) error {
+	nItem, _ := item.(*chaintype.ChainType)
+	*nItem = &chaintype.MainChain{}
+	return nil
+}
+
+func TestReceiptService_IsDuplicated(t *testing.T) {
+	type fields struct {
+		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		BatchReceiptQuery       query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		Signature               crypto.SignatureInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage   storage.CacheStorageInterface
+		ReceiptReminderStorage  storage.CacheStorageInterface
+	}
+	type args struct {
+		publicKey []byte
+		datumHash []byte
+	}
+	tests := []struct {
+		name           string
+		fields         fields
+		args           args
+		wantDuplicated bool
+		wantErr        bool
+	}{
+		{
+			name: "WantErr:InvalidKeyItem",
+			fields: fields{
+				ReceiptUtil:            &coreUtil.ReceiptUtil{},
+				ReceiptReminderStorage: storage.NewReceiptReminderStorage(),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:Duplicated",
+			fields: fields{
+				ReceiptUtil:            &coreUtil.ReceiptUtil{},
+				ReceiptReminderStorage: &mockReceiptReminderStorageDuplicated{},
+			},
+			args:           args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
+			wantDuplicated: true,
+		},
+		{
+			name: "want:Success",
+			fields: fields{
+				ReceiptUtil:            &coreUtil.ReceiptUtil{},
+				ReceiptReminderStorage: storage.NewReceiptReminderStorage(),
+			},
+			args: args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
+				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				Signature:               tt.fields.Signature,
+				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
+				ReceiptUtil:             tt.fields.ReceiptUtil,
+				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
+				ReceiptReminderStorage:  tt.fields.ReceiptReminderStorage,
+			}
+			gotDuplicated, err := rs.IsDuplicated(tt.args.publicKey, tt.args.datumHash)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("IsDuplicated() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotDuplicated != tt.wantDuplicated {
+				t.Errorf("IsDuplicated() gotDuplicated = %v, want %v", gotDuplicated, tt.wantDuplicated)
 			}
 		})
 	}

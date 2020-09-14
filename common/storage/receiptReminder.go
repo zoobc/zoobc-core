@@ -49,7 +49,9 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 	rs.reminders[reminder] = nItem
 	return nil
 }
-
+func (rs *ReceiptReminderStorage) SetItems(_ interface{}) error {
+	return nil
+}
 func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()

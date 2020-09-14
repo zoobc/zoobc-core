@@ -50,6 +50,10 @@ func (n *NodeShardCacheStorage) SetItem(lastChange, item interface{}) error {
 	return nil
 }
 
+func (n *NodeShardCacheStorage) SetItems(_ interface{}) error {
+	return nil
+}
+
 // GetItem getter of NodShardCacheStorage
 func (n *NodeShardCacheStorage) GetItem(lastChange, item interface{}) error {
 	n.RLock()
