@@ -31,6 +31,8 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 		reminder string
 		nItem    chaintype.ChainType
 		ok       bool
+		items    map[string]chaintype.ChainType
+		err      error
 	)
 	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
@@ -41,14 +43,21 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 
 	}
 
-	if rs.GetSize() >= constant.PriorityStrategyMaxPriorityPeers*int64(constant.MinRollbackBlocks) {
-		if err := rs.ClearCache(); err != nil {
-			return err
+	err = rs.GetAllItems(&items)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+
+	if len(items) >= constant.PriorityStrategyMaxPriorityPeers*int(constant.MinRollbackBlocks) {
+		err = rs.ClearCache()
+		if err != nil {
+			return blocker.NewBlocker(blocker.BlockErr, err.Error())
 		}
 	}
 	rs.reminders[reminder] = nItem
 	return nil
 }
+
 func (rs *ReceiptReminderStorage) SetItems(_ interface{}) error {
 	return nil
 }
@@ -73,6 +82,9 @@ func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 }
 
 func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
+	rs.Lock()
+	defer rs.Unlock()
+
 	if k, ok := key.(*map[string]chaintype.ChainType); ok {
 		*k = rs.reminders
 		return nil
@@ -80,6 +92,9 @@ func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
 func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
+	rs.Lock()
+	defer rs.Unlock()
+
 	if k, ok := key.(string); ok {
 		delete(rs.reminders, k)
 		return nil
@@ -87,10 +102,20 @@ func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
 func (rs *ReceiptReminderStorage) GetSize() int64 {
-	return int64(len(rs.reminders))
+	rs.Lock()
+	defer rs.Unlock()
+
+	var size int
+	for k, v := range rs.reminders {
+		size += len(k) + int(v.GetTypeInt())
+	}
+	return int64(size)
 }
 
 func (rs *ReceiptReminderStorage) ClearCache() error {
+	rs.Lock()
+	defer rs.Unlock()
+
 	rs.reminders = make(map[string]chaintype.ChainType)
 	return nil
 }

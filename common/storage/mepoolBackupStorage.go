@@ -25,6 +25,9 @@ func NewMempoolBackupStorage() *MempoolBackupStorage {
 
 // SetItem add new item on mempoolBackup
 func (m *MempoolBackupStorage) SetItem(key, item interface{}) error {
+	m.Lock()
+	defer m.Unlock()
+
 	var (
 		id          int64
 		mempoolByte []byte
@@ -44,22 +47,26 @@ func (m *MempoolBackupStorage) SetItem(key, item interface{}) error {
 
 // SetItems replace and set bulk items
 func (m *MempoolBackupStorage) SetItems(items interface{}) error {
+	m.Lock()
+	defer m.Unlock()
+
 	var (
 		nItems map[int64][]byte
 		ok     bool
 	)
-	fmt.Println("Set items mempools")
 	nItems, ok = items.(map[int64][]byte)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType items")
 	}
 	m.mempools = nItems
-	fmt.Println("Set items mempools success")
 	return nil
 }
 
 // GetItem get an item from MempoolBackupStorage by key and refill reference item
 func (m *MempoolBackupStorage) GetItem(key, item interface{}) error {
+	m.Lock()
+	defer m.Unlock()
+
 	var (
 		id          int64
 		mempoolByte *[]byte
@@ -75,40 +82,43 @@ func (m *MempoolBackupStorage) GetItem(key, item interface{}) error {
 	}
 
 	*mempoolByte = m.mempools[id]
-	fmt.Println("Get item mempools success")
 
 	return nil
 }
 
 // GetAllItems get all from MempoolBackupStorage and refill reference item
 func (m *MempoolBackupStorage) GetAllItems(item interface{}) error {
-	fmt.Println("Get all items")
+
+	m.Lock()
+	defer m.Unlock()
 
 	mempoolsBackup, ok := item.(*map[int64][]byte)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	*mempoolsBackup = m.mempools
-	fmt.Println("Get all items success")
 
 	return nil
 }
 
 // RemoveItem remove specific item by key
 func (m *MempoolBackupStorage) RemoveItem(key interface{}) error {
-	id, ok := key.(int64)
-	fmt.Println("Remove item")
+	m.Lock()
+	defer m.Unlock()
 
+	id, ok := key.(int64)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	delete(m.mempools, id)
-	fmt.Println("Remove item success")
 	return nil
 }
 
 // GetSize get size of MempoolBackupStorage values
 func (m *MempoolBackupStorage) GetSize() int64 {
+	m.Lock()
+	defer m.Unlock()
+
 	var size int
 	for _, v := range m.mempools {
 		size += len(v)
@@ -118,7 +128,9 @@ func (m *MempoolBackupStorage) GetSize() int64 {
 
 // ClearCache clear or remove all items from MempoolBackupStorage
 func (m *MempoolBackupStorage) ClearCache() error {
+	m.Lock()
+	defer m.Unlock()
+
 	m.mempools = make(map[int64][]byte)
-	fmt.Println("clearCache items mempools success")
 	return nil
 }
