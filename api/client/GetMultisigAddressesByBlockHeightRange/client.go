@@ -36,7 +36,7 @@ func main() {
 	response, err := c.GetMultisigAddressesByBlockHeightRange(context.Background(),
 		&rpc_model.GetMultisigAddressesByBlockHeightRangeRequest{
 			FromBlockHeight: 0,
-			ToBlockHeight:   1000,
+			ToBlockHeight:   100,
 			Pagination: &rpc_model.Pagination{
 				OrderField: "block_height",
 				OrderBy:    rpc_model.OrderBy_DESC,

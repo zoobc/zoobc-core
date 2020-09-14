@@ -380,7 +380,7 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 	)
 	// sub query for getting addresses from multisignature_participant
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
-	subQ.Where(caseQuery.Equal("multisig_address", multisigInfoQuery.TableName+".multisig_address"))
+	subQ.Where("multisig_address = " + multisigInfoQuery.TableName + ".multisig_address")
 	subQ.GroupBy("multisig_address", "block_height")
 	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
 	subQ.As("addresses")
