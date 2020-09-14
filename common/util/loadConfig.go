@@ -42,9 +42,9 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", true)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
-
-	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
-	viper.AutomaticEnv()        // value will be read each time it is accessed
+	viper.SetDefault("LegacyNodeKeyDerivation", true) // todo: remove this after first beta
+	viper.SetEnvPrefix("zoobc")                       // will be uppercased automatically
+	viper.AutomaticEnv()                              // value will be read each time it is accessed
 
 	viper.SetConfigName(name)
 	viper.SetConfigType(extension)

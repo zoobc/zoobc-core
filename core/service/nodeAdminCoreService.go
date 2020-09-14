@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 
@@ -108,7 +109,8 @@ func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 }
 
 // GetLastNodeKey retrieves the last node key object from the node_key configuration file
-func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKey {
+func (nas *NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKey {
+	var err error
 	if len(nodeKeys) == 0 {
 		return nil
 	}
@@ -117,6 +119,20 @@ func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKe
 		if nodeKey.ID > max.ID {
 			max = nodeKey
 		}
+	}
+	max.PublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(max.Seed)
+	// append generated key to previous keys array
+	var newNodeKeys = make([]*model.NodeKey, 0)
+	nodeKeys = append(newNodeKeys, max)
+	file, err := json.MarshalIndent(nodeKeys, "", " ")
+	if err != nil {
+		fmt.Printf("GetLastNodeKey:marshal - %v", err)
+		return max
+	}
+	err = ioutil.WriteFile(nas.FilePath, file, 0644)
+	if err != nil {
+		fmt.Printf("GetLastNodeKey:io - %v", err)
+		return max
 	}
 	return max
 }

@@ -19,6 +19,8 @@ type (
 		APICertFile, APIKeyFile                                   string
 		DatabaseFileName, ResourcePath, BadgerDbName,
 		NodeKeyFileName, SnapshotPath string
+		// Temporary flag
+		LegacyNodeKeyDerivation bool
 
 		// validation fields
 		ConfigFileExist bool
@@ -60,6 +62,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+	cfg.LegacyNodeKeyDerivation = viper.GetBool("LegacyNodeKeyDerivation")
 }
 
 func (cfg *Config) SaveConfig(filePath string) error {

@@ -2,13 +2,18 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
-
 	"github.com/zoobc/lib/address"
 	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
+)
+
+var (
+	// LegacyNodeKeyDerivation TEMPORARY FLAG
+	LegacyNodeKeyDerivation bool
 )
 
 // Ed25519Signature represent of ed25519 signature
@@ -34,8 +39,14 @@ func (*Ed25519Signature) GetPrivateKeyFromSeed(seed string) []byte {
 	// Convert seed (secret phrase) to byte array
 	seedBuffer := []byte(seed)
 	// Compute SHA3-256 hash of seed (secret phrase)
+	if LegacyNodeKeyDerivation {
+		sh := sha256.New()
+		_, _ = sh.Write(seedBuffer)
+		seedHash := sh.Sum([]byte{})
+		// Generate a private key from the hash of the seed
+		return ed25519.NewKeyFromSeed(seedHash)
+	}
 	seedHash := sha3.Sum256(seedBuffer)
-	// Generate a private key from the hash of the seed
 	return ed25519.NewKeyFromSeed(seedHash[:])
 }
 
