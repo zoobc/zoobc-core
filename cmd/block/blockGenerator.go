@@ -187,16 +187,41 @@ func initialize(
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		queryExecutor,
 	)
-	blockService = service.NewBlockMainService(chainType, nil, queryExecutor, query.NewBlockQuery(chainType), query.NewMempoolQuery(chainType), query.NewTransactionQuery(chainType), query.NewSkippedBlocksmithQuery(), crypto.NewSignature(), mempoolService, receiptService, nodeRegistrationService, actionSwitcher, query.NewAccountBalanceQuery(), query.NewParticipationScoreQuery(), query.NewNodeRegistrationQuery(), query.NewFeeVoteRevealVoteQuery(), observerInstance, blocksmithStrategy, log.New(), query.NewAccountLedgerQuery(), service.NewBlockIncompleteQueueService(chainType, observerInstance), transactionUtil, receiptUtil, publishedReceiptUtil, service.NewTransactionCoreService(
+	blockService = service.NewBlockMainService(
+		chainType,
 		nil,
 		queryExecutor,
-		nil,
-		nil,
+		query.NewBlockQuery(chainType),
+		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
-		nil,
-		nil,
-		nil,
-	), nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil)
+		query.NewSkippedBlocksmithQuery(),
+		crypto.NewSignature(),
+		mempoolService,
+		receiptService,
+		nodeRegistrationService,
+		actionSwitcher,
+		query.NewAccountBalanceQuery(),
+		query.NewParticipationScoreQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewFeeVoteRevealVoteQuery(),
+		observerInstance,
+		blocksmithStrategy,
+		log.New(),
+		query.NewAccountLedgerQuery(),
+		service.NewBlockIncompleteQueueService(chainType, observerInstance),
+		transactionUtil,
+		receiptUtil,
+		publishedReceiptUtil,
+		service.NewTransactionCoreService(
+			nil,
+			queryExecutor,
+			nil,
+			nil,
+			query.NewTransactionQuery(chainType),
+			nil,
+			nil,
+			nil,
+		), nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil)
 
 	migration = database.Migration{Query: queryExecutor}
 }
