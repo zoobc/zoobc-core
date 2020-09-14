@@ -455,10 +455,44 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
-	bs := service.NewBlockMainService(&chaintype.MainChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, &transaction.TypeSwitcher{
-		MempoolCacheStorage: mempoolStorage,
-		NodeAuthValidation:  nodeAuthValidationService,
-	}, nil, nil, nil, nil, nil, nil, nil, nil, nil, &transaction.Util{}, &coreUtil.ReceiptUtil{}, nil, nil, nil, nil, nil, nil, nil, nil, query.GetPruneQuery(&chaintype.MainChain{}), nil, nil)
+	bs := service.NewBlockMainService(
+		&chaintype.MainChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.TypeSwitcher{
+			MempoolCacheStorage: mempoolStorage,
+			NodeAuthValidation:  nodeAuthValidationService,
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		&transaction.Util{},
+		&coreUtil.ReceiptUtil{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		query.GetPruneQuery(&chaintype.MainChain{}),
+		nil,
+		nil,
+	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
 		log.Fatal(err)
