@@ -1,4 +1,3 @@
-badgerDbName = "zoobc_3_kv/"
 dbName = "zoobc_3.db"
 nodeKeyFile = "node_keys_3.json"
 resourcePath = "./resource"

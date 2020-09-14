@@ -1,6 +1,5 @@
 resourcePath = "./resource"
 dbName = "zoobc_5.db"
-badgerDbName="zoobc_5_kv/"
 nodeKeyFile = "node_keys_5.json"
 snapshotPath = "./resource/snapshots_5"
 
