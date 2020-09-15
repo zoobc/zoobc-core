@@ -12,8 +12,10 @@ import (
 	"github.com/abiosoft/ishell"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -73,6 +75,7 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 
 }
 
+// readCertFile read the certificate file *.zbc encrypt and extract the value and also verify the values
 func readCertFile(config *model.Config, fileName string) error {
 	var (
 		inputStr            string
@@ -111,16 +114,45 @@ func readCertFile(config *model.Config, fileName string) error {
 			} else {
 				return fmt.Errorf("invalid certificate format, ownerAccount not found")
 			}
-			if nodeSeed, ok := certMap["nodeKey"]; ok {
-				config.NodeSeed = fmt.Sprintf("%s", nodeSeed)
+
+			var (
+				nodeSeed, nodePublicKey string
+			)
+			if nodePub, ok := certMap["nodePublicKey"]; ok {
+				nodePublicKey, ok = nodePub.(string)
+				if !ok {
+					return fmt.Errorf("invalid certificate format, nodePublicKey should a string")
+				}
+			} else {
+				return fmt.Errorf("invalid certificate format, nodePublicKey not found")
+			}
+
+			if seed, ok := certMap["nodeSeed"]; ok {
+				nodeSeed, ok = seed.(string)
+				if !ok {
+					return fmt.Errorf("invalid certificate format, nodeSeed should a string")
+				}
 			} else {
 				return fmt.Errorf("invalid certificate format, nodeSeed not found")
 			}
+
+			// verifying NodeSeed
+			publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			compareNodeAddress, compareErr := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, publicKey)
+			if compareErr != nil {
+				return compareErr
+			}
+			if eq := strings.Compare(nodePublicKey, compareNodeAddress); eq != 0 {
+				return fmt.Errorf("invalid certificate format, node seed is wrong format")
+			}
+
+			config.NodeSeed = nodeSeed
 			break
 		}
 	}
 	return nil
 }
+
 func generateConfig(config model.Config) error {
 	var (
 		shell    = ishell.New()
