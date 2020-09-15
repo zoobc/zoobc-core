@@ -11,9 +11,10 @@ var (
 	/*
 		// for genesis generate command
 	*/
-	withDbLastState bool
-	dbPath          string
-	extraNodesCount int
+	withDbLastState  bool
+	dbPath           string
+	extraNodesCount  int
+	genesisTimestamp int64
 
 	/*
 		// for genesis generate-consul-kv command

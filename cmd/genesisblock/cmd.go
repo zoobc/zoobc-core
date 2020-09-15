@@ -89,6 +89,8 @@ func init() {
 
 	genesisGeneratorCmd.Flags().StringVarP(&envTarget, "env-target", "e", "alpha", "env mode indeed a.k.a develop,staging,alpha")
 	genesisGeneratorCmd.Flags().StringVarP(&output, "output", "o", "resource", "output generated files target")
+	genesisGeneratorCmd.Flags().Int64VarP(&genesisTimestamp, "timestamp", "t", 1596708000,
+		"genesis timestamp, in unix epoch time, with resolution in seconds")
 	genesisCmd.AddCommand(genesisGeneratorCmd)
 }
 
@@ -400,6 +402,7 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 	}
 	config := map[string]interface{}{
 		"MainchainGenesisBlockID": mainBlockID,
+		"GenesisTimestamp":        genesisTimestamp,
 		"MainchainGenesisConfig":  genesisEntries,
 	}
 	err = mainGenesisTmpl.Execute(mainFile, config)
@@ -431,6 +434,7 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 
 	err = spineGenesisTmpl.Execute(spineFile, map[string]interface{}{
 		"SpinechainGenesisBlockID": spineBlockID,
+		"GenesisTimestamp":         genesisTimestamp,
 	})
 	if err != nil {
 		log.Fatal(err)
