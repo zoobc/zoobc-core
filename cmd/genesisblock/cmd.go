@@ -1,6 +1,7 @@
 package genesisblock
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -90,26 +91,28 @@ func init() {
 //  (account balances and registered nodes/participation scores)
 func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount int) {
 	var (
-		bcState      []genesisEntry
-		accountNodes []accountNodeEntry
-		err          error
-		bcStateMap   = make(map[string]genesisEntry)
+		genesisEntries []genesisEntry
+		accountNodes   []accountNodeEntry
+		err            error
+		bcStateMap     = make(map[string]genesisEntry)
 	)
 
 	// import pre-registered-nodes
 	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.seatSale.json", envTarget)))
 	if err == nil {
-		var preRegisteredNodes []genesisEntry
-		err = json.Unmarshal(file, &preRegisteredNodes)
+		var seatSaleNodes []genesisEntry
+		err = json.Unmarshal(file, &seatSaleNodes)
 		if err != nil {
 			log.Fatalf("seatSale.json parsing error: %s", err)
 		}
-		bcStateMap = buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath)
+		log.Println("SeatSale Nodes (Ethereum Contract): ", len(seatSaleNodes))
+		bcStateMap = buildPreregisteredNodes(seatSaleNodes, withDbLastState, dbPath)
 	}
 
 	// import company-managed nodes and merge with previous entries (overriding duplicates,
 	// that might have been added to pre-registered-nodes list)
-	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
+	filePath := path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget))
+	file, err = ioutil.ReadFile(filePath)
 	if err == nil {
 		var (
 			preRegisteredNodes []genesisEntry
@@ -119,18 +122,30 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		if err != nil {
 			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 		}
+		log.Println("PreRegistered Nodes (hosted): ", len(preRegisteredNodes))
 
 		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath) {
+			// make sure genesis gets the public key from the ethereum contract (seatSale.json), if present
+			// later on we double check that this public key is valid by verifying we obtain the same value parsing the node seed
+			if prevBcStateEntry, ok := bcStateMap[key]; ok {
+				preRegisteredNode.NodePublicKey = prevBcStateEntry.NodePublicKey
+				preRegisteredNode.NodePublicKeyBytes = prevBcStateEntry.NodePublicKeyBytes
+			} else {
+				entry := parseErrorLog{
+					AccountAddress: preRegisteredNode.AccountAddress,
+				}
+				log.Printf("Warning, this Address in not in the Ethereum contract but only in %s: %s", filePath, entry)
+			}
 			bcStateMap[key] = preRegisteredNode
 		}
 	}
 	for _, preRegisteredNode := range bcStateMap {
-		bcState = append(bcState, preRegisteredNode)
+		genesisEntries = append(genesisEntries, preRegisteredNode)
 	}
 
 	var idx int
 	for idx = 0; idx < extraNodesCount; idx++ {
-		bcState = append(bcState, generateRandomGenesisEntry(""))
+		genesisEntries = append(genesisEntries, generateRandomGenesisEntry(""))
 	}
 
 	// generate extra nodes from a json file containing only account addresses
@@ -147,7 +162,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		}
 		for _, preRegisteredAccountAddress := range preRegisteredAccountAddresses {
 			idx++
-			bcState = append(bcState, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
+			genesisEntries = append(genesisEntries, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
 		}
 	}
 
@@ -157,14 +172,17 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 		log.Fatalf("can't create folder %s. error: %s", outPath, err)
 	}
-	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
-	clusterConfig := generateClusterConfigFile(bcState, fmt.Sprintf("%s/cluster_config.json", outPath))
+	if !validateGenesisFile(genesisEntries) {
+		log.Fatal("Genesis files not generated because of invalid input files")
+	}
+	generateGenesisFile(genesisEntries, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
+	clusterConfig := generateClusterConfigFile(genesisEntries, fmt.Sprintf("%s/cluster_config.json", outPath))
 	// generate a bash script to init consul key/value data store in case we automatically deploy all nodes in genesis
 	generateConsulKvInitScript(clusterConfig, fmt.Sprintf("%s/consulKvInit.sh", outPath))
 
 	// also generate a file to be shared with node owners, so they know from the wallet what node to configure as their own node
 
-	for _, entry := range bcState {
+	for _, entry := range genesisEntries {
 		newEntry := accountNodeEntry{
 			AccountAddress: entry.AccountAddress,
 		}
@@ -249,12 +267,12 @@ func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 		nodePrivateKey = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
 		nodePublicKey  = nodePrivateKey[32:]
 	)
-	nodeAccountAddress, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
+	nodePublicKeyStr, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,
 		NodePublicKeyBytes: nodePublicKey,
-		NodePublicKey:      nodeAccountAddress,
+		NodePublicKey:      nodePublicKeyStr,
 		NodeSeed:           nodeSeed,
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
@@ -353,6 +371,47 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	}
 
 	return bcEntries, err
+}
+
+func validateGenesisFile(genesisEntries []genesisEntry) bool {
+	var (
+		numberOfUnmatched = 0
+		errorLog          = []*parseErrorLog{}
+	)
+	ed25519 := crypto.NewEd25519Signature()
+	for _, genesisEntry := range genesisEntries {
+		// compare the public key we've gotten from the input configuration file with the one generated by the node using node seed
+		pbKey, _ := ed25519.GetPublicKeyFromAddress(genesisEntry.NodePublicKey)
+		computedPbKey := ed25519.GetPublicKeyFromSeed(genesisEntry.NodeSeed)
+		computedPbKeyStr, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, computedPbKey)
+		genesisEntry.NodePublicKeyString()
+		if bytes.Compare(pbKey, computedPbKey) != 0 {
+			errorEntry := &parseErrorLog{
+				AccountAddress:    genesisEntry.AccountAddress,
+				ComputedPublicKey: computedPbKeyStr,
+				ConfigPublicKey:   genesisEntry.NodePublicKey,
+			}
+			errorLog = append(errorLog, errorEntry)
+			numberOfUnmatched++
+		}
+	}
+
+	if len(errorLog) > 0 {
+		filePath := path.Join(getRootPath(), "./resource/generated/genesis/error.log")
+		file, err := json.MarshalIndent(errorLog, "", "  ")
+		if err != nil {
+			log.Fatalf("error marshaling error log %s: %s\n", filePath, err)
+		}
+		err = ioutil.WriteFile(filePath, file, 0644)
+		if err != nil {
+			log.Fatalf("create %s file: %s\n", filePath, err)
+		}
+	}
+
+	log.Println("Ivalid node public keys: ", numberOfUnmatched)
+	log.Println("Valid node public keys: ", len(genesisEntries)-numberOfUnmatched)
+	log.Println("Total genesis entries: ", len(genesisEntries))
+	return numberOfUnmatched == 0
 }
 
 // generateGenesisFile generates a genesis file with given entries, starting from a template
