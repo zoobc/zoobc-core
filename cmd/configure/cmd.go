@@ -256,7 +256,7 @@ func generateConfig(config model.Config) error {
 	}
 
 	if len(fileInfos) != 0 {
-		err = readCertFile(&config, "wallet.zbc")
+		err = readCertFile(&config, fileInfos[0])
 		if err != nil {
 			return err
 		}
