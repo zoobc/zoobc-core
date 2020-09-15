@@ -385,7 +385,7 @@ func validateGenesisFile(genesisEntries []genesisEntry) bool {
 		computedPbKey := ed25519.GetPublicKeyFromSeed(genesisEntry.NodeSeed)
 		computedPbKeyStr, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, computedPbKey)
 		genesisEntry.NodePublicKeyString()
-		if bytes.Compare(pbKey, computedPbKey) != 0 {
+		if !bytes.Equal(pbKey, computedPbKey) {
 			errorEntry := &parseErrorLog{
 				AccountAddress:    genesisEntry.AccountAddress,
 				ComputedPublicKey: computedPbKeyStr,

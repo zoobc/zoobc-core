@@ -152,6 +152,7 @@ func initiateMainInstance() {
 	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
 		log.Fatalf("Unknown error occurred - error: %s", err.Error())
+
 		return
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,

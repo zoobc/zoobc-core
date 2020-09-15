@@ -64,7 +64,7 @@ type (
 	}
 	parseErrorLog struct {
 		AccountAddress    string `json:"AccountAddress"`
-		ConfigPublicKey   string `json:ConfigPublicKey`
-		ComputedPublicKey string `json:ComputedPublicKey`
+		ConfigPublicKey   string `json:"ConfigPublicKey"`
+		ComputedPublicKey string `json:"ComputedPublicKey"`
 	}
 )
