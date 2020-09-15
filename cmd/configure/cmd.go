@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/abiosoft/ishell"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"
@@ -20,6 +19,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"gopkg.in/abiosoft/ishell.v2"
 )
 
 var (
@@ -86,25 +86,28 @@ func readCertFile(config *model.Config, fileName string) error {
 		shell               = ishell.New()
 	)
 
-	shell.Interrupt(func(c *ishell.Context, count int, input string) {
-		os.Exit(1)
-	})
-	shell.Start()
-
 	if err != nil {
 		// there is not certificate file and need to input the base64 version
 		color.Cyan("CERTIFICATE BASE64: ")
 		for i := 0; i <= 3; i++ {
-			if i > 3 {
+			if i >= 3 {
 				return fmt.Errorf("maximum numbers of attempts exceeded")
 			}
 			color.White("Input multiple lines and end with semicolon ';'.")
-			inputStr = shell.ReadMultiLines(";")
+			inputStr = shell.ReadMultiLinesFunc(func(s string) bool {
+				if ok := strings.HasSuffix(s, ";"); ok {
+					return false
+				}
+				return true
+			})
 			if strings.TrimSpace(inputStr) == "" {
 				color.Red("Attempt n. %d bad input value", i)
 				continue
 			}
 			inputStr = strings.Trim(inputStr, ";")
+			if inputStr == "" {
+				return fmt.Errorf("certificate base64 empty")
+			}
 			readBuff = bytes.NewBufferString(inputStr).Bytes()
 			break
 		}
@@ -119,7 +122,7 @@ func readCertFile(config *model.Config, fileName string) error {
 
 	color.Cyan("CERTIFICATE PASSWORD: ")
 	for i := 0; i <= 3; i++ {
-		if i > 3 {
+		if i >= 3 {
 			return fmt.Errorf("maximum numbers of attempts exceeded")
 		}
 		inputStr = shell.ReadPassword()
