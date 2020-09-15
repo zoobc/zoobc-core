@@ -28,31 +28,6 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
-type (
-	genesisEntry struct {
-		AccountAddress     string
-		AccountSeed        string
-		AccountBalance     int64
-		NodeSeed           string
-		NodeAccountAddress string
-		NodePublicKey      []byte
-		LockedBalance      int64
-		ParticipationScore int64
-		Smithing           bool
-	}
-	clusterConfigEntry struct {
-		NodePublicKey       string `json:"nodePublicKey"`
-		NodeSeed            string `json:"nodeSeed"`
-		OwnerAccountAddress string `json:"ownerAccountAddress"`
-		NodeAddress         string `json:"myAddress,omitempty"`
-		Smithing            bool   `json:"smithing,omitempty"`
-	}
-	accountNodeEntry struct {
-		NodeAccountAddress string
-		AccountAddress     string
-	}
-)
-
 var (
 	genesisGeneratorCmd = &cobra.Command{
 		Use:   "generate",
@@ -89,8 +64,12 @@ func init() {
 
 	genesisGeneratorCmd.Flags().StringVarP(&envTarget, "env-target", "e", "alpha", "env mode indeed a.k.a develop,staging,alpha")
 	genesisGeneratorCmd.Flags().StringVarP(&output, "output", "o", "resource", "output generated files target")
-	genesisGeneratorCmd.Flags().Int64VarP(&genesisTimestamp, "timestamp", "t", 1596708000,
+	genesisGeneratorCmd.Flags().IntVarP(&genesisTimestamp, "timestamp", "t", 1596708000,
 		"genesis timestamp, in unix epoch time, with resolution in seconds")
+	genesisGeneratorCmd.Flags().StringVar(&applicationCodeName, "applicationCodeName", "ZBC_main",
+		"application code name")
+	genesisGeneratorCmd.Flags().StringVar(&applicationVersion, "applicationVersion", "1.0.0",
+		"application code version")
 	genesisCmd.AddCommand(genesisGeneratorCmd)
 }
 
@@ -101,7 +80,7 @@ func init() {
 //   AccountBalance (for funded accounts only): the balance of that account at genesis block
 //   NodeSeed (this should be set only for testing nodes): it will be copied into cluster_config.json to
 //       automatically deploy new nodes that are already registered
-//   NodeAccountAddress (mandatory): node public key string format
+//   NodePublicKey (mandatory): node public key string format
 //   NodeAddress (optional): if known, the node address that will be registered and put in cluster_config.json too
 //   LockedBalance (optional): account's locked balance
 //   ParticipationScore (optional): set custom initial participation score (mainly for testing the smith process and POP algorithm).
@@ -226,21 +205,21 @@ func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState 
 				bcState[i].NodeSeed = prNode.NodeSeed
 			}
 			bcState[i].Smithing = prNode.Smithing
-			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			err := address.DecodeZbcID(prNode.NodePublicKey, pubKey)
 			if err != nil {
 				log.Fatal(err)
 			}
-			bcState[i].NodePublicKey = pubKey
+			bcState[i].NodePublicKeyBytes = pubKey
 			preRegisteredMap[prNode.AccountAddress] = bcState[i]
 			found = true
 			break
 		}
 		if !found {
-			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			err := address.DecodeZbcID(prNode.NodePublicKey, pubKey)
 			if err != nil {
 				log.Fatal(err)
 			}
-			prNode.NodePublicKey = pubKey
+			prNode.NodePublicKeyBytes = pubKey
 			bcState = append(bcState, prNode)
 			preRegisteredMap[prNode.AccountAddress] = prNode
 		}
@@ -274,8 +253,8 @@ func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,
-		NodePublicKey:      nodePublicKey,
-		NodeAccountAddress: nodeAccountAddress,
+		NodePublicKeyBytes: nodePublicKey,
+		NodePublicKey:      nodeAccountAddress,
 		NodeSeed:           nodeSeed,
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
@@ -347,9 +326,9 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
-			bcEntry.NodePublicKey = nr.NodePublicKey
+			bcEntry.NodePublicKeyBytes = nr.NodePublicKey
 
-			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
+			bcEntry.NodePublicKey, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
 
 			err := func() error {
 				// get the participation score for this node registration
@@ -403,6 +382,8 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 	config := map[string]interface{}{
 		"MainchainGenesisBlockID": mainBlockID,
 		"GenesisTimestamp":        genesisTimestamp,
+		"ApplicationCodeName":     applicationCodeName,
+		"ApplicationVersion":      applicationVersion,
 		"MainchainGenesisConfig":  genesisEntries,
 	}
 	err = mainGenesisTmpl.Execute(mainFile, config)
@@ -451,7 +432,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 			AccountAddress:     entry.AccountAddress,
 			AccountBalance:     entry.AccountBalance,
 			LockedBalance:      entry.LockedBalance,
-			NodePublicKey:      entry.NodePublicKey,
+			NodePublicKey:      entry.NodePublicKeyBytes,
 			ParticipationScore: entry.ParticipationScore,
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
@@ -511,10 +492,10 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
 		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodePublicKey:       genEntry.NodeAccountAddress,
-				NodeSeed:            genEntry.NodeSeed,
-				OwnerAccountAddress: genEntry.AccountAddress,
-				Smithing:            genEntry.Smithing,
+				NodePublicKey:  genEntry.NodePublicKey,
+				NodeSeed:       genEntry.NodeSeed,
+				AccountAddress: genEntry.AccountAddress,
+				Smithing:       genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
@@ -537,8 +518,8 @@ func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFileP
 
 	for _, e := range accountNodeEntries {
 		entry := accountNodeEntry{
-			NodeAccountAddress: e.NodeAccountAddress,
-			AccountAddress:     e.AccountAddress,
+			NodePublicKey:  e.NodePublicKey,
+			AccountAddress: e.AccountAddress,
 		}
 		accountNodes = append(accountNodes, entry)
 	}
@@ -608,8 +589,8 @@ func getRootPath() string {
 
 func (ge *genesisEntry) NodePublicKeyString() string {
 	var pubKey []byte
-	_ = address.DecodeZbcID(ge.NodeAccountAddress, pubKey)
-	return util.RenderByteArrayAsString(ge.NodePublicKey)
+	_ = address.DecodeZbcID(ge.NodePublicKey, pubKey)
+	return util.RenderByteArrayAsString(ge.NodePublicKeyBytes)
 }
 
 func (ge *genesisEntry) HasParticipationScore() bool {
@@ -625,5 +606,5 @@ func (ge *genesisEntry) HasAccountBalance() bool {
 }
 
 func (ge *genesisEntry) HasNodePublicKey() bool {
-	return ge.NodeAccountAddress != ""
+	return ge.NodePublicKey != ""
 }
