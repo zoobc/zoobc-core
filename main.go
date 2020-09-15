@@ -702,7 +702,7 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
+	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
 	heightToBuildScrambleNodes := nodeRegistrationService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
@@ -796,7 +796,7 @@ func startSpinechain() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	cliMonitoring.UpdateBlockState(spinechain, lastBlockAtStart)
+	monitoring.SetLastBlock(spinechain, lastBlockAtStart)
 
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
