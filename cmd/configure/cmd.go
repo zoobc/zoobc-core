@@ -3,10 +3,12 @@ package configure
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -81,7 +83,7 @@ func readCertFile(config *model.Config, fileName string) error {
 	var (
 		readBuff, certBytes []byte
 		inputStr            string
-		certFile, err       = os.Open(path.Join(helper.GetAbsDBPath(), fileName))
+		certFile, err       = os.Open(fileName)
 		certMap             map[string]interface{}
 		shell               = ishell.New()
 	)
@@ -245,12 +247,20 @@ func generateConfig(config model.Config) error {
 		config.HTTPAPIPort = 7001
 	}
 
-	if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), "wallet.zbc")); err == nil {
+	fileInfos, err := filepath.Glob(path.Join(helper.GetAbsDBPath(), "*.zbc"))
+	if err != nil {
+		return err
+	}
+	if len(fileInfos) > 1 {
+		return errors.New("there are several .zbc files, please delete some and leave one of them")
+	}
+
+	if len(fileInfos) != 0 {
 		err = readCertFile(&config, "wallet.zbc")
 		if err != nil {
 			return err
 		}
-		_ = os.Remove("wallet.zbc")
+		_ = os.Remove(fileInfos[0])
 	} else {
 		choice := shell.MultiChoice([]string{
 			"Input the base64 version of certificate",
