@@ -392,7 +392,12 @@ func TestNodeRegistryService_GetNodeRegistrationsByNodePublicKeys(t *testing.T) 
 				Query: &mockQueryGetNodeRegistrationsByNodePublicKeysFail{},
 			},
 			args: args{
-				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{},
+				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 2, 3},
+						{3, 2, 1},
+					},
+				},
 			},
 			wantErr: true,
 		},
@@ -402,13 +407,19 @@ func TestNodeRegistryService_GetNodeRegistrationsByNodePublicKeys(t *testing.T) 
 				Query: &mockQueryGetNodeRegistrationsByNodePublicKeysSuccess{},
 			},
 			args: args{
-				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{},
+				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 2},
+					},
+				},
 			},
 			want: &model.GetNodeRegistrationsByNodePublicKeysResponse{
 				NodeRegistrations: []*model.NodeRegistration{
 					{
-						NodeID:             1,
-						NodePublicKey:      []byte{1, 2},
+						NodeID: 1,
+						NodePublicKey: []byte{
+							1, 2,
+						},
 						AccountAddress:     "AccountA",
 						RegistrationHeight: 1,
 						LockedBalance:      1,
