@@ -265,7 +265,7 @@ func generateConfig(config model.Config) error {
 		choice := shell.MultiChoice([]string{
 			"Input the base64 version of certificate",
 			"Input manual the OWNER ADDRESS and NODE SEED",
-		}, "Certificate file [wallet.zbc] not found")
+		}, "Certificate file [*.zbc] not found")
 		if choice == 0 {
 			err = readCertFile(&config, "*")
 			if err != nil {
