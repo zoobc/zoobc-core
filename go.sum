@@ -289,8 +289,6 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368 h1:BnkLmnoTPvU++nafNQoMzbRwJzsjXqw0zQNWF+5RBcA=
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
-github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463 h1:VT+3e3kFWHFjyiyL1uhWNi8/HEJSITcKnK2DI3/Owds=
-github.com/zoobc/zoo-slip10 v0.0.0-20200316100635-c5960e9f1463/go.mod h1:fVWvLoClMGMgRkkrZYODyLwrIWySyC6v87VBzm/D4RU=
 github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc h1:dUgptqJn/jI5uaJTuJtUNnNFih8joYy9MuFTfBQ7bxg=
 github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc/go.mod h1:fVWvLoClMGMgRkkrZYODyLwrIWySyC6v87VBzm/D4RU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
@@ -376,6 +374,8 @@ google.golang.org/protobuf v1.22.0/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2
 google.golang.org/protobuf v1.23.1-0.20200526195155-81db48ad09cc/go.mod h1:EGpADcykh3NcUnDUJcl1+ZksZNG86OlYog2l/sGQquU=
 google.golang.org/protobuf v1.25.0 h1:Ejskq+SyPohKW+1uil0JJMtmHCgJPJ/qWTxr8qp+R4c=
 google.golang.org/protobuf v1.25.0/go.mod h1:9JNX74DMeImyA3h4bdi1ymwjUzf21/xIlbajtzgsN7c=
+gopkg.in/abiosoft/ishell.v2 v2.0.0 h1:/J5yh3nWYSSGFjALcitTI9CLE0Tu27vBYHX0srotqOc=
+gopkg.in/abiosoft/ishell.v2 v2.0.0/go.mod h1:sFp+cGtH6o4s1FtpVPTMcHq2yue+c4DGOVohJCPUzwY=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 h1:qIbj1fsPNlZgppZ+VLlY7N33q108Sa+fhmuc+sWQYwY=
