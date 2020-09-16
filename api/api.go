@@ -2,6 +2,9 @@ package api
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"html/template"
 	"net"
 	"net/http"
 
@@ -176,6 +179,7 @@ func startGrpcServer(
 		}
 	}()
 	go func() {
+		var tmp = template.Must(template.New("nodeStatus").Parse(constant.NodeStatusHTMLTemplate))
 		// serve webrpc
 		wrappedServer := grpcweb.WrapServer(
 			grpcServer,
@@ -183,18 +187,26 @@ func startGrpcServer(
 			grpcweb.WithOriginFunc(func(origin string) bool {
 				return true // origin: '*'
 			}))
+
 		httpServer := &http.Server{
 			Addr: fmt.Sprintf(":%d", httpPort),
-			Handler: h2c.NewHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Access-Control-Allow-Origin", "*")
-				w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-				w.Header().Set("Access-Control-Allow-Headers",
-					"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
-						"Authorization, X-User-Agent, X-Grpc-Web")
-				if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
-					wrappedServer.ServeHTTP(w, r)
-				}
-			}), &http2.Server{}),
+			Handler: h2c.NewHandler(
+				http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Access-Control-Allow-Origin", "*")
+					w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+					w.Header().Set("Access-Control-Allow-Headers",
+						"Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, "+
+							"Authorization, X-User-Agent, X-Grpc-Web")
+					if r.URL.String() == "/status" && r.Method == "GET" {
+						data := monitoring.GetNodeStatus()
+						_ = tmp.ExecuteTemplate(w, "nodeStatus", data)
+					}
+					if wrappedServer.IsGrpcWebRequest(r) || wrappedServer.IsAcceptableGrpcCorsRequest(r) {
+						wrappedServer.ServeHTTP(w, r)
+					}
+				}),
+				&http2.Server{},
+			),
 		}
 		if apiKeyFile == "" || apiCertFile == "" {
 			// no certificate provided, run on http

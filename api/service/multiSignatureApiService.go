@@ -347,6 +347,8 @@ func (ms *MultisigService) GetPendingTransactionsByHeight(
 		args           []interface{}
 	)
 	caseQuery.Select(pendingTxQuery.TableName, pendingTxQuery.Fields...)
+
+	caseQuery.Where(caseQuery.Between("block_height", fromHeight, toHeight))
 	caseQuery.OrderBy("block_height", model.OrderBy_ASC)
 	selectQuery, args = caseQuery.Build()
 	pendingTransactionsRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)

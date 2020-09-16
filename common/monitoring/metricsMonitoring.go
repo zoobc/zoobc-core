@@ -3,6 +3,8 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
 	"net/http"
 	"reflect"
@@ -78,8 +80,41 @@ const (
 	P2pRequestFileDownloadClient         = "P2pRequestFileDownloadClient"
 )
 
+var (
+	// todo: andy-shi88 reporting data, tidy this up to let cliMonitor, prometheus, and status to fetch from single source
+	lastMainBlock, lastSpineBlock            model.Block
+	resolvedPeersCount, unresolvedPeersCount uint32
+	blocksmithIndex                          int32
+)
+
 func Handler() http.Handler {
 	return promhttp.Handler()
+}
+
+func GetNodeStatus() model.GetNodeStatusResponse {
+	blockMainHashString, err := address.EncodeZbcID(constant.PrefixZoobcMainBlockHash, lastMainBlock.BlockHash)
+	if err != nil {
+		blockMainHashString = "-"
+	}
+	blockSpineHashString, err := address.EncodeZbcID(constant.PrefixZoobcSpineBlockHash, lastSpineBlock.BlockHash)
+	if err != nil {
+		blockSpineHashString = "-"
+	}
+	nodePublicKeyString, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
+	if err != nil {
+		nodePublicKeyString = "-"
+	}
+	return model.GetNodeStatusResponse{
+		LastMainBlockHeight:  lastMainBlock.Height,
+		LastMainBlockHash:    blockMainHashString,
+		LastSpineBlockHeight: lastSpineBlock.Height,
+		LastSpineBlockHash:   blockSpineHashString,
+		Version:              fmt.Sprintf("%s %s", constant.ApplicationCodeName, constant.ApplicationVersion),
+		NodePublicKey:        nodePublicKeyString,
+		UnresolvedPeers:      unresolvedPeersCount,
+		ResolvedPeers:        resolvedPeersCount,
+		BlocksmithIndex:      blocksmithIndex,
+	}
 }
 
 func SetMonitoringActive(isActive bool) {
@@ -326,7 +361,7 @@ func SetResolvedPriorityPeersCount(count int) {
 	if !isMonitoringActive {
 		return
 	}
-
+	resolvedPeersCount = uint32(count)
 	resolvedPriorityPeersCounter.Set(float64(count))
 }
 
@@ -337,7 +372,7 @@ func SetUnresolvedPriorityPeersCount(count int) {
 	if !isMonitoringActive {
 		return
 	}
-
+	unresolvedPeersCount = uint32(count)
 	unresolvedPriorityPeersCounter.Set(float64(count))
 }
 
@@ -385,7 +420,7 @@ func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	if !isMonitoringActive {
 		return
 	}
-
+	blocksmithIndex = int32(index)
 	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
@@ -419,7 +454,11 @@ func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
 	if !isMonitoringActive {
 		return
 	}
-
+	if chainType.GetTypeInt() == (&chaintype.MainChain{}).GetTypeInt() {
+		lastMainBlock = *block
+	} else {
+		lastSpineBlock = *block
+	}
 	blockchainIDMsbGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetID() / int64(1000000000)))
 	blockchainIDLsbGaugeVector.WithLabelValues(chainType.GetName()).Set(math.Abs(float64(block.GetID() % int64(1000000000))))
 	blockchainHeightGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetHeight()))
