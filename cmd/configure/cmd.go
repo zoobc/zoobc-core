@@ -91,8 +91,8 @@ func readCertFile(config *model.Config, fileName string) error {
 	if err != nil {
 		// there is not certificate file and need to input the base64 version
 		color.Cyan("CERTIFICATE BASE64: ")
-		for i := 0; i <= 3; i++ {
-			if i >= 3 {
+		for i := 0; i <= maxAttemptPromptFailed; i++ {
+			if i >= maxAttemptPromptFailed {
 				return fmt.Errorf("maximum numbers of attempts exceeded")
 			}
 			color.White("Input multiple lines and end with semicolon ';'.")
@@ -123,8 +123,8 @@ func readCertFile(config *model.Config, fileName string) error {
 	}
 
 	color.Cyan("CERTIFICATE PASSWORD: ")
-	for i := 0; i <= 3; i++ {
-		if i >= 3 {
+	for i := 0; i <= maxAttemptPromptFailed; i++ {
+		if i >= maxAttemptPromptFailed {
 			return fmt.Errorf("maximum numbers of attempts exceeded")
 		}
 		inputStr = shell.ReadPassword()
