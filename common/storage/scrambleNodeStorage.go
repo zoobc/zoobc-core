@@ -18,10 +18,9 @@ type (
 
 func NewScrambleCacheStackStorage() *ScrambleCacheStackStorage {
 	// store 2 times rollback height worth of scramble nodes
-	itemLimit := (constant.MinRollbackBlocks / constant.PriorityStrategyBuildScrambleNodesGap) * 2
 	return &ScrambleCacheStackStorage{
-		itemLimit:      int(itemLimit),
-		scrambledNodes: make([][]byte, 0, itemLimit),
+		itemLimit:      int(constant.MaxScrambleCacheRound),
+		scrambledNodes: make([][]byte, 0, constant.MaxScrambleCacheRound),
 	}
 }
 
@@ -93,6 +92,21 @@ func (s *ScrambleCacheStackStorage) GetAtIndex(index uint32, item interface{}) e
 	s.RLock()
 	defer s.RUnlock()
 	err := json.Unmarshal(s.scrambledNodes[int(index)], scrambleNodeCopy)
+	return err
+}
+
+func (s *ScrambleCacheStackStorage) GetTop(item interface{}) error {
+	topIndex := len(s.scrambledNodes)
+	if topIndex == 0 {
+		return blocker.NewBlocker(blocker.CacheEmpty, "EmptyScramble")
+	}
+	scrambleNodeCopy, ok := item.(*model.ScrambledNodes)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNotScrambleNode")
+	}
+	s.RLock()
+	defer s.RUnlock()
+	err := json.Unmarshal(s.scrambledNodes[topIndex-1], scrambleNodeCopy)
 	return err
 }
 

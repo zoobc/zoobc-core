@@ -27,6 +27,8 @@ type (
 		GetAll(interface{}) error
 		// GetAtIndex return item at given index
 		GetAtIndex(uint32, interface{}) error
+		// GetTop return top item on the stack
+		GetTop(interface{}) error
 		// Clear clean up the whole stack and reinitialize with new array
 		Clear() error
 	}
