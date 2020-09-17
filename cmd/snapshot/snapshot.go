@@ -112,6 +112,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			},
 			nil,
 			nil,
+			nil,
 		)
 		snapshotService = service.NewSnapshotService(
 			service.NewSpineBlockManifestService(
@@ -324,6 +325,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			&transaction.Util{},
 			typeSwitcher,
 			mainBlockService,
+			nil,
 			nil,
 		)
 
