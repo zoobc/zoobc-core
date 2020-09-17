@@ -1,22 +1,27 @@
 package configure
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/abiosoft/ishell"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
+	"gopkg.in/abiosoft/ishell.v2"
 )
 
 var (
@@ -73,54 +78,109 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 
 }
 
+// readCertFile read the certificate file *.zbc encrypt and extract the value and also verify the values
 func readCertFile(config *model.Config, fileName string) error {
 	var (
-		inputStr            string
-		shell               = ishell.New()
-		certFile, err       = os.Open(path.Join(helper.GetAbsDBPath(), fileName))
 		readBuff, certBytes []byte
+		inputStr            string
+		certFile, err       = os.Open(fileName)
+		certMap             map[string]interface{}
+		shell               = ishell.New()
 	)
 
 	if err != nil {
-		return fmt.Errorf("a wallet certificate has been found, failed to open it, %s", err.Error())
+		// there is not certificate file and need to input the base64 version
+		color.Cyan("CERTIFICATE BASE64: ")
+		for i := 0; i <= maxAttemptPromptFailed; i++ {
+			if i >= maxAttemptPromptFailed {
+				return fmt.Errorf("maximum numbers of attempts exceeded")
+			}
+			color.White("Input multiple lines and end with semicolon ';'.")
+			inputStr = shell.ReadMultiLinesFunc(func(s string) bool {
+				if ok := strings.HasSuffix(s, ";"); ok {
+					return false
+				}
+				return true
+			})
+			if strings.TrimSpace(inputStr) == "" {
+				color.Red("Attempt n. %d bad input value", i)
+				continue
+			}
+			inputStr = strings.Trim(inputStr, ";")
+			if inputStr == "" {
+				return fmt.Errorf("certificate base64 empty")
+			}
+			readBuff = bytes.NewBufferString(inputStr).Bytes()
+			break
+		}
+	} else {
+		// read from certificate file
+		defer certFile.Close()
+		readBuff, err = ioutil.ReadAll(certFile)
+		if err != nil {
+			return fmt.Errorf("failed to read certificate file: %s", err.Error())
+		}
 	}
-	defer certFile.Close()
 
-	readBuff, err = ioutil.ReadAll(certFile)
-	if err != nil {
-		return fmt.Errorf("failed to read certificate file: %s", err.Error())
-	}
-	var certMap map[string]interface{}
-	for i := 0; i <= 3; i++ {
-		if i > 3 {
+	color.Cyan("CERTIFICATE PASSWORD: ")
+	for i := 0; i <= maxAttemptPromptFailed; i++ {
+		if i >= maxAttemptPromptFailed {
 			return fmt.Errorf("maximum numbers of attempts exceeded")
 		}
-		color.Cyan("! A wallet certificate has been found. Enter the password to decrypt and import from it: ")
 		inputStr = shell.ReadPassword()
 		certBytes, err = crypto.OpenSSLDecrypt(inputStr, string(readBuff))
 		if err != nil {
 			color.Red("Attempt n. %d decrypting certificate failed", i)
 			continue
-		} else {
-			err = json.Unmarshal(certBytes, &certMap)
-			if err != nil {
-				return fmt.Errorf("failed to assert certificate, %s", err.Error())
-			}
-			if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
-				config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
-			} else {
-				return fmt.Errorf("invalid certificate format, ownerAccount not found")
-			}
-			if nodeSeed, ok := certMap["nodeKey"]; ok {
-				config.NodeSeed = fmt.Sprintf("%s", nodeSeed)
-			} else {
-				return fmt.Errorf("invalid certificate format, nodeSeed not found")
-			}
-			break
 		}
+
+		err = json.Unmarshal(certBytes, &certMap)
+		if err != nil {
+			return fmt.Errorf("failed to assert certificate, %s", err.Error())
+		}
+		if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
+			config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
+		} else {
+			return fmt.Errorf("invalid certificate format, ownerAccount not found")
+		}
+
+		var (
+			nodeSeed, nodePublicKey string
+		)
+		if nodePub, ok := certMap["nodePublicKey"]; ok {
+			nodePublicKey, ok = nodePub.(string)
+			if !ok {
+				return fmt.Errorf("invalid certificate format, nodePublicKey should a string")
+			}
+		} else {
+			return fmt.Errorf("invalid certificate format, nodePublicKey not found")
+		}
+
+		if seed, ok := certMap["nodeSeed"]; ok {
+			nodeSeed, ok = seed.(string)
+			if !ok {
+				return fmt.Errorf("invalid certificate format, nodeSeed should a string")
+			}
+		} else {
+			return fmt.Errorf("invalid certificate format, nodeSeed not found")
+		}
+
+		// verifying NodeSeed
+		publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		compareNodeAddress, compareErr := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, publicKey)
+		if compareErr != nil {
+			return compareErr
+		}
+		if eq := strings.Compare(nodePublicKey, compareNodeAddress); eq != 0 {
+			return fmt.Errorf("invalid certificate format, node seed is wrong format")
+		}
+
+		config.NodeSeed = nodeSeed
+		break
 	}
 	return nil
 }
+
 func generateConfig(config model.Config) error {
 	var (
 		shell    = ishell.New()
@@ -186,39 +246,54 @@ func generateConfig(config model.Config) error {
 		config.HTTPAPIPort = 7001
 	}
 
-	/*
-		OWNER ACCOUNT ADDRESS & NODE SEED
-		Perhaps the wallet.zbc in root, otherwise will input manually
-	*/
-	if _, err = os.Stat(path.Join(helper.GetAbsDBPath(), "wallet.zbc")); err == nil {
-		err = readCertFile(&config, "wallet.zbc")
+	fileInfos, err := filepath.Glob(path.Join(helper.GetAbsDBPath(), "*.zbc"))
+	if err != nil {
+		return err
+	}
+	if len(fileInfos) > 1 {
+		return errors.New("there are several .zbc files, please delete some and leave one of them")
+	}
+
+	if len(fileInfos) != 0 {
+		err = readCertFile(&config, fileInfos[0])
 		if err != nil {
 			return err
 		}
-		_ = os.Remove("wallet.zbc")
+		_ = os.Remove(fileInfos[0])
 	} else {
-		color.Cyan("! Create one on zoobc.one")
-		color.White("OWNER ACCOUNT ADDRESS: ")
-		inputStr = shell.ReadLine()
-		if strings.TrimSpace(inputStr) != "" {
-			config.OwnerAccountAddress = inputStr
-		} else {
-			if config.OwnerAccountAddress != "" {
-				color.Cyan("previous ownerAccountAddress won't be replaced")
-			} else {
-				color.Yellow("! Node won't running when owner account address is empty.")
+		choice := shell.MultiChoice([]string{
+			"Input the base64 version of certificate",
+			"Input manual the OWNER ADDRESS and NODE SEED",
+		}, "Certificate file [*.zbc] not found")
+		if choice == 0 {
+			err = readCertFile(&config, "*")
+			if err != nil {
+				return err
 			}
-		}
+		} else {
+			color.Cyan("! Create one on zoobc.one")
+			color.White("OWNER ACCOUNT ADDRESS: ")
+			inputStr = shell.ReadLine()
+			if strings.TrimSpace(inputStr) != "" {
+				config.OwnerAccountAddress = inputStr
+			} else {
+				if config.OwnerAccountAddress != "" {
+					color.Cyan("previous ownerAccountAddress won't be replaced")
+				} else {
+					color.Yellow("! Node won't running when owner account address is empty.")
+				}
+			}
 
-		color.White("NODE SEED: [Enter to let us generate a random for you]")
-		inputStr = shell.ReadLine()
-		if strings.TrimSpace(inputStr) != "" {
-			config.NodeSeed = inputStr
+			color.White("NODE SEED: [Enter to let us generate a random for you]")
+			inputStr = shell.ReadLine()
+			if strings.TrimSpace(inputStr) != "" {
+				config.NodeSeed = inputStr
+			}
 		}
 	}
 
 	admin.GenerateNodeKeysFile(config.NodeSeed)
-	color.Cyan("Saving configuration")
+	color.Cyan("Saving configuration ...")
 	err = config.SaveConfig("./")
 	if err != nil {
 		color.Red(err.Error())
