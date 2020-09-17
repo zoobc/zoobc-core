@@ -5,7 +5,6 @@ go 1.14
 require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
-	github.com/abiosoft/ishell v2.0.0+incompatible // indirect
 	github.com/abiosoft/readline v0.0.0-20180607040430-155bce2042db // indirect
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/btcsuite/btcutil v1.0.1
@@ -48,10 +47,7 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.25.0
-<<<<<<< HEAD
-	gopkg.in/abiosoft/ishell.v2 v2.0.0
-=======
->>>>>>> 54197bba... remove println code and remove badger db from go.mod
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
+	gopkg.in/abiosoft/ishell.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
