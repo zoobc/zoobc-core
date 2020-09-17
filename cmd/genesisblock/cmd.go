@@ -1,6 +1,7 @@
 package genesisblock
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -26,31 +27,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
-)
-
-type (
-	genesisEntry struct {
-		AccountAddress     string
-		AccountSeed        string
-		AccountBalance     int64
-		NodeSeed           string
-		NodeAccountAddress string
-		NodePublicKey      []byte
-		LockedBalance      int64
-		ParticipationScore int64
-		Smithing           bool
-	}
-	clusterConfigEntry struct {
-		NodePublicKey       string `json:"nodePublicKey"`
-		NodeSeed            string `json:"nodeSeed"`
-		OwnerAccountAddress string `json:"ownerAccountAddress"`
-		NodeAddress         string `json:"myAddress,omitempty"`
-		Smithing            bool   `json:"smithing,omitempty"`
-	}
-	accountNodeEntry struct {
-		NodeAccountAddress string
-		AccountAddress     string
-	}
 )
 
 var (
@@ -89,6 +65,12 @@ func init() {
 
 	genesisGeneratorCmd.Flags().StringVarP(&envTarget, "env-target", "e", "alpha", "env mode indeed a.k.a develop,staging,alpha")
 	genesisGeneratorCmd.Flags().StringVarP(&output, "output", "o", "resource", "output generated files target")
+	genesisGeneratorCmd.Flags().IntVarP(&genesisTimestamp, "timestamp", "t", 1596708000,
+		"genesis timestamp, in unix epoch time, with resolution in seconds")
+	genesisGeneratorCmd.Flags().StringVar(&applicationCodeName, "applicationCodeName", "ZBC_main",
+		"application code name")
+	genesisGeneratorCmd.Flags().StringVar(&applicationVersion, "applicationVersion", "1.0.0",
+		"application code version")
 	genesisCmd.AddCommand(genesisGeneratorCmd)
 }
 
@@ -99,7 +81,7 @@ func init() {
 //   AccountBalance (for funded accounts only): the balance of that account at genesis block
 //   NodeSeed (this should be set only for testing nodes): it will be copied into cluster_config.json to
 //       automatically deploy new nodes that are already registered
-//   NodeAccountAddress (mandatory): node public key string format
+//   NodePublicKey (mandatory): node public key string format
 //   NodeAddress (optional): if known, the node address that will be registered and put in cluster_config.json too
 //   LockedBalance (optional): account's locked balance
 //   ParticipationScore (optional): set custom initial participation score (mainly for testing the smith process and POP algorithm).
@@ -109,26 +91,28 @@ func init() {
 //  (account balances and registered nodes/participation scores)
 func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount int) {
 	var (
-		bcState      []genesisEntry
-		accountNodes []accountNodeEntry
-		err          error
-		bcStateMap   = make(map[string]genesisEntry)
+		genesisEntries []genesisEntry
+		accountNodes   []accountNodeEntry
+		err            error
+		bcStateMap     = make(map[string]genesisEntry)
 	)
 
 	// import pre-registered-nodes
 	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.seatSale.json", envTarget)))
 	if err == nil {
-		var preRegisteredNodes []genesisEntry
-		err = json.Unmarshal(file, &preRegisteredNodes)
+		var seatSaleNodes []genesisEntry
+		err = json.Unmarshal(file, &seatSaleNodes)
 		if err != nil {
 			log.Fatalf("seatSale.json parsing error: %s", err)
 		}
-		bcStateMap = buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath)
+		log.Println("SeatSale Nodes (Ethereum Contract): ", len(seatSaleNodes))
+		bcStateMap = buildPreregisteredNodes(seatSaleNodes, withDbLastState, dbPath)
 	}
 
 	// import company-managed nodes and merge with previous entries (overriding duplicates,
 	// that might have been added to pre-registered-nodes list)
-	file, err = ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget)))
+	filePath := path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.preRegisteredNodes.json", envTarget))
+	file, err = ioutil.ReadFile(filePath)
 	if err == nil {
 		var (
 			preRegisteredNodes []genesisEntry
@@ -138,18 +122,30 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		if err != nil {
 			log.Fatalf("preRegisteredNodes.json parsing error: %s", err)
 		}
+		log.Println("PreRegistered Nodes (hosted): ", len(preRegisteredNodes))
 
 		for key, preRegisteredNode := range buildPreregisteredNodes(preRegisteredNodes, withDbLastState, dbPath) {
+			// make sure genesis gets the public key from the ethereum contract (seatSale.json), if present
+			// later on we double check that this public key is valid by verifying we obtain the same value parsing the node seed
+			if prevBcStateEntry, ok := bcStateMap[key]; ok {
+				preRegisteredNode.NodePublicKey = prevBcStateEntry.NodePublicKey
+				preRegisteredNode.NodePublicKeyBytes = prevBcStateEntry.NodePublicKeyBytes
+			} else {
+				entry := parseErrorLog{
+					AccountAddress: preRegisteredNode.AccountAddress,
+				}
+				log.Printf("Warning, this Address in not in the Ethereum contract but only in %s: %s", filePath, entry)
+			}
 			bcStateMap[key] = preRegisteredNode
 		}
 	}
 	for _, preRegisteredNode := range bcStateMap {
-		bcState = append(bcState, preRegisteredNode)
+		genesisEntries = append(genesisEntries, preRegisteredNode)
 	}
 
 	var idx int
 	for idx = 0; idx < extraNodesCount; idx++ {
-		bcState = append(bcState, generateRandomGenesisEntry(""))
+		genesisEntries = append(genesisEntries, generateRandomGenesisEntry(""))
 	}
 
 	// generate extra nodes from a json file containing only account addresses
@@ -166,7 +162,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		}
 		for _, preRegisteredAccountAddress := range preRegisteredAccountAddresses {
 			idx++
-			bcState = append(bcState, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
+			genesisEntries = append(genesisEntries, generateRandomGenesisEntry(preRegisteredAccountAddress.AccountAddress))
 		}
 	}
 
@@ -176,14 +172,17 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 		log.Fatalf("can't create folder %s. error: %s", outPath, err)
 	}
-	generateGenesisFile(bcState, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
-	clusterConfig := generateClusterConfigFile(bcState, fmt.Sprintf("%s/cluster_config.json", outPath))
+	if !validateGenesisFile(genesisEntries) {
+		log.Fatal("Genesis files not generated because of invalid input files")
+	}
+	generateGenesisFile(genesisEntries, fmt.Sprintf("%s/genesis.go", outPath), fmt.Sprintf("%s/genesisSpine.go", outPath))
+	clusterConfig := generateClusterConfigFile(genesisEntries, fmt.Sprintf("%s/cluster_config.json", outPath))
 	// generate a bash script to init consul key/value data store in case we automatically deploy all nodes in genesis
 	generateConsulKvInitScript(clusterConfig, fmt.Sprintf("%s/consulKvInit.sh", outPath))
 
 	// also generate a file to be shared with node owners, so they know from the wallet what node to configure as their own node
 
-	for _, entry := range bcState {
+	for _, entry := range genesisEntries {
 		newEntry := accountNodeEntry{
 			AccountAddress: entry.AccountAddress,
 		}
@@ -224,21 +223,21 @@ func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState 
 				bcState[i].NodeSeed = prNode.NodeSeed
 			}
 			bcState[i].Smithing = prNode.Smithing
-			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			err := address.DecodeZbcID(prNode.NodePublicKey, pubKey)
 			if err != nil {
 				log.Fatal(err)
 			}
-			bcState[i].NodePublicKey = pubKey
+			bcState[i].NodePublicKeyBytes = pubKey
 			preRegisteredMap[prNode.AccountAddress] = bcState[i]
 			found = true
 			break
 		}
 		if !found {
-			err := address.DecodeZbcID(prNode.NodeAccountAddress, pubKey)
+			err := address.DecodeZbcID(prNode.NodePublicKey, pubKey)
 			if err != nil {
 				log.Fatal(err)
 			}
-			prNode.NodePublicKey = pubKey
+			prNode.NodePublicKeyBytes = pubKey
 			bcState = append(bcState, prNode)
 			preRegisteredMap[prNode.AccountAddress] = prNode
 		}
@@ -268,12 +267,12 @@ func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 		nodePrivateKey = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
 		nodePublicKey  = nodePrivateKey[32:]
 	)
-	nodeAccountAddress, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
+	nodePublicKeyStr, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
 
 	return genesisEntry{
 		AccountAddress:     accountAddress,
-		NodePublicKey:      nodePublicKey,
-		NodeAccountAddress: nodeAccountAddress,
+		NodePublicKeyBytes: nodePublicKey,
+		NodePublicKey:      nodePublicKeyStr,
 		NodeSeed:           nodeSeed,
 		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
@@ -345,9 +344,9 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if len(nodeRegistrations) > 0 {
 			nr := nodeRegistrations[0]
 			bcEntry.LockedBalance = nr.LockedBalance
-			bcEntry.NodePublicKey = nr.NodePublicKey
+			bcEntry.NodePublicKeyBytes = nr.NodePublicKey
 
-			bcEntry.NodeAccountAddress, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
+			bcEntry.NodePublicKey, _ = address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nr.NodePublicKey)
 
 			err := func() error {
 				// get the participation score for this node registration
@@ -372,6 +371,50 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	}
 
 	return bcEntries, err
+}
+
+func validateGenesisFile(genesisEntries []genesisEntry) bool {
+	var (
+		numberOfUnmatched = 0
+		errorLog          = []*parseErrorLog{}
+	)
+	ed25519 := crypto.NewEd25519Signature()
+	for _, genesisEntry := range genesisEntries {
+		if genesisEntry.NodeSeed == "" {
+			continue
+		}
+		// compare the public key we've gotten from the input configuration file with the one generated by the node using node seed
+		pbKey, _ := ed25519.GetPublicKeyFromAddress(genesisEntry.NodePublicKey)
+		computedPbKey := ed25519.GetPublicKeyFromSeed(genesisEntry.NodeSeed)
+		computedPbKeyStr, _ := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, computedPbKey)
+		genesisEntry.NodePublicKeyString()
+		if !bytes.Equal(pbKey, computedPbKey) {
+			errorEntry := &parseErrorLog{
+				AccountAddress:    genesisEntry.AccountAddress,
+				ComputedPublicKey: computedPbKeyStr,
+				ConfigPublicKey:   genesisEntry.NodePublicKey,
+			}
+			errorLog = append(errorLog, errorEntry)
+			numberOfUnmatched++
+		}
+	}
+
+	if len(errorLog) > 0 {
+		filePath := path.Join(getRootPath(), "./resource/generated/genesis/error.log")
+		file, err := json.MarshalIndent(errorLog, "", "  ")
+		if err != nil {
+			log.Fatalf("error marshaling error log %s: %s\n", filePath, err)
+		}
+		err = ioutil.WriteFile(filePath, file, 0644)
+		if err != nil {
+			log.Fatalf("create %s file: %s\n", filePath, err)
+		}
+	}
+
+	log.Println("Ivalid node public keys: ", numberOfUnmatched)
+	log.Println("Valid node public keys: ", len(genesisEntries)-numberOfUnmatched)
+	log.Println("Total genesis entries: ", len(genesisEntries))
+	return numberOfUnmatched == 0
 }
 
 // generateGenesisFile generates a genesis file with given entries, starting from a template
@@ -400,6 +443,9 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 	}
 	config := map[string]interface{}{
 		"MainchainGenesisBlockID": mainBlockID,
+		"GenesisTimestamp":        genesisTimestamp,
+		"ApplicationCodeName":     applicationCodeName,
+		"ApplicationVersion":      applicationVersion,
 		"MainchainGenesisConfig":  genesisEntries,
 	}
 	err = mainGenesisTmpl.Execute(mainFile, config)
@@ -431,6 +477,7 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 
 	err = spineGenesisTmpl.Execute(spineFile, map[string]interface{}{
 		"SpinechainGenesisBlockID": spineBlockID,
+		"GenesisTimestamp":         genesisTimestamp,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -450,7 +497,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 			AccountAddress:     entry.AccountAddress,
 			AccountBalance:     entry.AccountBalance,
 			LockedBalance:      entry.LockedBalance,
-			NodePublicKey:      entry.NodePublicKey,
+			NodePublicKey:      entry.NodePublicKeyBytes,
 			ParticipationScore: entry.ParticipationScore,
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
@@ -526,10 +573,10 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
 		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodePublicKey:       genEntry.NodeAccountAddress,
-				NodeSeed:            genEntry.NodeSeed,
-				OwnerAccountAddress: genEntry.AccountAddress,
-				Smithing:            genEntry.Smithing,
+				NodePublicKey:  genEntry.NodePublicKey,
+				NodeSeed:       genEntry.NodeSeed,
+				AccountAddress: genEntry.AccountAddress,
+				Smithing:       genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
@@ -552,8 +599,8 @@ func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFileP
 
 	for _, e := range accountNodeEntries {
 		entry := accountNodeEntry{
-			NodeAccountAddress: e.NodeAccountAddress,
-			AccountAddress:     e.AccountAddress,
+			NodePublicKey:  e.NodePublicKey,
+			AccountAddress: e.AccountAddress,
 		}
 		accountNodes = append(accountNodes, entry)
 	}
@@ -623,8 +670,8 @@ func getRootPath() string {
 
 func (ge *genesisEntry) NodePublicKeyString() string {
 	var pubKey []byte
-	_ = address.DecodeZbcID(ge.NodeAccountAddress, pubKey)
-	return util.RenderByteArrayAsString(ge.NodePublicKey)
+	_ = address.DecodeZbcID(ge.NodePublicKey, pubKey)
+	return util.RenderByteArrayAsString(ge.NodePublicKeyBytes)
 }
 
 func (ge *genesisEntry) HasParticipationScore() bool {
@@ -640,5 +687,5 @@ func (ge *genesisEntry) HasAccountBalance() bool {
 }
 
 func (ge *genesisEntry) HasNodePublicKey() bool {
-	return ge.NodeAccountAddress != ""
+	return ge.NodePublicKey != ""
 }
