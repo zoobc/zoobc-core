@@ -4,6 +4,8 @@ type (
 	CacheStorageInterface interface {
 		// SetItem take any item and store to its specific storage implementation
 		SetItem(key, item interface{}) error
+		// SetItems take all items that stored and refill item reference
+		SetItems(item interface{}) error
 		// GetItem take variable and assign implementation stored item to it
 		GetItem(key, item interface{}) error
 		// GetAllItems fetch all cached items

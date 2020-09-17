@@ -2,15 +2,15 @@ package decryptcert
 
 type (
 	clusterConfigEntry struct {
-		NodePublicKey       string `json:"nodePublicKey"`
-		NodeSeed            string `json:"nodeSeed"`
-		OwnerAccountAddress string `json:"ownerAccountAddress"`
-		NodeAddress         string `json:"myAddress,omitempty"`
-		Smithing            bool   `json:"smithing,omitempty"`
+		NodePublicKey  string `json:"NodePublicKey"`
+		NodeSeed       string `json:"NodeSeed"`
+		AccountAddress string `json:"AccountAddress"`
+		NodeAddress    string `json:"MyAddress,omitempty"`
+		Smithing       bool   `json:"Smithing,omitempty"`
 	}
 	certEntry struct {
-		NodeSeed            string `json:"nodeKey"`
-		OwnerAccountAddress string `json:"ownerAccount"`
+		NodeSeed       string `json:"nodeKey"`
+		AccountAddress string `json:"ownerAccount"`
 	}
 	encryptedCertEntry struct {
 		EncryptedCert string `json:"encryptedCert"`

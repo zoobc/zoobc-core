@@ -5,19 +5,17 @@ import (
 	"database/sql"
 	"time"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -40,6 +38,7 @@ type (
 			nodeSecretPhrase, receiptKey string,
 			datumType uint32,
 		) (*model.BatchReceipt, error)
+		IsDuplicated(publicKey []byte, datumHash []byte) (duplicated bool, err error)
 	}
 
 	ReceiptService struct {
@@ -48,7 +47,6 @@ type (
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		Signature               crypto.SignatureInterface
@@ -56,6 +54,7 @@ type (
 		ReceiptUtil             coreUtil.ReceiptUtilInterface
 		MainBlockStateStorage   storage.CacheStorageInterface
 		ScrambleNodeService     ScrambleNodeServiceInterface
+		ReceiptReminderStorage  storage.CacheStorageInterface
 	}
 )
 
@@ -65,13 +64,12 @@ func NewReceiptService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	mainBlockStateStorage storage.CacheStorageInterface,
+	mainBlockStateStorage,receiptReminderStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 ) *ReceiptService {
 	return &ReceiptService{
@@ -80,7 +78,6 @@ func NewReceiptService(
 		MerkleTreeQuery:         merkleTreeQuery,
 		NodeRegistrationQuery:   nodeRegistrationQuery,
 		BlockQuery:              blockQuery,
-		KVExecutor:              kvExecutor,
 		QueryExecutor:           queryExecutor,
 		NodeRegistrationService: nodeRegistrationService,
 		Signature:               signature,
@@ -88,6 +85,7 @@ func NewReceiptService(
 		ReceiptUtil:             receiptUtil,
 		MainBlockStateStorage:   mainBlockStateStorage,
 		ScrambleNodeService:     scrambleNodeService,
+		ReceiptReminderStorage:  receiptReminderStorage,
 	}
 }
 
@@ -344,6 +342,36 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	return nil
 }
 
+// IsDuplicated check existing batch receipt in cache storage
+func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated bool, err error) {
+	var (
+		receiptKey []byte
+		cType      chaintype.ChainType
+	)
+	if len(publicKey) == 0 && len(datumHash) == 0 {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"EmptyParams",
+		)
+	}
+	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
+	if err != nil {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			err.Error(),
+		)
+	}
+
+	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &cType)
+	if err != nil {
+		return duplicated, blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailedGetReceiptKey",
+		)
+	}
+	return cType != nil, nil
+}
+
 func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.BatchReceipt,
 ) error {
@@ -495,9 +523,10 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		nodeSecretPhrase,
 	)
 	// store the generated batch receipt hash for reminder
-	err = rs.KVExecutor.Insert(receiptKey, receivedDatumHash, constant.KVdbExpiryReceiptReminder)
+	err = rs.ReceiptReminderStorage.SetItem(receiptKey, ct)
 	if err != nil {
 		return nil, err
 	}
+
 	return batchReceipt, nil
 }

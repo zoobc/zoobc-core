@@ -33,7 +33,7 @@ curl -X PUT \
 # Update Consul KV {{$.nomadJobName}}/node-{{$key}}/config/ownerAccountAddress
 curl -X PUT \
 -H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
--d "{{$value.OwnerAccountAddress}}" \
+-d "{{$value.AccountAddress}}" \
 "${CONSUL_HTTP_ADDR}/v1/kv/global/{{$.nomadJobName}}/node-{{$key}}/config/ownerAccountAddress"
 
 # Update Consul KV {{$.nomadJobName}}/node-{{$key}}/config/smithing

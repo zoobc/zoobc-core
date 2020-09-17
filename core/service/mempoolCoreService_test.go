@@ -4,32 +4,27 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
 var (
-	getTxByIDQuery = "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
-		"recipient_account_address FROM mempool WHERE id = :id"
 	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempoolTransaction = &model.MempoolTransaction{
 		ID:                      1,
@@ -44,39 +39,9 @@ var (
 
 var _ = mockMempoolTransaction
 
-type mockMempoolQueryExecutorFail struct {
-	query.Executor
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	// before adding mempool transactions to db we check for duplicate transactions
-	case getTxByIDQuery:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
-			query.NewMempoolQuery(chaintype.GetChainType(0)).Fields,
-		).AddRow(3, 0, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
-	default:
-		return nil, errors.New("MockedError")
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, errors.New("MockedError")
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...interface{}) error {
-	return errors.New("MockedError")
-}
-
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                     chaintype.ChainType
-		kvExecutor             kvdb.KVExecutorInterface
 		queryExecutor          query.ExecutorInterface
 		mempoolQuery           query.MempoolQueryInterface
 		merkleTreeQuery        query.MerkleTreeQueryInterface
@@ -113,7 +78,6 @@ func TestNewMempoolService(t *testing.T) {
 	got := NewMempoolService(
 		test.args.transactionUtil,
 		test.args.ct,
-		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.merkleTreeQuery,
@@ -128,6 +92,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.TransactionCoreService,
 		test.args.BlockStateStorage,
 		test.args.MempoolCacheStorage,
+		nil,
 	)
 
 	if !reflect.DeepEqual(got, test.want) {
@@ -596,7 +561,6 @@ func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnEx
 func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -641,7 +605,6 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
@@ -684,22 +647,8 @@ type (
 
 	mockReceiptServiceSucces struct {
 		ReceiptServiceInterface
-	}
-
-	mockReceiptServiceError struct {
-		ReceiptServiceInterface
-	}
-
-	mockKvExecutorErrKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorErrNonKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorFoundKey struct {
-		kvdb.KVExecutorInterface
+		WantErr        bool
+		WantDuplicated bool
 	}
 )
 
@@ -734,34 +683,18 @@ func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
 	return &model.BatchReceipt{}, nil
 }
 
-func (*mockReceiptServiceError) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-) (*model.BatchReceipt, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorErrKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockKvExecutorErrNonKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorFoundKey) Get(key string) ([]byte, error) {
-	return []byte{1}, nil
+func (mrs *mockReceiptServiceSucces) IsDuplicated(_, _ []byte) (bool, error) {
+	if mrs.WantErr {
+		return false, errors.New("want error")
+	}
+	if mrs.WantDuplicated {
+		return true, nil
+	}
+	return false, nil
 }
 
 type (
 	mockMempoolCacheStorageFailGetItem struct {
-		storage.MempoolCacheStorage
-	}
-	mockMempoolCacheStorageSuccessGetItem struct {
 		storage.MempoolCacheStorage
 	}
 )
@@ -770,52 +703,9 @@ func (*mockMempoolCacheStorageFailGetItem) GetItem(key, item interface{}) error 
 	return errors.New("mocked error")
 }
 
-func (*mockMempoolCacheStorageSuccessGetItem) GetItem(key, item interface{}) error {
-	txCopy, ok := item.(*storage.MempoolCacheObject)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
-	}
-	mptx := model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		FeePerByte:              10,
-		ArrivalTimestamp:        1000,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		Escrow:                  nil,
-	}
-	*txCopy = storage.MempoolCacheObject{
-		Tx: model.Transaction{
-			Version:                 0,
-			ID:                      1,
-			BlockID:                 0,
-			Height:                  0,
-			SenderAccountAddress:    "BCZ",
-			RecipientAccountAddress: "ZCB",
-			TransactionType:         0,
-			Fee:                     0,
-			Timestamp:               0,
-			TransactionHash:         nil,
-			TransactionBodyLength:   0,
-			TransactionBodyBytes:    nil,
-			TransactionIndex:        0,
-			MultisigChild:           false,
-			TransactionBody:         nil,
-			Signature:               nil,
-			Escrow:                  nil,
-		},
-		ArrivalTimestamp:    1000,
-		FeePerByte:          10,
-		TransactionByteSize: uint32(len(mptx.TransactionBytes)),
-	}
-	return nil
-}
-
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -889,8 +779,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorErrNonKeyNotFound{},
+				ReceiptService:      &mockReceiptServiceSucces{WantErr: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -904,8 +793,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorFoundKey{},
+				ReceiptService:      &mockReceiptServiceSucces{WantDuplicated: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -917,7 +805,6 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
@@ -943,6 +830,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 			}
 			if !reflect.DeepEqual(batchReceipt, tt.want.batchReceipt) {
 				t.Errorf("ProcessReceivedTransaction() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
+				return
 			}
 			if !reflect.DeepEqual(tx, tt.want.transaction) {
 				t.Errorf("ProcessReceivedTransaction() transaction = \n%v, want \n%v", tx, tt.want.transaction)
