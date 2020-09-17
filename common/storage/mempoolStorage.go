@@ -1,9 +1,10 @@
 package storage
 
 import (
+	"sync"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
-	"sync"
 )
 
 type (
@@ -44,6 +45,9 @@ func (m *MempoolCacheStorage) SetItem(key, item interface{}) error {
 	return nil
 }
 
+func (m *MempoolCacheStorage) SetItems(_ interface{}) error {
+	return nil
+}
 func (m *MempoolCacheStorage) GetItem(key, item interface{}) error {
 	m.RLock()
 	defer m.RUnlock()

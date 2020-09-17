@@ -10,19 +10,13 @@ import (
 	"sort"
 	"sync"
 
-	badger "github.com/dgraph-io/badger/v2"
 	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/sha3"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -32,6 +26,9 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type (
@@ -55,7 +52,6 @@ type (
 	BlockService struct {
 		sync.RWMutex
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -94,7 +90,6 @@ type (
 
 func NewBlockMainService(
 	ct chaintype.ChainType,
-	kvExecutor kvdb.KVExecutorInterface,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mempoolQuery query.MempoolQueryInterface,
@@ -130,7 +125,6 @@ func NewBlockMainService(
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
-		KVExecutor:                  kvExecutor,
 		QueryExecutor:               queryExecutor,
 		BlockQuery:                  blockQuery,
 		MempoolQuery:                mempoolQuery,
@@ -1358,13 +1352,15 @@ func (bs *BlockService) ReceiveBlock(
 		)
 	}
 	// check if already broadcast receipt to this node
-	_, err = bs.KVExecutor.Get(constant.KVdbTableBlockReminderKey + string(receiptKey))
-	if err == nil {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	duplicated, duplicatedErr := bs.ReceiptService.IsDuplicated(senderPublicKey, block.GetBlockHash())
+	if duplicatedErr != nil {
+		return nil, blocker.NewBlocker(
+			blocker.BlockErr,
+			duplicatedErr.Error(),
+		)
 	}
-
-	if err != badger.ErrKeyNotFound {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "failed get receipt key")
+	if duplicated {
+		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
 	}
 
 	// generate receipt and return as response
@@ -1374,7 +1370,7 @@ func (bs *BlockService) ReceiveBlock(
 		lastBlock,
 		senderPublicKey,
 		nodeSecretPhrase,
-		constant.KVdbTableBlockReminderKey+string(receiptKey),
+		string(receiptKey),
 		constant.ReceiptDatumTypeBlock,
 	)
 	if err != nil {

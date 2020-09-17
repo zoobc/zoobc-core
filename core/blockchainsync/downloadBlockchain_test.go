@@ -326,7 +326,6 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
 		nil,

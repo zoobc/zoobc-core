@@ -29,7 +29,6 @@ Table of Contents:
 
 -   [golang](https://golang.org/doc/install), currently using go.1.14
 -   [go-swagger](https://github.com/go-swagger/go-swagger) optional. Used as tools to document the rpc endpoint.
--   [gopherbadger](https://github.com/jpoles1/gopherbadger) optional. Used to calculate total test coverage.
 -   [protoc](https://github.com/protocolbuffers/protobuf), optional as we are pushing the generated go file to the repo.
 -   [protoc-gen-go](https://github.com/golang/protobuf), optional as we are pushing the generated go file to the repo.
 -   [golangci-lint](https://github.com/golangci/golangci-lint) lint tools we used to keep the code clean and well structured.

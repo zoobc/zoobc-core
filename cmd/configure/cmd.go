@@ -196,7 +196,6 @@ func generateConfig(config model.Config) error {
 	config.Smithing = true
 	config.ResourcePath = "./resource"
 	config.DatabaseFileName = "zoobc.db"
-	config.BadgerDbName = "zoobc_kv"
 	config.CliMonitoring = true
 	config.SnapshotPath = "./resource/snapshots"
 

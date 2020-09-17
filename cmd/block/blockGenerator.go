@@ -2,21 +2,19 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/auth"
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/storage"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
@@ -132,18 +130,17 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
-		nil,
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
 		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -158,6 +155,7 @@ func initialize(
 		nil,
 		blockStorage,
 		mempoolStorage,
+		nil,
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
@@ -188,7 +186,6 @@ func initialize(
 	)
 	blockService = service.NewBlockMainService(
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),

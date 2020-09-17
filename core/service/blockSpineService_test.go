@@ -12,12 +12,10 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -87,18 +85,6 @@ type (
 	}
 	mockSpineTypeActionSuccess struct {
 		mockSpineTypeAction
-	}
-
-	mockSpineKVExecutorSuccess struct {
-		kvdb.KVExecutor
-	}
-
-	mockSpineKVExecutorSuccessKeyNotFound struct {
-		mockSpineKVExecutorSuccess
-	}
-
-	mockSpineKVExecutorFailOtherError struct {
-		mockSpineKVExecutorSuccess
 	}
 
 	mockSpineNodeRegistrationServiceSuccess struct {
@@ -186,26 +172,6 @@ func (*mockSpineNodeRegistrationServiceFail) BuildScrambledNodes(block *model.Bl
 
 func (*mockSpineNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
 	return lastBlockHeight
-}
-
-func (*mockSpineKVExecutorSuccess) Get(key string) ([]byte, error) {
-	return nil, nil
-}
-
-func (*mockSpineKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
-	return nil
-}
-
-func (*mockSpineKVExecutorSuccessKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockSpineKVExecutorFailOtherError) Get(key string) ([]byte, error) {
-	return nil, badger.ErrInvalidKey
-}
-
-func (*mockSpineKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
-	return badger.ErrInvalidKey
 }
 
 // mockSpineTypeAction
@@ -2332,7 +2298,6 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 
 	type fields struct {
 		Chaintype                 chaintype.ChainType
-		KVExecutor                kvdb.KVExecutorInterface
 		QueryExecutor             query.ExecutorInterface
 		BlockQuery                query.BlockQueryInterface
 		MempoolQuery              query.MempoolQueryInterface
@@ -2419,7 +2384,6 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              &mockSpineKVExecutorSuccess{},
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.SpineChain{}),
@@ -2498,7 +2462,6 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              &mockSpineKVExecutorFailOtherError{},
 				QueryExecutor:           &mockSpineQueryExecutorSuccess{},
 				BlockQuery:              nil,
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.SpineChain{}),
@@ -2571,7 +2534,6 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              &mockSpineKVExecutorSuccess{},
 				QueryExecutor:           &mockSpineQueryExecutorSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.SpineChain{}),
@@ -2659,7 +2621,6 @@ func (*mockSpineBlocksmithService) GetSortedBlocksmiths(block *model.Block) []*m
 func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -2688,7 +2649,6 @@ func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
 			name: "GenerateGenesisBlock:success",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           nil,
 				BlockQuery:              nil,
 				MempoolQuery:            nil,
@@ -2815,7 +2775,6 @@ func (*mockSpineBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blo
 func TestBlockSpineService_ValidateBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -3475,7 +3434,6 @@ func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteSelectRow(qStr strin
 func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 	type fields struct {
 		Chaintype                 chaintype.ChainType
-		KVExecutor                kvdb.KVExecutorInterface
 		QueryExecutor             query.ExecutorInterface
 		BlockQuery                query.BlockQueryInterface
 		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
@@ -3513,7 +3471,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetLastBlock",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockSpineExecutorBlockPopGetLastBlockFail{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
 				MempoolQuery:            nil,
@@ -3549,7 +3506,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			name: "Fail-HardFork",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockSpineExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
 				MempoolQuery:            nil,
@@ -3585,7 +3541,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			name: "Fail-CommonBlockNotFound",
 			fields: fields{
 				Chaintype:               &chaintype.SpineChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockSpineExecutorBlockPopFailCommonNotFound{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.SpineChain{}),
 				MempoolQuery:            nil,
@@ -3622,7 +3577,6 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 			name: "GetManifestFromSpineBlockHeight-Success",
 			fields: fields{
 				Chaintype:                 &chaintype.SpineChain{},
-				KVExecutor:                nil,
 				QueryExecutor:             &mockSpineExecutorBlockPopSuccess{},
 				BlockQuery:                query.NewBlockQuery(&chaintype.SpineChain{}),
 				MempoolQuery:              nil,
@@ -3717,7 +3671,6 @@ func (*mockSpineExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx 
 func TestBlockSpineService_PopulateBlockData(t *testing.T) {
 	type fields struct {
 		Chaintype                 chaintype.ChainType
-		KVExecutor                kvdb.KVExecutorInterface
 		QueryExecutor             query.ExecutorInterface
 		BlockQuery                query.BlockQueryInterface
 		SpinePublicKeyQuery       query.SpinePublicKeyQueryInterface
