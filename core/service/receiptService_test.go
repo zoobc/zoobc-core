@@ -661,8 +661,8 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-				NodeReceiptQuery: nil,
-				QueryExecutor:    &mockQueryExecutorFailExecuteSelect{},
+				NodeReceiptQuery:    nil,
+				QueryExecutor:       &mockQueryExecutorFailExecuteSelect{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -676,8 +676,8 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			fields: fields{
 				QueryExecutor:       &mockQueryExecutorSuccessMerkle{},
 				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-				NodeReceiptQuery: nil,
-				MerkleTreeQuery:  &mockMerkleTreeQueryFailBuildTree{},
+				NodeReceiptQuery:    nil,
+				MerkleTreeQuery:     &mockMerkleTreeQueryFailBuildTree{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -690,9 +690,9 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
 			fields: fields{
 				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-				NodeReceiptQuery: query.NewNodeReceiptQuery(),
-				MerkleTreeQuery:  query.NewMerkleTreeQuery(),
-				QueryExecutor:    &mockQueryExecutorFailExecuteSelectReceipt{},
+				NodeReceiptQuery:    query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				QueryExecutor:       &mockQueryExecutorFailExecuteSelectReceipt{},
 			},
 			args: args{
 				blockTimestamp:  0,

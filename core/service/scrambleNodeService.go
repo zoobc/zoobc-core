@@ -21,7 +21,7 @@ type (
 			blockHeight uint32,
 		) (*model.ScrambledNodes, error)
 		BuildScrambledNodes(block *model.Block) error
-		BuildScrambledNodesAtHeight(blockHeight uint32) error
+		BuildScrambledNodesAtHeight(blockHeight uint32) (*model.ScrambledNodes, error)
 		PopOffScrambleToHeight(height uint32) error
 	}
 
@@ -110,7 +110,15 @@ func (sns *ScrambleNodeService) InitializeScrambleCache(lastBlockHeight uint32) 
 
 // BuildScrambleNodes, build sorted scramble nodes based on node registry
 func (sns *ScrambleNodeService) BuildScrambledNodes(block *model.Block) error {
-	return sns.sortNodeRegistries(block)
+	scrambleNodes, err := sns.ScrambleNodeRegistries(block)
+	if err != nil {
+		return err
+	}
+	err = sns.cacheStorage.Push(*scrambleNodes)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (*ScrambleNodeService) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
@@ -134,7 +142,9 @@ func (sns *ScrambleNodeService) PopOffScrambleToHeight(height uint32) error {
 	return err
 }
 
-func (sns *ScrambleNodeService) BuildScrambledNodesAtHeight(blockHeight uint32) error {
+// BuildScrambledNodesAtHeight build scramble node at custom height, used to build older scramble node
+// this function will not store the scramble result in cache
+func (sns *ScrambleNodeService) BuildScrambledNodesAtHeight(blockHeight uint32) (*model.ScrambledNodes, error) {
 	var (
 		nearestBlock model.Block
 		err          error
@@ -144,9 +154,10 @@ func (sns *ScrambleNodeService) BuildScrambledNodesAtHeight(blockHeight uint32) 
 	nearestBlockRow, _ := sns.QueryExecutor.ExecuteSelectRow(sns.BlockQuery.GetBlockByHeight(nearestHeight), false)
 	err = sns.BlockQuery.Scan(&nearestBlock, nearestBlockRow)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return sns.sortNodeRegistries(&nearestBlock)
+	scrambleNodes, err := sns.ScrambleNodeRegistries(&nearestBlock)
+	return scrambleNodes, err
 }
 
 func (sns *ScrambleNodeService) GetScrambleNodesByHeight(
@@ -162,21 +173,25 @@ func (sns *ScrambleNodeService) GetScrambleNodesByHeight(
 	if err != nil {
 		return nil, err
 	}
+	if blockHeight == firstCachedScramble.BlockHeight {
+		return &firstCachedScramble, nil
+	}
+	if blockHeight < firstCachedScramble.BlockHeight {
+		// looking for an older scramble that's not cached, look into database
+		scrambleNodes, err := sns.BuildScrambledNodesAtHeight(blockHeight)
+		return scrambleNodes, err
+	}
 	nearestScrambleHeight := sns.GetBlockHeightToBuildScrambleNodes(blockHeight)
 	index = (nearestScrambleHeight - firstCachedScramble.BlockHeight) / constant.PriorityStrategyBuildScrambleNodesGap
 	err = sns.cacheStorage.GetAtIndex(index, &result)
-	// todo: if not found build ?
-
 	return &result, err
 }
 
-// sortNodeRegistries this function is responsible of selecting and sorting registered nodes so that nodes/peers in scrambledNodes map changes
+// ScrambleNodeRegistries this function is responsible of selecting and sorting registered nodes so that nodes/peers in scrambledNodes map changes
 // order at a given interval
 // note: this algorithm is deterministic for the whole network so that,
 // at any point in time every node can calculate this map autonomously, given its node registry is updated
-func (sns *ScrambleNodeService) sortNodeRegistries(
-	block *model.Block,
-) error {
+func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*model.ScrambledNodes, error) {
 	var (
 		nodeRegistries  []*model.NodeRegistration
 		newAddressNodes []*model.Peer
@@ -186,7 +201,7 @@ func (sns *ScrambleNodeService) sortNodeRegistries(
 
 	nodeRegistries, err = sns.NodeRegistrationService.GetNodeRegistryAtHeight(block.GetHeight())
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {
@@ -208,7 +223,7 @@ func (sns *ScrambleNodeService) sortNodeRegistries(
 	for key, node := range nodeRegistries {
 		nai, err := sns.NodeAddressInfoService.GetAddressInfoByNodeID(node.GetNodeID(), model.NodeAddressStatus_NodeAddressPending)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		peer := &model.Peer{
 			Info: &model.Node{
@@ -227,12 +242,11 @@ func (sns *ScrambleNodeService) sortNodeRegistries(
 		newIndexNodes[scrambleDNodeMapKey] = &index
 		newAddressNodes = append(newAddressNodes, peer)
 	}
-	// memoize result to cache layer
-	newScramble := &model.ScrambledNodes{
+
+	return &model.ScrambledNodes{
 		AddressNodes: newAddressNodes,
 		IndexNodes:   newIndexNodes,
 		BlockHeight:  block.Height,
-	}
-	err = sns.cacheStorage.Push(*newScramble)
-	return err
+	}, nil
+
 }

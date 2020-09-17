@@ -69,7 +69,7 @@ func NewReceiptService(
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	mainBlockStateStorage,receiptReminderStorage storage.CacheStorageInterface,
+	mainBlockStateStorage, receiptReminderStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 ) *ReceiptService {
 	return &ReceiptService{
