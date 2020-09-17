@@ -48,7 +48,10 @@ require (
 	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
 	google.golang.org/grpc v1.27.0
 	google.golang.org/protobuf v1.25.0
+<<<<<<< HEAD
 	gopkg.in/abiosoft/ishell.v2 v2.0.0
+=======
+>>>>>>> 54197bba... remove println code and remove badger db from go.mod
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
