@@ -20,6 +20,7 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 			path = p
 		}
 	}
+
 	if resourcePath == "" {
 		resourcePath = filepath.Join(path, "./resource")
 	}
