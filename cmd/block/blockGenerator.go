@@ -137,6 +137,7 @@ func initialize(
 		receiptUtil,
 		nil,
 		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,

@@ -3378,7 +3378,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    2181321930526879108,
+			want:    -1590500092516375213,
 		},
 	}
 	for _, tt := range tests {
