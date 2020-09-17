@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/zoobc/zoobc-core/api/service"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
@@ -33,4 +36,11 @@ func (nhh *NodeHardwareHandler) GetNodeHardware(
 		}
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func (nhh *NodeHardwareHandler) GetNodeTime(context.Context, *model.Empty) (*model.GetNodeTimeResponse, error) {
+	t := time.Now().UTC().Unix()
+	return &model.GetNodeTimeResponse{
+		NodeTime: t,
+	}, nil
 }
