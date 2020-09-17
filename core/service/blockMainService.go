@@ -1211,6 +1211,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 	if err != nil {
 		return nil, err
 	}
+
+	sort.SliceStable(genesisTransactions, func(i, j int) bool {
+		return genesisTransactions[i].GetID() < genesisTransactions[j].GetID()
+	})
+
 	for index, tx := range genesisTransactions {
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
