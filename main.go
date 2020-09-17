@@ -640,6 +640,14 @@ func startNodeMonitoring() {
 	log.Infof("starting node monitoring at port:%d...", config.MonitoringPort)
 	monitoring.SetMonitoringActive(true)
 	monitoring.SetNodePublicKey(config.NodeKey.PublicKey)
+	go func() {
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", monitoring.Handler())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", config.MonitoringPort), mux)
+		if err != nil {
+			panic(fmt.Sprintf("failed to start monitoring service: %s", err))
+		}
+	}()
 	// populate node address info counter when node starts
 	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
 		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
