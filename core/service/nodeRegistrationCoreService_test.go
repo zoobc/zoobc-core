@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -382,13 +381,23 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	}
 }
 
+type (
+	mockExpelNodesNodeAddressInfoSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockExpelNodesNodeAddressInfoSuccess) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID int64) error {
+	return nil
+}
+
 func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
 		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
+		NodeAddressInfoService  NodeAddressInfoServiceInterface
 		NodeAdmittanceCycle     uint32
 	}
 	type args struct {
@@ -408,7 +417,7 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
+				NodeAddressInfoService:  &mockExpelNodesNodeAddressInfoSuccess{},
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{nrsRegisteredNode1},
@@ -424,7 +433,7 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeAddressInfoQuery:    tt.fields.NodeAddressInfoQuery,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
 			}
 			if err := nrs.ExpelNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.ExpelNodes() error = %v, wantErr %v", err, tt.wantErr)
@@ -582,27 +591,8 @@ type (
 	nrsMockNodeAddressInfoService struct {
 		NodeAddressInfoService
 		getRegisteredNodesWithConsolidatedAddressesFail bool
-		getAddressInfoByNodeIDFail                      bool
 	}
 )
-
-func (nrsMock *nrsMockNodeAddressInfoService) GetAddressInfoByNodeID(
-	nodeID int64,
-	preferredStatus model.NodeAddressStatus,
-) (*model.NodeAddressInfo, error) {
-	if nrsMock.getAddressInfoByNodeIDFail {
-		return nil, errors.New("MockedError")
-	}
-	return &model.NodeAddressInfo{
-		BlockHeight: 10,
-		NodeID:      int64(111),
-		Address:     "127.0.0.1",
-		Port:        3001,
-		Signature:   make([]byte, 64),
-		BlockHash:   make([]byte, 32),
-		Status:      model.NodeAddressStatus_NodeAddressConfirmed,
-	}, nil
-}
 
 func (nrsMock *nrsMockNodeAddressInfoService) GetRegisteredNodesWithConsolidatedAddresses(
 	height uint32,
@@ -655,6 +645,27 @@ func (*executorBuildScrambleNodesFail) ExecuteSelect(qStr string, tx bool, args 
 	return nil, errors.New("mockError:executeSelectFail")
 }
 
+type (
+	mockBuildScrambledNodesNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockBuildScrambledNodesNodeAddressInfoServiceSuccess) GetAddressInfoByNodeIDWithPreferredStatus(
+	nodeID int64,
+	preferredStatus model.NodeAddressStatus,
+) (*model.NodeAddressInfo, error) {
+	return &model.NodeAddressInfo{
+		BlockHeight: 10,
+		NodeID:      int64(111),
+		Address:     "127.0.0.1",
+		Port:        3001,
+		Signature:   make([]byte, 64),
+		BlockHash:   make([]byte, 32),
+		Status:      model.NodeAddressStatus_NodeAddressConfirmed,
+	}, nil
+}
+
 func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 	db, mock, _ := sqlmock.New()
 	type fields struct {
@@ -684,7 +695,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 					},
 				},
 				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				NodeAddressInfoService: &nrsMockNodeAddressInfoService{},
+				NodeAddressInfoService: &mockBuildScrambledNodesNodeAddressInfoServiceSuccess{},
 				Logger:                 log.New(),
 			},
 			args: args{
@@ -703,10 +714,7 @@ func TestNodeRegistrationService_BuildScrambledNodes(t *testing.T) {
 					},
 				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAddressInfoService: &nrsMockNodeAddressInfoService{
-					getRegisteredNodesWithConsolidatedAddressesFail: true,
-				},
-				Logger: log.New(),
+				Logger:                log.New(),
 			},
 			args: args{
 				block: &model.Block{
@@ -943,7 +951,6 @@ func (*mockGetNextNodeAdmissionTimestampNextNodeAdmissionStorageSuccess) GetItem
 func TestNodeRegistrationService_GetNextNodeAdmissionTimestamp(t *testing.T) {
 	type fields struct {
 		QueryExecutor                query.ExecutorInterface
-		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
@@ -985,7 +992,6 @@ func TestNodeRegistrationService_GetNextNodeAdmissionTimestamp(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
 				QueryExecutor:                tt.fields.QueryExecutor,
-				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
 				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
@@ -1359,10 +1365,49 @@ func (nrMock *validateNodeAddressInfoExecutorMock) ExecuteSelect(qe string, tx b
 	return rows, nil
 }
 
+type (
+	mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess) GetUnsignedNodeAddressInfoBytes(
+	nodeAddressMessage *model.NodeAddressInfo) []byte {
+	return make([]byte, 64)
+}
+
+var (
+	mockValidateNodeAddressInfoValidBlockHash = []byte{
+		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+	}
+	mockValidateNodeAddressInfoNodeAddressInfoValid = &model.NodeAddressInfo{
+		NodeID:      int64(1111),
+		Address:     "192.168.1.2",
+		Port:        uint32(8080),
+		BlockHeight: uint32(11),
+		BlockHash:   mockValidateNodeAddressInfoValidBlockHash,
+	}
+	mockNodeAddressInfoOutDated = &model.NodeAddressInfo{
+		NodeID:      int64(1111),
+		Address:     "192.168.1.2",
+		Port:        uint32(8080),
+		BlockHeight: mockValidateNodeAddressInfoNodeAddressInfoValid.BlockHeight - 1,
+		BlockHash:   mockValidateNodeAddressInfoValidBlockHash,
+	}
+)
+
+func (*mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess) GetAddressInfoByNodeID(
+	nodeID int64,
+	addressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	return []*model.NodeAddressInfo{
+		mockValidateNodeAddressInfoNodeAddressInfoValid,
+	}, nil
+}
+
 func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 	type fields struct {
 		QueryExecutor                query.ExecutorInterface
-		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
@@ -1370,7 +1415,6 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		NodeAdmittanceCycle          uint32
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
-		ScrambledNodesLock           sync.RWMutex
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
@@ -1383,27 +1427,12 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 	}
 
 	nodePublicKey := []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
-	validBlockHash := []byte{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3}
 	nodeAddressInfo := &model.NodeAddressInfo{
 		NodeID:      int64(1111),
 		Address:     "192.168.1.1",
 		Port:        uint32(8080),
 		BlockHeight: uint32(10),
-		BlockHash:   validBlockHash,
-	}
-	nodeAddressInfo1 := &model.NodeAddressInfo{
-		NodeID:      int64(1111),
-		Address:     "192.168.1.2",
-		Port:        uint32(8080),
-		BlockHeight: uint32(10),
-		BlockHash:   validBlockHash,
-	}
-	nodeAddressInfoValid := &model.NodeAddressInfo{
-		NodeID:      int64(1111),
-		Address:     "192.168.1.2",
-		Port:        uint32(8080),
-		BlockHeight: uint32(11),
-		BlockHash:   validBlockHash,
+		BlockHash:   mockValidateNodeAddressInfoValidBlockHash,
 	}
 
 	tests := []struct {
@@ -1443,10 +1472,8 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: false,
 				},
-				NodeAddressInfoService: &nodeAddressInfoServiceMock{
-					nodeAddressInfoBytes: make([]byte, 64),
-				},
-				Logger: log.New(),
+				NodeAddressInfoService: &mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess{},
+				Logger:                 log.New(),
 			},
 			wantErr: true,
 			errMsg:  "InvalidSignature",
@@ -1467,10 +1494,8 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeAddressInfoService: &nodeAddressInfoServiceMock{
-					nodeAddressInfoBytes: make([]byte, 64),
-				},
-				Logger: log.New(),
+				NodeAddressInfoService: &mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess{},
+				Logger:                 log.New(),
 			},
 			wantErr: true,
 			errMsg:  "InvalidBlockHeight",
@@ -1491,10 +1516,8 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeAddressInfoService: &nodeAddressInfoServiceMock{
-					nodeAddressInfoBytes: make([]byte, 64),
-				},
-				Logger: log.New(),
+				NodeAddressInfoService: &mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess{},
+				Logger:                 log.New(),
 			},
 			wantErr: true,
 			errMsg:  "InvalidBlockHash",
@@ -1502,24 +1525,21 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		{
 			name: "ValidateNodeAddressInfo:fail-{OutdatedNodeAddressInfo}",
 			args: args{
-				nodeAddressInfo: nodeAddressInfo1,
+				nodeAddressInfo: mockNodeAddressInfoOutDated,
 				validateNotInDb: true,
 			},
 			fields: fields{
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor: &validateNodeAddressInfoExecutorMock{
 					nodePublicKey: nodePublicKey,
-					blockHash:     validBlockHash,
+					blockHash:     mockValidateNodeAddressInfoValidBlockHash,
 				},
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeAddressInfoService: &nodeAddressInfoServiceMock{
-					nodeAddressInfoBytes: make([]byte, 64),
-				},
-				Logger: log.New(),
+				NodeAddressInfoService: &mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess{},
+				Logger:                 log.New(),
 			},
 			wantErr: true,
 			errMsg:  "OutdatedNodeAddressInfo",
@@ -1527,24 +1547,21 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		{
 			name: "ValidateNodeAddressInfo:success",
 			args: args{
-				nodeAddressInfo: nodeAddressInfoValid,
+				nodeAddressInfo: mockValidateNodeAddressInfoNodeAddressInfoValid,
 				validateNotInDb: true,
 			},
 			fields: fields{
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				QueryExecutor: &validateNodeAddressInfoExecutorMock{
 					nodePublicKey: nodePublicKey,
-					blockHash:     validBlockHash,
+					blockHash:     mockValidateNodeAddressInfoValidBlockHash,
 				},
 				Signature: &validateNodeAddressInfoSignatureMock{
 					isValid: true,
 				},
-				NodeAddressInfoService: &nodeAddressInfoServiceMock{
-					nodeAddressInfoBytes: make([]byte, 64),
-				},
-				Logger: log.New(),
+				NodeAddressInfoService: &mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess{},
+				Logger:                 log.New(),
 			},
 		},
 	}
@@ -1552,14 +1569,12 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
 				QueryExecutor:                tt.fields.QueryExecutor,
-				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
 				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
 				BlockQuery:                   tt.fields.BlockQuery,
 				Logger:                       tt.fields.Logger,
 				ScrambledNodes:               tt.fields.ScrambledNodes,
-				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
 				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
@@ -1604,7 +1619,6 @@ func (*mockGenerateNodeAddressInfoMainBlockStateStorageSuccess) GetItem(lastChan
 func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 	type fields struct {
 		QueryExecutor                query.ExecutorInterface
-		NodeAddressInfoQuery         query.NodeAddressInfoQueryInterface
 		AccountBalanceQuery          query.AccountBalanceQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery      query.ParticipationScoreQueryInterface
@@ -1612,7 +1626,6 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 		NodeAdmittanceCycle          uint32
 		Logger                       *log.Logger
 		ScrambledNodes               map[uint32]*model.ScrambledNodes
-		ScrambledNodesLock           sync.RWMutex
 		MemoizedLatestScrambledNodes *model.ScrambledNodes
 		BlockchainStatusService      BlockchainStatusServiceInterface
 		CurrentNodePublicKey         []byte
@@ -1667,14 +1680,12 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
 				QueryExecutor:                tt.fields.QueryExecutor,
-				NodeAddressInfoQuery:         tt.fields.NodeAddressInfoQuery,
 				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
 				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
 				BlockQuery:                   tt.fields.BlockQuery,
 				Logger:                       tt.fields.Logger,
 				ScrambledNodes:               tt.fields.ScrambledNodes,
-				ScrambledNodesLock:           tt.fields.ScrambledNodesLock,
 				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
 				BlockchainStatusService:      tt.fields.BlockchainStatusService,
 				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,

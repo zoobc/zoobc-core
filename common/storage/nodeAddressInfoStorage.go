@@ -71,9 +71,6 @@ func (nas *NodeAddressInfoStorage) SetItem(key, item interface{}) error {
 func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 	nas.RLock()
 	defer nas.RUnlock()
-	if len(nas.nodeAddressInfoMapByID) == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressInfoStorageEmpty")
-	}
 	storageKey, ok := key.(NodeAddressInfoStorageKey)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:NodeAddressInfoStorageKey")
@@ -117,9 +114,6 @@ func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
 	nas.RLock()
 	defer nas.RUnlock()
-	if len(nas.nodeAddressInfoMapByID) == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "NodeAddressInfoStorageEmpty")
-	}
 	nodeAddresses, ok := item.(*[]*model.NodeAddressInfo)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItemExpected:*[]*model.NodeAddressInfo")

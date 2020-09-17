@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -603,18 +604,30 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	}
 }
 
+type (
+	mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess struct {
+		storage.NodeAddressInfoStorageInterface
+	}
+)
+
+func (*mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) AddAwaitedRemoveItem(
+	key storage.NodeAddressInfoStorageKey) error {
+	return nil
+}
+
 func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
-		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		AccountLedgerQuery    query.AccountLedgerQueryInterface
-		NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
+		Body                   *model.RemoveNodeRegistrationTransactionBody
+		Fee                    int64
+		SenderAddress          string
+		Height                 uint32
+		AccountBalanceQuery    query.AccountBalanceQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		QueryExecutor          query.ExecutorInterface
+		AccountLedgerQuery     query.AccountLedgerQueryInterface
+		NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
+		NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -636,14 +649,15 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
+				Body:                   body,
+				Fee:                    1,
+				SenderAddress:          "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				QueryExecutor:          &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
+				AccountLedgerQuery:     query.NewAccountLedgerQuery(),
+				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
+				NodeAddressInfoStorage: &mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess{},
 			},
 			wantErr: false,
 		},
@@ -651,15 +665,16 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
-				NodeAddressInfoQuery:  tt.fields.NodeAddressInfoQuery,
+				Body:                   tt.fields.Body,
+				Fee:                    tt.fields.Fee,
+				SenderAddress:          tt.fields.SenderAddress,
+				Height:                 tt.fields.Height,
+				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:  tt.fields.NodeRegistrationQuery,
+				QueryExecutor:          tt.fields.QueryExecutor,
+				AccountLedgerQuery:     tt.fields.AccountLedgerQuery,
+				NodeAddressInfoQuery:   tt.fields.NodeAddressInfoQuery,
+				NodeAddressInfoStorage: tt.fields.NodeAddressInfoStorage,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

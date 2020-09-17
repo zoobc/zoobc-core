@@ -19,7 +19,7 @@ type (
 		GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte
 		GetAddressInfoTableWithConsolidatedAddresses(preferredStatus model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GetAddressInfoByNodeIDWithPreferredStatus(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error)
-		GetAddressInfoByNodeID(nodeIDs int64, addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
+		GetAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GetAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GetAddressInfoByAddressPort(
 			address string,
@@ -203,14 +203,19 @@ func (nru *NodeAddressInfoService) GetAddressInfoByAddressPort(
 	address string,
 	port uint32,
 	nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
-	var nodeAddressesInfo []*model.NodeAddressInfo
-	nru.NodeAddressInfoStorage.GetItem(
-		storage.NodeAddressInfoStorageKey{
-			AddressPort: fmt.Sprintf("%s:%d", address, port),
-			Statuses:    nodeAddressStatuses,
-		},
-		&nodeAddressesInfo,
+	var (
+		nodeAddressesInfo []*model.NodeAddressInfo
+		err               = nru.NodeAddressInfoStorage.GetItem(
+			storage.NodeAddressInfoStorageKey{
+				AddressPort: fmt.Sprintf("%s:%d", address, port),
+				Statuses:    nodeAddressStatuses,
+			},
+			&nodeAddressesInfo,
+		)
 	)
+	if err != nil {
+		return nil, err
+	}
 	return nodeAddressesInfo, nil
 }
 

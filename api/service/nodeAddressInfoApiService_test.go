@@ -10,26 +10,29 @@ import (
 )
 
 type (
-	mockGetNodeAddressesInfoFromDbError struct {
-		coreService.NodeRegistrationServiceInterface
+	mockNodeAddressInfoServiceSuccess struct {
+		coreService.NodeAddressInfoServiceInterface
 	}
-	mockGetNodeAddressesInfoFromDbSuccess struct {
-		coreService.NodeRegistrationServiceInterface
+	mockNodeAddressInfoServiceFail struct {
+		coreService.NodeAddressInfoServiceInterface
 	}
 )
 
-func (*mockGetNodeAddressesInfoFromDbError) GetNodeAddressesInfoFromDb(nodeIDs []int64,
-	addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
-	return nil, errors.New("Error GetNodeAddressesInfoFromDb")
+func (*mockNodeAddressInfoServiceFail) GetAddressInfoByNodeIDs(
+	nodeIDs []int64, addressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	return nil, errors.New("Error GetAddressInfoByNodeIDs")
 }
-func (*mockGetNodeAddressesInfoFromDbSuccess) GetNodeAddressesInfoFromDb(nodeIDs []int64,
-	addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
+
+func (*mockNodeAddressInfoServiceSuccess) GetAddressInfoByNodeIDs(
+	nodeIDs []int64, addressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
 	return make([]*model.NodeAddressInfo, 0), nil
 }
 
 func TestNodeAddressInfoAPIService_GetNodeAddressesInfo(t *testing.T) {
 	type fields struct {
-		NodeRegistrationCoreService coreService.NodeRegistrationServiceInterface
+		NodeAddressInfoService coreService.NodeAddressInfoServiceInterface
 	}
 	type args struct {
 		request *model.GetNodeAddressesInfoRequest
@@ -44,7 +47,7 @@ func TestNodeAddressInfoAPIService_GetNodeAddressesInfo(t *testing.T) {
 		{
 			name: "GetNodeAddressesInfo:InternalError",
 			fields: fields{
-				NodeRegistrationCoreService: &mockGetNodeAddressesInfoFromDbError{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceFail{},
 			},
 			args: args{
 				request: &model.GetNodeAddressesInfoRequest{
@@ -57,7 +60,7 @@ func TestNodeAddressInfoAPIService_GetNodeAddressesInfo(t *testing.T) {
 		{
 			name: "GetNodeAddressesInfo:Success",
 			fields: fields{
-				NodeRegistrationCoreService: &mockGetNodeAddressesInfoFromDbSuccess{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				request: &model.GetNodeAddressesInfoRequest{
@@ -71,7 +74,7 @@ func TestNodeAddressInfoAPIService_GetNodeAddressesInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nhs := &NodeAddressInfoAPIService{
-				NodeRegistrationCoreService: tt.fields.NodeRegistrationCoreService,
+				NodeAddressInfoService: tt.fields.NodeAddressInfoService,
 			}
 			got, err := nhs.GetNodeAddressesInfo(tt.args.request)
 			if (err != nil) != tt.wantErr {

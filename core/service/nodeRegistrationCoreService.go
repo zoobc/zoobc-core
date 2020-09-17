@@ -44,10 +44,6 @@ type (
 		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
-		GetNodeAddressesInfoFromDb(
-			nodeIDs []int64,
-			addressStatuses []model.NodeAddressStatus,
-		) ([]*model.NodeAddressInfo, error)
 		GenerateNodeAddressInfo(
 			nodeID int64,
 			nodeAddress string,
@@ -580,7 +576,7 @@ func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
 }
 
 // UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
-// TODO @sukrawidhyawan: will completely move this fucntion into node address info service
+// TODO @sukrawidhyawan: will completely move this function into node address info service
 // after node address info cache stable
 func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
 	nodeAddressInfo *model.NodeAddressInfo,
@@ -679,8 +675,12 @@ func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *mod
 		return
 	}
 
-	if nodeAddressesInfo, err = nrs.GetNodeAddressesInfoFromDb([]int64{nodeAddressInfo.GetNodeID()},
-		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending}); err != nil {
+	if nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeID(
+		nodeAddressInfo.GetNodeID(),
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressConfirmed,
+			model.NodeAddressStatus_NodeAddressPending},
+	); err != nil {
 		return
 	}
 
@@ -743,7 +743,7 @@ func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
 }
 
 // ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
-// TODO @sukrawidhyawan: will completely move this fucntion into node address info service
+// TODO @sukrawidhyawan: will completely move this function into node address info service
 // after node address info cache stable
 func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	var err = nrs.NodeAddressInfoService.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
