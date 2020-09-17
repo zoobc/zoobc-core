@@ -191,13 +191,15 @@ with this structure (the one below is an example):
 ]
 ```
 
-### Genesis
+### Generate new Genesis
 
 ```bash
 Usage:
   zoobc genesis generate [flags]
 
 Flags:
+      --applicationCodeName string      application code name (default "ZBC_main")
+      --applicationVersion string       application code version (default "1.0.0")
   -f, --dbPath string                   path of blockchain's database to be used as data source in case the -w flag is used. If not set, the default resource folder is used (default "../resource/")
       --deploymentName string           nomad task name associated to this deployment (default "zoobc-alpha")
   -e, --env-target string               env mode indeed a.k.a develop,staging,alpha (default "alpha")
@@ -206,33 +208,49 @@ Flags:
       --kvFileCustomConfigFile string   (optional) full path (path + fileName) of a custom cluster_config.json file to use to generate consulKvInitScript.sh instead of the automatically generated in resource/generated/genesis directory
       --logLevels string                default log levels for all nodes (for kvConsulScript.sh). example: 'warn info fatal error panic' (default "fatal error panic")
   -o, --output string                   output generated files target (default "resource")
+  -t, --timestamp int                   genesis timestamp, in unix epoch time, with resolution in seconds (default 1596708000)
       --wellKnownPeers string           default wellKnownPeers for all nodes (for kvConsulScript.sh). example: 'n0.alpha.proofofparticipation.network n1.alpha.proofofparticipation.network n2.alpha.proofofparticipation.network' (default "127.0.0.1:8001")
 ```
 
 ```bash
+(from cmd directory)
 go run main.go genesis generate -e {local,staging,develop,alpa} -o dist
+
+# full example used for beta network
+genesis generate --deploymentName=zoobc-beta -e=beta --applicationVersion=1.0.0 --applicationCodeName=Zoobc-beta --timestamp=1600678800 --wellKnownPeers=[139.162.126.21:8002 172.104.117.98:8002 139.162.71.117:8002 139.162.116.75:8002 172.105.211.220:8002 139.162.85.202:8002 139.162.27.172:8002 139.162.4.186:8002 172.105.166.14:8002 172.105.185.12:8002 172.105.18.138:8002 172.105.23.55:8002 172.105.104.251:8002 172.105.11.141:8002 172.105.22.227:8002 172.105.18.50:8002 139.162.154.148:8002 172.104.237.116:8002 139.162.162.254:8002 172.105.248.206:8002]
 ```
 
-It will generate files such as genesis.go consul script and more, you can check these inside `${-o}/generated/genesis` directory.
+Starting from a 'seatSale.json' and/or a 'preRegisteredNodes.json', to be placed in resource/templates directory, it will generate files
+ such as genesis.go, consulKVInit.sh consul script and more, you can check these inside `${-o}/generated/genesis` directory.
 
-```bash
-### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db
+structure of the two input files is:
 
+seatSale.json
+ * this are all nodes in Ethereum contract used for the seat sale
+```json
+[
+  {
+    "AccountAddress": "ZBC_Y4CQBB4J_E2L6TWL5_VI2B3OB4_B3ECV5E5_6DGRQW3Q_VYHUTAAV_L2TNZYKC",
+    "NodePublicKey": "ZNK_OGG7WCAZ_X5QJVGOC_JM3ND4ZG_ZLX3IQDT_WSMNXBA7_CLI5DJCB_73EDKLLD",
+    "Smithing": true
+  }
+]
 ```
 
-```bash
-go run main.go genesis generate -w
+preRegisteredNodes.json
+* this are all nodes hosted by BlockChainZoo and contains also the node seeds
+* this is a subset of seatSale.json (Ethereum contract contains all notes in the registry at genesis)
+```json
+[
+  {
+    "NodePublicKey": "ZNK_W42TC2NL_XENICD3A_RAL65XGK_VZTIAN7T_IPGXAH2L_E4O2RVEN_YYUEX3XS",
+    "NodeSeed": "a mnemonic passphrase",
+    "AccountAddress": "ZBC_S7ORQQER_ME3GWQOS_WP5TCSQ7_M6AVTQWB_N7CU2Q3Y_L4BQI5IH_YKCICHYY",
+    "Smithing": true
+  }
+]
 ```
 
-outputs cmd/genesis.go.new and cmd/cluster_config.json
-
-### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json and resource/zoobc.db, plus n random nodes registrations
-
-```bash
-go run main.go genesis generate -w -n 10
-```
-
-outputs cmd/genesis.go.new and cmd/cluster_config.json
 
 ### Generate Proof of Ownership Node Registry
 

@@ -36,4 +36,7 @@ var (
 		"45.79.39.58:8001",
 		"85.90.246.90:8001",
 	}
+
+	// maxAttemptPromptFailed the maximum allowed to try re-input prompt
+	maxAttemptPromptFailed = 3
 )
