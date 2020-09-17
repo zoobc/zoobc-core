@@ -93,19 +93,21 @@ func readCertEntry(encryptedEntry encryptedCertEntry) (*certEntry, error) {
 func generateClusterConfigFile(entries []certEntry, newClusterConfigFilePath string) (clusterConfig []clusterConfigEntry, err error) {
 	var sig = crypto.NewSignature()
 	for _, genEntry := range entries {
-		var nodePubKeyAddress string
+		var nodePubKeyStr string
 		// exclude entries that don't have NodeSeed set from cluster_config.json
 		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
-		_, _, _, nodePubKeyAddress, err = sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, genEntry.NodeSeed)
+		// TODO: node pub key will come from the certificate too instead of being parsed by the node. when this is ready,
+		//  add a verification step that the NodePublicKey from cert = the one parsed by node using node seed (the line below)
+		_, _, _, nodePubKeyStr, err = sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, genEntry.NodeSeed)
 		if err != nil {
 			return nil, err
 		}
 		if genEntry.NodeSeed != "" {
 			entry := clusterConfigEntry{
-				NodePublicKey:       nodePubKeyAddress,
-				NodeSeed:            genEntry.NodeSeed,
-				OwnerAccountAddress: genEntry.OwnerAccountAddress,
-				Smithing:            true,
+				NodePublicKey:  nodePubKeyStr,
+				NodeSeed:       genEntry.NodeSeed,
+				AccountAddress: genEntry.AccountAddress,
+				Smithing:       true,
 			}
 			clusterConfig = append(clusterConfig, entry)
 		}
