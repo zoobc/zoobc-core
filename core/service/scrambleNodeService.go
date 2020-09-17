@@ -1,7 +1,9 @@
 package service
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -13,6 +15,7 @@ import (
 
 type (
 	ScrambleNodeServiceInterface interface {
+		InitializeScrambleCache(lastBlockHeight uint32) error
 		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
 		GetScrambleNodesByHeight(
 			blockHeight uint32,
@@ -47,8 +50,61 @@ func NewScrambleNodeService(
 	}
 }
 
-func (sns *ScrambleNodeService) InitializeScrambleCache() error {
+func (sns *ScrambleNodeService) InitializeScrambleCache(lastBlockHeight uint32) error {
+	var (
+		topScramble model.ScrambledNodes
+		err         error
+	)
+	err = sns.cacheStorage.GetTop(&topScramble)
+	if err != nil {
+		blockerErr, ok := err.(blocker.Blocker)
+		if ok {
+			if blockerErr.Type != blocker.CacheEmpty {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
 
+	// clear memory
+	err = sns.cacheStorage.Clear()
+	if err != nil {
+		return err
+	}
+	var revertedScrambleBlocks = make([]model.Block, 0)
+	firstHeight := sns.GetBlockHeightToBuildScrambleNodes(lastBlockHeight)
+	getBlockAtHeight := func(height uint32) (model.Block, error) {
+		var block model.Block
+		nearestBlockRow, _ := sns.QueryExecutor.ExecuteSelectRow(sns.BlockQuery.GetBlockByHeight(height), false)
+		err := sns.BlockQuery.Scan(&block, nearestBlockRow)
+		return block, err
+	}
+	firstBlock, err := getBlockAtHeight(firstHeight)
+	if err != nil {
+		return err
+	}
+	revertedScrambleBlocks = append(revertedScrambleBlocks, firstBlock)
+	if firstHeight != 0 {
+		startHeight := firstHeight
+		for !(startHeight == 0 || len(revertedScrambleBlocks) > int(constant.MaxScrambleCacheRound)) {
+			startHeight -= constant.PriorityStrategyBuildScrambleNodesGap
+			scrambleBlock, err := getBlockAtHeight(startHeight)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					break
+				}
+				return err
+			}
+			revertedScrambleBlocks = append(revertedScrambleBlocks, scrambleBlock)
+		}
+	}
+	for i := len(revertedScrambleBlocks) - 1; i >= 0; i-- {
+		err := sns.BuildScrambledNodes(&revertedScrambleBlocks[i])
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -109,6 +165,8 @@ func (sns *ScrambleNodeService) GetScrambleNodesByHeight(
 	nearestScrambleHeight := sns.GetBlockHeightToBuildScrambleNodes(blockHeight)
 	index = (nearestScrambleHeight - firstCachedScramble.BlockHeight) / constant.PriorityStrategyBuildScrambleNodesGap
 	err = sns.cacheStorage.GetAtIndex(index, &result)
+	// todo: if not found build ?
+
 	return &result, err
 }
 
