@@ -465,6 +465,7 @@ func initiateMainInstance() {
 		actionSwitcher,
 		mainchainBlockService,
 		nodeRegistrationService,
+		scrambleNodeService,
 	)
 
 	snapshotService = service.NewSnapshotService(
@@ -687,9 +688,9 @@ func startNodeMonitoring() {
 
 func startMainchain() {
 	var (
-		blockToBuildScrambleNodes, lastBlockAtStart *model.Block
-		err                                         error
-		sleepPeriod                                 = constant.MainChainSmithIdlePeriod
+		lastBlockAtStart *model.Block
+		err              error
+		sleepPeriod      = constant.MainChainSmithIdlePeriod
 	)
 	monitoring.SetBlockchainStatus(mainchain, constant.BlockchainStatusIdle)
 
@@ -731,14 +732,9 @@ func startMainchain() {
 	cliMonitoring.UpdateBlockState(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initializing scrambled nodes
-	heightToBuildScrambleNodes := scrambleNodeService.GetBlockHeightToBuildScrambleNodes(lastBlockAtStart.GetHeight())
-	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
+	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
-		loggerCoreService.Fatal(err)
-	}
-	err = scrambleNodeService.BuildScrambledNodes(blockToBuildScrambleNodes)
-	if err != nil {
-		loggerCoreService.Fatal(err)
+		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)
 	}
 
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
