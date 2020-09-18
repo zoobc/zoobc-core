@@ -324,7 +324,10 @@ func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo
 		},
 	})
 	// then add new address info
-	nru.NodeAddressInfoStorage.SetItem(nil, *pendingNodeAddressInfo)
+	err = nru.NodeAddressInfoStorage.SetItem(nil, *pendingNodeAddressInfo)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
