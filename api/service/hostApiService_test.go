@@ -51,6 +51,57 @@ func (m *MockP2pService) GetPriorityPeers() map[string]*model.Peer {
 	return m.PriorityPeersToReturn
 }
 
+type (
+	mockScrambleNodeServiceGetScrambleNodeByHeightError struct {
+		coreService.ScrambleNodeService
+	}
+	mockScrambleNodeServiceGetScrambleNodeByHeightSuccess struct {
+		coreService.ScrambleNodeService
+	}
+)
+
+func (*mockScrambleNodeServiceGetScrambleNodeByHeightError) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return nil, errors.New("mockedError")
+}
+
+func (*mockScrambleNodeServiceGetScrambleNodeByHeightSuccess) GetScrambleNodesByHeight(
+	blockHeight uint32,
+) (*model.ScrambledNodes, error) {
+	return mockGoodScrambledNodes, nil
+}
+
+var (
+	indexScramble = []int{
+		0: 0,
+		1: 1,
+	}
+
+	mockGoodScrambledNodes = &model.ScrambledNodes{
+		AddressNodes: []*model.Peer{
+			0: {
+				Info: &model.Node{
+					ID:      int64(111),
+					Address: "127.0.0.1",
+					Port:    8000,
+				},
+			},
+			1: {
+				Info: &model.Node{
+					ID:      int64(222),
+					Address: "127.0.0.1",
+					Port:    3001,
+				},
+			},
+		},
+		IndexNodes: map[string]*int{
+			"111": &indexScramble[0],
+			"222": &indexScramble[1],
+		},
+	}
+)
+
 func TestHostService_GetHostInfo(t *testing.T) {
 	var (
 		mockBlockService       = make(map[int32]coreService.BlockServiceInterface)
@@ -68,6 +119,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
 		BlockStateStorages      map[int32]storage.CacheStorageInterface
+		ScrambleNodeService     coreService.ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -89,6 +141,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceError{},
 				BlockStateStorages:      mockBlockStateStorages,
+				ScrambleNodeService:     &mockScrambleNodeServiceGetScrambleNodeByHeightError{},
 			},
 			wantErr: true,
 		},
@@ -101,7 +154,8 @@ func TestHostService_GetHostInfo(t *testing.T) {
 					HostToReturn:          hostToReturn,
 					PriorityPeersToReturn: priorityPeersToReturn,
 				},
-				BlockStateStorages: mockBlockStateStorages,
+				BlockStateStorages:  mockBlockStateStorages,
+				ScrambleNodeService: &mockScrambleNodeServiceGetScrambleNodeByHeightSuccess{},
 			},
 			want: &model.HostInfo{
 				Host: hostToReturn,
@@ -114,8 +168,8 @@ func TestHostService_GetHostInfo(t *testing.T) {
 						},
 					},
 				},
-				ScrambledNodes:       nil,
-				ScrambledNodesHeight: 0,
+				ScrambledNodes:       mockGoodScrambledNodes.AddressNodes,
+				ScrambledNodesHeight: mockGoodScrambledNodes.BlockHeight,
 				PriorityPeers:        priorityPeersToReturn,
 			},
 			wantErr: false,
@@ -129,6 +183,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 				BlockServices:           tt.fields.BlockServices,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				BlockStateStorages:      tt.fields.BlockStateStorages,
+				ScrambleNodeService:     tt.fields.ScrambleNodeService,
 			}
 			got, err := hs.GetHostInfo()
 			if (err != nil) != tt.wantErr {

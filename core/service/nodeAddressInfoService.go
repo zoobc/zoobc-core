@@ -96,7 +96,9 @@ func (nru *NodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
 
 // GetAddressInfoByNodeID returns a single address info from relative node id,
 // preferring 'preferredStatus' address status over the others
-func (nru *NodeAddressInfoService) GetAddressInfoByNodeID(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error) {
+func (nru *NodeAddressInfoService) GetAddressInfoByNodeID(
+	nodeID int64, preferredStatus model.NodeAddressStatus,
+) (*model.NodeAddressInfo, error) {
 	// get a node address info given a node id
 	qry := nru.NodeAddressInfoQuery.GetNodeAddressInfoByNodeID(
 		nodeID,

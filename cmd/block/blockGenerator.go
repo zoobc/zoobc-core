@@ -137,6 +137,7 @@ func initialize(
 		receiptUtil,
 		nil,
 		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -217,17 +218,7 @@ func initialize(
 			nil,
 			nil,
 			nil,
-		),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		feeScaleService,
-		query.GetPruneQuery(chainType),
-		nil,
-		nil,
-	)
+		), nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil)
 
 	migration = database.Migration{Query: queryExecutor}
 }
