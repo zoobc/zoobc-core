@@ -5,9 +5,6 @@ import (
 	"math/rand"
 	"os"
 
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/ugorji/go/codec"

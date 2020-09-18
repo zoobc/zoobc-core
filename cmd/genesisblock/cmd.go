@@ -514,7 +514,6 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
-		nil,
 		&transaction.TypeSwitcher{
 			MempoolCacheStorage: mempoolStorage,
 			NodeAuthValidation:  nodeAuthValidationService,
