@@ -646,6 +646,14 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 
 	// add spine public keys from mainchain genesis configuration to spine genesis block
 	spineChainPublicKeys = bs.getGenesisSpinePublicKeys(genesisEntries)
+	sort.SliceStable(spineChainPublicKeys, func(i, j int) bool {
+		intI := new(big.Int).SetBytes(spineChainPublicKeys[i].NodePublicKey)
+		intJ := new(big.Int).SetBytes(spineChainPublicKeys[j].NodePublicKey)
+		res := intI.Cmp(intJ)
+		// Ascending sort
+		return res < 0
+	})
+
 	payloadBytes = bs.getGenesisSpinePayloadBytes(spineChainPublicKeys)
 	payloadLength = uint32(len(payloadBytes))
 	if _, err := digest.Write(payloadBytes); err != nil {
