@@ -390,8 +390,7 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 	caseQuery.Args = append(caseQuery.Args, subArgs...)
 
 	caseQuery.Where(caseQuery.Equal("latest", true))
-	caseQuery.And(caseQuery.GreaterEqual("block_height", param.FromBlockHeight))
-	caseQuery.And(caseQuery.LessEqual("block_height", param.ToBlockHeight))
+	caseQuery.And(caseQuery.Between("block_height", param.FromBlockHeight, param.ToBlockHeight))
 
 	selectQuery, args = caseQuery.Build()
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
