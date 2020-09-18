@@ -544,8 +544,7 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor,
-		query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewNodeReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewMerkleTreeQuery(),
@@ -553,7 +552,6 @@ func initP2pInstance() {
 		nodeConfigurationService,
 		nodeAuthValidationService,
 		loggerP2PService,
-		batchReceiptCacheStorage,
 	)
 
 	// peer discovery strategy

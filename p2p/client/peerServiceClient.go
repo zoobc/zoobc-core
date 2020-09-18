@@ -18,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
@@ -81,7 +80,6 @@ type (
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
 		NodeAuthValidation       auth.NodeAuthValidationInterface
-		BatchReceiptCacheStorage storage.CacheStorageInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -98,7 +96,6 @@ func NewPeerServiceClient(
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAuthValidation auth.NodeAuthValidationInterface,
 	logger *log.Logger,
-	batchReceiptCacheStorage storage.CacheStorageInterface,
 ) PeerServiceClientInterface {
 	// set to current struct log
 	return &PeerServiceClient{
@@ -130,7 +127,6 @@ func NewPeerServiceClient(
 		NodeConfigurationService: nodeConfigurationService,
 		PeerConnections:          make(map[string]*grpc.ClientConn),
 		NodeAuthValidation:       nodeAuthValidation,
-		BatchReceiptCacheStorage: batchReceiptCacheStorage,
 	}
 }
 
