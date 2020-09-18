@@ -835,7 +835,14 @@ type (
 	mockImportSnapshotFileNodeRegistrationServiceSuccess struct {
 		NodeRegistrationServiceInterface
 	}
+	mockScrambleNodeServiceInitSuccess struct {
+		ScrambleNodeService
+	}
 )
+
+func (*mockScrambleNodeServiceInitSuccess) InitializeScrambleCache(lastBlockHeight uint32) error {
+	return nil
+}
 
 func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
@@ -872,6 +879,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		TypeActionSwitcher            transaction.TypeActionSwitcher
 		BlockMainService              BlockServiceInterface
 		NodeRegistrationService       NodeRegistrationServiceInterface
+		ScrambleNodeService           ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -916,6 +924,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				},
 				BlockMainService:        &mockBlockMainServiceSuccess{},
 				NodeRegistrationService: &mockImportSnapshotFileNodeRegistrationServiceSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServiceInitSuccess{},
 			},
 		},
 	}
@@ -950,6 +959,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 				BlockMainService:              tt.fields.BlockMainService,
 				NodeRegistrationService:       tt.fields.NodeRegistrationService,
+				ScrambleNodeService:           tt.fields.ScrambleNodeService,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

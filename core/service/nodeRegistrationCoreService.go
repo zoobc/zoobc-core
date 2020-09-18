@@ -3,9 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"fmt"
 	"math/big"
-	"sort"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -17,7 +15,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -29,6 +26,7 @@ type (
 		GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
+		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error)
@@ -36,12 +34,6 @@ type (
 			lastAdmissionTimestamp int64, blockHeight uint32, dbTx bool,
 		) (*model.NodeAdmissionTimestamp, error)
 		UpdateNextNodeAdmissionCache(newNextNodeAdmission *model.NodeAdmissionTimestamp) error
-		BuildScrambledNodes(block *model.Block) error
-		ResetScrambledNodes()
-		GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32
-		GetScrambleNodesByHeight(
-			blockHeight uint32,
-		) (*model.ScrambledNodes, error)
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
 		GenerateNodeAddressInfo(
@@ -356,149 +348,22 @@ func (nrs *NodeRegistrationService) UpdateNextNodeAdmissionCache(newNextNodeAdmi
 	return nil
 }
 
-func (nrs *NodeRegistrationService) BuildScrambledNodesAtHeight(blockHeight uint32) error {
+// GetNodeRegistryAtHeight get active node registry list at the given height
+func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error) {
 	var (
-		nearestBlock model.Block
-		err          error
-	)
-	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(blockHeight)
-	nearestBlockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nearestHeight), false)
-	err = nrs.BlockQuery.Scan(&nearestBlock, nearestBlockRow)
-	if err != nil {
-		return err
-	}
-	return nrs.sortNodeRegistries(&nearestBlock)
-}
-
-// sortNodeRegistries this function is responsible of selecting and sorting registered nodes so that nodes/peers in scrambledNodes map changes
-// order at a given interval
-// note: this algorithm is deterministic for the whole network so that,
-// at any point in time every node can calculate this map autonomously, given its node registry is updated
-func (nrs *NodeRegistrationService) sortNodeRegistries(
-	block *model.Block,
-) error {
-	var (
-		nodeRegistries  []*model.NodeRegistration
-		newAddressNodes []*model.Peer
-		newIndexNodes   = make(map[string]*int)
-		err             error
+		result []*model.NodeRegistration
+		err    error
 	)
 
-	// get node registry list
 	rows, err := nrs.QueryExecutor.ExecuteSelect(
-		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(block.GetHeight()),
+		nrs.NodeRegistrationQuery.GetNodeRegistryAtHeight(height),
 		false,
 	)
 	if err != nil {
-		return err
+		return result, err
 	}
 	defer rows.Close()
-	nodeRegistries, err = nrs.NodeRegistrationQuery.BuildModel(nodeRegistries, rows)
-	if err != nil {
-		return err
-	}
-	// sort node registry
-	sort.SliceStable(nodeRegistries, func(i, j int) bool {
-		ni, nj := nodeRegistries[i], nodeRegistries[j]
-
-		// Get Hash of joined  with block seed & node ID
-		// TODO : Enhance, to precomputing the hash/bigInt before sorting
-		// 		  to avoid repeated hash computation while sorting
-		hashI := sha3.Sum256(append(block.GetBlockSeed(), byte(ni.GetNodeID())))
-		hashJ := sha3.Sum256(append(block.GetBlockSeed(), byte(nj.GetNodeID())))
-		resI := new(big.Int).SetBytes(hashI[:])
-		resJ := new(big.Int).SetBytes(hashJ[:])
-
-		res := resI.Cmp(resJ)
-		// Ascending sort
-		return res < 0
-	})
-	// Restructure & validating node address
-	for key, node := range nodeRegistries {
-		nai, err := nrs.NodeAddressInfoService.GetAddressInfoByNodeIDWithPreferredStatus(
-			node.GetNodeID(),
-			model.NodeAddressStatus_NodeAddressPending,
-		)
-		if err != nil {
-			return err
-		}
-		peer := &model.Peer{
-			Info: &model.Node{
-				ID: node.GetNodeID(),
-			},
-		}
-		// p2p: add peer to index and address nodes only if node has address
-		scrambleDNodeMapKey := fmt.Sprintf("%d", node.GetNodeID())
-		if nai != nil {
-			peer.Info.Address = nai.GetAddress()
-			peer.Info.Port = nai.GetPort()
-			peer.Info.SharedAddress = nai.GetAddress()
-			peer.Info.AddressStatus = nai.GetStatus()
-		}
-		index := key
-		newIndexNodes[scrambleDNodeMapKey] = &index
-		newAddressNodes = append(newAddressNodes, peer)
-	}
-	// build the scrambled node map
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
-	// memoize the scrambled nodes
-	nrs.ScrambledNodes[block.Height] = &model.ScrambledNodes{
-		AddressNodes: newAddressNodes,
-		IndexNodes:   newIndexNodes,
-		BlockHeight:  block.Height,
-	}
-
-	return nil
-}
-
-// BuildScrambleNodes,  build sorted scramble nodes based on node registry
-func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
-	return nrs.sortNodeRegistries(block)
-}
-
-func (nrs *NodeRegistrationService) ResetScrambledNodes() {
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
-	nrs.ScrambledNodes = map[uint32]*model.ScrambledNodes{}
-}
-
-func (nrs *NodeRegistrationService) GetScrambleNodesByHeight(
-	blockHeight uint32,
-) (*model.ScrambledNodes, error) {
-	var (
-		newAddressNodes []*model.Peer
-		newIndexNodes   = make(map[string]*int)
-		err             error
-	)
-	nearestHeight := nrs.GetBlockHeightToBuildScrambleNodes(blockHeight)
-	nrs.ScrambledNodesLock.RLock()
-	scrambleNodeExist := nrs.ScrambledNodes[nearestHeight]
-	nrs.ScrambledNodesLock.RUnlock()
-	if scrambleNodeExist == nil || blockHeight < constant.ScrambleNodesSafeHeight {
-		err = nrs.BuildScrambledNodesAtHeight(nearestHeight)
-		if err != nil {
-			return nil, err
-		}
-	}
-	nrs.ScrambledNodesLock.Lock()
-	defer nrs.ScrambledNodesLock.Unlock()
-	scrambledNodes := nrs.ScrambledNodes[nearestHeight]
-	newAddressNodes = append(newAddressNodes, scrambledNodes.AddressNodes...)
-	// in the window, deep copy the nodes
-	for key, indexNode := range scrambledNodes.IndexNodes {
-		tempVal := *indexNode
-		newIndexNodes[key] = &tempVal
-	}
-	return &model.ScrambledNodes{
-		AddressNodes: newAddressNodes,
-		IndexNodes:   newIndexNodes,
-		BlockHeight:  scrambledNodes.BlockHeight,
-	}, nil
-}
-
-func (nrs *NodeRegistrationService) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
-	return lastBlockHeight - (lastBlockHeight % constant.PriorityStrategyBuildScrambleNodesGap)
+	return nrs.NodeRegistrationQuery.BuildModel(result, rows)
 }
 
 // AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number

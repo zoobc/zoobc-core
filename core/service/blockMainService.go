@@ -86,6 +86,7 @@ type (
 		PruneQuery                  []query.PruneQuery
 		BlockStateStorage           storage.CacheStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 )
 
@@ -124,6 +125,7 @@ func NewBlockMainService(
 	pruneQuery []query.PruneQuery,
 	blockStateStorage storage.CacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
+	scrambleNodeService ScrambleNodeServiceInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -160,6 +162,7 @@ func NewBlockMainService(
 		PruneQuery:                  pruneQuery,
 		BlockStateStorage:           blockStateStorage,
 		BlockchainStatusService:     blockchainStatusService,
+		ScrambleNodeService:         scrambleNodeService,
 	}
 }
 
@@ -562,8 +565,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	// building scrambled node registry
-	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
-		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
+	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
 			return err
@@ -1430,7 +1433,10 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	//
 
 	// remove peer memoization
-	bs.NodeRegistrationService.ResetScrambledNodes()
+	err = bs.ScrambleNodeService.PopOffScrambleToHeight(0)
+	if err != nil {
+		return nil, err
+	}
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
 

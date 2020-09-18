@@ -38,6 +38,7 @@ func startGrpcServer(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
@@ -93,7 +94,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, scrambleNodeService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -235,6 +236,7 @@ func Start(
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
@@ -253,6 +255,7 @@ func Start(
 		nodeRegistrationService,
 		nodeAddressInfoService,
 		mempoolService,
+		scrambleNodeService,
 		transactionUtil,
 		actionTypeSwitcher,
 		blockStateStorages,

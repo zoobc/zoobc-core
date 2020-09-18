@@ -119,12 +119,15 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			nil,
 			nil,
 		)
+		scramblecache       = storage.NewScrambleCacheStackStorage()
+		scrambleNodeService = service.NewScrambleNodeService(
+			nodeRegistrationService, nodeAddressInfoService, queryExecutor, query.NewBlockQuery(&chaintype.MainChain{}), scramblecache)
 	)
 	err = nodeAddressInfoService.ClearUpdateNodeAddressInfoCache()
 	if err != nil {
 		panic(err)
 	}
-	scrambledNodes, err := nodeRegistrationService.GetScrambleNodesByHeight(wantedBlockHeight)
+	scrambledNodes, err := scrambleNodeService.GetScrambleNodesByHeight(wantedBlockHeight)
 	if err != nil {
 		panic(err)
 	}
