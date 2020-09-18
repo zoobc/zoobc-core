@@ -59,8 +59,8 @@ type (
 		Smithing       bool   `json:"Smithing,omitempty"`
 	}
 	accountNodeEntry struct {
-		NodePublicKey  string
-		AccountAddress string
+		NodePublicKey  string `json:"NodePublicKey"`
+		AccountAddress string `json:"AccountAddress"`
 	}
 	parseErrorLog struct {
 		AccountAddress    string `json:"AccountAddress"`
