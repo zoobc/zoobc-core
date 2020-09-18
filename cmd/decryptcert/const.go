@@ -9,8 +9,9 @@ type (
 		Smithing       bool   `json:"Smithing,omitempty"`
 	}
 	certEntry struct {
-		NodeSeed       string `json:"nodeKey"`
+		NodeSeed       string `json:"nodeSeed"`
 		AccountAddress string `json:"ownerAccount"`
+		NodePublicKey  string `json:"nodePublicKey"`
 	}
 	encryptedCertEntry struct {
 		EncryptedCert string `json:"encryptedCert"`

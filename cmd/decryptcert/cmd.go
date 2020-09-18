@@ -58,9 +58,11 @@ func decryptCertCommand(*cobra.Command, []string) {
 			if err := os.MkdirAll(outPath, os.ModePerm); err != nil {
 				log.Fatalf("can't create folder %s. error: %s", outPath, err)
 			}
-			if _, err := generateClusterConfigFile(decryptedCertEntries, path.Join(outPath, "cluster_config_seatSale.json")); err != nil {
+			fName := "hosted_preRegisteredNodes.json"
+			if _, err := generateClusterConfigFile(decryptedCertEntries, path.Join(outPath, fName)); err != nil {
 				log.Fatalf("error generating output file. error: %s", err)
 			}
+			log.Printf("Success! check the file : %s/%s", outPath, fName)
 		}
 	}
 
@@ -96,9 +98,14 @@ func generateClusterConfigFile(entries []certEntry, newClusterConfigFilePath str
 		var nodePubKeyStr string
 		// exclude entries that don't have NodeSeed set from cluster_config.json
 		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
-		// TODO: node pub key will come from the certificate too instead of being parsed by the node. when this is ready,
-		//  add a verification step that the NodePublicKey from cert = the one parsed by node using node seed (the line below)
-		_, _, _, nodePubKeyStr, err = sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, genEntry.NodeSeed)
+
+		// verify that the NodePublicKey from cert = the one parsed by node using node seed
+		_, _, nodePubKeyStr, _, err = sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, genEntry.NodeSeed)
+		if genEntry.NodePublicKey != nodePubKeyStr {
+			log.Printf("invalid node pub key:\npk: %s\ncomputed: %s\nacc: %s",
+				genEntry.NodePublicKey, nodePubKeyStr, genEntry.AccountAddress)
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
