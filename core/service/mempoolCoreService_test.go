@@ -673,12 +673,7 @@ func (*mockReceiptUtilError) GetReceiptKey(
 }
 
 func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
+	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.BatchReceipt, error) {
 	return &model.BatchReceipt{}, nil
 }
@@ -741,17 +736,6 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 			name: "Fail:ParseTransaction_error",
 			fields: fields{
 				TransactionUtil:     &mockTransactionUtilErrorParse{},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-			},
-			args:    args{},
-			want:    want{},
-			wantErr: true,
-		},
-		{
-			name: "Fail:GetReceiptKey_error",
-			fields: fields{
-				TransactionUtil:     &mockTransactionUtilSuccess{},
-				ReceiptUtil:         &mockReceiptUtilError{},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},

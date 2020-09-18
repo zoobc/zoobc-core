@@ -53,7 +53,7 @@ type (
 		) error
 		RequestBlockTransactions(
 			destPeer *model.Peer,
-			transactonIDs []int64,
+			transactionIDs []int64,
 			chainType chaintype.ChainType,
 			blockID int64,
 		) error
@@ -531,7 +531,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 
 func (psc *PeerServiceClient) RequestBlockTransactions(
 	destPeer *model.Peer,
-	transactonIDs []int64,
+	transactionIDs []int64,
 	chainType chaintype.ChainType,
 	blockID int64,
 ) error {
@@ -550,7 +550,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 		cancelReq()
 	}()
 	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactionsRequest{
-		TransactionIDs: transactonIDs,
+		TransactionIDs: transactionIDs,
 		ChainType:      chainType.GetTypeInt(),
 		BlockID:        blockID,
 	})
@@ -727,7 +727,7 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
 
-	duplicated, err := psc.ReceiptService.IsDuplicated(batchReceipt.GetRecipientPublicKey(), batchReceipt.GetDatumHash())
+	duplicated, err := psc.ReceiptService.IsDuplicated(psc.NodePublicKey, batchReceipt.GetDatumHash())
 	if err != nil {
 		return err
 	}
@@ -735,7 +735,7 @@ func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) err
 		return errors.New("duplicated receipt")
 	}
 
-	err = psc.BatchReceiptCacheStorage.SetItem(nil, batchReceipt)
+	err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
 	if err != nil {
 		return err
 	}

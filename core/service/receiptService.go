@@ -36,10 +36,11 @@ type (
 			receivedDatumHash []byte,
 			lastBlock *model.Block,
 			senderPublicKey []byte,
-			nodeSecretPhrase, receiptKey string,
+			nodeSecretPhrase string,
 			datumType uint32,
 		) (*model.BatchReceipt, error)
 		IsDuplicated(publicKey []byte, datumHash []byte) (duplicated bool, err error)
+		StoreBatchReceipt(batchReceipt *model.BatchReceipt, senderPublicKey []byte, chaintype chaintype.ChainType) error
 	}
 
 	ReceiptService struct {
@@ -464,7 +465,7 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 	receivedDatumHash []byte,
 	lastBlock *model.Block,
 	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
+	nodeSecretPhrase string,
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
 	var (
@@ -499,13 +500,26 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		nodeSecretPhrase,
 	)
 
-	err = rs.ReceiptReminderStorage.SetItem(receiptKey, ct)
+	err = rs.StoreBatchReceipt(batchReceipt, senderPublicKey, ct)
 	if err != nil {
 		return nil, err
 	}
+	return batchReceipt, err
+}
 
+func (rs *ReceiptService) StoreBatchReceipt(batchReceipt *model.BatchReceipt, senderPublicKey []byte, chaintype chaintype.ChainType) error {
+	receiptKey, err := rs.ReceiptUtil.GetReceiptKey(batchReceipt.GetDatumHash(), senderPublicKey)
+	if err != nil {
+		return err
+	}
 	b := *batchReceipt
 	err = rs.BatchReceiptCacheStorage.SetItem(nil, b)
-
-	return batchReceipt, err
+	if err != nil {
+		return err
+	}
+	err = rs.ReceiptReminderStorage.SetItem(receiptKey, chaintype)
+	if err != nil {
+		return err
+	}
+	return nil
 }
