@@ -97,7 +97,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 		bcStateMap     = make(map[string]genesisEntry)
 	)
 
-	// import pre-registered-nodes
+	// import seatSale pre-registered-nodes (nodes generated from a wallet certificate that are going to be hosted by the company)
 	file, err := ioutil.ReadFile(path.Join(getRootPath(), fmt.Sprintf("./resource/templates/%s.seatSale.json", envTarget)))
 	if err == nil {
 		var seatSaleNodes []genesisEntry
@@ -185,6 +185,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 	for _, entry := range genesisEntries {
 		newEntry := accountNodeEntry{
 			AccountAddress: entry.AccountAddress,
+			NodePublicKey:  entry.NodePublicKey,
 		}
 		accountNodes = append(accountNodes, newEntry)
 	}

@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -23,62 +24,58 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Suppress "imported and not used" errors
 var _ codes.Code
 var _ io.Reader
 var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
+var _ = descriptor.ForMessage
 
-func request_NodeHardwareService_GetNodeHardware_0(ctx context.Context, marshaler runtime.Marshaler, client NodeHardwareServiceClient, req *http.Request, pathParams map[string]string) (NodeHardwareService_GetNodeHardwareClient, runtime.ServerMetadata, error) {
+func request_NodeHardwareService_GetNodeTime_0(ctx context.Context, marshaler runtime.Marshaler, client NodeHardwareServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.Empty
 	var metadata runtime.ServerMetadata
-	stream, err := client.GetNodeHardware(ctx)
-	if err != nil {
-		grpclog.Infof("Failed to start streaming: %v", err)
-		return nil, metadata, err
-	}
-	dec := marshaler.NewDecoder(req.Body)
-	handleSend := func() error {
-		var protoReq model.GetNodeHardwareRequest
-		err := dec.Decode(&protoReq)
-		if err == io.EOF {
-			return err
-		}
+
+	msg, err := client.GetNodeTime(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_NodeHardwareService_GetNodeTime_0(ctx context.Context, marshaler runtime.Marshaler, server NodeHardwareServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.Empty
+	var metadata runtime.ServerMetadata
+
+	msg, err := server.GetNodeTime(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+// RegisterNodeHardwareServiceHandlerServer registers the http handlers for service NodeHardwareService to "mux".
+// UnaryRPC     :call NodeHardwareServiceServer directly.
+// StreamingRPC :currently unsupported pending https://github.com/grpc/grpc-go/issues/906.
+func RegisterNodeHardwareServiceHandlerServer(ctx context.Context, mux *runtime.ServeMux, server NodeHardwareServiceServer) error {
+
+	mux.Handle("GET", pattern_NodeHardwareService_GetNodeTime_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateIncomingContext(ctx, mux, req)
 		if err != nil {
-			grpclog.Infof("Failed to decode request: %v", err)
-			return err
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
 		}
-		if err := stream.Send(&protoReq); err != nil {
-			grpclog.Infof("Failed to send request: %v", err)
-			return err
+		resp, md, err := local_request_NodeHardwareService_GetNodeTime_0(rctx, inboundMarshaler, server, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
 		}
-		return nil
-	}
-	if err := handleSend(); err != nil {
-		if cerr := stream.CloseSend(); cerr != nil {
-			grpclog.Infof("Failed to terminate client stream: %v", cerr)
-		}
-		if err == io.EOF {
-			return stream, metadata, nil
-		}
-		return nil, metadata, err
-	}
-	go func() {
-		for {
-			if err := handleSend(); err != nil {
-				break
-			}
-		}
-		if err := stream.CloseSend(); err != nil {
-			grpclog.Infof("Failed to terminate client stream: %v", err)
-		}
-	}()
-	header, err := stream.Header()
-	if err != nil {
-		grpclog.Infof("Failed to get header from client: %v", err)
-		return nil, metadata, err
-	}
-	metadata.HeaderMD = header
-	return stream, metadata, nil
+
+		forward_NodeHardwareService_GetNodeTime_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
+	return nil
 }
 
 // RegisterNodeHardwareServiceHandlerFromEndpoint is same as RegisterNodeHardwareServiceHandler but
@@ -119,7 +116,7 @@ func RegisterNodeHardwareServiceHandler(ctx context.Context, mux *runtime.ServeM
 // "NodeHardwareServiceClient" to call the correct interceptors.
 func RegisterNodeHardwareServiceHandlerClient(ctx context.Context, mux *runtime.ServeMux, client NodeHardwareServiceClient) error {
 
-	mux.Handle("GET", pattern_NodeHardwareService_GetNodeHardware_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_NodeHardwareService_GetNodeTime_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -128,14 +125,14 @@ func RegisterNodeHardwareServiceHandlerClient(ctx context.Context, mux *runtime.
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_NodeHardwareService_GetNodeHardware_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_NodeHardwareService_GetNodeTime_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_NodeHardwareService_GetNodeHardware_0(ctx, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+		forward_NodeHardwareService_GetNodeTime_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -143,9 +140,9 @@ func RegisterNodeHardwareServiceHandlerClient(ctx context.Context, mux *runtime.
 }
 
 var (
-	pattern_NodeHardwareService_GetNodeHardware_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "node", "GetNodeHardware"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_NodeHardwareService_GetNodeTime_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "health", "GetNodeTimeResponse"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
-	forward_NodeHardwareService_GetNodeHardware_0 = runtime.ForwardResponseStream
+	forward_NodeHardwareService_GetNodeTime_0 = runtime.ForwardResponseMessage
 )
