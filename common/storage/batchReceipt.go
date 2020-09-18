@@ -33,7 +33,7 @@ func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
 	)
 
 	if nItem, ok = item.(model.BatchReceipt); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid item")
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 
 	brs.receipts = append(brs.receipts, nItem)
@@ -52,7 +52,7 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 	)
 	nItems, ok = items.([]model.BatchReceipt)
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid item")
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	brs.receipts = nItems
 	return nil
@@ -77,7 +77,7 @@ func (brs *BatchReceiptCacheStorage) GetAllItems(items interface{}) error {
 		ok    bool
 	)
 	if nItem, ok = items.(*[]model.BatchReceipt); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid item")
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	*nItem = brs.receipts
 	return nil
