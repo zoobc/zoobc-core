@@ -2,12 +2,9 @@ package util
 
 import (
 	"bytes"
-	"math"
-	"reflect"
-
 	"github.com/zoobc/zoobc-core/common/constant"
+	"math"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -19,13 +16,19 @@ type MerkleRoot struct {
 // GenerateMerkleRoot generate the root of merkle and build the tree in MerkleRoot.HashTree
 // return only the root
 func (mr *MerkleRoot) GenerateMerkleRoot(items []*bytes.Buffer) (*bytes.Buffer, error) {
-	treeLevelLength := math.Log2(float64(len(items))) + 1
-	if treeLevelLength != float64(int64(treeLevelLength)) {
-		return nil, blocker.NewBlocker(
-			blocker.ValidationErr,
-			"wrong element length, it should be power of two",
-		)
+	treeLevelLength := math.Log2(float64(len(items)))
+	if treeLevelLength != math.Floor(treeLevelLength) {
+		// find `n` of lacking element and append until condition fulfilled
+		nearestBottom := math.Floor(treeLevelLength)
+		targetElementLength := math.Pow(2, nearestBottom+1)
+		neededElements := int(targetElementLength) - len(items)
+		duplicateLastElement := items[len(items)-1]
+		for i := 0; i < neededElements; i++ {
+			items = append(items, duplicateLastElement)
+		}
+		treeLevelLength = nearestBottom + 1 // added another level with duplicated elements
 	}
+	treeLevelLength++ // extra level for the root
 	mr.HashTree = make([][]*bytes.Buffer, int(treeLevelLength))
 	mr.HashTree[0] = items
 	result := mr.merkle(items)
@@ -101,7 +104,7 @@ func (mr *MerkleRoot) GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex in
 	)
 	for j := 0; j < len(mr.HashTree)-1; j++ {
 		if j == 0 {
-			if reflect.DeepEqual(leafHash.Bytes(), mr.HashTree[j][leafIndex].Bytes()) {
+			if bytes.Equal(leafHash.Bytes(), mr.HashTree[j][leafIndex].Bytes()) {
 				if (leafIndex+1)%2 == 0 {
 					necessaryHashes = append(necessaryHashes, mr.HashTree[j][leafIndex-1])
 				} else {

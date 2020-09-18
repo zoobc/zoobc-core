@@ -50,15 +50,29 @@ func TestAllMerkle(t *testing.T) {
 			}
 		}
 	})
-	t.Run("fail:validation", func(t *testing.T) {
+	t.Run("odd number of elements", func(t *testing.T) {
 		merkle := MerkleRoot{}
 		_, err := merkle.GenerateMerkleRoot([]*bytes.Buffer{
 			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
 			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
 			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
 		})
-		if err == nil {
-			t.Error("1 element should return error")
+		if err != nil {
+			t.Error("any element should be handled")
+		}
+	})
+	t.Run("non power of 2 even number of elements", func(t *testing.T) {
+		merkle := MerkleRoot{}
+		_, err := merkle.GenerateMerkleRoot([]*bytes.Buffer{
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+			bytes.NewBuffer([]byte{1, 2, 3, 4, 5}),
+		})
+		if err != nil {
+			t.Error("any element should be handled")
 		}
 	})
 }
