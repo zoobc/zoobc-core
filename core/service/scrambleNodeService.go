@@ -3,14 +3,15 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"math/big"
+	"sort"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"golang.org/x/crypto/sha3"
-	"math/big"
-	"sort"
 )
 
 type (
@@ -221,7 +222,10 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 	})
 	// Restructure & validating node address
 	for key, node := range nodeRegistries {
-		nai, err := sns.NodeAddressInfoService.GetAddressInfoByNodeID(node.GetNodeID(), model.NodeAddressStatus_NodeAddressPending)
+		nai, err := sns.NodeAddressInfoService.GetAddressInfoByNodeIDWithPreferredStatus(
+			node.GetNodeID(),
+			model.NodeAddressStatus_NodeAddressPending,
+		)
 		if err != nil {
 			return nil, err
 		}
