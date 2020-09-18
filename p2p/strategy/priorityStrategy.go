@@ -32,6 +32,7 @@ type (
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
 		BlockMainService         coreService.BlockServiceInterface
 		ResolvedPeersLock        sync.RWMutex
 		UnresolvedPeersLock      sync.RWMutex
@@ -51,6 +52,7 @@ type (
 func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	blockMainService coreService.BlockServiceInterface,
 	logger *log.Logger,
 	peerStrategyHelper PeerStrategyHelperInterface,
@@ -64,6 +66,7 @@ func NewPriorityStrategy(
 		NodeConfigurationService:    nodeConfigurationService,
 		PeerServiceClient:           peerServiceClient,
 		NodeRegistrationService:     nodeRegistrationService,
+		NodeAddressInfoService:      nodeAddressInfoService,
 		BlockMainService:            blockMainService,
 		MaxUnresolvedPeers:          constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:            constant.MaxResolvedPeers,
@@ -235,7 +238,7 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 	var nodeID = node.GetID()
 	if nodeID == 0 {
 		if node.Address != "" && node.Port != 0 {
-			nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(node.Address, node.Port,
+			nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(node.Address, node.Port,
 				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending,
 					model.NodeAddressStatus_NodeAddressConfirmed})
 			if err != nil || len(nais) == 0 {
@@ -495,7 +498,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 
 	// if peer nodeID = 0, check if the address is a pending  node address info
 	if peerNodeID == 0 {
-		nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+		nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
 			destPeerInfo.GetAddress(),
 			destPeerInfo.GetPort(),
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
@@ -516,8 +519,8 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 
 	// only validate priority peers addresses (the ones with nodeID)
 	if peerNodeID != 0 {
-		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-			[]int64{peerNodeID},
+		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeAddressInfoService.GetAddressInfoByNodeID(
+			peerNodeID,
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
 		); errNodeAddressInfo == nil {
 			if len(pendingAddressesInfo) > 0 {
@@ -528,8 +531,8 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 						pendingAddressesInfo[0]); errNodeAddressInfo == nil {
 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
 					}
-				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-					[]int64{pendingAddressesInfo[0].GetNodeID()},
+				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeAddressInfoService.GetAddressInfoByNodeID(
+					pendingAddressesInfo[0].GetNodeID(),
 					[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
 				); errNodeAddressInfo == nil && len(confirmedAddressesInfo) > 0 {
 					nai := confirmedAddressesInfo[0]
@@ -544,7 +547,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 					poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(tmpDestPeer)
 					if errPoorig == nil && poorig != nil {
 						// previous confirmed address is re-confirmed and pending address failed validation, so remove pending address
-						_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
+						_ = ps.NodeAddressInfoService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
 						// remove also unresolved peer who failed validation and change it with the new, confirmed, peer
 						_ = ps.RemoveUnresolvedPeer(destPeer)
 						destPeer = tmpDestPeer
@@ -593,7 +596,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 // resolvePendingAddresses get the list of pending addresses and resolve them
 func (ps *PriorityStrategy) resolvePendingAddresses() {
 	// get all pending nodeAddressInfo
-	nais, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{},
+	nais, err := ps.NodeAddressInfoService.GetAddressInfoByStatus(
 		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
 	if err != nil {
 		return
@@ -621,7 +624,7 @@ func (ps *PriorityStrategy) resolvePendingAddresses() {
 				}
 				// delete expired pending node addresses
 				if time.Now().Unix() > ps.NodeAddressesLastTryConnect[fullAddress]+constant.UnresolvedPendingPeerExpirationTimeOffset {
-					if err := ps.NodeRegistrationService.DeletePendingNodeAddressInfo(nai.GetNodeID()); err != nil {
+					if err := ps.NodeAddressInfoService.DeletePendingNodeAddressInfo(nai.GetNodeID()); err != nil {
 						ps.Logger.Errorf("cannot delete pending address for node %d", nai.GetNodeID())
 						return
 					}
@@ -1028,7 +1031,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 	peer.UnresolvingTime = time.Now().UTC().Unix()
 	// in case it doesn't have a nodeID, check if this unresolved peer is in address info table and assign proper id and address status
 	if peer.GetInfo() != nil && peer.Info.ID == 0 {
-		if nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+		if nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
 			peer.Info.Address,
 			peer.Info.Port,
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending, model.NodeAddressStatus_NodeAddressConfirmed},
@@ -1269,7 +1272,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		return nil, err
 	} else if curNodeRegistration != nil {
 		// node own address is always 'confirmed'
-		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{curNodeRegistration.GetNodeID()},
+		if myAddressesInfo, err := ps.NodeAddressInfoService.GetAddressInfoByNodeID(curNodeRegistration.GetNodeID(),
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed}); err != nil {
 			return nil, err
 		} else if len(myAddressesInfo) > 0 {

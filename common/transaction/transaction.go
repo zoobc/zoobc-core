@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -42,9 +43,10 @@ type (
 	}
 	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
-		Executor            query.ExecutorInterface
-		NodeAuthValidation  auth.NodeAuthValidationInterface
-		MempoolCacheStorage storage.CacheStorageInterface
+		Executor               query.ExecutorInterface
+		NodeAuthValidation     auth.NodeAuthValidationInterface
+		NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
+		MempoolCacheStorage    storage.CacheStorageInterface
 	}
 )
 
@@ -158,17 +160,18 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
-				QueryExecutor:         ts.Executor,
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  accountBalanceHelper,
+				ID:                     tx.GetID(),
+				Body:                   transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
+				Fee:                    tx.Fee,
+				SenderAddress:          tx.GetSenderAccountAddress(),
+				Height:                 tx.GetHeight(),
+				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
+				QueryExecutor:          ts.Executor,
+				AccountLedgerQuery:     query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:   accountBalanceHelper,
+				NodeAddressInfoStorage: ts.NodeAddressInfoStorage,
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -176,18 +179,19 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  accountBalanceHelper,
+				ID:                     tx.GetID(),
+				Body:                   transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
+				Fee:                    tx.Fee,
+				SenderAddress:          tx.GetSenderAccountAddress(),
+				Height:                 tx.GetHeight(),
+				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:              ts.NodeAuthValidation,
+				QueryExecutor:          ts.Executor,
+				AccountLedgerQuery:     query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:   accountBalanceHelper,
+				NodeAddressInfoStorage: ts.NodeAddressInfoStorage,
 			}, nil
 		default:
 			return nil, nil

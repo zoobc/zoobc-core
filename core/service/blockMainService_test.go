@@ -967,6 +967,9 @@ type (
 	mockBlockchainStatusService struct {
 		BlockchainStatusService
 	}
+	mockPushBlockNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
 )
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
@@ -986,6 +989,11 @@ func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([
 func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
 	return 0, nil
 }
+
+func (*mockPushBlockNodeAddressInfoServiceSuccess) ExecuteWaitedNodeAddressInfoCache() error {
+	return nil
+}
+func (*mockPushBlockNodeAddressInfoServiceSuccess) ClearWaitedNodeAddressInfoCache() {}
 
 type (
 	mockPushBlockFeeScaleServiceNoAdjust struct {
@@ -1054,6 +1062,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		NodeAddressInfoService  NodeAddressInfoServiceInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		BlockPoolService        BlockPoolServiceInterface
@@ -1092,6 +1101,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
@@ -1122,6 +1132,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
@@ -1167,6 +1178,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
 				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
@@ -1205,6 +1217,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -1250,6 +1263,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
+				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -1305,6 +1319,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				Observer:                tt.fields.Observer,
 				Logger:                  log.New(),
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
 				ReceiptUtil:             &coreUtil.ReceiptUtil{},
@@ -1894,7 +1909,15 @@ type (
 	mockAddGenesisFeeScaleServiceCache struct {
 		fee.FeeScaleServiceInterface
 	}
+	mockAddGenesisNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
 )
+
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) ExecuteWaitedNodeAddressInfoCache() error {
+	return nil
+}
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) ClearWaitedNodeAddressInfoCache() {}
 
 func (*mockAddGenesisFeeScaleServiceCache) GetCurrentPhase(
 	blockTimestamp int64,
@@ -1949,6 +1972,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		ActionTypeSwitcher      transaction.TypeActionSwitcher
 		Observer                *observer.Observer
 		NodeRegistrationService NodeRegistrationServiceInterface
+		NodeAddressInfoService  NodeAddressInfoServiceInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
 		BlockPoolService        BlockPoolServiceInterface
 		Logger                  *log.Logger
@@ -1977,6 +2001,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockAddGenesisNodeAddressInfoServiceSuccess{},
 				BlocksmithStrategy:      &mockBlocksmithServiceAddGenesisSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
@@ -2014,6 +2039,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
 				Observer:                tt.fields.Observer,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
 				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
 				BlockPoolService:        tt.fields.BlockPoolService,
 				Logger:                  tt.fields.Logger,

@@ -4,15 +4,16 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
@@ -99,14 +100,13 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		queryExecutor          = query.NewQueryExecutor(dB)
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
-			query.NewNodeRegistrationQuery(),
 			query.NewNodeAddressInfoQuery(),
+			storage.NewNodeAddressInfoStorage(),
 			logrus.New(),
 		)
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,
-			query.NewNodeAddressInfoQuery(),
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
@@ -123,7 +123,10 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		scrambleNodeService = service.NewScrambleNodeService(
 			nodeRegistrationService, nodeAddressInfoService, queryExecutor, query.NewBlockQuery(&chaintype.MainChain{}), scramblecache)
 	)
-
+	err = nodeAddressInfoService.ClearUpdateNodeAddressInfoCache()
+	if err != nil {
+		panic(err)
+	}
 	scrambledNodes, err := scrambleNodeService.GetScrambleNodesByHeight(wantedBlockHeight)
 	if err != nil {
 		panic(err)

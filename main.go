@@ -55,6 +55,7 @@ var (
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
+	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -240,6 +241,8 @@ func initiateMainInstance() {
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
+	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
+
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -255,20 +258,20 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 	)
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor:            queryExecutor,
-		MempoolCacheStorage: mempoolStorage,
-		NodeAuthValidation:  nodeAuthValidationService,
+		Executor:               queryExecutor,
+		MempoolCacheStorage:    mempoolStorage,
+		NodeAddressInfoStorage: nodeAddressInfoStorage,
+		NodeAuthValidation:     nodeAuthValidationService,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
 		queryExecutor,
-		query.NewNodeRegistrationQuery(),
 		query.NewNodeAddressInfoQuery(),
+		nodeAddressInfoStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
 		queryExecutor,
-		query.NewNodeAddressInfoQuery(),
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
@@ -400,6 +403,7 @@ func initiateMainInstance() {
 		mempoolService,
 		receiptService,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -569,6 +573,7 @@ func initP2pInstance() {
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
 		peerServiceClient,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		mainchainBlockService,
 		loggerP2PService,
 		p2pStrategy.NewPeerStrategyHelper(),
@@ -631,6 +636,7 @@ func startServices() {
 		p2pServiceInstance,
 		blockServices,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		mempoolService,
 		scrambleNodeService,
 		transactionUtil,
@@ -665,7 +671,7 @@ func startNodeMonitoring() {
 	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
 		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
 	}
-	if cna, err := nodeRegistrationService.CountNodesAddressByStatus(); err == nil {
+	if cna, err := nodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
 		for status, counter := range cna {
 			monitoring.SetNodeAddressStatusCount(counter, status)
 		}
@@ -707,6 +713,10 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 	}
 	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
+	if err != nil {
+		loggerCoreService.Fatal(err)
+	}
+	err = nodeAddressInfoService.ClearUpdateNodeAddressInfoCache()
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}

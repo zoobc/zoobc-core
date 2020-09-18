@@ -8,23 +8,25 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
 type RemoveNodeRegistration struct {
-	ID                    int64
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	Body                  *model.RemoveNodeRegistrationTransactionBody
-	Escrow                *model.Escrow
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AccountLedgerQuery    query.AccountLedgerQueryInterface
-	AccountBalanceHelper  AccountBalanceHelperInterface
+	ID                     int64
+	Fee                    int64
+	SenderAddress          string
+	Height                 uint32
+	Body                   *model.RemoveNodeRegistrationTransactionBody
+	Escrow                 *model.Escrow
+	AccountBalanceQuery    query.AccountBalanceQueryInterface
+	NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
+	NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
+	QueryExecutor          query.ExecutorInterface
+	AccountLedgerQuery     query.AccountLedgerQueryInterface
+	AccountBalanceHelper   AccountBalanceHelperInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -118,6 +120,20 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		return err
 	}
 
+	// Remove Node Address Info on cache storage
+	err = tx.NodeAddressInfoStorage.AddAwaitedRemoveItem(
+		storage.NodeAddressInfoStorageKey{
+			NodeID: nodeReg.NodeID,
+			Statuses: []model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressPending,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_Unset,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
