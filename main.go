@@ -543,7 +543,17 @@ func initLogInstance(logPath string) {
 
 func initP2pInstance() {
 	// initialize peer client service
-	peerServiceClient = client.NewPeerServiceClient(queryExecutor, query.NewNodeReceiptQuery(), config.NodeKey.PublicKey, nodeRegistrationService, query.NewMerkleTreeQuery(), receiptService, nodeConfigurationService, nodeAuthValidationService, loggerP2PService, nil)
+	peerServiceClient = client.NewPeerServiceClient(
+		queryExecutor, query.NewNodeReceiptQuery(),
+		config.NodeKey.PublicKey,
+		nodeRegistrationService,
+		query.NewMerkleTreeQuery(),
+		receiptService,
+		nodeConfigurationService,
+		nodeAuthValidationService,
+		loggerP2PService,
+		batchReceiptCacheStorage,
+	)
 
 	// peer discovery strategy
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
@@ -556,7 +566,15 @@ func initP2pInstance() {
 		blockchainStatusService,
 		crypto.NewSignature(),
 	)
-	p2pServiceInstance, _ = p2p.NewP2PService(peerServiceClient, peerExplorer, loggerP2PService, transactionUtil, fileService, nodeRegistrationService, nodeConfigurationService)
+	p2pServiceInstance, _ = p2p.NewP2PService(
+		peerServiceClient,
+		peerExplorer,
+		loggerP2PService,
+		transactionUtil,
+		fileService,
+		nodeRegistrationService,
+		nodeConfigurationService,
+	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
 		fileService,
