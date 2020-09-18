@@ -41,13 +41,13 @@ func NewNodeAddressInfoStorage() *NodeAddressInfoStorage {
 }
 
 func (nas *NodeAddressInfoStorage) SetItem(key, item interface{}) error {
-	nas.Lock()
-	defer nas.Unlock()
 	var nodeAddressInfo, ok = item.(model.NodeAddressInfo)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKey")
 	}
 	fullAddress := nodeAddressInfo.Address + ":" + strconv.Itoa(int(nodeAddressInfo.Port))
+	nas.Lock()
+	defer nas.Unlock()
 	if nas.nodeAddressInfoMapByID[nodeAddressInfo.NodeID] == nil {
 		nas.nodeAddressInfoMapByID[nodeAddressInfo.NodeID] = make(map[string]model.NodeAddressInfo)
 	}

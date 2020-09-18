@@ -254,8 +254,8 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 	qry, args := nru.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressInfo)
 	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
-		_ = nru.QueryExecutor.RollbackTx()
-		nru.Logger.Error(err)
+		errRollback := nru.QueryExecutor.RollbackTx()
+		nru.Logger.Error(errRollback)
 		return err
 	}
 	err = nru.QueryExecutor.CommitTx()
@@ -278,8 +278,8 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 	qryArgs := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
 	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
 	if err != nil {
-		_ = nru.QueryExecutor.RollbackTx()
-		nru.Logger.Error(err)
+		errRollback := nru.QueryExecutor.RollbackTx()
+		nru.Logger.Error(errRollback)
 		return err
 	}
 	err = nru.QueryExecutor.CommitTx()
@@ -316,13 +316,16 @@ func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo
 		return err
 	}
 	// first remove all node address info based on provided node ID
-	_ = nru.NodeAddressInfoStorage.RemoveItem(storage.NodeAddressInfoStorageKey{
+	err = nru.NodeAddressInfoStorage.RemoveItem(storage.NodeAddressInfoStorageKey{
 		NodeID: pendingNodeAddressInfo.NodeID,
 		Statuses: []model.NodeAddressStatus{
 			model.NodeAddressStatus_NodeAddressConfirmed,
 			model.NodeAddressStatus_NodeAddressPending,
 		},
 	})
+	if err != nil {
+		return err
+	}
 	// then add new address info
 	err = nru.NodeAddressInfoStorage.SetItem(nil, *pendingNodeAddressInfo)
 	if err != nil {
@@ -384,7 +387,7 @@ func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID in
 		return err
 	}
 	// add into list of awaited remove node address info
-	err = nru.NodeAddressInfoStorage.AddAwaitedRemoveItem(
+	return nru.NodeAddressInfoStorage.AddAwaitedRemoveItem(
 		storage.NodeAddressInfoStorageKey{
 			NodeID: nodeID,
 			Statuses: []model.NodeAddressStatus{
@@ -394,10 +397,6 @@ func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID in
 			},
 		},
 	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // RemoveWaitedNodeAddressInfoCache will remove all node address info on
