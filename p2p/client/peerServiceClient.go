@@ -2,23 +2,23 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/util"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
@@ -52,7 +52,7 @@ type (
 		) error
 		RequestBlockTransactions(
 			destPeer *model.Peer,
-			transactonIDs []int64,
+			transactionIDs []int64,
 			chainType chaintype.ChainType,
 			blockID int64,
 		) error
@@ -72,7 +72,6 @@ type (
 		Logger                   *log.Logger
 		QueryExecutor            query.ExecutorInterface
 		NodeReceiptQuery         query.NodeReceiptQueryInterface
-		BatchReceiptQuery        query.BatchReceiptQueryInterface
 		MerkleTreeQuery          query.MerkleTreeQueryInterface
 		ReceiptService           coreService.ReceiptServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
@@ -92,7 +91,6 @@ func NewPeerServiceClient(
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	nodePublicKey []byte,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
@@ -121,7 +119,6 @@ func NewPeerServiceClient(
 		},
 		QueryExecutor:            queryExecutor,
 		NodeReceiptQuery:         nodeReceiptQuery,
-		BatchReceiptQuery:        batchReceiptQuery,
 		MerkleTreeQuery:          merkleTreeQuery,
 		ReceiptService:           receiptService,
 		NodeRegistrationService:  nodeRegistrationService,
@@ -530,7 +527,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 
 func (psc *PeerServiceClient) RequestBlockTransactions(
 	destPeer *model.Peer,
-	transactonIDs []int64,
+	transactionIDs []int64,
 	chainType chaintype.ChainType,
 	blockID int64,
 ) error {
@@ -549,7 +546,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 		cancelReq()
 	}()
 	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactionsRequest{
-		TransactionIDs: transactonIDs,
+		TransactionIDs: transactionIDs,
 		ChainType:      chainType.GetTypeInt(),
 		BlockID:        blockID,
 	})
@@ -725,13 +722,16 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
-	var (
-		err error
-	)
 
-	psc.Logger.Info("Insert Batch Receipt")
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(batchReceipt)
-	_, err = psc.QueryExecutor.ExecuteStatement(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
+	duplicated, err := psc.ReceiptService.IsDuplicated(psc.NodePublicKey, batchReceipt.GetDatumHash())
+	if err != nil {
+		return err
+	}
+	if duplicated {
+		return errors.New("duplicated receipt")
+	}
+
+	err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
 	if err != nil {
 		return err
 	}

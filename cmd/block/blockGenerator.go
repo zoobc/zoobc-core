@@ -127,7 +127,6 @@ func initialize(
 	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
-		nil,
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
@@ -136,6 +135,7 @@ func initialize(
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
+		nil,
 		nil,
 		nil,
 		nil,

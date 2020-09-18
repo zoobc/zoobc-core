@@ -2752,12 +2752,7 @@ type (
 )
 
 func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
+	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.BatchReceipt, error) {
 	return nil, nil
 }
@@ -2770,12 +2765,7 @@ func (mrs *mockReceiptServiceSuccess) IsDuplicated([]byte, []byte) (duplicated b
 }
 
 func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
+	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.BatchReceipt, error) {
 	return nil, errors.New("mockedErr")
 }

@@ -438,13 +438,6 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	receivedTxHash := sha3.Sum256(receivedTxBytes)
-	receiptKey, err := mps.ReceiptUtil.GetReceiptKey(
-		receivedTxHash[:], senderPublicKey,
-	)
-	if err != nil {
-		return nil, nil, status.Error(codes.Internal, err.Error())
-	}
-
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(receivedTx); err != nil {
 		specificErr := err.(blocker.Blocker)
@@ -464,12 +457,9 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 	}
 
 	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
-		mps.Chaintype,
-		receivedTxHash[:],
-		lastBlock,
-		senderPublicKey,
+		mps.Chaintype, receivedTxHash[:],
+		lastBlock, senderPublicKey,
 		nodeSecretPhrase,
-		string(receiptKey),
 		constant.ReceiptDatumTypeTransaction,
 	)
 
