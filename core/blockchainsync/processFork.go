@@ -2,20 +2,20 @@ package blockchainsync
 
 import (
 	"bytes"
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"math/big"
 )
 
 type (
@@ -28,11 +28,11 @@ type (
 		QueryExecutor         query.ExecutorInterface
 		ActionTypeSwitcher    transaction.TypeActionSwitcher
 		MempoolService        service.MempoolServiceInterface
-		KVExecutor            kvdb.KVExecutorInterface
 		Logger                *log.Logger
 		PeerExplorer          strategy.PeerExplorerStrategyInterface
 		TransactionUtil       transaction.UtilInterface
 		TransactionCorService service.TransactionCoreServiceInterface
+		MempoolBackupStorage  storage.CacheStorageInterface
 	}
 )
 
@@ -206,7 +206,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 117)
 	if fp.ChainType.HasTransactions() {
-		// start restoring mempool from badgerDB
+		// start restoring mempool
 		err = fp.restoreMempoolsBackup()
 		if err != nil {
 			fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
@@ -271,38 +271,30 @@ func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 	// TODO: analyze if this mechanism is necessary
 }
 
-// restoreMempoolsBackup will restore transaction from badgerDB and try to re-ApplyUnconfirmed
+// restoreMempoolsBackup will restore transactio and try to re-ApplyUnconfirmed
 func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
-		mempoolsBackupBytes []byte
-		prev                uint32
-		err                 error
+		err      error
+		mempools map[int64][]byte
 	)
 
-	kvdbMempoolsBackupKey := commonUtil.GetKvDbMempoolDBKey(fp.ChainType)
-	mempoolsBackupBytes, err = fp.KVExecutor.Get(kvdbMempoolsBackupKey)
+	err = fp.MempoolBackupStorage.GetAllItems(&mempools)
 	if err != nil {
 		return err
 	}
 
-	for int(prev) < len(mempoolsBackupBytes) {
+	for mempoolID, mempoolBytes := range mempools {
 		var (
-			transactionBytes []byte
-			txType           transaction.TypeAction
-			tx               *model.Transaction
-			size             uint32
+			tx     *model.Transaction
+			txType transaction.TypeAction
 		)
 
-		prev += constant.TransactionBodyLength // initiate length of size
-		size = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:prev])
-		transactionBytes = mempoolsBackupBytes[prev:][:size]
-		prev += size
-
-		tx, err = fp.TransactionUtil.ParseTransactionBytes(transactionBytes, true)
+		tx, err = fp.TransactionUtil.ParseTransactionBytes(mempoolBytes, true)
 		if err != nil {
 			return err
 		}
+
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
 			// no need to break the process in this case
@@ -326,7 +318,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			}
 			return err
 		}
-		err = fp.MempoolService.AddMempoolTransaction(tx, transactionBytes)
+		err = fp.MempoolService.AddMempoolTransaction(tx, mempoolBytes)
 		if err != nil {
 			rollbackErr := fp.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
@@ -338,8 +330,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		if err != nil {
 			return err
 		}
-		// remove restored mempools from badger
-		err = fp.KVExecutor.Delete(commonUtil.GetKvDbMempoolDBKey(fp.ChainType))
+		err = fp.MempoolBackupStorage.RemoveItem(mempoolID)
 		if err != nil {
 			return err
 		}

@@ -41,6 +41,10 @@ func (bs *BlockStateStorage) SetItem(lastUpdate, block interface{}) error {
 	return nil
 }
 
+func (bs *BlockStateStorage) SetItems(_ interface{}) error {
+	return nil
+}
+
 // GetItem getter of BlockStateStorage
 func (bs *BlockStateStorage) GetItem(lastUpdate, block interface{}) error {
 	bs.RLock()
