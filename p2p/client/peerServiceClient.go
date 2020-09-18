@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -726,7 +727,15 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
 
-	err := psc.BatchReceiptCacheStorage.SetItem(nil, batchReceipt)
+	duplicated, err := psc.ReceiptService.IsDuplicated(batchReceipt.GetRecipientPublicKey(), batchReceipt.GetDatumHash())
+	if err != nil {
+		return err
+	}
+	if duplicated {
+		return errors.New("duplicated receipt")
+	}
+
+	err = psc.BatchReceiptCacheStorage.SetItem(nil, batchReceipt)
 	if err != nil {
 		return err
 	}
