@@ -54,7 +54,7 @@ var (
 	db                                                                     *sql.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
-	mempoolBackupStorage                                                   storage.CacheStorageInterface
+	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -239,6 +239,7 @@ func initiateMainInstance() {
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
+	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -290,7 +291,6 @@ func initiateMainInstance() {
 
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
-		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -301,6 +301,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		mainBlockStateStorage,
 		receiptReminderStorage,
+		batchReceiptCacheStorage,
 		scrambleNodeService,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -554,11 +555,9 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor,
-		query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewNodeReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
-		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		receiptService,
 		nodeConfigurationService,

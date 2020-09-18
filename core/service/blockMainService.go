@@ -1345,15 +1345,6 @@ func (bs *BlockService) ReceiveBlock(
 		}
 	}
 
-	receiptKey, err := bs.ReceiptUtil.GetReceiptKey(
-		block.GetBlockHash(), senderPublicKey,
-	)
-	if err != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			err.Error(),
-		)
-	}
 	// check if already broadcast receipt to this node
 	duplicated, duplicatedErr := bs.ReceiptService.IsDuplicated(senderPublicKey, block.GetBlockHash())
 	if duplicatedErr != nil {
@@ -1368,12 +1359,10 @@ func (bs *BlockService) ReceiveBlock(
 
 	// generate receipt and return as response
 	batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
-		bs.Chaintype,
-		block.GetBlockHash(),
+		bs.Chaintype, block.GetBlockHash(),
 		lastBlock,
 		senderPublicKey,
 		nodeSecretPhrase,
-		string(receiptKey),
 		constant.ReceiptDatumTypeBlock,
 	)
 	if err != nil {

@@ -839,27 +839,6 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelect(
-	qe string, tx bool, args ...interface{},
-) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mockedRows := sqlmock.NewRows(query.NewBatchReceiptQuery().Fields)
-	mockedRows.AddRow(
-		mockLinkedReceipt.BatchReceipt.GetSenderPublicKey(),
-		mockLinkedReceipt.BatchReceipt.GetRecipientPublicKey(),
-		mockLinkedReceipt.BatchReceipt.GetDatumType(),
-		mockLinkedReceipt.BatchReceipt.GetDatumHash(),
-		mockLinkedReceipt.BatchReceipt.GetReferenceBlockHeight(),
-		mockLinkedReceipt.BatchReceipt.GetReferenceBlockHash(),
-		mockLinkedReceipt.BatchReceipt.GetRMRLinked(),
-		mockLinkedReceipt.BatchReceipt.GetRecipientSignature(),
-	)
-
-	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx() error {
 	return nil
 }
@@ -912,10 +891,10 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransaction
 func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery      query.NodeReceiptQueryInterface
-		BatchReceiptQuery     query.BatchReceiptQueryInterface
 		MerkleTreeQuery       query.MerkleTreeQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		MainBlockStateStorage storage.CacheStorageInterface
+		BatchReceiptStorage   storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -926,46 +905,24 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 			name: "wantSuccess",
 			fields: fields{
 				NodeReceiptQuery:      query.NewNodeReceiptQuery(),
-				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
 				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
 				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
+				BatchReceiptStorage:   storage.NewBatchReceiptCacheStorage(),
 			},
 			wantErr: false,
-		},
-		{
-			name: "wantError:SelectRowFail",
-			fields: fields{
-				NodeReceiptQuery:      nil,
-				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:       nil,
-				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail{},
-				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageFail{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:SelectFail",
-			fields: fields{
-				NodeReceiptQuery:      nil,
-				BatchReceiptQuery:     query.NewBatchReceiptQuery(),
-				MerkleTreeQuery:       nil,
-				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSelectFail{},
-				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
-			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:      tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery:     tt.fields.BatchReceiptQuery,
-				MerkleTreeQuery:       tt.fields.MerkleTreeQuery,
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:         tt.fields.QueryExecutor,
-				ReceiptUtil:           &coreUtil.ReceiptUtil{},
-				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
+				NodeReceiptQuery:         tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:          tt.fields.MerkleTreeQuery,
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:            tt.fields.QueryExecutor,
+				ReceiptUtil:              &coreUtil.ReceiptUtil{},
+				MainBlockStateStorage:    tt.fields.MainBlockStateStorage,
+				BatchReceiptCacheStorage: tt.fields.BatchReceiptStorage,
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
 				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
@@ -1047,7 +1004,6 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery        query.NodeReceiptQueryInterface
-		BatchReceiptQuery       query.BatchReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
@@ -1083,7 +1039,6 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
 				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
@@ -1119,7 +1074,6 @@ func (*mockReceiptReminderStorageDuplicated) GetItem(_, item interface{}) error 
 func TestReceiptService_IsDuplicated(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery        query.NodeReceiptQueryInterface
-		BatchReceiptQuery       query.BatchReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
@@ -1172,7 +1126,6 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
 				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
-				BatchReceiptQuery:       tt.fields.BatchReceiptQuery,
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,

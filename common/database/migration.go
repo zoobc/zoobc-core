@@ -145,18 +145,6 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
-			CREATE TABLE IF NOT EXISTS "batch_receipt" (
-				"sender_public_key" BLOB,
-				"recipient_public_key" BLOB,
-				"datum_type" INTEGER,
-				"datum_hash" BLOB,
-				"reference_block_height" INTEGER,
-				"reference_block_hash" BLOB,
-				"rmr_linked" BLOB,
-				"recipient_signature" BLOB
-			)
-			`,
-			`
 			CREATE TABLE IF NOT EXISTS "merkle_tree" (
 				"id" BLOB,
 				"tree" BLOB

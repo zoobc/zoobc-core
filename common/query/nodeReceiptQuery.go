@@ -29,7 +29,7 @@ type (
 	}
 )
 
-// NewTransactionQuery returns TransactionQuery instance
+// NewNodeReceiptQuery returns NodeReceiptQuery instance
 func NewNodeReceiptQuery() *NodeReceiptQuery {
 	return &NodeReceiptQuery{
 		Fields: []string{
