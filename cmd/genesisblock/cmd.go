@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/lib/address"
 
@@ -506,6 +507,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 	}
 	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
+		nil,
 		nil,
 		nil,
 		nil,

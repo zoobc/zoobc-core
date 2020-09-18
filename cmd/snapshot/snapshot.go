@@ -2,10 +2,11 @@ package snapshot
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/auth"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
+
+	"github.com/zoobc/zoobc-core/common/auth"
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -257,7 +258,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			nil,
 			executor,
 			query.NewBlockQuery(mainChain),
-			nil, nil, nil, nil, nil, nil, nil,
+			nil, nil, nil, nil, nil, nil, nil, nil,
 			typeSwitcher,
 			nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			storage.NewBlockStateStorage(),

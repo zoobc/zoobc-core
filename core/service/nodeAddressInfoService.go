@@ -49,13 +49,13 @@ type (
 func NewNodeAddressInfoService(
 	executor query.ExecutorInterface,
 	nodeAddressInfoQuery query.NodeAddressInfoQueryInterface,
-	nodeAddressesInfo *storage.NodeAddressInfoStorage,
+	nodeAddressesInfoStorage *storage.NodeAddressInfoStorage,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
 	return &NodeAddressInfoService{
 		QueryExecutor:          executor,
 		NodeAddressInfoQuery:   nodeAddressInfoQuery,
-		NodeAddressInfoStorage: nodeAddressesInfo,
+		NodeAddressInfoStorage: nodeAddressesInfoStorage,
 		Logger:                 logger,
 	}
 }
@@ -108,7 +108,10 @@ func (nru *NodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
 
 // GetAddressInfoByNodeIDWithPreferredStatus returns a single address info from relative node id,
 // preferring 'preferredStatus' address status over the others
-func (nru *NodeAddressInfoService) GetAddressInfoByNodeIDWithPreferredStatus(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error) {
+func (nru *NodeAddressInfoService) GetAddressInfoByNodeIDWithPreferredStatus(
+	nodeID int64,
+	preferredStatus model.NodeAddressStatus,
+) (*model.NodeAddressInfo, error) {
 	// get a node address info given a node id
 	var (
 		err               error
@@ -363,18 +366,22 @@ func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) er
 
 // DeleteNodeAddressInfoByNodeIDInDBTx will remove node adddress info in PushBlock process
 func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID int64) error {
-	var removeNodeAddressInfoQ, removeNodeAddressInfoArgs = nru.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
-		nodeID,
-		[]model.NodeAddressStatus{
-			model.NodeAddressStatus_NodeAddressPending,
-			model.NodeAddressStatus_NodeAddressConfirmed,
-			model.NodeAddressStatus_Unset,
-		},
+	var (
+		removeNodeAddressInfoQ, removeNodeAddressInfoArgs = nru.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+			nodeID,
+			[]model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressPending,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_Unset,
+			},
+		)
+		err = nru.QueryExecutor.ExecuteTransaction(removeNodeAddressInfoQ, removeNodeAddressInfoArgs...)
 	)
-	if err := nru.QueryExecutor.ExecuteTransaction(removeNodeAddressInfoQ, removeNodeAddressInfoArgs...); err != nil {
+	if err != nil {
 		return err
 	}
-	nru.NodeAddressInfoStorage.AddAwaitedRemoveItem(
+	// add into list of awaited remove node address info
+	err = nru.NodeAddressInfoStorage.AddAwaitedRemoveItem(
 		storage.NodeAddressInfoStorageKey{
 			NodeID: nodeID,
 			Statuses: []model.NodeAddressStatus{
@@ -384,6 +391,9 @@ func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID in
 			},
 		},
 	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

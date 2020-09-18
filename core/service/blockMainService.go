@@ -105,6 +105,7 @@ func NewBlockMainService(
 	mempoolService MempoolServiceInterface,
 	receiptService ReceiptServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
+	nodeAddressInfoService NodeAddressInfoServiceInterface,
 	txTypeSwitcher transaction.TypeActionSwitcher,
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
@@ -141,6 +142,7 @@ func NewBlockMainService(
 		MempoolService:              mempoolService,
 		ReceiptService:              receiptService,
 		NodeRegistrationService:     nodeRegistrationService,
+		NodeAddressInfoService:      nodeAddressInfoService,
 		ActionTypeSwitcher:          txTypeSwitcher,
 		AccountBalanceQuery:         accountBalanceQuery,
 		ParticipationScoreQuery:     participationScoreQuery,
@@ -451,17 +453,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
+		bs.queryAndCacheRollbackProcess("")
 		return err
 	}
 	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
+		bs.queryAndCacheRollbackProcess("")
 		return err
 	}
 	// apply transactions and remove them from mempool
@@ -474,18 +472,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// validate tx here
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 		// check if is in mempool : if yes, undo unconfirmed
 		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
+				bs.queryAndCacheRollbackProcess("")
 				return err
 			}
 		}
@@ -493,9 +487,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
+				bs.queryAndCacheRollbackProcess("")
 				return err
 			}
 		}
@@ -505,24 +497,18 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 			if err != nil {
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
+				bs.queryAndCacheRollbackProcess("")
 				return err
 			}
 		} else {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 	}
 
 	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
+		bs.queryAndCacheRollbackProcess("")
 		return err
 	}
 
@@ -542,16 +528,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 
@@ -563,9 +545,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			previousBlock.Timestamp,
 		)
 		if err != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 		if totalReward > 0 {
@@ -575,9 +555,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				block.GetTimestamp(),
 				block.Height,
 			); err != nil {
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
+				bs.queryAndCacheRollbackProcess("")
 				return err
 			}
 		}
@@ -585,9 +563,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// nodeRegistryProcess precess to admit & expel node registry
 	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
+		bs.queryAndCacheRollbackProcess("")
 		return err
 	}
 
@@ -595,10 +571,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if block.GetHeight() == bs.NodeRegistrationService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.NodeRegistrationService.BuildScrambledNodes(block)
 		if err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
 	}
@@ -608,9 +581,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
 		blocksmithIndex = blocksmithsMap[string(block.BlocksmithPublicKey)]
 		if blocksmithIndex == nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("")
 			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
 		}
 		// handle if is first index
@@ -620,9 +591,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			if err != nil {
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
-				if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					bs.Logger.Error(rollbackErr.Error())
-				}
+				bs.queryAndCacheRollbackProcess("")
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
 					b := deepcopy.Copy(block)
@@ -651,8 +620,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			Latest:      true,
 		})
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			bs.Logger.Warnf("initFeeScale:rollback-error=%s", rollbackErr.Error())
+			bs.queryAndCacheRollbackProcess("initFeeScale:rollback-error")
 			return err
 		}
 	}
@@ -690,8 +658,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return result, nil
 		}()
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
 			return err
 		}
 		// select vote
@@ -703,8 +670,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			Latest:      true,
 		})
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			bs.Logger.Warnf("AdjustFeeRollbackErr:%v", rollbackErr)
+			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
 			return err
 		}
 	}
@@ -716,19 +682,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
 			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
 			if err != nil {
-				rollbackErr := bs.QueryExecutor.RollbackTx()
-				if rollbackErr != nil {
-					bs.Logger.Warnf("PruneDataRollbackErr:%v", rollbackErr)
-				}
+				bs.queryAndCacheRollbackProcess("PruneDataRollbackErr")
 				return err
 			}
 		}
 	}
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
+			bs.queryAndCacheRollbackProcess("RemoveMempoolTransactionsRollbackErr")
 			// reset mempool cache
 			initMempoolErr := bs.MempoolService.InitMempoolTransaction()
 			if initMempoolErr != nil {
@@ -736,6 +697,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return err
 		}
+	}
+
+	// remove a list of remove node address info in cahce
+	err = bs.NodeAddressInfoService.ExecuteWaitedNodeAddressInfoCache()
+	if err != nil {
+		return err
 	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -769,6 +736,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	return nil
+}
+
+// queryAndCacheRollbackProcess process to rollback data database & cache after failed execute query
+func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
+	// cleaer liat of candidate node address info to be remove in chace
+	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
+
+	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
+	}
 }
 
 // ScanBlockPool scan the whole block pool to check if there are any block that's legal to be pushed yet

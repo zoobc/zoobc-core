@@ -127,6 +127,7 @@ func initialize(
 		MempoolCacheStorage: mempoolStorage,
 	}
 	blockStorage := storage.NewBlockStateStorage()
+	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
 		nil,
@@ -160,6 +161,12 @@ func initialize(
 		blockStorage,
 		mempoolStorage,
 	)
+	nodeAddressInfoService := service.NewNodeAddressInfoService(
+		queryExecutor,
+		query.NewNodeAddressInfoQuery(),
+		nodeAddressInfoStorage,
+		log.New(),
+	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -170,10 +177,11 @@ func initialize(
 		log.New(),
 		&mockBlockchainStatusService{},
 		nil,
-		nil,
+		nodeAddressInfoService,
 		nil,
 		nil,
 	)
+
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
@@ -198,6 +206,7 @@ func initialize(
 		mempoolService,
 		receiptService,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
