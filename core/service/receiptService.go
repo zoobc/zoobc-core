@@ -54,6 +54,7 @@ type (
 		PublishedReceiptQuery    query.PublishedReceiptQueryInterface
 		ReceiptUtil              coreUtil.ReceiptUtilInterface
 		MainBlockStateStorage    storage.CacheStorageInterface
+		ScrambleNodeService      ScrambleNodeServiceInterface
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
 	}
@@ -70,6 +71,7 @@ func NewReceiptService(
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
+	scrambleNodeService ScrambleNodeServiceInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:         nodeReceiptQuery,
@@ -82,6 +84,7 @@ func NewReceiptService(
 		PublishedReceiptQuery:    publishedReceiptQuery,
 		ReceiptUtil:              receiptUtil,
 		MainBlockStateStorage:    mainBlockStateStorage,
+		ScrambleNodeService:      scrambleNodeService,
 		ReceiptReminderStorage:   receiptReminderStorage,
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
 	}
@@ -415,7 +418,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		return err
 	}
 	// get or build scrambled nodes at height
-	scrambledNodes, err := rs.NodeRegistrationService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
+	scrambledNodes, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}

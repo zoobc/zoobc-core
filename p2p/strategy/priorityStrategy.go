@@ -41,6 +41,7 @@ type (
 		Logger                   *log.Logger
 		PeerStrategyHelper       PeerStrategyHelperInterface
 		Signature                crypto.SignatureInterface
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 		// PendingNodeAddresses map containing node full address -> timestamp of last time the node tried to connect to that address
 		NodeAddressesLastTryConnect     map[string]int64
 		NodeAddressesLastTryConnectLock sync.RWMutex
@@ -56,6 +57,7 @@ func NewPriorityStrategy(
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	blockchainStatusService coreService.BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
 		BlockchainStatusService:     blockchainStatusService,
@@ -68,6 +70,7 @@ func NewPriorityStrategy(
 		Logger:                      logger,
 		PeerStrategyHelper:          peerStrategyHelper,
 		Signature:                   signature,
+		ScrambleNodeService:         scrambleNodeService,
 		NodeAddressesLastTryConnect: map[string]int64{},
 	}
 }
@@ -195,7 +198,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	if err != nil {
 		return priorityPeers
 	}
-	scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+	scrambledNodes, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlock.Height)
 	if err != nil {
 		return priorityPeers
 	}
@@ -307,7 +310,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				ps.Logger.Errorf("ValidateRequestFailGetLastBlock: %v", err)
 				return false
 			}
-			scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+			scrambledNodes, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlock.Height)
 			if err != nil {
 				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
 				return false
