@@ -520,7 +520,7 @@ func (rs *ReceiptService) StoreBatchReceipt(batchReceipt *model.BatchReceipt, se
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptReminderStorage.SetItem(receiptKey, chaintype)
+	err = rs.ReceiptReminderStorage.SetItem(string(receiptKey), chaintype)
 	if err != nil {
 		return err
 	}
