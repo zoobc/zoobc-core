@@ -7,18 +7,18 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/util"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
@@ -72,7 +72,6 @@ type (
 		Logger                   *log.Logger
 		QueryExecutor            query.ExecutorInterface
 		NodeReceiptQuery         query.NodeReceiptQueryInterface
-		BatchReceiptQuery        query.BatchReceiptQueryInterface
 		MerkleTreeQuery          query.MerkleTreeQueryInterface
 		ReceiptService           coreService.ReceiptServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
@@ -81,6 +80,7 @@ type (
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
 		NodeAuthValidation       auth.NodeAuthValidationInterface
+		BatchReceiptCacheStorage storage.CacheStorageInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -92,12 +92,12 @@ func NewPeerServiceClient(
 	nodeReceiptQuery query.NodeReceiptQueryInterface,
 	nodePublicKey []byte,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAuthValidation auth.NodeAuthValidationInterface,
 	logger *log.Logger,
+	batchReceiptCacheStorage storage.CacheStorageInterface,
 ) PeerServiceClientInterface {
 	// set to current struct log
 	return &PeerServiceClient{
@@ -121,7 +121,6 @@ func NewPeerServiceClient(
 		},
 		QueryExecutor:            queryExecutor,
 		NodeReceiptQuery:         nodeReceiptQuery,
-		BatchReceiptQuery:        batchReceiptQuery,
 		MerkleTreeQuery:          merkleTreeQuery,
 		ReceiptService:           receiptService,
 		NodeRegistrationService:  nodeRegistrationService,
@@ -130,6 +129,7 @@ func NewPeerServiceClient(
 		NodeConfigurationService: nodeConfigurationService,
 		PeerConnections:          make(map[string]*grpc.ClientConn),
 		NodeAuthValidation:       nodeAuthValidation,
+		BatchReceiptCacheStorage: batchReceiptCacheStorage,
 	}
 }
 
@@ -725,13 +725,8 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
-	var (
-		err error
-	)
 
-	psc.Logger.Info("Insert Batch Receipt")
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(batchReceipt)
-	_, err = psc.QueryExecutor.ExecuteStatement(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
+	err := psc.BatchReceiptCacheStorage.SetItem(nil, batchReceipt)
 	if err != nil {
 		return err
 	}

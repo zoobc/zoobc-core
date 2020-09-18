@@ -39,7 +39,7 @@ func NewPublishedReceiptService(
 	}
 }
 
-// ProcessPublishedReceipt takes published receipts in a block and validate them, this function will run in a db transaction
+// ProcessPublishedReceipts takes published receipts in a block and validate them, this function will run in a db transaction
 // so ensure queryExecutor.Begin() is called before calling this function.
 func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
 	var (

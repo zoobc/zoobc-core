@@ -54,7 +54,7 @@ var (
 	db                                                                     *sql.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
-	mempoolBackupStorage                                                   storage.CacheStorageInterface
+	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -236,6 +236,7 @@ func initiateMainInstance() {
 	mempoolStorage = storage.NewMempoolStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
+	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -281,7 +282,6 @@ func initiateMainInstance() {
 
 	receiptService = service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
-		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -292,6 +292,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		mainBlockStateStorage,
 		receiptReminderStorage,
+		batchReceiptCacheStorage,
 	)
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
@@ -542,18 +543,7 @@ func initLogInstance(logPath string) {
 
 func initP2pInstance() {
 	// initialize peer client service
-	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor,
-		query.NewNodeReceiptQuery(),
-		config.NodeKey.PublicKey,
-		nodeRegistrationService,
-		query.NewBatchReceiptQuery(),
-		query.NewMerkleTreeQuery(),
-		receiptService,
-		nodeConfigurationService,
-		nodeAuthValidationService,
-		loggerP2PService,
-	)
+	peerServiceClient = client.NewPeerServiceClient(queryExecutor, query.NewNodeReceiptQuery(), config.NodeKey.PublicKey, nodeRegistrationService, query.NewMerkleTreeQuery(), receiptService, nodeConfigurationService, nodeAuthValidationService, loggerP2PService, nil)
 
 	// peer discovery strategy
 	peerExplorer = p2pStrategy.NewPriorityStrategy(
@@ -566,15 +556,7 @@ func initP2pInstance() {
 		blockchainStatusService,
 		crypto.NewSignature(),
 	)
-	p2pServiceInstance, _ = p2p.NewP2PService(
-		peerServiceClient,
-		peerExplorer,
-		loggerP2PService,
-		transactionUtil,
-		fileService,
-		nodeRegistrationService,
-		nodeConfigurationService,
-	)
+	p2pServiceInstance, _ = p2p.NewP2PService(peerServiceClient, peerExplorer, loggerP2PService, transactionUtil, fileService, nodeRegistrationService, nodeConfigurationService)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
 		fileService,

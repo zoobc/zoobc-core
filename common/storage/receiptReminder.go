@@ -31,8 +31,6 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 		reminder string
 		nItem    chaintype.ChainType
 		ok       bool
-		items    map[string]chaintype.ChainType
-		err      error
 	)
 	if reminder, ok = key.(string); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
@@ -43,16 +41,8 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 
 	}
 
-	err = rs.GetAllItems(&items)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
-	}
-
-	if len(items) >= constant.PriorityStrategyMaxPriorityPeers*int(constant.MinRollbackBlocks) {
-		err = rs.ClearCache()
-		if err != nil {
-			return blocker.NewBlocker(blocker.BlockErr, err.Error())
-		}
+	if len(rs.reminders) >= constant.PriorityStrategyMaxPriorityPeers*int(constant.MinRollbackBlocks) {
+		rs.reminders = make(map[string]chaintype.ChainType)
 	}
 	rs.reminders[reminder] = nItem
 	return nil
