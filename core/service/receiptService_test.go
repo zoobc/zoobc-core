@@ -159,6 +159,8 @@ func fixtureGenerateMerkle() {
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
 	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[string(mockLinkedReceipt.BatchReceipt.RecipientPublicKey)] =
+		222
 	unsignedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
 	mockLinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
@@ -611,6 +613,13 @@ var (
 			"333": &indexC,
 			"444": &indexD,
 			"555": &indexE,
+		},
+		NodePublicKeyToIDMap: map[string]int64{
+			string(mockLinkedReceipt.BatchReceipt.SenderPublicKey):    111,
+			string(mockLinkedReceipt.BatchReceipt.RecipientPublicKey): 222,
+			"333": 333,
+			"444": 444,
+			"555": 555,
 		},
 		BlockHeight: 10,
 	}
