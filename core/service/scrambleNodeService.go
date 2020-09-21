@@ -194,10 +194,11 @@ func (sns *ScrambleNodeService) GetScrambleNodesByHeight(
 // at any point in time every node can calculate this map autonomously, given its node registry is updated
 func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*model.ScrambledNodes, error) {
 	var (
-		nodeRegistries  []*model.NodeRegistration
-		newAddressNodes []*model.Peer
-		newIndexNodes   = make(map[string]*int)
-		err             error
+		nodeRegistries       []*model.NodeRegistration
+		newAddressNodes      []*model.Peer
+		newIndexNodes        = make(map[string]*int)
+		nodePublicKeyToIDMap = make(map[string]int64)
+		err                  error
 	)
 
 	nodeRegistries, err = sns.NodeRegistrationService.GetNodeRegistryAtHeight(block.GetHeight())
@@ -207,7 +208,6 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 	// sort node registry
 	sort.SliceStable(nodeRegistries, func(i, j int) bool {
 		ni, nj := nodeRegistries[i], nodeRegistries[j]
-
 		// Get Hash of joined  with block seed & node ID
 		// TODO : Enhance, to precomputing the hash/bigInt before sorting
 		// 		  to avoid repeated hash computation while sorting
@@ -244,13 +244,15 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 		}
 		index := key
 		newIndexNodes[scrambleDNodeMapKey] = &index
+		nodePublicKeyToIDMap[string(node.GetNodePublicKey())] = node.NodeID
 		newAddressNodes = append(newAddressNodes, peer)
 	}
 
 	return &model.ScrambledNodes{
-		AddressNodes: newAddressNodes,
-		IndexNodes:   newIndexNodes,
-		BlockHeight:  block.Height,
+		AddressNodes:         newAddressNodes,
+		IndexNodes:           newIndexNodes,
+		NodePublicKeyToIDMap: nodePublicKeyToIDMap,
+		BlockHeight:          block.Height,
 	}, nil
 
 }
