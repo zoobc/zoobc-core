@@ -80,6 +80,7 @@ type (
 		ReceiptUtil                 coreUtil.ReceiptUtilInterface
 		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
 		TransactionCoreService      TransactionCoreServiceInterface
+		PendingTransactionService   PendingTransactionServiceInterface
 		CoinbaseService             CoinbaseServiceInterface
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
@@ -116,6 +117,7 @@ func NewBlockMainService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	publishedReceiptUtil coreUtil.PublishedReceiptUtilInterface,
 	transactionCoreService TransactionCoreServiceInterface,
+	pendingTransactionService PendingTransactionServiceInterface,
 	blockPoolService BlockPoolServiceInterface,
 	blocksmithService BlocksmithServiceInterface,
 	coinbaseService CoinbaseServiceInterface,
@@ -153,6 +155,7 @@ func NewBlockMainService(
 		ReceiptUtil:                 receiptUtil,
 		PublishedReceiptUtil:        publishedReceiptUtil,
 		TransactionCoreService:      transactionCoreService,
+		PendingTransactionService:   pendingTransactionService,
 		BlockPoolService:            blockPoolService,
 		BlocksmithService:           blocksmithService,
 		CoinbaseService:             coinbaseService,
@@ -434,7 +437,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
-	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
+	err = bs.PendingTransactionService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}

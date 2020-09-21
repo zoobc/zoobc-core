@@ -87,6 +87,7 @@ var (
 	transactionUtil                                                        transaction.UtilInterface
 	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
+	pendingTransactionServiceIns                                           service.PendingTransactionServiceInterface
 	fileService                                                            service.FileServiceInterface
 	mainchain                                                              = &chaintype.MainChain{}
 	spinechain                                                             = &chaintype.SpineChain{}
@@ -368,8 +369,15 @@ func initiateMainInstance() {
 		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+	)
+	pendingTransactionServiceIns = service.NewPendingTransactionService(
+		loggerCoreService,
+		queryExecutor,
+		actionSwitcher,
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewPendingTransactionQuery(),
 	)
 
 	mempoolService = service.NewMempoolService(
@@ -417,6 +425,7 @@ func initiateMainInstance() {
 		transactionUtil, receiptUtil,
 		mainchainPublishedReceiptUtil,
 		transactionCoreServiceIns,
+		pendingTransactionServiceIns,
 		mainchainBlockPool,
 		mainchainBlocksmithService,
 		mainchainCoinbaseService,
