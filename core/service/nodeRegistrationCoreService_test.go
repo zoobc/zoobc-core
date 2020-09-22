@@ -1207,13 +1207,6 @@ var (
 		BlockHeight: uint32(11),
 		BlockHash:   mockValidateNodeAddressInfoValidBlockHash,
 	}
-	mockNodeAddressInfoOutDated = &model.NodeAddressInfo{
-		NodeID:      int64(1111),
-		Address:     "192.168.1.2",
-		Port:        uint32(8080),
-		BlockHeight: mockValidateNodeAddressInfoNodeAddressInfoValid.BlockHeight - 1,
-		BlockHash:   mockValidateNodeAddressInfoValidBlockHash,
-	}
 )
 
 func (*mockValidateNodeAddressInfoNodeAddressInfoServiceSuccess) GetAddressInfoByNodeID(
