@@ -566,18 +566,7 @@ var (
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
-	switch cacheType {
-	case TypeMempoolCacheStorage:
-		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-	case TypeBatchReceiptCacheStorage:
-		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-	case TypeScrambleNodeCacheStorage:
-		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-	case TypeMempoolBackupCacheStorage:
-		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-	case TypeNodeShardCacheStorage:
-		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-	}
+	cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
 }
 
 func SetBadgerMetrics(metrics map[string]float64) {
