@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -109,7 +110,7 @@ func (sns *ScrambleNodeService) InitializeScrambleCache(lastBlockHeight uint32) 
 	return nil
 }
 
-// BuildScrambleNodes, build sorted scramble nodes based on node registry
+// BuildScrambledNodes build sorted scramble nodes based on node registry
 func (sns *ScrambleNodeService) BuildScrambledNodes(block *model.Block) error {
 	scrambleNodes, err := sns.ScrambleNodeRegistries(block)
 	if err != nil {
@@ -244,7 +245,7 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 		}
 		index := key
 		newIndexNodes[scrambleDNodeMapKey] = &index
-		nodePublicKeyToIDMap[string(node.GetNodePublicKey())] = node.NodeID
+		nodePublicKeyToIDMap[hex.EncodeToString(node.GetNodePublicKey())] = node.NodeID
 		newAddressNodes = append(newAddressNodes, peer)
 	}
 
