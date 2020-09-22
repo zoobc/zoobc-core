@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"sort"
 	"time"
 
@@ -291,7 +292,6 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			}
 			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(receipt)
 			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
-
 		}
 		err = rs.MainBlockStateStorage.GetItem(nil, &block)
 		if err != nil {
@@ -341,7 +341,7 @@ func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated 
 		)
 	}
 
-	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &cType)
+	err = rs.ReceiptReminderStorage.GetItem(hex.EncodeToString(receiptKey), &cType)
 	if err != nil {
 		return duplicated, blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -400,12 +400,12 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 		return err
 	}
 	// get sender address at height
-	senderNodeID, ok := scrambledNode.NodePublicKeyToIDMap[string(receipt.GetSenderPublicKey())]
+	senderNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetSenderPublicKey())]
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptSenderNotInScrambleList")
 	}
 	// get recipient address at height
-	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[string(receipt.GetRecipientPublicKey())]
+	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetRecipientPublicKey())]
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
 	}
@@ -506,7 +506,7 @@ func (rs *ReceiptService) StoreBatchReceipt(batchReceipt *model.BatchReceipt, se
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptReminderStorage.SetItem(string(receiptKey), chaintype)
+	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receiptKey), chaintype)
 	if err != nil {
 		return err
 	}

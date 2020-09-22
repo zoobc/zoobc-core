@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 	"sort"
@@ -244,7 +245,7 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 		}
 		index := key
 		newIndexNodes[scrambleDNodeMapKey] = &index
-		nodePublicKeyToIDMap[string(node.GetNodePublicKey())] = node.NodeID
+		nodePublicKeyToIDMap[hex.EncodeToString(node.GetNodePublicKey())] = node.NodeID
 		newAddressNodes = append(newAddressNodes, peer)
 	}
 
