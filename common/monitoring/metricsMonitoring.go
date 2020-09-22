@@ -3,16 +3,15 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/lib/address"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
 	"net/http"
 	"reflect"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -45,9 +44,8 @@ var (
 	apiRunningGaugeVector            *prometheus.GaugeVec
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
+	cacheStorageGaugeVector          *prometheus.GaugeVec
 
-	badgerMetrics         map[string]prometheus.Gauge
-	badgerMetricsLock     sync.Mutex
 	cliMonitoringInstance CLIMonitoringInteface
 )
 
@@ -270,6 +268,12 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"status"})
 	prometheus.MustRegister(dbStatGaugeVector)
 
+	// Cache Storage
+	cacheStorageGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_cache_storage",
+		Help: "Cache storage usage in bytes",
+	}, []string{"cache_type"})
+	prometheus.MustRegister(cacheStorageGaugeVector)
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -543,22 +547,22 @@ func SetDatabaseStats(dbStat sql.DBStats) {
 	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
 }
 
-func SetBadgerMetrics(metrics map[string]float64) {
-	if badgerMetrics == nil {
-		badgerMetrics = make(map[string]prometheus.Gauge)
-	}
+type (
+	// CacheStorageType type of cache storage that needed for inc or dec the value
+	CacheStorageType string
+)
 
-	for key, val := range metrics {
-		if _, ok := badgerMetrics[key]; !ok {
-			badgerMetricsLock.Lock()
-			if _, ok := badgerMetrics[key]; !ok {
-				badgerMetrics[key] = prometheus.NewGauge(prometheus.GaugeOpts{
-					Name: key,
-				})
-				prometheus.MustRegister(badgerMetrics[key])
-			}
-			badgerMetricsLock.Unlock()
-		}
-		badgerMetrics[key].Set(val)
-	}
+// Cache Storage environments
+// Please add new one when add new cache storage instance
+var (
+	TypeMempoolCacheStorage         CacheStorageType = "mempools"
+	TypeBatchReceiptCacheStorage    CacheStorageType = "batch_receipts"
+	TypeScrambleNodeCacheStorage    CacheStorageType = "scramble_nodes"
+	TypeMempoolBackupCacheStorage   CacheStorageType = "backup_mempools"
+	TypeNodeShardCacheStorage       CacheStorageType = "node_shards"
+	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
+)
+
+func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
+	cacheStorageGaugeVector.WithLabelValues(string(cacheType)).Set(size)
 }
