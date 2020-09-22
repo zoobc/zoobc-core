@@ -90,24 +90,27 @@ func (n *NodeShardCacheStorage) RemoveItem(key interface{}) error {
 	return nil
 }
 
-func (n *NodeShardCacheStorage) size() int {
-	var result int
+func (n *NodeShardCacheStorage) size() int64 {
+	var size int
 	for _, uint64s := range n.shardMap.NodeShards {
-		result += 8
-		result += len(uint64s) * 8
+		var s int
+		s += 8
+		s += len(uint64s) * 8
+		size += s
 	}
 	for _, i := range n.shardMap.ShardChunks {
-		result += 8
-		result += len(i) * sha3.New256().Size()
+		var s int
+		s += 8
+		s += len(i) * sha3.New256().Size()
 	}
-	return result
+	return int64(size)
 }
 
 func (n *NodeShardCacheStorage) GetSize() int64 {
 	n.RLock()
 	defer n.RUnlock()
 
-	return int64(n.size())
+	return n.size()
 }
 
 func (n *NodeShardCacheStorage) ClearCache() error {

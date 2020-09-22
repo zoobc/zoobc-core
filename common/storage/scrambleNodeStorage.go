@@ -126,7 +126,8 @@ func (s *ScrambleCacheStackStorage) Clear() error {
 func (s *ScrambleCacheStackStorage) size() int {
 	var size int
 	for _, node := range s.scrambledNodes {
-		size += len(node)
+		ns := len(node)
+		size += ns
 	}
 	return size
 }
