@@ -104,8 +104,8 @@ func (n *NodeShardCacheStorage) size() int {
 }
 
 func (n *NodeShardCacheStorage) GetSize() int64 {
-	n.Lock()
-	defer n.Unlock()
+	n.RLock()
+	defer n.RUnlock()
 
 	return int64(n.size())
 }

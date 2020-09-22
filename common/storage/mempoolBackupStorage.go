@@ -130,8 +130,8 @@ func (m *MempoolBackupStorage) size() int {
 
 // GetSize get size of MempoolBackupStorage values
 func (m *MempoolBackupStorage) GetSize() int64 {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	return int64(m.size())
 }

@@ -98,8 +98,8 @@ func (brs *BatchReceiptCacheStorage) size() int {
 	return size
 }
 func (brs *BatchReceiptCacheStorage) GetSize() int64 {
-	brs.Lock()
-	defer brs.Unlock()
+	brs.RLock()
+	defer brs.RUnlock()
 
 	return int64(brs.size())
 }

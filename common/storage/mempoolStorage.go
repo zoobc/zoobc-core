@@ -110,8 +110,8 @@ func (m *MempoolCacheStorage) size() int {
 }
 
 func (m *MempoolCacheStorage) GetSize() int64 {
-	m.Lock()
-	defer m.Unlock()
+	m.RLock()
+	defer m.RUnlock()
 
 	return int64(m.size())
 }
