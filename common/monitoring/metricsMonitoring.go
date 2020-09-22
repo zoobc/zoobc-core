@@ -555,11 +555,12 @@ type (
 // Cache Storage environments
 // Please add new one when add new cache storage instance
 var (
-	TypeMempoolCacheStorage       CacheStorageType = "mempools"
-	TypeBatchReceiptCacheStorage  CacheStorageType = "batch_receipts"
-	TypeScrambleNodeCacheStorage  CacheStorageType = "scramble_nodes"
-	TypeMempoolBackupCacheStorage CacheStorageType = "backup_mempools"
-	TypeNodeShardCacheStorage     CacheStorageType = "node_shards"
+	TypeMempoolCacheStorage         CacheStorageType = "mempools"
+	TypeBatchReceiptCacheStorage    CacheStorageType = "batch_receipts"
+	TypeScrambleNodeCacheStorage    CacheStorageType = "scramble_nodes"
+	TypeMempoolBackupCacheStorage   CacheStorageType = "backup_mempools"
+	TypeNodeShardCacheStorage       CacheStorageType = "node_shards"
+	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
