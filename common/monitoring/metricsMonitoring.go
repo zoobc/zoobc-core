@@ -6,7 +6,6 @@ import (
 	"math"
 	"net/http"
 	"reflect"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -45,10 +44,8 @@ var (
 	apiRunningGaugeVector            *prometheus.GaugeVec
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
-	cacheStorageCounter              *prometheus.GaugeVec
+	cacheStorageGaugeVector          *prometheus.GaugeVec
 
-	badgerMetrics         map[string]prometheus.Gauge
-	badgerMetricsLock     sync.Mutex
 	cliMonitoringInstance CLIMonitoringInteface
 )
 
@@ -272,11 +269,11 @@ func SetMonitoringActive(isActive bool) {
 	prometheus.MustRegister(dbStatGaugeVector)
 
 	// Cache Storage
-	cacheStorageCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "cache_storage_counter",
-		Help: "Cache Storage counter",
-	}, []string{"mempools", "batch_receipts", "scramble_nodes", "backup_mempools", "node_shards"})
-	prometheus.MustRegister(cacheStorageCounter)
+	cacheStorageGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_cache_storage",
+		Help: "Cache storage usage in bytes",
+	}, []string{"cache_type"})
+	prometheus.MustRegister(cacheStorageGaugeVector)
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -566,25 +563,5 @@ var (
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
-	cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
-}
-
-func SetBadgerMetrics(metrics map[string]float64) {
-	if badgerMetrics == nil {
-		badgerMetrics = make(map[string]prometheus.Gauge)
-	}
-
-	for key, val := range metrics {
-		if _, ok := badgerMetrics[key]; !ok {
-			badgerMetricsLock.Lock()
-			if _, ok := badgerMetrics[key]; !ok {
-				badgerMetrics[key] = prometheus.NewGauge(prometheus.GaugeOpts{
-					Name: key,
-				})
-				prometheus.MustRegister(badgerMetrics[key])
-			}
-			badgerMetricsLock.Unlock()
-		}
-		badgerMetrics[key].Set(val)
-	}
+	cacheStorageGaugeVector.WithLabelValues(string(cacheType)).Set(size)
 }
