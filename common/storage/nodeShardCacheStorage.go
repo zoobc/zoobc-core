@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"sync"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -44,6 +44,8 @@ func (n *NodeShardCacheStorage) SetItem(lastChange, item interface{}) error {
 	if shardMap, ok := item.(ShardMap); ok {
 		n.shardMap.NodeShards = shardMap.NodeShards
 		n.shardMap.ShardChunks = shardMap.ShardChunks
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, float64(n.size()))
+
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
@@ -88,17 +90,24 @@ func (n *NodeShardCacheStorage) RemoveItem(key interface{}) error {
 	return nil
 }
 
-func (n *NodeShardCacheStorage) GetSize() int64 {
-	var result int64
+func (n *NodeShardCacheStorage) size() int {
+	var result int
 	for _, uint64s := range n.shardMap.NodeShards {
 		result += 8
-		result += int64(len(uint64s)) * 8
+		result += len(uint64s) * 8
 	}
 	for _, i := range n.shardMap.ShardChunks {
 		result += 8
-		result += int64(len(i) * sha3.New256().Size())
+		result += len(i) * sha3.New256().Size()
 	}
 	return result
+}
+
+func (n *NodeShardCacheStorage) GetSize() int64 {
+	n.RLock()
+	defer n.RUnlock()
+
+	return int64(n.size())
 }
 
 func (n *NodeShardCacheStorage) ClearCache() error {
@@ -106,5 +115,7 @@ func (n *NodeShardCacheStorage) ClearCache() error {
 		NodeShards:  make(map[int64][]uint64),
 		ShardChunks: make(map[uint64][][]byte),
 	}
+	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, 0)
+
 	return nil
 }

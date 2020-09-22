@@ -2,10 +2,12 @@ package storage
 
 import (
 	"encoding/json"
+	"sync"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"sync"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -31,6 +33,7 @@ func (s *ScrambleCacheStackStorage) Pop() error {
 		s.scrambledNodes = s.scrambledNodes[:len(s.scrambledNodes)-1]
 		return nil
 	}
+	monitoring.SetCacheStorageMetrics(monitoring.TypeScrambleNodeCacheStorage, float64(s.size()))
 	// no more to pop
 	return blocker.NewBlocker(blocker.ValidationErr, "StackEmpty")
 }
@@ -50,6 +53,8 @@ func (s *ScrambleCacheStackStorage) Push(item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "MarshalFail")
 	}
 	s.scrambledNodes = append(s.scrambledNodes, marshaledScramble)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeScrambleNodeCacheStorage, float64(s.size()))
+
 	return nil
 }
 
@@ -60,6 +65,8 @@ func (s *ScrambleCacheStackStorage) PopTo(index uint32) error {
 	s.Lock()
 	defer s.Unlock()
 	s.scrambledNodes = s.scrambledNodes[:index+1]
+	monitoring.SetCacheStorageMetrics(monitoring.TypeScrambleNodeCacheStorage, float64(s.size()))
+
 	return nil
 }
 
@@ -112,5 +119,14 @@ func (s *ScrambleCacheStackStorage) GetTop(item interface{}) error {
 
 func (s *ScrambleCacheStackStorage) Clear() error {
 	s.scrambledNodes = make([][]byte, 0, s.itemLimit)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeScrambleNodeCacheStorage, 0)
 	return nil
+}
+
+func (s *ScrambleCacheStackStorage) size() int {
+	var size int
+	for _, node := range s.scrambledNodes {
+		size += len(node)
+	}
+	return size
 }
