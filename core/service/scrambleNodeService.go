@@ -110,7 +110,7 @@ func (sns *ScrambleNodeService) InitializeScrambleCache(lastBlockHeight uint32) 
 	return nil
 }
 
-// BuildScrambleNodes, build sorted scramble nodes based on node registry
+// BuildScrambledNodes build sorted scramble nodes based on node registry
 func (sns *ScrambleNodeService) BuildScrambledNodes(block *model.Block) error {
 	scrambleNodes, err := sns.ScrambleNodeRegistries(block)
 	if err != nil {
