@@ -172,7 +172,7 @@ or
 go run main.go decryptcert
 ```
 
-The command outputs resource/generated/decrypted/cluster_config_seatSale.json file containing all decrypted certificates in a form that
+The command outputs resource/generated/decrypted/hosted_preRegisteredNodes.json file containing all decrypted certificates in a form that
  can be
  easily imported for 'genesis generate' command (see command 'Genesis' below)
 
