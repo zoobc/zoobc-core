@@ -98,7 +98,7 @@ func (brs *BatchReceiptCacheStorage) size() int64 {
 		s += len(cache.GetRecipientPublicKey())
 		s += 4 // this is cache.GetDatumType()
 		s += len(cache.GetDatumHash())
-		s += 4 // this isi cache.GetReferenceBlockHeight()
+		s += 4 // this is cache.GetReferenceBlockHeight()
 		s += len(cache.GetReferenceBlockHash())
 		s += len(cache.GetRecipientSignature())
 		size += int64(s)
