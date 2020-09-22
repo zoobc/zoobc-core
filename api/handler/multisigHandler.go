@@ -113,3 +113,21 @@ func (msh *MultisigHandler) GetMultisigAddressByParticipantAddress(
 	result, err := msh.MultisigService.GetMultisigAddressByParticipantAddress(req)
 	return result, err
 }
+
+func (msh *MultisigHandler) GetMultisigAddressesByBlockHeightRange(
+	_ context.Context,
+	req *model.GetMultisigAddressesByBlockHeightRangeRequest,
+) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
+	if req.Pagination == nil {
+		req.Pagination = &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+		}
+	}
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
+	result, err := msh.MultisigService.GetMultisigAddressesByBlockHeightRange(req)
+	return result, err
+}
