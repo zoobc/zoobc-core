@@ -259,6 +259,10 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 	if err != nil {
 		return err
 	}
+	err = ss.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

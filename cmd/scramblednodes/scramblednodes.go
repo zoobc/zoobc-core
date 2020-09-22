@@ -95,7 +95,8 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		fmt.Println("Failed get Db")
 		panic(err)
 	}
-
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
 	var (
 		queryExecutor          = query.NewQueryExecutor(dB)
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -118,6 +119,8 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			nodeAddressInfoService,
 			nil,
 			nil,
+			activeNodeRegistryCacheStorage,
+			pendingNodeRegistryCacheStorage,
 		)
 		scramblecache       = storage.NewScrambleCacheStackStorage()
 		scrambleNodeService = service.NewScrambleNodeService(

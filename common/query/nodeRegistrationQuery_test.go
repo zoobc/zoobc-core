@@ -601,7 +601,7 @@ func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := nrq.GetActiveNodeRegistrations(); got != tt.want {
+			if got := nrq.GetActiveNodeRegistrations(0); got != tt.want {
 				t.Errorf("NodeRegistrationQuery.GetActiveNodeRegistrations() = %v, want %v", got, tt.want)
 			}
 		})

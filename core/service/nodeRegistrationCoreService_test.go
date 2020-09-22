@@ -826,20 +826,18 @@ func TestNodeRegistrationService_GetNextNodeAdmissionTimestamp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:                tt.fields.QueryExecutor,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				BlockQuery:                   tt.fields.BlockQuery,
-				NodeAdmissionTimestampQuery:  tt.fields.NodeAdmissionTimestampQuery,
-				NextNodeAdmissionStorage:     tt.fields.NextNodeAdmissionStorage,
-				Logger:                       tt.fields.Logger,
-				ScrambledNodes:               tt.fields.ScrambledNodes,
-				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
-				BlockchainStatusService:      tt.fields.BlockchainStatusService,
-				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
-				Signature:                    tt.fields.Signature,
-				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				BlockQuery:                  tt.fields.BlockQuery,
+				NodeAdmissionTimestampQuery: tt.fields.NodeAdmissionTimestampQuery,
+				NextNodeAdmissionStorage:    tt.fields.NextNodeAdmissionStorage,
+				Logger:                      tt.fields.Logger,
+				BlockchainStatusService:     tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:        tt.fields.CurrentNodePublicKey,
+				Signature:                   tt.fields.Signature,
+				NodeAddressInfoService:      tt.fields.NodeAddressInfoService,
 			}
 			got, err := nrs.GetNextNodeAdmissionTimestamp()
 			if (err != nil) != tt.wantErr {
@@ -1022,18 +1020,16 @@ func TestNodeRegistrationService_InsertNextNodeAdmissionTimestamp(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:                tt.fields.QueryExecutor,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				BlockQuery:                   tt.fields.BlockQuery,
-				NodeAdmissionTimestampQuery:  tt.fields.NodeAdmissionTimestampQuery,
-				NextNodeAdmissionStorage:     tt.fields.NextNodeAdmissionStorage,
-				Logger:                       tt.fields.Logger,
-				ScrambledNodes:               tt.fields.ScrambledNodes,
-				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
-				BlockchainStatusService:      tt.fields.BlockchainStatusService,
-				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				BlockQuery:                  tt.fields.BlockQuery,
+				NodeAdmissionTimestampQuery: tt.fields.NodeAdmissionTimestampQuery,
+				NextNodeAdmissionStorage:    tt.fields.NextNodeAdmissionStorage,
+				Logger:                      tt.fields.Logger,
+				BlockchainStatusService:     tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:        tt.fields.CurrentNodePublicKey,
 			}
 			got, err := nrs.InsertNextNodeAdmissionTimestamp(tt.args.lastAdmissionTimestamp, tt.args.blockHeight, tt.args.dbTx)
 			if (err != nil) != tt.wantErr {
@@ -1403,18 +1399,16 @@ func TestNodeRegistrationService_ValidateNodeAddressInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:                tt.fields.QueryExecutor,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				BlockQuery:                   tt.fields.BlockQuery,
-				Logger:                       tt.fields.Logger,
-				ScrambledNodes:               tt.fields.ScrambledNodes,
-				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
-				BlockchainStatusService:      tt.fields.BlockchainStatusService,
-				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
-				Signature:                    tt.fields.Signature,
-				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				Logger:                  tt.fields.Logger,
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:    tt.fields.CurrentNodePublicKey,
+				Signature:               tt.fields.Signature,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
 			}
 
 			if _, err := nrs.ValidateNodeAddressInfo(tt.args.nodeAddressInfo); err != nil {
@@ -1514,19 +1508,17 @@ func TestNodeRegistrationService_GenerateNodeAddressInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:                tt.fields.QueryExecutor,
-				AccountBalanceQuery:          tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:      tt.fields.ParticipationScoreQuery,
-				BlockQuery:                   tt.fields.BlockQuery,
-				Logger:                       tt.fields.Logger,
-				ScrambledNodes:               tt.fields.ScrambledNodes,
-				MemoizedLatestScrambledNodes: tt.fields.MemoizedLatestScrambledNodes,
-				BlockchainStatusService:      tt.fields.BlockchainStatusService,
-				CurrentNodePublicKey:         tt.fields.CurrentNodePublicKey,
-				Signature:                    tt.fields.Signature,
-				NodeAddressInfoService:       tt.fields.NodeAddressInfoService,
-				MainBlockStateStorage:        tt.fields.MainBlockStateStorage,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				BlockQuery:              tt.fields.BlockQuery,
+				Logger:                  tt.fields.Logger,
+				BlockchainStatusService: tt.fields.BlockchainStatusService,
+				CurrentNodePublicKey:    tt.fields.CurrentNodePublicKey,
+				Signature:               tt.fields.Signature,
+				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
+				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
 			}
 			got, err := nrs.GenerateNodeAddressInfo(tt.args.nodeID, tt.args.nodeAddress, tt.args.port, tt.args.nodeSecretPhrase)
 			if (err != nil) != tt.wantErr {

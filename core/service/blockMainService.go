@@ -425,17 +425,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return err
 	}
-
+	err = bs.NodeRegistrationService.BackupCache()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistrationService.BackupCacheErr - %s", err.Error()))
+		return err
+	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringEscrowTransactionsErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringPendingTransactionsErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
@@ -444,6 +450,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	*/
 	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("CompletePassedLiquidPaymentErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
@@ -737,9 +744,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // queryAndCacheRollbackProcess process to rollback data database & cache after failed execute query
 func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
-	// cleaer liat of candidate node address info to be remove in chace
+	// clear list of candidate node address info to be remove in cache
 	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
-
+	err := bs.NodeRegistrationService.RestoreCache()
+	if err != nil {
+		bs.Logger.Errorf("RestoreNodeRegistryCacheErr: %s", err)
+	}
 	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
 	}
@@ -1250,7 +1260,7 @@ func (bs *BlockService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block))
+		return err
 	}
 	return nil
 }
@@ -1428,7 +1438,11 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
-
+	// re-initialize node-registry cache
+	err = bs.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return nil, err
+	}
 	// Need to sort ascending since was descended in above by Height
 	sort.Slice(poppedBlocks, func(i, j int) bool {
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()

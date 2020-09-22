@@ -165,6 +165,8 @@ func initialize(
 		nodeAddressInfoStorage,
 		log.New(),
 	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -178,6 +180,8 @@ func initialize(
 		nodeAddressInfoService,
 		nil,
 		nil,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
 
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(

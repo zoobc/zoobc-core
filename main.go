@@ -55,6 +55,7 @@ var (
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
+	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
@@ -242,7 +243,10 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-
+	// store current active node registry (not in queue)
+	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage()
+	// store pending node registry
+	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage()
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -283,6 +287,8 @@ func initiateMainInstance() {
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
 		mainBlockStateStorage,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
 	scrambleNodeService = service.NewScrambleNodeService(
 		nodeRegistrationService,
@@ -727,7 +733,12 @@ func startMainchain() {
 	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
-	// initializing scrambled nodes
+	// initialize node registry cache
+	err = nodeRegistrationService.InitializeCache()
+	if err != nil {
+		loggerCoreService.Fatalf("InitializeNodeRegistryCacheFail - %v", err)
+	}
+	// initialize scrambled nodes
 	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)

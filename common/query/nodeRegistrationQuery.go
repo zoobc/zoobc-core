@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"math/big"
 	"strings"
 
@@ -19,7 +20,7 @@ type (
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string
-		GetActiveNodeRegistrations() string
+		GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetActiveNodeRegistrationsWithNodeAddress() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
@@ -28,16 +29,17 @@ type (
 		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
-		GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
 		GetPendingNodeRegistrations(limit uint32) string
 		ExtractModel(nr *model.NodeRegistration) []interface{}
 		BuildModel(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
-		BuildModelWithAddressInfo(nodeRegistrations []*model.NodeRegistration, rows *sql.Rows) ([]*model.NodeRegistration, error)
 		BuildBlocksmith(blocksmiths []*model.Blocksmith, rows *sql.Rows) ([]*model.Blocksmith, error)
+		BuildModelWithParticipationScore(
+			nodeRegistries []storage.NodeRegistry,
+			rows *sql.Rows,
+		) ([]storage.NodeRegistry, error)
 		Scan(nr *model.NodeRegistration, row *sql.Row) error
-		ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error
 	}
 
 	NodeRegistrationQuery struct {
@@ -259,38 +261,11 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByHighestLockedBalance(lim
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), registrationStatus, limit)
 }
 
-// GetNodeRegistrationsWithZeroScore returns query string to get the list of Node Registrations with zero participation score
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationsWithZeroScore(registrationStatus model.NodeRegistrationState) string {
-	nrTable := nrq.getTableName()
-	nrTableAlias := "A"
-	psTable := NewParticipationScoreQuery().getTableName()
-	psTableAlias := "B"
-	nrTableFields := make([]string, 0)
-	for _, field := range nrq.Fields {
-		nrTableFields = append(nrTableFields, nrTableAlias+"."+field)
-	}
-
-	return fmt.Sprintf("SELECT %s FROM "+nrTable+" as "+nrTableAlias+" "+
-		"INNER JOIN "+psTable+" as "+psTableAlias+" ON "+nrTableAlias+".id = "+psTableAlias+".node_id "+
-		"WHERE "+psTableAlias+".score <= 0 "+
-		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".registration_status=%d "+
-		"AND "+psTableAlias+".latest=1",
-		strings.Join(nrTableFields, ", "),
-		registrationStatus)
-}
-
 // GetNodeRegistryAtHeight returns unique latest node registry record at specific height
 func (nrq *NodeRegistrationQuery) GetNodeRegistryAtHeight(height uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s where registration_status = 0 AND (id,height) in (SELECT id,MAX(height) "+
 		"FROM %s WHERE height <= %d GROUP BY id) ORDER BY height DESC",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), nrq.getTableName(), height)
-}
-
-// GetRegisteredNodes the full node registry
-func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrations() string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status = 0 AND latest = 1",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName())
 }
 
 // GetNodeRegistryAtHeightWithNodeAddress returns unique latest node registry record at specific height, with peer addresses too.
@@ -316,10 +291,20 @@ func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsWithNodeAddress() st
 		joinedFieldsStr, nrq.getTableName(), NewNodeAddressInfoQuery().TableName)
 }
 
-// GetPendingNodeRegistrations returns pending node registrations
+// GetPendingNodeRegistrations returns pending node registrations sorted by their locked balance (highest to lowest)
 func (nrq *NodeRegistrationQuery) GetPendingNodeRegistrations(limit uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status=1 AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
-		strings.Join(nrq.Fields, ", "), nrq.getTableName(), limit)
+	return fmt.Sprintf("SELECT %s FROM %s WHERE registration_status=%d AND latest=1 ORDER BY locked_balance DESC LIMIT %d",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), model.NodeRegistrationState_NodeQueued, limit)
+}
+
+func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string {
+	var aliasedFields []string
+	for _, field := range nrq.Fields {
+		aliasedFields = append(aliasedFields, fmt.Sprintf("nr.%s", field))
+	}
+	return fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
+		"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 ORDER BY nr.locked_balance DESC",
+		strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields
@@ -382,44 +367,32 @@ func (nrq *NodeRegistrationQuery) BuildModel(
 	return nodeRegistrations, nil
 }
 
-// BuildModelWithAddressInfo will only be used for mapping the result of `select` query, which will guarantee that
-// the result of build model will be correctly mapped based on the modelQuery.Fields order.
-// note: this is to be used with queries that join node_address_info table
-func (nrq *NodeRegistrationQuery) BuildModelWithAddressInfo(
-	nodeRegistrations []*model.NodeRegistration,
+// BuildModelWithParticipationScore build the rows to `storage.NodeRegistry` model
+func (nrq *NodeRegistrationQuery) BuildModelWithParticipationScore(
+	nodeRegistries []storage.NodeRegistry,
 	rows *sql.Rows,
-) ([]*model.NodeRegistration, error) {
+) ([]storage.NodeRegistry, error) {
 	for rows.Next() {
 		var (
-			nr                  model.NodeRegistration
-			nrAddress           string
-			nrAddressPort       uint32
-			nrAddressInfoStatus model.NodeAddressStatus
+			nr storage.NodeRegistry
 		)
 		err := rows.Scan(
-			&nr.NodeID,
-			&nr.NodePublicKey,
-			&nr.AccountAddress,
-			&nr.RegistrationHeight,
-			&nr.LockedBalance,
-			&nr.RegistrationStatus,
-			&nr.Latest,
-			&nr.Height,
-			&nrAddress,
-			&nrAddressPort,
-			&nrAddressInfoStatus,
+			&nr.Node.NodeID,
+			&nr.Node.NodePublicKey,
+			&nr.Node.AccountAddress,
+			&nr.Node.RegistrationHeight,
+			&nr.Node.LockedBalance,
+			&nr.Node.RegistrationStatus,
+			&nr.Node.Latest,
+			&nr.Node.Height,
+			&nr.ParticipationScore,
 		)
 		if err != nil {
 			return nil, err
 		}
-		nr.NodeAddressInfo = &model.NodeAddressInfo{
-			Address: nrAddress,
-			Port:    nrAddressPort,
-			Status:  nrAddressInfoStatus,
-		}
-		nodeRegistrations = append(nodeRegistrations, &nr)
+		nodeRegistries = append(nodeRegistries, nr)
 	}
-	return nodeRegistrations, nil
+	return nodeRegistries, nil
 }
 
 func (*NodeRegistrationQuery) BuildBlocksmith(
@@ -483,40 +456,6 @@ func (nrq *NodeRegistrationQuery) Scan(nr *model.NodeRegistration, row *sql.Row)
 		&nr.Latest,
 		&nr.Height,
 	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// ScanWithNodeAddress represents `sql.Scan` and includes address info
-func (nrq *NodeRegistrationQuery) ScanWithNodeAddress(nr *model.NodeRegistration, row *sql.Row) error {
-
-	var (
-		err       error
-		nrAddress string
-		nrPort    uint32
-		nrStatus  model.NodeAddressStatus
-	)
-	err = row.Scan(
-		&nr.NodeID,
-		&nr.NodePublicKey,
-		&nr.AccountAddress,
-		&nr.RegistrationHeight,
-		&nr.LockedBalance,
-		&nr.RegistrationStatus,
-		&nr.Latest,
-		&nr.Height,
-		&nrAddress,
-		&nrPort,
-		&nrStatus,
-	)
-	nrAddressInfo := &model.NodeAddressInfo{
-		Address: nrAddress,
-		Port:    nrPort,
-		Status:  nrStatus,
-	}
-	nr.NodeAddressInfo = nrAddressInfo
 	if err != nil {
 		return err
 	}
