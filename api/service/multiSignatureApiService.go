@@ -33,6 +33,9 @@ type (
 		GetMultisigAddressesByBlockHeightRange(
 			param *model.GetMultisigAddressesByBlockHeightRangeRequest,
 		) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error)
+		GetParticipantsByMultisigAddresses(
+			param *model.GetParticipantsByMultisigAddressesRequest,
+		) (*model.GetParticipantsByMultisigAddressesResponse, error)
 	}
 
 	MultisigService struct {
@@ -426,5 +429,72 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 		Count:              totalRecords,
 		Page:               param.GetPagination().GetPage(),
 		MultisignatureInfo: result,
+	}, err
+}
+
+func (ms *MultisigService) GetParticipantsByMultisigAddresses(
+	param *model.GetParticipantsByMultisigAddressesRequest,
+) (*model.GetParticipantsByMultisigAddressesResponse, error) {
+	var (
+		multiSignatureParticipants     = make(map[string]*model.MultiSignatureParticipants)
+		multiSignatureParticipant      model.MultiSignatureParticipant
+		caseQuery                      = query.NewCaseQuery()
+		multisignatureParticipantQuery = query.NewMultiSignatureParticipantQuery()
+		selectQuery                    string
+		args                           []interface{}
+		totalRecords                   uint32
+		err                            error
+		result                         []*model.MultiSignatureParticipant
+	)
+
+	caseQuery.Select(multisignatureParticipantQuery.TableName, multisignatureParticipantQuery.Fields...)
+	var multisigAddressesParam []interface{}
+	for _, v := range param.MultisigAddresses {
+		multisigAddressesParam = append(multisigAddressesParam, v)
+	}
+	caseQuery.Where(caseQuery.In("multisig_address", multisigAddressesParam...))
+
+	selectQuery, args = caseQuery.Build()
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
+
+	err = countRow.Scan(
+		&totalRecords,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, status.Error(codes.NotFound, "FailToGetTotal")
+		}
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	caseQuery.OrderBy(param.GetPagination().GetOrderField(), param.GetPagination().GetOrderBy())
+
+	selectQuery, args = caseQuery.Build()
+	multiSignatureParticipantRows, err := ms.Executor.ExecuteSelect(selectQuery, false, args...)
+
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	defer multiSignatureParticipantRows.Close()
+
+	result, err = multisignatureParticipantQuery.BuildModel(multiSignatureParticipantRows)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, msParticipant := range result {
+		if multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] == nil {
+			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] = &model.MultiSignatureParticipants{}
+		}
+
+		multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants = append(
+			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants,
+			msParticipant)
+	}
+
+	return &model.GetParticipantsByMultisigAddressesResponse{
+		Total:                      totalRecords,
+		MultiSignatureParticipants: multiSignatureParticipants,
 	}, err
 }

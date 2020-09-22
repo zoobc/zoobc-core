@@ -131,3 +131,28 @@ func (msh *MultisigHandler) GetMultisigAddressesByBlockHeightRange(
 	result, err := msh.MultisigService.GetMultisigAddressesByBlockHeightRange(req)
 	return result, err
 }
+
+func (msh *MultisigHandler) GetParticipantsByMultisigAddresses(
+	_ context.Context,
+	req *model.GetParticipantsByMultisigAddressesRequest,
+) (*model.GetParticipantsByMultisigAddressesResponse, error) {
+
+	if req.Pagination == nil {
+		req.Pagination = &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+		}
+	}
+
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
+
+	if len(req.MultisigAddresses) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "At least 1 address is required")
+	}
+
+	result, err := msh.MultisigService.GetParticipantsByMultisigAddresses(req)
+	return result, err
+}
