@@ -40,19 +40,19 @@ var (
 	}
 	registerNodeCmd = &cobra.Command{
 		Use:   "register-node",
-		Short: "send-money command used to generate \"send money\" transaction",
+		Short: "register-node command is used to generate \"node registration\" transaction",
 	}
 	updateNodeCmd = &cobra.Command{
 		Use:   "update-node",
-		Short: "update-node command used to generate \"update node\" transaction",
+		Short: "update-node command used to generate \"update node registration\" transaction",
 	}
 	removeNodeCmd = &cobra.Command{
 		Use:   "remove-node",
-		Short: "remove-node command used to generate \"remove node\" transaction",
+		Short: "remove-node command used to generate \"remove node registration\" transaction",
 	}
 	claimNodeCmd = &cobra.Command{
 		Use:   "claim-node",
-		Short: "claim-node command used to generate \"claim node\" transaction",
+		Short: "claim-node command used to generate \"claim node registration\" transaction",
 	}
 	setupAccountDatasetCmd = &cobra.Command{
 		Use:   "set-account-dataset",
@@ -134,7 +134,6 @@ func init() {
 	*/
 	registerNodeCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "", "Account address of the owner of the node")
 	registerNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
-	registerNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
 	registerNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
@@ -148,7 +147,6 @@ func init() {
 	*/
 	updateNodeCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "", "Account address of the owner of the node")
 	updateNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
-	updateNodeCmd.Flags().StringVar(&nodeAddress, "node-address", "", "(ip) Address of the node")
 	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
 	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
@@ -284,6 +282,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 
 // RegisterNodeProcess for generate TX RegisterNode type
 func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
+	escrow = false
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			tx = GenerateBasicTransaction(
@@ -306,7 +305,6 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		)
 		tx = GenerateTxRegisterNode(
 			tx,
-			nodeAddress,
 			lockedBalance,
 			nodePubKey,
 			poow,
@@ -343,7 +341,6 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 
 		tx = GenerateTxUpdateNode(
 			tx,
-			nodeAddress,
 			lockedBalance,
 			nodePubKey,
 			poow,
