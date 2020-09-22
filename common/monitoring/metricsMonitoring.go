@@ -564,5 +564,7 @@ var (
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
-	cacheStorageGaugeVector.WithLabelValues(string(cacheType)).Set(size)
+	if isMonitoringActive {
+		cacheStorageGaugeVector.WithLabelValues(string(cacheType)).Set(size)
+	}
 }
