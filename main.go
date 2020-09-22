@@ -267,7 +267,11 @@ func initiateMainInstance() {
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(mainchain),
+		crypto.NewSignature(),
 		nodeAddressInfoStorage,
+		mainBlockStateStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -275,14 +279,11 @@ func initiateMainInstance() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(mainchain),
 		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
-		crypto.NewSignature(),
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
-		mainBlockStateStorage,
 	)
 	scrambleNodeService = service.NewScrambleNodeService(
 		nodeRegistrationService,
@@ -668,8 +669,8 @@ func startNodeMonitoring() {
 		}
 	}()
 	// populate node address info counter when node starts
-	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
-		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+	if nodeCount, err := nodeAddressInfoService.CountRegistredNodeAddressWithAddressInfo(); err == nil {
+		monitoring.SetNodeAddressInfoCount(nodeCount)
 	}
 	if cna, err := nodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
 		for status, counter := range cna {

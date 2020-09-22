@@ -737,7 +737,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // queryAndCacheRollbackProcess process to rollback data database & cache after failed execute query
 func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
-	// cleaer liat of candidate node address info to be remove in chace
+	// clear list of candidate node address info to be remove in cache
 	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
 
 	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
