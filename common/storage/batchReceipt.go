@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -93,7 +94,9 @@ func (brs *BatchReceiptCacheStorage) RemoveItem(_ interface{}) error {
 func (brs *BatchReceiptCacheStorage) size() int {
 	var size int
 	for _, cache := range brs.receipts {
-		size += cache.XXX_Size()
+		s, _ := json.Marshal(cache)
+		size += len(s)
+
 	}
 	return size
 }
