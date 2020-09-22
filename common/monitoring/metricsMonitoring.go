@@ -3,8 +3,6 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/lib/address"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
 	"net/http"
 	"reflect"
@@ -12,7 +10,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -45,6 +45,7 @@ var (
 	apiRunningGaugeVector            *prometheus.GaugeVec
 	snapshotDownloadRequestCounter   *prometheus.CounterVec
 	dbStatGaugeVector                *prometheus.GaugeVec
+	cacheStorageCounter              *prometheus.GaugeVec
 
 	badgerMetrics         map[string]prometheus.Gauge
 	badgerMetricsLock     sync.Mutex
@@ -270,6 +271,12 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"status"})
 	prometheus.MustRegister(dbStatGaugeVector)
 
+	// Cache Storage
+	cacheStorageCounter = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "cache_storage_counter",
+		Help: "Cache Storage counter",
+	}, []string{"mempools", "batch_receipts", "scramble_nodes", "backup_mempools", "node_shards"})
+	prometheus.MustRegister(cacheStorageCounter)
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -541,6 +548,36 @@ func SetDatabaseStats(dbStat sql.DBStats) {
 	dbStatGaugeVector.WithLabelValues("OpenConnections").Set(float64(dbStat.OpenConnections))
 	dbStatGaugeVector.WithLabelValues("ConnectionsInUse").Set(float64(dbStat.InUse))
 	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
+}
+
+type (
+	// CacheStorageType type of cache storage that needed for inc or dec the value
+	CacheStorageType string
+)
+
+// Cache Storage environments
+// Please add new one when add new cache storage instance
+var (
+	TypeMempoolCacheStorage       CacheStorageType = "mempools"
+	TypeBatchReceiptCacheStorage  CacheStorageType = "batch_receipts"
+	TypeScrambleNodeCacheStorage  CacheStorageType = "scramble_nodes"
+	TypeMempoolBackupCacheStorage CacheStorageType = "backup_mempools"
+	TypeNodeShardCacheStorage     CacheStorageType = "node_shards"
+)
+
+func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
+	switch cacheType {
+	case TypeMempoolCacheStorage:
+		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
+	case TypeBatchReceiptCacheStorage:
+		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
+	case TypeScrambleNodeCacheStorage:
+		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
+	case TypeMempoolBackupCacheStorage:
+		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
+	case TypeNodeShardCacheStorage:
+		cacheStorageCounter.WithLabelValues(string(cacheType)).Set(size)
+	}
 }
 
 func SetBadgerMetrics(metrics map[string]float64) {

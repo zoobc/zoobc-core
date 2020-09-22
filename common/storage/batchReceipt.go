@@ -5,6 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -37,6 +38,7 @@ func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
 	}
 
 	brs.receipts = append(brs.receipts, nItem)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
 	return nil
 }
 
@@ -55,6 +57,7 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	brs.receipts = nItems
+	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
 	return nil
 }
 
@@ -87,15 +90,18 @@ func (brs *BatchReceiptCacheStorage) RemoveItem(_ interface{}) error {
 	return nil
 }
 
-func (brs *BatchReceiptCacheStorage) GetSize() int64 {
-	brs.Lock()
-	defer brs.Unlock()
-
+func (brs *BatchReceiptCacheStorage) size() int {
 	var size int
 	for _, cache := range brs.receipts {
 		size += cache.XXX_Size()
 	}
-	return int64(size)
+	return size
+}
+func (brs *BatchReceiptCacheStorage) GetSize() int64 {
+	brs.Lock()
+	defer brs.Unlock()
+
+	return int64(brs.size())
 }
 
 func (brs *BatchReceiptCacheStorage) ClearCache() error {
@@ -103,5 +109,6 @@ func (brs *BatchReceiptCacheStorage) ClearCache() error {
 	defer brs.Unlock()
 
 	brs.receipts = make([]model.BatchReceipt, 0)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
 	return nil
 }

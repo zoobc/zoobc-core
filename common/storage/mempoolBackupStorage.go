@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -42,6 +43,8 @@ func (m *MempoolBackupStorage) SetItem(key, item interface{}) error {
 	}
 
 	m.mempools[id] = mempoolByte
+	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+
 	return nil
 }
 
@@ -59,6 +62,8 @@ func (m *MempoolBackupStorage) SetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType items")
 	}
 	m.mempools = nItems
+	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+
 	return nil
 }
 
@@ -111,7 +116,16 @@ func (m *MempoolBackupStorage) RemoveItem(key interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	delete(m.mempools, id)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
 	return nil
+}
+
+func (m *MempoolBackupStorage) size() int {
+	var size int
+	for _, v := range m.mempools {
+		size += len(v)
+	}
+	return size
 }
 
 // GetSize get size of MempoolBackupStorage values
@@ -119,11 +133,7 @@ func (m *MempoolBackupStorage) GetSize() int64 {
 	m.Lock()
 	defer m.Unlock()
 
-	var size int
-	for _, v := range m.mempools {
-		size += len(v)
-	}
-	return int64(size)
+	return int64(m.size())
 }
 
 // ClearCache clear or remove all items from MempoolBackupStorage
@@ -132,5 +142,6 @@ func (m *MempoolBackupStorage) ClearCache() error {
 	defer m.Unlock()
 
 	m.mempools = make(map[int64][]byte)
+	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, 0)
 	return nil
 }
