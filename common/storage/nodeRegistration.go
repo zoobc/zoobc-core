@@ -40,7 +40,7 @@ func (n *NodeRegistryCacheStorage) SetItem(index, item interface{}) error {
 	if indexInt > len(n.nodeRegistries)-1 {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
-	n.nodeRegistries[indexInt] = n.copyNode(nodeRegistry)
+	n.nodeRegistries[indexInt] = n.copy(nodeRegistry)
 	return nil
 }
 
@@ -52,7 +52,7 @@ func (n *NodeRegistryCacheStorage) SetItems(items interface{}) error {
 	n.Lock()
 	defer n.Unlock()
 	for _, nr := range registries {
-		n.nodeRegistries = append(n.nodeRegistries, n.copyNode(nr))
+		n.nodeRegistries = append(n.nodeRegistries, n.copy(nr))
 	}
 	return nil
 }
@@ -71,7 +71,7 @@ func (n *NodeRegistryCacheStorage) GetItem(index, item interface{}) error {
 	if indexInt > len(n.nodeRegistries)-1 {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
-	*nodeRegistry = n.copyNode(n.nodeRegistries[indexInt])
+	*nodeRegistry = n.copy(n.nodeRegistries[indexInt])
 	return nil
 }
 
@@ -83,7 +83,7 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 	n.RLock()
 	defer n.RUnlock()
 	for _, nr := range n.nodeRegistries {
-		*nodeRegistries = append(*nodeRegistries, n.copyNode(nr))
+		*nodeRegistries = append(*nodeRegistries, n.copy(nr))
 	}
 	return nil
 }
@@ -110,9 +110,9 @@ func (n *NodeRegistryCacheStorage) ClearCache() error {
 	return nil
 }
 
-// copyNode manually copy the object to avoid referencing by the user of cache object
+// copy manually copy the object to avoid referencing by the user of cache object
 // this implementation also avoid the heavier alternative like `deepcopy` or `json.Marshal`
-func (n *NodeRegistryCacheStorage) copyNode(src NodeRegistry) NodeRegistry {
+func (n *NodeRegistryCacheStorage) copy(src NodeRegistry) NodeRegistry {
 	result := NodeRegistry{
 		Node: model.NodeRegistration{
 			NodeID:             src.Node.GetNodeID(),
