@@ -537,6 +537,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
+		nil,
 		query.GetPruneQuery(&chaintype.MainChain{}),
 		nil,
 		nil,
