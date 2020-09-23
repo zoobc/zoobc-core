@@ -48,7 +48,7 @@ func (n *NodeRegistryCacheStorage) SetItem(index, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
 	n.nodeRegistries[indexInt] = n.copy(nodeRegistry)
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
 
 	return nil
 }
@@ -63,7 +63,7 @@ func (n *NodeRegistryCacheStorage) SetItems(items interface{}) error {
 	for _, nr := range registries {
 		n.nodeRegistries = append(n.nodeRegistries, n.copy(nr))
 	}
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
 
 	return nil
 }
@@ -112,19 +112,23 @@ func (n *NodeRegistryCacheStorage) RemoveItem(index interface{}) error {
 	tempLeft := n.nodeRegistries[:indexInt]
 	tempRight := n.nodeRegistries[indexInt+1:]
 	n.nodeRegistries = append(tempLeft, tempRight...)
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
 	return nil
 }
 
-func (n *NodeRegistryCacheStorage) GetSize() int64 {
-	n.RLock()
-	defer n.RUnlock()
+func (n *NodeRegistryCacheStorage) size() int64 {
 	var (
 		nBytes bytes.Buffer
 		enc    = gob.NewEncoder(&nBytes)
 	)
 	_ = enc.Encode(n.nodeRegistries)
 	return int64(nBytes.Len())
+}
+
+func (n *NodeRegistryCacheStorage) GetSize() int64 {
+	n.RLock()
+	defer n.RUnlock()
+	return n.size()
 }
 
 func (n *NodeRegistryCacheStorage) ClearCache() error {
