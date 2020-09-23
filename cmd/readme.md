@@ -40,55 +40,55 @@ Command line interface to as a utility tools to develop the zoobc system.
 ### Transaction Send Money
 
 ```
-go run main.go generate transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --amount 5000000000
+go run main.go transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU --amount 5000000000
 ```
 
 ### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
 
 ```bash
-go run main.go generate transaction send-money --escrow true --approver-address BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd
+go run main.go transaction send-money --escrow true --approver-address ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU
 ```
 
 ### Transaction Register Node
 
 ```bash
-go run main.go generate transaction register-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1:8001" --locked-balance 1000000000 --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
+go run main.go transaction register-node --node-owner-account-address="ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L" --sender-address="ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L" --recipient="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --sender-seed="pizza midnight enforce morning panda entire fatal plastic piece roof edge subject soap taxi car swim cash future egg burden stone step fire miracle" --node-seed="armed midnight enforce morning panda entire fatal plastic piece roof edge subject soap taxi car swim cash future egg burden stone step fire pizza" --locked-balance=100000000
 ```
 
 ### Transaction Update Node Registration
 
 ```bash
-go run main.go generate transaction update-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --node-address "127.0.0.1:8001" --locked-balance 10050000000000 --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
+go run main.go transaction update-node --timestamp 1257894000 --node-owner-account-address="ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L" --sender-address="ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L" --recipient="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --sender-seed="pizza midnight enforce morning panda entire fatal plastic piece roof edge subject soap taxi car swim cash future egg burden stone step fire miracle" --node-seed="armed midnight enforce morning panda entire fatal plastic piece roof edge subject soap taxi car swim cash future egg burden stone step fire pizza" --locked-balance=100000000
 ```
 
 ### Transaction Claim Node
 
 ```bash
-go run main.go generate transaction claim-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
+go run main.go transaction claim-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --node-owner-account-address "ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L" --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness" --recipient "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --poow-hex "7233537248687a792d35726c71475f644f473258626a504263574f68445552495070465267675254732d327458d880d3d1e6d68a8afeaa2c030ce50b7562fca7b7cb2ddac419c6e2ee33e0a7030000004d4e8d33954aa3deee656de56289e77d17ba29baff32da82147500e354ceaacf6cdafd6437a1037f243574dbeb2b81f52dd459ae8f0ee2ce4cbc272f832"
 ```
 
 ### Transaction Remove Node
 
 ```bash
-go run main.go generate transaction remove-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"  --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
+go run main.go transaction remove-node --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"  --node-seed "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 ```
 
 ### Transaction Set Account Dataset
 
 ```bash
-go run main.go generate transaction set-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --property "Member" --value "Welcome to the jungle"
+go run main.go transaction set-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --property "Member" --value "Welcome to the jungle"
 ```
 
 ### Transaction Remove Account Dataset
 
 ```bash
-go run main.go generate transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "VZvYd80p5S-rxSNQmMZwYXC7LyAzBmcfcj4MUUAdudWM" --property "Member" --value "Good Boy"
+go run main.go transaction remove-account-dataset --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --property "Member" --value "Good Boy"
 ```
 
 ### Transaction Escrow Approval
 
 ```bash
- go run main.go generate transaction escrow-approval --transaction-id -2546596465476625657 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 111
+ go run main.go transaction escrow-approval --transaction-id -2546596465476625657 --approval true --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --fee 111
 ```
 
 ### Transaction Multi Signatures
@@ -112,19 +112,19 @@ For the multi signature transaction let say want to send money with multisig acc
 So the completed comment it will be:
 
 ```bash
-go run main.go generate transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
+go run main.go transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
 ```
 
 ### Transaction Fee Vote Commitment Vote
 
 ```bash
- go run main.go generate transaction fee-vote-commit --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" -f 10
+ go run main.go transaction fee-vote-commit --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" -f 10
 ```
 
 ### Transaction Fee Vote Reveal Vote
 
 ```bash
-go run main.go generate transaction fee-vote-reveal -f 5 -b 4 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good"
+go run main.go transaction fee-vote-reveal -f 5 -b 4 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good"
 ```
 
 ## Block Commands
@@ -292,13 +292,13 @@ go run main.go generate priorityPeers --db-name zoobc_2.db --height 11153 --send
 ### Transaction Liquid Payment
 
 ```
-go run main.go generate transaction liquid-payment --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient omtchrWztGDKzBftKfEarsed913s41ReV7qpMOHsFdC8 --amount 5000000000 --complete-minutes 3
+go run main.go transaction liquid-payment --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient omtchrWztGDKzBftKfEarsed913s41ReV7qpMOHsFdC8 --amount 5000000000 --complete-minutes 3
 ```
 
 ### Transaction Liquid Payment Stop
 
 ```
-go run main.go generate transaction liquid-payment-stop --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --transaction-id "4032174520571320308"
+go run main.go transaction liquid-payment-stop --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --transaction-id "4032174520571320308"
 ```
 
 ## Snapshot

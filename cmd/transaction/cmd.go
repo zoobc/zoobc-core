@@ -282,7 +282,6 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 
 // RegisterNodeProcess for generate TX RegisterNode type
 func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
-	escrow = false
 	return func(ccmd *cobra.Command, args []string) {
 		var (
 			tx = GenerateBasicTransaction(
