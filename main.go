@@ -244,9 +244,9 @@ func initiateMainInstance() {
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	// store current active node registry (not in queue)
-	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage()
+	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage)
 	// store pending node registry
-	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage()
+	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage)
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)

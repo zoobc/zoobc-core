@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -95,8 +96,8 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		fmt.Println("Failed get Db")
 		panic(err)
 	}
-	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
-	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage)
 	var (
 		queryExecutor          = query.NewQueryExecutor(dB)
 		nodeAddressInfoService = service.NewNodeAddressInfoService(

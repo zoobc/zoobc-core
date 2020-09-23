@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"sync"
 )
 
@@ -13,6 +14,7 @@ type (
 		sync.RWMutex
 		nodeRegistries []NodeRegistry
 		nodeIDIndexes  map[int64]int
+		metricLabel    monitoring.CacheStorageType
 	}
 	// NodeRegistry store in-memory representation of node registry, excluding its NodeAddressInfo which is cache on
 	// different storage struct
@@ -23,10 +25,11 @@ type (
 )
 
 // NewNodeRegistryCacheStorage returns NodeRegistryCacheStorage instance
-func NewNodeRegistryCacheStorage() *NodeRegistryCacheStorage {
+func NewNodeRegistryCacheStorage(metricLabel monitoring.CacheStorageType) *NodeRegistryCacheStorage {
 	return &NodeRegistryCacheStorage{
 		nodeRegistries: make([]NodeRegistry, 0),
 		nodeIDIndexes:  make(map[int64]int),
+		metricLabel:    metricLabel,
 	}
 }
 
@@ -45,6 +48,8 @@ func (n *NodeRegistryCacheStorage) SetItem(index, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
 	n.nodeRegistries[indexInt] = n.copy(nodeRegistry)
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
+
 	return nil
 }
 
@@ -58,6 +63,8 @@ func (n *NodeRegistryCacheStorage) SetItems(items interface{}) error {
 	for _, nr := range registries {
 		n.nodeRegistries = append(n.nodeRegistries, n.copy(nr))
 	}
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
+
 	return nil
 }
 
@@ -105,6 +112,7 @@ func (n *NodeRegistryCacheStorage) RemoveItem(index interface{}) error {
 	tempLeft := n.nodeRegistries[:indexInt]
 	tempRight := n.nodeRegistries[indexInt+1:]
 	n.nodeRegistries = append(tempLeft, tempRight...)
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.GetSize()))
 	return nil
 }
 
@@ -123,6 +131,7 @@ func (n *NodeRegistryCacheStorage) ClearCache() error {
 	n.Lock()
 	defer n.Unlock()
 	n.nodeRegistries = make([]NodeRegistry, 0)
+	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(0))
 	return nil
 }
 

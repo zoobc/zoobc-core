@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
 
@@ -165,8 +166,8 @@ func initialize(
 		nodeAddressInfoStorage,
 		log.New(),
 	)
-	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
-	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage()
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),

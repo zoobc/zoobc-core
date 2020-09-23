@@ -561,6 +561,8 @@ var (
 	TypeMempoolBackupCacheStorage   CacheStorageType = "backup_mempools"
 	TypeNodeShardCacheStorage       CacheStorageType = "node_shards"
 	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
+	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
+	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
