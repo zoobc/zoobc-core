@@ -103,7 +103,7 @@ func (s *ScrambleCacheStackStorage) GetAtIndex(index uint32, item interface{}) e
 func (s *ScrambleCacheStackStorage) GetTop(item interface{}) error {
 	s.RLock()
 	defer s.RUnlock()
-	topIndex := len(s.scrambledNodes) - 1
+	topIndex := len(s.scrambledNodes)
 	if topIndex == 0 {
 		return blocker.NewBlocker(blocker.CacheEmpty, "EmptyScramble")
 	}
@@ -111,7 +111,7 @@ func (s *ScrambleCacheStackStorage) GetTop(item interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNotScrambleNode")
 	}
-	*scrambleNodeCopy = s.copy(s.scrambledNodes[topIndex])
+	*scrambleNodeCopy = s.copy(s.scrambledNodes[topIndex-1])
 	return nil
 }
 
