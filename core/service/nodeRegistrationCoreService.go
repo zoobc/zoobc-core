@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"math/big"
+	"sort"
 )
 
 type (
@@ -270,6 +271,19 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)
 // and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
+	var (
+		activeNodeRegistries, pendingNodeRegistries []storage.NodeRegistry
+		pendingIDsToRemove                          []int64
+		err                                         error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(activeNodeRegistries)
+	if err != nil {
+		return err
+	}
+	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(pendingNodeRegistries)
+	if err != nil {
+		return err
+	}
 	// prepare all node registrations to be updated (set registrationStatus to NodeRegistrationState_NodeRegistered and new height)
 	// and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
@@ -289,15 +303,53 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		if bytes.Equal(nrs.CurrentNodePublicKey, nodeRegistration.NodePublicKey) {
 			nrs.BlockchainStatusService.SetIsBlocksmith(true)
 		}
+		// handle cache, remove from pending cache & add active cache
+		pendingIDsToRemove = append(pendingIDsToRemove, nodeRegistration.NodeID)
+		activeNodeRegistries = append(activeNodeRegistries, storage.NodeRegistry{
+			Node:               *nodeRegistration,
+			ParticipationScore: constant.DefaultParticipationScore,
+		})
+
 	}
-	return nil
+	// remove pending
+	for _, id := range pendingIDsToRemove {
+		for i, registry := range pendingNodeRegistries {
+			if registry.Node.GetNodeID() == id {
+				err := nrs.PendingNodeRegistryCacheStorage.RemoveItem(i)
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	err = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistries)
+	if err != nil {
+		return err
+	}
+	// re-sort pending/active cache
+	sort.SliceStable(activeNodeRegistries, func(i, j int) bool {
+		// ascending sort
+		return activeNodeRegistries[i].Node.GetNodeID() < activeNodeRegistries[j].Node.GetNodeID()
+	})
+	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(activeNodeRegistries)
+	return err
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
 // update the node registration by setting registrationStatus field to 3 (deleted) and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
+	var (
+		activeNodeRegistries  []storage.NodeRegistry
+		activeNodeIDsToRemove []int64
+		err                   error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(activeNodeRegistries)
+	if err != nil {
+		return err
+	}
 	for _, nodeRegistration := range nodeRegistrations {
-		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
+		// update the node registry (set registrationStatus to 1 and locked balance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
 		nodeRegistration.Height = height
@@ -319,8 +371,20 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		if err != nil {
 			return err
 		}
-
+		activeNodeIDsToRemove = append(activeNodeIDsToRemove, nodeRegistration.GetNodeID())
 	}
+	for _, id := range activeNodeIDsToRemove {
+		for activeIndex, registry := range activeNodeRegistries {
+			if registry.Node.GetNodeID() == id {
+				err := nrs.ActiveNodeRegistryCacheStorage.RemoveItem(activeIndex)
+				if err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	// no need to re-sort as the slicing of the cache will keep the order in place
 	return nil
 }
 
