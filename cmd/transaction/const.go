@@ -41,7 +41,6 @@ var (
 	// node registration transaction
 	nodeSeed                string
 	nodeOwnerAccountAddress string
-	nodeAddress             string
 	lockedBalance           int64
 	proofOfOwnershipHex     string
 	databasePath            string
