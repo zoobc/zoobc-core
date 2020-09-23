@@ -666,51 +666,51 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		want    []*model.PublishedReceipt
 		wantErr bool
 	}{
-		// {
-		// 	name: "receiptService-selectReceipts-Fail:selectDB-error",
-		// 	fields: fields{
-		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-		// 		ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-		// 		NodeReceiptQuery:    nil,
-		// 		QueryExecutor:       &mockQueryExecutorFailExecuteSelect{},
-		// 	},
-		// 	args: args{
-		// 		blockTimestamp:  0,
-		// 		numberOfReceipt: 1,
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "receiptService-selectReceipts-Fail:MerkleTreeQuery-BuildTree-Fail",
-		// 	fields: fields{
-		// 		QueryExecutor:       &mockQueryExecutorSuccessMerkle{},
-		// 		ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-		// 		NodeReceiptQuery:    nil,
-		// 		MerkleTreeQuery:     &mockMerkleTreeQueryFailBuildTree{},
-		// 	},
-		// 	args: args{
-		// 		blockTimestamp:  0,
-		// 		numberOfReceipt: 1,
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
-		// 	fields: fields{
-		// 		ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-		// 		NodeReceiptQuery:    query.NewNodeReceiptQuery(),
-		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-		// 		QueryExecutor:       &mockQueryExecutorFailExecuteSelectReceipt{},
-		// 	},
-		// 	args: args{
-		// 		blockTimestamp:  0,
-		// 		numberOfReceipt: 1,
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// },
+		{
+			name: "receiptService-selectReceipts-Fail:selectDB-error",
+			fields: fields{
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				NodeReceiptQuery:    nil,
+				QueryExecutor:       &mockQueryExecutorFailExecuteSelect{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "receiptService-selectReceipts-Fail:MerkleTreeQuery-BuildTree-Fail",
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorSuccessMerkle{},
+				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				NodeReceiptQuery:    nil,
+				MerkleTreeQuery:     &mockMerkleTreeQueryFailBuildTree{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
+			fields: fields{
+				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				NodeReceiptQuery:    query.NewNodeReceiptQuery(),
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				QueryExecutor:       &mockQueryExecutorFailExecuteSelectReceipt{},
+			},
+			args: args{
+				blockTimestamp:  0,
+				numberOfReceipt: 1,
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			name: "receiptService-selectReceipts-success-one-linked",
 			fields: fields{
