@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"encoding/json"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -91,12 +90,18 @@ func (brs *BatchReceiptCacheStorage) RemoveItem(_ interface{}) error {
 	return nil
 }
 
-func (brs *BatchReceiptCacheStorage) size() int {
-	var size int
+func (brs *BatchReceiptCacheStorage) size() int64 {
+	var size int64
 	for _, cache := range brs.receipts {
-		s, _ := json.Marshal(cache)
-		size += len(s)
-
+		var s int
+		s += len(cache.GetSenderPublicKey())
+		s += len(cache.GetRecipientPublicKey())
+		s += 4 // this is cache.GetDatumType()
+		s += len(cache.GetDatumHash())
+		s += 4 // this is cache.GetReferenceBlockHeight()
+		s += len(cache.GetReferenceBlockHash())
+		s += len(cache.GetRecipientSignature())
+		size += int64(s)
 	}
 	return size
 }
@@ -104,7 +109,7 @@ func (brs *BatchReceiptCacheStorage) GetSize() int64 {
 	brs.RLock()
 	defer brs.RUnlock()
 
-	return int64(brs.size())
+	return brs.size()
 }
 
 func (brs *BatchReceiptCacheStorage) ClearCache() error {
