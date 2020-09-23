@@ -2010,7 +2010,6 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
 				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
