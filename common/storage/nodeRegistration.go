@@ -12,6 +12,7 @@ type (
 	NodeRegistryCacheStorage struct {
 		sync.RWMutex
 		nodeRegistries []NodeRegistry
+		nodeIDIndexes  map[int64]int
 	}
 	// NodeRegistry store in-memory representation of node registry, excluding its NodeAddressInfo which is cache on
 	// different storage struct
@@ -23,7 +24,10 @@ type (
 
 // NewNodeRegistryCacheStorage returns NodeRegistryCacheStorage instance
 func NewNodeRegistryCacheStorage() *NodeRegistryCacheStorage {
-	return &NodeRegistryCacheStorage{}
+	return &NodeRegistryCacheStorage{
+		nodeRegistries: make([]NodeRegistry, 0),
+		nodeIDIndexes:  make(map[int64]int),
+	}
 }
 
 func (n *NodeRegistryCacheStorage) SetItem(index, item interface{}) error {
@@ -89,6 +93,18 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 }
 
 func (n *NodeRegistryCacheStorage) RemoveItem(index interface{}) error {
+	indexInt, ok := index.(int)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "IndexMustBeInteger")
+	}
+	n.Lock()
+	defer n.Unlock()
+	if indexInt > len(n.nodeRegistries)-1 {
+		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
+	}
+	tempLeft := n.nodeRegistries[:indexInt]
+	tempRight := n.nodeRegistries[indexInt+1:]
+	n.nodeRegistries = append(tempLeft, tempRight...)
 	return nil
 }
 
