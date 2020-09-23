@@ -48,8 +48,8 @@ type (
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
 		// cache controllers
 		InitializeCache() error
-		BackupCache() error
-		RestoreCache() error
+		RestoreCacheTransaction()
+		CommitCache() error
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -70,8 +70,8 @@ type (
 		Signature                       crypto.SignatureInterface
 		NodeAddressInfoService          NodeAddressInfoServiceInterface
 		// cache backup for transactional writes
-		ActiveNodeRegistryCacheBackUp  []storage.NodeRegistry
-		PendingNodeRegistryCacheBackUp []storage.NodeRegistry
+		TransactionalActiveNodeRegistryCache  []storage.NodeRegistry
+		TransactionalPendingNodeRegistryCache []storage.NodeRegistry
 	}
 )
 
@@ -313,12 +313,13 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 	}
 	// remove pending
 	for _, id := range pendingIDsToRemove {
-		for i, registry := range pendingNodeRegistries {
+		// look up from updated pending node registry (temp) cache
+		for i, registry := range nrs.TransactionalPendingNodeRegistryCache {
 			if registry.Node.GetNodeID() == id {
-				err := nrs.PendingNodeRegistryCacheStorage.RemoveItem(i)
-				if err != nil {
-					return err
-				}
+				tempLeft := nrs.TransactionalPendingNodeRegistryCache[:i]
+				tempRight := nrs.TransactionalPendingNodeRegistryCache[i+1:]
+				// transactional update
+				nrs.TransactionalPendingNodeRegistryCache = append(tempLeft, tempRight...)
 				break
 			}
 		}
@@ -328,8 +329,9 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		// ascending sort
 		return activeNodeRegistries[i].Node.GetNodeID() < activeNodeRegistries[j].Node.GetNodeID()
 	})
-	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(activeNodeRegistries)
-	return err
+	// transactional cache state
+	nrs.TransactionalActiveNodeRegistryCache = activeNodeRegistries
+	return nil
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
@@ -370,12 +372,12 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		activeNodeIDsToRemove = append(activeNodeIDsToRemove, nodeRegistration.GetNodeID())
 	}
 	for _, id := range activeNodeIDsToRemove {
-		for activeIndex, registry := range activeNodeRegistries {
+		for activeIndex, registry := range nrs.TransactionalActiveNodeRegistryCache {
 			if registry.Node.GetNodeID() == id {
-				err := nrs.ActiveNodeRegistryCacheStorage.RemoveItem(activeIndex)
-				if err != nil {
-					return err
-				}
+				tempLeft := nrs.TransactionalActiveNodeRegistryCache[:activeIndex]
+				tempRight := nrs.TransactionalActiveNodeRegistryCache[activeIndex+1:]
+				// transactional update
+				nrs.TransactionalActiveNodeRegistryCache = append(tempLeft, tempRight...)
 				break
 			}
 		}
@@ -757,22 +759,40 @@ func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddress
 	return nil
 }
 
-func (nrs *NodeRegistrationService) BackupCache() error {
-	nrs.ActiveNodeRegistryCacheBackUp = make([]storage.NodeRegistry, 0)
-	err := nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&nrs.ActiveNodeRegistryCacheBackUp)
-	if err != nil {
-		return err
-	}
-	nrs.PendingNodeRegistryCacheBackUp = make([]storage.NodeRegistry, 0)
-	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&nrs.PendingNodeRegistryCacheBackUp)
-	return err
+func (nrs *NodeRegistrationService) RestoreCacheTransaction() {
+	nrs.TransactionalActiveNodeRegistryCache = make([]storage.NodeRegistry, 0)
+	nrs.TransactionalPendingNodeRegistryCache = make([]storage.NodeRegistry, 0)
 }
 
-func (nrs *NodeRegistrationService) RestoreCache() error {
-	err := nrs.PendingNodeRegistryCacheStorage.SetItems(nrs.PendingNodeRegistryCacheBackUp)
+func (nrs *NodeRegistrationService) CommitCache() error {
+	var (
+		activeNodeRegistriesBackup,
+		pendingNodeRegistriesBackup = make([]storage.NodeRegistry, 0), make([]storage.NodeRegistry, 0)
+		err error
+	)
+	// prepare backup
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistriesBackup)
 	if err != nil {
 		return err
 	}
-	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(nrs.ActiveNodeRegistryCacheBackUp)
-	return err
+	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&pendingNodeRegistriesBackup)
+	if err != nil {
+		return err
+	}
+	// commit changes
+	err = nrs.PendingNodeRegistryCacheStorage.SetItems(nrs.TransactionalPendingNodeRegistryCache)
+	if err != nil {
+		// restoring the same item we fetched, no need to check errors
+		_ = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistriesBackup)
+		return err
+	}
+	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(nrs.TransactionalActiveNodeRegistryCache)
+	if err != nil {
+		// restoring the same item we fetched, no need to check errors
+		_ = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistriesBackup)
+		_ = nrs.ActiveNodeRegistryCacheStorage.SetItems(activeNodeRegistriesBackup)
+		return err
+	}
+	nrs.RestoreCacheTransaction()
+	return nil
 }

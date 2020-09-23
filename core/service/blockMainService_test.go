@@ -109,6 +109,10 @@ func (*mockNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*model
 	return nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) CommitCache() error {
+	return nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
@@ -121,8 +125,7 @@ func (*mockNodeRegistrationServiceSuccess) BackupCache() error {
 	return nil
 }
 
-func (*mockNodeRegistrationServiceSuccess) RestoreCache() error {
-	return nil
+func (*mockNodeRegistrationServiceSuccess) RestoreCacheTransaction() {
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
@@ -171,8 +174,7 @@ func (*mockNodeRegistrationServiceFail) BackupCache() error {
 	return nil
 }
 
-func (*mockNodeRegistrationServiceFail) RestoreCache() error {
-	return nil
+func (*mockNodeRegistrationServiceFail) RestoreCacheTransaction() {
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
