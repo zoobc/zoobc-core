@@ -162,7 +162,11 @@ func initialize(
 	nodeAddressInfoService := service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
 		nodeAddressInfoStorage,
+		nil,
 		log.New(),
 	)
 	nodeRegistrationService := service.NewNodeRegistrationService(
@@ -170,13 +174,10 @@ func initialize(
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
-		nil,
 		nodeAddressInfoService,
-		nil,
 		nil,
 	)
 
