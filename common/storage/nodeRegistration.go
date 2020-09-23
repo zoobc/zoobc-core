@@ -48,8 +48,9 @@ func (n *NodeRegistryCacheStorage) SetItem(index, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
 	n.nodeRegistries[indexInt] = n.copy(nodeRegistry)
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
-
+	if monitoring.IsMonitoringActive() {
+		go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
+	}
 	return nil
 }
 
@@ -60,11 +61,10 @@ func (n *NodeRegistryCacheStorage) SetItems(items interface{}) error {
 	}
 	n.Lock()
 	defer n.Unlock()
-	for _, nr := range registries {
-		n.nodeRegistries = append(n.nodeRegistries, n.copy(nr))
+	n.nodeRegistries = registries
+	if monitoring.IsMonitoringActive() {
+		go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
 	}
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
-
 	return nil
 }
 
@@ -112,7 +112,9 @@ func (n *NodeRegistryCacheStorage) RemoveItem(index interface{}) error {
 	tempLeft := n.nodeRegistries[:indexInt]
 	tempRight := n.nodeRegistries[indexInt+1:]
 	n.nodeRegistries = append(tempLeft, tempRight...)
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
+	if monitoring.IsMonitoringActive() {
+		go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
+	}
 	return nil
 }
 
@@ -135,7 +137,9 @@ func (n *NodeRegistryCacheStorage) ClearCache() error {
 	n.Lock()
 	defer n.Unlock()
 	n.nodeRegistries = make([]NodeRegistry, 0)
-	go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(0))
+	if monitoring.IsMonitoringActive() {
+		go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(0))
+	}
 	return nil
 }
 
