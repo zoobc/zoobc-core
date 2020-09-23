@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -278,6 +279,20 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
+	if tx.Escrow != nil {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+		}
+
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
 }
 
@@ -287,8 +302,41 @@ That specs:
 	- Checking the expiration time
 	- Checking Spendable Balance sender
 */
-func (tx *SetupAccountDataset) EscrowValidate() error {
+func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
+	var (
+		accountBalance model.AccountBalance
+		row            *sql.Row
+		err            error
+	)
 
+	if tx.Body.GetMuchTime() == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "SetupAccountDataset, starts time is not allowed same with expiration time")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
+	}
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	}
+
+	// check account balance sender
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+
+	// TODO: transaction fee + (expiration time fee)
+	if accountBalance.GetSpendableBalance() < tx.Fee+tx.Escrow.GetCommission() {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
+	}
 	return nil
 }
 
@@ -298,6 +346,18 @@ EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `Set
 func (tx *SetupAccountDataset) EscrowApplyUnconfirmed() error {
 
 	// update account sender spendable balance
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		// TODO: transaction fee + (expiration time fee)
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -307,13 +367,61 @@ this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SetupAccountDataset) EscrowUndoApplyUnconfirmed() error {
 
+	// update account sender spendable balance
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		// TODO: transaction fee + (expiration time fee)
+		tx.Fee+tx.Escrow.GetCommission(),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 /*
 EscrowApplyConfirmed is func that for applying Transaction SetupAccountDataset type,
 */
-func (tx *SetupAccountDataset) EscrowApplyConfirmed() error {
+func (tx *SetupAccountDataset) EscrowApplyConfirmed(blockTimestamp int64) error {
+	var (
+		queries [][]interface{}
+		err     error
+	)
+
+	// update sender balance by reducing his spendable balance of the tx fee
+	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, accountBalanceSenderQ...)
+
+	// sender ledger
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  -(tx.Fee + tx.Escrow.GetCommission()),
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
+	// Insert Escrow
+	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	queries = append(queries, escrowArgs...)
+
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -322,7 +430,53 @@ func (tx *SetupAccountDataset) EscrowApplyConfirmed() error {
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *SetupAccountDataset) EscrowApproval(int64) error {
+func (tx *SetupAccountDataset) EscrowApproval(blockTimestamp int64) error {
+	var (
+		currentTime = uint64(time.Now().Unix())
+		queries     [][]interface{}
+		err         error
+	)
+	// approver balance
+	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+		tx.Escrow.GetCommission(),
+		map[string]interface{}{
+			"account_address": tx.Escrow.GetApproverAddress(),
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, approverBalanceQ...)
+	// approver ledger
+	approverLedgerQ, approverLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.Escrow.GetApproverAddress(),
+		BalanceChange:  tx.Escrow.GetCommission(),
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventSetupAccountDatasetTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+	approverLedgerArgs = append([]interface{}{approverLedgerQ}, approverLedgerArgs...)
+	queries = append(queries, approverLedgerArgs)
 
+	// This is Default mode, Dataset will be active as soon as block creation
+	datasetQuery := tx.AccountDatasetQuery.AddDataset(&model.AccountDataset{
+		SetterAccountAddress:    tx.Body.GetSetterAccountAddress(),
+		RecipientAccountAddress: tx.Body.GetRecipientAccountAddress(),
+		Property:                tx.Body.GetProperty(),
+		Value:                   tx.Body.GetValue(),
+		TimestampStarts:         currentTime,
+		TimestampExpires:        currentTime + tx.Body.GetMuchTime(),
+		Height:                  tx.Height,
+		Latest:                  true,
+	})
+	queries = append(queries, datasetQuery...)
+
+	// Insert Escrow
+	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	queries = append(queries, escrowArgs...)
+
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
 	return nil
 }

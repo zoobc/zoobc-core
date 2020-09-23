@@ -215,13 +215,21 @@ func (ts *TransactionService) PostTransaction(
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
+<<<<<<< HEAD
 		txBytes = req.GetTransactionBytes()
+=======
+		txBytes = req.TransactionBytes
+>>>>>>> 6018ac8d... escrow approval transaction type, more transaction methods for escrowable transaction
 		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
 	)
 	// get unsigned bytes
+<<<<<<< HEAD
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
+=======
+	tx, err = transaction.ParseTransactionBytes(txBytes, true)
+>>>>>>> 6018ac8d... escrow approval transaction type, more transaction methods for escrowable transaction
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -230,7 +238,20 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+<<<<<<< HEAD
 	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
+=======
+	// Save to mempool
+	mpTx := &model.MempoolTransaction{
+		FeePerByte:              util.FeePerByteTransaction(tx.GetFee(), txBytes),
+		ID:                      tx.ID,
+		TransactionBytes:        txBytes,
+		ArrivalTimestamp:        time.Now().Unix(),
+		SenderAccountAddress:    tx.SenderAccountAddress,
+		RecipientAccountAddress: tx.RecipientAccountAddress,
+	}
+	if err = ts.MempoolService.ValidateMempoolTransaction(mpTx); err != nil {
+>>>>>>> 6018ac8d... escrow approval transaction type, more transaction methods for escrowable transaction
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed

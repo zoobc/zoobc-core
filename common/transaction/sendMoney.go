@@ -296,14 +296,6 @@ func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
 }
 
-/**
-Escrow Part
-1. ApplyUnconfirmed
-2. UndoApplyUnconfirmed
-3. ApplyConfirmed
-4. Validate
-*/
-
 // EscrowValidate special validation for escrow's transaction
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (

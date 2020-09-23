@@ -124,7 +124,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 			}
 			prevNodeFound = false
 		}
-		// in case a node with same account address has been previosly deleted, set its latest status to false
+		// in case a node with same account address has been previously deleted, set its latest status to false
 		// to avoid having duplicates (multiple node registrations with same account address)
 		if prevNodeFound && prevNodeRegistrationByAccount.RegistrationStatus ==
 			uint32(model.NodeRegistrationState_NodeDeleted) {
@@ -378,7 +378,19 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-
+	if tx.Escrow != nil {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+		}
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
 }
 
@@ -392,40 +404,305 @@ Escrow Part
 
 // EscrowValidate special validation for escrow's transaction
 func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
+	var (
+		nodeRegistration model.NodeRegistration
+		accountBalance   model.AccountBalance
+		row              *sql.Row
+		err              error
+	)
+
+	// no need to validate node registration transaction for genesis block
+	if tx.SenderAddress == constant.MainchainGenesisAccountAddress {
+		return nil
+	}
+
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
+	}
+	if tx.Escrow.GetTimeout() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
+	}
+	/*
+		TODO:
+		Validate Escrow.Timeout compare with current block height.
+		if less then current block height will expired
+	*/
+	//
+	// if tx.Body.GetNodeAddress() == nil {
+	// 	return blocker.NewBlocker(blocker.RequestParameterErr, "NodeAddressRequired")
+	// }
+	if tx.Body.Poown == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
+	}
+
+	// validate poown
+	if err = tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
+	}
+
+	// check balance
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return err
+	}
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+
+	if accountBalance.SpendableBalance < tx.Body.LockedBalance+tx.Fee+tx.Escrow.GetCommission() {
+		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
+	}
+
+	// check for public key duplication
+	row, err = tx.QueryExecutor.ExecuteSelectRow(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		dbTx,
+		tx.Body.NodePublicKey,
+	)
+	if err != nil {
+		return err
+	}
+	err = tx.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+
+	// in case a node with same pub key exists, validation must pass only if that node is tagged as deleted
+	// if any other state validation should fail
+	if nodeRegistration.RegistrationStatus != uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyRegistered")
+	}
+
+	// check for account address duplication (accounts can register one node at the time)
+	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.Body.AccountAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return err
+	}
+	err = tx.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+
+	// in case a node with same account address, validation must pass only if that node is tagged as deleted
+	// if any other state validation should fail
+	if nodeRegistration.GetRegistrationStatus() != uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.AuthErr, "AccountAlreadyNodeOwner")
+	}
 
 	return nil
 }
 
-/*
-EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
-similar with ApplyUnconfirmed and Escrow.Commission
-*/
+// EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
+// similar with ApplyUnconfirmed and Escrow.Commission
 func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
 
+	// skipped when not pending
+	if tx.Escrow.GetStatus() != model.EscrowStatus_Pending {
+		return nil
+	}
+	// update sender balance by reducing his spendable balance of the tx fee
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		-(tx.Body.LockedBalance + tx.Fee + tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	// add row to node_registry table
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-/*
-EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
-this will be called on apply confirmed or when rollback occurred
-*/
+// EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+// this will be called on apply confirmed or when rollback occurred
 func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
 
+	// skipped when not pending
+	if tx.Escrow.GetStatus() != model.EscrowStatus_Pending {
+		return nil
+	}
+	// update sender balance by reducing his spendable balance of the tx fee
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		tx.Body.LockedBalance+tx.Fee+tx.Escrow.GetCommission(),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-/*
-EscrowApplyConfirmed func that for applying Transaction SendMoney type.
-*/
-func (tx *NodeRegistration) EscrowApplyConfirmed(int64) error {
+// EscrowApplyConfirmed func that for applying Transaction SendMoney type
+func (tx *NodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+	var (
+		queries [][]interface{}
+		err     error
+	)
+
+	// update sender balance by reducing his spendable balance of the tx fee and locked balance
+	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
+		-(tx.Body.LockedBalance + tx.Fee + tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, accountBalanceSenderQ...)
+
+	// Insert Escrow
+	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	queries = append(queries, escrowArgs...)
+
+	// sender account ledger log
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  -(tx.Body.LockedBalance + tx.Fee + tx.Escrow.GetCommission()),
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-/*
-EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
-like: spreading commission and fee, and also more pending tasks
-*/
-func (tx *NodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+// EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+// like: spreading commission and fee, and also more pending tasks
+func (tx *NodeRegistration) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
+
+	var (
+		queries [][]interface{}
+		err     error
+	)
+
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		err = tx.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			if errRollback := tx.QueryExecutor.RollbackTx(); errRollback != nil {
+				// TODO:: Need to log this error
+			}
+			return err
+		}
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
+		// approver ledger
+		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetApproverAddress(),
+			BalanceChange:  tx.Escrow.GetCommission(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
+		queries = append(queries, approverAccountLedgerArgs)
+
+	case model.EscrowApproval_Reject:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+		accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
+			-tx.Body.GetLockedBalance(),
+			map[string]interface{}{
+				"account_address": tx.SenderAddress,
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, accountBalanceSenderQ...)
+
+		// approver balance
+		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetApproverAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, approverBalanceQ...)
+		// approver ledger
+		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetApproverAddress(),
+			BalanceChange:  tx.Escrow.GetCommission(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		queries = append(queries, append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...))
+
+	default:
+		tx.Escrow.Status = model.EscrowStatus_Expired
+		// sender balance
+		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+			tx.Body.GetLockedBalance()+tx.Escrow.GetCommission(),
+			map[string]interface{}{
+				"account_address": tx.Escrow.GetSenderAddress(),
+				"block_height":    tx.Height,
+			},
+		)
+		queries = append(queries, senderBalanceQ...)
+
+		// sender ledger
+		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+			AccountAddress: tx.Escrow.GetSenderAddress(),
+			BalanceChange:  tx.Escrow.GetCommission() + tx.Escrow.GetAmount(),
+			BlockHeight:    tx.Height,
+			TransactionID:  tx.ID,
+			Timestamp:      uint64(blockTimestamp),
+			EventType:      model.EventType_EventApprovalEscrowTransaction,
+		})
+		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
+	}
+
+	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	queries = append(queries, escrowArgs...)
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		if errRollback := tx.QueryExecutor.RollbackTx(); errRollback != nil {
+			// TODO:: need to log this
+		}
+		return err
+	}
 	return nil
 }

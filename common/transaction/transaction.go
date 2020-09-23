@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -129,6 +130,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:           ts.Executor,
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				Escrow:                  tx.GetEscrow(),
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
 			}, nil
 		case 1:
 			transactionBody, err = (&UpdateNodeRegistration{
@@ -150,6 +152,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				Escrow:                tx.GetEscrow(),
+				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		case 2:
 			transactionBody, err = new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -168,6 +171,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
+				Escrow:                tx.GetEscrow(),
+				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -187,6 +192,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:         ts.Executor,
 				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
+				Escrow:                tx.GetEscrow(),
+				EscrowQuery:           query.NewEscrowTransactionQuery(),
 			}, nil
 		default:
 			return nil, nil
@@ -211,6 +218,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			}, nil
 		case 1:
 			transactionBody, err = new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -229,6 +237,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:       ts.Executor,
 				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				Escrow:              tx.GetEscrow(),
+				EscrowQuery:         query.NewEscrowTransactionQuery(),
 			}, nil
 		default:
 			return nil, nil

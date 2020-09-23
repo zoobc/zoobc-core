@@ -26,7 +26,7 @@ type ClaimNodeRegistration struct {
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.NodeAuthValidationInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
-	AccountBalanceHelper  AccountBalanceHelperInterface
+	EscrowQuery           query.EscrowTransactionQueryInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -243,12 +243,94 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ClaimNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
+	if tx.Escrow != nil {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+		}
 
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
 }
 
 // EscrowValidate validate node registration transaction and tx body
 func (tx *ClaimNodeRegistration) EscrowValidate(bool) error {
+	var (
+		nodeRegistration model.NodeRegistration
+		row              *sql.Row
+		err              error
+	)
+
+	// validate proof of ownership
+	if tx.Body.Poown == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "PoownRequired")
+	}
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
+	}
+
+	err = tx.AuthPoown.ValidateProofOfOwnership(
+		tx.Body.Poown, tx.Body.NodePublicKey,
+		tx.QueryExecutor,
+		tx.BlockQuery,
+	)
+	if err != nil {
+		return err
+	}
+
+	row, err = tx.QueryExecutor.ExecuteSelectRow(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false,
+		tx.Body.NodePublicKey,
+	)
+	if err != nil {
+		return err
+	}
+
+	// cannot claim a deleted node
+	err = tx.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		// public key must be already registered
+		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered")
+	}
+
+	if nodeRegistration.RegistrationStatus == uint32(model.NodeRegistrationState_NodeDeleted) {
+		return blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted")
+	}
+
+	return nil
+}
+
+/*
+EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `ClaimNodeRegistration` type:
+	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
+*/
+func (tx *ClaimNodeRegistration) EscrowApplyUnconfirmed() error {
+
+	// update sender balance by reducing his spendable balance of the tx fee
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -257,6 +339,17 @@ func (tx *ClaimNodeRegistration) EscrowValidate(bool) error {
 EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
 */
 func (tx *ClaimNodeRegistration) EscrowUndoApplyUnconfirmed() error {
+	// update sender balance by reducing his spendable balance of the tx fee
+	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
+		tx.Fee+tx.Escrow.GetCommission(),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+		},
+	)
+	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -265,6 +358,56 @@ func (tx *ClaimNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 EscrowApplyConfirmed func that for applying pending escrow transaction.
 */
 func (tx *ClaimNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+	var (
+		prevNodeRegistration *model.NodeRegistration
+		err                  error
+		row                  *sql.Row
+		queries              [][]interface{}
+	)
+
+	row, err = tx.QueryExecutor.ExecuteSelectRow(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false,
+		tx.Body.NodePublicKey,
+	)
+	if err != nil {
+		return err
+	}
+	err = row.Scan(&prevNodeRegistration)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
+	}
+
+	// tag the node as deleted
+	// update sender balance by claiming the locked balance
+	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
+		prevNodeRegistration.LockedBalance-(tx.Fee+tx.Escrow.GetCommission()),
+		map[string]interface{}{
+			"account_address": tx.SenderAddress,
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, accountBalanceSenderQ...)
+	// sender Account Ledger
+	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.SenderAddress,
+		BalanceChange:  prevNodeRegistration.LockedBalance - (tx.Fee + tx.Escrow.GetCommission()),
+		TransactionID:  tx.ID,
+		BlockHeight:    tx.Height,
+		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+		Timestamp:      uint64(blockTimestamp),
+	})
+
+	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
+	queries = append(queries, senderAccountLedgerArgs)
+
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -273,6 +416,74 @@ func (tx *ClaimNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) erro
 EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
 like: spreading commission and fee, and also more pending tasks
 */
-func (tx *ClaimNodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+func (tx *ClaimNodeRegistration) EscrowApproval(blockTimestamp int64) error {
+	var (
+		queries              [][]interface{}
+		row                  *sql.Row
+		err                  error
+		prevNodeRegistration model.NodeRegistration
+	)
+	// approver balance
+	approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+		tx.Escrow.GetCommission(),
+		map[string]interface{}{
+			"account_address": tx.Escrow.GetApproverAddress(),
+			"block_height":    tx.Height,
+		},
+	)
+	queries = append(queries, approverBalanceQ...)
+
+	// approver account ledger log
+	approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: tx.Escrow.GetApproverAddress(),
+		BalanceChange:  tx.Escrow.GetCommission(),
+		BlockHeight:    tx.Height,
+		TransactionID:  tx.ID,
+		Timestamp:      uint64(blockTimestamp),
+		EventType:      model.EventType_EventClaimNodeRegistrationTransaction,
+	})
+	approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
+	queries = append(queries, approverAccountLedgerArgs)
+
+	row, err = tx.QueryExecutor.ExecuteSelectRow(
+		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
+		false,
+		tx.Body.NodePublicKey,
+	)
+	if err != nil {
+		return err
+	}
+	err = row.Scan(&prevNodeRegistration)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.AppErr, "NodePublicKeyNotRegistered")
+	}
+	// Node registration
+	nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{
+		NodeID:        prevNodeRegistration.GetNodeID(),
+		LockedBalance: 0,
+		Height:        tx.Height,
+		// NodeAddress:        nil,
+		RegistrationHeight: prevNodeRegistration.GetRegistrationHeight(),
+		NodePublicKey:      tx.Body.NodePublicKey,
+		Latest:             true,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeDeleted),
+		// We can't just set accountAddress to an empty string,
+		// otherwise it could trigger an error when parsing the transaction from its bytes
+		AccountAddress: prevNodeRegistration.GetAccountAddress(),
+	})
+	queries = append(queries, nodeQueries...)
+
+	// Insert Escrow
+	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	queries = append(queries, escrowArgs...)
+
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
