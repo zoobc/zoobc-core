@@ -157,8 +157,8 @@ func (nrs *NodeRegistrationService) InitializeCache() error {
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	var (
-		pendingNodeRegistries  []storage.NodeRegistry
-		selectedNodeRegistries []*model.NodeRegistration
+		pendingNodeRegistries  = make([]storage.NodeRegistry, 0)
+		selectedNodeRegistries = make([]*model.NodeRegistration, 0)
 		err                    error
 	)
 	// get all pending registry (sorted by locked balance highest to lowest already)
@@ -175,8 +175,8 @@ func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*mo
 // SelectNodesToBeExpelled Select n (=limit) registered nodes with participation score = 0
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	var (
-		activeNodeRegistry    []storage.NodeRegistry
-		zeroScoreNodeRegistry []*model.NodeRegistration
+		activeNodeRegistry    = make([]storage.NodeRegistry, 0)
+		zeroScoreNodeRegistry = make([]*model.NodeRegistration, 0)
 		err                   error
 	)
 	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
@@ -272,15 +272,15 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 // and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	var (
-		activeNodeRegistries, pendingNodeRegistries []storage.NodeRegistry
+		activeNodeRegistries, pendingNodeRegistries = make([]storage.NodeRegistry, 0), make([]storage.NodeRegistry, 0)
 		pendingIDsToRemove                          []int64
 		err                                         error
 	)
-	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(activeNodeRegistries)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistries)
 	if err != nil {
 		return err
 	}
-	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(pendingNodeRegistries)
+	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&pendingNodeRegistries)
 	if err != nil {
 		return err
 	}
@@ -323,11 +323,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 			}
 		}
 	}
-	err = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistries)
-	if err != nil {
-		return err
-	}
-	// re-sort pending/active cache
+	// re-sort active cache
 	sort.SliceStable(activeNodeRegistries, func(i, j int) bool {
 		// ascending sort
 		return activeNodeRegistries[i].Node.GetNodeID() < activeNodeRegistries[j].Node.GetNodeID()
@@ -344,7 +340,7 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		activeNodeIDsToRemove []int64
 		err                   error
 	)
-	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(activeNodeRegistries)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistries)
 	if err != nil {
 		return err
 	}

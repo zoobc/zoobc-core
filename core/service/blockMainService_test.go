@@ -117,6 +117,14 @@ func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.N
 	}, nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) BackupCache() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) RestoreCache() error {
+	return nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
 	return &model.NodeAdmissionTimestamp{
 		Timestamp: mockBlockPushBlock.Timestamp + 1,
@@ -156,6 +164,14 @@ func (*mockNodeRegistrationServiceFail) GetNextNodeAdmissionTimestamp() (*model.
 func (*mockNodeRegistrationServiceFail) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp,
 ) error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) BackupCache() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) RestoreCache() error {
 	return nil
 }
 
@@ -3944,6 +3960,10 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) ResetScrambledNodes() {
 func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp,
 ) error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceBlockPopSuccess) InitializeCache() error {
 	return nil
 }
 
