@@ -120,12 +120,13 @@ func (m *MempoolBackupStorage) RemoveItem(key interface{}) error {
 	return nil
 }
 
-func (m *MempoolBackupStorage) size() int {
+func (m *MempoolBackupStorage) size() int64 {
 	var size int
 	for _, v := range m.mempools {
-		size += len(v)
+		s := len(v)
+		size += s
 	}
-	return size
+	return int64(size)
 }
 
 // GetSize get size of MempoolBackupStorage values
@@ -133,7 +134,7 @@ func (m *MempoolBackupStorage) GetSize() int64 {
 	m.RLock()
 	defer m.RUnlock()
 
-	return int64(m.size())
+	return m.size()
 }
 
 // ClearCache clear or remove all items from MempoolBackupStorage
