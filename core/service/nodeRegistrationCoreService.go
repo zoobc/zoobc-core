@@ -13,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"math/big"
-	"sort"
 )
 
 type (
@@ -48,8 +47,9 @@ type (
 		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
 		// cache controllers
 		InitializeCache() error
-		RestoreCacheTransaction()
-		CommitCache() error
+		BeginCacheTransaction() error
+		RollbackCacheTransaction() error
+		CommitCacheTransaction() error
 	}
 
 	// NodeRegistrationService mockable service methods
@@ -69,9 +69,6 @@ type (
 		CurrentNodePublicKey            []byte
 		Signature                       crypto.SignatureInterface
 		NodeAddressInfoService          NodeAddressInfoServiceInterface
-		// cache backup for transactional writes
-		TransactionalActiveNodeRegistryCache  []storage.NodeRegistry
-		TransactionalPendingNodeRegistryCache []storage.NodeRegistry
 	}
 )
 
@@ -272,15 +269,11 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 // and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	var (
-		activeNodeRegistries, pendingNodeRegistries = make([]storage.NodeRegistry, 0), make([]storage.NodeRegistry, 0)
-		pendingIDsToRemove                          []int64
-		err                                         error
+		activeNodeRegistries = make([]storage.NodeRegistry, 0)
+		pendingIDsToRemove   []int64
+		err                  error
 	)
 	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistries)
-	if err != nil {
-		return err
-	}
-	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&pendingNodeRegistries)
 	if err != nil {
 		return err
 	}
@@ -311,41 +304,33 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		})
 
 	}
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
 	// remove pending
 	for _, id := range pendingIDsToRemove {
 		// look up from updated pending node registry (temp) cache
-		for i, registry := range nrs.TransactionalPendingNodeRegistryCache {
-			if registry.Node.GetNodeID() == id {
-				tempLeft := nrs.TransactionalPendingNodeRegistryCache[:i]
-				tempRight := nrs.TransactionalPendingNodeRegistryCache[i+1:]
-				// transactional update
-				nrs.TransactionalPendingNodeRegistryCache = append(tempLeft, tempRight...)
-				break
-			}
+		err = txPendingCache.TxRemoveItem(id)
+		if err != nil {
+			return err
 		}
 	}
-	// re-sort active cache
-	sort.SliceStable(activeNodeRegistries, func(i, j int) bool {
-		// ascending sort
-		return activeNodeRegistries[i].Node.GetNodeID() < activeNodeRegistries[j].Node.GetNodeID()
-	})
-	// transactional cache state
-	nrs.TransactionalActiveNodeRegistryCache = activeNodeRegistries
-	return nil
+	// update transactional cache state
+	err = txActiveCache.TxSetItems(activeNodeRegistries)
+	return err
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
 // update the node registration by setting registrationStatus field to 3 (deleted) and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
 	var (
-		activeNodeRegistries  []storage.NodeRegistry
 		activeNodeIDsToRemove []int64
-		err                   error
 	)
-	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistries)
-	if err != nil {
-		return err
-	}
 	for _, nodeRegistration := range nodeRegistrations {
 		// update the node registry (set registrationStatus to 1 and locked balance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
@@ -371,15 +356,14 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		}
 		activeNodeIDsToRemove = append(activeNodeIDsToRemove, nodeRegistration.GetNodeID())
 	}
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
 	for _, id := range activeNodeIDsToRemove {
-		for activeIndex, registry := range nrs.TransactionalActiveNodeRegistryCache {
-			if registry.Node.GetNodeID() == id {
-				tempLeft := nrs.TransactionalActiveNodeRegistryCache[:activeIndex]
-				tempRight := nrs.TransactionalActiveNodeRegistryCache[activeIndex+1:]
-				// transactional update
-				nrs.TransactionalActiveNodeRegistryCache = append(tempLeft, tempRight...)
-				break
-			}
+		err := txActiveCache.TxRemoveItem(id)
+		if err != nil {
+			return err
 		}
 	}
 	// no need to re-sort as the slicing of the cache will keep the order in place
@@ -499,34 +483,26 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 // AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number
 func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error) {
 	var (
-		ps model.ParticipationScore
+		nodeRegistry storage.NodeRegistry
 	)
-	qry, args := nrs.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
-	row, err := nrs.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return 0, err
-	}
-	if row == nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, "ParticipationScoreNotFound")
-	}
-	err = nrs.ParticipationScoreQuery.Scan(&ps, row)
-	if err != nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
 
+	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
+	if err != nil {
+		return 0, blocker.NewBlocker(blocker.AppErr, "FailGetNodeRegistryFromCache")
+	}
 	// don't update the score if already max allowed
-	if ps.Score >= constant.MaxParticipationScore && scoreDelta > 0 {
+	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {
 		nrs.Logger.Debugf("Node id %d: score is already the maximum allowed and won't be increased", nodeID)
 		return constant.MaxParticipationScore, nil
 	}
-	if ps.Score <= 0 && scoreDelta < 0 {
+	if nodeRegistry.ParticipationScore <= 0 && scoreDelta < 0 {
 		nrs.Logger.Debugf("Node id %d: score is already 0. new score won't be decreased", nodeID)
 		return 0, nil
 	}
 	// check if updating the score will overflow the max score and if so, set the new score to max allowed
 	// note: we use big integers to make sure we manage the very unlikely case where the addition overflows max int64
 	scoreDeltaBig := big.NewInt(scoreDelta)
-	prevScoreBig := big.NewInt(ps.Score)
+	prevScoreBig := big.NewInt(nodeRegistry.ParticipationScore)
 	maxScoreBig := big.NewInt(constant.MaxParticipationScore)
 	newScoreBig := new(big.Int).Add(prevScoreBig, scoreDeltaBig)
 	if newScoreBig.Cmp(maxScoreBig) > 0 {
@@ -534,7 +510,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	} else if newScoreBig.Cmp(big.NewInt(0)) < 0 {
 		newScore = 0
 	} else {
-		newScore = ps.Score + scoreDelta
+		newScore = nodeRegistry.ParticipationScore + scoreDelta
 	}
 
 	// finally update the participation score
@@ -759,40 +735,47 @@ func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddress
 	return nil
 }
 
-func (nrs *NodeRegistrationService) RestoreCacheTransaction() {
-	nrs.TransactionalActiveNodeRegistryCache = make([]storage.NodeRegistry, 0)
-	nrs.TransactionalPendingNodeRegistryCache = make([]storage.NodeRegistry, 0)
+func (nrs *NodeRegistrationService) BeginCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
+	}
+	// node registration cache implementation cannot return error on rollback
+	_ = txActiveCache.Begin()
+	_ = txPendingCache.Begin()
+	return nil
 }
 
-func (nrs *NodeRegistrationService) CommitCache() error {
-	var (
-		activeNodeRegistriesBackup,
-		pendingNodeRegistriesBackup = make([]storage.NodeRegistry, 0), make([]storage.NodeRegistry, 0)
-		err error
-	)
-	// prepare backup
-	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistriesBackup)
-	if err != nil {
-		return err
+func (nrs *NodeRegistrationService) RollbackCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
 	}
-	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&pendingNodeRegistriesBackup)
-	if err != nil {
-		return err
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
 	}
-	// commit changes
-	err = nrs.PendingNodeRegistryCacheStorage.SetItems(nrs.TransactionalPendingNodeRegistryCache)
-	if err != nil {
-		// restoring the same item we fetched, no need to check errors
-		_ = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistriesBackup)
-		return err
+	// node registration cache implementation cannot return error on rollback
+	_ = txActiveCache.Rollback()
+	_ = txPendingCache.Rollback()
+	return nil
+}
+
+func (nrs *NodeRegistrationService) CommitCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
 	}
-	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(nrs.TransactionalActiveNodeRegistryCache)
-	if err != nil {
-		// restoring the same item we fetched, no need to check errors
-		_ = nrs.PendingNodeRegistryCacheStorage.SetItems(pendingNodeRegistriesBackup)
-		_ = nrs.ActiveNodeRegistryCacheStorage.SetItems(activeNodeRegistriesBackup)
-		return err
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
 	}
-	nrs.RestoreCacheTransaction()
+	// node registration cache implementation cannot return error on commit
+	_ = txActiveCache.Commit()
+	_ = txPendingCache.Commit()
 	return nil
 }

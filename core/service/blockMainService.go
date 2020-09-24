@@ -425,6 +425,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return err
 	}
+	err = bs.NodeRegistrationService.BeginCacheTransaction()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginCacheTransaction - %s", err.Error()))
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
@@ -707,7 +712,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
-	err = bs.NodeRegistrationService.CommitCache()
+	err = bs.NodeRegistrationService.CommitCacheTransaction()
 	if err != nil {
 		bs.Logger.Warnf("FailToCommitNodeRegistryCache-%v", err)
 		_ = bs.NodeRegistrationService.InitializeCache()
@@ -746,7 +751,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
 	// clear list of candidate node address info to be remove in cache
 	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
-	bs.NodeRegistrationService.RestoreCacheTransaction()
+	err := bs.NodeRegistrationService.RollbackCacheTransaction()
+	if err != nil {
+		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
+	}
 	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
 	}
@@ -898,10 +906,8 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 		}
 	}
 	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height, true)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 // GetBlockByID return a block by its ID

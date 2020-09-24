@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"syscall"
 	"time"
 
@@ -244,9 +245,24 @@ func initiateMainInstance() {
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	// store current active node registry (not in queue)
-	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage)
+	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypeActiveNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by nodeID lowest - highest
+				return registries[i].Node.GetNodeID() < registries[j].Node.GetNodeID()
+			})
+		})
 	// store pending node registry
-	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage)
+	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypePendingNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by locked balance highest - lowest
+				return registries[i].Node.GetLockedBalance() > registries[j].Node.GetLockedBalance()
+			})
+		},
+	)
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -262,10 +278,12 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 	)
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor:               queryExecutor,
-		MempoolCacheStorage:    mempoolStorage,
-		NodeAddressInfoStorage: nodeAddressInfoStorage,
-		NodeAuthValidation:     nodeAuthValidationService,
+		Executor:                   queryExecutor,
+		MempoolCacheStorage:        mempoolStorage,
+		NodeAddressInfoStorage:     nodeAddressInfoStorage,
+		NodeAuthValidation:         nodeAuthValidationService,
+		ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
+		PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(

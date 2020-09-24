@@ -43,10 +43,12 @@ type (
 	}
 	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
-		Executor               query.ExecutorInterface
-		NodeAuthValidation     auth.NodeAuthValidationInterface
-		NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
-		MempoolCacheStorage    storage.CacheStorageInterface
+		Executor                   query.ExecutorInterface
+		NodeAuthValidation         auth.NodeAuthValidationInterface
+		NodeAddressInfoStorage     storage.NodeAddressInfoStorageInterface
+		MempoolCacheStorage        storage.CacheStorageInterface
+		PendingNodeRegistryStorage storage.CacheStorageInterface
+		ActiveNodeRegistryStorage  storage.CacheStorageInterface
 	}
 )
 
@@ -110,6 +112,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		}
 	// Node Registry
 	case 2:
+		txPendingNodeRegistryCache := ts.PendingNodeRegistryStorage.(storage.TransactionalCache)
+		txActiveNodeRegistryCache := ts.PendingNodeRegistryStorage.(storage.TransactionalCache)
 		switch buf[1] {
 		case 0:
 			transactionBody, err = (&NodeRegistration{
@@ -119,19 +123,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &NodeRegistration{
-				ID:                      tx.ID, // assign tx ID to nodeID
-				Body:                    transactionBody.(*model.NodeRegistrationTransactionBody),
-				Fee:                     tx.Fee,
-				SenderAddress:           tx.GetSenderAccountAddress(),
-				Height:                  tx.GetHeight(),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AuthPoown:               ts.NodeAuthValidation,
-				QueryExecutor:           ts.Executor,
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Escrow:                  tx.GetEscrow(),
+				ID:                       tx.ID, // assign tx ID to nodeID
+				Body:                     transactionBody.(*model.NodeRegistrationTransactionBody),
+				Fee:                      tx.Fee,
+				SenderAddress:            tx.GetSenderAccountAddress(),
+				Height:                   tx.GetHeight(),
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				AuthPoown:                ts.NodeAuthValidation,
+				QueryExecutor:            ts.Executor,
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				Escrow:                   tx.GetEscrow(),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
 			}, nil
 		case 1:
 			transactionBody, err = (&UpdateNodeRegistration{
@@ -160,18 +165,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
-				ID:                     tx.GetID(),
-				Body:                   transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
-				Fee:                    tx.Fee,
-				SenderAddress:          tx.GetSenderAccountAddress(),
-				Height:                 tx.GetHeight(),
-				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				QueryExecutor:          ts.Executor,
-				AccountLedgerQuery:     query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:   accountBalanceHelper,
-				NodeAddressInfoStorage: ts.NodeAddressInfoStorage,
+				ID:                       tx.GetID(),
+				Body:                     transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
+				Fee:                      tx.Fee,
+				SenderAddress:            tx.GetSenderAccountAddress(),
+				Height:                   tx.GetHeight(),
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
+				QueryExecutor:            ts.Executor,
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:     accountBalanceHelper,
+				NodeAddressInfoStorage:   ts.NodeAddressInfoStorage,
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
+				ActiveNodeRegistryCache:  txActiveNodeRegistryCache,
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -179,19 +186,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
-				ID:                     tx.GetID(),
-				Body:                   transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
-				Fee:                    tx.Fee,
-				SenderAddress:          tx.GetSenderAccountAddress(),
-				Height:                 tx.GetHeight(),
-				AccountBalanceQuery:    query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
-				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:              ts.NodeAuthValidation,
-				QueryExecutor:          ts.Executor,
-				AccountLedgerQuery:     query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:   accountBalanceHelper,
-				NodeAddressInfoStorage: ts.NodeAddressInfoStorage,
+				ID:                      tx.GetID(),
+				Body:                    transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
+				Fee:                     tx.Fee,
+				SenderAddress:           tx.GetSenderAccountAddress(),
+				Height:                  tx.GetHeight(),
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:               ts.NodeAuthValidation,
+				QueryExecutor:           ts.Executor,
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:    accountBalanceHelper,
+				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
+				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
 			}, nil
 		default:
 			return nil, nil

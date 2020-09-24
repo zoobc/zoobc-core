@@ -109,7 +109,7 @@ func (*mockNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*model
 	return nil
 }
 
-func (*mockNodeRegistrationServiceSuccess) CommitCache() error {
+func (*mockNodeRegistrationServiceSuccess) CommitCacheTransaction() error {
 	return nil
 }
 
