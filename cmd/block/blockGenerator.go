@@ -163,7 +163,11 @@ func initialize(
 	nodeAddressInfoService := service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
 		nodeAddressInfoStorage,
+		nil,
 		log.New(),
 	)
 	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
@@ -173,13 +177,10 @@ func initialize(
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
-		nil,
 		nodeAddressInfoService,
-		nil,
 		nil,
 		activeNodeRegistryCacheStorage,
 		pendingNodeRegistryCacheStorage,

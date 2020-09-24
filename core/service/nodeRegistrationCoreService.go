@@ -6,9 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
@@ -21,7 +19,6 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
-		GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
@@ -34,17 +31,6 @@ type (
 		UpdateNextNodeAdmissionCache(newNextNodeAdmission *model.NodeAdmissionTimestamp) error
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
-		GenerateNodeAddressInfo(
-			nodeID int64,
-			nodeAddress string,
-			port uint32,
-			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
-		UpdateNodeAddressInfo(
-			nodeAddressInfo *model.NodeAddressInfo,
-			updatedStatus model.NodeAddressStatus,
-		) (updated bool, err error)
-		ValidateNodeAddressInfo(nodeAddressMessage *model.NodeAddressInfo) (found bool, err error)
-		ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error
 		// cache controllers
 		InitializeCache() error
 		BeginCacheTransaction() error
@@ -58,16 +44,13 @@ type (
 		AccountBalanceQuery             query.AccountBalanceQueryInterface
 		NodeRegistrationQuery           query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery         query.ParticipationScoreQueryInterface
-		BlockQuery                      query.BlockQueryInterface
 		NodeAdmissionTimestampQuery     query.NodeAdmissionTimestampQueryInterface
 		NextNodeAdmissionStorage        storage.CacheStorageInterface
-		MainBlockStateStorage           storage.CacheStorageInterface
 		ActiveNodeRegistryCacheStorage  storage.CacheStorageInterface
 		PendingNodeRegistryCacheStorage storage.CacheStorageInterface
 		Logger                          *log.Logger
 		BlockchainStatusService         BlockchainStatusServiceInterface
 		CurrentNodePublicKey            []byte
-		Signature                       crypto.SignatureInterface
 		NodeAddressInfoService          NodeAddressInfoServiceInterface
 	}
 )
@@ -77,13 +60,11 @@ func NewNodeRegistrationService(
 	accountBalanceQuery query.AccountBalanceQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	participationScoreQuery query.ParticipationScoreQueryInterface,
-	blockQuery query.BlockQueryInterface,
 	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
 	logger *log.Logger,
 	blockchainStatusService BlockchainStatusServiceInterface,
-	signature crypto.SignatureInterface,
 	nodeAddressInfoService NodeAddressInfoServiceInterface,
-	nextNodeAdmissionStorage, mainBlockStateStorage, activeNodeRegistryCacheStorage,
+	nextNodeAdmissionStorage, activeNodeRegistryCacheStorage,
 	pendingNodeRegistryCache storage.CacheStorageInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
@@ -91,14 +72,11 @@ func NewNodeRegistrationService(
 		AccountBalanceQuery:             accountBalanceQuery,
 		NodeRegistrationQuery:           nodeRegistrationQuery,
 		ParticipationScoreQuery:         participationScoreQuery,
-		BlockQuery:                      blockQuery,
 		Logger:                          logger,
 		BlockchainStatusService:         blockchainStatusService,
-		Signature:                       signature,
 		NodeAddressInfoService:          nodeAddressInfoService,
 		NodeAdmissionTimestampQuery:     nodeAdmissionTimestampQuery,
 		NextNodeAdmissionStorage:        nextNodeAdmissionStorage,
-		MainBlockStateStorage:           mainBlockStateStorage,
 		ActiveNodeRegistryCacheStorage:  activeNodeRegistryCacheStorage,
 		PendingNodeRegistryCacheStorage: pendingNodeRegistryCache,
 	}
@@ -202,21 +180,6 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
 	return nodeRegistries, nil
-}
-
-func (nrs *NodeRegistrationService) GetRegisteredNodesWithNodeAddress() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetActiveNodeRegistrationsWithNodeAddress()
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if err != nil {
-		return nil, err
-	}
-
-	return nodeRegistry, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
@@ -523,216 +486,6 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 // being admitted and can start unlock smithing process
 func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 	nrs.CurrentNodePublicKey = publicKey
-}
-
-// GetNodeAddressesInfoFromDb returns a list of node address info messages given a list of nodeIDs and address statuses
-func (nrs *NodeRegistrationService) GetNodeAddressesInfoFromDb(
-	nodeIDs []int64,
-	addressStatuses []model.NodeAddressStatus,
-) ([]*model.NodeAddressInfo, error) {
-	var nodeAddressesInfo []*model.NodeAddressInfo
-	var err error
-	if len(nodeIDs) > 0 {
-		nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeIDs(nodeIDs, addressStatuses)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByStatus(addressStatuses)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return nodeAddressesInfo, nil
-}
-
-// UpdateNodeAddressInfo updates or adds (in case new) a node address info record to db
-// TODO @sukrawidhyawan: will completely move this function into node address info service
-// after node address info cache stable
-func (nrs *NodeRegistrationService) UpdateNodeAddressInfo(
-	nodeAddressInfo *model.NodeAddressInfo,
-	updatedStatus model.NodeAddressStatus,
-) (updated bool, err error) {
-	var (
-		addressAlreadyUpdated bool
-		nodeAddressesInfo     []*model.NodeAddressInfo
-	)
-	// validate first
-	addressAlreadyUpdated, err = nrs.ValidateNodeAddressInfo(nodeAddressInfo)
-	if err != nil || addressAlreadyUpdated {
-		return false, err
-	}
-
-	nodeAddressInfo.Status = updatedStatus
-	// if a node with same id and status already exist, update
-	if nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeID(
-		nodeAddressInfo.NodeID,
-		[]model.NodeAddressStatus{nodeAddressInfo.Status},
-	); err != nil {
-		return false, err
-	}
-	if len(nodeAddressesInfo) > 0 {
-		// check if new address info is more recent than previous
-		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
-			return false, nil
-		}
-		err = nrs.NodeAddressInfoService.UpdateAddrressInfo(nodeAddressInfo)
-		if err != nil {
-			return false, err
-		}
-		return true, nil
-	}
-	err = nrs.NodeAddressInfoService.InsertAddressInfo(nodeAddressInfo)
-	if err != nil {
-		return false, err
-	}
-	if monitoring.IsMonitoringActive() {
-		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
-			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
-		}
-		if cna, err := nrs.NodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
-			for status, counter := range cna {
-				monitoring.SetNodeAddressStatusCount(counter, status)
-			}
-		}
-	}
-	return true, nil
-}
-
-// ValidateNodeAddressInfo validate message data against:
-// - main blocks: block height and hash
-// - node registry: nodeID and message signature (use node public key in registry to validate the signature)
-// Validation also fails if there is already a nodeAddressInfo record in db with same nodeID, address, port
-func (nrs *NodeRegistrationService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
-	var (
-		block             model.Block
-		nodeRegistration  model.NodeRegistration
-		nodeAddressesInfo []*model.NodeAddressInfo
-	)
-
-	// validate nodeID
-	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
-	row, _ := nrs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
-	err = nrs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			err = blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
-			return
-		}
-		return
-	}
-
-	// validate the message signature
-	unsignedBytes := nrs.NodeAddressInfoService.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
-	if !nrs.Signature.VerifyNodeSignature(
-		unsignedBytes,
-		nodeAddressInfo.GetSignature(),
-		nodeRegistration.GetNodePublicKey(),
-	) {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
-		return
-	}
-
-	// validate block height
-	blockRow, _ := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()), false)
-	err = nrs.BlockQuery.Scan(&block, blockRow)
-	if err != nil {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
-		return
-	}
-	// validate block hash
-	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
-		return
-	}
-
-	if nodeAddressesInfo, err = nrs.NodeAddressInfoService.GetAddressInfoByNodeID(
-		nodeAddressInfo.GetNodeID(),
-		[]model.NodeAddressStatus{
-			model.NodeAddressStatus_NodeAddressConfirmed,
-			model.NodeAddressStatus_NodeAddressPending},
-	); err != nil {
-		return
-	}
-
-	for _, nai := range nodeAddressesInfo {
-		if nodeAddressInfo.GetAddress() == nai.GetAddress() &&
-			nodeAddressInfo.GetPort() == nai.GetPort() {
-			// in case address for this node exists
-			found = true
-			return
-		}
-		if nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending && nai.BlockHeight >= nodeAddressInfo.BlockHeight {
-			found = true
-			err = blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
-			return
-		}
-	}
-	return false, nil
-}
-
-// GenerateNodeAddressInfo generate a nodeAddressInfo signed message
-func (nrs *NodeRegistrationService) GenerateNodeAddressInfo(
-	nodeID int64,
-	nodeAddress string,
-	port uint32,
-	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
-	var (
-		safeBlockHeight      uint32
-		safeBlock, lastBlock model.Block
-		err                  = nrs.MainBlockStateStorage.GetItem(nil, &lastBlock)
-	)
-	if err != nil {
-		return nil, err
-	}
-	// get a rollback-safe block for node address info message, to make sure evey peer can validate it
-	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first 720 blocks
-	if lastBlock.GetHeight() < constant.MinRollbackBlocks {
-		safeBlockHeight = 0
-	} else {
-		safeBlockHeight = lastBlock.GetHeight() - constant.MinRollbackBlocks
-	}
-	rows, err := nrs.QueryExecutor.ExecuteSelectRow(nrs.BlockQuery.GetBlockByHeight(safeBlockHeight), false)
-	if err != nil {
-		return nil, err
-	}
-	err = nrs.BlockQuery.Scan(&safeBlock, rows)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeAddressInfo := &model.NodeAddressInfo{
-		NodeID:      nodeID,
-		Address:     nodeAddress,
-		Port:        port,
-		BlockHeight: safeBlock.GetHeight(),
-		BlockHash:   safeBlock.GetBlockHash(),
-	}
-	nodeAddressInfoBytes := nrs.NodeAddressInfoService.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
-	nodeAddressInfo.Signature = nrs.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
-	return nodeAddressInfo, nil
-}
-
-// ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
-// TODO @sukrawidhyawan: will completely move this function into node address info service
-// after node address info cache stable
-func (nrs *NodeRegistrationService) ConfirmPendingNodeAddress(pendingNodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nrs.NodeAddressInfoService.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-	if err != nil {
-		return err
-	}
-	if monitoring.IsMonitoringActive() {
-		if registeredNodesWithAddress, err := nrs.GetRegisteredNodesWithNodeAddress(); err == nil {
-			monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
-		}
-		if cna, err := nrs.NodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
-			for status, counter := range cna {
-				monitoring.SetNodeAddressStatusCount(counter, status)
-			}
-		}
-	}
-
-	return nil
 }
 
 func (nrs *NodeRegistrationService) BeginCacheTransaction() error {

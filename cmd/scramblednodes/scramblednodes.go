@@ -103,7 +103,11 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
 			query.NewNodeAddressInfoQuery(),
+			query.NewNodeRegistrationQuery(),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+			nil,
 			storage.NewNodeAddressInfoStorage(),
+			nil,
 			logrus.New(),
 		)
 
@@ -112,13 +116,10 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
-			query.NewBlockQuery(&chaintype.MainChain{}),
 			query.NewNodeAdmissionTimestampQuery(),
 			nil,
 			nil,
-			nil,
 			nodeAddressInfoService,
-			nil,
 			nil,
 			activeNodeRegistryCacheStorage,
 			pendingNodeRegistryCacheStorage,
