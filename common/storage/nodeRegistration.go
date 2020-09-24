@@ -123,7 +123,10 @@ func (n *NodeRegistryCacheStorage) GetItem(idx, item interface{}) error {
 	case int:
 		itemIndex = castedIdx
 	case int64:
-		itemIndex = n.nodeIDIndexes[castedIdx]
+		itemIndex, ok = n.nodeIDIndexes[castedIdx]
+		if !ok {
+			return blocker.NewBlocker(blocker.ValidationErr, "NotFound")
+		}
 	default:
 		return blocker.NewBlocker(blocker.ValidationErr, "UnknownType")
 	}
@@ -288,6 +291,7 @@ func (n *NodeRegistryCacheStorage) TxSetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemsMustBe:[]Storage.NodeRegistry")
 	}
 	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
+	n.transactionalNodeIDIndexes = make(map[int64]int)
 	n.transactionalNodeRegistries = registries
 	for i, registry := range registries {
 		n.transactionalNodeRegistries = append(n.transactionalNodeRegistries, n.copy(registry))

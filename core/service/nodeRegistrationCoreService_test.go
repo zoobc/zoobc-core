@@ -406,10 +406,10 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 
 type (
 	mockActiveNodeRegistryCacheSuccess struct {
-		storage.CacheStorageInterface
+		storage.NodeRegistryCacheStorage
 	}
 	mockPendingNodeRegistryCacheSuccess struct {
-		storage.CacheStorageInterface
+		storage.NodeRegistryCacheStorage
 	}
 )
 
@@ -418,6 +418,10 @@ func (*mockActiveNodeRegistryCacheSuccess) GetAllItems(items interface{}) error 
 }
 
 func (*mockActiveNodeRegistryCacheSuccess) SetItems(items interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheSuccess) TxSetItems(items interface{}) error {
 	return nil
 }
 
@@ -434,6 +438,10 @@ func (*mockPendingNodeRegistryCacheSuccess) GetAllItems(items interface{}) error
 }
 
 func (*mockPendingNodeRegistryCacheSuccess) RemoveItem(index interface{}) error {
+	return nil
+}
+
+func (*mockPendingNodeRegistryCacheSuccess) TxRemoveItem(index interface{}) error {
 	return nil
 }
 
@@ -520,11 +528,11 @@ func (*mockExpelNodesNodeAddressInfoSuccess) DeleteNodeAddressInfoByNodeIDInDBTx
 
 type (
 	mockActiveNodeRegistryCacheExpelNodeSuccess struct {
-		storage.CacheStorageInterface
+		storage.NodeRegistryCacheStorage
 	}
 
 	mockPendingNodeRegistryCacheExpelNodeSuccess struct {
-		storage.CacheStorageInterface
+		storage.NodeRegistryCacheStorage
 	}
 )
 
@@ -541,6 +549,10 @@ func (*mockActiveNodeRegistryCacheExpelNodeSuccess) GetAllItems(items interface{
 }
 
 func (*mockActiveNodeRegistryCacheExpelNodeSuccess) RemoveItem(index interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheExpelNodeSuccess) TxRemoveItem(index interface{}) error {
 	return nil
 }
 
@@ -824,11 +836,37 @@ func (*mockQueryExecutorAddParticipationScoreSuccess) ExecuteTransactions(querie
 	return nil
 }
 
+type (
+	mockActiveNodeRegistryCacheAddParticipationScoreSuccess struct {
+		storage.NodeRegistryCacheStorage
+		prevScore int64
+	}
+	mockActiveNodeRegistryCacheAddParticipationScoreNotFound struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (ma *mockActiveNodeRegistryCacheAddParticipationScoreSuccess) GetItem(id, item interface{}) error {
+	registry := item.(*storage.NodeRegistry)
+	*registry = storage.NodeRegistry{
+		Node: model.NodeRegistration{
+			NodeID: 1111,
+		},
+		ParticipationScore: ma.prevScore,
+	}
+	return nil
+}
+
+func (ma *mockActiveNodeRegistryCacheAddParticipationScoreNotFound) GetItem(id, item interface{}) error {
+	return errors.New("mockedError")
+}
+
 func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		Logger                  *log.Logger
+		ActiveNodeRegistryCache storage.CacheStorageInterface
 	}
 	type args struct {
 		nodeID     int64
@@ -849,6 +887,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorAddParticipationScorePsNotFound{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreNotFound{},
 			},
 			args: args{
 				nodeID:     -1,
@@ -860,11 +899,11 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{AlreadyMaxScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore,
-				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -876,11 +915,11 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{AlreadyZeroScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 0,
-				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 0,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -892,11 +931,12 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{ToMaxScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore - 5,
-				},
+				QueryExecutor:           &mockQueryExecutorAddParticipationScoreSuccess{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 10,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -908,11 +948,12 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{ToMinScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 5,
-				},
+				QueryExecutor:           &mockQueryExecutorAddParticipationScoreSuccess{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 5,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -925,10 +966,13 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 			name: "wantSuccess-{IncreaseScore}",
 			fields: fields{
 				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore - 11,
+					prevScore: constant.MaxParticipationScore,
 				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 11,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -941,10 +985,13 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 			name: "wantSuccess-{DecreaseScore}",
 			fields: fields{
 				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 11,
+					prevScore: constant.MaxParticipationScore,
 				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 11,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -957,9 +1004,10 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				Logger:                  tt.fields.Logger,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				ParticipationScoreQuery:        tt.fields.ParticipationScoreQuery,
+				Logger:                         tt.fields.Logger,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCache,
 			}
 			gotNewScore, err := nrs.AddParticipationScore(tt.args.nodeID, tt.args.scoreDelta, tt.args.height, tt.args.dbTx)
 			if (err != nil) != tt.wantErr {

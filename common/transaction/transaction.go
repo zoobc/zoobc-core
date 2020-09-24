@@ -146,18 +146,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &UpdateNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				Escrow:                tx.GetEscrow(),
+				ID:                           tx.GetID(),
+				Body:                         transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
+				Fee:                          tx.Fee,
+				SenderAddress:                tx.GetSenderAccountAddress(),
+				Height:                       tx.GetHeight(),
+				AccountBalanceQuery:          query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:        query.NewNodeRegistrationQuery(),
+				BlockQuery:                   query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:                    ts.NodeAuthValidation,
+				QueryExecutor:                ts.Executor,
+				AccountLedgerQuery:           query.NewAccountLedgerQuery(),
+				Escrow:                       tx.GetEscrow(),
+				PendingNodeRegistrationCache: txPendingNodeRegistryCache,
+				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
 			}, nil
 		case 2:
 			transactionBody, err = new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)

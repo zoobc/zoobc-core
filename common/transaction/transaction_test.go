@@ -39,11 +39,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	}, "ZOOBC")
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
-
+	// cache mock
+	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
+		return cache.(storage.TransactionalCache)
+	}
+	txActiveNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
+	txPendingNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	type fields struct {
-		Executor            query.ExecutorInterface
-		NodeAuthValidation  auth.NodeAuthValidationInterface
-		MempoolCacheStorage storage.CacheStorageInterface
+		Executor                 query.ExecutorInterface
+		NodeAuthValidation       auth.NodeAuthValidationInterface
+		MempoolCacheStorage      storage.CacheStorageInterface
+		PendingNodeRegistryCache storage.CacheStorageInterface
+		ActiveNodeRegistryCache  storage.CacheStorageInterface
 	}
 	type args struct {
 		tx *model.Transaction
@@ -135,8 +142,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantNodeRegistration",
 			fields: fields{
-				Executor:           &query.Executor{},
-				NodeAuthValidation: &auth.NodeAuthValidation{},
+				Executor:                 &query.Executor{},
+				NodeAuthValidation:       &auth.NodeAuthValidation{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -151,23 +160,26 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &NodeRegistration{
-				Height:                  0,
-				SenderAddress:           "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Body:                    nodeRegistrationBody,
-				QueryExecutor:           &query.Executor{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:               &auth.NodeAuthValidation{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				Height:                   0,
+				SenderAddress:            "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				Body:                     nodeRegistrationBody,
+				QueryExecutor:            &query.Executor{},
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:                &auth.NodeAuthValidation{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantUpdateNodeRegistration",
 			fields: fields{
-				Executor:           &query.Executor{},
-				NodeAuthValidation: &auth.NodeAuthValidation{},
+				Executor:                 &query.Executor{},
+				NodeAuthValidation:       &auth.NodeAuthValidation{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -182,22 +194,26 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &UpdateNodeRegistration{
-				Body:                  updateNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				Body:                         updateNodeRegistrationBody,
+				Height:                       0,
+				SenderAddress:                "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				QueryExecutor:                &query.Executor{},
+				AccountBalanceQuery:          query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:        query.NewNodeRegistrationQuery(),
+				BlockQuery:                   query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:                    &auth.NodeAuthValidation{},
+				AccountLedgerQuery:           query.NewAccountLedgerQuery(),
+				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
+				PendingNodeRegistrationCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantRemoveNodeRegistration",
 			fields: fields{
-				Executor:           &query.Executor{},
-				NodeAuthValidation: &auth.NodeAuthValidation{},
+				Executor:                 &query.Executor{},
+				NodeAuthValidation:       &auth.NodeAuthValidation{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -212,22 +228,26 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &RemoveNodeRegistration{
-				Body:                  removeNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
+				Body:                     removeNodeRegistrationBody,
+				Height:                   0,
+				SenderAddress:            "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:            &query.Executor{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:     NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
+				ActiveNodeRegistryCache:  txActiveNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantClaimNodeRegistration",
 			fields: fields{
-				Executor:           &query.Executor{},
-				NodeAuthValidation: &auth.NodeAuthValidation{},
+				Executor:                 &query.Executor{},
+				NodeAuthValidation:       &auth.NodeAuthValidation{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -242,16 +262,17 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &ClaimNodeRegistration{
-				Body:                  claimNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				Body:                    claimNodeRegistrationBody,
+				Height:                  0,
+				SenderAddress:           "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				QueryExecutor:           &query.Executor{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:               &auth.NodeAuthValidation{},
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				AccountBalanceHelper:    NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
 			},
 		},
 		{
@@ -478,9 +499,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := &TypeSwitcher{
-				Executor:            tt.fields.Executor,
-				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
-				NodeAuthValidation:  tt.fields.NodeAuthValidation,
+				Executor:                   tt.fields.Executor,
+				MempoolCacheStorage:        tt.fields.MempoolCacheStorage,
+				NodeAuthValidation:         tt.fields.NodeAuthValidation,
+				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryCache,
+				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryCache,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)

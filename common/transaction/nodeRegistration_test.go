@@ -3,6 +3,7 @@ package transaction
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"regexp"
 	"strings"
@@ -747,16 +748,17 @@ func (*mockApplyConfirmedSuccessWithExDeleted) ExecuteSelect(qe string, tx bool,
 
 func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		Body                    *model.NodeRegistrationTransactionBody
-		Fee                     int64
-		SenderAddress           string
-		Height                  uint32
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		BlockQuery              query.BlockQueryInterface
-		QueryExecutor           query.ExecutorInterface
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		Body                     *model.NodeRegistrationTransactionBody
+		Fee                      int64
+		SenderAddress            string
+		Height                   uint32
+		AccountBalanceQuery      query.AccountBalanceQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery  query.ParticipationScoreQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AccountLedgerQuery       query.AccountLedgerQueryInterface
+		PendingNodeRegistryCache storage.TransactionalCache
 	}
 	tests := []struct {
 		name    string
@@ -778,7 +780,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -796,7 +799,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -814,7 +818,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -832,7 +837,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -849,23 +855,25 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountLedgerQuery: query.NewAccountLedgerQuery(),
+				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &NodeRegistration{
-				Body:                    tt.fields.Body,
-				Fee:                     tt.fields.Fee,
-				SenderAddress:           tt.fields.SenderAddress,
-				Height:                  tt.fields.Height,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockQuery:              tt.fields.BlockQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
+				Body:                     tt.fields.Body,
+				Fee:                      tt.fields.Fee,
+				SenderAddress:            tt.fields.SenderAddress,
+				Height:                   tt.fields.Height,
+				AccountBalanceQuery:      tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
+				BlockQuery:               tt.fields.BlockQuery,
+				ParticipationScoreQuery:  tt.fields.ParticipationScoreQuery,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				AccountLedgerQuery:       tt.fields.AccountLedgerQuery,
+				PendingNodeRegistryCache: tt.fields.PendingNodeRegistryCache,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
