@@ -3,6 +3,10 @@ package crypto
 import (
 	"bytes"
 
+	"golang.org/x/crypto/sha3"
+
+	"github.com/zoobc/zed25519/zed"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -113,12 +117,14 @@ func (*Signature) Sign(
 // SignByNode special method for signing block only, there will be no multiple signature options
 func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 	var (
-		buffer           = bytes.NewBuffer([]byte{})
-		ed25519Signature = NewEd25519Signature()
-		nodePrivateKey   = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
-		signature        = ed25519Signature.Sign(nodePrivateKey, payload)
+		buffer       = bytes.NewBuffer([]byte{})
+		seedBuffer   = []byte(nodeSeed)
+		seedHash     = sha3.Sum256(seedBuffer)
+		seedByte     = seedHash[:]
+		zedSecret    = zed.SecretFromSeed(seedByte)
+		zedSignature = zedSecret.Sign(payload)
 	)
-	buffer.Write(signature)
+	buffer.Write(zedSignature[:])
 	return buffer.Bytes()
 }
 
