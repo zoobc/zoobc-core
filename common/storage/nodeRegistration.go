@@ -11,7 +11,8 @@ import (
 
 type (
 	NodeRegistryCacheStorage struct {
-		isInTransaction bool
+		isInTransaction   bool
+		transactionalLock sync.RWMutex
 		sync.RWMutex
 		transactionalNodeRegistries []NodeRegistry
 		transactionalNodeIDIndexes  map[int64]int
@@ -74,6 +75,9 @@ func (n *NodeRegistryCacheStorage) SetItem(idx, item interface{}) error {
 		// locked balance has been updated
 		if tempPreviousCopy.Node.GetLockedBalance() != nodeRegistry.Node.GetLockedBalance() {
 			n.sortItems(n.nodeRegistries)
+			for i, registry := range n.nodeRegistries {
+				n.nodeIDIndexes[registry.Node.GetNodeID()] = i
+			}
 		}
 	}
 
@@ -212,6 +216,8 @@ func (n *NodeRegistryCacheStorage) ClearCache() error {
 // will never return error
 func (n *NodeRegistryCacheStorage) Begin() error {
 	n.Lock()
+	n.transactionalLock.Lock()
+	defer n.transactionalLock.Unlock()
 	n.isInTransaction = true
 	n.transactionalNodeIDIndexes = make(map[int64]int)
 	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
@@ -230,6 +236,7 @@ func (n *NodeRegistryCacheStorage) Commit() error {
 		n.transactionalNodeIDIndexes = make(map[int64]int)
 		n.transactionalNodeRegistries = make([]NodeRegistry, 0)
 		n.Unlock()
+		n.transactionalLock.Unlock()
 	}()
 	for i, txRegistry := range n.transactionalNodeRegistries {
 		n.nodeRegistries = append(n.nodeRegistries, n.copy(txRegistry))
@@ -241,9 +248,11 @@ func (n *NodeRegistryCacheStorage) Commit() error {
 // Rollback return the state of cache to before any changes made, either to transactional data
 // or actual committed data. This implementation will never return error.
 func (n *NodeRegistryCacheStorage) Rollback() error {
+	n.transactionalLock.Lock()
 	defer func() {
 		n.isInTransaction = false
 		n.Unlock()
+		n.transactionalLock.Unlock()
 	}()
 	n.transactionalNodeIDIndexes = make(map[int64]int)
 	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
@@ -256,6 +265,8 @@ func (n *NodeRegistryCacheStorage) TxSetItem(idx, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemTypeMustBe:Storage.NodeRegistry")
 	}
 	// if id is not nil, mean we set item based on its nodeID (int64) or index (int)
+	n.transactionalLock.Lock()
+	defer n.transactionalLock.Unlock()
 	var tempPreviousCopy NodeRegistry
 	switch castedIdx := idx.(type) {
 	case nil:
@@ -280,6 +291,9 @@ func (n *NodeRegistryCacheStorage) TxSetItem(idx, item interface{}) error {
 		// locked balance has been updated
 		if tempPreviousCopy.Node.GetLockedBalance() != nodeRegistry.Node.GetLockedBalance() {
 			n.sortItems(n.transactionalNodeRegistries)
+			for i, registry := range n.transactionalNodeRegistries {
+				n.transactionalNodeIDIndexes[registry.Node.GetNodeID()] = i
+			}
 		}
 	}
 	return nil
@@ -290,6 +304,8 @@ func (n *NodeRegistryCacheStorage) TxSetItems(items interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemsMustBe:[]Storage.NodeRegistry")
 	}
+	n.transactionalLock.Lock()
+	defer n.transactionalLock.Unlock()
 	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
 	n.transactionalNodeIDIndexes = make(map[int64]int)
 	n.transactionalNodeRegistries = registries
@@ -307,6 +323,8 @@ func (n *NodeRegistryCacheStorage) TxRemoveItem(idx interface{}) error {
 		idxToRemove int
 		idToRemove  int64
 	)
+	n.transactionalLock.Lock()
+	defer n.transactionalLock.Unlock()
 	switch castedIdx := idx.(type) {
 	case nil:
 		return blocker.NewBlocker(blocker.ValidationErr, "TxRemoveItem:IdxCannotBeNil")
