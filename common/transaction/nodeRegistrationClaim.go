@@ -15,21 +15,22 @@ import (
 
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
 type ClaimNodeRegistration struct {
-	ID                     int64
-	Fee                    int64
-	SenderAddress          string
-	Height                 uint32
-	Body                   *model.ClaimNodeRegistrationTransactionBody
-	Escrow                 *model.Escrow
-	AccountBalanceQuery    query.AccountBalanceQueryInterface
-	NodeRegistrationQuery  query.NodeRegistrationQueryInterface
-	NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
-	NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
-	BlockQuery             query.BlockQueryInterface
-	QueryExecutor          query.ExecutorInterface
-	AuthPoown              auth.NodeAuthValidationInterface
-	AccountLedgerQuery     query.AccountLedgerQueryInterface
-	AccountBalanceHelper   AccountBalanceHelperInterface
+	ID                      int64
+	Fee                     int64
+	SenderAddress           string
+	Height                  uint32
+	Body                    *model.ClaimNodeRegistrationTransactionBody
+	Escrow                  *model.Escrow
+	AccountBalanceQuery     query.AccountBalanceQueryInterface
+	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
+	NodeAddressInfoStorage  storage.NodeAddressInfoStorageInterface
+	BlockQuery              query.BlockQueryInterface
+	QueryExecutor           query.ExecutorInterface
+	AuthPoown               auth.NodeAuthValidationInterface
+	AccountLedgerQuery      query.AccountLedgerQueryInterface
+	AccountBalanceHelper    AccountBalanceHelperInterface
+	ActiveNodeRegistryCache storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -135,7 +136,8 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	return err
 }
 
 /*

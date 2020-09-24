@@ -38,7 +38,9 @@ func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
 	}
 
 	brs.receipts = append(brs.receipts, nItem)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	}
 	return nil
 }
 
@@ -57,7 +59,9 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	brs.receipts = nItems
-	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	}
 	return nil
 }
 
@@ -65,7 +69,6 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 //      - key: receiptKey which is a string
 //      - item: BatchReceiptCache
 func (brs *BatchReceiptCacheStorage) GetItem(key, item interface{}) error {
-
 	return nil
 }
 
@@ -117,6 +120,8 @@ func (brs *BatchReceiptCacheStorage) ClearCache() error {
 	defer brs.Unlock()
 
 	brs.receipts = make([]model.BatchReceipt, 0)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
+	}
 	return nil
 }

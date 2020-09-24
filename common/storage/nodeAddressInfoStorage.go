@@ -68,7 +68,9 @@ func (nas *NodeAddressInfoStorage) SetItem(key, item interface{}) error {
 	}
 	nas.nodeAddressInfoMapByStatus[nodeAddressInfo.Status][nodeAddressInfo.NodeID][fullAddress] = true
 
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
@@ -164,9 +166,9 @@ func (nas *NodeAddressInfoStorage) RemoveItem(key interface{}) error {
 		}
 	}
 	_ = nas.ClearAwaitedRemoveItems()
-
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
-
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
@@ -194,8 +196,9 @@ func (nas *NodeAddressInfoStorage) ClearCache() error {
 	nas.nodeAddressInfoMapByAddressPort = make(map[string]map[int64]bool)
 	nas.nodeAddressInfoMapByStatus = make(map[model.NodeAddressStatus]map[int64]map[string]bool)
 	nas.awaitedRemoveList = make(map[int64]map[string]bool)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
-
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
@@ -218,14 +221,17 @@ func (nas *NodeAddressInfoStorage) AddAwaitedRemoveItem(storageKey NodeAddressIn
 			nas.awaitedRemoveList[storageKey.NodeID][fullAddressPort] = true
 		}
 	}
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
 func (nas *NodeAddressInfoStorage) ClearAwaitedRemoveItems() error {
 	nas.awaitedRemoveList = make(map[int64]map[string]bool)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
-
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 

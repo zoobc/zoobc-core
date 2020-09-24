@@ -2,6 +2,7 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
 
@@ -169,6 +170,8 @@ func initialize(
 		nil,
 		log.New(),
 	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
 	nodeRegistrationService := service.NewNodeRegistrationService(
 		queryExecutor,
 		query.NewAccountBalanceQuery(),
@@ -179,6 +182,8 @@ func initialize(
 		&mockBlockchainStatusService{},
 		nodeAddressInfoService,
 		nil,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
 
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(

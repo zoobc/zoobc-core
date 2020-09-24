@@ -3,8 +3,6 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"math/big"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -12,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
+	"math/big"
 )
 
 type (
@@ -19,7 +18,7 @@ type (
 	NodeRegistrationServiceInterface interface {
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
-		GetRegisteredNodes() ([]*model.NodeRegistration, error)
+		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
@@ -32,20 +31,27 @@ type (
 		UpdateNextNodeAdmissionCache(newNextNodeAdmission *model.NodeAdmissionTimestamp) error
 		AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error)
 		SetCurrentNodePublicKey(publicKey []byte)
+		// cache controllers
+		InitializeCache() error
+		BeginCacheTransaction() error
+		RollbackCacheTransaction() error
+		CommitCacheTransaction() error
 	}
 
 	// NodeRegistrationService mockable service methods
 	NodeRegistrationService struct {
-		QueryExecutor               query.ExecutorInterface
-		AccountBalanceQuery         query.AccountBalanceQueryInterface
-		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
-		NodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface
-		NextNodeAdmissionStorage    storage.CacheStorageInterface
-		Logger                      *log.Logger
-		BlockchainStatusService     BlockchainStatusServiceInterface
-		CurrentNodePublicKey        []byte
-		NodeAddressInfoService      NodeAddressInfoServiceInterface
+		QueryExecutor                   query.ExecutorInterface
+		AccountBalanceQuery             query.AccountBalanceQueryInterface
+		NodeRegistrationQuery           query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery         query.ParticipationScoreQueryInterface
+		NodeAdmissionTimestampQuery     query.NodeAdmissionTimestampQueryInterface
+		NextNodeAdmissionStorage        storage.CacheStorageInterface
+		ActiveNodeRegistryCacheStorage  storage.CacheStorageInterface
+		PendingNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                          *log.Logger
+		BlockchainStatusService         BlockchainStatusServiceInterface
+		CurrentNodePublicKey            []byte
+		NodeAddressInfoService          NodeAddressInfoServiceInterface
 	}
 )
 
@@ -58,108 +64,182 @@ func NewNodeRegistrationService(
 	logger *log.Logger,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	nodeAddressInfoService NodeAddressInfoServiceInterface,
-	nextNodeAdmissionStorage storage.CacheStorageInterface,
+	nextNodeAdmissionStorage, activeNodeRegistryCacheStorage,
+	pendingNodeRegistryCache storage.CacheStorageInterface,
 ) *NodeRegistrationService {
 	return &NodeRegistrationService{
-		QueryExecutor:               queryExecutor,
-		AccountBalanceQuery:         accountBalanceQuery,
-		NodeRegistrationQuery:       nodeRegistrationQuery,
-		ParticipationScoreQuery:     participationScoreQuery,
-		Logger:                      logger,
-		BlockchainStatusService:     blockchainStatusService,
-		NodeAddressInfoService:      nodeAddressInfoService,
-		NodeAdmissionTimestampQuery: nodeAdmissionTimestampQuery,
-		NextNodeAdmissionStorage:    nextNodeAdmissionStorage,
+		QueryExecutor:                   queryExecutor,
+		AccountBalanceQuery:             accountBalanceQuery,
+		NodeRegistrationQuery:           nodeRegistrationQuery,
+		ParticipationScoreQuery:         participationScoreQuery,
+		Logger:                          logger,
+		BlockchainStatusService:         blockchainStatusService,
+		NodeAddressInfoService:          nodeAddressInfoService,
+		NodeAdmissionTimestampQuery:     nodeAdmissionTimestampQuery,
+		NextNodeAdmissionStorage:        nextNodeAdmissionStorage,
+		ActiveNodeRegistryCacheStorage:  activeNodeRegistryCacheStorage,
+		PendingNodeRegistryCacheStorage: pendingNodeRegistryCache,
 	}
+}
+
+// InitializeCache prefill the node registry cache with latest state from database
+func (nrs *NodeRegistrationService) InitializeCache() error {
+	var (
+		pendingQry, activeQry                             string
+		cachePendingNodeRegistry, cacheActiveNodeRegistry []storage.NodeRegistry
+	)
+	err := nrs.PendingNodeRegistryCacheStorage.ClearCache()
+	if err != nil {
+		return err
+	}
+	err = nrs.ActiveNodeRegistryCacheStorage.ClearCache()
+	if err != nil {
+		return err
+	}
+	// pending
+	pendingQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeQueued) // limit = 0 get all records
+	pendingNodeRegistryRows, err := nrs.QueryExecutor.ExecuteSelect(pendingQry, false)
+	if err != nil {
+		return err
+	}
+	defer pendingNodeRegistryRows.Close()
+	cachePendingNodeRegistry, err = nrs.NodeRegistrationQuery.BuildModelWithParticipationScore(
+		cachePendingNodeRegistry, pendingNodeRegistryRows)
+	if err != nil {
+		return err
+	}
+	// active
+	activeQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeRegistered) // limit = 0 get all records
+	activeNodeRegistrationRows, err := nrs.QueryExecutor.ExecuteSelect(activeQry, false)
+	if err != nil {
+		return err
+	}
+	defer activeNodeRegistrationRows.Close()
+	cacheActiveNodeRegistry, err = nrs.NodeRegistrationQuery.BuildModelWithParticipationScore(
+		cacheActiveNodeRegistry, activeNodeRegistrationRows,
+	)
+	if err != nil {
+		return err
+	}
+	err = nrs.PendingNodeRegistryCacheStorage.SetItems(cachePendingNodeRegistry)
+	if err != nil {
+		return err
+	}
+	err = nrs.ActiveNodeRegistryCacheStorage.SetItems(cacheActiveNodeRegistry)
+	return err
 }
 
 // SelectNodesToBeAdmitted Select n (=limit) queued nodes with the highest locked balance
 func (nrs *NodeRegistrationService) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsByHighestLockedBalance(limit, model.NodeRegistrationState_NodeQueued)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	var (
+		pendingNodeRegistries  = make([]storage.NodeRegistry, 0)
+		selectedNodeRegistries = make([]*model.NodeRegistration, 0)
+		err                    error
+	)
+	// get all pending registry (sorted by locked balance highest to lowest already)
+	err = nrs.PendingNodeRegistryCacheStorage.GetAllItems(&pendingNodeRegistries)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if err != nil {
-		return nil, err
+	for i := 0; i < int(limit) && i < len(pendingNodeRegistries); i++ {
+		selectedNodeRegistries = append(selectedNodeRegistries, &pendingNodeRegistries[i].Node)
 	}
-	return nodeRegistrations, nil
+	return selectedNodeRegistries, nil
 }
 
 // SelectNodesToBeExpelled Select n (=limit) registered nodes with participation score = 0
 func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+	var (
+		activeNodeRegistry    = make([]storage.NodeRegistry, 0)
+		zeroScoreNodeRegistry = make([]*model.NodeRegistration, 0)
+		err                   error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if err != nil {
-		return nil, err
+	for _, registry := range activeNodeRegistry {
+		if registry.ParticipationScore <= 0 {
+			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &registry.Node)
+		}
 	}
-	return nodeRegistrations, nil
+	return zeroScoreNodeRegistry, nil
 }
 
-func (nrs *NodeRegistrationService) GetRegisteredNodes() ([]*model.NodeRegistration, error) {
-	qry := nrs.NodeRegistrationQuery.GetActiveNodeRegistrations()
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false)
+func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	var (
+		activeNodeRegistry []storage.NodeRegistry
+		nodeRegistries     []*model.NodeRegistration
+		err                error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	nodeRegistry, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
-	if err != nil {
-		return nil, err
+	for _, registry := range activeNodeRegistry {
+		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
-
-	return nodeRegistry, nil
+	return nodeRegistries, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
-	rows, err := nrs.QueryExecutor.ExecuteSelect(nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, nodePublicKey)
+	var (
+		err          error
+		row          *sql.Row
+		nodeRegistry model.NodeRegistration
+	)
+	row, err = nrs.QueryExecutor.ExecuteSelectRow(nrs.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, nodePublicKey)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	err = nrs.NodeRegistrationQuery.Scan(&nodeRegistry, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "noNodeRegistrationFound")
+		}
 		return nil, err
 	}
-
-	if len(nodeRegistrations) > 0 {
-		return nodeRegistrations[0], nil
-	}
-	return nil, nil
+	return &nodeRegistry, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
-	qry, args := nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeID)
-	rows, err := nrs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	var (
+		qry          string
+		args         []interface{}
+		err          error
+		row          *sql.Row
+		nodeRegistry model.NodeRegistration
+	)
+	qry, args = nrs.NodeRegistrationQuery.GetNodeRegistrationByID(nodeID)
+	row, err = nrs.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	nodeRegistrations, err := nrs.NodeRegistrationQuery.BuildModel([]*model.NodeRegistration{}, rows)
+	err = nrs.NodeRegistrationQuery.Scan(&nodeRegistry, row)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "noNodeRegistrationFound")
+		}
 		return nil, err
 	}
 
-	if len(nodeRegistrations) > 0 {
-		return nodeRegistrations[0], nil
-	}
-	return nil, blocker.NewBlocker(blocker.DBErr, "noNodeRegistrationFound")
+	return &nodeRegistry, err
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)
 // and set default participation score to it
 func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
+	var (
+		activeNodeRegistries = make([]storage.NodeRegistry, 0)
+		pendingIDsToRemove   []int64
+		err                  error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistries)
+	if err != nil {
+		return err
+	}
 	// prepare all node registrations to be updated (set registrationStatus to NodeRegistrationState_NodeRegistered and new height)
 	// and default participation scores to be added
 	for _, nodeRegistration := range nodeRegistrations {
@@ -179,15 +259,43 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		if bytes.Equal(nrs.CurrentNodePublicKey, nodeRegistration.NodePublicKey) {
 			nrs.BlockchainStatusService.SetIsBlocksmith(true)
 		}
+		// handle cache, remove from pending cache & add active cache
+		pendingIDsToRemove = append(pendingIDsToRemove, nodeRegistration.NodeID)
+		activeNodeRegistries = append(activeNodeRegistries, storage.NodeRegistry{
+			Node:               *nodeRegistration,
+			ParticipationScore: constant.DefaultParticipationScore,
+		})
+
 	}
-	return nil
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	// remove pending
+	for _, id := range pendingIDsToRemove {
+		// look up from updated pending node registry (temp) cache
+		err = txPendingCache.TxRemoveItem(id)
+		if err != nil {
+			return err
+		}
+	}
+	// update transactional cache state
+	err = txActiveCache.TxSetItems(activeNodeRegistries)
+	return err
 }
 
 // ExpelNode (similar to delete node registration) Increase node's owner account balance by node registration's locked balance, then
 // update the node registration by setting registrationStatus field to 3 (deleted) and locked balance to zero
 func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error {
+	var (
+		activeNodeIDsToRemove []int64
+	)
 	for _, nodeRegistration := range nodeRegistrations {
-		// update the node registry (set registrationStatus to 1 and lockedbalance to 0)
+		// update the node registry (set registrationStatus to 1 and locked balance to 0)
 		nodeRegistration.RegistrationStatus = uint32(model.NodeRegistrationState_NodeDeleted)
 		nodeRegistration.LockedBalance = 0
 		nodeRegistration.Height = height
@@ -209,8 +317,19 @@ func (nrs *NodeRegistrationService) ExpelNodes(nodeRegistrations []*model.NodeRe
 		if err != nil {
 			return err
 		}
-
+		activeNodeIDsToRemove = append(activeNodeIDsToRemove, nodeRegistration.GetNodeID())
 	}
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	for _, id := range activeNodeIDsToRemove {
+		err := txActiveCache.TxRemoveItem(id)
+		if err != nil {
+			return err
+		}
+	}
+	// no need to re-sort as the slicing of the cache will keep the order in place
 	return nil
 }
 
@@ -327,34 +446,26 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 // AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number
 func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error) {
 	var (
-		ps model.ParticipationScore
+		nodeRegistry storage.NodeRegistry
 	)
-	qry, args := nrs.ParticipationScoreQuery.GetParticipationScoreByNodeID(nodeID)
-	row, err := nrs.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return 0, err
-	}
-	if row == nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, "ParticipationScoreNotFound")
-	}
-	err = nrs.ParticipationScoreQuery.Scan(&ps, row)
-	if err != nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
 
+	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
+	if err != nil {
+		return 0, blocker.NewBlocker(blocker.AppErr, "FailGetNodeRegistryFromCache")
+	}
 	// don't update the score if already max allowed
-	if ps.Score >= constant.MaxParticipationScore && scoreDelta > 0 {
+	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {
 		nrs.Logger.Debugf("Node id %d: score is already the maximum allowed and won't be increased", nodeID)
 		return constant.MaxParticipationScore, nil
 	}
-	if ps.Score <= 0 && scoreDelta < 0 {
+	if nodeRegistry.ParticipationScore <= 0 && scoreDelta < 0 {
 		nrs.Logger.Debugf("Node id %d: score is already 0. new score won't be decreased", nodeID)
 		return 0, nil
 	}
 	// check if updating the score will overflow the max score and if so, set the new score to max allowed
 	// note: we use big integers to make sure we manage the very unlikely case where the addition overflows max int64
 	scoreDeltaBig := big.NewInt(scoreDelta)
-	prevScoreBig := big.NewInt(ps.Score)
+	prevScoreBig := big.NewInt(nodeRegistry.ParticipationScore)
 	maxScoreBig := big.NewInt(constant.MaxParticipationScore)
 	newScoreBig := new(big.Int).Add(prevScoreBig, scoreDeltaBig)
 	if newScoreBig.Cmp(maxScoreBig) > 0 {
@@ -362,7 +473,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	} else if newScoreBig.Cmp(big.NewInt(0)) < 0 {
 		newScore = 0
 	} else {
-		newScore = ps.Score + scoreDelta
+		newScore = nodeRegistry.ParticipationScore + scoreDelta
 	}
 
 	// finally update the participation score
@@ -375,4 +486,49 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 // being admitted and can start unlock smithing process
 func (nrs *NodeRegistrationService) SetCurrentNodePublicKey(publicKey []byte) {
 	nrs.CurrentNodePublicKey = publicKey
+}
+
+func (nrs *NodeRegistrationService) BeginCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
+	}
+	// node registration cache implementation cannot return error on rollback
+	_ = txActiveCache.Begin()
+	_ = txPendingCache.Begin()
+	return nil
+}
+
+func (nrs *NodeRegistrationService) RollbackCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
+	}
+	// node registration cache implementation cannot return error on rollback
+	_ = txActiveCache.Rollback()
+	_ = txPendingCache.Rollback()
+	return nil
+}
+
+func (nrs *NodeRegistrationService) CommitCacheTransaction() error {
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	txPendingCache, ok := nrs.PendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastPendingNodeRegistryAsTransactionalCacheInterface")
+	}
+	// node registration cache implementation cannot return error on commit
+	_ = txActiveCache.Commit()
+	_ = txPendingCache.Commit()
+	return nil
 }

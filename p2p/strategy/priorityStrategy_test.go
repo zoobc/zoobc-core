@@ -319,7 +319,7 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 )
 
-func (p2pNr *p2pMockNodeRegistraionService) GetRegisteredNodes() ([]*model.NodeRegistration, error) {
+func (p2pNr *p2pMockNodeRegistraionService) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
 			NodeID:             int64(111),

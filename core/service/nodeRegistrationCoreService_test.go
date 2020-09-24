@@ -67,6 +67,29 @@ func (*nrsMockQueryExecutorFailActiveNodeRegistrations) ExecuteSelect(query stri
 	return nil, errors.New("MockedError")
 }
 
+func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		},
+		))
+	default:
+		return nil, errors.New("InvalidQuery")
+	}
+	row := db.QueryRow(qe)
+	return row, nil
+}
 func (*nrsMockQueryExecutorFailNoNodeRegistered) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
@@ -155,6 +178,19 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ..
 			"Version"},
 		).AddRow(280, 1, make([]byte, 32), []byte{}, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0,
 			1))
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
+		"latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"node_public_key",
+			"account_address",
+			"registration_height",
+			"locked_balance",
+			"registration_status",
+			"latest",
+			"height",
+		},
+		).AddRow(1, nrsNodePubKey1, nrsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	default:
 		return nil, errors.New("InvalidQueryRow")
 
@@ -253,11 +289,44 @@ func (*nrsMockQueryExecutorSuccess) RollbackTx() error { return nil }
 
 func (*nrsMockQueryExecutorSuccess) CommitTx() error { return nil }
 
+type (
+	mockNodeRegistryCacheSelectNodesToBeAdmittedSuccess struct {
+		storage.CacheStorageInterface
+	}
+	mockNodeRegistryCacheSelectNodesToBeAdmittedEmpty struct {
+		storage.CacheStorageInterface
+	}
+	mockNodeRegistryCacheSelectNodesToBeAdmittedError struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockNodeRegistryCacheSelectNodesToBeAdmittedSuccess) GetAllItems(items interface{}) error {
+	nodeRegistries, ok := items.(*[]storage.NodeRegistry)
+	if !ok {
+		return errors.New("wrongtype")
+	}
+	*nodeRegistries = append(*nodeRegistries, storage.NodeRegistry{
+		Node:               *nrsQueuedNode1,
+		ParticipationScore: 0,
+	})
+	return nil
+}
+
+func (*mockNodeRegistryCacheSelectNodesToBeAdmittedEmpty) GetAllItems(items interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheSelectNodesToBeAdmittedError) GetAllItems(items interface{}) error {
+	return errors.New("mockedError")
+}
+
 func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AccountBalanceQuery      query.AccountBalanceQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		PendingNodeRegistryCache storage.CacheStorageInterface
 	}
 	type args struct {
 		limit uint32
@@ -272,9 +341,10 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 		{
 			name: "SelectNodesToBeAdmitted:success",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:            &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSelectNodesToBeAdmittedSuccess{},
 			},
 			args: args{
 				limit: 1,
@@ -287,9 +357,10 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 		{
 			name: "SelectNodesToBeAdmitted:fail-{NoNodeRegistered}",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:            &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSelectNodesToBeAdmittedEmpty{},
 			},
 			args: args{
 				limit: 1,
@@ -297,13 +368,28 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 			wantErr: false,
 			want:    []*model.NodeRegistration{},
 		},
+		{
+			name: "SelectNodesToBeAdmitted:fail-{read cache fail}",
+			fields: fields{
+				QueryExecutor:            &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSelectNodesToBeAdmittedError{},
+			},
+			args: args{
+				limit: 1,
+			},
+			wantErr: true,
+			want:    nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				QueryExecutor:                   tt.fields.QueryExecutor,
+				AccountBalanceQuery:             tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:           tt.fields.NodeRegistrationQuery,
+				PendingNodeRegistryCacheStorage: tt.fields.PendingNodeRegistryCache,
 			}
 			got, err := nrs.SelectNodesToBeAdmitted(tt.args.limit)
 			if (err != nil) != tt.wantErr {
@@ -317,12 +403,55 @@ func TestNodeRegistrationService_SelectNodesToBeAdmitted(t *testing.T) {
 	}
 }
 
+type (
+	mockActiveNodeRegistryCacheSuccess struct {
+		storage.NodeRegistryCacheStorage
+	}
+	mockPendingNodeRegistryCacheSuccess struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (*mockActiveNodeRegistryCacheSuccess) GetAllItems(items interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheSuccess) SetItems(items interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheSuccess) TxSetItems(items interface{}) error {
+	return nil
+}
+
+func (*mockPendingNodeRegistryCacheSuccess) GetAllItems(items interface{}) error {
+	nodeRegistries, ok := items.(*[]storage.NodeRegistry)
+	if !ok {
+		return errors.New("wrongtype")
+	}
+	*nodeRegistries = append(*nodeRegistries, storage.NodeRegistry{
+		Node:               *nrsQueuedNode1,
+		ParticipationScore: 0,
+	})
+	return nil
+}
+
+func (*mockPendingNodeRegistryCacheSuccess) RemoveItem(index interface{}) error {
+	return nil
+}
+
+func (*mockPendingNodeRegistryCacheSuccess) TxRemoveItem(index interface{}) error {
+	return nil
+}
+
 func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	type fields struct {
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AccountBalanceQuery      query.AccountBalanceQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery  query.ParticipationScoreQueryInterface
+		ActiveNodeRegistryCache  storage.CacheStorageInterface
+		PendingNodeRegistryCache storage.CacheStorageInterface
 	}
 	type args struct {
 		nodeRegistrations []*model.NodeRegistration
@@ -337,10 +466,12 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 		{
 			name: "AdmitNodes:success",
 			fields: fields{
-				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				QueryExecutor:            &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				ActiveNodeRegistryCache:  &mockActiveNodeRegistryCacheSuccess{},
+				PendingNodeRegistryCache: &mockPendingNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{
@@ -353,10 +484,12 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 		{
 			name: "AdmitNodes:fail-{NoNodesToBeAdmitted}",
 			fields: fields{
-				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
+				QueryExecutor:            &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				ActiveNodeRegistryCache:  &mockActiveNodeRegistryCacheSuccess{},
+				PendingNodeRegistryCache: &mockPendingNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{},
@@ -368,10 +501,12 @@ func TestNodeRegistrationService_AdmitNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:                   tt.fields.QueryExecutor,
+				AccountBalanceQuery:             tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:           tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:         tt.fields.ParticipationScoreQuery,
+				ActiveNodeRegistryCacheStorage:  tt.fields.ActiveNodeRegistryCache,
+				PendingNodeRegistryCacheStorage: tt.fields.PendingNodeRegistryCache,
 			}
 			if err := nrs.AdmitNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.AdmitNodes() error = %v, wantErr %v", err, tt.wantErr)
@@ -390,14 +525,46 @@ func (*mockExpelNodesNodeAddressInfoSuccess) DeleteNodeAddressInfoByNodeIDInDBTx
 	return nil
 }
 
+type (
+	mockActiveNodeRegistryCacheExpelNodeSuccess struct {
+		storage.NodeRegistryCacheStorage
+	}
+
+	mockPendingNodeRegistryCacheExpelNodeSuccess struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (*mockActiveNodeRegistryCacheExpelNodeSuccess) GetAllItems(items interface{}) error {
+	nodeRegistries, ok := items.(*[]storage.NodeRegistry)
+	if !ok {
+		return errors.New("wrongtype")
+	}
+	*nodeRegistries = append(*nodeRegistries, storage.NodeRegistry{
+		Node:               *nrsRegisteredNode1,
+		ParticipationScore: 0,
+	})
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheExpelNodeSuccess) RemoveItem(index interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheExpelNodeSuccess) TxRemoveItem(index interface{}) error {
+	return nil
+}
+
 func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 	type fields struct {
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeAddressInfoService  NodeAddressInfoServiceInterface
-		NodeAdmittanceCycle     uint32
+		QueryExecutor            query.ExecutorInterface
+		AccountBalanceQuery      query.AccountBalanceQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery  query.ParticipationScoreQueryInterface
+		NodeAddressInfoService   NodeAddressInfoServiceInterface
+		NodeAdmittanceCycle      uint32
+		PendingNodeRegistryCache storage.CacheStorageInterface
+		ActiveNodeRegistryCache  storage.CacheStorageInterface
 	}
 	type args struct {
 		nodeRegistrations []*model.NodeRegistration
@@ -412,11 +579,13 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 		{
 			name: "ExpelNodes:success",
 			fields: fields{
-				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				NodeAddressInfoService:  &mockExpelNodesNodeAddressInfoSuccess{},
+				QueryExecutor:            &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:      query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				NodeAddressInfoService:   &mockExpelNodesNodeAddressInfoSuccess{},
+				PendingNodeRegistryCache: &mockPendingNodeRegistryCacheExpelNodeSuccess{},
+				ActiveNodeRegistryCache:  &mockActiveNodeRegistryCacheExpelNodeSuccess{},
 			},
 			args: args{
 				nodeRegistrations: []*model.NodeRegistration{nrsRegisteredNode1},
@@ -428,11 +597,13 @@ func TestNodeRegistrationService_ExpelNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
+				QueryExecutor:                   tt.fields.QueryExecutor,
+				AccountBalanceQuery:             tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:           tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:         tt.fields.ParticipationScoreQuery,
+				NodeAddressInfoService:          tt.fields.NodeAddressInfoService,
+				PendingNodeRegistryCacheStorage: tt.fields.PendingNodeRegistryCache,
+				ActiveNodeRegistryCacheStorage:  tt.fields.ActiveNodeRegistryCache,
 			}
 			if err := nrs.ExpelNodes(tt.args.nodeRegistrations, tt.args.height); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistrationService.ExpelNodes() error = %v, wantErr %v", err, tt.wantErr)
@@ -514,6 +685,51 @@ func TestNodeRegistrationService_GetNodeRegistrationByNodePublicKey(t *testing.T
 	}
 }
 
+var (
+	mockNodeRegistrySelectNodesToBeExpelledSuccess = &model.NodeRegistration{
+		NodeID:             int64(1),
+		NodePublicKey:      nrsNodePubKey1,
+		AccountAddress:     nrsAddress1,
+		RegistrationHeight: 10,
+		LockedBalance:      100000000,
+		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
+		Latest:             true,
+		Height:             100,
+	}
+)
+
+type (
+	mockActiveNodeRegistryCacheSelectNodesToBeExpelled struct {
+		storage.CacheStorageInterface
+	}
+	mockActiveNodeRegistryCacheSelectNodesToBeExpelledEmpty struct {
+		storage.CacheStorageInterface
+	}
+	mockActiveNodeRegistryCacheSelectNodesToBeExpelledError struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockActiveNodeRegistryCacheSelectNodesToBeExpelled) GetAllItems(items interface{}) error {
+	nodeRegistries, ok := items.(*[]storage.NodeRegistry)
+	if !ok {
+		return errors.New("wrongtype")
+	}
+	*nodeRegistries = append(*nodeRegistries, storage.NodeRegistry{
+		Node:               *mockNodeRegistrySelectNodesToBeExpelledSuccess,
+		ParticipationScore: 0,
+	})
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheSelectNodesToBeExpelledEmpty) GetAllItems(items interface{}) error {
+	return nil
+}
+
+func (*mockActiveNodeRegistryCacheSelectNodesToBeExpelledError) GetAllItems(items interface{}) error {
+	return errors.New("mockedError")
+}
+
 func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
@@ -521,6 +737,7 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeAdmittanceCycle     uint32
+		ActiveNodeRegistryCache storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -531,42 +748,47 @@ func TestNodeRegistrationService_SelectNodesToBeExpelled(t *testing.T) {
 		{
 			name: "SelectNodesToBeExpelled:success",
 			fields: fields{
-				QueryExecutor:         &nrsMockQueryExecutorSuccess{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				QueryExecutor:           &nrsMockQueryExecutorSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheSelectNodesToBeExpelled{},
 			},
 			want: []*model.NodeRegistration{
-				{
-					NodeID:             int64(1),
-					NodePublicKey:      nrsNodePubKey1,
-					AccountAddress:     nrsAddress1,
-					RegistrationHeight: 10,
-					LockedBalance:      100000000,
-					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
-					Latest:             true,
-					Height:             100,
-				},
+				mockNodeRegistrySelectNodesToBeExpelledSuccess,
 			},
 			wantErr: false,
 		},
-		// {
-		// 	name: "SelectNodesToBeExpelled:fail-{NoNodeRegistered}",
-		// 	fields: fields{
-		// 		QueryExecutor:         &nrsMockQueryExecutorFailNoNodeRegistered{},
-		// 		AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-		// 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-		// 	},
-		// 	wantErr: false,
-		// 	want:    []*model.NodeRegistration{},
-		// },
+		{
+			name: "SelectNodesToBeExpelled:fail-{Empty}",
+			fields: fields{
+				QueryExecutor:           &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheSelectNodesToBeExpelledEmpty{},
+			},
+			wantErr: false,
+			want:    []*model.NodeRegistration{},
+		},
+		{
+			name: "SelectNodesToBeExpelled:fail-{NoNodeRegistered}",
+			fields: fields{
+				QueryExecutor:           &nrsMockQueryExecutorFailNoNodeRegistered{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheSelectNodesToBeExpelledError{},
+			},
+			wantErr: true,
+			want:    nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				AccountBalanceQuery:            tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:          tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:        tt.fields.ParticipationScoreQuery,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCache,
 			}
 			got, err := nrs.SelectNodesToBeExpelled()
 			if (err != nil) != tt.wantErr {
@@ -613,11 +835,37 @@ func (*mockQueryExecutorAddParticipationScoreSuccess) ExecuteTransactions(querie
 	return nil
 }
 
+type (
+	mockActiveNodeRegistryCacheAddParticipationScoreSuccess struct {
+		storage.NodeRegistryCacheStorage
+		prevScore int64
+	}
+	mockActiveNodeRegistryCacheAddParticipationScoreNotFound struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (ma *mockActiveNodeRegistryCacheAddParticipationScoreSuccess) GetItem(id, item interface{}) error {
+	registry := item.(*storage.NodeRegistry)
+	*registry = storage.NodeRegistry{
+		Node: model.NodeRegistration{
+			NodeID: 1111,
+		},
+		ParticipationScore: ma.prevScore,
+	}
+	return nil
+}
+
+func (ma *mockActiveNodeRegistryCacheAddParticipationScoreNotFound) GetItem(id, item interface{}) error {
+	return errors.New("mockedError")
+}
+
 func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		Logger                  *log.Logger
+		ActiveNodeRegistryCache storage.CacheStorageInterface
 	}
 	type args struct {
 		nodeID     int64
@@ -638,6 +886,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorAddParticipationScorePsNotFound{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreNotFound{},
 			},
 			args: args{
 				nodeID:     -1,
@@ -649,11 +898,11 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{AlreadyMaxScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore,
-				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -665,11 +914,11 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{AlreadyZeroScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 0,
-				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 0,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -681,11 +930,12 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{ToMaxScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore - 5,
-				},
+				QueryExecutor:           &mockQueryExecutorAddParticipationScoreSuccess{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 10,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -697,11 +947,12 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		{
 			name: "wantSuccess-{ToMinScore}",
 			fields: fields{
-				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 5,
-				},
+				QueryExecutor:           &mockQueryExecutorAddParticipationScoreSuccess{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 5,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -714,10 +965,13 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 			name: "wantSuccess-{IncreaseScore}",
 			fields: fields{
 				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: constant.MaxParticipationScore - 11,
+					prevScore: constant.MaxParticipationScore,
 				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: constant.MaxParticipationScore - 11,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -730,10 +984,13 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 			name: "wantSuccess-{DecreaseScore}",
 			fields: fields{
 				QueryExecutor: &mockQueryExecutorAddParticipationScoreSuccess{
-					prevScore: 11,
+					prevScore: constant.MaxParticipationScore,
 				},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				Logger:                  log.New(),
+				ActiveNodeRegistryCache: &mockActiveNodeRegistryCacheAddParticipationScoreSuccess{
+					prevScore: 11,
+				},
 			},
 			args: args{
 				nodeID:     1111,
@@ -746,9 +1003,10 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nrs := &NodeRegistrationService{
-				QueryExecutor:           tt.fields.QueryExecutor,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				Logger:                  tt.fields.Logger,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				ParticipationScoreQuery:        tt.fields.ParticipationScoreQuery,
+				Logger:                         tt.fields.Logger,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCache,
 			}
 			gotNewScore, err := nrs.AddParticipationScore(tt.args.nodeID, tt.args.scoreDelta, tt.args.height, tt.args.dbTx)
 			if (err != nil) != tt.wantErr {

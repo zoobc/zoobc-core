@@ -44,8 +44,9 @@ func (n *NodeShardCacheStorage) SetItem(lastChange, item interface{}) error {
 	if shardMap, ok := item.(ShardMap); ok {
 		n.shardMap.NodeShards = shardMap.NodeShards
 		n.shardMap.ShardChunks = shardMap.ShardChunks
-		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, float64(n.size()))
-
+		if monitoring.IsMonitoringActive() {
+			monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, float64(n.size()))
+		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
@@ -118,7 +119,9 @@ func (n *NodeShardCacheStorage) ClearCache() error {
 		NodeShards:  make(map[int64][]uint64),
 		ShardChunks: make(map[uint64][][]byte),
 	}
-	monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, 0)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeShardCacheStorage, 0)
+	}
 
 	return nil
 }
