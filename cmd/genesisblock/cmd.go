@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -493,6 +495,24 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		mempoolStorage            = storage.NewMempoolStorage()
 		genesisConfig             []constant.GenesisConfigEntry
 	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(
+		monitoring.TypeActiveNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by nodeID lowest - highest
+				return registries[i].Node.GetNodeID() < registries[j].Node.GetNodeID()
+			})
+		})
+	// store pending node registry
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(
+		monitoring.TypePendingNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by locked balance highest - lowest
+				return registries[i].Node.GetLockedBalance() > registries[j].Node.GetLockedBalance()
+			})
+		},
+	)
 	for _, entry := range genesisEntries {
 		cfgEntry := constant.GenesisConfigEntry{
 			AccountAddress:     entry.AccountAddress,
@@ -503,6 +523,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
+
 	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
 		nil,
@@ -516,8 +537,10 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		&transaction.TypeSwitcher{
-			MempoolCacheStorage: mempoolStorage,
-			NodeAuthValidation:  nodeAuthValidationService,
+			MempoolCacheStorage:        mempoolStorage,
+			NodeAuthValidation:         nodeAuthValidationService,
+			ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
+			PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
 		},
 		nil,
 		nil,
