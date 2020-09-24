@@ -231,6 +231,7 @@ func (n *NodeRegistryCacheStorage) Begin() error {
 // Commit of node registry cache replace all value in n.nodeRegistries
 // this implementation will never return error
 func (n *NodeRegistryCacheStorage) Commit() error {
+	n.transactionalLock.Lock()
 	defer func() {
 		n.isInTransaction = false
 		n.transactionalNodeIDIndexes = make(map[int64]int)
