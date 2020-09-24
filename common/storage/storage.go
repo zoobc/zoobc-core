@@ -34,4 +34,19 @@ type (
 		// Clear clean up the whole stack and reinitialize with new array
 		Clear() error
 	}
+
+	TransactionalCache interface {
+		// Begin prepare state of cache for transactional writes, must called at start of tx writes
+		Begin() error
+		// Commit finalize transactional writes to the struct
+		Commit() error
+		// Rollback release locks and return state of struct to original before tx modifications are made
+		Rollback() error
+		// TxSetItem set individual item
+		TxSetItem(id, item interface{}) error
+		// TxSetItems replace items in bulk
+		TxSetItems(items interface{}) error
+		// TxRemoveItem remove item with given ID
+		TxRemoveItem(id interface{}) error
+	}
 )
