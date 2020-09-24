@@ -75,6 +75,7 @@ func (n *NodeRegistryCacheStorage) SetItem(idx, item interface{}) error {
 		// locked balance has been updated
 		if tempPreviousCopy.Node.GetLockedBalance() != nodeRegistry.Node.GetLockedBalance() {
 			n.sortItems(n.nodeRegistries)
+			n.nodeIDIndexes = make(map[int64]int)
 			for i, registry := range n.nodeRegistries {
 				n.nodeIDIndexes[registry.Node.GetNodeID()] = i
 			}
@@ -292,6 +293,7 @@ func (n *NodeRegistryCacheStorage) TxSetItem(idx, item interface{}) error {
 		// locked balance has been updated
 		if tempPreviousCopy.Node.GetLockedBalance() != nodeRegistry.Node.GetLockedBalance() {
 			n.sortItems(n.transactionalNodeRegistries)
+			n.transactionalNodeIDIndexes = make(map[int64]int)
 			for i, registry := range n.transactionalNodeRegistries {
 				n.transactionalNodeIDIndexes[registry.Node.GetNodeID()] = i
 			}
