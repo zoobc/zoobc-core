@@ -16,6 +16,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 )
 
@@ -346,8 +347,9 @@ func GenerateSignedTxBytes(
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
+	txBytesHash := sha3.Sum256(unsignedTxBytes)
 	tx.Signature, err = signature.Sign(
-		unsignedTxBytes,
+		txBytesHash[:],
 		model.SignatureType(signatureType),
 		senderSeed,
 		optionalSignParams...,
