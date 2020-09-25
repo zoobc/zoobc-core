@@ -3,8 +3,7 @@ package service
 import (
 	"database/sql"
 	"math"
-	"math/big"
-	"sort"
+	"math/rand"
 
 	"github.com/montanaflynn/stats"
 
@@ -13,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -21,7 +19,6 @@ type (
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
 			blocksmiths []*model.Blocksmith,
-			blockTimestamp int64,
 			previousBlockTimestamp int64,
 		) ([]string, error)
 	}
@@ -75,45 +72,31 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
 	previousBlockTimestamp int64,
 ) ([]string, error) {
 	var (
 		selectedAccounts []string
-		numRewards       int64
 		qry              string
 		qryArgs          []interface{}
 		row              *sql.Row
 		err              error
 		nodeRegistration model.NodeRegistration
+		winner_indexs    []int
 	)
-	// copy the pointer array to not change original order
 
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
+	rand.Seed(previousBlockTimestamp)
 
-	// get number of rewards recipients
-	numRewards = (blockTimestamp - previousBlockTimestamp) * constant.CoinbaseNumberRewardsPerSecond
-	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
-	numRewards = util.MinInt64(numRewards, int64(len(blocksmiths)))
+	// make list of integer index from 0 until len(blocksmiths)
+	for i := 0; i < len(blocksmiths); i++ {
+		winner_indexs = append(winner_indexs, i)
+	}
 
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx >= int(numRewards) {
-			break
-		}
+	// use Shuffle to get random + avoid node selected twice as winner
+	rand.Shuffle(len(winner_indexs), func(i, j int) { winner_indexs[i], winner_indexs[j] = winner_indexs[j], winner_indexs[i] })
+
+	for _, winner_index := range winner_indexs {
 		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
+		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(blocksmiths[winner_index].NodeID)
 		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
