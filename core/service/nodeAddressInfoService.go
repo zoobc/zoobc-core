@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -54,14 +53,15 @@ type (
 
 	// NodeAddressInfoService nodeRegistration helper service methods
 	NodeAddressInfoService struct {
-		QueryExecutor          query.ExecutorInterface
-		NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
-		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
-		BlockQuery             query.BlockQueryInterface
-		Signature              crypto.SignatureInterface
-		NodeAddressInfoStorage *storage.NodeAddressInfoStorage
-		MainBlockStateStorage  storage.CacheStorageInterface
-		Logger                 *log.Logger
+		QueryExecutor            query.ExecutorInterface
+		NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		Signature                crypto.SignatureInterface
+		NodeAddressInfoStorage   *storage.NodeAddressInfoStorage
+		MainBlockStateStorage    storage.CacheStorageInterface
+		ScrambleNodeStackStorage storage.CacheStackStorageInterface
+		Logger                   *log.Logger
 	}
 )
 
@@ -73,17 +73,19 @@ func NewNodeAddressInfoService(
 	signature crypto.SignatureInterface,
 	nodeAddressesInfoStorage *storage.NodeAddressInfoStorage,
 	mainBlockStateStorage storage.CacheStorageInterface,
+	scrambleNodeStackStorage storage.CacheStackStorageInterface,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
 	return &NodeAddressInfoService{
-		QueryExecutor:          executor,
-		NodeAddressInfoQuery:   nodeAddressInfoQuery,
-		NodeRegistrationQuery:  nodeRegistrationQuery,
-		BlockQuery:             blockQuery,
-		Signature:              signature,
-		NodeAddressInfoStorage: nodeAddressesInfoStorage,
-		MainBlockStateStorage:  mainBlockStateStorage,
-		Logger:                 logger,
+		QueryExecutor:            executor,
+		NodeAddressInfoQuery:     nodeAddressInfoQuery,
+		NodeRegistrationQuery:    nodeRegistrationQuery,
+		BlockQuery:               blockQuery,
+		Signature:                signature,
+		NodeAddressInfoStorage:   nodeAddressesInfoStorage,
+		MainBlockStateStorage:    mainBlockStateStorage,
+		ScrambleNodeStackStorage: scrambleNodeStackStorage,
+		Logger:                   logger,
 	}
 }
 
@@ -597,28 +599,23 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
 		block             model.Block
-		nodeRegistration  model.NodeRegistration
+		scrambleNodes     model.ScrambledNodes
 		nodeAddressesInfo []*model.NodeAddressInfo
-
-		// validate nodeID
-		qry, args = nru.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
-		row, _    = nru.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	)
-	err = nru.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	err = nru.ScrambleNodeStackStorage.GetTop(&scrambleNodes)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			err = blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
-			return
-		}
-		return
+		return false, err
 	}
-
+	nodeIdx := scrambleNodes.IndexNodes[fmt.Sprintf("%d", nodeAddressInfo.GetNodeID())]
+	if nodeIdx == nil {
+		return false, blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+	}
 	// validate the message signature
 	unsignedBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	if !nru.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		nodeAddressInfo.GetSignature(),
-		nodeRegistration.GetNodePublicKey(),
+		scrambleNodes.AddressNodes[*nodeIdx].GetInfo().GetPublicKey(),
 	) {
 		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 		return

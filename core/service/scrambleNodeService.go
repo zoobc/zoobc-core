@@ -236,7 +236,8 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 		}
 		peer := &model.Peer{
 			Info: &model.Node{
-				ID: node.GetNodeID(),
+				ID:        node.GetNodeID(),
+				PublicKey: node.GetNodePublicKey(),
 			},
 		}
 		// p2p: add peer to index and address nodes only if node has address
