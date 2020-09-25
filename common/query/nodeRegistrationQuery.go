@@ -303,7 +303,7 @@ func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRe
 		aliasedFields = append(aliasedFields, fmt.Sprintf("nr.%s", field))
 	}
 	return fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
-		"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 ORDER BY nr.locked_balance DESC",
+		"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
 		strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
 }
 
