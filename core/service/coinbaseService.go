@@ -91,7 +91,7 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 		winnerIndexs = append(winnerIndexs, i)
 	}
 
-	// use Shuffle to get random + avoid node selected twice as winner
+	// use Shuffle handle possibility of a node selected twice as winner
 	rand.Shuffle(len(winnerIndexs), func(i, j int) { winnerIndexs[i], winnerIndexs[j] = winnerIndexs[j], winnerIndexs[i] })
 
 	for _, winnerIndex := range winnerIndexs {
