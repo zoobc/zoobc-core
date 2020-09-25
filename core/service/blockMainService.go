@@ -545,7 +545,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		totalReward := block.TotalFee + block.TotalCoinBase
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
 			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
-			block.Timestamp,
 			previousBlock.Timestamp,
 		)
 		if err != nil {
