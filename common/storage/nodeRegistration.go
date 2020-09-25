@@ -240,6 +240,9 @@ func (n *NodeRegistryCacheStorage) Commit() error {
 		n.isInTransaction = false
 		n.transactionalNodeIDIndexes = make(map[int64]int)
 		n.transactionalNodeRegistries = make([]NodeRegistry, 0)
+		if monitoring.IsMonitoringActive() {
+			go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
+		}
 		n.Unlock()
 		n.transactionalLock.Unlock()
 	}()
