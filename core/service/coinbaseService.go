@@ -86,13 +86,8 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 
 	rand.Seed(previousBlockTimestamp)
 
-	// make list of integer index from 0 until len(blocksmiths)
-	for i := 0; i < len(blocksmiths); i++ {
-		winnerIndexs = append(winnerIndexs, i)
-	}
-
-	// use Shuffle handle possibility of a node selected twice as winner
-	rand.Shuffle(len(winnerIndexs), func(i, j int) { winnerIndexs[i], winnerIndexs[j] = winnerIndexs[j], winnerIndexs[i] })
+	// Generate a random array of blocksmiths's length
+	winnerIndexs = rand.Perm(len(blocksmiths))
 
 	for _, winnerIndex := range winnerIndexs {
 		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
@@ -109,6 +104,10 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
+
+		// Handle possibility of a node selected twice as winner
+		// multiple account_ledger record, once for every winning
+		// CODING ON PROGRESS . . .
 	}
 	return selectedAccounts, nil
 }
