@@ -26,6 +26,7 @@ type (
 			publicKeyString, address string,
 			err error,
 		)
+		GenerateBlockSeed(payload []byte, nodeSeed string) []byte
 	}
 
 	// Signature object handle signing and verifying different signature
@@ -117,14 +118,12 @@ func (*Signature) Sign(
 // SignByNode special method for signing block only, there will be no multiple signature options
 func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 	var (
-		buffer       = bytes.NewBuffer([]byte{})
-		seedBuffer   = []byte(nodeSeed)
-		seedHash     = sha3.Sum256(seedBuffer)
-		seedByte     = seedHash[:]
-		zedSecret    = zed.SecretFromSeed(seedByte)
-		zedSignature = zedSecret.Sign(payload)
+		buffer           = bytes.NewBuffer([]byte{})
+		ed25519Signature = NewEd25519Signature()
+		nodePrivateKey   = ed25519Signature.GetPrivateKeyFromSeed(nodeSeed)
+		signature        = ed25519Signature.Sign(nodePrivateKey, payload)
 	)
-	buffer.Write(zedSignature[:])
+	buffer.Write(signature)
 	return buffer.Bytes()
 }
 
@@ -292,4 +291,18 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 			"InvalidSignatureType",
 		)
 	}
+}
+
+// GenerateBlockSeed special method for generating block seed using zed
+func (*Signature) GenerateBlockSeed(payload []byte, nodeSeed string) []byte {
+	var (
+		buffer       = bytes.NewBuffer([]byte{})
+		seedBuffer   = []byte(nodeSeed)
+		seedHash     = sha3.Sum256(seedBuffer)
+		seedByte     = seedHash[:]
+		zedSecret    = zed.SecretFromSeed(seedByte)
+		zedSignature = zedSecret.Sign(payload)
+	)
+	buffer.Write(zedSignature[:])
+	return buffer.Bytes()
 }

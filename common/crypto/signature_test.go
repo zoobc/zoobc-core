@@ -312,3 +312,34 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		})
 	}
 }
+
+func TestSignature_GenerateBlockSeed(t *testing.T) {
+	type args struct {
+		payload  []byte
+		nodeSeed string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []byte
+	}{
+		{
+			name: "GenerateBlockSeed:success",
+			args: args{
+				payload:  []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				nodeSeed: "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			},
+			want: []byte{42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
+				45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
+				103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Signature{}
+			if got := s.GenerateBlockSeed(tt.args.payload, tt.args.nodeSeed); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Signature.SignByNode() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
