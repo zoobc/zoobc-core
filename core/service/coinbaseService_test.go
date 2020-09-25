@@ -92,7 +92,6 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 	}
 	type args struct {
 		blocksmiths            []*model.Blocksmith
-		blockTimestamp         int64
 		previousBlockTimestamp int64
 	}
 	tests := []struct {
@@ -110,7 +109,6 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			},
 			args: args{
 				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
 				previousBlockTimestamp: 1,
 			},
 			want:    nil,
@@ -124,7 +122,6 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			},
 			args: args{
 				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
 				previousBlockTimestamp: 1,
 			},
 			want:    nil,
@@ -138,7 +135,6 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			},
 			args: args{
 				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
 				previousBlockTimestamp: 1,
 			},
 			want: []string{
@@ -155,7 +151,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 			}
-			got, err := bs.CoinbaseLotteryWinners(tt.args.blocksmiths, tt.args.blockTimestamp, tt.args.previousBlockTimestamp)
+			got, err := bs.CoinbaseLotteryWinners(tt.args.blocksmiths, tt.args.previousBlockTimestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.CoinbaseLotteryWinners() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -81,22 +81,22 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 		row              *sql.Row
 		err              error
 		nodeRegistration model.NodeRegistration
-		winner_indexs    []int
+		winnerIndexs     []int
 	)
 
 	rand.Seed(previousBlockTimestamp)
 
 	// make list of integer index from 0 until len(blocksmiths)
 	for i := 0; i < len(blocksmiths); i++ {
-		winner_indexs = append(winner_indexs, i)
+		winnerIndexs = append(winnerIndexs, i)
 	}
 
 	// use Shuffle to get random + avoid node selected twice as winner
-	rand.Shuffle(len(winner_indexs), func(i, j int) { winner_indexs[i], winner_indexs[j] = winner_indexs[j], winner_indexs[i] })
+	rand.Shuffle(len(winnerIndexs), func(i, j int) { winnerIndexs[i], winnerIndexs[j] = winnerIndexs[j], winnerIndexs[i] })
 
-	for _, winner_index := range winner_indexs {
+	for _, winnerIndex := range winnerIndexs {
 		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(blocksmiths[winner_index].NodeID)
+		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(blocksmiths[winnerIndex].NodeID)
 		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
