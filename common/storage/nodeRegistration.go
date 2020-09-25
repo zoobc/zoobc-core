@@ -95,14 +95,16 @@ func (n *NodeRegistryCacheStorage) SetItems(items interface{}) error {
 	}
 	n.Lock()
 	defer n.Unlock()
-	n.nodeRegistries = make([]NodeRegistry, 0)
-	for _, registry := range registries {
-		n.nodeRegistries = append(n.nodeRegistries, n.copy(registry))
+	n.nodeRegistries = make([]NodeRegistry, len(registries))
+	for i := 0; i < len(registries); i++ {
+		n.nodeRegistries[i] = n.copy(registries[i])
 	}
+	// sort the updated registries
 	n.sortItems(n.nodeRegistries)
 	n.nodeIDIndexes = make(map[int64]int)
-	for i, registry := range n.nodeRegistries {
-		n.nodeIDIndexes[registry.Node.GetNodeID()] = i
+	// map registries sorted index for faster access
+	for i := 0; i < len(n.nodeRegistries); i++ {
+		n.nodeIDIndexes[n.nodeRegistries[i].Node.GetNodeID()] = i
 	}
 	if monitoring.IsMonitoringActive() {
 		go monitoring.SetCacheStorageMetrics(n.metricLabel, float64(n.size()))
@@ -149,8 +151,9 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 		n.RLock()
 		defer n.RUnlock()
 	}
-	for _, nr := range n.nodeRegistries {
-		*nodeRegistries = append(*nodeRegistries, n.copy(nr))
+	*nodeRegistries = make([]NodeRegistry, len(n.nodeRegistries))
+	for i := 0; i < len(n.nodeRegistries); i++ {
+		(*nodeRegistries)[i] = n.copy(n.nodeRegistries[i])
 	}
 	return nil
 }
@@ -221,10 +224,10 @@ func (n *NodeRegistryCacheStorage) Begin() error {
 	defer n.transactionalLock.Unlock()
 	n.isInTransaction = true
 	n.transactionalNodeIDIndexes = make(map[int64]int)
-	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
-	for i, registry := range n.nodeRegistries {
-		n.transactionalNodeRegistries = append(n.transactionalNodeRegistries, n.copy(registry))
-		n.transactionalNodeIDIndexes[registry.Node.GetNodeID()] = i
+	n.transactionalNodeRegistries = make([]NodeRegistry, len(n.nodeRegistries))
+	for i := 0; i < len(n.nodeRegistries); i++ {
+		n.transactionalNodeRegistries[i] = n.copy(n.nodeRegistries[i])
+		n.transactionalNodeIDIndexes[n.nodeRegistries[i].Node.NodeID] = i
 	}
 	return nil
 }
@@ -240,9 +243,12 @@ func (n *NodeRegistryCacheStorage) Commit() error {
 		n.Unlock()
 		n.transactionalLock.Unlock()
 	}()
-	for i, txRegistry := range n.transactionalNodeRegistries {
-		n.nodeRegistries = append(n.nodeRegistries, n.copy(txRegistry))
-		n.nodeIDIndexes[txRegistry.Node.GetNodeID()] = i
+	// re-initialize actual value
+	n.nodeRegistries = make([]NodeRegistry, len(n.transactionalNodeRegistries))
+	n.nodeIDIndexes = make(map[int64]int)
+	for i := 0; i < len(n.transactionalNodeRegistries); i++ {
+		n.nodeRegistries[i] = n.transactionalNodeRegistries[i]
+		n.nodeIDIndexes[n.transactionalNodeRegistries[i].Node.GetNodeID()] = i
 	}
 	return nil
 }
@@ -309,14 +315,18 @@ func (n *NodeRegistryCacheStorage) TxSetItems(items interface{}) error {
 	}
 	n.transactionalLock.Lock()
 	defer n.transactionalLock.Unlock()
-	n.transactionalNodeRegistries = make([]NodeRegistry, 0)
+	n.transactionalNodeRegistries = make([]NodeRegistry, len(registries))
 	n.transactionalNodeIDIndexes = make(map[int64]int)
 	n.transactionalNodeRegistries = registries
-	for i, registry := range registries {
-		n.transactionalNodeRegistries = append(n.transactionalNodeRegistries, n.copy(registry))
-		n.transactionalNodeIDIndexes[registry.Node.GetNodeID()] = i
+	for i := 0; i < len(registries); i++ {
+		n.transactionalNodeRegistries[i] = n.copy(registries[i])
 	}
+	// resort the node registries in transaction
 	n.sortItems(n.transactionalNodeRegistries)
+	// re-assign node-order in map for fast access
+	for i := 0; i < len(n.transactionalNodeRegistries); i++ {
+		n.transactionalNodeIDIndexes[registries[i].Node.GetNodeID()] = i
+	}
 	return nil
 }
 
