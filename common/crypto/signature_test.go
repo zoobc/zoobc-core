@@ -338,7 +338,7 @@ func TestSignature_GenerateBlockSeed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Signature{}
 			if got := s.GenerateBlockSeed(tt.args.payload, tt.args.nodeSeed); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Signature.SignByNode() = %v, want %v", got, tt.want)
+				t.Errorf("Signature.GenerateBlockSeed() = %v, want %v", got, tt.want)
 			}
 		})
 	}
