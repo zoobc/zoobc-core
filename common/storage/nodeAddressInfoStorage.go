@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/zoobc/zoobc-core/common/monitoring"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -23,7 +25,7 @@ type (
 		nodeAddressInfoMapByStatus      map[model.NodeAddressStatus]map[int64]map[string]bool
 		awaitedRemoveList               map[int64]map[string]bool
 	}
-	// NodeAddressInfoStorage represent a key for NodeAddressInfoStorage
+	// NodeAddressInfoStorageKey represent a key for NodeAddressInfoStorage
 	NodeAddressInfoStorageKey struct {
 		NodeID      int64
 		AddressPort string
@@ -65,6 +67,10 @@ func (nas *NodeAddressInfoStorage) SetItem(key, item interface{}) error {
 		nas.nodeAddressInfoMapByStatus[nodeAddressInfo.Status][nodeAddressInfo.NodeID] = make(map[string]bool)
 	}
 	nas.nodeAddressInfoMapByStatus[nodeAddressInfo.Status][nodeAddressInfo.NodeID][fullAddress] = true
+
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
@@ -151,8 +157,8 @@ func (nas *NodeAddressInfoStorage) RemoveItem(key interface{}) error {
 	}
 
 	// Remove all waiting node address info on remove list
-	for nodeID, nodePotitionsByAddressPort := range nas.awaitedRemoveList {
-		for fullAddress := range nodePotitionsByAddressPort {
+	for nodeID, nodePositionsByAddressPort := range nas.awaitedRemoveList {
+		for fullAddress := range nodePositionsByAddressPort {
 			status := nas.nodeAddressInfoMapByID[nodeID][fullAddress].Status
 			delete(nas.nodeAddressInfoMapByStatus[status][nodeID], fullAddress)
 			delete(nas.nodeAddressInfoMapByAddressPort[fullAddress], nodeID)
@@ -160,12 +166,13 @@ func (nas *NodeAddressInfoStorage) RemoveItem(key interface{}) error {
 		}
 	}
 	_ = nas.ClearAwaitedRemoveItems()
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
-func (nas *NodeAddressInfoStorage) GetSize() int64 {
-	nas.Lock()
-	defer nas.Unlock()
+func (nas *NodeAddressInfoStorage) size() int {
 	var (
 		nasBytes bytes.Buffer
 		enc      = gob.NewEncoder(&nasBytes)
@@ -174,7 +181,12 @@ func (nas *NodeAddressInfoStorage) GetSize() int64 {
 	_ = enc.Encode(nas.nodeAddressInfoMapByAddressPort)
 	_ = enc.Encode(nas.nodeAddressInfoMapByStatus)
 	_ = enc.Encode(nas.awaitedRemoveList)
-	return int64(len(nasBytes.Bytes()))
+	return nasBytes.Len()
+}
+func (nas *NodeAddressInfoStorage) GetSize() int64 {
+	nas.RLock()
+	defer nas.RUnlock()
+	return int64(nas.size())
 }
 
 func (nas *NodeAddressInfoStorage) ClearCache() error {
@@ -184,6 +196,9 @@ func (nas *NodeAddressInfoStorage) ClearCache() error {
 	nas.nodeAddressInfoMapByAddressPort = make(map[string]map[int64]bool)
 	nas.nodeAddressInfoMapByStatus = make(map[model.NodeAddressStatus]map[int64]map[string]bool)
 	nas.awaitedRemoveList = make(map[int64]map[string]bool)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
@@ -206,11 +221,17 @@ func (nas *NodeAddressInfoStorage) AddAwaitedRemoveItem(storageKey NodeAddressIn
 			nas.awaitedRemoveList[storageKey.NodeID][fullAddressPort] = true
 		}
 	}
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 
 func (nas *NodeAddressInfoStorage) ClearAwaitedRemoveItems() error {
 	nas.awaitedRemoveList = make(map[int64]map[string]bool)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
 	return nil
 }
 

@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"syscall"
 	"time"
 
@@ -55,6 +56,7 @@ var (
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
+	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
@@ -242,7 +244,25 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-
+	// store current active node registry (not in queue)
+	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypeActiveNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by nodeID lowest - highest
+				return registries[i].Node.GetNodeID() < registries[j].Node.GetNodeID()
+			})
+		})
+	// store pending node registry
+	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypePendingNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by locked balance highest - lowest
+				return registries[i].Node.GetLockedBalance() > registries[j].Node.GetLockedBalance()
+			})
+		},
+	)
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -258,16 +278,22 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 	)
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor:               queryExecutor,
-		MempoolCacheStorage:    mempoolStorage,
-		NodeAddressInfoStorage: nodeAddressInfoStorage,
-		NodeAuthValidation:     nodeAuthValidationService,
+		Executor:                   queryExecutor,
+		MempoolCacheStorage:        mempoolStorage,
+		NodeAddressInfoStorage:     nodeAddressInfoStorage,
+		NodeAuthValidation:         nodeAuthValidationService,
+		ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
+		PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(mainchain),
+		crypto.NewSignature(),
 		nodeAddressInfoStorage,
+		mainBlockStateStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -275,14 +301,13 @@ func initiateMainInstance() {
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(mainchain),
 		query.NewNodeAdmissionTimestampQuery(),
 		loggerCoreService,
 		blockchainStatusService,
-		crypto.NewSignature(),
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
-		mainBlockStateStorage,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
 	scrambleNodeService = service.NewScrambleNodeService(
 		nodeRegistrationService,
@@ -668,8 +693,8 @@ func startNodeMonitoring() {
 		}
 	}()
 	// populate node address info counter when node starts
-	if registeredNodesWithAddress, err := nodeRegistrationService.GetRegisteredNodesWithNodeAddress(); err == nil {
-		monitoring.SetNodeAddressInfoCount(len(registeredNodesWithAddress))
+	if nodeCount, err := nodeAddressInfoService.CountRegistredNodeAddressWithAddressInfo(); err == nil {
+		monitoring.SetNodeAddressInfoCount(nodeCount)
 	}
 	if cna, err := nodeAddressInfoService.CountNodesAddressByStatus(); err == nil {
 		for status, counter := range cna {
@@ -727,7 +752,12 @@ func startMainchain() {
 	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
-	// initializing scrambled nodes
+	// initialize node registry cache
+	err = nodeRegistrationService.InitializeCache()
+	if err != nil {
+		loggerCoreService.Fatalf("InitializeNodeRegistryCacheFail - %v", err)
+	}
+	// initialize scrambled nodes
 	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)

@@ -269,18 +269,6 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *tes
 	})
 }
 
-func TestNodeRegistrationQuery_GetNodeRegistrationsWithZeroScore(t *testing.T) {
-	t.Run("GetNodeRegistrationsWithZeroScore", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
-		want := "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.locked_balance, " +
-			"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
-			"WHERE B.score <= 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1"
-		if res != want {
-			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
-		}
-	})
-}
-
 func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKey(t *testing.T) {
 	t.Run("GetLastVersionedNodeRegistrationByPublicKey:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey([]byte{1}, uint32(1))
@@ -570,39 +558,6 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 			}
 			if got := nrq.GetNodeRegistryAtHeightWithNodeAddress(tt.args.height); got != tt.want {
 				t.Errorf("NodeRegistrationQuery.GetNodeRegistryAtHeightWithNodeAddress() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		{
-			name: "GetActiveNodeRegistrations:success",
-			fields: fields{
-				TableName: NewNodeRegistrationQuery().TableName,
-				Fields:    NewNodeRegistrationQuery().Fields,
-			},
-			want: "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
-				"latest, height FROM node_registry WHERE registration_status = 0 AND latest = 1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrq := &NodeRegistrationQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			if got := nrq.GetActiveNodeRegistrations(); got != tt.want {
-				t.Errorf("NodeRegistrationQuery.GetActiveNodeRegistrations() = %v, want %v", got, tt.want)
 			}
 		})
 	}

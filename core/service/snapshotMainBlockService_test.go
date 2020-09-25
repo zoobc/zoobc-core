@@ -849,6 +849,10 @@ func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) UpdateNextNodeAdmis
 	return nil
 }
 
+func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) InitializeCache() error {
+	return nil
+}
+
 func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 	type fields struct {
 		SnapshotPath                  string

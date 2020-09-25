@@ -38,7 +38,6 @@ others specific field for generate register node transaction
 */
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,
@@ -70,7 +69,6 @@ others specific field for update register node transaction
 */
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,

@@ -5,6 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -39,6 +40,9 @@ func (m *MempoolCacheStorage) SetItem(key, item interface{}) error {
 			return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 		}
 		m.mempoolMap[keyInt64] = mempoolMap
+		if monitoring.IsMonitoringActive() {
+			monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
+		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
@@ -94,19 +98,32 @@ func (m *MempoolCacheStorage) RemoveItem(keys interface{}) error {
 	for _, id := range ids {
 		delete(m.mempoolMap, id)
 	}
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
+	}
 	return nil
 }
 
-func (m *MempoolCacheStorage) GetSize() int64 {
-	var size int64
+func (m *MempoolCacheStorage) size() int {
+	var size int
 	for _, memObj := range m.mempoolMap {
-		size += 8 * 3 // key + feePerByte + arrivalTimestamp + blockHeight
-		size += int64(memObj.TransactionByteSize)
+		size += 8 * 3
+		size += int(memObj.TransactionByteSize)
 	}
 	return size
 }
 
+func (m *MempoolCacheStorage) GetSize() int64 {
+	m.RLock()
+	defer m.RUnlock()
+
+	return int64(m.size())
+}
+
 func (m *MempoolCacheStorage) ClearCache() error {
 	m.mempoolMap = make(MempoolMap)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, 0)
+	}
 	return nil
 }

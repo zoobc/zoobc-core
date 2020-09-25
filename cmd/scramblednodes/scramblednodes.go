@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -95,13 +96,18 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		fmt.Println("Failed get Db")
 		panic(err)
 	}
-
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
 	var (
 		queryExecutor          = query.NewQueryExecutor(dB)
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
 			query.NewNodeAddressInfoQuery(),
+			query.NewNodeRegistrationQuery(),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+			nil,
 			storage.NewNodeAddressInfoStorage(),
+			nil,
 			logrus.New(),
 		)
 
@@ -110,14 +116,13 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
-			query.NewBlockQuery(&chaintype.MainChain{}),
 			query.NewNodeAdmissionTimestampQuery(),
-			nil,
 			nil,
 			nil,
 			nodeAddressInfoService,
 			nil,
-			nil,
+			activeNodeRegistryCacheStorage,
+			pendingNodeRegistryCacheStorage,
 		)
 		scramblecache       = storage.NewScrambleCacheStackStorage()
 		scrambleNodeService = service.NewScrambleNodeService(

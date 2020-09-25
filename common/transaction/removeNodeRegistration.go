@@ -14,19 +14,21 @@ import (
 
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
 type RemoveNodeRegistration struct {
-	ID                     int64
-	Fee                    int64
-	SenderAddress          string
-	Height                 uint32
-	Body                   *model.RemoveNodeRegistrationTransactionBody
-	Escrow                 *model.Escrow
-	AccountBalanceQuery    query.AccountBalanceQueryInterface
-	NodeRegistrationQuery  query.NodeRegistrationQueryInterface
-	NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
-	NodeAddressInfoStorage storage.NodeAddressInfoStorageInterface
-	QueryExecutor          query.ExecutorInterface
-	AccountLedgerQuery     query.AccountLedgerQueryInterface
-	AccountBalanceHelper   AccountBalanceHelperInterface
+	ID                       int64
+	Fee                      int64
+	SenderAddress            string
+	Height                   uint32
+	Body                     *model.RemoveNodeRegistrationTransactionBody
+	Escrow                   *model.Escrow
+	AccountBalanceQuery      query.AccountBalanceQueryInterface
+	NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
+	NodeAddressInfoStorage   storage.NodeAddressInfoStorageInterface
+	QueryExecutor            query.ExecutorInterface
+	AccountLedgerQuery       query.AccountLedgerQueryInterface
+	AccountBalanceHelper     AccountBalanceHelperInterface
+	PendingNodeRegistryCache storage.TransactionalCache
+	ActiveNodeRegistryCache  storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -134,7 +136,12 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
-	return nil
+	err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	if err != nil {
+		return err
+	}
+	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	return err
 }
 
 /*

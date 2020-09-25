@@ -319,7 +319,7 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 )
 
-func (p2pNr *p2pMockNodeRegistraionService) GetRegisteredNodes() ([]*model.NodeRegistration, error) {
+func (p2pNr *p2pMockNodeRegistraionService) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
 			NodeID:             int64(111),
@@ -1624,17 +1624,16 @@ func TestPriorityStrategy_ConnectPriorityPeersGradually(t *testing.T) {
 type (
 	psMockNodeRegistrationService struct {
 		coreService.NodeRegistrationServiceInterface
-		validateAddressInfoSuccess bool
-		currentNode                *model.NodeRegistration
-		currentNodeAddressInfo     *model.NodeAddressInfo
-		prevNodeAddressInfo        *model.NodeAddressInfo
+		currentNode            *model.NodeRegistration
+		currentNodeAddressInfo *model.NodeAddressInfo
+		prevNodeAddressInfo    *model.NodeAddressInfo
 	}
 	psMockPeerStrategyHelper struct {
 		PeerStrategyHelperInterface
 	}
 )
 
-func (psMock *psMockNodeRegistrationService) GenerateNodeAddressInfo(
+func (*mockNodeAddressInfoServiceSuccess) GenerateNodeAddressInfo(
 	nodeID int64,
 	nodeAddress string,
 	port uint32,
@@ -1649,16 +1648,7 @@ func (psMock *psMockNodeRegistrationService) GenerateNodeAddressInfo(
 	}, nil
 }
 
-func (psMock *psMockNodeRegistrationService) ValidateNodeAddressInfo(
-	nodeAddressMessage *model.NodeAddressInfo,
-) (bool, error) {
-	if psMock.validateAddressInfoSuccess {
-		return false, nil
-	}
-	return true, errors.New("MockedError")
-}
-
-func (psMock *psMockNodeRegistrationService) UpdateNodeAddressInfo(
+func (*mockNodeAddressInfoServiceSuccess) UpdateOrInsertAddressInfo(
 	nodeAddressMessage *model.NodeAddressInfo,
 	status model.NodeAddressStatus,
 ) (updated bool, err error) {
@@ -1675,14 +1665,6 @@ func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodePublicKey(
 func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
 	if psMock.currentNode != nil {
 		return psMock.currentNode, nil
-	}
-	return nil, nil
-}
-
-func (psMock *psMockNodeRegistrationService) GetNodeAddressesInfoFromDb(nodeIDs []int64,
-	addressStatus []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error) {
-	if psMock.currentNodeAddressInfo != nil {
-		return []*model.NodeAddressInfo{psMock.currentNodeAddressInfo}, nil
 	}
 	return nil, nil
 }
@@ -1726,6 +1708,55 @@ func (*mockPeerServiceClientSuccess) GetNodeAddressesInfo(
 				BlockHeight: 10,
 			},
 		},
+	}, nil
+}
+
+type (
+	mockSyncNodeAddressInfoTableNodeAddressInfoFailValidate struct {
+		coreService.NodeAddressInfoServiceInterface
+	}
+	mockSyncNodeAddressInfoTableNodeAddressInfoSuccess struct {
+		coreService.NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockSyncNodeAddressInfoTableNodeAddressInfoFailValidate) ValidateNodeAddressInfo(
+	nodeAddressMessage *model.NodeAddressInfo,
+) (bool, error) {
+	return true, errors.New("MockedError")
+}
+func (*mockSyncNodeAddressInfoTableNodeAddressInfoSuccess) ValidateNodeAddressInfo(
+	nodeAddressMessage *model.NodeAddressInfo,
+) (bool, error) {
+	return false, nil
+}
+
+func (*mockSyncNodeAddressInfoTableNodeAddressInfoSuccess) UpdateOrInsertAddressInfo(
+	nodeAddressInfo *model.NodeAddressInfo,
+	updatedStatus model.NodeAddressStatus,
+) (updated bool, err error) {
+	return true, nil
+}
+
+func (*mockSyncNodeAddressInfoTableNodeAddressInfoSuccess) GetAddressInfoByNodeID(
+	nodeID int64,
+	addressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	return []*model.NodeAddressInfo{}, nil
+}
+
+func (*mockSyncNodeAddressInfoTableNodeAddressInfoSuccess) GenerateNodeAddressInfo(
+	nodeID int64,
+	nodeAddress string,
+	port uint32,
+	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
+	return &model.NodeAddressInfo{
+		NodeID:      111,
+		Address:     "192.168.1.1",
+		Port:        8080,
+		Signature:   make([]byte, 64),
+		BlockHash:   make([]byte, 32),
+		BlockHeight: 100,
 	}, nil
 }
 
@@ -1812,7 +1843,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				PeerStrategyHelper:       NewPeerStrategyHelper(),
 				PeerServiceClient:        &mockPeerServiceClientSuccess{},
 				NodeRegistrationService:  &psMockNodeRegistrationService{},
-				NodeAddressesInfoService: &mockNodeAddressInfoServiceSuccess{},
+				NodeAddressesInfoService: &mockSyncNodeAddressInfoTableNodeAddressInfoFailValidate{},
 				Logger:                   log.New(),
 			},
 			want: make(map[int64]*model.NodeAddressInfo),
@@ -1828,12 +1859,10 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 						ResolvedPeers: goodResolvedPeers,
 					},
 				},
-				PeerStrategyHelper: &psMockPeerStrategyHelper{},
-				PeerServiceClient:  &mockPeerServiceClientSuccess{},
-				NodeRegistrationService: &psMockNodeRegistrationService{
-					validateAddressInfoSuccess: true,
-				},
-				NodeAddressesInfoService: &mockNodeAddressInfoServiceSuccess{},
+				PeerStrategyHelper:       &psMockPeerStrategyHelper{},
+				PeerServiceClient:        &mockPeerServiceClientSuccess{},
+				NodeRegistrationService:  &psMockNodeRegistrationService{},
+				NodeAddressesInfoService: &mockSyncNodeAddressInfoTableNodeAddressInfoSuccess{},
 				Logger:                   log.New(),
 			},
 			want: map[int64]*model.NodeAddressInfo{
@@ -1861,13 +1890,12 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				PeerStrategyHelper: &psMockPeerStrategyHelper{},
 				PeerServiceClient:  &mockPeerServiceClientSuccess{},
 				NodeRegistrationService: &psMockNodeRegistrationService{
-					validateAddressInfoSuccess: true,
 					currentNode: &model.NodeRegistration{
 						NodeID:             int64(111),
 						RegistrationStatus: uint32(0),
 					},
 				},
-				NodeAddressesInfoService: &mockNodeAddressInfoServiceSuccess{},
+				NodeAddressesInfoService: &mockSyncNodeAddressInfoTableNodeAddressInfoSuccess{},
 				Logger:                   log.New(),
 			},
 			want: map[int64]*model.NodeAddressInfo{
@@ -1895,7 +1923,6 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 				PeerStrategyHelper: &psMockPeerStrategyHelper{},
 				PeerServiceClient:  &mockPeerServiceClientSuccess{},
 				NodeRegistrationService: &psMockNodeRegistrationService{
-					validateAddressInfoSuccess: true,
 					currentNode: &model.NodeRegistration{
 						NodeID:             int64(111),
 						RegistrationStatus: uint32(0),
@@ -1909,7 +1936,7 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 						BlockHeight: 100,
 					},
 				},
-				NodeAddressesInfoService: &mockNodeAddressInfoServiceSuccess{},
+				NodeAddressesInfoService: &mockSyncNodeAddressInfoTableNodeAddressInfoSuccess{},
 				Logger:                   log.New(),
 			},
 			want: map[int64]*model.NodeAddressInfo{
@@ -1949,6 +1976,19 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 	}
 }
 
+type (
+	mockReceiveNodeAddressInfoNodeAddressesInfoServiceSuccess struct {
+		coreService.NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockReceiveNodeAddressInfoNodeAddressesInfoServiceSuccess) UpdateOrInsertAddressInfo(
+	nodeAddressInfo *model.NodeAddressInfo,
+	updatedStatus model.NodeAddressStatus,
+) (updated bool, err error) {
+	return true, nil
+}
+
 func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 	type fields struct {
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
@@ -1981,9 +2021,10 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 						ResolvedPeers: goodResolvedPeers,
 					},
 				},
-				PeerServiceClient:       &mockPeerServiceClientSuccess{},
-				NodeRegistrationService: &psMockNodeRegistrationService{},
-				Logger:                  log.New(),
+				PeerServiceClient:        &mockPeerServiceClientSuccess{},
+				NodeRegistrationService:  &psMockNodeRegistrationService{},
+				NodeAddressesInfoService: &mockReceiveNodeAddressInfoNodeAddressesInfoServiceSuccess{},
+				Logger:                   log.New(),
 			},
 		},
 	}
@@ -2005,6 +2046,34 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 			}
 		})
 	}
+}
+
+type (
+	mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess struct {
+		coreService.NodeAddressInfoServiceInterface
+	}
+)
+
+func (*mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess) UpdateOrInsertAddressInfo(
+	nodeAddressInfo *model.NodeAddressInfo,
+	updatedStatus model.NodeAddressStatus,
+) (updated bool, err error) {
+	return true, nil
+}
+
+func (*mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess) GenerateNodeAddressInfo(
+	nodeID int64,
+	nodeAddress string,
+	port uint32,
+	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
+	return &model.NodeAddressInfo{
+		NodeID:      111,
+		Address:     "192.168.1.1",
+		Port:        8080,
+		Signature:   make([]byte, 64),
+		BlockHash:   make([]byte, 32),
+		BlockHeight: 100,
+	}, nil
 }
 
 func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
@@ -2051,7 +2120,8 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 					successGenerateNodeAddressInfo:            true,
 					successGetNodeAddressesInfoFromDb:         true,
 				},
-				Logger: log.New(),
+				NodeAddressesInfoService: &mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess{},
+				Logger:                   log.New(),
 			},
 		},
 		{
@@ -2072,8 +2142,9 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 					successGetNodeAddressesInfoFromDb:         true,
 					addressInfoUpdated:                        true,
 				},
-				PeerServiceClient: &p2pMockPeerServiceClient{},
-				Logger:            log.New(),
+				NodeAddressesInfoService: &mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess{},
+				PeerServiceClient:        &p2pMockPeerServiceClient{},
+				Logger:                   log.New(),
 			},
 		},
 	}

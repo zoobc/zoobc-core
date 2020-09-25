@@ -109,12 +109,28 @@ func (*mockNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*model
 	return nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) CommitCacheTransaction() error {
+	return nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
 			AccountAddress: "TESTEXPELLED",
 		},
 	}, nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) BeginCacheTransaction() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) CommitCacheTransaction() error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
@@ -157,6 +173,13 @@ func (*mockNodeRegistrationServiceFail) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp,
 ) error {
 	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) BackupCache() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) RestoreCacheTransaction() {
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
@@ -2009,7 +2032,9 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
+						Executor:                   &mockQueryExecutorSuccess{},
+						ActiveNodeRegistryStorage:  &mockNodeRegistryCacheAlwaysSuccess{},
+						PendingNodeRegistryStorage: &mockNodeRegistryCacheAlwaysSuccess{},
 					},
 					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
@@ -3313,6 +3338,56 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 
 var mockSmithTime int64 = 1
 
+type (
+	mockNodeRegistryCacheAlwaysSuccess struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (*mockNodeRegistryCacheAlwaysSuccess) Begin() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) Commit() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) Rollback() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxSetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxSetItems(items interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxRemoveItem(idx interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) RemoveItem(idx interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) GetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) GetAllItems(items interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) SetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) SetItems(items interface{}) error {
+	return nil
+}
+
 func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
@@ -3343,15 +3418,18 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 		{
 			name: "GenerateGenesisBlock:success",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            nil,
-				TransactionQuery:        nil,
-				MerkleTreeQuery:         nil,
-				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      &transaction.TypeSwitcher{},
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    nil,
+				BlockQuery:       nil,
+				MempoolQuery:     nil,
+				TransactionQuery: nil,
+				MerkleTreeQuery:  nil,
+				Signature:        nil,
+				MempoolService:   nil,
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					ActiveNodeRegistryStorage:  &mockNodeRegistryCacheAlwaysSuccess{},
+					PendingNodeRegistryStorage: &mockNodeRegistryCacheAlwaysSuccess{},
+				},
 				AccountBalanceQuery:     nil,
 				ParticipationScoreQuery: nil,
 				NodeRegistrationQuery:   nil,
@@ -3944,6 +4022,10 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) ResetScrambledNodes() {
 func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp,
 ) error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceBlockPopSuccess) InitializeCache() error {
 	return nil
 }
 

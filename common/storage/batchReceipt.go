@@ -5,6 +5,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -37,6 +38,9 @@ func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
 	}
 
 	brs.receipts = append(brs.receipts, nItem)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	}
 	return nil
 }
 
@@ -55,6 +59,9 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	brs.receipts = nItems
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
+	}
 	return nil
 }
 
@@ -62,7 +69,6 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 //      - key: receiptKey which is a string
 //      - item: BatchReceiptCache
 func (brs *BatchReceiptCacheStorage) GetItem(key, item interface{}) error {
-
 	return nil
 }
 
@@ -87,15 +93,26 @@ func (brs *BatchReceiptCacheStorage) RemoveItem(_ interface{}) error {
 	return nil
 }
 
-func (brs *BatchReceiptCacheStorage) GetSize() int64 {
-	brs.Lock()
-	defer brs.Unlock()
-
-	var size int
+func (brs *BatchReceiptCacheStorage) size() int64 {
+	var size int64
 	for _, cache := range brs.receipts {
-		size += cache.XXX_Size()
+		var s int
+		s += len(cache.GetSenderPublicKey())
+		s += len(cache.GetRecipientPublicKey())
+		s += 4 // this is cache.GetDatumType()
+		s += len(cache.GetDatumHash())
+		s += 4 // this is cache.GetReferenceBlockHeight()
+		s += len(cache.GetReferenceBlockHash())
+		s += len(cache.GetRecipientSignature())
+		size += int64(s)
 	}
-	return int64(size)
+	return size
+}
+func (brs *BatchReceiptCacheStorage) GetSize() int64 {
+	brs.RLock()
+	defer brs.RUnlock()
+
+	return brs.size()
 }
 
 func (brs *BatchReceiptCacheStorage) ClearCache() error {
@@ -103,5 +120,8 @@ func (brs *BatchReceiptCacheStorage) ClearCache() error {
 	defer brs.Unlock()
 
 	brs.receipts = make([]model.BatchReceipt, 0)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
+	}
 	return nil
 }

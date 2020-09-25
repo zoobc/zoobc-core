@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"sort"
 	"time"
 
@@ -291,7 +292,6 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			}
 			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(receipt)
 			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
-
 		}
 		err = rs.MainBlockStateStorage.GetItem(nil, &block)
 		if err != nil {
@@ -341,7 +341,7 @@ func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated 
 		)
 	}
 
-	err = rs.ReceiptReminderStorage.GetItem(string(receiptKey), &cType)
+	err = rs.ReceiptReminderStorage.GetItem(hex.EncodeToString(receiptKey), &cType)
 	if err != nil {
 		return duplicated, blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -391,53 +391,39 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	receipt *model.BatchReceipt,
 ) error {
 	var (
-		senderNodeRegistration    model.NodeRegistration
-		recipientNodeRegistration model.NodeRegistration
-		err                       error
-		peers                     map[string]*model.Peer
+		err   error
+		peers map[string]*model.Peer
 	)
-	// get sender address at height
-	senderNodeQ, senderNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
-		receipt.SenderPublicKey,
-		receipt.ReferenceBlockHeight,
-	)
-	senderNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(senderNodeQ, false, senderNodeArgs...)
-	err = rs.NodeRegistrationQuery.Scan(&senderNodeRegistration, senderNodeRow)
-	if err != nil {
-		return err
-	}
-
-	// get recipient address at height
-	recipientNodeQ, recipientNodeArgs := rs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(
-		receipt.RecipientPublicKey,
-		receipt.ReferenceBlockHeight,
-	)
-	recipientNodeRow, _ := rs.QueryExecutor.ExecuteSelectRow(recipientNodeQ, false, recipientNodeArgs...)
-	err = rs.NodeRegistrationQuery.Scan(&recipientNodeRegistration, recipientNodeRow)
-	if err != nil {
-		return err
-	}
 	// get or build scrambled nodes at height
-	scrambledNodes, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
+	scrambledNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-
+	// get sender address at height
+	senderNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetSenderPublicKey())]
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptSenderNotInScrambleList")
+	}
+	// get recipient address at height
+	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetRecipientPublicKey())]
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
+	}
 	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
-		senderNodeRegistration.NodeID,
-		scrambledNodes,
+		senderNodeID,
+		scrambledNode,
 	); err != nil {
 		return err
 	}
 
 	// check if recipient is in sender.Peers list
 	for _, peer := range peers {
-		if peer.GetInfo().ID == recipientNodeRegistration.NodeID {
+		if peer.GetInfo().ID == recipientNodeID {
 			// valid recipient and sender
 			return nil
 		}
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptSenderOrRecipient")
+	return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInPriorityList")
 }
 
 // GetPublishedReceiptsByHeight that handling database connection to get published receipts by height
@@ -520,7 +506,7 @@ func (rs *ReceiptService) StoreBatchReceipt(batchReceipt *model.BatchReceipt, se
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptReminderStorage.SetItem(string(receiptKey), chaintype)
+	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receiptKey), chaintype)
 	if err != nil {
 		return err
 	}

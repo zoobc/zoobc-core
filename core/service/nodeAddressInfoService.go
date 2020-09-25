@@ -2,8 +2,12 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -17,6 +21,12 @@ type (
 	// NodeAddressInfoServiceInterface represents interface for NodeAddressInfoService
 	NodeAddressInfoServiceInterface interface {
 		GetUnsignedNodeAddressInfoBytes(nodeAddressMessage *model.NodeAddressInfo) []byte
+		GenerateNodeAddressInfo(
+			nodeID int64,
+			nodeAddress string,
+			port uint32,
+			nodeSecretPhrase string) (*model.NodeAddressInfo, error)
+		ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error)
 		GetAddressInfoTableWithConsolidatedAddresses(preferredStatus model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		GetAddressInfoByNodeIDWithPreferredStatus(nodeID int64, preferredStatus model.NodeAddressStatus) (*model.NodeAddressInfo, error)
 		GetAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
@@ -28,10 +38,15 @@ type (
 		GetAddressInfoByStatus(nodeAddressStatuses []model.NodeAddressStatus) ([]*model.NodeAddressInfo, error)
 		InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error
 		UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error
+		UpdateOrInsertAddressInfo(
+			nodeAddressInfo *model.NodeAddressInfo,
+			updatedStatus model.NodeAddressStatus,
+		) (updated bool, err error)
 		ConfirmNodeAddressInfo(pendingNodeAddressInfo *model.NodeAddressInfo) error
 		DeletePendingNodeAddressInfo(nodeID int64) error
 		DeleteNodeAddressInfoByNodeIDInDBTx(nodeID int64) error
 		CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error)
+		CountRegistredNodeAddressWithAddressInfo() (int, error)
 		ClearUpdateNodeAddressInfoCache() error
 		ExecuteWaitedNodeAddressInfoCache() error
 		ClearWaitedNodeAddressInfoCache()
@@ -41,7 +56,11 @@ type (
 	NodeAddressInfoService struct {
 		QueryExecutor          query.ExecutorInterface
 		NodeAddressInfoQuery   query.NodeAddressInfoQueryInterface
+		NodeRegistrationQuery  query.NodeRegistrationQueryInterface
+		BlockQuery             query.BlockQueryInterface
+		Signature              crypto.SignatureInterface
 		NodeAddressInfoStorage *storage.NodeAddressInfoStorage
+		MainBlockStateStorage  storage.CacheStorageInterface
 		Logger                 *log.Logger
 	}
 )
@@ -49,13 +68,21 @@ type (
 func NewNodeAddressInfoService(
 	executor query.ExecutorInterface,
 	nodeAddressInfoQuery query.NodeAddressInfoQueryInterface,
+	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
+	blockQuery query.BlockQueryInterface,
+	signature crypto.SignatureInterface,
 	nodeAddressesInfoStorage *storage.NodeAddressInfoStorage,
+	mainBlockStateStorage storage.CacheStorageInterface,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
 	return &NodeAddressInfoService{
 		QueryExecutor:          executor,
 		NodeAddressInfoQuery:   nodeAddressInfoQuery,
+		NodeRegistrationQuery:  nodeRegistrationQuery,
+		BlockQuery:             blockQuery,
+		Signature:              signature,
 		NodeAddressInfoStorage: nodeAddressesInfoStorage,
+		MainBlockStateStorage:  mainBlockStateStorage,
 		Logger:                 logger,
 	}
 }
@@ -74,6 +101,48 @@ func (nru *NodeAddressInfoService) GetUnsignedNodeAddressInfoBytes(nodeAddressMe
 	buffer.Write(util.ConvertUint32ToBytes(nodeAddressMessage.BlockHeight))
 	buffer.Write(nodeAddressMessage.BlockHash)
 	return buffer.Bytes()
+}
+
+// GenerateNodeAddressInfo generate a nodeAddressInfo signed message
+func (nru *NodeAddressInfoService) GenerateNodeAddressInfo(
+	nodeID int64,
+	nodeAddress string,
+	port uint32,
+	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
+	var (
+		safeBlockHeight      uint32
+		safeBlock, lastBlock model.Block
+		err                  = nru.MainBlockStateStorage.GetItem(nil, &lastBlock)
+	)
+	if err != nil {
+		return nil, err
+	}
+	// get a rollback-safe block for node address info message, to make sure evey peer can validate it
+	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first 720 blocks
+	if lastBlock.GetHeight() < constant.MinRollbackBlocks {
+		safeBlockHeight = 0
+	} else {
+		safeBlockHeight = lastBlock.GetHeight() - constant.MinRollbackBlocks
+	}
+	rows, err := nru.QueryExecutor.ExecuteSelectRow(nru.BlockQuery.GetBlockByHeight(safeBlockHeight), false)
+	if err != nil {
+		return nil, err
+	}
+	err = nru.BlockQuery.Scan(&safeBlock, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeAddressInfo := &model.NodeAddressInfo{
+		NodeID:      nodeID,
+		Address:     nodeAddress,
+		Port:        port,
+		BlockHeight: safeBlock.GetHeight(),
+		BlockHash:   safeBlock.GetBlockHash(),
+	}
+	nodeAddressInfoBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	nodeAddressInfo.Signature = nru.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
+	return nodeAddressInfo, nil
 }
 
 // GetAddressInfoTableWithConsolidatedAddresses returns registered nodes that have relative node address info records,
@@ -246,6 +315,25 @@ func (nru *NodeAddressInfoService) CountNodesAddressByStatus() (map[model.NodeAd
 	return addressStatusCounter, nil
 }
 
+// CountRegistredNodeAddressWithAddressInfo return the number of node registry that already have node address info
+func (nru *NodeAddressInfoService) CountRegistredNodeAddressWithAddressInfo() (int, error) {
+	var (
+		counter       int
+		countQuery    = query.GetTotalRecordOfSelect(nru.NodeRegistrationQuery.GetActiveNodeRegistrationsWithNodeAddress())
+		rowCount, err = nru.QueryExecutor.ExecuteSelectRow(countQuery, false)
+	)
+	if err != nil {
+		return 0, err
+	}
+	err = rowCount.Scan(
+		&counter,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return counter, nil
+}
+
 func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
 	var err = nru.QueryExecutor.BeginTx()
 	if err != nil {
@@ -294,6 +382,7 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 	return nil
 }
 
+// ConfirmPendingNodeAddress confirm a pending address by inserting or replacing the previously confirmed one and deleting the pending address
 func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	pendingNodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	var (
@@ -331,9 +420,21 @@ func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo
 	if err != nil {
 		return err
 	}
+
+	if monitoring.IsMonitoringActive() {
+		if countResult, err := nru.CountRegistredNodeAddressWithAddressInfo(); err == nil {
+			monitoring.SetNodeAddressInfoCount(countResult)
+		}
+		if cna, err := nru.CountNodesAddressByStatus(); err == nil {
+			for status, counter := range cna {
+				monitoring.SetNodeAddressStatusCount(counter, status)
+			}
+		}
+	}
 	return nil
 }
 
+// DeletePendingNodeAddressInfo to delete pending node addrress based on node ID
 func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) error {
 	var (
 		nodeAddressInfoStatuses = []model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending}
@@ -436,4 +537,130 @@ func (nru *NodeAddressInfoService) ClearUpdateNodeAddressInfoCache() error {
 		}
 	}
 	return nil
+}
+
+// InsertOrUpdateAddressInfo updates or adds (in case new) a node address info record to db
+func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
+	nodeAddressInfo *model.NodeAddressInfo,
+	updatedStatus model.NodeAddressStatus,
+) (updated bool, err error) {
+	var (
+		addressAlreadyUpdated bool
+		nodeAddressesInfo     []*model.NodeAddressInfo
+	)
+	// validate first
+	addressAlreadyUpdated, err = nru.ValidateNodeAddressInfo(nodeAddressInfo)
+	if err != nil || addressAlreadyUpdated {
+		return false, err
+	}
+
+	nodeAddressInfo.Status = updatedStatus
+	// if a node with same id and status already exist, update
+	if nodeAddressesInfo, err = nru.GetAddressInfoByNodeID(
+		nodeAddressInfo.NodeID,
+		[]model.NodeAddressStatus{nodeAddressInfo.Status},
+	); err != nil {
+		return false, err
+	}
+	if len(nodeAddressesInfo) > 0 {
+		// check if new address info is more recent than previous
+		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
+			return false, nil
+		}
+		err = nru.UpdateAddrressInfo(nodeAddressInfo)
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}
+	err = nru.InsertAddressInfo(nodeAddressInfo)
+	if err != nil {
+		return false, err
+	}
+	if monitoring.IsMonitoringActive() {
+		if countResult, err := nru.CountRegistredNodeAddressWithAddressInfo(); err == nil {
+			monitoring.SetNodeAddressInfoCount(countResult)
+		}
+		if cna, err := nru.CountNodesAddressByStatus(); err == nil {
+			for status, counter := range cna {
+				monitoring.SetNodeAddressStatusCount(counter, status)
+			}
+		}
+	}
+	return true, nil
+}
+
+// ValidateNodeAddressInfo validate message data against:
+// - main blocks: block height and hash
+// - node registry: nodeID and message signature (use node public key in registry to validate the signature)
+// Validation also fails if there is already a nodeAddressInfo record in db with same nodeID, address, port
+func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
+	var (
+		block             model.Block
+		nodeRegistration  model.NodeRegistration
+		nodeAddressesInfo []*model.NodeAddressInfo
+
+		// validate nodeID
+		qry, args = nru.NodeRegistrationQuery.GetNodeRegistrationByID(nodeAddressInfo.GetNodeID())
+		row, _    = nru.QueryExecutor.ExecuteSelectRow(qry, false, args...)
+	)
+	err = nru.NodeRegistrationQuery.Scan(&nodeRegistration, row)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			err = blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
+			return
+		}
+		return
+	}
+
+	// validate the message signature
+	unsignedBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	if !nru.Signature.VerifyNodeSignature(
+		unsignedBytes,
+		nodeAddressInfo.GetSignature(),
+		nodeRegistration.GetNodePublicKey(),
+	) {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+		return
+	}
+
+	// validate block height
+	blockRow, _ := nru.QueryExecutor.ExecuteSelectRow(
+		nru.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()),
+		false,
+	)
+	err = nru.BlockQuery.Scan(&block, blockRow)
+	if err != nil {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+		return
+	}
+	// validate block hash
+	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+		return
+	}
+
+	if nodeAddressesInfo, err = nru.GetAddressInfoByNodeID(
+		nodeAddressInfo.GetNodeID(),
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressConfirmed,
+			model.NodeAddressStatus_NodeAddressPending},
+	); err != nil {
+		return
+	}
+
+	for _, nai := range nodeAddressesInfo {
+		if nodeAddressInfo.GetAddress() == nai.GetAddress() &&
+			nodeAddressInfo.GetPort() == nai.GetPort() {
+			// in case address for this node exists
+			found = true
+			return
+		}
+		if nai.GetStatus() == model.NodeAddressStatus_NodeAddressPending && nai.BlockHeight >= nodeAddressInfo.BlockHeight {
+			found = true
+			err = blocker.NewBlocker(blocker.ValidationErr, "OutdatedNodeAddressInfo")
+			return
+		}
+	}
+	return false, nil
 }

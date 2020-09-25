@@ -425,17 +425,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return err
 	}
-
+	err = bs.NodeRegistrationService.BeginCacheTransaction()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginCacheTransaction - %s", err.Error()))
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringEscrowTransactionsErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 	err = bs.TransactionCoreService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringPendingTransactionsErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
@@ -444,6 +450,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	*/
 	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("CompletePassedLiquidPaymentErr - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
@@ -705,6 +712,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
+	err = bs.NodeRegistrationService.CommitCacheTransaction()
+	if err != nil {
+		bs.Logger.Warnf("FailToCommitNodeRegistryCache-%v", err)
+		_ = bs.NodeRegistrationService.InitializeCache()
+	}
 	// cache last block state
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(block)
@@ -737,9 +749,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 // queryAndCacheRollbackProcess process to rollback data database & cache after failed execute query
 func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
-	// cleaer liat of candidate node address info to be remove in chace
+	// clear list of candidate node address info to be remove in cache
 	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
-
+	err := bs.NodeRegistrationService.RollbackCacheTransaction()
+	if err != nil {
+		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
+	}
 	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
 	}
@@ -891,10 +906,8 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 		}
 	}
 	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height, true)
-	if err != nil {
-		return err
-	}
-	return nil
+
+	return err
 }
 
 // GetBlockByID return a block by its ID
@@ -1250,7 +1263,7 @@ func (bs *BlockService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block))
+		return err
 	}
 	return nil
 }
@@ -1422,13 +1435,17 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	//
 
 	// remove peer memoization
-	err = bs.ScrambleNodeService.PopOffScrambleToHeight(0)
+	err = bs.ScrambleNodeService.PopOffScrambleToHeight(commonBlock.Height)
 	if err != nil {
 		return nil, err
 	}
 	// clear block pool
 	bs.BlockPoolService.ClearBlockPool()
-
+	// re-initialize node-registry cache
+	err = bs.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return nil, err
+	}
 	// Need to sort ascending since was descended in above by Height
 	sort.Slice(poppedBlocks, func(i, j int) bool {
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
