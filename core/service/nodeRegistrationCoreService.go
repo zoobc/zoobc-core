@@ -21,6 +21,7 @@ type (
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
+		GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
 		AdmitNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
 		ExpelNodes(nodeRegistrations []*model.NodeRegistration, height uint32) error
@@ -203,6 +204,7 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePubli
 	return &nodeRegistry, nil
 }
 
+// GetNodeRegistrationByNodeID fetch node registration by its nodeID from database
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
 	var (
 		qry          string
@@ -226,6 +228,19 @@ func (nrs *NodeRegistrationService) GetNodeRegistrationByNodeID(nodeID int64) (*
 	}
 
 	return &nodeRegistry, err
+}
+
+// GetActiveNodeRegistrationByNodeID fetch node registration by its nodeID from database
+func (nrs *NodeRegistrationService) GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
+	var (
+		nodeRegistry storage.NodeRegistry
+		err          error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
+	if err != nil {
+		return nil, err
+	}
+	return &nodeRegistry.Node, err
 }
 
 // AdmitNodes update given node registrations' registrationStatus field to NodeRegistrationState_NodeRegistered (=0)

@@ -214,7 +214,7 @@ func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsByHeight(height uint
 		nrq.getTableName(), NewParticipationScoreQuery().TableName, height, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
-// GetNodeRegistrationByID returns query string to get Node Registration by node public key
+// GetNodeRegistrationByID returns query string to get Node Registration by node ID
 func (nrq *NodeRegistrationQuery) GetNodeRegistrationByID(id int64) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = ? AND latest=1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{id}

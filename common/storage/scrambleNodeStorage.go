@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -141,16 +142,15 @@ func (s *ScrambleCacheStackStorage) copy(src model.ScrambledNodes) model.Scrambl
 		newNodePublicKeyToIDMap = make(map[string]int64)
 		newPeers                = make([]*model.Peer, 0)
 	)
-	for key, id := range src.NodePublicKeyToIDMap {
-		newNodePublicKeyToIDMap[key] = id
-	}
 	for i, node := range src.AddressNodes {
 		idx := i
+		newNodePublicKeyToIDMap[hex.EncodeToString(node.GetInfo().GetPublicKey())] = node.GetInfo().GetID()
 		scrambleDNodeMapKey := fmt.Sprintf("%d", node.GetInfo().GetID())
 		newIndexNodes[scrambleDNodeMapKey] = &idx
 		tempPeer := model.Peer{
 			Info: &model.Node{
 				ID:            node.GetInfo().GetID(),
+				PublicKey:     node.GetInfo().GetPublicKey(),
 				SharedAddress: node.GetInfo().GetSharedAddress(),
 				Address:       node.GetInfo().GetAddress(),
 				Port:          node.GetInfo().GetPort(),

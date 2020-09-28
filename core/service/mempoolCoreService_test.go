@@ -22,6 +22,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -1084,7 +1085,8 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
-	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	txBytesHash := sha3.Sum256(txBytes)
+	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
 		Chaintype              chaintype.ChainType
