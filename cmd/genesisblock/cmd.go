@@ -560,6 +560,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
+		bs,
 	)
 	spine, err := sb.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

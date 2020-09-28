@@ -375,6 +375,9 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelectRow(
 				mockBlockDataSelectReceipt.GetTotalFee(),
 				mockBlockDataSelectReceipt.GetTotalCoinBase(),
 				mockBlockDataSelectReceipt.GetVersion(),
+				mockBlockDataSelectReceipt.GetMerkleRoot(),
+				mockBlockDataSelectReceipt.GetMerkleTree(),
+				mockBlockDataSelectReceipt.GetReferenceBlockHeight(),
 			))
 	}
 	row := db.QueryRow(qe)
@@ -440,6 +443,9 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelectRow(
 				mockBlockDataSelectReceipt.GetTotalFee(),
 				mockBlockDataSelectReceipt.GetTotalCoinBase(),
 				mockBlockDataSelectReceipt.GetVersion(),
+				mockBlockDataSelectReceipt.GetMerkleRoot(),
+				mockBlockDataSelectReceipt.GetMerkleTree(),
+				mockBlockDataSelectReceipt.GetReferenceBlockHeight(),
 			))
 	}
 	row := db.QueryRow(qe)
@@ -819,7 +825,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	switch qStr {
 	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
@@ -839,6 +845,9 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 				mockBlockData.GetTotalFee(),
 				mockBlockData.GetTotalCoinBase(),
 				mockBlockData.GetVersion(),
+				mockBlockData.GetMerkleRoot(),
+				mockBlockData.GetMerkleTree(),
+				mockBlockData.GetReferenceBlockHeight(),
 			))
 	default:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
@@ -977,6 +986,9 @@ func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx 
 		mockBlockDataSelectReceipt.GetTotalFee(),
 		mockBlockDataSelectReceipt.GetTotalCoinBase(),
 		mockBlockDataSelectReceipt.GetVersion(),
+		mockBlockDataSelectReceipt.GetMerkleRoot(),
+		mockBlockDataSelectReceipt.GetMerkleTree(),
+		mockBlockDataSelectReceipt.GetReferenceBlockHeight(),
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRow)
 	return db.QueryRow(qStr), nil

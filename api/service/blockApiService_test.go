@@ -99,6 +99,9 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args
 		mockGoodBlock.GetTotalFee(),
 		mockGoodBlock.GetTotalCoinBase(),
 		mockGoodBlock.GetVersion(),
+		mockGoodBlock.GetMerkleRoot(),
+		mockGoodBlock.GetMerkleTree(),
+		mockGoodBlock.GetReferenceBlockHeight(),
 	).AddRow(
 		mockGoodBlock.GetHeight(),
 		mockGoodBlock.GetID(),
@@ -115,6 +118,9 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qe string, tx bool, args
 		mockGoodBlock.GetTotalFee(),
 		mockGoodBlock.GetTotalCoinBase(),
 		mockGoodBlock.GetVersion(),
+		mockGoodBlock.GetMerkleRoot(),
+		mockGoodBlock.GetMerkleTree(),
+		mockGoodBlock.GetReferenceBlockHeight(),
 	))
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -149,6 +155,9 @@ func (*mockQueryGetBlockByIDSuccess) ExecuteSelectRow(qStr string, tx bool, args
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -259,6 +268,9 @@ func (*mockQueryGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, tx bool, 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -374,6 +386,9 @@ func (*mockQueryGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, args ...in
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		),
 	)
 	return db.Query(qStr)

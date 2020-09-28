@@ -63,6 +63,9 @@ func (*mockQueryGetBlocksmithsSpineFail) ExecuteSelectRow(qStr string, tx bool, 
 			mockBlock.GetTotalFee(),
 			mockBlock.GetTotalCoinBase(),
 			mockBlock.GetVersion(),
+			mockBlock.GetMerkleRoot(),
+			mockBlock.GetMerkleTree(),
+			mockBlock.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -164,6 +167,9 @@ func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelectRow(qStr
 			mockBlock.GetTotalFee(),
 			mockBlock.GetTotalCoinBase(),
 			mockBlock.GetVersion(),
+			mockBlock.GetMerkleRoot(),
+			mockBlock.GetMerkleTree(),
+			mockBlock.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -206,6 +212,9 @@ func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelectRow(qStr st
 			mockBlock.GetTotalFee(),
 			mockBlock.GetTotalCoinBase(),
 			mockBlock.GetVersion(),
+			mockBlock.GetMerkleRoot(),
+			mockBlock.GetMerkleTree(),
+			mockBlock.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
