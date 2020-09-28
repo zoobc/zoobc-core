@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -79,9 +80,10 @@ func (s *ScrambleCacheStackStorage) GetAll(items interface{}) error {
 	}
 	s.RLock()
 	defer s.RUnlock()
-	for _, scrambleNode := range s.scrambledNodes {
+	*scrambledNodesCopy = make([]model.ScrambledNodes, len(s.scrambledNodes))
+	for i, scrambleNode := range s.scrambledNodes {
 		var tempScramble = s.copy(scrambleNode)
-		*scrambledNodesCopy = append(*scrambledNodesCopy, tempScramble)
+		(*scrambledNodesCopy)[i] = tempScramble
 	}
 	return nil
 }
@@ -137,20 +139,19 @@ func (s *ScrambleCacheStackStorage) size() int {
 func (s *ScrambleCacheStackStorage) copy(src model.ScrambledNodes) model.ScrambledNodes {
 	var (
 		result                  model.ScrambledNodes
-		newIndexNodes           = make(map[string]*int)
-		newNodePublicKeyToIDMap = make(map[string]int64)
-		newPeers                = make([]*model.Peer, 0)
+		newIndexNodes           = make(map[string]*int, len(src.AddressNodes))
+		newNodePublicKeyToIDMap = make(map[string]int64, len(src.AddressNodes))
+		newPeers                = make([]*model.Peer, len(src.AddressNodes))
 	)
-	for key, id := range src.NodePublicKeyToIDMap {
-		newNodePublicKeyToIDMap[key] = id
-	}
 	for i, node := range src.AddressNodes {
 		idx := i
+		newNodePublicKeyToIDMap[hex.EncodeToString(node.GetInfo().GetPublicKey())] = node.GetInfo().GetID()
 		scrambleDNodeMapKey := fmt.Sprintf("%d", node.GetInfo().GetID())
 		newIndexNodes[scrambleDNodeMapKey] = &idx
 		tempPeer := model.Peer{
 			Info: &model.Node{
 				ID:            node.GetInfo().GetID(),
+				PublicKey:     node.GetInfo().GetPublicKey(),
 				SharedAddress: node.GetInfo().GetSharedAddress(),
 				Address:       node.GetInfo().GetAddress(),
 				Port:          node.GetInfo().GetPort(),
@@ -165,7 +166,7 @@ func (s *ScrambleCacheStackStorage) copy(src model.ScrambledNodes) model.Scrambl
 			ConnectionAttempted: node.GetConnectionAttempted(),
 			UnresolvingTime:     node.GetUnresolvingTime(),
 		}
-		newPeers = append(newPeers, &tempPeer)
+		newPeers[i] = &tempPeer
 	}
 	result = model.ScrambledNodes{
 		IndexNodes:           newIndexNodes,

@@ -285,6 +285,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			nil,
+			nil,
 			storage.NewBlockStateStorage(),
 			nil,
 			nil,

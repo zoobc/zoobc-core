@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"syscall"
 	"time"
 
@@ -55,6 +56,7 @@ var (
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
+	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
@@ -87,6 +89,7 @@ var (
 	transactionUtil                                                        transaction.UtilInterface
 	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
 	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
+	pendingTransactionServiceIns                                           service.PendingTransactionServiceInterface
 	fileService                                                            service.FileServiceInterface
 	mainchain                                                              = &chaintype.MainChain{}
 	spinechain                                                             = &chaintype.SpineChain{}
@@ -242,7 +245,25 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-
+	// store current active node registry (not in queue)
+	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypeActiveNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by nodeID lowest - highest
+				return registries[i].Node.GetNodeID() < registries[j].Node.GetNodeID()
+			})
+		})
+	// store pending node registry
+	pendingNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
+		monitoring.TypePendingNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by locked balance highest - lowest
+				return registries[i].Node.GetLockedBalance() > registries[j].Node.GetLockedBalance()
+			})
+		},
+	)
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
 	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
@@ -258,10 +279,12 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 	)
 	actionSwitcher = &transaction.TypeSwitcher{
-		Executor:               queryExecutor,
-		MempoolCacheStorage:    mempoolStorage,
-		NodeAddressInfoStorage: nodeAddressInfoStorage,
-		NodeAuthValidation:     nodeAuthValidationService,
+		Executor:                   queryExecutor,
+		MempoolCacheStorage:        mempoolStorage,
+		NodeAddressInfoStorage:     nodeAddressInfoStorage,
+		NodeAuthValidation:         nodeAuthValidationService,
+		ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
+		PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -272,6 +295,7 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
+		activeNodeRegistryCacheStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -284,6 +308,8 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		nodeAddressInfoService,
 		nextNodeAdmissionStorage,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
 	scrambleNodeService = service.NewScrambleNodeService(
 		nodeRegistrationService,
@@ -369,8 +395,15 @@ func initiateMainInstance() {
 		transactionUtil,
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
-		query.NewPendingTransactionQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+	)
+	pendingTransactionServiceIns = service.NewPendingTransactionService(
+		loggerCoreService,
+		queryExecutor,
+		actionSwitcher,
+		transactionUtil,
+		query.NewTransactionQuery(mainchain),
+		query.NewPendingTransactionQuery(),
 	)
 
 	mempoolService = service.NewMempoolService(
@@ -418,6 +451,7 @@ func initiateMainInstance() {
 		transactionUtil, receiptUtil,
 		mainchainPublishedReceiptUtil,
 		transactionCoreServiceIns,
+		pendingTransactionServiceIns,
 		mainchainBlockPool,
 		mainchainBlocksmithService,
 		mainchainCoinbaseService,
@@ -729,7 +763,12 @@ func startMainchain() {
 	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
-	// initializing scrambled nodes
+	// initialize node registry cache
+	err = nodeRegistrationService.InitializeCache()
+	if err != nil {
+		loggerCoreService.Fatalf("InitializeNodeRegistryCacheFail - %v", err)
+	}
+	// initialize scrambled nodes
 	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)

@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"math"
 	"sort"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/fee"
 
@@ -328,7 +329,8 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 	}
 	// verify the signature of the transaction
 	if verifySignature {
-		err = crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress)
+		txBytesHash := sha3.Sum256(unsignedTransactionBytes)
+		err = crypto.NewSignature().VerifySignature(txBytesHash[:], tx.Signature, tx.SenderAccountAddress)
 		if err != nil {
 			return err
 		}

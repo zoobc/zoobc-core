@@ -43,8 +43,9 @@ func (m *MempoolBackupStorage) SetItem(key, item interface{}) error {
 	}
 
 	m.mempools[id] = mempoolByte
-	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
-
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+	}
 	return nil
 }
 
@@ -62,8 +63,9 @@ func (m *MempoolBackupStorage) SetItems(items interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType items")
 	}
 	m.mempools = nItems
-	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
-
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+	}
 	return nil
 }
 
@@ -116,7 +118,9 @@ func (m *MempoolBackupStorage) RemoveItem(key interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 	}
 	delete(m.mempools, id)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, float64(m.size()))
+	}
 	return nil
 }
 
@@ -143,6 +147,8 @@ func (m *MempoolBackupStorage) ClearCache() error {
 	defer m.Unlock()
 
 	m.mempools = make(map[int64][]byte)
-	monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, 0)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolBackupCacheStorage, 0)
+	}
 	return nil
 }

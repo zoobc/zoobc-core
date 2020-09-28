@@ -140,7 +140,11 @@ func (sns *ScrambleNodeService) PopOffScrambleToHeight(height uint32) error {
 	}
 	nearestScrambleHeight := sns.GetBlockHeightToBuildScrambleNodes(height)
 	index = (nearestScrambleHeight - firstCachedScramble.BlockHeight) / constant.PriorityStrategyBuildScrambleNodesGap
-	err = sns.cacheStorage.PopTo(index - 1)
+	if index > 0 {
+		err = sns.cacheStorage.PopTo(index - 1)
+	} else {
+		err = sns.cacheStorage.PopTo(0)
+	}
 	return err
 }
 
@@ -232,7 +236,8 @@ func (sns *ScrambleNodeService) ScrambleNodeRegistries(block *model.Block) (*mod
 		}
 		peer := &model.Peer{
 			Info: &model.Node{
-				ID: node.GetNodeID(),
+				ID:        node.GetNodeID(),
+				PublicKey: node.GetNodePublicKey(),
 			},
 		}
 		// p2p: add peer to index and address nodes only if node has address
