@@ -276,7 +276,9 @@ func init() {
 	proto.RegisterType((*GetAccountBalancesResponse)(nil), "model.GetAccountBalancesResponse")
 }
 
-func init() { proto.RegisterFile("model/accountBalance.proto", fileDescriptor_44b9b1c521a5bcaa) }
+func init() {
+	proto.RegisterFile("model/accountBalance.proto", fileDescriptor_44b9b1c521a5bcaa)
+}
 
 var fileDescriptor_44b9b1c521a5bcaa = []byte{
 	// 325 bytes of a gzipped FileDescriptorProto

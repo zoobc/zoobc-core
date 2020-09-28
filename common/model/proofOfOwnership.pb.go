@@ -159,7 +159,9 @@ func init() {
 	proto.RegisterType((*GetProofOfOwnershipRequest)(nil), "model.GetProofOfOwnershipRequest")
 }
 
-func init() { proto.RegisterFile("model/proofOfOwnership.proto", fileDescriptor_bf3e0f5aaea0d613) }
+func init() {
+	proto.RegisterFile("model/proofOfOwnership.proto", fileDescriptor_bf3e0f5aaea0d613)
+}
 
 var fileDescriptor_bf3e0f5aaea0d613 = []byte{
 	// 234 bytes of a gzipped FileDescriptorProto

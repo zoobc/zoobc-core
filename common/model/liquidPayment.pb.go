@@ -153,7 +153,9 @@ func init() {
 	proto.RegisterType((*LiquidPayment)(nil), "model.LiquidPayment")
 }
 
-func init() { proto.RegisterFile("model/liquidPayment.proto", fileDescriptor_d0147bdf7fdaeca5) }
+func init() {
+	proto.RegisterFile("model/liquidPayment.proto", fileDescriptor_d0147bdf7fdaeca5)
+}
 
 var fileDescriptor_d0147bdf7fdaeca5 = []byte{
 	// 320 bytes of a gzipped FileDescriptorProto

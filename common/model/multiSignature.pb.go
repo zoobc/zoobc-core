@@ -1206,7 +1206,9 @@ func init() {
 	proto.RegisterMapType((map[string]*MultiSignatureParticipants)(nil), "model.GetParticipantsByMultisigAddressesResponse.MultiSignatureParticipantsEntry")
 }
 
-func init() { proto.RegisterFile("model/multiSignature.proto", fileDescriptor_136af44c597c17ae) }
+func init() {
+	proto.RegisterFile("model/multiSignature.proto", fileDescriptor_136af44c597c17ae)
+}
 
 var fileDescriptor_136af44c597c17ae = []byte{
 	// 1027 bytes of a gzipped FileDescriptorProto
