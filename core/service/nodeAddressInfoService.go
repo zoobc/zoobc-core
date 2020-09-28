@@ -597,8 +597,9 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 // Validation also fails if there is already a nodeAddressInfo record in db with same nodeID, address, port
 func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
-		block             model.Block
-		nodeRegistry      model.NodeRegistration
+		block        model.Block
+		nodeRegistry storage.NodeRegistry
+
 		nodeAddressesInfo []*model.NodeAddressInfo
 	)
 	err = nru.ActiveNodeRegistryCache.GetItem(nodeAddressInfo.GetNodeID(), &nodeRegistry)
@@ -610,7 +611,7 @@ func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *mode
 	if !nru.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		nodeAddressInfo.GetSignature(),
-		nodeRegistry.GetNodePublicKey(),
+		nodeRegistry.Node.GetNodePublicKey(),
 	) {
 		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 		return
