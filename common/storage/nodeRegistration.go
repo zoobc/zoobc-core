@@ -132,7 +132,7 @@ func (n *NodeRegistryCacheStorage) GetItem(idx, item interface{}) error {
 	case int64:
 		itemIndex, ok = n.nodeIDIndexes[castedIdx]
 		if !ok {
-			return blocker.NewBlocker(blocker.ValidationErr, "NotFound")
+			return blocker.NewBlocker(blocker.NotFound, "NodeRegistryNotFound")
 		}
 	default:
 		return blocker.NewBlocker(blocker.ValidationErr, "UnknownType")
