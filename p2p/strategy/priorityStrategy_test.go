@@ -1669,6 +1669,13 @@ func (psMock *psMockNodeRegistrationService) GetNodeRegistrationByNodeID(nodeID 
 	return nil, nil
 }
 
+func (psMock *psMockNodeRegistrationService) GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error) {
+	if psMock.currentNode != nil {
+		return psMock.currentNode, nil
+	}
+	return nil, nil
+}
+
 func (psMock *psMockNodeRegistrationService) GetNodeAddressInfoByAddressPort(
 	address string,
 	port uint32,
