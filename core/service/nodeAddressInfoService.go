@@ -621,7 +621,8 @@ func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *mode
 		return
 	}
 
-	// validate block height
+	// validate block height - note: possible performance issue when node registry grow larger,
+	// should update this when we plan to cache multiple block height in memory in the future.
 	blockRow, _ := nru.QueryExecutor.ExecuteSelectRow(
 		nru.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()),
 		false,
