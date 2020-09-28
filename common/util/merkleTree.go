@@ -2,8 +2,10 @@ package util
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
+
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"golang.org/x/crypto/sha3"
 )
@@ -16,6 +18,9 @@ type MerkleRoot struct {
 // GenerateMerkleRoot generate the root of merkle and build the tree in MerkleRoot.HashTree
 // return only the root
 func (mr *MerkleRoot) GenerateMerkleRoot(items []*bytes.Buffer) (*bytes.Buffer, error) {
+	if len(items) == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "LeafOfMerkleRequired")
+	}
 	treeLevelLength := math.Log2(float64(len(items)))
 	if treeLevelLength != math.Floor(treeLevelLength) {
 		// find `n` of lacking element and append until condition fulfilled

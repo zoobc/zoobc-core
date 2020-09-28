@@ -451,26 +451,14 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "main_block"
-				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash"
-			`,
-			`
-			ALTER TABLE "main_block"
-				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root"
-			`,
-			`
-			ALTER TABLE "main_block"
+				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash",
+				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root",
 				ADD COLUMN "reference_block_height" INTEGER AFTER "merkle_tree"
 			`,
 			`
 			ALTER TABLE "spine_block"
-				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash"
-			`,
-			`
-			ALTER TABLE "spine_block"
-				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root"
-			`,
-			`
-			ALTER TABLE "spine_block"
+				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash",
+				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root",
 				ADD COLUMN "reference_block_height" INTEGER AFTER "merkle_tree"
 			`,
 		}
