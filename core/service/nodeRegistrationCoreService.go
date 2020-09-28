@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -10,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
-	"math/big"
 )
 
 type (
@@ -19,6 +20,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
+		GetActiveRegistry() ([]storage.NodeRegistry, int64, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
@@ -180,6 +182,25 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
 	return nodeRegistries, nil
+}
+
+func (nrs *NodeRegistrationService) GetActiveRegistry() ([]storage.NodeRegistry, int64, error) {
+	var (
+		activeNodeRegistry []storage.NodeRegistry
+		registries         []storage.NodeRegistry
+		err                error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	scoreSum := int64(0)
+	for _, registry := range activeNodeRegistry {
+		registries = append(registries, registry)
+		scoreSum += registry.ParticipationScore
+	}
+	return registries, scoreSum, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {

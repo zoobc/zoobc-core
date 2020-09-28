@@ -541,11 +541,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 
+		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistry()
+		if err != nil {
+			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
+		}
+
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
+
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
-			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
-			previousBlock.Timestamp,
+			activeRegistries,
+			scoreSum,
+			block.Timestamp,
+			previousBlock,
 		)
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")

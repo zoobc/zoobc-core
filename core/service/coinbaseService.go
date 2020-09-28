@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"math"
+	"math/big"
 	"math/rand"
 
 	"github.com/montanaflynn/stats"
@@ -12,14 +13,18 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
 	CoinbaseServiceInterface interface {
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
-			blocksmiths []*model.Blocksmith,
-			previousBlockTimestamp int64,
+			activeNodeRegistries []storage.NodeRegistry,
+			scoreSum int64,
+			blockTimestamp int64,
+			previousBlock *model.Block,
 		) ([]string, error)
 	}
 
@@ -71,27 +76,40 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (cbs *CoinbaseService) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	previousBlockTimestamp int64,
+	activeRegistries []storage.NodeRegistry,
+	scoreSum int64,
+	blockTimestamp int64,
+	previousBlock *model.Block,
 ) ([]string, error) {
 	var (
 		selectedAccounts []string
+		numRewards       int64
 		qry              string
 		qryArgs          []interface{}
 		row              *sql.Row
 		err              error
 		nodeRegistration model.NodeRegistration
-		winnerIndexs     []int
 	)
+	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
+	rand.Seed(blockSeedBigInt.Int64())
 
-	rand.Seed(previousBlockTimestamp)
+	// get number of rewards recipients
+	numRewards = (blockTimestamp - previousBlock.Timestamp) * constant.CoinbaseNumberRewardsPerSecond
+	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
+	numRewards = util.MinInt64(numRewards, int64(len(activeRegistries)))
 
-	// Generate a random array of blocksmiths's length
-	winnerIndexs = rand.Perm(len(blocksmiths))
+	for i := 0; i < int(numRewards); i++ {
+		winnerScore := int64(rand.Intn(int(scoreSum)))
+		tempPreviousSum := int64(0)
 
-	for _, winnerIndex := range winnerIndexs {
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(blocksmiths[winnerIndex].NodeID)
+		for j := 0; j < len(activeRegistries); j++ {
+			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+activeRegistries[j].ParticipationScore {
+				// reward_coinbase(node_registries[j])
+			}
+			tempPreviousSum += activeRegistries[j].ParticipationScore
+		}
+
+		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(activeRegistries[i].Node.NodeID)
 		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -104,10 +122,6 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
-
-		// Handle possibility of a node selected twice as winner
-		// multiple account_ledger record, once for every winning
-		// CODING ON PROGRESS . . .
 	}
 	return selectedAccounts, nil
 }
