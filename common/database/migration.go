@@ -46,8 +46,10 @@ func (m *Migration) Init() error {
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
-				"sender_account_address" VARCHAR(255),
-				"recipient_account_address" VARCHAR(255),
+				"sender_account_address_type" INTEGER
+				"sender_account_address" bytes,
+				"recipient_account_address_type" INTEGER
+				"recipient_account_address" bytes,
 				PRIMARY KEY("id")
 			);`,
 			`

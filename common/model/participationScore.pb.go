@@ -219,9 +219,7 @@ func init() {
 	proto.RegisterType((*GetLatestParticipationScoreByNodeIDRequest)(nil), "model.GetLatestParticipationScoreByNodeIDRequest")
 }
 
-func init() {
-	proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193)
-}
+func init() { proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193) }
 
 var fileDescriptor_4eacd5198105d193 = []byte{
 	// 270 bytes of a gzipped FileDescriptorProto
