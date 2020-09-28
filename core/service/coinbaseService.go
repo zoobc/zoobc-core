@@ -75,12 +75,9 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (cbs *CoinbaseService) CoinbaseLotteryWinners(
-	activeRegistries []storage.NodeRegistry,
-	scoreSum int64,
-	blockTimestamp int64,
-	previousBlock *model.Block,
-) ([]string, error) {
+func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum, blockTimestamp int64,
+	previousBlock *model.Block) ([]string, error) {
+
 	var (
 		selectedAccounts []string
 		numRewards       int64
