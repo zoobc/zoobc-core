@@ -1149,7 +1149,7 @@ func (bs *BlockService) GenerateBlock(
 	}
 	previousSeedHash := digest.Sum([]byte{})
 
-	blockSeed := bs.Signature.SignByNode(previousSeedHash, secretPhrase)
+	blockSeed := bs.Signature.GenerateBlockSeed(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
 	// compute the previous block hash
 	previousBlockHash, err := commonUtils.GetBlockHash(previousBlock, bs.Chaintype)
