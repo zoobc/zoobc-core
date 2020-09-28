@@ -395,6 +395,7 @@ func (ps *PriorityStrategy) ResolvePeersThread() {
 			go ps.resolvePendingAddresses()
 		case <-sigs:
 			ticker.Stop()
+			ticker1.Stop()
 			return
 		}
 	}
@@ -783,38 +784,46 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 
 func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 	ps.rndDelay()
-	// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
-	// to have as many priority peers as possible to download the bc from
-	if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
-		ps.Logger.Error(err)
-	}
-
 	var (
 		// first sync cycle: wait until the blockchain is fully downloaded, then sync
 		bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap*2) * time.Second)
+		// make sure to not trigger the second ticker until the first cycle is concluded
+		sigs = make(chan os.Signal, 1)
+		// first sync error (before first download finish)
+		syncErr error
+	)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for syncErr != nil && !ps.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
+		// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
+		// to have as many priority peers as possible to download the bc from
+		syncErr = ps.getRegistryAndSyncAddressInfoTable()
+		select {
+		case <-bootstrapTicker.C:
+			continue
+		case <-sigs:
+			bootstrapTicker.Stop()
+			return
+		}
+	}
+	bootstrapTicker.Stop()
+	// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have
+	// all updated addresses note: when bc is full downloaded the node should be able to validate all address
+	// info messages
+	var (
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
 		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
 	)
-	// make sure to not trigger the second ticker until the first cycle is concluded
-	ticker.Stop()
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
-		// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have all updated addresses
-		// note: when bc is full downloaded the node should be able to validate all address info messages
 		err := ps.getRegistryAndSyncAddressInfoTable()
-		if err == nil && ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
-			bootstrapTicker.Stop()
-			ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute) // todo:andy-shi88 revert this later
+		if err != nil {
+			ps.Logger.Errorf("syncNodeAddressFail: %v - [non-blocking]", err)
 		}
 		select {
-		case <-bootstrapTicker.C:
-			continue
 		case <-ticker.C:
 			continue
 		case <-sigs:
-			bootstrapTicker.Stop()
+			ticker.Stop()
 			return
 		}
 	}
