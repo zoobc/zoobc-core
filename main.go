@@ -294,7 +294,7 @@ func initiateMainInstance() {
 		crypto.NewSignature(),
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
-		scrambleNodeStorage,
+		activeNodeRegistryCacheStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(

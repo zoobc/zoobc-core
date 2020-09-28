@@ -53,15 +53,15 @@ type (
 
 	// NodeAddressInfoService nodeRegistration helper service methods
 	NodeAddressInfoService struct {
-		QueryExecutor            query.ExecutorInterface
-		NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		BlockQuery               query.BlockQueryInterface
-		Signature                crypto.SignatureInterface
-		NodeAddressInfoStorage   *storage.NodeAddressInfoStorage
-		MainBlockStateStorage    storage.CacheStorageInterface
-		ScrambleNodeStackStorage storage.CacheStackStorageInterface
-		Logger                   *log.Logger
+		QueryExecutor           query.ExecutorInterface
+		NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		Signature               crypto.SignatureInterface
+		NodeAddressInfoStorage  *storage.NodeAddressInfoStorage
+		MainBlockStateStorage   storage.CacheStorageInterface
+		ActiveNodeRegistryCache storage.CacheStorageInterface
+		Logger                  *log.Logger
 	}
 )
 
@@ -72,20 +72,19 @@ func NewNodeAddressInfoService(
 	blockQuery query.BlockQueryInterface,
 	signature crypto.SignatureInterface,
 	nodeAddressesInfoStorage *storage.NodeAddressInfoStorage,
-	mainBlockStateStorage storage.CacheStorageInterface,
-	scrambleNodeStackStorage storage.CacheStackStorageInterface,
+	mainBlockStateStorage, activeNodeRegistryCache storage.CacheStorageInterface,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
 	return &NodeAddressInfoService{
-		QueryExecutor:            executor,
-		NodeAddressInfoQuery:     nodeAddressInfoQuery,
-		NodeRegistrationQuery:    nodeRegistrationQuery,
-		BlockQuery:               blockQuery,
-		Signature:                signature,
-		NodeAddressInfoStorage:   nodeAddressesInfoStorage,
-		MainBlockStateStorage:    mainBlockStateStorage,
-		ScrambleNodeStackStorage: scrambleNodeStackStorage,
-		Logger:                   logger,
+		QueryExecutor:           executor,
+		NodeAddressInfoQuery:    nodeAddressInfoQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		BlockQuery:              blockQuery,
+		Signature:               signature,
+		NodeAddressInfoStorage:  nodeAddressesInfoStorage,
+		MainBlockStateStorage:   mainBlockStateStorage,
+		ActiveNodeRegistryCache: activeNodeRegistryCache,
+		Logger:                  logger,
 	}
 }
 
@@ -599,23 +598,19 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
 		block             model.Block
-		scrambleNodes     model.ScrambledNodes
+		nodeRegistry      model.NodeRegistration
 		nodeAddressesInfo []*model.NodeAddressInfo
 	)
-	err = nru.ScrambleNodeStackStorage.GetTop(&scrambleNodes)
+	err = nru.ActiveNodeRegistryCache.GetItem(nodeAddressInfo.GetNodeID(), &nodeRegistry)
 	if err != nil {
 		return false, err
-	}
-	nodeIdx := scrambleNodes.IndexNodes[fmt.Sprintf("%d", nodeAddressInfo.GetNodeID())]
-	if nodeIdx == nil {
-		return false, blocker.NewBlocker(blocker.ValidationErr, "NodeIDNotFound")
 	}
 	// validate the message signature
 	unsignedBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	if !nru.Signature.VerifyNodeSignature(
 		unsignedBytes,
 		nodeAddressInfo.GetSignature(),
-		scrambleNodes.AddressNodes[*nodeIdx].GetInfo().GetPublicKey(),
+		nodeRegistry.GetNodePublicKey(),
 	) {
 		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 		return
