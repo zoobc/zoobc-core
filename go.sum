@@ -268,6 +268,8 @@ github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368 h1:BnkLmnoTPvU++nafNQoMzbRwJzsjXqw0zQNWF+5RBcA=
 github.com/zoobc/lib v0.0.0-20200611035436-693560334368/go.mod h1:3CpFOlNJWK4JKKd2pIOdQ31j2xrGE2LmNshX5CSqguY=
+github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1 h1:T452Dv9yVl2HVbtlIDlr+lynwkQtX2a5CyiUvsZPCbo=
+github.com/zoobc/zed25519 v0.0.0-20200918091259-7d865ec564f1/go.mod h1:xCwQiVhAlfsV3oiGVHlCC4nbV/emMk4QxkAzyGQGaD8=
 github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc h1:dUgptqJn/jI5uaJTuJtUNnNFih8joYy9MuFTfBQ7bxg=
 github.com/zoobc/zoo-slip10 v0.0.0-20200827062422-936b1f025cbc/go.mod h1:fVWvLoClMGMgRkkrZYODyLwrIWySyC6v87VBzm/D4RU=
 go.etcd.io/bbolt v1.3.2/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
@@ -282,6 +284,8 @@ golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4 h1:QmwruyY+bKbDDL0BaglrbZ
 golang.org/x/crypto v0.0.0-20200311171314-f7b00557c8c4/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9 h1:vEg9joUBmeBcK9iSJftGNf3coIG4HqZElCPehJsfAYM=
 golang.org/x/crypto v0.0.0-20200604202706-70a84ac30bf9/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a h1:vclmkQCjlDX5OydZ9wv8rBCcS0QyQY66Mpf/7BZbInM=
+golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
 golang.org/x/exp v0.0.0-20190121172915-509febef88a4/go.mod h1:CJ0aWSM057203Lf6IL+f9T1iT9GByDxfZKAQTCR3kQA=
 golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3/go.mod h1:UVdnD1Gm6xHRNCYTkRU2/jEulfH38KcIWyp/GAMgvoE=
 golang.org/x/lint v0.0.0-20190227174305-5b3e6a55c961/go.mod h1:wehouNa3lNwaWXcvxsM5YxQ5yQlVC4a0KAMCusXpPoU=

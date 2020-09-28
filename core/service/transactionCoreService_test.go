@@ -992,7 +992,6 @@ func TestTransactionCoreService_CompletePassedLiquidPayment(t *testing.T) {
 				TransactionUtil:               tt.fields.TransactionUtil,
 				TransactionQuery:              tt.fields.TransactionQuery,
 				EscrowTransactionQuery:        tt.fields.EscrowTransactionQuery,
-				PendingTransactionQuery:       tt.fields.PendingTransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 			}
 			if err := tg.CompletePassedLiquidPayment(tt.args.block); (err != nil) != tt.wantErr {
