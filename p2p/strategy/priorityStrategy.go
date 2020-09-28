@@ -1266,10 +1266,12 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 	for key, value := range resolvedPeers {
 		peers[key] = value
 	}
-
+	nodeID, err := ps.NodeConfigurationService.GetHostID()
+	if err != nil {
+		return nil, err
+	}
 	// if current node is registered, broadcast it back to its peers, in case they don't know its address
-	if curNodeRegistration, err = ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(ps.NodeConfigurationService.
-		GetNodePublicKey()); err != nil {
+	if curNodeRegistration, err = ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(nodeID); err != nil {
 		return nil, err
 	} else if curNodeRegistration != nil {
 		// node own address is always 'confirmed'
@@ -1357,17 +1359,20 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAd
 		return nil
 	}
 
-	nodeRegistry, err := ps.NodeRegistrationService.GetNodeRegistrationByNodeID(nodeAddressInfo.NodeID)
+	// check if received node is in active registered node (status = model.NodeRegistrationState_NodeRegistered)
+	_, err := ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(nodeAddressInfo.NodeID)
 	if err != nil {
+		castedBlocker := err.(blocker.Blocker)
+		if castedBlocker.Type == blocker.NotFound {
+			return nil
+		}
 		return err
 	}
-	if nodeRegistry.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
-		// add it to nodeAddressInfo table
-		if updated, _ := ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
-			// re-broadcast updated node address info
-			for _, peer := range ps.GetResolvedPeers() {
-				go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
-			}
+	// add it to nodeAddressInfo table
+	if updated, _ := ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
+		// re-broadcast updated node address info
+		for _, peer := range ps.GetResolvedPeers() {
+			go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
 		}
 	}
 	// do not add to address info if still in queue or node got deleted

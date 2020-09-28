@@ -108,6 +108,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			nil,
 			storage.NewNodeAddressInfoStorage(),
 			nil,
+			activeNodeRegistryCacheStorage,
 			logrus.New(),
 		)
 

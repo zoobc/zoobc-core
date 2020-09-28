@@ -168,6 +168,7 @@ func initialize(
 		nil,
 		nodeAddressInfoStorage,
 		nil,
+		nil,
 		log.New(),
 	)
 	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
