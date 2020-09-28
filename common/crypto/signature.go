@@ -3,6 +3,10 @@ package crypto
 import (
 	"bytes"
 
+	"golang.org/x/crypto/sha3"
+
+	"github.com/zoobc/zed25519/zed"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -22,6 +26,7 @@ type (
 			publicKeyString, address string,
 			err error,
 		)
+		GenerateBlockSeed(payload []byte, nodeSeed string) []byte
 	}
 
 	// Signature object handle signing and verifying different signature
@@ -286,4 +291,18 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 			"InvalidSignatureType",
 		)
 	}
+}
+
+// GenerateBlockSeed special method for generating block seed using zed
+func (*Signature) GenerateBlockSeed(payload []byte, nodeSeed string) []byte {
+	var (
+		buffer       = bytes.NewBuffer([]byte{})
+		seedBuffer   = []byte(nodeSeed)
+		seedHash     = sha3.Sum256(seedBuffer)
+		seedByte     = seedHash[:]
+		zedSecret    = zed.SecretFromSeed(seedByte)
+		zedSignature = zedSecret.Sign(payload)
+	)
+	buffer.Write(zedSignature[:])
+	return buffer.Bytes()
 }
