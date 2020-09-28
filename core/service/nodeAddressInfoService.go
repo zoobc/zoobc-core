@@ -606,33 +606,6 @@ func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *mode
 	if err != nil {
 		return false, err
 	}
-	// validate the message signature
-	unsignedBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
-	if !nru.Signature.VerifyNodeSignature(
-		unsignedBytes,
-		nodeAddressInfo.GetSignature(),
-		nodeRegistry.Node.GetNodePublicKey(),
-	) {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
-		return
-	}
-
-	// validate block height - note: possible performance issue when node registry grow larger,
-	// should update this when we plan to cache multiple block height in memory in the future.
-	blockRow, _ := nru.QueryExecutor.ExecuteSelectRow(
-		nru.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()),
-		false,
-	)
-	err = nru.BlockQuery.Scan(&block, blockRow)
-	if err != nil {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
-		return
-	}
-	// validate block hash
-	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
-		return
-	}
 
 	if nodeAddressesInfo, err = nru.GetAddressInfoByNodeID(
 		nodeAddressInfo.GetNodeID(),
@@ -656,5 +629,34 @@ func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *mode
 			return
 		}
 	}
+
+	// validate block height - note: possible performance issue when node registry grow larger,
+	// should update this when we plan to cache multiple block height in memory in the future.
+	blockRow, _ := nru.QueryExecutor.ExecuteSelectRow(
+		nru.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()),
+		false,
+	)
+	err = nru.BlockQuery.Scan(&block, blockRow)
+	if err != nil {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+		return
+	}
+	// validate block hash
+	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
+		return
+	}
+
+	// validate the message signature
+	unsignedBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
+	if !nru.Signature.VerifyNodeSignature(
+		unsignedBytes,
+		nodeAddressInfo.GetSignature(),
+		nodeRegistry.Node.GetNodePublicKey(),
+	) {
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
+		return
+	}
+
 	return false, nil
 }
