@@ -394,7 +394,7 @@ type (
 func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address string, amount int64) error {
 	return nil
 }
-func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
 

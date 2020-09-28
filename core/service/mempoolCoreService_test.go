@@ -9,21 +9,18 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/storage"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/dgraph-io/badger/v2"
-	"github.com/sirupsen/logrus"
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -1202,7 +1199,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: NewTransactionCoreService(
-					logrus.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					log.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 					nil,
 					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),

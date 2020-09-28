@@ -10,7 +10,7 @@ import (
 	"sort"
 	"sync"
 
-	 "github.com/dgraph-io/badger/v2"
+	"github.com/dgraph-io/badger/v2"
 	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"

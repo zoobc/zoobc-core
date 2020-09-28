@@ -82,6 +82,7 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 	type fields struct {
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
@@ -99,6 +100,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 			name: "executorError",
 			fields: fields{
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				QueryExecutor:       &mockAccountBalanceHelperExecutorAddSpendableFail{},
 			},
 			args:    args{},
@@ -108,6 +110,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 			name: "executeSuccess",
 			fields: fields{
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				QueryExecutor:       &mockAccountBalanceHelperExecutorAddSpendableSuccess{},
 			},
 			args:    args{},
@@ -118,6 +121,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			abh := &AccountBalanceHelper{
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
 			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, 0, tt.args.blockHeight, 0, 0); (err != nil) != tt.wantErr {

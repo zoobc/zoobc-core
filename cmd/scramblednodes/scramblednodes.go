@@ -4,9 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
@@ -101,7 +101,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			query.NewNodeRegistrationQuery(),
 			query.NewNodeAddressInfoQuery(),
 			logrus.New(),
-			)
+		)
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,

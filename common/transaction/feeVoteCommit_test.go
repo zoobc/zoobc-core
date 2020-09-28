@@ -32,10 +32,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
+func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
 	return errors.New("MockedError")
 }
-func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
+func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
 

@@ -56,7 +56,14 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amou
 // inside db transaction scope, there process is:
 //      - Add new record into account_balance
 //      - Add new record into account_ledger
-func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
+func (abh *AccountBalanceHelper) AddAccountBalance(
+	address string,
+	amount int64,
+	event model.EventType,
+	blockHeight uint32,
+	transactionID int64,
+	blockTimestamp uint64,
+) error {
 
 	var queries [][]interface{}
 
