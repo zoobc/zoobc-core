@@ -887,7 +887,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.GetReferenceBlockHeight() == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "NoIncludedMainBlock")
 	}
-	if (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) <= 0 {
+	if (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "InValidReferenceBlockHeight")
 	}
 	var _, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
