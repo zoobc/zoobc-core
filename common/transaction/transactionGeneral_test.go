@@ -2,11 +2,13 @@ package transaction
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
+	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/fee"
 
@@ -520,7 +522,8 @@ func TestValidateTransaction(t *testing.T) {
 		true,
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txEscrowValidate, false)
-	signatureEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrow, model.SignatureType_DefaultSignature,
+	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
+	signatureEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txEscrowValidate.Signature = signatureEscrow
 
@@ -531,7 +534,8 @@ func TestValidateTransaction(t *testing.T) {
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(txValidate, false)
-	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	txBytesHash := sha3.Sum256(txBytes)
+	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	txValidate.Signature = signature
 

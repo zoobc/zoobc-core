@@ -254,7 +254,8 @@ func GetFixturesForSignedMempoolTransaction(
 	transactionUtil := &Util{}
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	signature, _ := (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	txBytesHash := sha3.Sum256(txBytes)
+	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
