@@ -349,20 +349,20 @@ var (
 	mockFeeRemoveNodeRegistrationValidate int64 = 10
 )
 
-func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateFail) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateFail) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	return errors.New("MockedError")
 }
 
-func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate - 1
 	return nil
 }
 
-func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate + 1

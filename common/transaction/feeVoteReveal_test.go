@@ -181,7 +181,7 @@ func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVoteRe
 	return sql.ErrNoRows
 }
 
-func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(accountBalance *model.AccountBalance, _ string, _ bool) error {
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, _ string, _ bool) error {
 	accountBalance.SpendableBalance = 100
 	return nil
 }
@@ -394,7 +394,7 @@ type (
 func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address string, amount int64) error {
 	return nil
 }
-func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
 	return nil
 }
 

@@ -9,15 +9,13 @@ import (
 	"sort"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/storage"
-
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -736,22 +734,4 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 
 	}
 	return nil, nil
-}
-
-// ESCROW PART
-
-// ParseEscrowApprovalBytes read bytes to separated approval and transactionID
-func ParseEscrowApprovalBytes(escrowApprovalBytes []byte) (approval model.EscrowApproval, id int64, err error) {
-	var (
-		chunkedBytes []byte
-		buffer       = bytes.NewBuffer(escrowApprovalBytes)
-	)
-
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionType))
-	if err != nil {
-		return approval, 0, err
-	}
-	approval = model.EscrowApproval(int32(util.ConvertBytesToUint32(chunkedBytes)))
-	return approval, int64(util.ConvertBytesToUint64(buffer.Bytes())), nil
-
 }

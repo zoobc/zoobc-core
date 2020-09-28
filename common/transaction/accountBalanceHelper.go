@@ -9,24 +9,32 @@ import (
 )
 
 type (
+	// AccountBalanceHelperInterface methods collection for transaction helper, it for account balance stuff and account ledger also
+	// It better to use with QueryExecutor.BeginTX()
 	AccountBalanceHelperInterface interface {
 		AddAccountSpendableBalance(address string, amount int64) error
-		AddAccountBalance(address string, amount int64, blockHeight uint32) error
-		GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error
+		AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error
+		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address string, dbTx bool) error
+		HasEnoughSpendableBalance(dbTX bool, address string, compareBalance int64) (enough bool, err error)
 	}
-
+	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
+		// accountBalance cache when get from db, use this for validation only.
+		accountBalance      *model.AccountBalance
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 )
 
 func NewAccountBalanceHelper(
-	accountBalanceQuery query.AccountBalanceQueryInterface,
 	queryExecutor query.ExecutorInterface,
+	accountBalanceQuery query.AccountBalanceQueryInterface,
+	accountLedgerQuery query.AccountLedgerQueryInterface,
 ) *AccountBalanceHelper {
 	return &AccountBalanceHelper{
 		AccountBalanceQuery: accountBalanceQuery,
+		AccountLedgerQuery:  accountLedgerQuery,
 		QueryExecutor:       queryExecutor,
 	}
 }
@@ -45,8 +53,13 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amou
 }
 
 // AddAccountBalance add balance and spendable_balance field to the address provided at blockHeight, must be executed
-// inside db transaction scope
-func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+// inside db transaction scope, there process is:
+//      - Add new record into account_balance
+//      - Add new record into account_ledger
+func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
+
+	var queries [][]interface{}
+
 	addAccountBalanceQ := abh.AccountBalanceQuery.AddAccountBalance(
 		amount,
 		map[string]interface{}{
@@ -54,11 +67,22 @@ func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64,
 			"block_height":    blockHeight,
 		},
 	)
-	return abh.QueryExecutor.ExecuteTransactions(addAccountBalanceQ)
+	queries = append(queries, addAccountBalanceQ...)
+
+	accountLedgerQ, accountLedgerArgs := abh.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
+		AccountAddress: address,
+		BalanceChange:  amount,
+		TransactionID:  transactionID,
+		BlockHeight:    blockHeight,
+		EventType:      event,
+		Timestamp:      blockTimestamp,
+	})
+	queries = append(queries, append([]interface{}{accountLedgerQ}, accountLedgerArgs))
+	return abh.QueryExecutor.ExecuteTransactions(queries)
 }
 
-// GetBalanceByAccountID fetching the balance of an account from database
-func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+// GetBalanceByAccountAddress fetching the balance of an account from database
+func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address string, dbTx bool) error {
 	var (
 		row *sql.Row
 		err error
@@ -78,4 +102,26 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.Acc
 		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 	return nil
+}
+
+// HasEnoughSpendableBalance check if account has enough has spendable balance and will save
+func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address string, compareBalance int64) (enough bool, err error) {
+	var (
+		row            *sql.Row
+		accountBalance model.AccountBalance
+	)
+
+	if abh.accountBalance == nil || abh.accountBalance.GetAccountAddress() != address {
+		qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
+		row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
+		if err != nil {
+			return enough, err
+		}
+		err = abh.AccountBalanceQuery.Scan(&accountBalance, row)
+		if err != nil {
+			return enough, err
+		}
+		*abh.accountBalance = accountBalance
+	}
+	return accountBalance.GetSpendableBalance() < compareBalance, nil
 }

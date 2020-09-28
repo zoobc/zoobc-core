@@ -176,18 +176,22 @@ func (*mockExecutorValidateFailClaimNRNodeNotRegistered) ExecuteSelect(qe string
 	return nil, nil
 }
 
-func (*mockAccountBalanceHelperClaimNRValidateFail) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (*mockAccountBalanceHelperClaimNRValidateFail) GetBalanceByAccountAddress(
+	accountBalance *model.AccountBalance,
+	address string,
+	dbTx bool,
+) error {
 	return errors.New("MockedError")
 }
 
-func (*mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeClaimNodeRegistrationValidate - 1
 	return nil
 }
 
-func (*mockAccountBalanceHelperClaimNRValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperClaimNRValidateSuccess) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeClaimNodeRegistrationValidate + 1

@@ -1260,7 +1260,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatur
 	return errors.New("mockedError")
 }
 
-func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1

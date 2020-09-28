@@ -28,6 +28,7 @@ type (
 		Signature       crypto.SignatureInterface
 		Height          uint32
 		BlockID         int64
+		Escrow          *model.Escrow
 		// multisig helpers
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
@@ -428,7 +429,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}
 	}
 	// deduct fee from sender
-	err = tx.AccountBalanceHelper.AddAccountBalance(tx.SenderAddress, -tx.Fee, tx.Height)
+	err = tx.AccountBalanceHelper.AddAccountBalance(tx.SenderAddress, -tx.Fee, 0, tx.Height, 0, 0)
 	if err != nil {
 		return err
 	}
@@ -497,7 +498,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	err = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
 		return err
 	}
@@ -768,6 +769,40 @@ func (*MultiSignatureTransaction) SkipMempoolTransaction(
 	return false, nil
 }
 
-func (*MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
+func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
+	if tx.Escrow.GetApproverAddress() != "" {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+			Instruction:     tx.Escrow.GetInstruction(),
+		}
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
+}
+
+func (tx *MultiSignatureTransaction) EscrowApplyConfirmed(blockTimestamp int64) error {
+	panic("implement me")
+}
+
+func (tx *MultiSignatureTransaction) EscrowApplyUnconfirmed() error {
+	panic("implement me")
+}
+
+func (tx *MultiSignatureTransaction) EscrowUndoApplyUnconfirmed() error {
+	panic("implement me")
+}
+
+func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
+	panic("implement me")
+}
+
+func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) error {
+	panic("implement me")
 }

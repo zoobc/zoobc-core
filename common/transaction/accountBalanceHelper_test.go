@@ -120,7 +120,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, tt.args.blockHeight); (err != nil) != tt.wantErr {
+			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, 0, tt.args.blockHeight, 0, 0); (err != nil) != tt.wantErr {
 				t.Errorf("AddAccountBalance() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

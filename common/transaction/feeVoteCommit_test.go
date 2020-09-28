@@ -32,10 +32,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
 	return errors.New("MockedError")
 }
-func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error {
 	return nil
 }
 
@@ -558,19 +558,19 @@ func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.Fee
 	return nil
 }
 
-func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	return errors.New("MockedError")
 }
 
-func (*mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate - 1
 	return nil
 }
-func (*mockAccountBalanceHelperFeeVoteCommitValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperFeeVoteCommitValidateSuccess) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate + 1
