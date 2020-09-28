@@ -366,6 +366,7 @@ func (n *NodeRegistryCacheStorage) copy(src NodeRegistry) NodeRegistry {
 	result := NodeRegistry{
 		Node: model.NodeRegistration{
 			NodeID:             src.Node.GetNodeID(),
+			NodePublicKey:      make([]byte, len(src.Node.GetNodePublicKey())),
 			AccountAddress:     src.Node.AccountAddress,
 			RegistrationHeight: src.Node.RegistrationHeight,
 			LockedBalance:      src.Node.LockedBalance,
