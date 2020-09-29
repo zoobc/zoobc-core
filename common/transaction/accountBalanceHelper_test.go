@@ -1,8 +1,11 @@
 package transaction
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -129,4 +132,40 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 			}
 		})
 	}
+}
+
+type (
+	mockAccountBalanceHelperSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperFail struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+	return nil
+}
+func (*mockAccountBalanceHelperSuccess) HasEnoughSpendableBalance(
+	dbTX bool, address string, compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
+}
+func (*mockAccountBalanceHelperFail) AddAccountSpendableBalance(address string, amount int64) error {
+	return sql.ErrTxDone
+}
+func (*mockAccountBalanceHelperFail) HasEnoughSpendableBalance(
+	dbTX bool, address string, compareBalance int64,
+) (enough bool, err error) {
+	return false, nil
+}
+func (*mockAccountBalanceHelperSuccess) AddAccountBalance(
+	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return nil
+}
+func (*mockAccountBalanceHelperFail) AddAccountBalance(
+	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return sql.ErrTxDone
 }

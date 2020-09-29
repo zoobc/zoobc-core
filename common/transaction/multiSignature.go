@@ -23,12 +23,14 @@ type (
 		Fee             int64
 		Body            *model.MultiSignatureTransactionBody
 		NormalFee       fee.FeeModelInterface
+		EscrowFee       fee.FeeModelInterface
 		TransactionUtil UtilInterface
 		TypeSwitcher    TypeActionSwitcher
 		Signature       crypto.SignatureInterface
 		Height          uint32
 		BlockID         int64
 		Escrow          *model.Escrow
+		EscrowQuery     query.EscrowTransactionQueryInterface
 		// multisig helpers
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
@@ -36,10 +38,10 @@ type (
 		PendingTransactionHelper PendingTransactionHelperInterface
 		// general helpers
 		AccountBalanceHelper AccountBalanceHelperInterface
-		AccountLedgerHelper  AccountLedgerHelperInterface
 		TransactionHelper    TransactionHelperInterface
+		QueryExecutor        query.ExecutorInterface
 	}
-	// multisignature helpers
+	// SignatureInfoHelperInterface multisignature helpers
 	SignatureInfoHelperInterface interface {
 		InsertPendingSignature(
 			pendingSignature *model.PendingSignature,
@@ -429,20 +431,14 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}
 	}
 	// deduct fee from sender
-	err = tx.AccountBalanceHelper.AddAccountBalance(tx.SenderAddress, -tx.Fee, 0, tx.Height, 0, 0)
-	if err != nil {
-		return err
-	}
-	// sender ledger
-	accountLedger := &model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.Fee,
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventMultiSignatureTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	}
-	err = tx.AccountLedgerHelper.InsertLedgerEntry(accountLedger)
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-tx.Fee,
+		model.EventType_EventMultiSignatureTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
 	if err != nil {
 		return err
 	}
@@ -493,8 +489,10 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 		accountBalance        model.AccountBalance
 	)
 	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBe"+
-			"Provided")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"AtLeastTxBytesSignatureInfoOrMultisignatureInfoMustBeProvided",
+		)
 	}
 
 	// check existing & balance account sender
@@ -604,11 +602,10 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *MultiSignatureTransaction) GetMinimumFee() (int64, error) {
-	minFee, err := tx.NormalFee.CalculateTxMinimumFee(tx.Body, nil)
-	if err != nil {
-		return 0, err
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
-	return minFee, err
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 func (*MultiSignatureTransaction) GetAmount() int64 {
@@ -788,21 +785,117 @@ func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
 }
 
 func (tx *MultiSignatureTransaction) EscrowApplyConfirmed(blockTimestamp int64) error {
-	panic("implement me")
+	return tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
 }
 
 func (tx *MultiSignatureTransaction) EscrowApplyUnconfirmed() error {
-	panic("implement me")
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
 }
 
 func (tx *MultiSignatureTransaction) EscrowUndoApplyUnconfirmed() error {
-	panic("implement me")
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 }
 
 func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
-	panic("implement me")
+
+	var (
+		err    error
+		enough bool
+	)
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
+	}
+	if tx.Escrow.GetTimeout() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
+	}
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
+	return nil
 }
 
-func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) error {
-	panic("implement me")
+func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	case model.EscrowApproval_Reject:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	default:
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
+	if err != nil {
+		return err
+	}
+	return nil
 }

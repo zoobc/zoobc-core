@@ -20,7 +20,7 @@ type (
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
 		// accountBalance cache when get from db, use this for validation only.
-		accountBalance      *model.AccountBalance
+		accountBalance      model.AccountBalance
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		QueryExecutor       query.ExecutorInterface
@@ -118,7 +118,7 @@ func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address st
 		accountBalance model.AccountBalance
 	)
 
-	if abh.accountBalance == nil || abh.accountBalance.GetAccountAddress() != address {
+	if abh.accountBalance.GetAccountAddress() != address {
 		qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
 		row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
 		if err != nil {
@@ -128,7 +128,7 @@ func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address st
 		if err != nil {
 			return enough, err
 		}
-		*abh.accountBalance = accountBalance
+		abh.accountBalance = accountBalance
 	}
-	return accountBalance.GetSpendableBalance() < compareBalance, nil
+	return accountBalance.GetSpendableBalance() >= compareBalance, nil
 }

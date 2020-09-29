@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/fee"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -21,15 +23,15 @@ type NodeRegistration struct {
 	Height                  uint32
 	Body                    *model.NodeRegistrationTransactionBody
 	Escrow                  *model.Escrow
-	AccountBalanceQuery     query.AccountBalanceQueryInterface
 	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 	BlockQuery              query.BlockQueryInterface
 	ParticipationScoreQuery query.ParticipationScoreQueryInterface
 	QueryExecutor           query.ExecutorInterface
 	AuthPoown               auth.NodeAuthValidationInterface
-	AccountLedgerQuery      query.AccountLedgerQueryInterface
 	EscrowQuery             query.EscrowTransactionQueryInterface
 	AccountBalanceHelper    AccountBalanceHelperInterface
+	EscrowFee               fee.FeeModelInterface
+	NormalFee               fee.FeeModelInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -266,8 +268,11 @@ func (tx *NodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
-func (*NodeRegistration) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 func (tx *NodeRegistration) GetSize() uint32 {

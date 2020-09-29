@@ -157,9 +157,9 @@ func TestSendMoney_Validate(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		AccountDatasetQuery  query.AccountDatasetQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -172,6 +172,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: -1,
 				},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -228,24 +229,6 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:AmountNotEnough",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 10,
-				},
-				Height:               1,
-				SenderAccountType:    0,
-				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAccountType: 0,
-				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
-				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
-				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
 			wantErr: true,
 		},
@@ -260,9 +243,9 @@ func TestSendMoney_Validate(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  &mockAccountBalanceValidateSendMoneySuccess{},
 				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
@@ -270,13 +253,13 @@ func TestSendMoney_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -296,8 +279,8 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -315,8 +298,8 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorUnconfirmedFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -331,8 +314,8 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorApplyUnconfirmedSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
@@ -340,12 +323,12 @@ func TestSendMoney_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -365,9 +348,8 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
-		AccountLedgerQuery   query.AccountLedgerQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -385,9 +367,8 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorFailUpdateAccount{},
-				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -402,14 +383,13 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorFailUpdateAccount{},
-				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
 		{
-			name: "wantsuccess",
+			name: "wantSuccess",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1,
@@ -419,9 +399,8 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorSuccessUpdateAccount{},
-				AccountLedgerQuery:   query.NewAccountLedgerQuery(),
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
@@ -430,13 +409,12 @@ func TestSendMoney_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -453,7 +431,6 @@ func TestSendMoney_GetAmount(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
 	}
 	tests := []struct {
@@ -472,7 +449,6 @@ func TestSendMoney_GetAmount(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorSuccessUpdateAccount{},
 			},
 			want: 100,
@@ -481,12 +457,11 @@ func TestSendMoney_GetAmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:             tt.fields.Body,
+				SenderAddress:    tt.fields.SenderAddress,
+				RecipientAddress: tt.fields.RecipientAddress,
+				Height:           tt.fields.Height,
+				QueryExecutor:    tt.fields.QueryExecutor,
 			}
 			if got := tx.GetAmount(); got != tt.want {
 				t.Errorf("SendMoney.GetAmount() = %v, want %v", got, tt.want)
@@ -513,8 +488,8 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 		RecipientAddress     string
 		RecipientAccountType uint32
 		Height               uint32
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -532,13 +507,13 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorAccountCountSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
 		{
-			name: "UndoApplyUnconfirmed:executeTransactionFail/",
+			name: "UndoApplyUnconfirmed:executeTransactionFail",
 			fields: fields{
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
@@ -548,8 +523,8 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:        "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
 				RecipientAccountType: 0,
 				RecipientAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery:  query.NewAccountBalanceQuery(),
 				QueryExecutor:        &executorAccountCountFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -557,12 +532,12 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:                 tt.fields.Body,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -573,13 +548,12 @@ func TestSendMoney_UndoApplyUnconfirmed(t *testing.T) {
 
 func TestSendMoney_GetBodyBytes(t *testing.T) {
 	type fields struct {
-		Body                *model.SendMoneyTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body             *model.SendMoneyTransactionBody
+		Fee              int64
+		SenderAddress    string
+		RecipientAddress string
+		Height           uint32
+		QueryExecutor    query.ExecutorInterface
 	}
 	tests := []struct {
 		name   string
@@ -592,12 +566,11 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1000,
 				},
-				Fee:                 0,
-				SenderAddress:       "",
-				RecipientAddress:    "",
-				Height:              0,
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
+				Fee:              0,
+				SenderAddress:    "",
+				RecipientAddress: "",
+				Height:           0,
+				QueryExecutor:    nil,
 			},
 			want: []byte{
 				232, 3, 0, 0, 0, 0, 0, 0,
@@ -607,13 +580,12 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:             tt.fields.Body,
+				Fee:              tt.fields.Fee,
+				SenderAddress:    tt.fields.SenderAddress,
+				RecipientAddress: tt.fields.RecipientAddress,
+				Height:           tt.fields.Height,
+				QueryExecutor:    tt.fields.QueryExecutor,
 			}
 			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
@@ -624,13 +596,12 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 
 func TestSendMoney_ParseBodyBytes(t *testing.T) {
 	type fields struct {
-		Body                *model.SendMoneyTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body             *model.SendMoneyTransactionBody
+		Fee              int64
+		SenderAddress    string
+		RecipientAddress string
+		Height           uint32
+		QueryExecutor    query.ExecutorInterface
 	}
 	type args struct {
 		txBodyBytes []byte
@@ -645,13 +616,12 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 		{
 			name: "SendMoney:ParseBodyBytes - error (no amount)",
 			fields: fields{
-				Body:                nil,
-				Fee:                 0,
-				SenderAddress:       "",
-				RecipientAddress:    "",
-				Height:              0,
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
+				Body:             nil,
+				Fee:              0,
+				SenderAddress:    "",
+				RecipientAddress: "",
+				Height:           0,
+				QueryExecutor:    nil,
 			},
 			args:    args{txBodyBytes: []byte{}},
 			want:    nil,
@@ -660,13 +630,12 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 		{
 			name: "SendMoney:ParseBodyBytes - error (wrong amount bytes lengths)",
 			fields: fields{
-				Body:                nil,
-				Fee:                 0,
-				SenderAddress:       "",
-				RecipientAddress:    "",
-				Height:              0,
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
+				Body:             nil,
+				Fee:              0,
+				SenderAddress:    "",
+				RecipientAddress: "",
+				Height:           0,
+				QueryExecutor:    nil,
 			},
 			args:    args{txBodyBytes: []byte{1, 2}},
 			want:    nil,
@@ -675,13 +644,12 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 		{
 			name: "SendMoney:ParseBodyBytes - success",
 			fields: fields{
-				Body:                nil,
-				Fee:                 0,
-				SenderAddress:       "",
-				RecipientAddress:    "",
-				Height:              0,
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
+				Body:             nil,
+				Fee:              0,
+				SenderAddress:    "",
+				RecipientAddress: "",
+				Height:           0,
+				QueryExecutor:    nil,
 			},
 			args: args{txBodyBytes: []byte{1, 0, 0, 0, 0, 0, 0, 0}},
 			want: &model.SendMoneyTransactionBody{
@@ -693,13 +661,12 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:             tt.fields.Body,
+				Fee:              tt.fields.Fee,
+				SenderAddress:    tt.fields.SenderAddress,
+				RecipientAddress: tt.fields.RecipientAddress,
+				Height:           tt.fields.Height,
+				QueryExecutor:    tt.fields.QueryExecutor,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
 			if (err != nil) != tt.wantErr {
@@ -715,13 +682,12 @@ func TestSendMoney_ParseBodyBytes(t *testing.T) {
 
 func TestSendMoney_GetTransactionBody(t *testing.T) {
 	type fields struct {
-		Body                *model.SendMoneyTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body             *model.SendMoneyTransactionBody
+		Fee              int64
+		SenderAddress    string
+		RecipientAddress string
+		Height           uint32
+		QueryExecutor    query.ExecutorInterface
 	}
 	type args struct {
 		transaction *model.Transaction
@@ -746,13 +712,12 @@ func TestSendMoney_GetTransactionBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:             tt.fields.Body,
+				Fee:              tt.fields.Fee,
+				SenderAddress:    tt.fields.SenderAddress,
+				RecipientAddress: tt.fields.RecipientAddress,
+				Height:           tt.fields.Height,
+				QueryExecutor:    tt.fields.QueryExecutor,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
 		})
@@ -761,17 +726,15 @@ func TestSendMoney_GetTransactionBody(t *testing.T) {
 
 func TestSendMoney_Escrowable(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
+		ID               int64
+		Fee              int64
+		SenderAddress    string
+		RecipientAddress string
+		Height           uint32
+		Body             *model.SendMoneyTransactionBody
+		Escrow           *model.Escrow
+		QueryExecutor    query.ExecutorInterface
+		EscrowQuery      query.EscrowTransactionQueryInterface
 	}
 	tests := []struct {
 		name   string
@@ -790,10 +753,8 @@ func TestSendMoney_Escrowable(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         nil,
+				QueryExecutor: nil,
+				EscrowQuery:   nil,
 			},
 			want:  nil,
 			want1: false,
@@ -816,10 +777,8 @@ func TestSendMoney_Escrowable(t *testing.T) {
 					Commission:       10,
 					Timeout:          1,
 				},
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         nil,
+				QueryExecutor: nil,
+				EscrowQuery:   nil,
 			},
 			want: EscrowTypeAction(&SendMoney{
 				ID:               1,
@@ -840,10 +799,8 @@ func TestSendMoney_Escrowable(t *testing.T) {
 					Timeout:          1,
 					Latest:           true,
 				},
-				AccountBalanceQuery: nil,
-				QueryExecutor:       nil,
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         nil,
+				QueryExecutor: nil,
+				EscrowQuery:   nil,
 			}),
 			want1: true,
 		},
@@ -851,17 +808,15 @@ func TestSendMoney_Escrowable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
+				ID:               tt.fields.ID,
+				Fee:              tt.fields.Fee,
+				SenderAddress:    tt.fields.SenderAddress,
+				RecipientAddress: tt.fields.RecipientAddress,
+				Height:           tt.fields.Height,
+				Body:             tt.fields.Body,
+				Escrow:           tt.fields.Escrow,
+				QueryExecutor:    tt.fields.QueryExecutor,
+				EscrowQuery:      tt.fields.EscrowQuery,
 			}
 			got, got1 := tx.Escrowable()
 			if !reflect.DeepEqual(got, tt.want) {
@@ -888,14 +843,17 @@ type (
 	mockBlockQueryInvalidBlockHeight struct {
 		query.BlockQuery
 	}
-	mockAccountBalanceQueryValid struct {
-		query.AccountBalanceQuery
-	}
 )
 
-func (*mockExecutorEscrowValidateValid) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
-	return &sql.Row{}, nil
+func (*mockExecutorEscrowValidateValid) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnError(sql.ErrNoRows)
+	row := db.QueryRow(qe)
+	return row, nil
 }
+
 func (*mockBlockQueryValidBlockHeight) GetLastBlock() string {
 	return ""
 }
@@ -915,29 +873,23 @@ func (*mockBlockQueryInvalidBlockHeight) Scan(block *model.Block, row *sql.Row) 
 	block.Height = 1
 	return nil
 }
-func (*mockAccountBalanceQueryValid) GetAccountBalanceByAccountAddress(senderAddress string) (q string, args []interface{}) {
-	return "", []interface{}{}
-}
-func (*mockAccountBalanceQueryValid) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance.SpendableBalance = 100000000
-	return nil
-}
 
 func TestSendMoney_EscrowValidate(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        string
+		RecipientAddress     string
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
 	}
+
 	type args struct {
 		dbTx bool
 	}
@@ -953,18 +905,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: -1,
 				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "wantError:CommissionNotEnough",
-			fields: fields{
-				Body: &model.SendMoneyTransactionBody{
-					Amount: 1,
-				},
-				Escrow: &model.Escrow{
-					Commission: -1,
-				},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -1032,7 +973,8 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1,
 				},
-				SenderAddress: "GHI",
+				SenderAddress:    "GHI",
+				RecipientAddress: "DEF",
 				Escrow: &model.Escrow{
 					Commission:       1,
 					ApproverAddress:  "ABC",
@@ -1040,27 +982,28 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 					SenderAddress:    "GHI",
 					Timeout:          10,
 				},
-				QueryExecutor:       &mockExecutorEscrowValidateValid{},
-				BlockQuery:          &mockBlockQueryValidBlockHeight{},
-				AccountBalanceQuery: &mockAccountBalanceQueryValid{},
+				QueryExecutor:        &mockExecutorEscrowValidateValid{},
+				BlockQuery:           &mockBlockQueryValidBlockHeight{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				BlockQuery:          tt.fields.BlockQuery,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				BlockQuery:           tt.fields.BlockQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
 			}
 			if err := tx.EscrowValidate(tt.args.dbTx); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowValidate() error = %v, wantErr %v", err, tt.wantErr)
@@ -1081,18 +1024,17 @@ func (*mockEscrowApplyUnconfirmedOK) ExecuteTransaction(string, ...interface{}) 
 
 func TestSendMoney_EscrowApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        string
+		RecipientAddress     string
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -1117,26 +1059,25 @@ func TestSendMoney_EscrowApplyUnconfirmed(t *testing.T) {
 					ApproverAddress:  "GHI",
 					BlockHeight:      1,
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       &mockEscrowApplyUnconfirmedOK{},
+				QueryExecutor:        &mockEscrowApplyUnconfirmedOK{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				BlockQuery:          tt.fields.BlockQuery,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				BlockQuery:           tt.fields.BlockQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.EscrowApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -1147,18 +1088,17 @@ func TestSendMoney_EscrowApplyUnconfirmed(t *testing.T) {
 
 func TestSendMoney_EscrowUndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        string
+		RecipientAddress     string
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -1183,27 +1123,26 @@ func TestSendMoney_EscrowUndoApplyUnconfirmed(t *testing.T) {
 					ApproverAddress:  "GHI",
 					BlockHeight:      1,
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       &mockEscrowApplyUnconfirmedOK{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:        &mockEscrowApplyUnconfirmedOK{},
+				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				BlockQuery:          tt.fields.BlockQuery,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				BlockQuery:           tt.fields.BlockQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.EscrowUndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowUndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -1238,18 +1177,17 @@ func (*mockQueryExecutorApplyConfirmedOK) ExecuteTransactions(queries [][]interf
 
 func TestSendMoney_EscrowApplyConfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        string
+		RecipientAddress     string
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	type args struct {
 		blockTimestamp int64
@@ -1278,11 +1216,10 @@ func TestSendMoney_EscrowApplyConfirmed(t *testing.T) {
 					ApproverAddress:  "GHI",
 					BlockHeight:      1,
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				BlockQuery:          &mockBlockQueryApplyConfirmedOK{},
-				QueryExecutor:       &mockQueryExecutorApplyConfirmedOK{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				BlockQuery:           &mockBlockQueryApplyConfirmedOK{},
+				QueryExecutor:        &mockQueryExecutorApplyConfirmedOK{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			args: args{blockTimestamp: 123456789},
 		},
@@ -1290,18 +1227,17 @@ func TestSendMoney_EscrowApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				BlockQuery:          tt.fields.BlockQuery,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				BlockQuery:           tt.fields.BlockQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.EscrowApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -1321,18 +1257,17 @@ func (*mockQueryEscrowApprovalOK) ExecuteTransactions(queries [][]interface{}) e
 }
 func TestSendMoney_EscrowApproval(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        string
+		RecipientAddress     string
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	type args struct {
 		blockTimestamp int64
@@ -1362,10 +1297,9 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 					ApproverAddress:  "GHI",
 					BlockHeight:      1,
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				QueryExecutor:        &mockQueryEscrowApprovalOK{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			args: args{
 				blockTimestamp: 100,
@@ -1392,10 +1326,9 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 					ApproverAddress:  "GHI",
 					BlockHeight:      1,
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				QueryExecutor:        &mockQueryEscrowApprovalOK{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			args: args{
 				blockTimestamp: 100,
@@ -1428,10 +1361,9 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 					Latest:           true,
 					Instruction:      "Do this",
 				},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				QueryExecutor:       &mockQueryEscrowApprovalOK{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				QueryExecutor:        &mockQueryEscrowApprovalOK{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			args: args{
 				blockTimestamp: 100,
@@ -1445,18 +1377,17 @@ func TestSendMoney_EscrowApproval(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SendMoney{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				BlockQuery:          tt.fields.BlockQuery,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				BlockQuery:           tt.fields.BlockQuery,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.EscrowApproval(tt.args.blockTimestamp, tt.args.txBody); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowApproval() error = %v, wantErr %v", err, tt.wantErr)

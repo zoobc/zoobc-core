@@ -6,6 +6,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -20,12 +21,12 @@ type RemoveAccountDataset struct {
 	Height               uint32
 	Body                 *model.RemoveAccountDatasetTransactionBody
 	Escrow               *model.Escrow
-	AccountBalanceQuery  query.AccountBalanceQueryInterface
 	AccountDatasetQuery  query.AccountDatasetQueryInterface
 	QueryExecutor        query.ExecutorInterface
-	AccountLedgerQuery   query.AccountLedgerQueryInterface
 	EscrowQuery          query.EscrowTransactionQueryInterface
 	AccountBalanceHelper AccountBalanceHelperInterface
+	EscrowFee            fee.FeeModelInterface
+	NormalFee            fee.FeeModelInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -172,8 +173,11 @@ func (tx *RemoveAccountDataset) GetAmount() int64 {
 
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
-func (*RemoveAccountDataset) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *RemoveAccountDataset) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize is size of transaction body

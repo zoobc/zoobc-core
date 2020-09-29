@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -21,14 +22,14 @@ type UpdateNodeRegistration struct {
 	Timestamp             int64
 	Body                  *model.UpdateNodeRegistrationTransactionBody
 	Escrow                *model.Escrow
-	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	BlockQuery            query.BlockQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AuthPoown             auth.NodeAuthValidationInterface
-	AccountLedgerQuery    query.AccountLedgerQueryInterface
 	EscrowQuery           query.EscrowTransactionQueryInterface
 	AccountBalanceHelper  AccountBalanceHelperInterface
+	EscrowFee             fee.FeeModelInterface
+	NormalFee             fee.FeeModelInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -229,36 +230,41 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	// validate node public key, if we are updating that field
 	// note: node pub key must be not already registered for another node
 	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeReg.NodePublicKey, tx.Body.NodePublicKey) {
-		row, err = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.GetNodePublicKey())
+		err = func() (e error) {
+			row, e = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.GetNodePublicKey())
+			if e != nil {
+				return e
+			}
+			e = tx.NodeRegistrationQuery.Scan(&model.NodeRegistration{}, row)
+			if e != nil {
+				if e != sql.ErrNoRows {
+					return e
+				}
+				return nil
+			}
+			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlreadyRegistered")
+		}()
 		if err != nil {
 			return err
 		}
-		err = tx.NodeRegistrationQuery.Scan(&model.NodeRegistration{}, row)
+	}
+	// delta amount to be locked
+	effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
+	if effectiveBalanceToLock < 0 {
+		// cannot lock less than what previously locked
+		return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
+	}
 
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
-			}
-			// delta amount to be locked
-			effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
-			if effectiveBalanceToLock < 0 {
-				// cannot lock less than what previously locked
-				return blocker.NewBlocker(blocker.ValidationErr, "LockedBalanceLessThenPreviouslyLocked")
-			}
-
-			// check balance
-			enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
-			if err != nil {
-				if err != sql.ErrNoRows {
-					return err
-				}
-				return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
-			}
-			if !enough {
-				return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
-			}
+	// check aalance
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
 		}
-		return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlreadyRegistered")
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
 	}
 
 	return nil
@@ -268,8 +274,11 @@ func (tx *UpdateNodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
-func (*UpdateNodeRegistration) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *UpdateNodeRegistration) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 func (tx *UpdateNodeRegistration) GetSize() uint32 {

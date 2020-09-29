@@ -27,8 +27,8 @@ type (
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
+		EscrowFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 		EscrowQuery                   query.EscrowTransactionQueryInterface
 	}
@@ -177,6 +177,9 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *LiquidPaymentStopTransaction) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 

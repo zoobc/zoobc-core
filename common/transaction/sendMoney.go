@@ -25,8 +25,6 @@ type (
 		Body                 *model.SendMoneyTransactionBody
 		QueryExecutor        query.ExecutorInterface
 		Escrow               *model.Escrow
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
-		AccountLedgerQuery   query.AccountLedgerQueryInterface
 		EscrowQuery          query.EscrowTransactionQueryInterface
 		BlockQuery           query.BlockQueryInterface
 		AccountDatasetQuery  query.AccountDatasetQueryInterface

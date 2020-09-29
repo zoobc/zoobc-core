@@ -6,6 +6,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -24,10 +25,10 @@ type (
 		EscrowQuery          query.EscrowTransactionQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		TransactionQuery     query.TransactionQueryInterface
-		AccountLedgerQuery   query.AccountLedgerQueryInterface
-		AccountBalanceQuery  query.AccountBalanceQueryInterface
 		TypeActionSwitcher   TypeActionSwitcher
 		AccountBalanceHelper AccountBalanceHelperInterface
+		EscrowFee            fee.FeeModelInterface
+		NormalFee            fee.FeeModelInterface
 	}
 	// EscrowTypeAction is escrow transaction type methods collection
 	EscrowTypeAction interface {
@@ -65,8 +66,11 @@ func (*ApprovalEscrowTransaction) GetSize() uint32 {
 	return constant.EscrowApprovalBytesLength
 }
 
-func (*ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetAmount return Amount from TransactionBody

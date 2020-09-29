@@ -28,8 +28,8 @@ type (
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
+		EscrowFee                     fee.FeeModelInterface
 		EscrowQuery                   query.EscrowTransactionQueryInterface
 	}
 	LiquidPaymentTransactionInterface interface {
@@ -122,6 +122,9 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *LiquidPaymentTransaction) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
@@ -202,19 +205,6 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 		tx.ID,
 		uint64(blockTimestamp),
 	)
-	if err != nil {
-		return err
-	}
-
-	// recipient ledger
-	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
-		AccountAddress: tx.RecipientAddress,
-		BalanceChange:  recipientBalanceIncrement,
-		TransactionID:  tx.ID,
-		BlockHeight:    blockHeight,
-		EventType:      model.EventType_EventLiquidPaymentPaidTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
 	if err != nil {
 		return err
 	}

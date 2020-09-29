@@ -32,9 +32,10 @@ type (
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 		EscrowQuery            query.EscrowTransactionQueryInterface
+		EscrowFee              fee.FeeModelInterface
+		NormalFee              fee.FeeModelInterface
 	}
 )
 
@@ -296,7 +297,10 @@ func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 
 // GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
-	return 0, nil
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 /*
