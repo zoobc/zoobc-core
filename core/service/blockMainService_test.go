@@ -997,11 +997,10 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
-	previousBlockTimestamp int64,
-) ([]string, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
+	scoreSum float64,
+	blockTimestamp int64,
+	previousBlock *model.Block) ([]string, error) {
 	return []string{}, nil
 }
 

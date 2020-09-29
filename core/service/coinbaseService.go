@@ -1,18 +1,17 @@
 package service
 
 import (
-	"database/sql"
 	"math"
 	"math/big"
-	"sort"
+	"math/rand"
 
 	"github.com/montanaflynn/stats"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -20,9 +19,10 @@ type (
 	CoinbaseServiceInterface interface {
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
-			blocksmiths []*model.Blocksmith,
+			activeNodeRegistries []storage.NodeRegistry,
+			scoreSum float64,
 			blockTimestamp int64,
-			previousBlockTimestamp int64,
+			previousBlock *model.Block,
 		) ([]string, error)
 	}
 
@@ -73,59 +73,32 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (cbs *CoinbaseService) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
-	previousBlockTimestamp int64,
-) ([]string, error) {
+func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum float64, blockTimestamp int64,
+	previousBlock *model.Block) ([]string, error) {
+
 	var (
 		selectedAccounts []string
 		numRewards       int64
-		qry              string
-		qryArgs          []interface{}
-		row              *sql.Row
-		err              error
-		nodeRegistration model.NodeRegistration
 	)
-	// copy the pointer array to not change original order
-
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
+	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
+	rand.Seed(blockSeedBigInt.Int64())
 
 	// get number of rewards recipients
-	numRewards = (blockTimestamp - previousBlockTimestamp) * constant.CoinbaseNumberRewardsPerSecond
+	numRewards = (blockTimestamp - previousBlock.Timestamp) * constant.CoinbaseNumberRewardsPerSecond
 	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
-	numRewards = util.MinInt64(numRewards, int64(len(blocksmiths)))
+	numRewards = util.MinInt64(numRewards, int64(len(activeRegistries)))
 
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx >= int(numRewards) {
-			break
-		}
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
-		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = cbs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
+	for i := 0; i < int(numRewards); i++ {
+		winnerScore := float64(rand.Intn(int(scoreSum)))
+		tempPreviousSum := float64(0)
+
+		for j := 0; j < len(activeRegistries); j++ {
+			participationScore := float64(activeRegistries[j].ParticipationScore) / float64(constant.OneZBC)
+			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+participationScore {
+				selectedAccounts = append(selectedAccounts, activeRegistries[i].Node.AccountAddress)
 			}
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			tempPreviousSum += participationScore
 		}
-		selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
 	}
 	return selectedAccounts, nil
 }
