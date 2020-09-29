@@ -7,8 +7,8 @@ type (
 		GetAccount() (uint32, []byte)
 		// GetTypeInt return the value of the account address type in int
 		GetTypeInt() uint32
-		// GetAccountBytes return an account address in bytes
-		GetAccountBytes() []byte
+		// GetAccountPublicKey return an account address in bytes
+		GetAccountPublicKey() []byte
 		// GetAccountPrefix return the value of current account address table prefix in the database
 		GetAccountPrefix() string
 		// GetName return the name of the account address type

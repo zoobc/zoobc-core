@@ -11,14 +11,14 @@ type ZbcAccountType struct {
 }
 
 func (zAcc *ZbcAccountType) GetAccount() (uint32, []byte) {
-	return zAcc.GetTypeInt(), zAcc.GetAccountBytes()
+	return zAcc.GetTypeInt(), zAcc.GetAccountPublicKey()
 }
 
 func (zAcc *ZbcAccountType) GetTypeInt() uint32 {
 	return 0
 }
 
-func (zAcc *ZbcAccountType) GetAccountBytes() []byte {
+func (zAcc *ZbcAccountType) GetAccountPublicKey() []byte {
 	return zAcc.accBytes
 }
 
@@ -35,5 +35,5 @@ func (zAcc *ZbcAccountType) GetAccountLength() uint32 {
 }
 
 func (zAcc *ZbcAccountType) GetFormattedAccount() (string, error) {
-	return crypto.NewEd25519Signature().GetAddressFromPublicKey(zAcc.GetAccountPrefix(), zAcc.GetAccountBytes())
+	return crypto.NewEd25519Signature().GetAddressFromPublicKey(zAcc.GetAccountPrefix(), zAcc.GetAccountPublicKey())
 }

@@ -12,14 +12,14 @@ type DummyAccountType struct {
 }
 
 func (dAcc *DummyAccountType) GetAccount() (uint32, []byte) {
-	return dAcc.GetTypeInt(), dAcc.GetAccountBytes()
+	return dAcc.GetTypeInt(), dAcc.GetAccountPublicKey()
 }
 
 func (dAcc *DummyAccountType) GetTypeInt() uint32 {
 	return 1
 }
 
-func (dAcc *DummyAccountType) GetAccountBytes() []byte {
+func (dAcc *DummyAccountType) GetAccountPublicKey() []byte {
 	return dAcc.accBytes
 }
 
@@ -36,5 +36,5 @@ func (dAcc *DummyAccountType) GetAccountLength() uint32 {
 }
 
 func (dAcc *DummyAccountType) GetFormattedAccount() (string, error) {
-	return crypto.NewEd25519Signature().GetAddressFromPublicKey(dAcc.GetAccountPrefix(), dAcc.GetAccountBytes())
+	return crypto.NewEd25519Signature().GetAddressFromPublicKey(dAcc.GetAccountPrefix(), dAcc.GetAccountPublicKey())
 }
