@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"fmt"
 	"math/big"
 
 	log "github.com/sirupsen/logrus"
@@ -188,7 +187,6 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 func (nrs *NodeRegistrationService) GetActiveRegistry() ([]storage.NodeRegistry, float64, error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
-		registries         []storage.NodeRegistry
 		err                error
 	)
 	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
@@ -198,10 +196,9 @@ func (nrs *NodeRegistrationService) GetActiveRegistry() ([]storage.NodeRegistry,
 
 	scoreSum := float64(0)
 	for _, registry := range activeNodeRegistry {
-		registries = append(registries, registry)
-		scoreSum += registry.ParticipationScore
+		scoreSum += float64(registry.ParticipationScore / constant.OneZBC)
 	}
-	return registries, scoreSum, nil
+	return activeNodeRegistry, scoreSum, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
@@ -285,7 +282,7 @@ func (nrs *NodeRegistrationService) AdmitNodes(nodeRegistrations []*model.NodeRe
 		pendingIDsToRemove = append(pendingIDsToRemove, nodeRegistration.NodeID)
 		activeNodeRegistries = append(activeNodeRegistries, storage.NodeRegistry{
 			Node:               *nodeRegistration,
-			ParticipationScore: float64(constant.DefaultParticipationScore),
+			ParticipationScore: constant.DefaultParticipationScore,
 		})
 
 	}
@@ -396,7 +393,6 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 		return nil, err
 	}
 	// calculate next delay node admission timestamp
-	fmt.Println("activeBlocksmiths::", activeBlocksmiths)
 	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
 	delayAdmission = commonUtils.MinInt64(
 		commonUtils.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
@@ -477,7 +473,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 		return 0, blocker.NewBlocker(blocker.AppErr, "FailGetNodeRegistryFromCache")
 	}
 	// don't update the score if already max allowed
-	if nodeRegistry.ParticipationScore >= float64(constant.MaxParticipationScore) && scoreDelta > 0 {
+	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {
 		nrs.Logger.Debugf("Node id %d: score is already the maximum allowed and won't be increased", nodeID)
 		return constant.MaxParticipationScore, nil
 	}

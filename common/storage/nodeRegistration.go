@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 )
@@ -27,7 +26,7 @@ type (
 	// different storage struct
 	NodeRegistry struct {
 		Node               model.NodeRegistration
-		ParticipationScore float64
+		ParticipationScore int64
 	}
 )
 
@@ -373,7 +372,7 @@ func (n *NodeRegistryCacheStorage) copy(src NodeRegistry) NodeRegistry {
 			Height:             src.Node.GetHeight(),
 			NodeAddressInfo:    nil,
 		},
-		ParticipationScore: src.ParticipationScore / float64(constant.OneZBC),
+		ParticipationScore: src.ParticipationScore,
 	}
 	copy(result.Node.NodePublicKey, src.Node.GetNodePublicKey())
 	return result
