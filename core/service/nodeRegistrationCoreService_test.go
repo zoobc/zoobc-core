@@ -856,6 +856,10 @@ func (ma *mockActiveNodeRegistryCacheAddParticipationScoreSuccess) GetItem(id, i
 	return nil
 }
 
+func (ma *mockActiveNodeRegistryCacheAddParticipationScoreSuccess) TxSetItem(id, item interface{}) error {
+	return nil
+}
+
 func (ma *mockActiveNodeRegistryCacheAddParticipationScoreNotFound) GetItem(id, item interface{}) error {
 	return errors.New("mockedError")
 }
