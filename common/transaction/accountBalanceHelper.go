@@ -84,7 +84,7 @@ func (abh *AccountBalanceHelper) AddAccountBalance(
 		EventType:      event,
 		Timestamp:      blockTimestamp,
 	})
-	queries = append(queries, append([]interface{}{accountLedgerQ}, accountLedgerArgs))
+	queries = append(queries, append([]interface{}{accountLedgerQ}, accountLedgerArgs...))
 	return abh.QueryExecutor.ExecuteTransactions(queries)
 }
 

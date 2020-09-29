@@ -501,7 +501,7 @@ func (nrs *NodeRegistrationService) sortNodeRegistries(
 	return nil
 }
 
-// BuildScrambleNodes,  build sorted scramble nodes based on node registry
+// BuildScrambledNodes build sorted scramble nodes based on node registry
 func (nrs *NodeRegistrationService) BuildScrambledNodes(block *model.Block) error {
 	return nrs.sortNodeRegistries(block)
 }
