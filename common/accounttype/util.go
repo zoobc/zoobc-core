@@ -1,10 +1,16 @@
 package accounttype
 
 // GetAccountType returns the appropriate AccountType object based on the account type index
-func GetAccountType(accNum uint32) AccountType {
-	switch accNum {
+func NewAccountType(accTypeInt uint32, accPubKey []byte) AccountType {
+	switch accTypeInt {
 	case 0:
-		return &ZbcAccountType{}
+		return &ZbcAccountType{
+			accountPublicKey: accPubKey,
+		}
+	case 1:
+		return &DummyAccountType{
+			accountPublicKey: accPubKey,
+		}
 	default:
 		return nil
 	}

@@ -8,7 +8,7 @@ import (
 // TODO: this is only for the sake of having at least two account type.
 //  as soon as we can add a real one this will be overridden by it
 type DummyAccountType struct {
-	accBytes []byte
+	accountPublicKey []byte
 }
 
 func (dAcc *DummyAccountType) GetAccount() (uint32, []byte) {
@@ -20,7 +20,7 @@ func (dAcc *DummyAccountType) GetTypeInt() uint32 {
 }
 
 func (dAcc *DummyAccountType) GetAccountPublicKey() []byte {
-	return dAcc.accBytes
+	return dAcc.accountPublicKey
 }
 
 func (dAcc *DummyAccountType) GetAccountPrefix() string {

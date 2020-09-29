@@ -46,10 +46,10 @@ func (m *Migration) Init() error {
 				"fee_per_byte"	INTEGER,
 				"arrival_timestamp"	INTEGER,
 				"transaction_bytes"	BLOB,
-				"sender_account_address_type" INTEGER
-				"sender_account_address" bytes,
-				"recipient_account_address_type" INTEGER
-				"recipient_account_address" bytes,
+				"sender_account_address_type" INTEGER,
+				"sender_account_address" BLOB,
+				"recipient_account_address_type" INTEGER,
+				"recipient_account_address" BLOB,
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -57,8 +57,10 @@ func (m *Migration) Init() error {
 				"id"	INTEGER,
 				"block_id"	INTEGER,
 				"block_height"	INTEGER,
-				"sender_account_address"	VARCHAR(255),
-				"recipient_account_address"	VARCHAR(255),
+				"sender_account_address_type" INTEGER,
+				"sender_account_address" BLOB,
+				"recipient_account_address_type" INTEGER,
+				"recipient_account_address" BLOB,
 				"transaction_type"	INTEGER,
 				"fee"	INTEGER,
 				"timestamp"	INTEGER,
@@ -71,7 +73,8 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_balance" (
-				"account_address"	VARCHAR(255),
+				"account_address_type" INTEGER,
+				"account_address" BLOB,
 				"block_height"	INTEGER,
 				"spendable_balance"	INTEGER,
 				"balance"	INTEGER,
@@ -101,7 +104,8 @@ func (m *Migration) Init() error {
 			CREATE TABLE IF NOT EXISTS "node_registry" (
 				"id" INTEGER,
 				"node_public_key" BLOB,
-				"account_address" VARCHAR(255),
+				"account_address_type" INTEGER,
+				"account_address" BLOB,
 				"registration_height" INTEGER,
 				"locked_balance" INTEGER,
 				"queued" INTEGER,
@@ -111,8 +115,10 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_dataset"(
-				"setter_account_address" VARCHAR(255),
-				"recipient_account_address" VARCHAR(255),
+				"setter_account_address_type" INTEGER,
+				"setter_account_address" BLOB,
+				"recipient_account_address_type" INTEGER,
+				"recipient_account_address" BLOB,
 				"property" TEXT,
 				"value" TEXT,
 				"is_active" INTEGER,
@@ -226,7 +232,8 @@ func (m *Migration) Init() error {
 			);`,
 			`
 			CREATE TABLE IF NOT EXISTS "account_ledger" (
-				"account_address" VARCHAR(255) NULL,
+				"account_address_type" INTEGER,
+				"account_address" BLOB,
 				"balance_change" INTEGER,
 				"block_height" INTEGER,
 				"transaction_id" INTEGER NULL,
@@ -240,9 +247,12 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "escrow_transaction" (
 				"id" INTEGER,
-				"sender_address" VARCHAR(255),
-				"recipient_address" VARCHAR(255),
-				"approver_address" VARCHAR(255),
+				"sender_address_type" INTEGER,
+				"sender_address" BLOB,
+				"recipient_address_type" INTEGER,
+				"recipient_address" BLOB,
+				"approver_address_type" INTEGER,
+				"approver_address" BLOB,
 				"amount" INTEGER,
 				"commission" INTEGER,
 				"timeout" INTEGER,
@@ -269,7 +279,8 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "pending_transaction" (
-				"sender_address" TEXT,			-- sender of transaction
+				"sender_address_type" INTEGER,	-- sender account type
+				"sender_address" BLOB,			-- sender of transaction
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction
 				"transaction_bytes" BLOB,		-- full transaction bytes of the pending transaction
 				"status" INTEGER,			-- execution status of the pending transaction
@@ -281,7 +292,8 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "pending_signature" (
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction being signed
-				"account_address" TEXT,			-- account address of the respective signature
+				"account_address_type" INTEGER,	-- signing account type
+				"account_address" BLOB,			-- account address of the respective signature
 				"signature" BLOB,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
 				"latest" INTEGER,			-- latest flag for pending signature
@@ -290,7 +302,8 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_info" (
-				"multisig_address" TEXT,		-- address of multisig account / hash of multisignature_info
+				"multisig_address_type" INTEGER,	-- multisig account type
+				"multisig_address" BLOB,		-- address of multisig account / hash of multisignature_info
 				"minimum_signatures" INTEGER,		-- account address of the respective signature
 				"nonce" INTEGER,			-- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when multisignature_info inserted / updated
@@ -359,8 +372,10 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "liquid_payment_transaction" (
 				"id" INTEGER,
-				"sender_address" VARCHAR(255),
-				"recipient_address" VARCHAR(255),
+				"sender_address_type" INTEGER,	-- sender account type
+				"sender_address" BLOB,			-- sender of transaction
+				"recipient_address_type" INTEGER,	-- recipient account type
+				"recipient_address" BLOB,			-- recipient of transaction
 				"amount" INTEGER,
 				"applied_time" INTEGER,
 				"complete_minutes" INTEGER,
@@ -373,7 +388,8 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
 				"vote_hash" BLOB,		-- hash of fee vote object
-				"voter_address" VARCHAR(255), -- sender account address of commit vote
+				"voter_address_type" INTEGER,	-- sender account type of commit vote
+				"voter_address" BLOB, -- sender account address of commit vote
 				"block_height" INTEGER,	-- height when commit vote inserted
 				PRIMARY KEY("vote_hash", "block_height")
 			)
@@ -391,7 +407,8 @@ func (m *Migration) Init() error {
 				"recent_block_hash" BLOB, 
 				"recent_block_height" INTEGER,
 				"fee_vote" INTEGER, -- fee value voted
-				"voter_address" VARCHAR(255), -- sender account address as voter
+				"voter_address_type" INTEGER,	-- sender account type as voter
+				"voter_address" BLOB, -- sender account address as voter
 				"voter_signature" BLOB, -- signed block_hash,block_height,fee_vote
 				"block_height" INTEGER, -- height when revealed
 				PRIMARY KEY("block_height", "voter_address")
@@ -407,8 +424,10 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE TABLE IF NOT EXISTS "multisignature_participant" (
-				"multisig_address" VARCHAR(255), -- address of multisig account / hash of multisignature_info
-				"account_address" VARCHAR(255), --  exists in addresses / participants of the multisig account
+				"multisig_address_type" INTEGER,	-- address type of multisig account (TODO: use custom type if instead of an address we have a hash of multisig_info in multisig_address?)
+				"multisig_address" BLOB, -- address of multisig account / hash of multisignature_info
+				"account_address_type" INTEGER, -- account type of field below
+				"account_address" BLOB, -- exists in addresses / participants of the multisig account
 				"account_address_index" INTEGER, -- index / position of participants
 				"latest" INTEGER,
 				"block_height" INTEGER,

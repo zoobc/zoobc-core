@@ -7,7 +7,7 @@ import (
 
 // ZbcAccountType the default account type
 type ZbcAccountType struct {
-	accBytes []byte
+	accountPublicKey []byte
 }
 
 func (zAcc *ZbcAccountType) GetAccount() (uint32, []byte) {
@@ -19,7 +19,7 @@ func (zAcc *ZbcAccountType) GetTypeInt() uint32 {
 }
 
 func (zAcc *ZbcAccountType) GetAccountPublicKey() []byte {
-	return zAcc.accBytes
+	return zAcc.accountPublicKey
 }
 
 func (zAcc *ZbcAccountType) GetAccountPrefix() string {
