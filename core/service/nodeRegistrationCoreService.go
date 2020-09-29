@@ -459,7 +459,9 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 }
 
 // AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number
-func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error) {
+func (nrs *NodeRegistrationService) AddParticipationScore(
+	nodeID, scoreDelta int64, height uint32, dbTx bool,
+) (newScore int64, err error) {
 	var (
 		nodeRegistry storage.NodeRegistry
 	)
@@ -490,7 +492,18 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	} else {
 		newScore = nodeRegistry.ParticipationScore + scoreDelta
 	}
+	// update cache
+	nodeRegistry.ParticipationScore = newScore
 
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return newScore,
+			blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
+	if err != nil {
+		return newScore, err
+	}
 	// finally update the participation score
 	updateParticipationScoreQuery := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)
 	err = nrs.QueryExecutor.ExecuteTransactions(updateParticipationScoreQuery)
