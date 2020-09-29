@@ -185,7 +185,9 @@ func init() {
 	proto.RegisterType((*GetSkippedBlocksmithsResponse)(nil), "model.GetSkippedBlocksmithsResponse")
 }
 
-func init() { proto.RegisterFile("model/skippedBlocksmith.proto", fileDescriptor_1c20326cefe017aa) }
+func init() {
+	proto.RegisterFile("model/skippedBlocksmith.proto", fileDescriptor_1c20326cefe017aa)
+}
 
 var fileDescriptor_1c20326cefe017aa = []byte{
 	// 295 bytes of a gzipped FileDescriptorProto

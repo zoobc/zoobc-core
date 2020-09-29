@@ -25,7 +25,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-func init() { proto.RegisterFile("service/p2pCommunication.proto", fileDescriptor_5d547fbc25d9babc) }
+func init() {
+	proto.RegisterFile("service/p2pCommunication.proto", fileDescriptor_5d547fbc25d9babc)
+}
 
 var fileDescriptor_5d547fbc25d9babc = []byte{
 	// 542 bytes of a gzipped FileDescriptorProto
@@ -67,11 +69,11 @@ var fileDescriptor_5d547fbc25d9babc = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // P2PCommunicationClient is the client API for P2PCommunication service.
 //
@@ -95,10 +97,10 @@ type P2PCommunicationClient interface {
 }
 
 type p2PCommunicationClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewP2PCommunicationClient(cc *grpc.ClientConn) P2PCommunicationClient {
+func NewP2PCommunicationClient(cc grpc.ClientConnInterface) P2PCommunicationClient {
 	return &p2PCommunicationClient{cc}
 }
 

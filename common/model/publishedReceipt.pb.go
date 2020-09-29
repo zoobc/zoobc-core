@@ -184,7 +184,9 @@ func init() {
 	proto.RegisterType((*GetPublishedReceiptsResponse)(nil), "model.GetPublishedReceiptsResponse")
 }
 
-func init() { proto.RegisterFile("model/publishedReceipt.proto", fileDescriptor_05293836c9609b8b) }
+func init() {
+	proto.RegisterFile("model/publishedReceipt.proto", fileDescriptor_05293836c9609b8b)
+}
 
 var fileDescriptor_05293836c9609b8b = []byte{
 	// 294 bytes of a gzipped FileDescriptorProto

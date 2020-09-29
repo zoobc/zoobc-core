@@ -91,7 +91,9 @@ func init() {
 	proto.RegisterEnum("model.EventType", EventType_name, EventType_value)
 }
 
-func init() { proto.RegisterFile("model/event.proto", fileDescriptor_24dabb9f57ff37c9) }
+func init() {
+	proto.RegisterFile("model/event.proto", fileDescriptor_24dabb9f57ff37c9)
+}
 
 var fileDescriptor_24dabb9f57ff37c9 = []byte{
 	// 332 bytes of a gzipped FileDescriptorProto

@@ -26,7 +26,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-func init() { proto.RegisterFile("service/nodeRegistration.proto", fileDescriptor_d783036dc420a87c) }
+func init() {
+	proto.RegisterFile("service/nodeRegistration.proto", fileDescriptor_d783036dc420a87c)
+}
 
 var fileDescriptor_d783036dc420a87c = []byte{
 	// 355 bytes of a gzipped FileDescriptorProto
@@ -57,11 +59,11 @@ var fileDescriptor_d783036dc420a87c = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // NodeRegistrationServiceClient is the client API for NodeRegistrationService service.
 //
@@ -76,10 +78,10 @@ type NodeRegistrationServiceClient interface {
 }
 
 type nodeRegistrationServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewNodeRegistrationServiceClient(cc *grpc.ClientConn) NodeRegistrationServiceClient {
+func NewNodeRegistrationServiceClient(cc grpc.ClientConnInterface) NodeRegistrationServiceClient {
 	return &nodeRegistrationServiceClient{cc}
 }
 

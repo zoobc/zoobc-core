@@ -26,7 +26,9 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-func init() { proto.RegisterFile("service/block.proto", fileDescriptor_9727476210275ad5) }
+func init() {
+	proto.RegisterFile("service/block.proto", fileDescriptor_9727476210275ad5)
+}
 
 var fileDescriptor_9727476210275ad5 = []byte{
 	// 216 bytes of a gzipped FileDescriptorProto
@@ -48,11 +50,11 @@ var fileDescriptor_9727476210275ad5 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // BlockServiceClient is the client API for BlockService service.
 //
@@ -63,10 +65,10 @@ type BlockServiceClient interface {
 }
 
 type blockServiceClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewBlockServiceClient(cc *grpc.ClientConn) BlockServiceClient {
+func NewBlockServiceClient(cc grpc.ClientConnInterface) BlockServiceClient {
 	return &blockServiceClient{cc}
 }
 

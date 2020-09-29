@@ -169,7 +169,9 @@ func init() {
 	proto.RegisterType((*GetNodeStatusResponse)(nil), "model.GetNodeStatusResponse")
 }
 
-func init() { proto.RegisterFile("model/healthCheck.proto", fileDescriptor_45c88e150f25dc67) }
+func init() {
+	proto.RegisterFile("model/healthCheck.proto", fileDescriptor_45c88e150f25dc67)
+}
 
 var fileDescriptor_45c88e150f25dc67 = []byte{
 	// 305 bytes of a gzipped FileDescriptorProto

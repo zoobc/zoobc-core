@@ -825,7 +825,9 @@ func init() {
 	proto.RegisterType((*SendBlockResponse)(nil), "model.SendBlockResponse")
 }
 
-func init() { proto.RegisterFile("model/block.proto", fileDescriptor_baa78346dbb08dbe) }
+func init() {
+	proto.RegisterFile("model/block.proto", fileDescriptor_baa78346dbb08dbe)
+}
 
 var fileDescriptor_baa78346dbb08dbe = []byte{
 	// 888 bytes of a gzipped FileDescriptorProto

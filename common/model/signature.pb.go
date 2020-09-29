@@ -117,7 +117,9 @@ func init() {
 	proto.RegisterEnum("model.BitcoinPublicKeyFormat", BitcoinPublicKeyFormat_name, BitcoinPublicKeyFormat_value)
 }
 
-func init() { proto.RegisterFile("model/signature.proto", fileDescriptor_a69ee5fbbdd37ed5) }
+func init() {
+	proto.RegisterFile("model/signature.proto", fileDescriptor_a69ee5fbbdd37ed5)
+}
 
 var fileDescriptor_a69ee5fbbdd37ed5 = []byte{
 	// 251 bytes of a gzipped FileDescriptorProto

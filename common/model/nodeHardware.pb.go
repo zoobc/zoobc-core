@@ -556,7 +556,9 @@ func init() {
 	proto.RegisterType((*StorageInformation)(nil), "model.StorageInformation")
 }
 
-func init() { proto.RegisterFile("model/nodeHardware.proto", fileDescriptor_ce967b26533b171c) }
+func init() {
+	proto.RegisterFile("model/nodeHardware.proto", fileDescriptor_ce967b26533b171c)
+}
 
 var fileDescriptor_ce967b26533b171c = []byte{
 	// 607 bytes of a gzipped FileDescriptorProto

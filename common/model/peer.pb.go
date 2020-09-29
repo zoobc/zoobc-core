@@ -314,7 +314,9 @@ func init() {
 	proto.RegisterType((*SendPeersRequest)(nil), "model.SendPeersRequest")
 }
 
-func init() { proto.RegisterFile("model/peer.proto", fileDescriptor_10c2876293c17304) }
+func init() {
+	proto.RegisterFile("model/peer.proto", fileDescriptor_10c2876293c17304)
+}
 
 var fileDescriptor_10c2876293c17304 = []byte{
 	// 381 bytes of a gzipped FileDescriptorProto

@@ -268,7 +268,9 @@ func init() {
 	proto.RegisterType((*SendNodeAddressInfoRequest)(nil), "model.SendNodeAddressInfoRequest")
 }
 
-func init() { proto.RegisterFile("model/nodeAddressInfo.proto", fileDescriptor_12cb0fcb741e7530) }
+func init() {
+	proto.RegisterFile("model/nodeAddressInfo.proto", fileDescriptor_12cb0fcb741e7530)
+}
 
 var fileDescriptor_12cb0fcb741e7530 = []byte{
 	// 363 bytes of a gzipped FileDescriptorProto
