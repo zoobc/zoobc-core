@@ -694,12 +694,14 @@ func startMainchain() {
 
 	exist, errGenesis := mainchainBlockService.CheckGenesis()
 	if errGenesis != nil {
-		log.Fatal(errGenesis)
+		loggerCoreService.Fatal(errGenesis)
+		os.Exit(1)
 	}
 	if !exist { // Add genesis if not exist
 		// genesis account will be inserted in the very beginning
 		if err = service.AddGenesisAccount(queryExecutor); err != nil {
 			loggerCoreService.Fatal("Fail to add genesis account")
+			os.Exit(1)
 		}
 		// genesis next node admission timestamp will be inserted in the very beginning
 		if err = service.AddGenesisNextNodeAdmission(
@@ -708,24 +710,29 @@ func startMainchain() {
 			nextNodeAdmissionStorage,
 		); err != nil {
 			loggerCoreService.Fatal(err)
+			os.Exit(1)
 		}
 		if err = mainchainBlockService.AddGenesis(); err != nil {
 			loggerCoreService.Fatal(err)
+			os.Exit(1)
 		}
 	}
 	// set all needed cache
 	err = mainchainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 
 	lastBlockAtStart, err = mainchainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
@@ -734,16 +741,19 @@ func startMainchain() {
 	blockToBuildScrambleNodes, err = mainchainBlockService.GetBlockByHeight(heightToBuildScrambleNodes)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	err = nodeRegistrationService.BuildScrambledNodes(blockToBuildScrambleNodes)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(config.NodeKey.PublicKey)
 		if err != nil {
 			loggerCoreService.Fatal(err)
+			os.Exit(1)
 		} else if node == nil {
 			// no nodes registered with current node public key, only warn the user but we keep running smithing goroutine
 			// so it immediately start when register+admitted to the registry
