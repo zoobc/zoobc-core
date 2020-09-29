@@ -84,13 +84,12 @@ func (ss *SnapshotScheduler) CheckChunksIntegrity() error {
 			snapshotFileInfo *model.SnapshotFileInfo
 		)
 
-		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestReferenceHeight())
+		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestSpineBlockHeight())
 		if err != nil {
 			return err
 		}
 		for _, spinePublicKey := range spinePublicKeys {
 			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
-
 		}
 		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 		if err != nil {
