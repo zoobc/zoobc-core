@@ -1070,34 +1070,47 @@ func (*mockScrambleNodeServicePushBlockBuildScrambleNodeFail) GetBlockHeightToBu
 	return 1
 }
 
+type (
+	mockPendingTransactionServiceExpiringSuccess struct {
+		PendingTransactionServiceInterface
+	}
+)
+
+func (*mockPendingTransactionServiceExpiringSuccess) ExpiringPendingTransactions(
+	blockHeight uint32, useTX bool,
+) error {
+	return nil
+}
+
 func TestBlockService_PushBlock(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Signature               crypto.SignatureInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		NodeAddressInfoService  NodeAddressInfoServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		BlockPoolService        BlockPoolServiceInterface
-		CoinbaseService         CoinbaseServiceInterface
-		BlocksmithService       BlocksmithServiceInterface
-		TransactionCoreService  TransactionCoreServiceInterface
-		PublishedReceiptService PublishedReceiptServiceInterface
-		FeeScaleService         fee.FeeScaleServiceInterface
-		BlockStateStorage       storage.CacheStorageInterface
-		BlockchainStatusService BlockchainStatusServiceInterface
-		MempoolService          MempoolServiceInterface
-		ScrambleNodeService     ScrambleNodeServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		AccountLedgerQuery        query.AccountLedgerQueryInterface
+		NodeRegistrationQuery     query.NodeRegistrationQueryInterface
+		Signature                 crypto.SignatureInterface
+		SkippedBlocksmithQuery    query.SkippedBlocksmithQueryInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		NodeAddressInfoService    NodeAddressInfoServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		ParticipationScoreQuery   query.ParticipationScoreQueryInterface
+		BlockPoolService          BlockPoolServiceInterface
+		CoinbaseService           CoinbaseServiceInterface
+		BlocksmithService         BlocksmithServiceInterface
+		TransactionCoreService    TransactionCoreServiceInterface
+		PublishedReceiptService   PublishedReceiptServiceInterface
+		FeeScaleService           fee.FeeScaleServiceInterface
+		BlockStateStorage         storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
+		MempoolService            MempoolServiceInterface
+		ScrambleNodeService       ScrambleNodeServiceInterface
+		PendingTransactionService PendingTransactionServiceInterface
 	}
 	type args struct {
 		previousBlock *model.Block
@@ -1114,25 +1127,26 @@ func TestBlockService_PushBlock(t *testing.T) {
 		{
 			name: "PushBlock:DuplicateBlockPool-PersistFalse",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Observer:                observer.NewObserver(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				NodeAddressInfoService:  &mockPushBlockNodeAddressInfoServiceSuccess{},
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
+				Chaintype:                 &chaintype.MainChain{},
+				QueryExecutor:             &mockQueryExecutorSuccess{},
+				BlockQuery:                query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceQuery:       query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:     query.NewNodeRegistrationQuery(),
+				AccountLedgerQuery:        query.NewAccountLedgerQuery(),
+				Observer:                  observer.NewObserver(),
+				MempoolQuery:              query.NewMempoolQuery(&chaintype.MainChain{}),
+				SkippedBlocksmithQuery:    query.NewSkippedBlocksmithQuery(),
+				NodeRegistrationService:   &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:    &mockPushBlockNodeAddressInfoServiceSuccess{},
+				BlocksmithStrategy:        &mockBlocksmithServicePushBlock{},
+				ParticipationScoreQuery:   query.NewParticipationScoreQuery(),
+				BlockPoolService:          &mockBlockPoolServiceDuplicate{},
+				CoinbaseService:           &mockPushBlockCoinbaseLotteryWinnersSuccess{},
+				BlocksmithService:         &mockPushBlockBlocksmithServiceSuccess{},
+				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1172,12 +1186,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
+				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1215,12 +1230,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1260,12 +1276,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1305,12 +1322,13 @@ func TestBlockService_PushBlock(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-				ScrambleNodeService:     &mockScrambleNodeServicePushBlockBuildScrambleNodeFail{},
+				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
+				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
+				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeFail{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			args: args{
 				previousBlock: &mockPreviousBlockPushBlock,
@@ -1324,34 +1342,35 @@ func TestBlockService_PushBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				Logger:                  log.New(),
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				ReceiptUtil:             &coreUtil.ReceiptUtil{},
-				BlockPoolService:        tt.fields.BlockPoolService,
-				CoinbaseService:         tt.fields.CoinbaseService,
-				BlocksmithService:       tt.fields.BlocksmithService,
-				TransactionCoreService:  tt.fields.TransactionCoreService,
-				PublishedReceiptService: tt.fields.PublishedReceiptService,
-				FeeScaleService:         tt.fields.FeeScaleService,
-				BlockStateStorage:       tt.fields.BlockStateStorage,
-				BlockchainStatusService: tt.fields.BlockchainStatusService,
-				MempoolService:          tt.fields.MempoolService,
-				ScrambleNodeService:     tt.fields.ScrambleNodeService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				MempoolQuery:              tt.fields.MempoolQuery,
+				AccountBalanceQuery:       tt.fields.AccountBalanceQuery,
+				TransactionQuery:          tt.fields.TransactionQuery,
+				NodeRegistrationQuery:     tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:        tt.fields.AccountLedgerQuery,
+				SkippedBlocksmithQuery:    tt.fields.SkippedBlocksmithQuery,
+				Signature:                 tt.fields.Signature,
+				ActionTypeSwitcher:        tt.fields.ActionTypeSwitcher,
+				Observer:                  tt.fields.Observer,
+				Logger:                    log.New(),
+				NodeRegistrationService:   tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:    tt.fields.NodeAddressInfoService,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				ParticipationScoreQuery:   tt.fields.ParticipationScoreQuery,
+				ReceiptUtil:               &coreUtil.ReceiptUtil{},
+				BlockPoolService:          tt.fields.BlockPoolService,
+				CoinbaseService:           tt.fields.CoinbaseService,
+				BlocksmithService:         tt.fields.BlocksmithService,
+				TransactionCoreService:    tt.fields.TransactionCoreService,
+				PublishedReceiptService:   tt.fields.PublishedReceiptService,
+				FeeScaleService:           tt.fields.FeeScaleService,
+				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
+				MempoolService:            tt.fields.MempoolService,
+				ScrambleNodeService:       tt.fields.ScrambleNodeService,
+				PendingTransactionService: tt.fields.PendingTransactionService,
 			}
 			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
 				tt.args.persist); (err != nil) != tt.wantErr {
@@ -1980,26 +1999,27 @@ func (*mockScrambleServiceAddGenesisSuccess) GetBlockHeightToBuildScrambleNodes(
 
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		NodeAddressInfoService  NodeAddressInfoServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		BlockPoolService        BlockPoolServiceInterface
-		Logger                  *log.Logger
-		TransactionCoreService  TransactionCoreServiceInterface
-		PublishedReceiptService PublishedReceiptServiceInterface
-		BlockStateStorage       storage.CacheStorageInterface
-		BlockchainStatusService BlockchainStatusServiceInterface
-		ScrambleNodeService     ScrambleNodeServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		NodeAddressInfoService    NodeAddressInfoServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		BlockPoolService          BlockPoolServiceInterface
+		Logger                    *log.Logger
+		TransactionCoreService    TransactionCoreServiceInterface
+		PublishedReceiptService   PublishedReceiptServiceInterface
+		BlockStateStorage         storage.CacheStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
+		ScrambleNodeService       ScrambleNodeServiceInterface
+		PendingTransactionService PendingTransactionServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -2037,10 +2057,11 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					query.NewEscrowTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				ScrambleNodeService:     &mockScrambleServiceAddGenesisSuccess{},
+				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			wantErr: false,
 		},
@@ -2048,27 +2069,28 @@ func TestBlockService_AddGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				NodeAddressInfoService:  tt.fields.NodeAddressInfoService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				BlockPoolService:        tt.fields.BlockPoolService,
-				Logger:                  tt.fields.Logger,
-				TransactionCoreService:  tt.fields.TransactionCoreService,
-				PublishedReceiptService: tt.fields.PublishedReceiptService,
-				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
-				BlockStateStorage:       tt.fields.BlockStateStorage,
-				BlockchainStatusService: tt.fields.BlockchainStatusService,
-				ScrambleNodeService:     tt.fields.ScrambleNodeService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				MempoolQuery:              tt.fields.MempoolQuery,
+				AccountBalanceQuery:       tt.fields.AccountBalanceQuery,
+				TransactionQuery:          tt.fields.TransactionQuery,
+				Signature:                 tt.fields.Signature,
+				MempoolService:            tt.fields.MempoolService,
+				ActionTypeSwitcher:        tt.fields.ActionTypeSwitcher,
+				Observer:                  tt.fields.Observer,
+				NodeRegistrationService:   tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:    tt.fields.NodeAddressInfoService,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				BlockPoolService:          tt.fields.BlockPoolService,
+				Logger:                    tt.fields.Logger,
+				TransactionCoreService:    tt.fields.TransactionCoreService,
+				PublishedReceiptService:   tt.fields.PublishedReceiptService,
+				FeeScaleService:           &mockAddGenesisFeeScaleServiceCache{},
+				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
+				ScrambleNodeService:       tt.fields.ScrambleNodeService,
+				PendingTransactionService: tt.fields.PendingTransactionService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
