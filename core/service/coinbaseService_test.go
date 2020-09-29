@@ -72,7 +72,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 	}
 	type args struct {
 		activeRegistries []storage.NodeRegistry
-		scoreSum         int64
+		scoreSum         float64
 		blockTimestamp   int64
 		previousBlock    *model.Block
 	}

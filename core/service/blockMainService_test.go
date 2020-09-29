@@ -998,7 +998,7 @@ type (
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
-	scoreSum,
+	scoreSum float64,
 	blockTimestamp int64,
 	previousBlock *model.Block) ([]string, error) {
 	return []string{}, nil

@@ -22,7 +22,7 @@ type (
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
 			activeNodeRegistries []storage.NodeRegistry,
-			scoreSum int64,
+			scoreSum float64,
 			blockTimestamp int64,
 			previousBlock *model.Block,
 		) ([]string, error)
@@ -75,7 +75,7 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum, blockTimestamp int64,
+func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum float64, blockTimestamp int64,
 	previousBlock *model.Block) ([]string, error) {
 
 	var (
@@ -96,11 +96,11 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.No
 	numRewards = util.MinInt64(numRewards, int64(len(activeRegistries)))
 
 	for i := 0; i < int(numRewards); i++ {
-		winnerScore := int64(rand.Intn(int(scoreSum)))
-		tempPreviousSum := int64(0)
+		winnerScore := float64(rand.Intn(int(scoreSum)))
+		tempPreviousSum := float64(0)
 
 		for j := 0; j < len(activeRegistries); j++ {
-			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+activeRegistries[j].ParticipationScore {
+			if winnerScore > tempPreviousSum && float64(winnerScore) <= float64(tempPreviousSum)+activeRegistries[j].ParticipationScore {
 				selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
 			}
 			tempPreviousSum += activeRegistries[j].ParticipationScore

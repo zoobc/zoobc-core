@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -163,7 +164,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		// update node registry cache (in transaction) and resort
 		err = tx.PendingNodeRegistryCache.TxSetItem(nil, storage.NodeRegistry{
 			Node:               *nodeRegistration,
-			ParticipationScore: ps.Score,
+			ParticipationScore: float64(ps.Score),
 		})
 		if err != nil {
 			return err
