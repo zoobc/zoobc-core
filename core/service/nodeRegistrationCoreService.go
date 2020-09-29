@@ -20,7 +20,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
-		GetActiveRegistry() ([]storage.NodeRegistry, float64, error)
+		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetNodeRegistryAtHeight(height uint32) ([]*model.NodeRegistration, error)
@@ -184,7 +184,7 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 	return nodeRegistries, nil
 }
 
-func (nrs *NodeRegistrationService) GetActiveRegistry() ([]storage.NodeRegistry, float64, error) {
+func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
 		err                error

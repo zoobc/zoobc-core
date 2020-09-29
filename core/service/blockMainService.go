@@ -541,7 +541,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 
-		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistry()
+		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
 			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
 		}
