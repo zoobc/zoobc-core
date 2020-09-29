@@ -815,7 +815,7 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
 	}
-	if tx.Escrow.GetTimeout() <= 0 {
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
 	}
 	err = tx.Validate(dbTx)
