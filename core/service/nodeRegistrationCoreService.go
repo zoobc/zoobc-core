@@ -484,7 +484,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	// check if updating the score will overflow the max score and if so, set the new score to max allowed
 	// note: we use big integers to make sure we manage the very unlikely case where the addition overflows max int64
 	scoreDeltaBig := big.NewInt(scoreDelta)
-	prevScoreBig := big.NewInt(int64(nodeRegistry.ParticipationScore))
+	prevScoreBig := big.NewInt(nodeRegistry.ParticipationScore)
 	maxScoreBig := big.NewInt(constant.MaxParticipationScore)
 	newScoreBig := new(big.Int).Add(prevScoreBig, scoreDeltaBig)
 	if newScoreBig.Cmp(maxScoreBig) > 0 {
@@ -492,7 +492,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	} else if newScoreBig.Cmp(big.NewInt(0)) < 0 {
 		newScore = 0
 	} else {
-		newScore = int64(nodeRegistry.ParticipationScore) + scoreDelta
+		newScore = nodeRegistry.ParticipationScore + scoreDelta
 	}
 
 	// finally update the participation score

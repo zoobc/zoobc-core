@@ -851,7 +851,7 @@ func (ma *mockActiveNodeRegistryCacheAddParticipationScoreSuccess) GetItem(id, i
 		Node: model.NodeRegistration{
 			NodeID: 1111,
 		},
-		ParticipationScore: float64(ma.prevScore),
+		ParticipationScore: ma.prevScore,
 	}
 	return nil
 }
