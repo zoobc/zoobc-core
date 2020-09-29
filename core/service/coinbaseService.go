@@ -1,14 +1,12 @@
 package service
 
 import (
-	"database/sql"
 	"math"
 	"math/big"
 	"math/rand"
 
 	"github.com/montanaflynn/stats"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -81,11 +79,6 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.No
 	var (
 		selectedAccounts []string
 		numRewards       int64
-		qry              string
-		qryArgs          []interface{}
-		row              *sql.Row
-		err              error
-		nodeRegistration model.NodeRegistration
 	)
 	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
 	rand.Seed(blockSeedBigInt.Int64())
@@ -102,22 +95,9 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.No
 		for j := 0; j < len(activeRegistries); j++ {
 			participationScore := float64(activeRegistries[j].ParticipationScore) / float64(constant.OneZBC)
 			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+participationScore {
-				selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
+				selectedAccounts = append(selectedAccounts, activeRegistries[i].Node.AccountAddress)
 			}
 			tempPreviousSum += participationScore
-		}
-
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(activeRegistries[i].Node.NodeID)
-		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = cbs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
-			}
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 	}
 	return selectedAccounts, nil
