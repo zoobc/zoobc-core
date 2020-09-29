@@ -100,7 +100,7 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.No
 		tempPreviousSum := float64(0)
 
 		for j := 0; j < len(activeRegistries); j++ {
-			participationScore := float64(activeRegistries[j].ParticipationScore / constant.OneZBC)
+			participationScore := float64(activeRegistries[j].ParticipationScore) / float64(constant.OneZBC)
 			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+participationScore {
 				selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
 			}

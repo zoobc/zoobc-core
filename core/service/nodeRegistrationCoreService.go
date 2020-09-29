@@ -196,7 +196,7 @@ func (nrs *NodeRegistrationService) GetActiveRegistry() ([]storage.NodeRegistry,
 
 	scoreSum := float64(0)
 	for _, registry := range activeNodeRegistry {
-		scoreSum += float64(registry.ParticipationScore / constant.OneZBC)
+		scoreSum += float64(registry.ParticipationScore) / float64(constant.OneZBC)
 	}
 	return activeNodeRegistry, scoreSum, nil
 }
