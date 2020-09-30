@@ -10,9 +10,9 @@ import (
 
 type (
 	AccountBalanceHelperInterface interface {
-		AddAccountSpendableBalance(address string, amount int64) error
-		AddAccountBalance(address string, amount int64, blockHeight uint32) error
-		GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error
+		AddAccountSpendableBalance(address []byte, amount int64) error
+		AddAccountBalance(address []byte, amount int64, blockHeight uint32) error
+		GetBalanceByAccountID(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
 	}
 
 	AccountBalanceHelper struct {
@@ -33,7 +33,7 @@ func NewAccountBalanceHelper(
 
 // AddAccountSpendableBalance add spendable_balance field to the address provided, must be executed inside db transaction
 // scope
-func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amount int64) error {
+func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address []byte, amount int64) error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := abh.AccountBalanceQuery.AddAccountSpendableBalance(
 		amount,
 		map[string]interface{}{
@@ -46,7 +46,7 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amou
 
 // AddAccountBalance add balance and spendable_balance field to the address provided at blockHeight, must be executed
 // inside db transaction scope
-func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
+func (abh *AccountBalanceHelper) AddAccountBalance(address []byte, amount int64, blockHeight uint32) error {
 	addAccountBalanceQ := abh.AccountBalanceQuery.AddAccountBalance(
 		amount,
 		map[string]interface{}{
@@ -58,7 +58,7 @@ func (abh *AccountBalanceHelper) AddAccountBalance(address string, amount int64,
 }
 
 // GetBalanceByAccountID fetching the balance of an account from database
-func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (abh *AccountBalanceHelper) GetBalanceByAccountID(accountBalance *model.AccountBalance, address []byte, dbTx bool) error {
 	var (
 		row *sql.Row
 		err error

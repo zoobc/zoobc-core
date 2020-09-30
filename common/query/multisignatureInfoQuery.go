@@ -188,7 +188,9 @@ func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
 // Scan will build model from *sql.Row that expect has addresses column
 // which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
-	var addresses string
+	var (
+		addresses []byte
+	)
 	err := row.Scan(
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
@@ -197,7 +199,12 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&multisigInfo.Latest,
 		&addresses,
 	)
-	multisigInfo.Addresses = strings.Split(addresses, ",")
+
+	//STEF
+	// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+	// bufferBytes := bytes.NewBuffer(addresses)
+	//
+	// multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
 }
 
@@ -230,11 +237,13 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Latest,
 			&addresses,
 		)
-		multisigInfo.Addresses = strings.Split(addresses, ",")
 		if err != nil {
 			return nil, err
 		}
-		mss = append(mss, &multisigInfo)
+		//STEF
+		// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+		// multisigInfo.Addresses = strings.Split(addresses, ",")
+		// mss = append(mss, &multisigInfo)
 	}
 	return mss, nil
 }

@@ -16,7 +16,7 @@ type (
 	ApprovalEscrowTransaction struct {
 		ID                  int64
 		Fee                 int64
-		SenderAddress       string
+		SenderAddress       []byte
 		Height              uint32
 		Body                *model.ApprovalEscrowTransactionBody
 		Escrow              *model.Escrow
@@ -180,7 +180,7 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 	}
 
 	// Check sender, should be approver address
-	if latestEscrow.GetApproverAddress() != tx.SenderAddress {
+	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.SenderAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSenderAddress")
 	}
 
@@ -326,7 +326,7 @@ Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil {
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false

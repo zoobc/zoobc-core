@@ -19,8 +19,8 @@ type (
 	SendMoney struct {
 		ID                  int64
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
 		Body                *model.SendMoneyTransactionBody
 		QueryExecutor       query.ExecutorInterface
@@ -197,8 +197,8 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	}
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
-	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
-		if tx.SenderAddress == "" {
+	if !bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
+		if tx.SenderAddress == nil {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
@@ -328,8 +328,8 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	}
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
-	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
-		if tx.SenderAddress == "" {
+	if !bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
+		if tx.SenderAddress == nil {
 			return blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
 		}
 

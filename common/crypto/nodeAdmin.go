@@ -16,7 +16,7 @@ var LastRequestTimestamp uint64
 // request type checking, and the validity of the signature to the owner address
 // return nil if valid, and Blocker object otherwise
 func VerifyAuthAPI(
-	ownerAddress,
+	ownerAddress []byte,
 	auth string,
 	requestType model.RequestType,
 ) error {

@@ -89,10 +89,10 @@ func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetCurrentPhase(int64, boo
 func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetLatestFeeScale(feeScale *model.FeeScale) error {
 	return nil
 }
-func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
+func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, []byte) error {
 	return errors.New("invalid")
 }
-func (*mockSignatureFeeVoteRevealTXValidateSuccess) VerifySignature([]byte, []byte, string) error {
+func (*mockSignatureFeeVoteRevealTXValidateSuccess) VerifySignature([]byte, []byte, []byte) error {
 	return nil
 }
 

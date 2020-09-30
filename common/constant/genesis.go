@@ -26,6 +26,7 @@ var (
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisBlockTimestamp = int64(1596708000)
+	//STEF TODO: updated genesis generate command to write new accountAddress format (bytes)
 	MainchainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)

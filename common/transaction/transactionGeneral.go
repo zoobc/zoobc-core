@@ -27,7 +27,7 @@ type (
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
 		GetTransactionID(transactionHash []byte) (int64, error)
 		ValidateTransaction(tx *model.Transaction, typeAction TypeAction, verifySignature bool) error
-		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error)
+		GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, error)
 	}
 
 	Util struct {
@@ -49,8 +49,7 @@ type (
 			multisigInfoHelper MultisignatureInfoHelperInterface,
 			pendingTransactionHelper PendingTransactionHelperInterface,
 			multisigInfo *model.MultiSignatureInfo,
-			senderAddress string,
-			unsignedTxBytes []byte,
+			senderAddress, unsignedTxBytes []byte,
 			blockHeight uint32,
 			dbTx bool,
 		) error
@@ -341,24 +340,24 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
-func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error) {
+func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, error) {
 	if info == nil {
-		return "", fmt.Errorf("params cannot be nil")
+		return nil, fmt.Errorf("params cannot be nil")
 	}
-	sort.Strings(info.Addresses)
+	util.SortByteArrays(info.Addresses)
 	var (
 		buff = bytes.NewBuffer([]byte{})
-		sig  = crypto.NewEd25519Signature()
 	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
 	for _, address := range info.GetAddresses() {
-		buff.Write(util.ConvertUint32ToBytes(uint32(len(address))))
-		buff.WriteString(address)
+		//STEF we don't need to add the address length because we can derive it from addressType (first 4 bytes of accountAddress)
+		// buff.Write(util.ConvertUint32ToBytes(uint32(len(address))))
+		buff.Write(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return sig.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, hashed[:])
+	return hashed[:], nil
 
 }
 

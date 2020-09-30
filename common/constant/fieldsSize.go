@@ -3,6 +3,7 @@ package constant
 import "github.com/zoobc/lib/address"
 
 var (
+	AccountAddressType         uint32 = 4
 	AccountAddressLength       uint32 = 4
 	NodeAddressLength          uint32 = 4
 	AccountAddress             uint32 = address.ZbcIDLength

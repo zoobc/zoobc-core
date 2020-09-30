@@ -2,7 +2,7 @@ package accounttype
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/constant"
+	"encoding/binary"
 )
 
 // ZbcAccountType the default account type
@@ -10,8 +10,17 @@ type ZbcAccountType struct {
 	accountPublicKey []byte
 }
 
-func (zAcc *ZbcAccountType) GetAccount() (uint32, []byte) {
-	return zAcc.GetTypeInt(), zAcc.GetAccountPublicKey()
+func (zAcc *ZbcAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	zAcc.accountPublicKey = accountPublicKey
+}
+
+func (zAcc *ZbcAccountType) GetAccountAddress() []byte {
+	buff := bytes.NewBuffer([]byte{})
+	tmpBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(tmpBuf, zAcc.GetTypeInt())
+	buff.Write(tmpBuf)
+	buff.Write(zAcc.GetAccountPublicKey())
+	return buff.Bytes()
 }
 
 func (zAcc *ZbcAccountType) GetTypeInt() uint32 {
@@ -23,14 +32,14 @@ func (zAcc *ZbcAccountType) GetAccountPublicKey() []byte {
 }
 
 func (zAcc *ZbcAccountType) GetAccountPrefix() string {
-	return constant.PrefixZoobcDefaultAccount
+	return "ZBC"
 }
 
 func (zAcc *ZbcAccountType) GetName() string {
 	return "ZooBC"
 }
 
-func (zAcc *ZbcAccountType) GetAccountLength() uint32 {
+func (zAcc *ZbcAccountType) GetAccountPublicKeyLength() uint32 {
 	return 32
 }
 

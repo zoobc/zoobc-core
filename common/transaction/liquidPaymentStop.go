@@ -18,8 +18,8 @@ type (
 	LiquidPaymentStopTransaction struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -133,7 +133,7 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		liquidPayment  model.LiquidPayment
 		accountBalance model.AccountBalance
 	)
-	if tx.SenderAddress == "" {
+	if tx.SenderAddress == nil {
 		return errors.New("transaction must have a valid sender account id")
 	}
 
@@ -155,7 +155,7 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		return err
 	}
 
-	if liquidPayment.SenderAddress != tx.SenderAddress && liquidPayment.RecipientAddress != tx.SenderAddress {
+	if !bytes.Equal(liquidPayment.SenderAddress, tx.SenderAddress) && !bytes.Equal(liquidPayment.RecipientAddress, tx.SenderAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "Only sender or recipient of the payment can stop the payment")
 	}
 

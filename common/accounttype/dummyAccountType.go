@@ -1,6 +1,9 @@
 package accounttype
 
-import "bytes"
+import (
+	"bytes"
+	"encoding/binary"
+)
 
 // DummyAccountType a dummy account type
 // TODO: this is only for the sake of having at least two account type.
@@ -9,8 +12,17 @@ type DummyAccountType struct {
 	accountPublicKey []byte
 }
 
-func (dAcc *DummyAccountType) GetAccount() (uint32, []byte) {
-	return dAcc.GetTypeInt(), dAcc.GetAccountPublicKey()
+func (dAcc *DummyAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	dAcc.accountPublicKey = accountPublicKey
+}
+
+func (dAcc *DummyAccountType) GetAccountAddress() []byte {
+	buff := bytes.NewBuffer([]byte{})
+	tmpBuf := make([]byte, 4)
+	binary.LittleEndian.PutUint32(tmpBuf, dAcc.GetTypeInt())
+	buff.Write(tmpBuf)
+	buff.Write(dAcc.GetAccountPublicKey())
+	return buff.Bytes()
 }
 
 func (dAcc *DummyAccountType) GetTypeInt() uint32 {
@@ -29,7 +41,7 @@ func (dAcc *DummyAccountType) GetName() string {
 	return "Dummy"
 }
 
-func (dAcc *DummyAccountType) GetAccountLength() uint32 {
+func (dAcc *DummyAccountType) GetAccountPublicKeyLength() uint32 {
 	return 32
 }
 

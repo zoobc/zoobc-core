@@ -19,8 +19,8 @@ type (
 	LiquidPaymentTransaction struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -111,10 +111,10 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
-	if tx.SenderAddress == "" {
+	if tx.SenderAddress == nil {
 		return errors.New("transaction must have a valid sender account id")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.RecipientAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 

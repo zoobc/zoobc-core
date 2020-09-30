@@ -2,6 +2,7 @@ package util
 
 import (
 	"bytes"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -54,7 +55,7 @@ func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage
 // ParseProofOfOwnershipMessageBytes parse a byte array into a ProofOfOwnershipMessage struct (only the message, no signature)
 func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	buffer := bytes.NewBuffer(poownMessageBytes)
-	accountAddress, err := ReadTransactionBytes(buffer, int(constant.AccountAddress))
+	account, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +69,7 @@ func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOf
 	}
 	height := ConvertBytesToUint32(heightBytes)
 	return &model.ProofOfOwnershipMessage{
-		AccountAddress: string(accountAddress),
+		AccountAddress: account.GetAccountAddress(),
 		BlockHash:      blockHash,
 		BlockHeight:    height,
 	}, nil

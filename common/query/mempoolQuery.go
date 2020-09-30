@@ -40,9 +40,7 @@ func NewMempoolQuery(chaintype chaintype.ChainType) *MempoolQuery {
 			"fee_per_byte",
 			"arrival_timestamp",
 			"transaction_bytes",
-			"sender_account_address_type",
 			"sender_account_address",
-			"recipient_account_address_type",
 			"recipient_account_address",
 		},
 		TableName: "mempool",
@@ -119,9 +117,7 @@ func (*MempoolQuery) ExtractModel(mempool *model.MempoolTransaction) []interface
 		mempool.FeePerByte,
 		mempool.ArrivalTimestamp,
 		mempool.TransactionBytes,
-		mempool.SenderAccountAddressType,
 		mempool.SenderAccountAddress,
-		mempool.RecipientAccountAddressType,
 		mempool.RecipientAccountAddress,
 	}
 }
@@ -143,9 +139,7 @@ func (*MempoolQuery) BuildModel(
 			&mempool.FeePerByte,
 			&mempool.ArrivalTimestamp,
 			&mempool.TransactionBytes,
-			&mempool.SenderAccountAddressType,
 			&mempool.SenderAccountAddress,
-			&mempool.RecipientAccountAddressType,
 			&mempool.RecipientAccountAddress,
 		)
 		if err != nil {
@@ -164,9 +158,7 @@ func (*MempoolQuery) Scan(mempool *model.MempoolTransaction, row *sql.Row) error
 		&mempool.FeePerByte,
 		&mempool.ArrivalTimestamp,
 		&mempool.TransactionBytes,
-		&mempool.SenderAccountAddressType,
 		&mempool.SenderAccountAddress,
-		&mempool.RecipientAccountAddressType,
 		&mempool.RecipientAccountAddress,
 	)
 	return err

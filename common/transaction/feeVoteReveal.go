@@ -20,7 +20,7 @@ type (
 	FeeVoteRevealTransaction struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -328,7 +328,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee reveal tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+		if sameTxType && bytes.Equal(tx.SenderAddress, selectedTx.SenderAccountAddress) {
 			return true, nil
 		}
 	}

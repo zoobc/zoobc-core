@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	senderAddress1 = "ZNK_TE5DFSAH_HVWOLTBQ_Y6IRKY35_JMYS25TB_3NIPF5DE_Q2IPMJMQ_2WDWZB5Q"
+	senderAddress1 = make([]byte, 36) //STEF TODO: update it with a real address (in bytes)
 	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 	nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -41,8 +41,8 @@ var (
 		BlockID:                 0,
 		Height:                  0,
 		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		SenderAccountAddress:    make([]byte, 36), //STEF TODO: update it with a real address (in bytes)
+		RecipientAccountAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes)
 		Fee:                     1,
 		TransactionHash: []byte{
 			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
@@ -56,7 +56,7 @@ var (
 			139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 		},
 		Escrow: &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
 			Commission:      1,
 			Timeout:         100,
 		},
@@ -209,7 +209,7 @@ func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes [
 
 func GetFixturesForTransaction(
 	timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	escrow bool,
 ) *model.Transaction {
 
@@ -229,7 +229,7 @@ func GetFixturesForTransaction(
 		TransactionBody:         nil,
 		Signature:               make([]byte, 64),
 		Escrow: &model.Escrow{
-			ApproverAddress: "",
+			ApproverAddress: nil,
 			Commission:      0,
 			Timeout:         0,
 		},
@@ -237,7 +237,7 @@ func GetFixturesForTransaction(
 	if escrow {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.GetID(),
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
 			Commission:      1,
 			Timeout:         100,
 		}
@@ -248,7 +248,7 @@ func GetFixturesForTransaction(
 
 func GetFixturesForSignedMempoolTransaction(
 	id, timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	escrow bool,
 ) *model.MempoolTransaction {
 	transactionUtil := &Util{}
@@ -315,7 +315,7 @@ func GetFixturesForLiquidPaymentStopTransaction() (
 
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	bodyLength uint32,
 	transactionType model.TransactionType,
 	transactionBody model.TransactionBodyInterface,
@@ -339,7 +339,7 @@ func GetFixtureForSpecificTransaction(
 		TransactionBody:         transactionBody,
 		Signature:               nil,
 		Escrow: &model.Escrow{
-			ApproverAddress: "",
+			ApproverAddress: nil,
 			Commission:      0,
 			Timeout:         0,
 			Instruction:     "",
@@ -348,7 +348,7 @@ func GetFixtureForSpecificTransaction(
 
 	if escrow {
 		tx.Escrow = &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
 			Commission:      1,
 			Timeout:         100,
 			Instruction:     "",

@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"golang.org/x/crypto/sha3"
 
@@ -19,7 +20,7 @@ type (
 	SignatureInterface interface {
 		Sign(payload []byte, signatureType model.SignatureType, seed string, optionalParams ...interface{}) ([]byte, error)
 		SignByNode(payload []byte, nodeSeed string) []byte
-		VerifySignature(payload, signature []byte, accountAddress string) error
+		VerifySignature(payload, signature, accountAddress []byte) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
 		GenerateAccountFromSeed(signatureType model.SignatureType, seed string, optionalParams ...interface{}) (
 			privateKey, publicKey []byte,
@@ -129,7 +130,7 @@ func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 
 // VerifySignature accept payload (before without signature), signature and the account id
 // then verify the signature + public key against the payload based on the
-func (*Signature) VerifySignature(payload, signature []byte, accountAddress string) error {
+func (*Signature) VerifySignature(payload, signature, accountAddress []byte) error {
 	var (
 		signatureType = util.ConvertBytesToUint32(signature[:4])
 	)
@@ -170,6 +171,11 @@ func (*Signature) VerifySignature(payload, signature []byte, accountAddress stri
 			return err
 		}
 		// check sender account address to address from public key in signature
+		account, err := accounttype.ParseBytesToAccountType(bytes.NewBuffer(accountAddress))
+		if err != nil {
+			return err
+		}
+		accountAddress, err := bitcoinSignature.GetAddressFromPublicKey(account.GetAccountPublicKey())
 		if accountAddress != signaturePubKeyAddress {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,

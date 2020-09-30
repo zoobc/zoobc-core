@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/base64"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/lib/address"
 	slip10 "github.com/zoobc/zoo-slip10"
@@ -93,14 +94,20 @@ func (*Ed25519Signature) GetPublicKeyString(publicKey []byte) string {
 }
 
 // GetPublicKeyFromAddress Get the raw public key from a formatted address
-func (*Ed25519Signature) GetPublicKeyFromAddress(addr string) ([]byte, error) {
+func (*Ed25519Signature) GetPublicKeyFromAddress(addr []byte) ([]byte, error) {
 	// decode base64 back to byte
 	var (
-		publicKey = make([]byte, 32)
-		err       error
+		//STEF delete this
+		// publicKey = make([]byte, 32)
+		err error
 	)
-	err = address.DecodeZbcID(addr, publicKey)
-	return publicKey, err
+	account, err := accounttype.ParseBytesToAccountType(bytes.NewBuffer(addr))
+	if err != nil {
+		return nil, err
+	}
+	//STEF delete this
+	// err = address.DecodeZbcID(addr, publicKey)
+	return account.GetAccountPublicKey(), err
 }
 
 // GetAddressFromPublicKey Get the formatted address from a raw public key

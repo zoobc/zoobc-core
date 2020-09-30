@@ -17,7 +17,7 @@ import (
 type UpdateNodeRegistration struct {
 	ID                           int64
 	Fee                          int64
-	SenderAddress                string
+	SenderAddress                []byte
 	Height                       uint32
 	Timestamp                    int64
 	Body                         *model.UpdateNodeRegistrationTransactionBody

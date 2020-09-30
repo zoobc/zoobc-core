@@ -18,7 +18,7 @@ import (
 type FeeVoteCommitTransaction struct {
 	ID                         int64
 	Fee                        int64
-	SenderAddress              string
+	SenderAddress              []byte
 	Height                     uint32
 	Body                       *model.FeeVoteCommitTransactionBody
 	FeeScaleService            fee.FeeScaleServiceInterface
@@ -257,7 +257,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+		if sameTxType && bytes.Equal(tx.SenderAddress, selectedTx.SenderAccountAddress) {
 			return true, nil
 		}
 	}

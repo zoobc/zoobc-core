@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -19,7 +20,7 @@ type (
 	// wrapped
 	MultiSignatureTransaction struct {
 		ID              int64
-		SenderAddress   string
+		SenderAddress   []byte
 		Fee             int64
 		Body            *model.MultiSignatureTransactionBody
 		NormalFee       fee.FeeModelInterface
@@ -51,7 +52,7 @@ type (
 	MultisignatureInfoHelperInterface interface {
 		GetMultisigInfoByAddress(
 			multisigInfo *model.MultiSignatureInfo,
-			multisigAddress string,
+			multisigAddress []byte,
 			blockHeight uint32,
 		) error
 		InsertMultisignatureInfo(
@@ -363,7 +364,12 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
-		for addr, sig := range tx.Body.SignatureInfo.Signatures {
+		// TODO: make sure that addresses in tx.Body.SignatureInfo.Signatures have been encoded to hex when generating the map
+		for addrHex, sig := range tx.Body.SignatureInfo.Signatures {
+			addr, err := hex.DecodeString(addrHex)
+			if err != nil {
+				return nil
+			}
 			pendingSig := &model.PendingSignature{
 				TransactionHash: tx.Body.SignatureInfo.TransactionHash,
 				AccountAddress:  addr,
@@ -515,7 +521,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			return err
 		}
 		for _, address := range body.MultiSignatureInfo.Addresses {
-			multisigInfoAddresses[address] = true
+			multisigInfoAddresses[hex.EncodeToString(address)] = true
 		}
 		if len(body.UnsignedTransactionBytes) > 0 {
 			err := tx.MultisigUtil.ValidatePendingTransactionBytes(
@@ -590,7 +596,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 					return err
 				}
 				for _, address := range multisigInfo.Addresses {
-					multisigInfoAddresses[address] = true
+					multisigInfoAddresses[hex.EncodeToString(address)] = true
 				}
 			}
 			err = tx.MultisigUtil.ValidateSignatureInfo(tx.Signature, body.SignatureInfo, multisigInfoAddresses)
@@ -650,13 +656,14 @@ func (tx *MultiSignatureTransaction) GetSize() uint32 {
 
 func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
-		addresses     []string
+		addresses     [][]byte
 		signatures    = make(map[string][]byte)
 		multisigInfo  *model.MultiSignatureInfo
 		signatureInfo *model.SignatureInfo
 	)
 	bufferBytes := bytes.NewBuffer(txBodyBytes)
 	// MultisigInfo
+	// STEF continue from here
 	multisigInfoPresent := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultisigFieldLength)))
 	if multisigInfoPresent == constant.MultiSigFieldPresent {
 		minSignatures := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigInfoMinSignature)))
@@ -668,7 +675,7 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 			if err != nil {
 				return nil, err
 			}
-			addresses = append(addresses, string(address))
+			addresses = append(addresses, address)
 		}
 		multisigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignatures,

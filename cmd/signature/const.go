@@ -11,5 +11,5 @@ var (
 	// verify
 	signatureBytes string
 	signatureHex   string
-	accountAddress string
+	accountAddress []byte
 )

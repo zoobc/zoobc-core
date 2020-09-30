@@ -28,7 +28,7 @@ type (
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
-		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetNodeRegistrationByAccountAddress(accountAddress []byte) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string

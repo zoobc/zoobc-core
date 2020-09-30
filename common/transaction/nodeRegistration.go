@@ -18,7 +18,7 @@ import (
 type NodeRegistration struct {
 	ID                       int64
 	Fee                      int64
-	SenderAddress            string
+	SenderAddress            []byte
 	Height                   uint32
 	Body                     *model.NodeRegistrationTransactionBody
 	Escrow                   *model.Escrow
@@ -60,7 +60,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		queries                                                     [][]interface{}
 		registrationStatus                                          uint32
 		prevNodeRegistrationByPubKey, prevNodeRegistrationByAccount model.NodeRegistration
-		nodeAccountAddress                                          string
+		nodeAccountAddress                                          []byte
 	)
 	if tx.Height > 0 {
 		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)

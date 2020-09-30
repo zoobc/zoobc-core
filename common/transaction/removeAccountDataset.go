@@ -15,8 +15,8 @@ import (
 type RemoveAccountDataset struct {
 	ID                  int64
 	Fee                 int64
-	SenderAddress       string
-	RecipientAddress    string
+	SenderAddress       []byte
+	RecipientAddress    []byte
 	Height              uint32
 	Body                *model.RemoveAccountDatasetTransactionBody
 	Escrow              *model.Escrow
