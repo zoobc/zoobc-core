@@ -570,6 +570,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 		}
 		err = nru.UpdateAddrressInfo(nodeAddressInfo)
 		if err != nil {
+			nru.Logger.Errorf("UpdateAddressInfoFail - %v", err)
 			return false, err
 		}
 		return true, nil
