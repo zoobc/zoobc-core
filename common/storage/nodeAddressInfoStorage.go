@@ -17,6 +17,7 @@ type (
 	NodeAddressInfoStorage struct {
 		sync.RWMutex
 		transactionalLock                          sync.RWMutex
+		isInTransaction                            bool
 		nodeAddressInfoMapByID                     map[int64]map[string]model.NodeAddressInfo
 		nodeAddressInfoMapByAddressPort            map[string]map[int64]bool
 		nodeAddressInfoMapByStatus                 map[model.NodeAddressStatus]map[int64]map[string]bool
@@ -76,8 +77,10 @@ func (nas *NodeAddressInfoStorage) SetItems(item interface{}) error {
 }
 
 func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
-	nas.RLock()
-	defer nas.RUnlock()
+	if !nas.isInTransaction {
+		nas.RLock()
+		defer nas.RUnlock()
+	}
 	storageKey, ok := key.(NodeAddressInfoStorageKey)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:NodeAddressInfoStorageKey")
@@ -119,8 +122,10 @@ func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 }
 
 func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
-	nas.RLock()
-	defer nas.RUnlock()
+	if !nas.isInTransaction {
+		nas.RLock()
+		defer nas.RUnlock()
+	}
 	nodeAddresses, ok := item.(*[]*model.NodeAddressInfo)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItemExpected:*[]*model.NodeAddressInfo")
@@ -201,13 +206,19 @@ func (nas *NodeAddressInfoStorage) Begin() error {
 	nas.Lock()
 	nas.transactionalLock.Lock()
 	defer nas.transactionalLock.Unlock()
+	nas.isInTransaction = true
 	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
 	return nil
 }
 
 func (nas *NodeAddressInfoStorage) Commit() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
 	nas.transactionalLock.Lock()
 	defer func() {
+		nas.isInTransaction = false
 		nas.Unlock()
 		nas.transactionalLock.Unlock()
 	}()
@@ -228,8 +239,13 @@ func (nas *NodeAddressInfoStorage) Commit() error {
 }
 
 func (nas *NodeAddressInfoStorage) Rollback() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
 	nas.transactionalLock.Lock()
 	defer func() {
+		nas.isInTransaction = false
 		nas.Unlock()
 		nas.transactionalLock.Unlock()
 	}()
