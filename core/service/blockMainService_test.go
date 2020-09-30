@@ -1090,10 +1090,15 @@ func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(blo
 	return 0, nil
 }
 
-func (*mockPushBlockNodeAddressInfoServiceSuccess) ExecuteWaitedNodeAddressInfoCache() error {
+func (*mockPushBlockNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
 	return nil
 }
-func (*mockPushBlockNodeAddressInfoServiceSuccess) ClearWaitedNodeAddressInfoCache() {}
+func (*mockPushBlockNodeAddressInfoServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+func (*mockPushBlockNodeAddressInfoServiceSuccess) CommitCacheTransaction() error {
+	return nil
+}
 
 type (
 	mockPushBlockFeeScaleServiceNoAdjust struct {
@@ -2035,10 +2040,15 @@ type (
 	}
 )
 
-func (*mockAddGenesisNodeAddressInfoServiceSuccess) ExecuteWaitedNodeAddressInfoCache() error {
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
 	return nil
 }
-func (*mockAddGenesisNodeAddressInfoServiceSuccess) ClearWaitedNodeAddressInfoCache() {}
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) CommitCacheTransaction() error {
+	return nil
+}
 
 func (*mockAddGenesisFeeScaleServiceCache) GetCurrentPhase(
 	blockTimestamp int64,

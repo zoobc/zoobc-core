@@ -45,10 +45,10 @@ type (
 	TypeSwitcher struct {
 		Executor                   query.ExecutorInterface
 		NodeAuthValidation         auth.NodeAuthValidationInterface
-		NodeAddressInfoStorage     storage.NodeAddressInfoStorageInterface
 		MempoolCacheStorage        storage.CacheStorageInterface
-		PendingNodeRegistryStorage storage.CacheStorageInterface
-		ActiveNodeRegistryStorage  storage.CacheStorageInterface
+		NodeAddressInfoStorage     storage.TransactionalCache
+		PendingNodeRegistryStorage storage.TransactionalCache
+		ActiveNodeRegistryStorage  storage.TransactionalCache
 	}
 )
 
@@ -112,8 +112,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		}
 	// Node Registry
 	case 2:
-		txPendingNodeRegistryCache := ts.PendingNodeRegistryStorage.(storage.TransactionalCache)
-		txActiveNodeRegistryCache := ts.PendingNodeRegistryStorage.(storage.TransactionalCache)
 		switch buf[1] {
 		case 0:
 			transactionBody, err = (&NodeRegistration{
@@ -136,7 +134,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:            ts.Executor,
 				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
 				Escrow:                   tx.GetEscrow(),
-				PendingNodeRegistryCache: txPendingNodeRegistryCache,
+				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 			}, nil
 		case 1:
 			transactionBody, err = (&UpdateNodeRegistration{
@@ -158,8 +156,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:                ts.Executor,
 				AccountLedgerQuery:           query.NewAccountLedgerQuery(),
 				Escrow:                       tx.GetEscrow(),
-				PendingNodeRegistrationCache: txPendingNodeRegistryCache,
-				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
+				PendingNodeRegistrationCache: ts.PendingNodeRegistryStorage,
+				ActiveNodeRegistrationCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
 		case 2:
 			transactionBody, err = new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -179,8 +177,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:       query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:     accountBalanceHelper,
 				NodeAddressInfoStorage:   ts.NodeAddressInfoStorage,
-				PendingNodeRegistryCache: txPendingNodeRegistryCache,
-				ActiveNodeRegistryCache:  txActiveNodeRegistryCache,
+				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
+				ActiveNodeRegistryCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -201,7 +199,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
 				AccountBalanceHelper:    accountBalanceHelper,
 				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
-				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
+				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
 			}, nil
 		default:
 			return nil, nil

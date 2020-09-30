@@ -57,7 +57,7 @@ var (
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
-	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
+	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -278,13 +278,26 @@ func initiateMainInstance() {
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
 		crypto.NewSignature(),
 	)
+	txNodeAddressInfoStorage, ok := nodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
+	txActiveNodeRegistryStorage, ok := activeNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+	}
+	txPendingNodeRegistryStorage, ok := pendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+	}
+
 	actionSwitcher = &transaction.TypeSwitcher{
 		Executor:                   queryExecutor,
 		MempoolCacheStorage:        mempoolStorage,
-		NodeAddressInfoStorage:     nodeAddressInfoStorage,
 		NodeAuthValidation:         nodeAuthValidationService,
-		ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
-		PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
+		NodeAddressInfoStorage:     txNodeAddressInfoStorage,
+		ActiveNodeRegistryStorage:  txActiveNodeRegistryStorage,
+		PendingNodeRegistryStorage: txPendingNodeRegistryStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
