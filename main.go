@@ -347,6 +347,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 	)
+
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -798,6 +799,13 @@ func startMainchain() {
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)
 		os.Exit(1)
+	}
+
+	err = receiptService.Initialize()
+	if err != nil {
+		// error when initializing last merkle root
+		loggerCoreService.Fatalf("Fail to read last receipt merkle root: %v", err)
+		os.Exit(0)
 	}
 
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {

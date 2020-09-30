@@ -88,6 +88,10 @@ type (
 	}
 )
 
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+	return []storage.NodeRegistry{}, 0, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 	nodeID, scoreDelta int64,
 	height uint32,
