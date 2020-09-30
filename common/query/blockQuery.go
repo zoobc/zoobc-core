@@ -54,6 +54,9 @@ func NewBlockQuery(chaintype chaintype.ChainType) *BlockQuery {
 			"total_fee",
 			"total_coinbase",
 			"version",
+			"merkle_root",
+			"merkle_tree",
+			"reference_block_height",
 		},
 		TableName: "block",
 		ChainType: chaintype,
@@ -175,6 +178,9 @@ func (*BlockQuery) ExtractModel(block *model.Block) []interface{} {
 		block.TotalFee,
 		block.TotalCoinBase,
 		block.Version,
+		block.MerkleRoot,
+		block.MerkleTree,
+		block.ReferenceBlockHeight,
 	}
 }
 
@@ -201,6 +207,9 @@ func (*BlockQuery) BuildModel(blocks []*model.Block, rows *sql.Rows) ([]*model.B
 			&block.TotalFee,
 			&block.TotalCoinBase,
 			&block.Version,
+			&block.MerkleRoot,
+			&block.MerkleTree,
+			&block.ReferenceBlockHeight,
 		)
 		if err != nil {
 			return nil, err
@@ -227,6 +236,9 @@ func (*BlockQuery) Scan(block *model.Block, row *sql.Row) error {
 		&block.TotalFee,
 		&block.TotalCoinBase,
 		&block.Version,
+		&block.MerkleRoot,
+		&block.MerkleTree,
+		&block.ReferenceBlockHeight,
 	)
 	if err != nil {
 		return err

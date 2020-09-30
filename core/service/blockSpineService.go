@@ -47,6 +47,7 @@ type (
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
+		MainBlockService          BlockServiceInterface
 	}
 )
 
@@ -64,6 +65,7 @@ func NewBlockSpineService(
 	blockStateStorage storage.CacheStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
+	mainBlockService BlockServiceInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:             ct,
@@ -84,6 +86,7 @@ func NewBlockSpineService(
 		SnapshotMainBlockService: snapshotMainblockService,
 		BlockStateStorage:        blockStateStorage,
 		BlockchainStatusService:  blockchainStatusService,
+		MainBlockService:         mainBlockService,
 	}
 }
 
@@ -91,8 +94,8 @@ func NewBlockSpineService(
 func (bs *BlockSpineService) NewSpineBlock(
 	version uint32,
 	previousBlockHash,
-	blockSeed, blockSmithPublicKey []byte,
-	previousBlockHeight uint32,
+	blockSeed, blockSmithPublicKey, merkleRoot, merkleTree []byte,
+	previousBlockHeight, referenceBlockHeight uint32,
 	timestamp int64,
 	secretPhrase string,
 	spinePublicKeys []*model.SpinePublicKey,
@@ -103,15 +106,18 @@ func (bs *BlockSpineService) NewSpineBlock(
 		err           error
 	)
 	block := &model.Block{
-		Version:             version,
-		PreviousBlockHash:   previousBlockHash,
-		BlockSeed:           blockSeed,
-		BlocksmithPublicKey: blockSmithPublicKey,
-		Height:              previousBlockHeight,
-		Timestamp:           timestamp,
-		PayloadLength:       payloadLength,
-		SpinePublicKeys:     spinePublicKeys,
-		SpineBlockManifests: spineBlockManifests,
+		Version:              version,
+		PreviousBlockHash:    previousBlockHash,
+		BlockSeed:            blockSeed,
+		BlocksmithPublicKey:  blockSmithPublicKey,
+		Height:               previousBlockHeight,
+		Timestamp:            timestamp,
+		PayloadLength:        payloadLength,
+		SpinePublicKeys:      spinePublicKeys,
+		SpineBlockManifests:  spineBlockManifests,
+		ReferenceBlockHeight: referenceBlockHeight,
+		MerkleRoot:           merkleRoot,
+		MerkleTree:           merkleTree,
 	}
 
 	// compute block's payload hash and length and add it to block struct
@@ -158,8 +164,8 @@ func (bs *BlockSpineService) ChainWriteUnlock(actionType int) {
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockSpineService) NewGenesisBlock(
 	version uint32,
-	previousBlockHash, blockSeed, blockSmithPublicKey []byte,
-	previousBlockHeight uint32,
+	previousBlockHash, blockSeed, blockSmithPublicKey, merkleRoot, merkleTree []byte,
+	previousBlockHeight, referenceBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
 	publishedReceipts []*model.PublishedReceipt,
@@ -169,25 +175,31 @@ func (bs *BlockSpineService) NewGenesisBlock(
 	cumulativeDifficulty *big.Int,
 	genesisSignature []byte,
 ) (*model.Block, error) {
-	block := &model.Block{
-		Version:              version,
-		PreviousBlockHash:    previousBlockHash,
-		BlockSeed:            blockSeed,
-		BlocksmithPublicKey:  blockSmithPublicKey,
-		Height:               previousBlockHeight,
-		Timestamp:            timestamp,
-		TotalAmount:          totalAmount,
-		TotalFee:             totalFee,
-		TotalCoinBase:        totalCoinBase,
-		Transactions:         transactions,
-		SpinePublicKeys:      spinePublicKeys,
-		PublishedReceipts:    publishedReceipts,
-		PayloadLength:        payloadLength,
-		PayloadHash:          payloadHash,
-		CumulativeDifficulty: cumulativeDifficulty.String(),
-		BlockSignature:       genesisSignature,
-	}
-	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
+	var (
+		block = &model.Block{
+			Version:              version,
+			PreviousBlockHash:    previousBlockHash,
+			BlockSeed:            blockSeed,
+			BlocksmithPublicKey:  blockSmithPublicKey,
+			Height:               previousBlockHeight,
+			Timestamp:            timestamp,
+			TotalAmount:          totalAmount,
+			TotalFee:             totalFee,
+			TotalCoinBase:        totalCoinBase,
+			Transactions:         transactions,
+			SpinePublicKeys:      spinePublicKeys,
+			PublishedReceipts:    publishedReceipts,
+			PayloadLength:        payloadLength,
+			PayloadHash:          payloadHash,
+			CumulativeDifficulty: cumulativeDifficulty.String(),
+			BlockSignature:       genesisSignature,
+			ReferenceBlockHeight: referenceBlockHeight,
+			MerkleRoot:           merkleRoot,
+			MerkleTree:           merkleTree,
+		}
+
+		blockHash, err = commonUtils.GetBlockHash(block, bs.Chaintype)
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -588,6 +600,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	if fromTimestamp == bs.GetChainType().GetGenesisBlockTimestamp() {
 		fromTimestamp++
 	}
+	// TODO: spine public key should in the range of included main block
 	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
 	if err != nil {
 		return nil, err
@@ -616,12 +629,41 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
+	// select main block to be include in spine block
+	lastMainBlock, err := bs.MainBlockService.GetLastBlock()
+	if err != nil {
+		return nil, err
+	}
+	newReferenceBlock := lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+	limit := newReferenceBlock - previousBlock.ReferenceBlockHeight + 1
+	inlcludedBlocks, err := bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
+	if err != nil {
+		return nil, err
+	}
+	if len(inlcludedBlocks) == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
+	}
+	var (
+		merkleRoot      commonUtils.MerkleRoot
+		hashedMainBlock []*bytes.Buffer
+	)
+	for i := 0; i < len(inlcludedBlocks); i++ {
+		hashedMainBlock = append(hashedMainBlock, bytes.NewBuffer(inlcludedBlocks[i].BlockHash))
+	}
+	_, err = merkleRoot.GenerateMerkleRoot(hashedMainBlock)
+	if err != nil {
+		return nil, err
+	}
+	mRoot, mTree := merkleRoot.ToBytes()
 	block, err := bs.NewSpineBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
 		blockSmithPublicKey,
+		mRoot,
+		mTree,
 		newBlockHeight,
+		newReferenceBlock,
 		timestamp,
 		secretPhrase,
 		spinePublicKeys,
@@ -661,11 +703,25 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 	}
 
 	payloadHash := digest.Sum([]byte{})
+	mainGenesisBlock, err := bs.MainBlockService.GetGenesisBlock()
+	if err != nil {
+		return nil, err
+	}
+	var merkleRoot commonUtils.MerkleRoot
+	_, err = merkleRoot.GenerateMerkleRoot([]*bytes.Buffer{bytes.NewBuffer(mainGenesisBlock.BlockHash)})
+	if err != nil {
+		return nil, err
+	}
+	mRoot, mTree := merkleRoot.ToBytes()
+
 	block, err := bs.NewGenesisBlock(
 		1,
 		nil,
 		bs.Chaintype.GetGenesisBlockSeed(),
 		bs.Chaintype.GetGenesisNodePublicKey(),
+		mRoot,
+		mTree,
+		0,
 		0,
 		bs.Chaintype.GetGenesisBlockTimestamp(),
 		totalAmount,
@@ -733,6 +789,11 @@ func (bs *BlockSpineService) ReceiveBlock(
 			blocker.BlockErr,
 			"last block hash does not exist",
 		)
+	}
+	// check existing last main block
+	err = bs.validateIncludedMainBlock(lastBlock, block)
+	if err != nil {
+		return nil, err
 	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.BlockHash, block.PreviousBlockHash) {
@@ -819,6 +880,22 @@ func (bs *BlockSpineService) ReceiveBlock(
 	}
 	// spine blocks don't return any receipts
 	return nil, nil
+}
+
+// validateIncludedMainBlock to validate included main block in spine block
+func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock *model.Block) error {
+	if incomingBlock.GetReferenceBlockHeight() == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "NoIncludedMainBlock")
+	}
+	if (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "InValidReferenceBlockHeight")
+	}
+	var _, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+	if err != nil {
+		return err
+	}
+	// TODO: check hashes of reference main block
+	return nil
 }
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {

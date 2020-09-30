@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -424,15 +423,16 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, " +
+		"merkle_tree, reference_block_height FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
 	case fmt.Sprintf("SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, "+
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
-		"FROM main_block WHERE height = %d", mockBlockData.GetHeight()+1):
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, "+
+		"merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height = %d", mockBlockData.GetHeight()+1):
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
@@ -448,8 +448,8 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		},
 		).AddRow(-1, 100000, true, 0))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
-		"height DESC LIMIT 1":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, " +
+		"merkle_tree, reference_block_height FROM main_block ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
@@ -469,6 +469,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				mockBlockData.GetTotalFee(),
 				mockBlockData.GetTotalCoinBase(),
 				mockBlockData.GetVersion(),
+				mockBlockData.GetMerkleRoot(),
+				mockBlockData.GetMerkleTree(),
+				mockBlockData.GetReferenceBlockHeight(),
 			))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
 		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
@@ -764,20 +767,52 @@ func TestBlockService_NewBlock(t *testing.T) {
 
 func TestBlockService_NewGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		NodeAddressInfoService      NodeAddressInfoServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
+		BlockStateStorage           storage.CacheStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
 		version              uint32
 		previousBlockHash    []byte
 		blockSeed            []byte
 		blockSmithPublicKey  []byte
+		merkleRoot           []byte
+		merkleTree           []byte
 		previousBlockHeight  uint32
+		referenceBlockHeight uint32
 		timestamp            int64
 		totalAmount          int64
 		totalFee             int64
@@ -791,10 +826,11 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		genesisSignature     []byte
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *model.Block
+		name    string
+		fields  fields
+		args    args
+		want    *model.Block
+		wantErr bool
 	}{
 		{
 			name: "wantSuccess",
@@ -807,7 +843,10 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				previousBlockHash:    []byte{},
 				blockSeed:            []byte{},
 				blockSmithPublicKey:  bcsNodePubKey1,
+				merkleRoot:           []byte{},
+				merkleTree:           []byte{},
 				previousBlockHeight:  0,
+				referenceBlockHeight: 0,
 				timestamp:            15875392,
 				totalAmount:          0,
 				totalFee:             0,
@@ -825,6 +864,8 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				PreviousBlockHash:    []byte{},
 				BlockSeed:            []byte{},
 				BlocksmithPublicKey:  bcsNodePubKey1,
+				MerkleRoot:           []byte{},
+				MerkleTree:           []byte{},
 				Timestamp:            15875392,
 				TotalAmount:          0,
 				TotalFee:             0,
@@ -844,20 +885,52 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:                   tt.fields.Chaintype,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:      tt.fields.NodeAddressInfoService,
+				BlocksmithService:           tt.fields.BlocksmithService,
+				FeeScaleService:             tt.fields.FeeScaleService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				FeeVoteRevealVoteQuery:      tt.fields.FeeVoteRevealVoteQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				BlockPoolService:            tt.fields.BlockPoolService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
+				TransactionUtil:             tt.fields.TransactionUtil,
+				ReceiptUtil:                 tt.fields.ReceiptUtil,
+				PublishedReceiptUtil:        tt.fields.PublishedReceiptUtil,
+				TransactionCoreService:      tt.fields.TransactionCoreService,
+				CoinbaseService:             tt.fields.CoinbaseService,
+				ParticipationScoreService:   tt.fields.ParticipationScoreService,
+				PublishedReceiptService:     tt.fields.PublishedReceiptService,
+				PruneQuery:                  tt.fields.PruneQuery,
+				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlockchainStatusService:     tt.fields.BlockchainStatusService,
+				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
-			if got, _ := bs.NewGenesisBlock(
+			got, err := bs.NewGenesisBlock(
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
+				tt.args.merkleRoot,
+				tt.args.merkleTree,
 				tt.args.previousBlockHeight,
+				tt.args.referenceBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
 				tt.args.totalFee,
@@ -869,8 +942,13 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.payloadLength,
 				tt.args.cumulativeDifficulty,
 				tt.args.genesisSignature,
-			); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, tt.want)
+			)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.NewGenesisBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.NewGenesisBlock() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -997,11 +1075,10 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
-	previousBlockTimestamp int64,
-) ([]string, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
+	scoreSum float64,
+	blockTimestamp int64,
+	previousBlock *model.Block) ([]string, error) {
 	return []string{}, nil
 }
 
@@ -1411,6 +1488,9 @@ func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, tx
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -1513,6 +1593,9 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.Query(qStr)
 }
@@ -2150,6 +2233,9 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.Query("")
 }
@@ -2175,6 +2261,9 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, tx bool,
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -2267,6 +2356,9 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, _
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.QueryRow(qStr), nil
 }
@@ -2277,7 +2369,7 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockBlockData.GetHeight(),
@@ -2295,6 +2387,9 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
 		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
@@ -2447,7 +2542,7 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-		"version FROM main_block WHERE id = 1":
+		"version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockBlockData.GetHeight(),
@@ -2465,6 +2560,9 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
 		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
@@ -2499,6 +2597,9 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelectRow(qStr string, tx bo
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -2659,6 +2760,9 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	).AddRow(
 		mockBlockData.GetHeight(),
 		mockBlockData.GetID(),
@@ -2675,6 +2779,9 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	),
 	)
 	return db.Query(qStr)
@@ -3547,6 +3654,9 @@ func (*mockQueryExecutorValidateBlockSuccess) ExecuteSelect(qStr string, tx bool
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	rows, _ := db.Query(qStr)
 	return rows, nil
@@ -3945,7 +4055,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -3967,7 +4077,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 	switch qStr {
 	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
 				mockGoodBlock.GetHeight(),
@@ -3984,11 +4094,16 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 				mockGoodBlock.GetTotalAmount(),
 				mockGoodBlock.GetTotalFee(),
 				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 1":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	default:
@@ -4005,7 +4120,7 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	default:
@@ -4025,6 +4140,10 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 				mockGoodBlock.GetTotalAmount(),
 				mockGoodBlock.GetTotalFee(),
 				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
 			),
 		)
 	}
@@ -4093,7 +4212,8 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE height = 999":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+		"FROM main_block WHERE height = 999":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
 				mockGoodCommonBlock.GetHeight(),
@@ -4111,11 +4231,15 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 				mockGoodCommonBlock.GetTotalFee(),
 				mockGoodCommonBlock.GetTotalCoinBase(),
 				mockGoodCommonBlock.GetVersion(),
+				mockGoodCommonBlock.GetMerkleRoot(),
+				mockGoodCommonBlock.GetMerkleTree(),
+				mockGoodCommonBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+		"FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
 				mockGoodCommonBlock.GetHeight(),
@@ -4133,6 +4257,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 				mockGoodCommonBlock.GetTotalFee(),
 				mockGoodCommonBlock.GetTotalCoinBase(),
 				mockGoodCommonBlock.GetVersion(),
+				mockGoodCommonBlock.GetMerkleRoot(),
+				mockGoodCommonBlock.GetMerkleTree(),
+				mockGoodCommonBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -4171,6 +4298,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		),
 	)
 	return db.QueryRow(qStr), nil
@@ -4256,6 +4386,9 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		)
 	default:
 		mockedRows.AddRow(
@@ -4274,6 +4407,9 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		)
 
 	}
@@ -5146,7 +5282,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 		PublishedReceipts: mockPublishedReceipt,
 	}
 	type fields struct {
-		RWMutex                     sync.RWMutex
 		Chaintype                   chaintype.ChainType
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
@@ -5217,7 +5352,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				RWMutex:                     tt.fields.RWMutex,
 				Chaintype:                   tt.fields.Chaintype,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,

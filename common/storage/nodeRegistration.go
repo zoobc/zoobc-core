@@ -3,10 +3,11 @@ package storage
 import (
 	"bytes"
 	"encoding/gob"
+	"sync"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
-	"sync"
 )
 
 type (
