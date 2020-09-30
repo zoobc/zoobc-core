@@ -212,6 +212,10 @@ func (nas *NodeAddressInfoStorage) Begin() error {
 }
 
 func (nas *NodeAddressInfoStorage) Commit() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
 	nas.transactionalLock.Lock()
 	defer func() {
 		nas.isInTransaction = false
@@ -235,6 +239,10 @@ func (nas *NodeAddressInfoStorage) Commit() error {
 }
 
 func (nas *NodeAddressInfoStorage) Rollback() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
 	nas.transactionalLock.Lock()
 	defer func() {
 		nas.isInTransaction = false
