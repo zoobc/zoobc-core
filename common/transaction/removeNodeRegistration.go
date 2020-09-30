@@ -326,7 +326,7 @@ func (tx *RemoveNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) err
 		}
 		return blocker.NewBlocker(blocker.AppErr, "NodeNotRegistered")
 	}
-	// ASK: why lockedBalance-(tx.Fee+esrow.Commission)
+
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
 		nodeReg.GetLockedBalance()-(tx.Fee+tx.Escrow.GetCommission()),

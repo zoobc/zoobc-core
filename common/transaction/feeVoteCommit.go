@@ -298,7 +298,7 @@ func (tx *FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
 func (tx *FeeVoteCommitTransaction) EscrowApplyConfirmed(blockTimestamp int64) (err error) {
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
-		-tx.Fee,
+		-(tx.Fee + tx.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
 		tx.Height,
 		tx.ID,
@@ -353,7 +353,7 @@ func (tx *FeeVoteCommitTransaction) EscrowApproval(blockTimestamp int64, txBody 
 		tx.Escrow.Status = model.EscrowStatus_Approved
 		err = tx.AccountBalanceHelper.AddAccountBalance(
 			tx.SenderAddress,
-			tx.Fee+tx.Escrow.GetCommission(),
+			tx.Fee,
 			model.EventType_EventEscrowedTransaction,
 			tx.Height,
 			tx.ID,
@@ -393,7 +393,7 @@ func (tx *FeeVoteCommitTransaction) EscrowApproval(blockTimestamp int64, txBody 
 	default:
 		err = tx.AccountBalanceHelper.AddAccountBalance(
 			tx.SenderAddress,
-			tx.Fee+tx.Escrow.GetCommission(),
+			tx.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
 			tx.Height,
 			tx.ID,

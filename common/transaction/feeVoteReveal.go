@@ -369,7 +369,7 @@ func (tx *FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 func (tx *FeeVoteRevealTransaction) EscrowApplyConfirmed(blockTimestamp int64) (err error) {
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
-		-tx.Fee,
+		-(tx.Fee + tx.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
 		tx.Height,
 		tx.ID,
