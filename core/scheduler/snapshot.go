@@ -161,7 +161,7 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks() (err error) {
 			nodeIDs         []int64
 			shards          storage.ShardMap
 		)
-		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestReferenceHeight())
+		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestSpineBlockHeight())
 		if err != nil {
 			return err
 		}
