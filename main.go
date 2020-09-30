@@ -539,6 +539,7 @@ func initiateMainInstance() {
 		spineBlockStateStorage,
 		blockchainStatusService,
 		spinePublicKeyService,
+		mainchainBlockService,
 	)
 
 	/*
@@ -1004,8 +1005,8 @@ func start() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startSpinechain()
 	startMainchain()
+	startSpinechain()
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
