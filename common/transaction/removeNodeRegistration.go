@@ -329,7 +329,7 @@ func (tx *RemoveNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) err
 
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
-		nodeReg.GetLockedBalance()-(tx.Fee+tx.Escrow.GetCommission()),
+		-(tx.Fee + tx.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
 		tx.Height,
 		tx.ID,
@@ -376,7 +376,7 @@ func (tx *RemoveNodeRegistration) EscrowApproval(
 		// Bring back the fee that was decreased on EscrowApplyConfirmed before do ApplyConfirmed
 		err = tx.AccountBalanceHelper.AddAccountBalance(
 			tx.SenderAddress,
-			-(nodeReg.GetLockedBalance() - (tx.Fee + tx.Escrow.GetCommission())),
+			tx.Fee,
 			model.EventType_EventEscrowedTransaction,
 			tx.Height,
 			tx.ID,
@@ -404,17 +404,6 @@ func (tx *RemoveNodeRegistration) EscrowApproval(
 	case model.EscrowApproval_Reject:
 		tx.Escrow.Status = model.EscrowStatus_Rejected
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			-(nodeReg.GetLockedBalance() - (tx.Fee + tx.Escrow.GetCommission())),
-			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
-			uint64(blockTimestamp),
-		)
-		if err != nil {
-			return err
-		}
-		err = tx.AccountBalanceHelper.AddAccountBalance(
 			tx.Escrow.GetApproverAddress(),
 			tx.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
@@ -426,18 +415,6 @@ func (tx *RemoveNodeRegistration) EscrowApproval(
 			return err
 		}
 	default:
-		tx.Escrow.Status = model.EscrowStatus_Expired
-		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			-(nodeReg.GetLockedBalance() - (tx.Fee + tx.Escrow.GetCommission())),
-			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
-			uint64(blockTimestamp),
-		)
-		if err != nil {
-			return err
-		}
 		err = tx.AccountBalanceHelper.AddAccountBalance(
 			tx.SenderAddress,
 			tx.Escrow.GetCommission(),
