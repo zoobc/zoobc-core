@@ -820,7 +820,6 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: txBody.LockedBalance,
 		},
 	}
 	for _, tt := range tests {

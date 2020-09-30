@@ -271,7 +271,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 }
 
 func (tx *UpdateNodeRegistration) GetAmount() int64 {
-	return tx.Body.LockedBalance
+	return 0
 }
 
 func (tx *UpdateNodeRegistration) GetMinimumFee() (int64, error) {
