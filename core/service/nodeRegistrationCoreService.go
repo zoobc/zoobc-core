@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -10,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
-	"math/big"
 )
 
 type (
@@ -19,6 +20,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
+		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
@@ -181,6 +183,23 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
 	return nodeRegistries, nil
+}
+
+func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+	var (
+		activeNodeRegistry []storage.NodeRegistry
+		err                error
+	)
+	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	scoreSum := float64(0)
+	for _, registry := range activeNodeRegistry {
+		scoreSum += float64(registry.ParticipationScore) / float64(constant.OneZBC)
+	}
+	return activeNodeRegistry, scoreSum, nil
 }
 
 func (nrs *NodeRegistrationService) GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error) {
@@ -459,7 +478,9 @@ func (nrs *NodeRegistrationService) GetNodeRegistryAtHeight(height uint32) ([]*m
 }
 
 // AddParticipationScore updates a node's participation score by increment/deincrement a previous score by a given number
-func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int64, height uint32, dbTx bool) (newScore int64, err error) {
+func (nrs *NodeRegistrationService) AddParticipationScore(
+	nodeID, scoreDelta int64, height uint32, dbTx bool,
+) (newScore int64, err error) {
 	var (
 		nodeRegistry storage.NodeRegistry
 	)
@@ -490,7 +511,18 @@ func (nrs *NodeRegistrationService) AddParticipationScore(nodeID, scoreDelta int
 	} else {
 		newScore = nodeRegistry.ParticipationScore + scoreDelta
 	}
+	// update cache
+	nodeRegistry.ParticipationScore = newScore
 
+	txActiveCache, ok := nrs.ActiveNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		return newScore,
+			blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
+	}
+	err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
+	if err != nil {
+		return newScore, err
+	}
 	// finally update the participation score
 	updateParticipationScoreQuery := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)
 	err = nrs.QueryExecutor.ExecuteTransactions(updateParticipationScoreQuery)

@@ -470,6 +470,30 @@ func (m *Migration) Init() error {
 			`
 			CREATE INDEX "transaction_block_id_idx" ON "transaction" ("block_id")
 			`,
+			`
+			ALTER TABLE "main_block"
+				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash"
+			`,
+			`
+			ALTER TABLE "main_block"
+				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root"
+			`,
+			`
+			ALTER TABLE "main_block"
+				ADD COLUMN "reference_block_height" INTEGER AFTER "merkle_tree"
+			`,
+			`
+			ALTER TABLE "spine_block"
+				ADD COLUMN "merkle_root" BLOB AFTER "payload_hash"
+			`,
+			`
+			ALTER TABLE "spine_block"
+				ADD COLUMN "merkle_tree" BLOB AFTER "merkle_root"
+			`,
+			`
+			ALTER TABLE "spine_block"
+				ADD COLUMN "reference_block_height" INTEGER AFTER "merkle_tree"
+			`,
 		}
 		return nil
 	}

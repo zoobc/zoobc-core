@@ -495,13 +495,6 @@ func initiateMainInstance() {
 		scrambleNodeService,
 	)
 
-	snapshotService = service.NewSnapshotService(
-		spineBlockManifestService,
-		blockchainStatusService,
-		snapshotBlockServices,
-		loggerCoreService,
-	)
-
 	spinePublicKeyService = service.NewBlockSpinePublicKeyService(
 		crypto.NewSignature(),
 		queryExecutor,
@@ -509,6 +502,16 @@ func initiateMainInstance() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 	)
+
+	snapshotService = service.NewSnapshotService(
+		spineBlockManifestService,
+		spinePublicKeyService,
+		blockchainStatusService,
+		snapshotBlockServices,
+		snapshotChunkUtil,
+		loggerCoreService,
+	)
+
 	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
 		query.NewSpinePublicKeyQuery(),
@@ -539,6 +542,7 @@ func initiateMainInstance() {
 		spineBlockStateStorage,
 		blockchainStatusService,
 		spinePublicKeyService,
+		mainchainBlockService,
 	)
 
 	/*
@@ -1004,8 +1008,8 @@ func start() {
 
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
-	startSpinechain()
 	startMainchain()
+	startSpinechain()
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()

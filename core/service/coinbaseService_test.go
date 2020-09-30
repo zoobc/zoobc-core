@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"math/big"
 	"reflect"
 	"regexp"
 	"testing"
@@ -14,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -65,35 +65,16 @@ func (*mockCoinbaseLotteryWinnersNodeRegistrationQueryScanFail) Scan(
 	return sql.ErrNoRows
 }
 
-var (
-	// CoinbaseLotteryWinners mock
-	mockCoinbaseLotteryWinnersBlocksmiths = []*model.Blocksmith{
-		{
-			NodeID:        1,
-			NodeOrder:     new(big.Int).SetInt64(8000),
-			NodePublicKey: []byte{1, 3, 4, 5, 6},
-		},
-		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
-		},
-		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(5000),
-		},
-	}
-	// CoinbaseLotteryWinners mock
-)
-
 func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	}
 	type args struct {
-		blocksmiths            []*model.Blocksmith
-		blockTimestamp         int64
-		previousBlockTimestamp int64
+		activeRegistries []storage.NodeRegistry
+		scoreSum         float64
+		blockTimestamp   int64
+		previousBlock    *model.Block
 	}
 	tests := []struct {
 		name    string
@@ -109,9 +90,17 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			args: args{
-				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
-				previousBlockTimestamp: 1,
+				activeRegistries: []storage.NodeRegistry{
+					{
+						Node:               model.NodeRegistration{},
+						ParticipationScore: 1,
+					},
+				},
+				scoreSum:       100,
+				blockTimestamp: 10,
+				previousBlock: &model.Block{
+					Timestamp: 1,
+				},
 			},
 			want:    nil,
 			wantErr: true,
@@ -123,9 +112,17 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				NodeRegistrationQuery: &mockCoinbaseLotteryWinnersNodeRegistrationQueryScanFail{},
 			},
 			args: args{
-				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
-				previousBlockTimestamp: 1,
+				activeRegistries: []storage.NodeRegistry{
+					{
+						Node:               model.NodeRegistration{},
+						ParticipationScore: 1,
+					},
+				},
+				scoreSum:       100,
+				blockTimestamp: 10,
+				previousBlock: &model.Block{
+					Timestamp: 1,
+				},
 			},
 			want:    nil,
 			wantErr: true,
@@ -137,13 +134,39 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
 			args: args{
-				blocksmiths:            mockCoinbaseLotteryWinnersBlocksmiths,
-				blockTimestamp:         4,
-				previousBlockTimestamp: 1,
+				activeRegistries: []storage.NodeRegistry{
+					{
+						Node: model.NodeRegistration{
+							NodeID:         1,
+							NodePublicKey:  bcsNodePubKey1,
+							AccountAddress: bcsAddress1,
+						},
+						ParticipationScore: 1,
+					},
+					{
+						Node: model.NodeRegistration{
+							NodeID:         2,
+							NodePublicKey:  bcsNodePubKey2,
+							AccountAddress: bcsAddress2,
+						},
+						ParticipationScore: 10,
+					},
+					{
+						Node: model.NodeRegistration{
+							NodeID:         3,
+							NodePublicKey:  bcsNodePubKey3,
+							AccountAddress: bcsAddress3,
+						},
+						ParticipationScore: 5,
+					},
+				},
+				scoreSum:       100,
+				blockTimestamp: 10,
+				previousBlock: &model.Block{
+					Timestamp: 1,
+				},
 			},
 			want: []string{
-				bcsAddress2,
-				bcsAddress3,
 				bcsAddress1,
 			},
 			wantErr: false,
@@ -155,11 +178,12 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 			}
-			got, err := bs.CoinbaseLotteryWinners(tt.args.blocksmiths, tt.args.blockTimestamp, tt.args.previousBlockTimestamp)
+			got, err := bs.CoinbaseLotteryWinners(tt.args.activeRegistries, tt.args.scoreSum, tt.args.blockTimestamp, tt.args.previousBlock)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.CoinbaseLotteryWinners() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BlockService.CoinbaseLotteryWinners() = %v, want %v", got, tt.want)
 			}

@@ -245,8 +245,8 @@ func (bs *BlockService) ChainWriteUnlock(actionType int) {
 // NewGenesisBlock create new block that is fixed in the value of cumulative difficulty, smith scale, and the block signature
 func (bs *BlockService) NewGenesisBlock(
 	version uint32,
-	previousBlockHash, blockSeed, blockSmithPublicKey []byte,
-	previousBlockHeight uint32,
+	previousBlockHash, blockSeed, blockSmithPublicKey, merkleRoot, merkleTree []byte,
+	previousBlockHeight, referenceBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
 	publishedReceipts []*model.PublishedReceipt,
@@ -273,6 +273,9 @@ func (bs *BlockService) NewGenesisBlock(
 		PayloadHash:          payloadHash,
 		CumulativeDifficulty: cumulativeDifficulty.String(),
 		BlockSignature:       genesisSignature,
+		ReferenceBlockHeight: referenceBlockHeight,
+		MerkleRoot:           merkleRoot,
+		MerkleTree:           merkleTree,
 	}
 	blockHash, err := commonUtils.GetBlockHash(block, bs.Chaintype)
 	if err != nil {
@@ -544,12 +547,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 
+		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
+		if err != nil {
+			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
+		}
+
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
 		totalReward := block.TotalFee + block.TotalCoinBase
+
 		lotteryAccounts, err := bs.CoinbaseService.CoinbaseLotteryWinners(
-			bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock),
+			activeRegistries,
+			scoreSum,
 			block.Timestamp,
-			previousBlock.Timestamp,
+			previousBlock,
 		)
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
@@ -994,7 +1004,7 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 
 	block, err = commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, err
 	}
 
 	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
@@ -1234,6 +1244,10 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		nil,
 		bs.Chaintype.GetGenesisBlockSeed(),
 		bs.Chaintype.GetGenesisNodePublicKey(),
+		// TODO: Generate merkle root genesis
+		nil,
+		nil,
+		0,
 		0,
 		bs.Chaintype.GetGenesisBlockTimestamp(),
 		totalAmount,
