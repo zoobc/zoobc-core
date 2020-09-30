@@ -368,7 +368,9 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
 	if err != nil {
 		errRollback := nru.QueryExecutor.RollbackTx()
-		nru.Logger.Error(errRollback)
+		if errRollback != nil {
+			nru.Logger.Error(errRollback)
+		}
 		return err
 	}
 	err = nru.QueryExecutor.CommitTx()
@@ -570,6 +572,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 		}
 		err = nru.UpdateAddrressInfo(nodeAddressInfo)
 		if err != nil {
+			nru.Logger.Errorf("UpdateAddressInfoFail - %v", err)
 			return false, err
 		}
 		return true, nil
