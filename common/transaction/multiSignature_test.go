@@ -1281,7 +1281,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	type args struct {
@@ -1568,7 +1567,6 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -1679,7 +1677,6 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -1909,7 +1906,6 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -2043,7 +2039,6 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	type args struct {
@@ -2137,7 +2132,6 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {

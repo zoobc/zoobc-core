@@ -790,7 +790,6 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -1009,7 +1008,6 @@ func TestLiquidPayment_SkipMempoolTransaction(t *testing.T) {
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -1066,7 +1064,6 @@ func TestLiquidPayment_Escrowable(t *testing.T) {
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {

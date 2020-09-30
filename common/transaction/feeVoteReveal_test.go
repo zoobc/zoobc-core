@@ -386,9 +386,6 @@ type (
 	mockAccountBalanceHelperFeeVoteRevealSuccess struct {
 		AccountBalanceHelper
 	}
-	mockAccountLedgerHelperFeeVoteRevealSuccess struct {
-		AccountLedgerHelper
-	}
 	mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess struct {
 		query.Executor
 	}
@@ -398,10 +395,6 @@ func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(
 	return nil
 }
 func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
-	return nil
-}
-
-func (*mockAccountLedgerHelperFeeVoteRevealSuccess) InsertLedgerEntry(*model.AccountLedger) error {
 	return nil
 }
 
