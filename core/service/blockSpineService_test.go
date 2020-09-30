@@ -1597,7 +1597,7 @@ type (
 	}
 )
 
-func (*mockAddGenesisBlockMainBlockServiceSuccess) GetGenesisBlock() (*model.Block, error) {
+func (*mockAddGenesisBlockMainBlockServiceSuccess) GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error) {
 	return &model.Block{}, nil
 }
 
