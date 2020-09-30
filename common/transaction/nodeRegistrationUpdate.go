@@ -10,26 +10,29 @@ import (
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
-	ID                    int64
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	Timestamp             int64
-	Body                  *model.UpdateNodeRegistrationTransactionBody
-	Escrow                *model.Escrow
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	BlockQuery            query.BlockQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.NodeAuthValidationInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
-	AccountBalanceHelper  AccountBalanceHelperInterface
-	EscrowFee             fee.FeeModelInterface
-	NormalFee             fee.FeeModelInterface
+	ID                           int64
+	Fee                          int64
+	SenderAddress                string
+	Height                       uint32
+	Timestamp                    int64
+	Body                         *model.UpdateNodeRegistrationTransactionBody
+	Escrow                       *model.Escrow
+	NodeRegistrationQuery        query.NodeRegistrationQueryInterface
+	BlockQuery                   query.BlockQueryInterface
+	QueryExecutor                query.ExecutorInterface
+	AuthPoown                    auth.NodeAuthValidationInterface
+	EscrowQuery                  query.EscrowTransactionQueryInterface
+	AccountBalanceHelper         AccountBalanceHelperInterface
+	EscrowFee                    fee.FeeModelInterface
+	NormalFee                    fee.FeeModelInterface
+	PendingNodeRegistrationCache storage.TransactionalCache
+	ActiveNodeRegistrationCache  storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -118,8 +121,14 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
-
-	return nil
+	// update cache by replace
+	switch model.NodeRegistrationState(nodeReg.GetRegistrationStatus()) {
+	case model.NodeRegistrationState_NodeQueued:
+		err = tx.PendingNodeRegistrationCache.TxSetItem(nodeReg.NodeID, nodeReg)
+	case model.NodeRegistrationState_NodeRegistered:
+		err = tx.ActiveNodeRegistrationCache.TxSetItem(nodeReg.NodeID, nodeReg)
+	}
+	return err
 }
 
 /*

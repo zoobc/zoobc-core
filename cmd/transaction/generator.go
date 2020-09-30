@@ -16,6 +16,7 @@ import (
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 )
 
@@ -38,7 +39,6 @@ others specific field for generate register node transaction
 */
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,
@@ -70,7 +70,6 @@ others specific field for update register node transaction
 */
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,
@@ -348,8 +347,9 @@ func GenerateSignedTxBytes(
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
+	txBytesHash := sha3.Sum256(unsignedTxBytes)
 	tx.Signature, err = signature.Sign(
-		unsignedTxBytes,
+		txBytesHash[:],
 		model.SignatureType(signatureType),
 		senderSeed,
 		optionalSignParams...,

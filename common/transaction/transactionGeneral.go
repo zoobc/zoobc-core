@@ -14,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -25,12 +24,7 @@ type (
 		GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error)
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
 		GetTransactionID(transactionHash []byte) (int64, error)
-		ValidateTransaction(
-			tx *model.Transaction,
-			queryExecutor query.ExecutorInterface,
-			accountBalanceQuery query.AccountBalanceQueryInterface,
-			verifySignature bool,
-		) error
+		ValidateTransaction(tx *model.Transaction, typeAction TypeAction, verifySignature bool) error
 		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (string, error)
 	}
 
@@ -280,14 +274,10 @@ func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 }
 
 // ValidateTransaction take in transaction object and execute basic validation
-func (u *Util) ValidateTransaction(
-	tx *model.Transaction,
-	queryExecutor query.ExecutorInterface,
-	accountBalanceQuery query.AccountBalanceQueryInterface,
-	verifySignature bool,
-) error {
+func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction, verifySignature bool) error {
 	var (
-		err error
+		err      error
+		feeScale model.FeeScale
 	)
 
 	if tx.Fee <= 0 {
@@ -296,38 +286,18 @@ func (u *Util) ValidateTransaction(
 			"TxFeeZero",
 		)
 	}
-	txAction, err := (&TypeSwitcher{
-		Executor:            queryExecutor,
-		MempoolCacheStorage: u.MempoolCacheStorage,
-	}).GetTransactionType(tx)
-	if err != nil {
-		return blocker.NewBlocker(
-			blocker.AppErr,
-			"FailToGetTxType",
-		)
-	}
-	minFee, err := txAction.GetMinimumFee()
-	if err != nil {
-		return blocker.NewBlocker(
-			blocker.AppErr,
-			"FailToGetTxMinFee",
-		)
-	}
-	var feeScale model.FeeScale
 	err = u.FeeScaleService.GetLatestFeeScale(&feeScale)
 	if err != nil {
-		return blocker.NewBlocker(
-			blocker.AppErr,
-			"FailToGetTxMinFee",
-		)
+		return err
 	}
-	// multiply by minimum fee first
-	if tx.Fee < int64(math.Floor(float64(minFee)*(float64(feeScale.FeeScale)/float64(constant.OneZBC)))) {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"TxFeeLessThanMinimumRequiredFee",
-		)
+	minimumFee, err := typeAction.GetMinimumFee()
+	if err != nil {
+		return err
 	}
+	if tx.Fee < int64(math.Floor(float64(minimumFee)*(float64(feeScale.FeeScale)/float64(constant.OneZBC)))) {
+		return blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("MinimumFeeIs:%v", minimumFee*feeScale.FeeScale))
+	}
+
 	if tx.SenderAccountAddress == "" {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -357,7 +327,8 @@ func (u *Util) ValidateTransaction(
 	}
 	// verify the signature of the transaction
 	if verifySignature {
-		err = crypto.NewSignature().VerifySignature(unsignedTransactionBytes, tx.Signature, tx.SenderAccountAddress)
+		txBytesHash := sha3.Sum256(unsignedTransactionBytes)
+		err = crypto.NewSignature().VerifySignature(txBytesHash[:], tx.Signature, tx.SenderAccountAddress)
 		if err != nil {
 			return err
 		}
@@ -498,11 +469,19 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 			"FailToCastInnerTransaction",
 		)
 	}
+	err = transactionUtil.ValidateTransaction(innerTx, innerTa, false)
+	if err != nil {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailToValidateInnerTx-GeneralValidation",
+		)
+	}
+
 	err = innerTa.Validate(dbTx)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
-			"FailToValidateInnerTa",
+			"FailToValidateInnerTx-TransactionTypeValidation",
 		)
 	}
 	txHash := sha3.Sum256(unsignedTxBytes)

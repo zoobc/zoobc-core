@@ -4,32 +4,35 @@ import (
 	"bytes"
 	"database/sql"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // ClaimNodeRegistration Implement service layer for claim node registration's transaction
 type ClaimNodeRegistration struct {
-	ID                    int64
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	Body                  *model.ClaimNodeRegistrationTransactionBody
-	Escrow                *model.Escrow
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	BlockQuery            query.BlockQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AuthPoown             auth.NodeAuthValidationInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
-	AccountBalanceHelper  AccountBalanceHelperInterface
-	EscrowFee             fee.FeeModelInterface
-	NormalFee             fee.FeeModelInterface
+	ID                      int64
+	Fee                     int64
+	SenderAddress           string
+	Height                  uint32
+	Body                    *model.ClaimNodeRegistrationTransactionBody
+	Escrow                  *model.Escrow
+	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+	BlockQuery              query.BlockQueryInterface
+	QueryExecutor           query.ExecutorInterface
+	AuthPoown               auth.NodeAuthValidationInterface
+	EscrowQuery             query.EscrowTransactionQueryInterface
+	AccountBalanceHelper    AccountBalanceHelperInterface
+	EscrowFee               fee.FeeModelInterface
+	NormalFee               fee.FeeModelInterface
+	NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
+	NodeAddressInfoStorage  storage.TransactionalCache
+	ActiveNodeRegistryCache storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -58,6 +61,7 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		nodeReg model.NodeRegistration
 		row     *sql.Row
 		err     error
+		queries [][]interface{}
 	)
 
 	row, _ = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), false, tx.Body.GetNodePublicKey())
@@ -94,13 +98,39 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		// otherwise it could trigger an error when parsing the transaction from its bytes
 		AccountAddress: nodeReg.GetAccountAddress(),
 	})
-
-	err = tx.QueryExecutor.ExecuteTransactions(nodeQueries)
+	queries = append(queries, nodeQueries...)
+	// remove the node_address_info
+	removeNodeAddressInfoQ, removeNodeAddressInfoArgs := tx.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+		nodeReg.NodeID,
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressPending,
+			model.NodeAddressStatus_NodeAddressConfirmed,
+			model.NodeAddressStatus_Unset,
+		},
+	)
+	removeNodeAddressInfoQueries := append([]interface{}{removeNodeAddressInfoQ}, removeNodeAddressInfoArgs...)
+	queries = append(queries, removeNodeAddressInfoQueries)
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
 	}
 
-	return nil
+	// Remove Node Address Info on cache storage
+	err = tx.NodeAddressInfoStorage.TxRemoveItem(
+		storage.NodeAddressInfoStorageKey{
+			NodeID: nodeReg.NodeID,
+			Statuses: []model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressPending,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_Unset,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	return err
 }
 
 /*

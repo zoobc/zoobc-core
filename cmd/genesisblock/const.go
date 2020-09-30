@@ -55,7 +55,6 @@ type (
 		NodePublicKey  string `json:"NodePublicKey"`
 		NodeSeed       string `json:"NodeSeed"`
 		AccountAddress string `json:"AccountAddress"`
-		NodeAddress    string `json:"MyAddress,omitempty"`
 		Smithing       bool   `json:"Smithing,omitempty"`
 	}
 	accountNodeEntry struct {

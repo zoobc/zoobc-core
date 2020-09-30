@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/monitoring"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -12,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 )
@@ -93,34 +96,44 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 		fmt.Println("Failed get Db")
 		panic(err)
 	}
-
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
 	var (
 		queryExecutor          = query.NewQueryExecutor(dB)
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
-			query.NewNodeRegistrationQuery(),
 			query.NewNodeAddressInfoQuery(),
+			query.NewNodeRegistrationQuery(),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+			nil,
+			storage.NewNodeAddressInfoStorage(),
+			nil,
+			activeNodeRegistryCacheStorage,
 			logrus.New(),
 		)
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,
-			query.NewNodeAddressInfoQuery(),
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
-			query.NewBlockQuery(&chaintype.MainChain{}),
 			query.NewNodeAdmissionTimestampQuery(),
-			nil,
 			nil,
 			nil,
 			nodeAddressInfoService,
 			nil,
-			nil,
+			activeNodeRegistryCacheStorage,
+			pendingNodeRegistryCacheStorage,
 		)
+		scramblecache       = storage.NewScrambleCacheStackStorage()
+		scrambleNodeService = service.NewScrambleNodeService(
+			nodeRegistrationService, nodeAddressInfoService, queryExecutor, query.NewBlockQuery(&chaintype.MainChain{}), scramblecache)
 	)
-
-	scrambledNodes, err := nodeRegistrationService.GetScrambleNodesByHeight(wantedBlockHeight)
+	err = nodeAddressInfoService.ClearUpdateNodeAddressInfoCache()
+	if err != nil {
+		panic(err)
+	}
+	scrambledNodes, err := scrambleNodeService.GetScrambleNodesByHeight(wantedBlockHeight)
 	if err != nil {
 		panic(err)
 	}

@@ -124,7 +124,9 @@ func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model
 	for _, npk := range params.NodePublicKeys {
 		publicKeyInterfaces = append(publicKeyInterfaces, npk)
 	}
-	caseQuery.Where(caseQuery.In("node_public_key", publicKeyInterfaces...))
+	if len(publicKeyInterfaces) > 0 {
+		caseQuery.Where(caseQuery.In("node_public_key", publicKeyInterfaces...))
+	}
 	caseQuery.And(caseQuery.Equal("latest", 1))
 	caseQuery.OrderBy("height", model.OrderBy_DESC)
 

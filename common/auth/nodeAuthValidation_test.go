@@ -48,6 +48,9 @@ func (*mockExecutorValidateSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 		10000000,
 		1,
 		0,
+		[]byte{},
+		[]byte{},
+		0,
 	)
 	mock.ExpectQuery("SELECT").WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil

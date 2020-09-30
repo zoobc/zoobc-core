@@ -9,24 +9,28 @@ import (
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // RemoveNodeRegistration Implement service layer for (new) node registration's transaction
 type RemoveNodeRegistration struct {
-	ID                    int64
-	Fee                   int64
-	SenderAddress         string
-	Height                uint32
-	Body                  *model.RemoveNodeRegistrationTransactionBody
-	Escrow                *model.Escrow
-	NodeRegistrationQuery query.NodeRegistrationQueryInterface
-	NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
-	QueryExecutor         query.ExecutorInterface
-	AccountBalanceHelper  AccountBalanceHelperInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
-	EscrowFee             fee.FeeModelInterface
-	NormalFee             fee.FeeModelInterface
+	ID                       int64
+	Fee                      int64
+	SenderAddress            string
+	Height                   uint32
+	Body                     *model.RemoveNodeRegistrationTransactionBody
+	Escrow                   *model.Escrow
+	NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
+	QueryExecutor            query.ExecutorInterface
+	AccountBalanceHelper     AccountBalanceHelperInterface
+	EscrowQuery              query.EscrowTransactionQueryInterface
+	EscrowFee                fee.FeeModelInterface
+	NormalFee                fee.FeeModelInterface
+	NodeAddressInfoStorage   storage.TransactionalCache
+	PendingNodeRegistryCache storage.TransactionalCache
+	ActiveNodeRegistryCache  storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -112,7 +116,26 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		return err
 	}
 
-	return nil
+	// Remove Node Address Info on cache storage
+	err = tx.NodeAddressInfoStorage.TxRemoveItem(
+		storage.NodeAddressInfoStorageKey{
+			NodeID: nodeReg.NodeID,
+			Statuses: []model.NodeAddressStatus{
+				model.NodeAddressStatus_NodeAddressPending,
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				model.NodeAddressStatus_Unset,
+			},
+		},
+	)
+	if err != nil {
+		return err
+	}
+	err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	if err != nil {
+		return err
+	}
+	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	return err
 }
 
 /*

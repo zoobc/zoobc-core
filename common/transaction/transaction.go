@@ -43,8 +43,12 @@ type (
 	}
 	// TypeSwitcher is TypeActionSwitcher shell
 	TypeSwitcher struct {
-		Executor            query.ExecutorInterface
-		MempoolCacheStorage storage.CacheStorageInterface
+		Executor                   query.ExecutorInterface
+		NodeAuthValidation         auth.NodeAuthValidationInterface
+		MempoolCacheStorage        storage.CacheStorageInterface
+		NodeAddressInfoStorage     storage.TransactionalCache
+		PendingNodeRegistryStorage storage.TransactionalCache
+		ActiveNodeRegistryStorage  storage.TransactionalCache
 	}
 )
 
@@ -131,7 +135,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 			}, nil
 		case 1:
 			transactionBody, err = (&UpdateNodeRegistration{
@@ -156,7 +161,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				PendingNodeRegistrationCache: ts.PendingNodeRegistryStorage,
+				ActiveNodeRegistrationCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
 		case 2:
 			transactionBody, err = new(RemoveNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -178,7 +185,10 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NodeAddressInfoStorage:   ts.NodeAddressInfoStorage,
+				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
+				ActiveNodeRegistryCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
 		case 3:
 			transactionBody, err = new(ClaimNodeRegistration).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -201,7 +211,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
+				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
 			}, nil
 		default:
 			return nil, nil

@@ -44,6 +44,7 @@ type (
 		DerivedQueries                []query.DerivedQuery
 		BlockMainService              BlockServiceInterface
 		NodeRegistrationService       NodeRegistrationServiceInterface
+		ScrambleNodeService           ScrambleNodeServiceInterface
 	}
 )
 
@@ -75,6 +76,7 @@ func NewSnapshotMainBlockService(
 	typeSwitcher transaction.TypeActionSwitcher,
 	blockMainService BlockServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
+	scrambleNodeService ScrambleNodeServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
 		SnapshotPath:                  snapshotPath,
@@ -105,6 +107,7 @@ func NewSnapshotMainBlockService(
 		TypeActionSwitcher:            typeSwitcher,
 		BlockMainService:              blockMainService,
 		NodeRegistrationService:       nodeRegistrationService,
+		ScrambleNodeService:           scrambleNodeService,
 	}
 }
 
@@ -251,6 +254,14 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 				return err
 			}
 		}
+	}
+	err = ss.ScrambleNodeService.InitializeScrambleCache(currentBlock.GetHeight())
+	if err != nil {
+		return err
+	}
+	err = ss.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return err
 	}
 	return nil
 }

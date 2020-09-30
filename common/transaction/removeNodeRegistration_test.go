@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -593,17 +594,30 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	}
 }
 
+type (
+	mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess struct {
+		storage.TransactionalCache
+	}
+)
+
+func (*mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) TxRemoveItem(interface{}) error {
+	return nil
+}
+
 func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
-		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
-		AccountBalanceHelper  AccountBalanceHelperInterface
+		Body                     *model.RemoveNodeRegistrationTransactionBody
+		Fee                      int64
+		SenderAddress            string
+		Height                   uint32
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		NodeAddressInfoStorage   storage.TransactionalCache
+		ActiveNodeRegistryCache  storage.TransactionalCache
+		PendingNodeRegistryCache storage.TransactionalCache
 	}
 	tests := []struct {
 		name    string
@@ -613,25 +627,30 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:fail-{nodeNotExist}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
-				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
+				Body:                     body,
+				Fee:                      1,
+				SenderAddress:            "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				QueryExecutor:         &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
-				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
+				Body:                     body,
+				Fee:                      1,
+				SenderAddress:            "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
+				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
+				AccountBalanceHelper:     &mockAccountBalanceHelperSuccess{},
+				NodeAddressInfoStorage:   &mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 			wantErr: false,
 		},
@@ -639,14 +658,17 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeAddressInfoQuery:  tt.fields.NodeAddressInfoQuery,
-				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
+				Body:                     tt.fields.Body,
+				Fee:                      tt.fields.Fee,
+				SenderAddress:            tt.fields.SenderAddress,
+				Height:                   tt.fields.Height,
+				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				NodeAddressInfoQuery:     tt.fields.NodeAddressInfoQuery,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				NodeAddressInfoStorage:   tt.fields.NodeAddressInfoStorage,
+				ActiveNodeRegistryCache:  tt.fields.ActiveNodeRegistryCache,
+				PendingNodeRegistryCache: tt.fields.PendingNodeRegistryCache,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

@@ -2,20 +2,20 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/storage"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
@@ -98,6 +98,8 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	signature := crypto.NewSignature()
+	nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
@@ -115,29 +117,33 @@ func initialize(
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
-	actionSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
 	mempoolStorage := storage.NewMempoolStorage()
+
+	actionSwitcher := &transaction.TypeSwitcher{
+		Executor:            queryExecutor,
+		NodeAuthValidation:  nodeAuthValidation,
+		MempoolCacheStorage: mempoolStorage,
+	}
 	blockStorage := storage.NewBlockStateStorage()
+	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewNodeReceiptQuery(),
-		nil,
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
-		nil,
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
 		nil,
+		nil,
+		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -152,22 +158,35 @@ func initialize(
 		nil,
 		blockStorage,
 		mempoolStorage,
+		nil,
 	)
-	nodeRegistrationService := service.NewNodeRegistrationService(
+	nodeAddressInfoService := service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
+		nodeAddressInfoStorage,
+		nil,
+		nil,
+		log.New(),
+	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
+	nodeRegistrationService := service.NewNodeRegistrationService(
+		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nodeAddressInfoService,
 		nil,
-		nil,
-		nil,
-		nil,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
+
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
 		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
 	)
@@ -182,7 +201,6 @@ func initialize(
 	)
 	blockService = service.NewBlockMainService(
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
@@ -192,6 +210,7 @@ func initialize(
 		mempoolService,
 		receiptService,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -213,18 +232,7 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
-			nil,
-		),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		feeScaleService,
-		query.GetPruneQuery(chainType),
-		nil,
-		nil,
-	)
+		), nil, nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil)
 
 	migration = database.Migration{Query: queryExecutor}
 }

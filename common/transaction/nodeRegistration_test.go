@@ -8,13 +8,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/constant"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -767,15 +767,16 @@ func (*mockAccountBalanceHelperNRApplyConfirmedFail) AddAccountBalance(
 
 func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		Body                    *model.NodeRegistrationTransactionBody
-		Fee                     int64
-		SenderAddress           string
-		Height                  uint32
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		BlockQuery              query.BlockQueryInterface
-		QueryExecutor           query.ExecutorInterface
-		AccountBalanceHelper    AccountBalanceHelperInterface
+		Body                     *model.NodeRegistrationTransactionBody
+		Fee                      int64
+		SenderAddress            string
+		Height                   uint32
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery  query.ParticipationScoreQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		PendingNodeRegistryCache storage.TransactionalCache
 	}
 	tests := []struct {
 		name    string
@@ -796,7 +797,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountBalanceHelper: &mockAccountBalanceHelperNRApplyConfirmedFail{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperNRApplyConfirmedFail{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -813,7 +815,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountBalanceHelper: &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -830,7 +833,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountBalanceHelper: &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -847,7 +851,8 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountBalanceHelper: &mockAccountBalanceHelperNRApplyConfirmedFail{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperNRApplyConfirmedFail{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 		{
@@ -863,22 +868,24 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 				Body: &model.NodeRegistrationTransactionBody{
 					LockedBalance: 10000,
 				},
-				AccountBalanceHelper: &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &NodeRegistration{
-				Body:                    tt.fields.Body,
-				Fee:                     tt.fields.Fee,
-				SenderAddress:           tt.fields.SenderAddress,
-				Height:                  tt.fields.Height,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockQuery:              tt.fields.BlockQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				AccountBalanceHelper:    tt.fields.AccountBalanceHelper,
+				Body:                     tt.fields.Body,
+				Fee:                      tt.fields.Fee,
+				SenderAddress:            tt.fields.SenderAddress,
+				Height:                   tt.fields.Height,
+				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
+				BlockQuery:               tt.fields.BlockQuery,
+				ParticipationScoreQuery:  tt.fields.ParticipationScoreQuery,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
+				PendingNodeRegistryCache: tt.fields.PendingNodeRegistryCache,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)

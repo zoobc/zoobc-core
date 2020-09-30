@@ -46,7 +46,7 @@ func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uin
 	return constant.PriorityStrategyMaxPriorityPeers
 }
 
-// GenerateReceipt generate receipt object that act as proof of receipt on data. Data received can be
+// GenerateBatchReceipt generate receipt object that act as proof of receipt on data. Data received can be
 // block, transaction, etc.
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
 func (ru *ReceiptUtil) GenerateBatchReceipt(
@@ -70,7 +70,7 @@ func (ru *ReceiptUtil) GenerateBatchReceipt(
 	}, nil
 }
 
-// GetUnsignedReceiptBytes Client task while doing validation signature
+// GetUnsignedBatchReceiptBytes Client task while doing validation signature
 func (ru *ReceiptUtil) GetUnsignedBatchReceiptBytes(
 	receipt *model.BatchReceipt,
 ) []byte {
@@ -86,7 +86,7 @@ func (ru *ReceiptUtil) GetUnsignedBatchReceiptBytes(
 	return buffer.Bytes()
 }
 
-// GetSignedReceiptBytes Client task before store into database batch_receipt
+// GetSignedBatchReceiptBytes Client task before store into database batch_receipt
 func (ru *ReceiptUtil) GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(receipt.SenderPublicKey)

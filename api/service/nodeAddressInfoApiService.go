@@ -14,15 +14,15 @@ type (
 	}
 
 	NodeAddressInfoAPIService struct {
-		NodeRegistrationCoreService coreService.NodeRegistrationServiceInterface
+		NodeAddressInfoService coreService.NodeAddressInfoServiceInterface
 	}
 )
 
 func NewNodeAddressInfoAPIService(
-	nodeAddressInfoCoreService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 ) *NodeAddressInfoAPIService {
 	return &NodeAddressInfoAPIService{
-		NodeRegistrationCoreService: nodeAddressInfoCoreService,
+		NodeAddressInfoService: nodeAddressInfoService,
 	}
 }
 
@@ -32,7 +32,7 @@ func NewNodeAddressInfoAPIService(
 // confirmed address is chosen over the pending one
 func (nhs *NodeAddressInfoAPIService) GetNodeAddressesInfo(request *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
-	nais, err := nhs.NodeRegistrationCoreService.GetNodeAddressesInfoFromDb(
+	nais, err := nhs.NodeAddressInfoService.GetAddressInfoByNodeIDs(
 		request.NodeIDs,
 		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed, model.NodeAddressStatus_NodeAddressPending},
 	)

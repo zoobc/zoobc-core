@@ -22,6 +22,7 @@ var (
 
 	DBErr                     TypeBlocker = "DBErr"
 	DBRowNotFound             TypeBlocker = "DBRowNotFound"
+	NotFound                  TypeBlocker = "NotFound"
 	BlockErr                  TypeBlocker = "BlockErr"
 	BlockNotFoundErr          TypeBlocker = "BlockNotFoundErr"
 	RequestParameterErr       TypeBlocker = "RequestParameterErr"
@@ -45,6 +46,7 @@ var (
 	PushSpineBlockErr         TypeBlocker = "PushSpineBlockErr"
 	ValidateSpineBlockErr     TypeBlocker = "ValidateSpineBlockErr"
 	SchedulerError            TypeBlocker = "SchedulerError"
+	CacheEmpty                TypeBlocker = "CacheEmpty"
 )
 
 func SetIsDebugMode(val bool) {

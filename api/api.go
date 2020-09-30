@@ -35,7 +35,9 @@ func startGrpcServer(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
@@ -92,7 +94,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, scrambleNodeService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -119,7 +121,7 @@ func startGrpcServer(
 	// Set GRPC handler for node address info requests
 	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
 		Service: service.NewNodeAddressInfoAPIService(
-			nodeRegistrationService,
+			nodeAddressInfoService,
 		),
 	})
 	// Set GRPC handler for node registry request
@@ -232,7 +234,9 @@ func Start(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
@@ -249,7 +253,9 @@ func Start(
 		p2pHostService,
 		blockServices,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		mempoolService,
+		scrambleNodeService,
 		transactionUtil,
 		actionTypeSwitcher,
 		blockStateStorages,

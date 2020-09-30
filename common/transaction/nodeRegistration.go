@@ -5,33 +5,34 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 // NodeRegistration Implement service layer for (new) node registration's transaction
 type NodeRegistration struct {
-	ID                      int64
-	Fee                     int64
-	SenderAddress           string
-	Height                  uint32
-	Body                    *model.NodeRegistrationTransactionBody
-	Escrow                  *model.Escrow
-	NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-	BlockQuery              query.BlockQueryInterface
-	ParticipationScoreQuery query.ParticipationScoreQueryInterface
-	QueryExecutor           query.ExecutorInterface
-	AuthPoown               auth.NodeAuthValidationInterface
-	EscrowQuery             query.EscrowTransactionQueryInterface
-	AccountBalanceHelper    AccountBalanceHelperInterface
-	EscrowFee               fee.FeeModelInterface
-	NormalFee               fee.FeeModelInterface
+	ID                       int64
+	Fee                      int64
+	SenderAddress            string
+	Height                   uint32
+	Body                     *model.NodeRegistrationTransactionBody
+	Escrow                   *model.Escrow
+	NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+	BlockQuery               query.BlockQueryInterface
+	ParticipationScoreQuery  query.ParticipationScoreQueryInterface
+	QueryExecutor            query.ExecutorInterface
+	AuthPoown                auth.NodeAuthValidationInterface
+	EscrowQuery              query.EscrowTransactionQueryInterface
+	AccountBalanceHelper     AccountBalanceHelperInterface
+	EscrowFee                fee.FeeModelInterface
+	NormalFee                fee.FeeModelInterface
+	PendingNodeRegistryCache storage.TransactionalCache
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
@@ -156,6 +157,14 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
 		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
 		queries = append(queries, newQ)
+		// update node registry cache (in transaction) and resort
+		err = tx.PendingNodeRegistryCache.TxSetItem(nil, storage.NodeRegistry{
+			Node:               *nodeRegistration,
+			ParticipationScore: ps.Score,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	err = tx.QueryExecutor.ExecuteTransactions(queries)

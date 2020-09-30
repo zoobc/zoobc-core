@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -39,8 +40,19 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
 	accountBalanceHelper := NewAccountBalanceHelper(&query.Executor{}, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
+	// cache mock
+	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
+		return cache.(storage.TransactionalCache)
+	}
+	txActiveNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
+	txPendingNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	type fields struct {
-		Executor query.ExecutorInterface
+		Executor                   query.ExecutorInterface
+		NodeAuthValidation         auth.NodeAuthValidationInterface
+		MempoolCacheStorage        storage.CacheStorageInterface
+		PendingNodeRegistryStorage storage.TransactionalCache
+		ActiveNodeRegistryStorage  storage.TransactionalCache
+		NodeAddressInfoStorage     storage.TransactionalCache
 	}
 	type args struct {
 		tx *model.Transaction
@@ -131,7 +143,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -159,13 +174,17 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantUpdateNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -192,13 +211,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
+				PendingNodeRegistrationCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantRemoveNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -222,14 +246,19 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-				EscrowQuery: query.NewEscrowTransactionQuery(),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
+				ActiveNodeRegistryCache:  txActiveNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantClaimNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -255,8 +284,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, fee.SendMoneyFeeConstant,
 				),
-				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-				EscrowQuery: query.NewEscrowTransactionQuery(),
+				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
+				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
 			},
 		},
 		{
@@ -508,7 +538,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := &TypeSwitcher{
-				Executor: tt.fields.Executor,
+				Executor:                   tt.fields.Executor,
+				MempoolCacheStorage:        tt.fields.MempoolCacheStorage,
+				NodeAuthValidation:         tt.fields.NodeAuthValidation,
+				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryStorage,
+				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryStorage,
+				NodeAddressInfoStorage:     tt.fields.NodeAddressInfoStorage,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)

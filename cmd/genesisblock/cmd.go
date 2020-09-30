@@ -9,20 +9,23 @@ import (
 	"log"
 	"os"
 	"path"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
 
-	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/spf13/cobra"
-
+	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -488,7 +491,28 @@ func generateGenesisFile(genesisEntries []genesisEntry, newMainGenesisFilePath, 
 
 func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID int64) {
 	var (
-		genesisConfig []constant.GenesisConfigEntry
+		signature                 = crypto.NewSignature()
+		nodeAuthValidationService = auth.NewNodeAuthValidation(signature)
+		mempoolStorage            = storage.NewMempoolStorage()
+		genesisConfig             []constant.GenesisConfigEntry
+	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(
+		monitoring.TypeActiveNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by nodeID lowest - highest
+				return registries[i].Node.GetNodeID() < registries[j].Node.GetNodeID()
+			})
+		})
+	// store pending node registry
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(
+		monitoring.TypePendingNodeRegistryStorage,
+		func(registries []storage.NodeRegistry) {
+			sort.SliceStable(registries, func(i, j int) bool {
+				// sort by locked balance highest - lowest
+				return registries[i].Node.GetLockedBalance() > registries[j].Node.GetLockedBalance()
+			})
+		},
 	)
 	for _, entry := range genesisEntries {
 		cfgEntry := constant.GenesisConfigEntry{
@@ -500,6 +524,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
+
 	bs := service.NewBlockMainService(
 		&chaintype.MainChain{},
 		nil,
@@ -512,15 +537,19 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
-		&transaction.TypeSwitcher{},
+		&transaction.TypeSwitcher{
+			MempoolCacheStorage:        mempoolStorage,
+			NodeAuthValidation:         nodeAuthValidationService,
+			ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
+			PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
+		},
 		nil,
 		nil,
 		nil,
 		nil,
 		nil,
 		nil,
-		nil,
-		nil,
+		nil, nil,
 		nil,
 		&transaction.Util{},
 		&coreUtil.ReceiptUtil{},
@@ -532,7 +561,9 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
+		nil,
 		query.GetPruneQuery(&chaintype.MainChain{}),
+		nil,
 		nil,
 		nil,
 	)
@@ -540,7 +571,22 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 	if err != nil {
 		log.Fatal(err)
 	}
-	sb := service.NewBlockSpineService(&chaintype.SpineChain{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
+	sb := service.NewBlockSpineService(
+		&chaintype.SpineChain{},
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		bs,
+	)
 	spine, err := sb.GenerateGenesisBlock(genesisConfig)
 	if err != nil {
 		log.Fatal(err)

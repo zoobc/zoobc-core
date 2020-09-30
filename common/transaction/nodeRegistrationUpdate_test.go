@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -655,15 +656,17 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		LockedBalance: int64(10000000000),
 	}
 	type fields struct {
-		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlockQuery            query.BlockQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.NodeAuthValidationInterface
-		AccountBalanceHelper  AccountBalanceHelperInterface
+		Body                     *model.UpdateNodeRegistrationTransactionBody
+		Fee                      int64
+		SenderAddress            string
+		Height                   uint32
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AuthPoown                auth.NodeAuthValidationInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		PendingNodeRegistryCache storage.TransactionalCache
+		ActiveNodeRegistryCache  storage.TransactionalCache
 	}
 	tests := []struct {
 		name    string
@@ -673,23 +676,27 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:fail-{PreviousNodeRecordNotFound}",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess{},
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper:     &mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			wantErr: false,
 		},
@@ -697,15 +704,17 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				BlockQuery:            tt.fields.BlockQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AuthPoown:             tt.fields.AuthPoown,
-				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
+				Body:                         tt.fields.Body,
+				Fee:                          tt.fields.Fee,
+				SenderAddress:                tt.fields.SenderAddress,
+				Height:                       tt.fields.Height,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				BlockQuery:                   tt.fields.BlockQuery,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				AuthPoown:                    tt.fields.AuthPoown,
+				AccountBalanceHelper:         tt.fields.AccountBalanceHelper,
+				PendingNodeRegistrationCache: tt.fields.PendingNodeRegistryCache,
+				ActiveNodeRegistrationCache:  tt.fields.ActiveNodeRegistryCache,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
