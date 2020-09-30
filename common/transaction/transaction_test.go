@@ -3,9 +3,10 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -46,11 +47,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	txActiveNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	txPendingNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	type fields struct {
-		Executor                 query.ExecutorInterface
-		NodeAuthValidation       auth.NodeAuthValidationInterface
-		MempoolCacheStorage      storage.CacheStorageInterface
-		PendingNodeRegistryCache storage.CacheStorageInterface
-		ActiveNodeRegistryCache  storage.CacheStorageInterface
+		Executor                   query.ExecutorInterface
+		NodeAuthValidation         auth.NodeAuthValidationInterface
+		MempoolCacheStorage        storage.CacheStorageInterface
+		PendingNodeRegistryStorage storage.TransactionalCache
+		ActiveNodeRegistryStorage  storage.TransactionalCache
+		NodeAddressInfoStorage     storage.TransactionalCache
 	}
 	type args struct {
 		tx *model.Transaction
@@ -142,10 +144,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantNodeRegistration",
 			fields: fields{
-				Executor:                 &query.Executor{},
-				NodeAuthValidation:       &auth.NodeAuthValidation{},
-				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
-				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -176,10 +178,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantUpdateNodeRegistration",
 			fields: fields{
-				Executor:                 &query.Executor{},
-				NodeAuthValidation:       &auth.NodeAuthValidation{},
-				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
-				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -210,10 +212,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantRemoveNodeRegistration",
 			fields: fields{
-				Executor:                 &query.Executor{},
-				NodeAuthValidation:       &auth.NodeAuthValidation{},
-				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
-				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -244,10 +246,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantClaimNodeRegistration",
 			fields: fields{
-				Executor:                 &query.Executor{},
-				NodeAuthValidation:       &auth.NodeAuthValidation{},
-				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
-				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -502,8 +504,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Executor:                   tt.fields.Executor,
 				MempoolCacheStorage:        tt.fields.MempoolCacheStorage,
 				NodeAuthValidation:         tt.fields.NodeAuthValidation,
-				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryCache,
-				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryCache,
+				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryStorage,
+				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryStorage,
+				NodeAddressInfoStorage:     tt.fields.NodeAddressInfoStorage,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)

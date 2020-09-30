@@ -13,17 +13,15 @@ import (
 )
 
 type (
-	NodeAddressInfoStorageInterface interface {
-		AddAwaitedRemoveItem(key NodeAddressInfoStorageKey) error
-		ClearAwaitedRemoveItems() error
-	}
 	// NodeAddressInfoStorage represent list of node address info
 	NodeAddressInfoStorage struct {
 		sync.RWMutex
-		nodeAddressInfoMapByID          map[int64]map[string]model.NodeAddressInfo
-		nodeAddressInfoMapByAddressPort map[string]map[int64]bool
-		nodeAddressInfoMapByStatus      map[model.NodeAddressStatus]map[int64]map[string]bool
-		awaitedRemoveList               map[int64]map[string]bool
+		transactionalLock                          sync.RWMutex
+		isInTransaction                            bool
+		nodeAddressInfoMapByID                     map[int64]map[string]model.NodeAddressInfo
+		nodeAddressInfoMapByAddressPort            map[string]map[int64]bool
+		nodeAddressInfoMapByStatus                 map[model.NodeAddressStatus]map[int64]map[string]bool
+		transactionalRemovedNodeAddressInfoMapByID map[int64]map[string]bool
 	}
 	// NodeAddressInfoStorageKey represent a key for NodeAddressInfoStorage
 	NodeAddressInfoStorageKey struct {
@@ -35,10 +33,10 @@ type (
 
 func NewNodeAddressInfoStorage() *NodeAddressInfoStorage {
 	return &NodeAddressInfoStorage{
-		nodeAddressInfoMapByID:          make(map[int64]map[string]model.NodeAddressInfo),
-		nodeAddressInfoMapByAddressPort: make(map[string]map[int64]bool),
-		nodeAddressInfoMapByStatus:      make(map[model.NodeAddressStatus]map[int64]map[string]bool),
-		awaitedRemoveList:               make(map[int64]map[string]bool),
+		nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+		nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+		nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+		transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
 	}
 }
 
@@ -74,9 +72,15 @@ func (nas *NodeAddressInfoStorage) SetItem(key, item interface{}) error {
 	return nil
 }
 
+func (nas *NodeAddressInfoStorage) SetItems(item interface{}) error {
+	return nil
+}
+
 func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
-	nas.RLock()
-	defer nas.RUnlock()
+	if !nas.isInTransaction {
+		nas.RLock()
+		defer nas.RUnlock()
+	}
 	storageKey, ok := key.(NodeAddressInfoStorageKey)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:NodeAddressInfoStorageKey")
@@ -118,8 +122,10 @@ func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 }
 
 func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
-	nas.RLock()
-	defer nas.RUnlock()
+	if !nas.isInTransaction {
+		nas.RLock()
+		defer nas.RUnlock()
+	}
 	nodeAddresses, ok := item.(*[]*model.NodeAddressInfo)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItemExpected:*[]*model.NodeAddressInfo")
@@ -156,16 +162,6 @@ func (nas *NodeAddressInfoStorage) RemoveItem(key interface{}) error {
 		}
 	}
 
-	// Remove all waiting node address info on remove list
-	for nodeID, nodePositionsByAddressPort := range nas.awaitedRemoveList {
-		for fullAddress := range nodePositionsByAddressPort {
-			status := nas.nodeAddressInfoMapByID[nodeID][fullAddress].Status
-			delete(nas.nodeAddressInfoMapByStatus[status][nodeID], fullAddress)
-			delete(nas.nodeAddressInfoMapByAddressPort[fullAddress], nodeID)
-			delete(nas.nodeAddressInfoMapByID[nodeID], fullAddress)
-		}
-	}
-	_ = nas.ClearAwaitedRemoveItems()
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
 	}
@@ -180,7 +176,7 @@ func (nas *NodeAddressInfoStorage) size() int {
 	_ = enc.Encode(nas.nodeAddressInfoMapByID)
 	_ = enc.Encode(nas.nodeAddressInfoMapByAddressPort)
 	_ = enc.Encode(nas.nodeAddressInfoMapByStatus)
-	_ = enc.Encode(nas.awaitedRemoveList)
+	_ = enc.Encode(nas.transactionalRemovedNodeAddressInfoMapByID)
 	return nasBytes.Len()
 }
 func (nas *NodeAddressInfoStorage) GetSize() int64 {
@@ -195,16 +191,89 @@ func (nas *NodeAddressInfoStorage) ClearCache() error {
 	nas.nodeAddressInfoMapByID = make(map[int64]map[string]model.NodeAddressInfo)
 	nas.nodeAddressInfoMapByAddressPort = make(map[string]map[int64]bool)
 	nas.nodeAddressInfoMapByStatus = make(map[model.NodeAddressStatus]map[int64]map[string]bool)
-	nas.awaitedRemoveList = make(map[int64]map[string]bool)
+	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
 	}
 	return nil
 }
 
-func (nas *NodeAddressInfoStorage) AddAwaitedRemoveItem(storageKey NodeAddressInfoStorageKey) error {
+// Transactional implementation
+
+// Begin prepare data to begin doing transactional change to the cache, this implementation
+// will never return error
+func (nas *NodeAddressInfoStorage) Begin() error {
 	nas.Lock()
-	defer nas.Unlock()
+	nas.transactionalLock.Lock()
+	defer nas.transactionalLock.Unlock()
+	nas.isInTransaction = true
+	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
+	return nil
+}
+
+func (nas *NodeAddressInfoStorage) Commit() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
+	nas.transactionalLock.Lock()
+	defer func() {
+		nas.isInTransaction = false
+		nas.Unlock()
+		nas.transactionalLock.Unlock()
+	}()
+	// Remove all node address info on transactional remove list
+	for nodeID, nodePositionsByAddressPort := range nas.transactionalRemovedNodeAddressInfoMapByID {
+		for fullAddress := range nodePositionsByAddressPort {
+			status := nas.nodeAddressInfoMapByID[nodeID][fullAddress].Status
+			delete(nas.nodeAddressInfoMapByStatus[status][nodeID], fullAddress)
+			delete(nas.nodeAddressInfoMapByAddressPort[fullAddress], nodeID)
+			delete(nas.nodeAddressInfoMapByID[nodeID], fullAddress)
+		}
+	}
+	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
+	return nil
+}
+
+func (nas *NodeAddressInfoStorage) Rollback() error {
+	// make sure isInTransaction is true
+	if !nas.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
+	nas.transactionalLock.Lock()
+	defer func() {
+		nas.isInTransaction = false
+		nas.Unlock()
+		nas.transactionalLock.Unlock()
+	}()
+	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
+	}
+	return nil
+}
+
+// TxSetItem currently doesn’t need to set in transactional
+func (nas *NodeAddressInfoStorage) TxSetItem(id, item interface{}) error {
+	return nil
+}
+
+// TxSetItems currently doesn’t need to set in transactional
+func (nas *NodeAddressInfoStorage) TxSetItems(items interface{}) error {
+	return nil
+}
+
+// TxRemoveItem will add node address info ID into transactional remove list
+func (nas *NodeAddressInfoStorage) TxRemoveItem(key interface{}) error {
+	nas.transactionalLock.Lock()
+	defer nas.transactionalLock.Unlock()
+	storageKey, ok := key.(NodeAddressInfoStorageKey)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:NodeAddressInfoStorageKey")
+	}
 	// to remove node AddressInfo is require status and node ID
 	if len(storageKey.Statuses) == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "StatusNodeAddressInfoRequired")
@@ -212,23 +281,15 @@ func (nas *NodeAddressInfoStorage) AddAwaitedRemoveItem(storageKey NodeAddressIn
 	if storageKey.NodeID == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "NodeIDNodeAddressInfoRequired")
 	}
-
+	// add removed item into transactional remove list
 	for _, status := range storageKey.Statuses {
 		for fullAddressPort := range nas.nodeAddressInfoMapByStatus[status][storageKey.NodeID] {
-			if nas.awaitedRemoveList[storageKey.NodeID] == nil {
-				nas.awaitedRemoveList[storageKey.NodeID] = make(map[string]bool)
+			if nas.transactionalRemovedNodeAddressInfoMapByID[storageKey.NodeID] == nil {
+				nas.transactionalRemovedNodeAddressInfoMapByID[storageKey.NodeID] = make(map[string]bool)
 			}
-			nas.awaitedRemoveList[storageKey.NodeID][fullAddressPort] = true
+			nas.transactionalRemovedNodeAddressInfoMapByID[storageKey.NodeID][fullAddressPort] = true
 		}
 	}
-	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
-	}
-	return nil
-}
-
-func (nas *NodeAddressInfoStorage) ClearAwaitedRemoveItems() error {
-	nas.awaitedRemoveList = make(map[int64]map[string]bool)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeNodeAddressInfoCacheStorage, float64(nas.size()))
 	}

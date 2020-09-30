@@ -586,12 +586,11 @@ func TestClaimNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 
 type (
 	mockClaimNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess struct {
-		storage.NodeAddressInfoStorageInterface
+		storage.TransactionalCache
 	}
 )
 
-func (*mockClaimNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) AddAwaitedRemoveItem(
-	key storage.NodeAddressInfoStorageKey) error {
+func (*mockClaimNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) TxRemoveItem(interface{}) error {
 	return nil
 }
 
@@ -622,7 +621,7 @@ func TestClaimNodeRegistration_ApplyConfirmed(t *testing.T) {
 		QueryExecutor           query.ExecutorInterface
 		AuthPoown               auth.NodeAuthValidationInterface
 		AccountLedgerQuery      query.AccountLedgerQueryInterface
-		NodeAddressInfoStorage  storage.NodeAddressInfoStorageInterface
+		NodeAddressInfoStorage  storage.TransactionalCache
 		NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
 		ActiveNodeRegistryCache storage.TransactionalCache
 	}

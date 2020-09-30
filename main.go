@@ -57,7 +57,7 @@ var (
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
-	nodeAddressInfoStorage                                                 *storage.NodeAddressInfoStorage
+	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
 	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -278,13 +278,26 @@ func initiateMainInstance() {
 	nodeAuthValidationService = auth.NewNodeAuthValidation(
 		crypto.NewSignature(),
 	)
+	txNodeAddressInfoStorage, ok := nodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
+	txActiveNodeRegistryStorage, ok := activeNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+	}
+	txPendingNodeRegistryStorage, ok := pendingNodeRegistryCacheStorage.(storage.TransactionalCache)
+	if !ok {
+		log.Fatal("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+	}
+
 	actionSwitcher = &transaction.TypeSwitcher{
 		Executor:                   queryExecutor,
 		MempoolCacheStorage:        mempoolStorage,
-		NodeAddressInfoStorage:     nodeAddressInfoStorage,
 		NodeAuthValidation:         nodeAuthValidationService,
-		ActiveNodeRegistryStorage:  activeNodeRegistryCacheStorage,
-		PendingNodeRegistryStorage: pendingNodeRegistryCacheStorage,
+		NodeAddressInfoStorage:     txNodeAddressInfoStorage,
+		ActiveNodeRegistryStorage:  txActiveNodeRegistryStorage,
+		PendingNodeRegistryStorage: txPendingNodeRegistryStorage,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(
@@ -334,6 +347,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 	)
+
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -775,6 +789,13 @@ func startMainchain() {
 	err = scrambleNodeService.InitializeScrambleCache(lastBlockAtStart.GetHeight())
 	if err != nil {
 		loggerCoreService.Fatalf("InitializeScrambleNodeFail - %v", err)
+	}
+
+	err = receiptService.Initialize()
+	if err != nil {
+		// error when initializing last merkle root
+		loggerCoreService.Fatalf("Fail to read last receipt merkle root: %v", err)
+		os.Exit(0)
 	}
 
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {

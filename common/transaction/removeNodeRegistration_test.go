@@ -606,12 +606,11 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 
 type (
 	mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess struct {
-		storage.NodeAddressInfoStorageInterface
+		storage.TransactionalCache
 	}
 )
 
-func (*mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) AddAwaitedRemoveItem(
-	key storage.NodeAddressInfoStorageKey) error {
+func (*mockRemoveNodeRegistrationApplyConfirmedNodeAddressInfoStorageSuccess) TxRemoveItem(interface{}) error {
 	return nil
 }
 
@@ -627,7 +626,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		QueryExecutor            query.ExecutorInterface
 		AccountLedgerQuery       query.AccountLedgerQueryInterface
 		NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
-		NodeAddressInfoStorage   storage.NodeAddressInfoStorageInterface
+		NodeAddressInfoStorage   storage.TransactionalCache
 		ActiveNodeRegistryCache  storage.TransactionalCache
 		PendingNodeRegistryCache storage.TransactionalCache
 	}
