@@ -2724,7 +2724,7 @@ type (
 	}
 )
 
-func (*mockGenerateGenesisBlockMainBlockServiceSuccess) GetGenesisBlock() (*model.Block, error) {
+func (*mockGenerateGenesisBlockMainBlockServiceSuccess) GenerateGenesisBlock(genesisEntries []constant.GenesisConfigEntry) (*model.Block, error) {
 	return &model.Block{}, nil
 }
 func TestBlockSpineService_GenerateGenesisBlock(t *testing.T) {
