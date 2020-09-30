@@ -1,7 +1,9 @@
 package snapshot
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/util"
 	"math/rand"
 	"os"
 
@@ -113,6 +115,16 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			nil,
 			nil,
 		)
+		nodeShardStorage := storage.NewNodeShardCacheStorage()
+		snapshotChunkUtil := util.NewChunkUtil(sha256.Size, nodeShardStorage, logger)
+
+		spinePublicKeyService := service.NewBlockSpinePublicKeyService(
+			crypto.NewSignature(),
+			executor,
+			query.NewNodeRegistrationQuery(),
+			query.NewSpinePublicKeyQuery(),
+			logger,
+		)
 		snapshotService = service.NewSnapshotService(
 			service.NewSpineBlockManifestService(
 				executor,
@@ -120,10 +132,12 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 				query.NewBlockQuery(&chaintype.SpineChain{}),
 				logger,
 			),
+			spinePublicKeyService,
 			service.NewBlockchainStatusService(true, logger),
 			map[int32]service.SnapshotBlockServiceInterface{
 				(&chaintype.MainChain{}).GetTypeInt(): snapshotMainService,
 			},
+			snapshotChunkUtil,
 			logger,
 		)
 		snapshotFileInfo, err = snapshotService.GenerateSnapshot(&model.Block{
@@ -182,10 +196,12 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 					query.NewBlockQuery(&chaintype.SpineChain{}),
 					logger,
 				),
+				spinePublicKeyService,
 				service.NewBlockchainStatusService(true, logger),
 				map[int32]service.SnapshotBlockServiceInterface{
 					(&chaintype.MainChain{}).GetTypeInt(): snapshotMainService,
 				},
+				snapshotChunkUtil,
 				logger,
 			)
 		}
