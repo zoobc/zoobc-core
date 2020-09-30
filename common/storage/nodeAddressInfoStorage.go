@@ -17,7 +17,6 @@ type (
 	NodeAddressInfoStorage struct {
 		sync.RWMutex
 		transactionalLock                          sync.RWMutex
-		isInTransaction                            bool
 		nodeAddressInfoMapByID                     map[int64]map[string]model.NodeAddressInfo
 		nodeAddressInfoMapByAddressPort            map[string]map[int64]bool
 		nodeAddressInfoMapByStatus                 map[model.NodeAddressStatus]map[int64]map[string]bool
@@ -77,10 +76,8 @@ func (nas *NodeAddressInfoStorage) SetItems(item interface{}) error {
 }
 
 func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
-	if !nas.isInTransaction {
-		nas.RLock()
-		defer nas.RUnlock()
-	}
+	nas.RLock()
+	defer nas.RUnlock()
 	storageKey, ok := key.(NodeAddressInfoStorageKey)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:NodeAddressInfoStorageKey")
@@ -122,10 +119,8 @@ func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 }
 
 func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
-	if !nas.isInTransaction {
-		nas.RLock()
-		defer nas.RUnlock()
-	}
+	nas.RLock()
+	defer nas.RUnlock()
 	nodeAddresses, ok := item.(*[]*model.NodeAddressInfo)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItemExpected:*[]*model.NodeAddressInfo")
@@ -203,10 +198,9 @@ func (nas *NodeAddressInfoStorage) ClearCache() error {
 // Begin prepare data to begin doing transactional change to the cache, this implementation
 // will never return error
 func (nas *NodeAddressInfoStorage) Begin() error {
-	nas.Lock()
+	nas.RLock()
 	nas.transactionalLock.Lock()
 	defer nas.transactionalLock.Unlock()
-	nas.isInTransaction = true
 	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
 	return nil
 }
@@ -214,8 +208,7 @@ func (nas *NodeAddressInfoStorage) Begin() error {
 func (nas *NodeAddressInfoStorage) Commit() error {
 	nas.transactionalLock.Lock()
 	defer func() {
-		nas.isInTransaction = false
-		nas.Unlock()
+		nas.RLock()
 		nas.transactionalLock.Unlock()
 	}()
 	// Remove all node address info on transactional remove list
@@ -237,8 +230,7 @@ func (nas *NodeAddressInfoStorage) Commit() error {
 func (nas *NodeAddressInfoStorage) Rollback() error {
 	nas.transactionalLock.Lock()
 	defer func() {
-		nas.isInTransaction = false
-		nas.Unlock()
+		nas.RLock()
 		nas.transactionalLock.Unlock()
 	}()
 	nas.transactionalRemovedNodeAddressInfoMapByID = make(map[int64]map[string]bool)
