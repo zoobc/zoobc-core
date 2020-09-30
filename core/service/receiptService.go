@@ -22,6 +22,7 @@ import (
 
 type (
 	ReceiptServiceInterface interface {
+		Initialize() error
 		SelectReceipts(
 			blockTimestamp int64,
 			numberOfReceipt uint32,
@@ -58,6 +59,8 @@ type (
 		ScrambleNodeService      ScrambleNodeServiceInterface
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
+		// local cache
+		LastMerkleRoot []byte
 	}
 )
 
@@ -88,7 +91,22 @@ func NewReceiptService(
 		ScrambleNodeService:      scrambleNodeService,
 		ReceiptReminderStorage:   receiptReminderStorage,
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
+		LastMerkleRoot:           nil,
 	}
+}
+
+func (rs *ReceiptService) Initialize() error {
+	lastRmrQ := rs.MerkleTreeQuery.GetLastMerkleRoot()
+	row, _ := rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
+
+	lastMerkleRoot, err := rs.MerkleTreeQuery.ScanRoot(row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+	}
+	rs.LastMerkleRoot = lastMerkleRoot
+	return nil
 }
 
 // SelectReceipts select list of receipts to be included in a block by prioritizing receipts that might
@@ -314,7 +332,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		if err != nil {
 			return err
 		}
-
+		rs.LastMerkleRoot = rootMerkle // update local cache
 		return rs.BatchReceiptCacheStorage.SetItems(batchReceiptsCached)
 	}
 
@@ -458,19 +476,12 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 	datumType uint32,
 ) (*model.BatchReceipt, error) {
 	var (
-		rmrLinked     []byte
+		rmrLinked     = rs.LastMerkleRoot
 		batchReceipt  *model.BatchReceipt
 		err           error
-		merkleQuery   = query.NewMerkleTreeQuery()
 		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
-		lastRmrQ      = merkleQuery.GetLastMerkleRoot()
-		row, _        = rs.QueryExecutor.ExecuteSelectRow(lastRmrQ, false)
 	)
 
-	rmrLinked, err = merkleQuery.ScanRoot(row)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, err
-	}
 	// generate receipt
 	batchReceipt, err = rs.ReceiptUtil.GenerateBatchReceipt(
 		ct,
