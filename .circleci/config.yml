@@ -68,7 +68,7 @@ jobs:
             - run:
                   name: GOCI
                   command: make golangci-lint
-             - run:
+            - run:
                   name: GOTEST
                   command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1
             - run:
