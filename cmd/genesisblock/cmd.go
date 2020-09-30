@@ -524,10 +524,15 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}
+	config := model.NewConfig()
+	if err := util.LoadConfig("", "config", "toml", ""); err != nil {
+		log.Fatal(err)
+	}
+	config.LoadConfigurations()
 	dbInstance := database.NewSqliteDB()
 	db, err := dbInstance.OpenDB(
-		dbPath,
-		"zoobc.db",
+		config.ResourcePath,
+		config.DatabaseFileName,
 		constant.SQLMaxOpenConnetion,
 		constant.SQLMaxIdleConnections,
 		constant.SQLMaxConnectionLifetime,
