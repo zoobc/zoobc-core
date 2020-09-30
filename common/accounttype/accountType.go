@@ -15,7 +15,10 @@ type (
 		GetName() string
 		// GetAccountLength return the length of this account address type (for parsing tx and message bytes that embed an address)
 		GetAccountLength() uint32
+		// IsEqual checks if two account have same type and pub key
+		IsEqual(acc AccountType) bool
 		// GetFormattedAccount return a string encoded/formatted account address
-		GetFormattedAccount() (string, error)
+		// TODO: for this we have to move crypto signature to this package, otherwise we get circular dependency
+		// GetFormattedAccount() (string, error)
 	}
 )

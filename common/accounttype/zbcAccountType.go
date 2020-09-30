@@ -1,8 +1,8 @@
 package accounttype
 
 import (
+	"bytes"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 )
 
 // ZbcAccountType the default account type
@@ -34,6 +34,10 @@ func (zAcc *ZbcAccountType) GetAccountLength() uint32 {
 	return 32
 }
 
-func (zAcc *ZbcAccountType) GetFormattedAccount() (string, error) {
-	return crypto.NewEd25519Signature().GetAddressFromPublicKey(zAcc.GetAccountPrefix(), zAcc.GetAccountPublicKey())
+func (zAcc *ZbcAccountType) IsEqual(acc AccountType) bool {
+	return bytes.Equal(acc.GetAccountPublicKey(), zAcc.GetAccountPublicKey()) && acc.GetTypeInt() == zAcc.GetTypeInt()
 }
+
+// func (zAcc *ZbcAccountType) GetFormattedAccount() (string, error) {
+// 	return crypto.NewEd25519Signature().GetAddressFromPublicKey(zAcc.GetAccountPrefix(), zAcc.GetAccountPublicKey())
+// }

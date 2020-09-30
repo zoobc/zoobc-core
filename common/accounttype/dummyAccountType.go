@@ -1,8 +1,6 @@
 package accounttype
 
-import (
-	"github.com/zoobc/zoobc-core/common/crypto"
-)
+import "bytes"
 
 // DummyAccountType a dummy account type
 // TODO: this is only for the sake of having at least two account type.
@@ -35,6 +33,10 @@ func (dAcc *DummyAccountType) GetAccountLength() uint32 {
 	return 32
 }
 
-func (dAcc *DummyAccountType) GetFormattedAccount() (string, error) {
-	return crypto.NewEd25519Signature().GetAddressFromPublicKey(dAcc.GetAccountPrefix(), dAcc.GetAccountPublicKey())
+func (dAcc *DummyAccountType) IsEqual(acc AccountType) bool {
+	return bytes.Equal(acc.GetAccountPublicKey(), dAcc.GetAccountPublicKey()) && acc.GetTypeInt() == dAcc.GetTypeInt()
 }
+
+// func (dAcc *DummyAccountType) GetFormattedAccount() (string, error) {
+// 	return crypto.NewEd25519Signature().GetAddressFromPublicKey(dAcc.GetAccountPrefix(), dAcc.GetAccountPublicKey())
+// }
