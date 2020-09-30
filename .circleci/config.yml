@@ -70,7 +70,7 @@ jobs:
                   command: make golangci-lint
              - run:
                   name: GOTEST
-                  command: go test go list ./... | egrep -v 'common/model|common/service' --short -count=1
+                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
