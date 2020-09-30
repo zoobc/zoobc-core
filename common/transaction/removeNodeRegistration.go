@@ -23,10 +23,10 @@ type RemoveNodeRegistration struct {
 	AccountBalanceQuery      query.AccountBalanceQueryInterface
 	NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 	NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
-	NodeAddressInfoStorage   storage.NodeAddressInfoStorageInterface
 	QueryExecutor            query.ExecutorInterface
 	AccountLedgerQuery       query.AccountLedgerQueryInterface
 	AccountBalanceHelper     AccountBalanceHelperInterface
+	NodeAddressInfoStorage   storage.TransactionalCache
 	PendingNodeRegistryCache storage.TransactionalCache
 	ActiveNodeRegistryCache  storage.TransactionalCache
 }
@@ -123,7 +123,7 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	}
 
 	// Remove Node Address Info on cache storage
-	err = tx.NodeAddressInfoStorage.AddAwaitedRemoveItem(
+	err = tx.NodeAddressInfoStorage.TxRemoveItem(
 		storage.NodeAddressInfoStorageKey{
 			NodeID: nodeReg.NodeID,
 			Statuses: []model.NodeAddressStatus{

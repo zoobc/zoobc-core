@@ -430,7 +430,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	err = bs.NodeRegistrationService.BeginCacheTransaction()
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginCacheTransaction - %s", err.Error()))
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
+	err = bs.NodeAddressInfoService.BeginCacheTransaction()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeAddressInfoCacheBeginTransaction - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 	/*
@@ -706,14 +711,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 
-	// remove a list of remove node address info in cahce
-	err = bs.NodeAddressInfoService.ExecuteWaitedNodeAddressInfoCache()
-	if err != nil {
-		return err
-	}
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
+	}
+	/* Update all related cache */
+	// commit cache node address info
+	err = bs.NodeAddressInfoService.CommitCacheTransaction()
+	if err != nil {
+		bs.Logger.Warnf("FailToCommitNodeAddressInfoCache-%v", err)
+		_ = bs.NodeAddressInfoService.ClearUpdateNodeAddressInfoCache()
 	}
 	err = bs.NodeRegistrationService.CommitCacheTransaction()
 	if err != nil {
@@ -721,15 +728,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.NodeRegistrationService.InitializeCache()
 	}
 	// cache last block state
-	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(block)
 	if err != nil {
-		return err
+		bs.Logger.Warnf("FailedUpdateLastblockCache-%v", err)
+		_ = bs.UpdateLastBlockCache(nil)
 	}
 	// cache next node admissiom timestamp
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nodeAdmissionTimestamp)
 	if err != nil {
-		return err
+		bs.Logger.Warnf("FailedUpdateLastblockCache-%v", err)
+		_ = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
@@ -750,11 +758,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	return nil
 }
 
-// queryAndCacheRollbackProcess process to rollback data database & cache after failed execute query
+// queryAndCacheRollbackProcess process to rollback database & cache after failed execute query
 func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
-	// clear list of candidate node address info to be remove in cache
-	bs.NodeAddressInfoService.ClearWaitedNodeAddressInfoCache()
-	err := bs.NodeRegistrationService.RollbackCacheTransaction()
+	// clear all cache in transactional list
+	var err = bs.NodeAddressInfoService.RollbackCacheTransaction()
+	if err != nil {
+		bs.Logger.Errorf("nodeAddressInfo:cacheRollbackErr - %s", err.Error())
+	}
+	err = bs.NodeRegistrationService.RollbackCacheTransaction()
 	if err != nil {
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
 	}

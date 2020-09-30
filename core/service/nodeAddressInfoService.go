@@ -47,8 +47,9 @@ type (
 		CountNodesAddressByStatus() (map[model.NodeAddressStatus]int, error)
 		CountRegistredNodeAddressWithAddressInfo() (int, error)
 		ClearUpdateNodeAddressInfoCache() error
-		ExecuteWaitedNodeAddressInfoCache() error
-		ClearWaitedNodeAddressInfoCache()
+		BeginCacheTransaction() error
+		RollbackCacheTransaction() error
+		CommitCacheTransaction() error
 	}
 
 	// NodeAddressInfoService nodeRegistration helper service methods
@@ -58,7 +59,7 @@ type (
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
 		Signature               crypto.SignatureInterface
-		NodeAddressInfoStorage  *storage.NodeAddressInfoStorage
+		NodeAddressInfoStorage  storage.CacheStorageInterface
 		MainBlockStateStorage   storage.CacheStorageInterface
 		ActiveNodeRegistryCache storage.CacheStorageInterface
 		Logger                  *log.Logger
@@ -71,7 +72,7 @@ func NewNodeAddressInfoService(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	signature crypto.SignatureInterface,
-	nodeAddressesInfoStorage *storage.NodeAddressInfoStorage,
+	nodeAddressesInfoStorage storage.CacheStorageInterface,
 	mainBlockStateStorage, activeNodeRegistryCache storage.CacheStorageInterface,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
@@ -488,8 +489,12 @@ func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID in
 	if err != nil {
 		return err
 	}
+	txNodeAddressInfoCache, ok := nru.NodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
 	// add into list of awaited remove node address info
-	return nru.NodeAddressInfoStorage.AddAwaitedRemoveItem(
+	return txNodeAddressInfoCache.TxRemoveItem(
 		storage.NodeAddressInfoStorageKey{
 			NodeID: nodeID,
 			Statuses: []model.NodeAddressStatus{
@@ -501,13 +506,32 @@ func (nru *NodeAddressInfoService) DeleteNodeAddressInfoByNodeIDInDBTx(nodeID in
 	)
 }
 
-// RemoveWaitedNodeAddressInfoCache will remove all node address info on
-func (nru *NodeAddressInfoService) ExecuteWaitedNodeAddressInfoCache() error {
-	return nru.NodeAddressInfoStorage.RemoveItem(nil)
+// BeginCacheTransaction to begin transactional process of NodeAddressInfoStorage
+func (nru *NodeAddressInfoService) BeginCacheTransaction() error {
+	txNodeAddressInfoCache, ok := nru.NodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
+	// node address info cache implementation cannot return error on rollback
+	return txNodeAddressInfoCache.Begin()
 }
 
-func (nru *NodeAddressInfoService) ClearWaitedNodeAddressInfoCache() {
-	_ = nru.NodeAddressInfoStorage.ClearAwaitedRemoveItems()
+// RollbackCacheTransaction to rollback all transactional precess from NodeAddressInfoStorage
+func (nru *NodeAddressInfoService) RollbackCacheTransaction() error {
+	txNodeAddressInfoCache, ok := nru.NodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
+	return txNodeAddressInfoCache.Rollback()
+}
+
+// CommitCacheTransaction to commiut all transactional process from NodeAddressInfoStorage
+func (nru *NodeAddressInfoService) CommitCacheTransaction() error {
+	txNodeAddressInfoCache, ok := nru.NodeAddressInfoStorage.(storage.TransactionalCache)
+	if !ok {
+		return blocker.NewBlocker(blocker.AppErr, "FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+	}
+	return txNodeAddressInfoCache.Commit()
 }
 
 // ClearUpdateNodeAddressInfoCache to clear cache node address info and pull again from DB
