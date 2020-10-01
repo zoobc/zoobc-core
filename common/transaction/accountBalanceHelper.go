@@ -16,7 +16,7 @@ type (
 		AddAccountSpendableBalance(address []byte, amount int64) error
 		AddAccountBalance(address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error
 		GetBalanceByAccountID(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
-		HasEnoughSpendableBalance(dbTX bool, address string, compareBalance int64) (enough bool, err error)
+		HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error)
 	}
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
