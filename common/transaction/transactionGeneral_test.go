@@ -1,17 +1,20 @@
 package transaction
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"golang.org/x/crypto/sha3"
 )
@@ -503,102 +506,175 @@ func (mockTypeActionValidateTransactionSuccess) GetMinimumFee() (int64, error) {
 	return 0, nil
 }
 
-func TestValidateTransaction(t *testing.T) {
+type (
+	mockAccountDatasetQueryValidateTransaction struct {
+		query.AccountDatasetQuery
+		wantNoRow bool
+	}
+)
+
+func (*mockAccountDatasetQueryValidateTransaction) GetAccountDatasetEscrowApproval(recipientAddress string) (qry string, args []interface{}) {
+	return
+}
+func (m *mockAccountDatasetQueryValidateTransaction) Scan(dataset *model.AccountDataset, _ *sql.Row) error {
+	if m.wantNoRow {
+		return sql.ErrNoRows
+	}
+	*dataset = model.AccountDataset{
+		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:                "Admin",
+		Value:                   "You're Welcome",
+		IsActive:                true,
+		Latest:                  true,
+		Height:                  5,
+	}
+
+	return nil
+}
+
+type mockQueryExecutorQueryValidateTransaction struct {
+	query.Executor
+	wantErr     bool
+	wantErrType error
+}
+
+func (m *mockQueryExecutorQueryValidateTransaction) ExecuteSelectRow(qu string, tx bool, args ...interface{}) (*sql.Row, error) {
+	if m.wantErr {
+		if m.wantErrType == sql.ErrNoRows {
+			db, mock, _ := sqlmock.New()
+			mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnError(sql.ErrNoRows)
+			return db.QueryRow(qu), nil
+		}
+		return nil, m.wantErrType
+	}
+
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnRows(sqlmock.NewRows([]string{"column"}))
+	return db.QueryRow(qu), nil
+}
+
+func TestUtil_ValidateTransaction(t *testing.T) {
 	transactionUtil := &Util{
 		FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
+	}
+	txValidateNoRecipient := GetFixturesForTransaction(
+		1562893303,
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+		"",
+		true,
+	)
+	txBytesNoRecipient, _ := transactionUtil.GetTransactionBytes(txValidateNoRecipient, false)
+	txBytesHash := sha3.Sum256(txBytesNoRecipient)
+	signatureTXValidateNoRecipient, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	txValidateNoRecipient.Signature = signatureTXValidateNoRecipient
+
+	txValidateMustEscrow := GetFixturesForTransaction(
+		1562893303,
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM6",
+		false,
+	)
+	txBytesMustEscrow, _ := transactionUtil.GetTransactionBytes(txValidateMustEscrow, false)
+	txBytesMustEscrowHash := sha3.Sum256(txBytesMustEscrow)
+	signatureTXValidateMustEscrow, _ := (&crypto.Signature{}).Sign(txBytesMustEscrowHash[:], model.SignatureType_DefaultSignature,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	txValidateMustEscrow.Signature = signatureTXValidateMustEscrow
+
+	txValidateEscrow := GetFixturesForTransaction(
+		1562893303,
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM6",
+		true,
+	)
+	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txValidateEscrow, false)
+	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
+	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.SignatureType_DefaultSignature,
+		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+	txValidateEscrow.Signature = signatureTXValidateEscrow
+
+	type fields struct {
+		FeeScaleService     fee.FeeScaleServiceInterface
+		MempoolCacheStorage storage.CacheStorageInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 	}
 	type args struct {
 		tx              *model.Transaction
 		typeAction      TypeAction
 		verifySignature bool
 	}
-
-	txEscrowValidate := GetFixturesForTransaction(
-		1562893303,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		true,
-	)
-	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txEscrowValidate, false)
-	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
-	signatureEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.SignatureType_DefaultSignature,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	txEscrowValidate.Signature = signatureEscrow
-
-	txValidate := GetFixturesForTransaction(
-		1562893303,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		false,
-	)
-	txBytes, _ := transactionUtil.GetTransactionBytes(txValidate, false)
-	txBytesHash := sha3.Sum256(txBytes)
-	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
-	txValidate.Signature = signature
-
 	tests := []struct {
 		name    string
+		fields  fields
 		args    args
 		wantErr bool
 	}{
 		{
-			name: "TestValidateTransaction:success",
+			name: "wantSuccess:NoRecipient",
+			fields: fields{
+				FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
+			},
 			args: args{
 				tx: GetFixturesForTransaction(
-					time.Now().Unix()+int64(constant.TransactionTimeOffset)-1,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+					1562893303,
+					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+					"",
 					false,
 				),
 				typeAction:      &mockTypeActionValidateTransactionSuccess{},
 				verifySignature: false,
 			},
-			wantErr: false,
 		},
 		{
-			name: "TestValidateTransactionWithEscrow:success",
+			name: "wantSuccess:NoRecipientSign",
+			fields: fields{
+				FeeScaleService: &mockValidateTransactionFeeScaleServiceCache{},
+			},
 			args: args{
-				tx:              txEscrowValidate,
+				tx:              txValidateNoRecipient,
 				typeAction:      &mockTypeActionValidateTransactionSuccess{},
 				verifySignature: true,
 			},
 		},
 		{
-			name: "TestValidateTransaction:success - verify signature",
+			name: "wantError:MustEscrow",
+			fields: fields{
+				FeeScaleService:     &mockValidateTransactionFeeScaleServiceCache{},
+				AccountDatasetQuery: &mockAccountDatasetQueryValidateTransaction{},
+				QueryExecutor:       &mockQueryExecutorQueryValidateTransaction{},
+			},
 			args: args{
-				tx:              txValidate,
+				tx:              txValidateMustEscrow,
 				typeAction:      &mockTypeActionValidateTransactionSuccess{},
 				verifySignature: true,
 			},
-			wantErr: false,
-		},
-		{
-			name: "ValidateTransaction:Fee<0",
-			args: args{
-				tx: &model.Transaction{
-					Height: 1,
-					Fee:    0,
-				},
-				typeAction: &mockTypeActionValidateTransactionSuccess{},
-			},
 			wantErr: true,
 		},
 		{
-			name: "ValidateTransaction:SenderAddressEmpty",
-			args: args{
-				tx: &model.Transaction{
-					Height: 1,
-					Fee:    1,
-				},
-				typeAction: &mockTypeActionValidateTransactionSuccess{},
+			name: "wantSuccess:Escrow",
+			fields: fields{
+				FeeScaleService:     &mockValidateTransactionFeeScaleServiceCache{},
+				AccountDatasetQuery: &mockAccountDatasetQueryValidateTransaction{},
+				QueryExecutor:       &mockQueryExecutorQueryValidateTransaction{},
 			},
-			wantErr: true,
+			args: args{
+				tx:              txValidateEscrow,
+				typeAction:      &mockTypeActionValidateTransactionSuccess{},
+				verifySignature: true,
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := transactionUtil.ValidateTransaction(tt.args.tx, tt.args.typeAction, tt.args.verifySignature); (err != nil) != tt.wantErr {
+			u := &Util{
+				FeeScaleService:     tt.fields.FeeScaleService,
+				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
+				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
+			}
+			if err := u.ValidateTransaction(tt.args.tx, tt.args.typeAction, tt.args.verifySignature); (err != nil) != tt.wantErr {
 				t.Errorf("ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
