@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -27,7 +26,6 @@ type (
 		Escrow               *model.Escrow
 		EscrowQuery          query.EscrowTransactionQueryInterface
 		BlockQuery           query.BlockQueryInterface
-		AccountDatasetQuery  query.AccountDatasetQueryInterface
 		NormalFee            fee.FeeModelInterface
 		EscrowFee            fee.FeeModelInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
@@ -115,11 +113,7 @@ That specs:
 */
 func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
-		accountDataset model.AccountDataset
-		accDatasetArgs []interface{}
-		accDatasetQ    string
-		row            *sql.Row
-		err            error
+		err error
 	)
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
@@ -127,22 +121,7 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.RecipientAddress == "" {
 		return errors.New("transaction must have a valid recipient account id")
 	}
-	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
-	// yes would be error
-	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
-	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
-	if err != nil {
-		return err
-	}
-	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	// false if err in above is sql.ErrNoRows || nil
-	if accountDataset.GetIsActive() {
-		return fmt.Errorf("RecipientRequireEscrow")
-	}
+
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
 	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
@@ -173,7 +152,7 @@ func (tx *SendMoney) GetAmount() int64 {
 }
 
 func (tx *SendMoney) GetMinimumFee() (int64, error) {
-	if tx.Escrow.ApproverAddress != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)

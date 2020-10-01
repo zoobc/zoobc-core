@@ -270,6 +270,8 @@ func initiateMainInstance() {
 	transactionUtil = &transaction.Util{
 		FeeScaleService:     feeScaleService,
 		MempoolCacheStorage: mempoolStorage,
+		QueryExecutor:       queryExecutor,
+		AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 	}
 	// initialize Observer
 	observerInstance = observer.NewObserver()

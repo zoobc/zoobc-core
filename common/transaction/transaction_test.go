@@ -96,7 +96,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					10, constant.OneZBC/100,
 				),
 				NormalFee:            fee.NewConstantFeeModel(constant.OneZBC / 100),
-				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
 			},
 		},
