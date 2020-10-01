@@ -181,7 +181,12 @@ func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVoteRe
 	return sql.ErrNoRows
 }
 
-func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountID(accountBalance *model.AccountBalance, _ string, _ bool) error {
+func (*mockAccountBalanceHelperValidateSuccess) HasEnoughSpendableBalance(
+	dbTX bool, address string, compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
+}
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, _ string, _ bool) error {
 	accountBalance.SpendableBalance = 100
 	return nil
 }
@@ -200,7 +205,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
@@ -369,7 +373,6 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
@@ -383,9 +386,6 @@ type (
 	mockAccountBalanceHelperFeeVoteRevealSuccess struct {
 		AccountBalanceHelper
 	}
-	mockAccountLedgerHelperFeeVoteRevealSuccess struct {
-		AccountLedgerHelper
-	}
 	mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess struct {
 		query.Executor
 	}
@@ -394,11 +394,7 @@ type (
 func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address string, amount int64) error {
 	return nil
 }
-func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(address string, amount int64, blockHeight uint32) error {
-	return nil
-}
-
-func (*mockAccountLedgerHelperFeeVoteRevealSuccess) InsertLedgerEntry(*model.AccountLedger) error {
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
 
@@ -421,7 +417,6 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
 	tests := []struct {
@@ -452,7 +447,6 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -477,7 +471,6 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
 	tests := []struct {
@@ -508,7 +501,6 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -533,7 +525,6 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
@@ -549,7 +540,6 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 			name: "WantSuccess",
 			fields: fields{
 				AccountBalanceHelper:   &mockAccountBalanceHelperFeeVoteRevealSuccess{},
-				AccountLedgerHelper:    &mockAccountLedgerHelperFeeVoteRevealSuccess{},
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess{},
 			},
@@ -571,7 +561,6 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			if err := tx.ApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
@@ -605,7 +594,6 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 		FeeVoteCommitVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		FeeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface
 		AccountBalanceHelper   AccountBalanceHelperInterface
-		AccountLedgerHelper    AccountLedgerHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
@@ -644,7 +632,6 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 				FeeVoteCommitVoteQuery: tt.fields.FeeVoteCommitVoteQuery,
 				FeeVoteRevealVoteQuery: tt.fields.FeeVoteRevealVoteQuery,
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:    tt.fields.AccountLedgerHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)

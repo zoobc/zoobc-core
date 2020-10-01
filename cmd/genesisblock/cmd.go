@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"io/ioutil"
 	"log"
 	"os"
@@ -14,6 +13,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"

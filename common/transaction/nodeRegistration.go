@@ -8,6 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -22,14 +23,15 @@ type NodeRegistration struct {
 	Height                   uint32
 	Body                     *model.NodeRegistrationTransactionBody
 	Escrow                   *model.Escrow
-	AccountBalanceQuery      query.AccountBalanceQueryInterface
 	NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 	BlockQuery               query.BlockQueryInterface
 	ParticipationScoreQuery  query.ParticipationScoreQueryInterface
 	QueryExecutor            query.ExecutorInterface
 	AuthPoown                auth.NodeAuthValidationInterface
-	AccountLedgerQuery       query.AccountLedgerQueryInterface
 	EscrowQuery              query.EscrowTransactionQueryInterface
+	AccountBalanceHelper     AccountBalanceHelperInterface
+	EscrowFee                fee.FeeModelInterface
+	NormalFee                fee.FeeModelInterface
 	PendingNodeRegistryCache storage.TransactionalCache
 }
 
@@ -61,6 +63,9 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		registrationStatus                                          uint32
 		prevNodeRegistrationByPubKey, prevNodeRegistrationByAccount model.NodeRegistration
 		nodeAccountAddress                                          string
+		prevNodeFound                                               bool
+		err                                                         error
+		row                                                         *sql.Row
 	)
 	if tx.Height > 0 {
 		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
@@ -70,34 +75,25 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		nodeAccountAddress = tx.Body.AccountAddress
 	}
 
-	// update sender balance by reducing his spendable balance of the tx fee and locked balance
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Body.LockedBalance + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Body.GetLockedBalance() + tx.Fee),
+		model.EventType_EventNodeRegistrationTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
 	)
-	queries = append(queries, accountBalanceSenderQ...)
+	if err != nil {
+		return err
+	}
 
-	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -(tx.Body.LockedBalance + tx.Fee),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventNodeRegistrationTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
-
-	nodeRow, _ := tx.QueryExecutor.ExecuteSelectRow(
+	row, _ = tx.QueryExecutor.ExecuteSelectRow(
 		tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(),
 		false,
 		tx.Body.NodePublicKey,
 	)
-	err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByPubKey, nodeRow)
-	prevNodeFound := true
+	err = tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByPubKey, row)
+	prevNodeFound = true
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -117,16 +113,16 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
 		// check for account address duplication (accounts can register one node at the time)
 		qryNodeByAccount, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(nodeAccountAddress)
-		nodeRow2, _ := tx.QueryExecutor.ExecuteSelectRow(qryNodeByAccount, false, args...)
-		err := tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByAccount, nodeRow2)
-		prevNodeFound := true
+		row, _ = tx.QueryExecutor.ExecuteSelectRow(qryNodeByAccount, false, args...)
+		err = tx.NodeRegistrationQuery.Scan(&prevNodeRegistrationByAccount, row)
+		prevNodeFound = true
 		if err != nil {
 			if err != sql.ErrNoRows {
 				return err
 			}
 			prevNodeFound = false
 		}
-		// in case a node with same account address has been previosly deleted, set its latest status to false
+		// in case a node with same account address has been previously deleted, set its latest status to false
 		// to avoid having duplicates (multiple node registrations with same account address)
 		if prevNodeFound && prevNodeRegistrationByAccount.RegistrationStatus ==
 			uint32(model.NodeRegistrationState_NodeDeleted) {
@@ -184,20 +180,8 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `NodeRegis
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *NodeRegistration) ApplyUnconfirmed() error {
-
-	var (
-		err error
-	)
-
 	// update sender balance by reducing his spendable balance of the tx fee
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-(tx.Body.LockedBalance + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	// add row to node_registry table
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetLockedBalance() + tx.Fee))
 	if err != nil {
 		return err
 	}
@@ -207,13 +191,7 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 
 func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 	// update sender balance by reducing his spendable balance of the tx fee
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.LockedBalance+tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
 	if err != nil {
 		return err
 	}
@@ -224,9 +202,9 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 func (tx *NodeRegistration) Validate(dbTx bool) error {
 	var (
 		nodeRegByNodePub, nodeRegByAccAddress model.NodeRegistration
-		accountBalance                        model.AccountBalance
 		row                                   *sql.Row
 		err                                   error
+		enough                                bool
 	)
 
 	// no need to validate node registration transaction for genesis block
@@ -240,27 +218,21 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// validate poown
-	if err := tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery); err != nil {
+	err = tx.AuthPoown.ValidateProofOfOwnership(tx.Body.Poown, tx.Body.NodePublicKey, tx.QueryExecutor, tx.BlockQuery)
+	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}
 
 	// check balance
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-
-	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+			return err
 		}
-		return blocker.NewBlocker(blocker.AppErr, "AccountNotFound")
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 	}
-
-	if accountBalance.GetSpendableBalance() < tx.Body.GetLockedBalance()+tx.Fee {
-		return blocker.NewBlocker(blocker.AppErr, "UserBalanceNotEnough")
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
 	}
 
 	// check for public key duplication
@@ -305,8 +277,11 @@ func (tx *NodeRegistration) GetAmount() int64 {
 	return tx.Body.LockedBalance
 }
 
-func (*NodeRegistration) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 func (tx *NodeRegistration) GetSize() uint32 {
@@ -388,54 +363,199 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-
+	if tx.Escrow.GetApproverAddress() != "" {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+			Instruction:     tx.Escrow.GetInstruction(),
+		}
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
 }
 
-/**
-Escrow Part
-1. ApplyUnconfirmed
-2. UndoApplyUnconfirmed
-3. ApplyConfirmed
-4. Validate
-*/
-
 // EscrowValidate special validation for escrow's transaction
 func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
+	var (
+		err    error
+		enough bool
+	)
+
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
+	}
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
+	}
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+
+	// check balance
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
 
 	return nil
 }
 
-/*
-EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
-similar with ApplyUnconfirmed and Escrow.Commission
-*/
+// EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
+// similar with ApplyUnconfirmed and Escrow.Commission
 func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
 
+	// update sender balance by reducing his spendable balance of the tx fee
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetLockedBalance() + tx.Fee + tx.Escrow.GetCommission()))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-/*
-EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
-this will be called on apply confirmed or when rollback occurred
-*/
+// EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
+// this will be called on apply confirmed or when rollback occurred
 func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
 
-	return nil
-}
-
-/*
-EscrowApplyConfirmed func that for applying Transaction SendMoney type.
-*/
-func (tx *NodeRegistration) EscrowApplyConfirmed(int64) error {
+	// update sender balance by reducing his spendable balance of the tx fee
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-/*
-EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
-like: spreading commission and fee, and also more pending tasks
-*/
-func (tx *NodeRegistration) EscrowApproval(int64, *model.ApprovalEscrowTransactionBody) error {
+// EscrowApplyConfirmed func that for applying Transaction SendMoney type
+func (tx *NodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
+	var (
+		err error
+	)
+
+	// update sender balance by reducing his spendable balance of the tx fee and locked balance
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Body.GetLockedBalance() + tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
+	if err != nil {
+		return err
+	}
+	// Insert Escrow
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// EscrowApproval handle approval an escrow transaction, execute tasks that was skipped when escrow pending.
+// like: spreading commission and fee, and also more pending tasks
+func (tx *NodeRegistration) EscrowApproval(
+	blockTimestamp int64,
+	txBody *model.ApprovalEscrowTransactionBody,
+) error {
+
+	var (
+		err error
+	)
+
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Body.GetLockedBalance()+tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+
+	case model.EscrowApproval_Reject:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Body.GetLockedBalance()-(tx.Fee+tx.Escrow.GetCommission()),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	default:
+		tx.Escrow.Status = model.EscrowStatus_Expired
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Body.GetLockedBalance()+tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
+	if err != nil {
+		return err
+	}
 	return nil
 }

@@ -703,7 +703,7 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 	}
 
 	payloadHash := digest.Sum([]byte{})
-	mainGenesisBlock, err := bs.MainBlockService.GetGenesisBlock()
+	mainGenesisBlock, err := bs.MainBlockService.GenerateGenesisBlock(constant.GenesisConfig)
 	if err != nil {
 		return nil, err
 	}

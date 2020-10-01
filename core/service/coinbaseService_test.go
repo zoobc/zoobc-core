@@ -11,6 +11,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -84,50 +85,6 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "WantFail:selectRowFail",
-			fields: fields{
-				QueryExecutor:         &mockCoinbaseLotteryWinnersQueryExecutorSelectFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-			},
-			args: args{
-				activeRegistries: []storage.NodeRegistry{
-					{
-						Node:               model.NodeRegistration{},
-						ParticipationScore: 1,
-					},
-				},
-				scoreSum:       100,
-				blockTimestamp: 10,
-				previousBlock: &model.Block{
-					Timestamp: 1,
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "WantFail:ScanFail",
-			fields: fields{
-				QueryExecutor:         &mockCoinbaseLotteryWinnersQueryExecutorSuccess{},
-				NodeRegistrationQuery: &mockCoinbaseLotteryWinnersNodeRegistrationQueryScanFail{},
-			},
-			args: args{
-				activeRegistries: []storage.NodeRegistry{
-					{
-						Node:               model.NodeRegistration{},
-						ParticipationScore: 1,
-					},
-				},
-				scoreSum:       100,
-				blockTimestamp: 10,
-				previousBlock: &model.Block{
-					Timestamp: 1,
-				},
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
 			name: "CoinbaseLotteryWinners:success",
 			fields: fields{
 				QueryExecutor:         &mockCoinbaseLotteryWinnersQueryExecutorSuccess{},
@@ -160,14 +117,16 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 						ParticipationScore: 5,
 					},
 				},
-				scoreSum:       100,
+				scoreSum:       (1 / float64(constant.OneZBC)) + (10 / float64(constant.OneZBC)) + (5 / float64(constant.OneZBC)),
 				blockTimestamp: 10,
 				previousBlock: &model.Block{
 					Timestamp: 1,
 				},
 			},
 			want: []string{
-				bcsAddress1,
+				bcsAddress3,
+				bcsAddress2,
+				bcsAddress2,
 			},
 			wantErr: false,
 		},

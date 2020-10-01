@@ -5,13 +5,13 @@ import (
 	"database/sql"
 	"strings"
 
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 // FeeVoteCommitTransaction is Transaction Type that implemented TypeAction
@@ -21,13 +21,16 @@ type FeeVoteCommitTransaction struct {
 	SenderAddress              string
 	Height                     uint32
 	Body                       *model.FeeVoteCommitTransactionBody
+	Escrow                     *model.Escrow
 	FeeScaleService            fee.FeeScaleServiceInterface
 	NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 	BlockQuery                 query.BlockQueryInterface
 	FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 	AccountBalanceHelper       AccountBalanceHelperInterface
-	AccountLedgerHelper        AccountLedgerHelperInterface
 	QueryExecutor              query.ExecutorInterface
+	EscrowQuery                query.EscrowTransactionQueryInterface
+	EscrowFee                  fee.FeeModelInterface
+	NormalFee                  fee.FeeModelInterface
 }
 
 // ApplyConfirmed to apply confirmed transaction FeeVoteCommitTransaction type
@@ -37,19 +40,13 @@ func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 		voteCommit *model.FeeVoteCommitmentVote
 	)
 	// deduct fee from sender
-	err = tx.AccountBalanceHelper.AddAccountBalance(tx.SenderAddress, -tx.Fee, tx.Height)
-	if err != nil {
-		return err
-	}
-	// sender ledger
-	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -tx.Fee,
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventMultiSignatureTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-tx.Fee,
+		model.EventType_EventFeeVoteCommitTransaction,
+		tx.Height,
+		tx.ID, uint64(blockTimestamp),
+	)
 	if err != nil {
 		return err
 	}
@@ -103,10 +100,10 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 		err              error
 		qry              string
 		qryArgs          []interface{}
-		accountBalance   model.AccountBalance
 		feeVotePhase     model.FeeVotePhase
 		nodeRegistration model.NodeRegistration
 		lastBlock        *model.Block
+		enough           bool
 	)
 
 	// Checking length hash of fee vote
@@ -146,12 +143,15 @@ func (tx *FeeVoteCommitTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
 	if err != nil {
-		return err
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 	}
-	if accountBalance.GetSpendableBalance() < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
 	}
 	return nil
 }
@@ -197,8 +197,12 @@ func (tx *FeeVoteCommitTransaction) GetAmount() int64 {
 
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
-func (*FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
-	return 0, nil
+func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
+	if tx.Escrow.ApproverAddress != "" {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+
 }
 
 // GetSize is size of transaction body
@@ -273,6 +277,136 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 }
 
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
-func (*FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
+func (tx *FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
+	if tx.Escrow.GetApproverAddress() != "" {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          0,
+			BlockHeight:     tx.Height,
+			Latest:          true,
+			Instruction:     tx.Escrow.GetInstruction(),
+		}
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
+}
+
+func (tx *FeeVoteCommitTransaction) EscrowApplyConfirmed(blockTimestamp int64) (err error) {
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *FeeVoteCommitTransaction) EscrowApplyUnconfirmed() (err error) {
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee + tx.Escrow.GetCommission()))
+}
+
+func (tx *FeeVoteCommitTransaction) EscrowUndoApplyUnconfirmed() error {
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+}
+
+func (tx *FeeVoteCommitTransaction) EscrowValidate(dbTx bool) (err error) {
+	if tx.Escrow.GetApproverAddress() == "" {
+		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
+	}
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
+	}
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+
+	var enough bool
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
+	return nil
+}
+
+func (tx *FeeVoteCommitTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	case model.EscrowApproval_Reject:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	default:
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
+	if err != nil {
+		return err
+	}
+	return nil
 }
