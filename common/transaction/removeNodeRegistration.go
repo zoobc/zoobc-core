@@ -16,7 +16,7 @@ import (
 type RemoveNodeRegistration struct {
 	ID                       int64
 	Fee                      int64
-	SenderAddress            string
+	SenderAddress            []byte
 	Height                   uint32
 	Body                     *model.RemoveNodeRegistrationTransactionBody
 	Escrow                   *model.Escrow
@@ -45,7 +45,8 @@ func (tx *RemoveNodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -207,7 +208,7 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// sender must be node owner
-	if tx.SenderAddress != nodeReg.GetAccountAddress() {
+	if !bytes.Equal(tx.SenderAddress, nodeReg.GetAccountAddress()) {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
 	}
 	if nodeReg.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeDeleted) {

@@ -12,7 +12,7 @@ import (
 type (
 	MultisignatureInfoQueryInterface interface {
 		GetMultisignatureInfoByAddress(
-			multisigAddress string,
+			multisigAddress []byte,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{}
@@ -47,7 +47,7 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 }
 
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
-	multisigAddress string,
+	multisigAddress []byte,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
 	var (

@@ -176,7 +176,7 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.RecipientAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
@@ -229,7 +229,7 @@ func (tx *SendMoney) GetAmount() int64 {
 }
 
 func (tx *SendMoney) GetMinimumFee() (int64, error) {
-	if tx.Escrow.ApproverAddress != "" {
+	if tx.Escrow.ApproverAddress != nil {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -275,7 +275,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil {
 		tx.Escrow = &model.Escrow{
 			ID:               tx.ID,
 			SenderAddress:    tx.SenderAddress,
@@ -317,10 +317,10 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
 	}
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.Escrow.GetRecipientAddress() == "" {
+	if tx.Escrow.GetRecipientAddress() == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {

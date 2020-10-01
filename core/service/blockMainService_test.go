@@ -1082,11 +1082,11 @@ func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintyp
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
 	scoreSum float64,
 	blockTimestamp int64,
-	previousBlock *model.Block) ([]string, error) {
-	return []string{}, nil
+	previousBlock *model.Block) ([][]byte, error) {
+	return make([][]byte, 0), nil
 }
 
-func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([]string, int64, int64, uint32) error {
+func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([][]byte, int64, int64, uint32) error {
 	return nil
 }
 

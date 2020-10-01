@@ -155,7 +155,7 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 
 	// Recipient required while property set as AccountDatasetEscrowApproval
 	_, ok := model.AccountDatasetProperty_value[tx.Body.GetProperty()]
-	if ok && tx.RecipientAddress == "" {
+	if ok && tx.RecipientAddress == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientRequired")
 	}
 

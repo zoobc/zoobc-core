@@ -47,7 +47,8 @@ func (tx *NodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -230,7 +231,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	)
 
 	// no need to validate node registration transaction for genesis block
-	if tx.SenderAddress == constant.MainchainGenesisAccountAddress {
+	if bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
 		return nil
 	}
 
@@ -349,7 +350,7 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
-		AccountAddress: string(accountAddress),
+		AccountAddress: accountAddress,
 		LockedBalance:  int64(lockedBalance),
 		Poown:          poown,
 	}

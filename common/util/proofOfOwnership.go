@@ -68,8 +68,12 @@ func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOf
 		return nil, err
 	}
 	height := ConvertBytesToUint32(heightBytes)
+	accountAddress, err := account.GetAccountAddress()
+	if err != nil {
+		return nil, err
+	}
 	return &model.ProofOfOwnershipMessage{
-		AccountAddress: account.GetAccountAddress(),
+		AccountAddress: accountAddress,
 		BlockHash:      blockHash,
 		BlockHeight:    height,
 	}, nil

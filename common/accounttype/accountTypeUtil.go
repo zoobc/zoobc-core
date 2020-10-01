@@ -7,21 +7,10 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
-// GetAccountType returns the appropriate AccountType object based on the account type index
-func NewAccountType(accTypeInt uint32, accPubKey []byte) AccountType {
-	var (
-		acc AccountType
-	)
-	switch accTypeInt {
-	case 0:
-		acc = &ZbcAccountType{}
-	case 1:
-		acc = &DummyAccountType{}
-	default:
-		return nil
-	}
-	acc.SetAccountPublicKey(accPubKey)
-	return acc
+// GetAccountType returns the appropriate AccountType object based on the account full address (account type + account public key)
+func NewAccountType(accountAddress []byte) (AccountType, error) {
+	buff := bytes.NewBuffer(accountAddress)
+	return ParseBytesToAccountType(buff)
 }
 
 // ParseBytesToAccountType parse an AccountAddress from a bytes.Buffer and returns the appropriate AccountType object
@@ -39,7 +28,7 @@ func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
 	case 0:
 		acc = &ZbcAccountType{}
 	case 1:
-		acc = &DummyAccountType{}
+		acc = &BTCAccountType{}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}
@@ -56,11 +45,11 @@ func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
 func GetAccountTypes() map[uint32]AccountType {
 	var (
 		zbcAccount   = &ZbcAccountType{}
-		dummyAccount = &DummyAccountType{}
+		dummyAccount = &BTCAccountType{}
 	)
 	return map[uint32]AccountType{
-		zbcAccount.GetTypeInt():   zbcAccount,
-		dummyAccount.GetTypeInt(): dummyAccount,
+		uint32(zbcAccount.GetTypeInt()):   zbcAccount,
+		uint32(dummyAccount.GetTypeInt()): dummyAccount,
 	}
 }
 

@@ -26,11 +26,13 @@ var (
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisBlockTimestamp = int64(1596708000)
-	//STEF TODO: updated genesis generate command to write new accountAddress format (bytes)
-	MainchainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
-	MainchainGenesisBlockSeed      = make([]byte, 64)
-	MainchainGenesisNodePublicKey  = make([]byte, 32)
-	GenesisConfig                  = []GenesisConfigEntry{
+	// encoded "ZBC_ODR3YPWN_FQBDD6SV_OJ3YO3PK_E5UVSXW3_5DYQ3PTL_AXSJKNQ4_UDLNXYXC"
+	// hex "000000007daef1f5c0405ba20f712f185984e82742af76806b5bedb654c3b8107bdbd857"
+	MainchainGenesisAccountAddress = []byte{0, 0, 0, 0, 112, 227, 188, 62, 205, 44, 2, 49, 250, 85, 114, 119, 135, 109, 234, 39, 105, 89,
+		94, 219, 232, 241, 13, 190, 107, 5, 228, 149, 54, 28, 160, 214}
+	MainchainGenesisBlockSeed     = make([]byte, 64)
+	MainchainGenesisNodePublicKey = make([]byte, 32)
+	GenesisConfig                 = []GenesisConfigEntry{
 		{
 			AccountAddress: "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML",
 			AccountBalance: 0,

@@ -160,13 +160,13 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			got, err := es.GetPublicKeyFromAddress(tt.args.address)
+			got, err := es.GetPublicKeyFromEncodedAddress(tt.args.address)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Ed25519Signature.GetPublicKeyFromAddress() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Ed25519Signature.GetPublicKeyFromEncodedAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Ed25519Signature.GetPublicKeyFromAddress() = %v, want %v", got, tt.want)
+				t.Errorf("Ed25519Signature.GetPublicKeyFromEncodedAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -7,4 +7,7 @@ const (
 	PrefixZoobcSpineBlockHash = "ZSP"
 
 	SecureRandomSeedBitSize = 256
+
+	ZbcSignatureType     = 0
+	BitcoinSignatureType = 1
 )

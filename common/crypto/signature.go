@@ -22,9 +22,10 @@ type (
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature, accountAddress []byte) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
-		GenerateAccountFromSeed(signatureType model.SignatureType, seed string, optionalParams ...interface{}) (
+		GenerateAccountFromSeed(accountType accounttype.AccountType, seed string, optionalParams ...interface{}) (
 			privateKey, publicKey []byte,
-			publicKeyString, address string,
+			publicKeyString, encodedAddress string,
+			fullAccountAddress []byte,
 			err error,
 		)
 		GenerateBlockSeed(payload []byte, nodeSeed string) []byte
@@ -136,14 +137,12 @@ func (*Signature) VerifySignature(payload, signature, accountAddress []byte) err
 	)
 	switch model.SignatureType(signatureType) {
 	case model.SignatureType_DefaultSignature: // zoobc
-		var (
-			ed25519Signature      = NewEd25519Signature()
-			accountPublicKey, err = ed25519Signature.GetPublicKeyFromAddress(accountAddress)
-		)
+		accType, err := accounttype.NewAccountType(accountAddress)
 		if err != nil {
 			return err
 		}
-		if !ed25519Signature.Verify(accountPublicKey, payload, signature[4:]) {
+		ed25519Signature := NewEd25519Signature()
+		if !ed25519Signature.Verify(accType.GetAccountPublicKey(), payload, signature[4:]) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
 				"InvalidSignature",
@@ -210,12 +209,13 @@ func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) 
 }
 
 // GenerateAccountFromSeed to generate account based on provided seed
-func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, seed string, optionalParams ...interface{}) (
+func (*Signature) GenerateAccountFromSeed(accountType accounttype.AccountType, seed string, optionalParams ...interface{}) (
 	privateKey, publicKey []byte,
-	publicKeyString, address string,
+	publicKeyString, encodedAddress string,
+	fullAccountAddress []byte,
 	err error,
 ) {
-	switch signatureType {
+	switch accountType.GetSignatureType() {
 	case model.SignatureType_DefaultSignature:
 		var (
 			ed25519Signature = NewEd25519Signature()
@@ -224,34 +224,33 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if len(optionalParams) != 0 {
 			useSlip10, ok = optionalParams[0].(bool)
 			if !ok {
-				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertType")
+				return nil, nil, "", "", nil, blocker.NewBlocker(blocker.AppErr, "failedAssertType")
 			}
 		}
 		if useSlip10 {
 			privateKey, err = ed25519Signature.GetPrivateKeyFromSeedUseSlip10(seed)
 			if err != nil {
-				return nil, nil, "", "", err
+				return nil, nil, "", "", nil, err
 			}
 			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKeyUseSlip10(privateKey)
 			if err != nil {
-				return nil, nil, "", "", err
+				return nil, nil, "", "", nil, err
 			}
 		} else {
 			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 			publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(privateKey)
 			if err != nil {
-				return nil, nil, "", "", err
+				return nil, nil, "", "", nil, err
 			}
 		}
 		publicKeyString, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, publicKey)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
-		address, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
+		encodedAddress, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
-		return privateKey, publicKey, publicKeyString, address, nil
 	case model.SignatureType_BitcoinSignature:
 		var (
 			bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
@@ -262,16 +261,16 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 		if len(optionalParams) >= 2 {
 			privateKeyLength, ok = optionalParams[0].(model.PrivateKeyBytesLength)
 			if !ok {
-				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertPrivateKeyLengthType")
+				return nil, nil, "", "", nil, blocker.NewBlocker(blocker.AppErr, "failedAssertPrivateKeyLengthType")
 			}
 			publicKeyFormat, ok = optionalParams[1].(model.BitcoinPublicKeyFormat)
 			if !ok {
-				return nil, nil, "", "", blocker.NewBlocker(blocker.AppErr, "failedAssertPublicKeyFormatType")
+				return nil, nil, "", "", nil, blocker.NewBlocker(blocker.AppErr, "failedAssertPublicKeyFormatType")
 			}
 		}
 		privKey, err := bitcoinSignature.GetPrivateKeyFromSeed(seed, privateKeyLength)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
 		privateKey = privKey.Serialize()
 		publicKey, err = bitcoinSignature.GetPublicKeyFromSeed(
@@ -280,23 +279,29 @@ func (*Signature) GenerateAccountFromSeed(signatureType model.SignatureType, see
 			privateKeyLength,
 		)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
-		address, err = bitcoinSignature.GetAddressFromPublicKey(publicKey)
+		encodedAddress, err = bitcoinSignature.GetAddressFromPublicKey(publicKey)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
 		publicKeyString, err = bitcoinSignature.GetPublicKeyString(publicKey)
 		if err != nil {
-			return nil, nil, "", "", err
+			return nil, nil, "", "", nil, err
 		}
-		return privateKey, publicKey, publicKeyString, address, nil
 	default:
-		return nil, nil, "", "", blocker.NewBlocker(
+		return nil, nil, "", "", nil, blocker.NewBlocker(
 			blocker.AppErr,
 			"InvalidSignatureType",
 		)
 	}
+	accountType.SetAccountPublicKey(publicKey)
+	accountType.SetEncodedAccountAddress(encodedAddress)
+	fullAccountAddress, err = accountType.GetAccountAddress()
+	if err != nil {
+		return nil, nil, "", "", nil, err
+	}
+	return privateKey, publicKey, publicKeyString, encodedAddress, fullAccountAddress, nil
 }
 
 // GenerateBlockSeed special method for generating block seed using zed

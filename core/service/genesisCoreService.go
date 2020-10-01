@@ -2,6 +2,8 @@ package service
 
 import (
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -26,6 +28,19 @@ func GetGenesisTransactions(
 	switch chainType.(type) {
 	case *chaintype.MainChain:
 		for _, genesisEntry := range genesisEntries {
+			// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
+			ed25519 := crypto.NewEd25519Signature()
+			accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(genesisEntry.AccountAddress)
+			if err != nil {
+				return nil, err
+			}
+			accType := &accounttype.ZbcAccountType{}
+			accType.SetEncodedAccountAddress(genesisEntry.AccountAddress)
+			accType.SetAccountPublicKey(accPubKey)
+			accountFullAddress, err := accType.GetAccountAddress()
+			if err != nil {
+				return nil, err
+			}
 			// send funds from genesis account to the fund receiver if the `accountBalance` is non-zero
 			if uint64(genesisEntry.AccountBalance) != 0 {
 				genesisTx := &model.Transaction{
@@ -34,7 +49,7 @@ func GetGenesisTransactions(
 					Height:                  0,
 					Timestamp:               constant.MainchainGenesisBlockTimestamp,
 					SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
-					RecipientAccountAddress: genesisEntry.AccountAddress,
+					RecipientAccountAddress: accountFullAddress,
 					Fee:                     0,
 					TransactionBodyLength:   8,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
@@ -61,7 +76,7 @@ func GetGenesisTransactions(
 
 			// register the node for the fund receiver, if relative element in GenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
-				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(genesisEntry.AccountAddress, genesisEntry.NodeAddress,
+				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(accountFullAddress, genesisEntry.NodeAddress,
 					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
 				if err != nil {
 					return nil, err
@@ -83,7 +98,7 @@ func GetGenesisTransactions(
 
 // GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
 func GetGenesisNodeRegistrationTx(
-	accountAddress,
+	accountAddress []byte,
 	nodeAddress string,
 	lockedBalance int64,
 	nodePublicKey []byte,

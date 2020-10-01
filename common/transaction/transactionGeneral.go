@@ -3,10 +3,10 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
-	"sort"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -76,7 +76,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	buffer.Write([]byte(transaction.SenderAccountAddress))
 
 	// Address format: [len][address]
-	if transaction.GetRecipientAccountAddress() == "" {
+	if transaction.GetRecipientAccountAddress() == nil {
 		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
 		buffer.Write(make([]byte, constant.AccountAddressEmptyLength)) // if no recipient pad with 44 (zoobc address length)
 	} else {
@@ -175,7 +175,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if errSender != nil {
 		return nil, errSender
 	}
-	transaction.SenderAccountAddress = string(senderAddress)
+	transaction.SenderAccountAddress = senderAddress
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
 	if err != nil {
@@ -185,7 +185,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if errRecipient != nil {
 		return nil, errRecipient
 	}
-	transaction.RecipientAccountAddress = string(recipient)
+	transaction.RecipientAccountAddress = recipient
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
@@ -217,7 +217,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if err != nil {
 		return nil, err
 	}
-	escrow.ApproverAddress = string(approverAddress)
+	escrow.ApproverAddress = approverAddress
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
 	if err != nil {
@@ -299,7 +299,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 		return blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("MinimumFeeIs:%v", minimumFee*feeScale.FeeScale))
 	}
 
-	if tx.SenderAccountAddress == "" {
+	if tx.SenderAccountAddress == nil {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxSenderEmpty",
@@ -383,20 +383,24 @@ func (mtu *MultisigTransactionUtil) ValidateSignatureInfo(
 			"MinimumOneSignatureRequiredInSignatureInfo",
 		)
 	}
-	for addr, sig := range signatureInfo.Signatures {
+	for addrHex, sig := range signatureInfo.Signatures {
 		if sig == nil {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
 				"SignatureMissing",
 			)
 		}
-		if _, ok := multiSignatureInfoAddresses[addr]; !ok {
+		if _, ok := multiSignatureInfoAddresses[addrHex]; !ok {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
 				"SignerNotInParticipantList",
 			)
 		}
-		err := signature.VerifySignature(signatureInfo.TransactionHash, sig, addr)
+		decodedAcc, err := hex.DecodeString(addrHex)
+		if err != nil {
+			return err
+		}
+		err = signature.VerifySignature(signatureInfo.TransactionHash, sig, decodedAcc)
 		if err != nil {
 			signatureType := util.ConvertBytesToUint32(sig)
 			if model.SignatureType(signatureType) != model.SignatureType_MultisigSignature {
@@ -429,8 +433,7 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -456,7 +459,7 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 	}
 	// check if tx.Sender is participant in submitted multisignatureInfo
 	for _, address := range multisigInfo.Addresses {
-		if address == senderAddress {
+		if bytes.Equal(address, senderAddress) {
 			isParticipant = true
 		}
 	}
@@ -550,7 +553,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 
 			for _, sig := range pendingSigs {
-				signatures[sig.AccountAddress] = sig.Signature
+				signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
 			}
 			if body.SignatureInfo != nil {
 				if bytes.Equal(v.TransactionHash, body.SignatureInfo.TransactionHash) {
@@ -567,7 +570,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 				Signatures:      signatures,
 			}
 			for _, addr := range body.MultiSignatureInfo.Addresses {
-				if sigInfo.Signatures[addr] != nil {
+				if sigInfo.Signatures[hex.EncodeToString(addr)] != nil {
 					validSignatureCounter++
 				}
 			}
@@ -611,10 +614,17 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 		}
 		body.MultiSignatureInfo = &multisigInfo
 		if body.SignatureInfo != nil {
-			for addr, sig := range body.SignatureInfo.Signatures {
+			for addrHex, sig := range body.SignatureInfo.Signatures {
+				decodedAddr, err := hex.DecodeString(addrHex)
+				if err != nil {
+					return nil, blocker.NewBlocker(
+						blocker.AppErr,
+						"InvalidAccountAddress",
+					)
+				}
 				pendingSigs = append(pendingSigs, &model.PendingSignature{
 					TransactionHash: body.SignatureInfo.TransactionHash,
-					AccountAddress:  addr,
+					AccountAddress:  decodedAddr,
 					Signature:       sig,
 					BlockHeight:     txHeight,
 				})
@@ -632,14 +642,14 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			Signatures:      make(map[string][]byte),
 		}
 		for _, sig := range pendingSigs {
-			body.SignatureInfo.Signatures[sig.AccountAddress] = sig.Signature
+			body.SignatureInfo.Signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
 		}
 		if len(body.SignatureInfo.Signatures) < 1 {
 			return nil, nil
 		}
 
 		for _, addr := range multisigInfo.Addresses {
-			if body.SignatureInfo.Signatures[addr] != nil {
+			if body.SignatureInfo.Signatures[hex.EncodeToString(addr)] != nil {
 				validSignatureCounter++
 			}
 		}
@@ -684,7 +694,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			return nil, err
 		}
 		for _, sig := range pendingSigs {
-			body.SignatureInfo.Signatures[sig.AccountAddress] = sig.Signature
+			body.SignatureInfo.Signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
 		}
 		err = multisignatureInfoHelper.GetMultisigInfoByAddress(
 			&multisigInfo,
@@ -699,7 +709,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 		}
 		// validate signature
 		for _, addr := range multisigInfo.Addresses {
-			if body.SignatureInfo.Signatures[addr] != nil {
+			if body.SignatureInfo.Signatures[hex.EncodeToString(addr)] != nil {
 				validSignatureCounter++
 			}
 		}

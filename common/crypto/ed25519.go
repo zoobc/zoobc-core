@@ -3,14 +3,28 @@ package crypto
 import (
 	"bytes"
 	"encoding/base64"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	"github.com/zoobc/lib/address"
 	slip10 "github.com/zoobc/zoo-slip10"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"golang.org/x/crypto/ed25519"
 	"golang.org/x/crypto/sha3"
 )
+
+// SignatureTypeInterface implements all signature types methods
+// TODO: some of these signatures are specific to some account type and should be separated from the main interface
+type SignatureTypeInterface interface {
+	Sign(accountPrivateKey, payload []byte) []byte
+	Verify(accountPublicKey, payload, signature []byte) bool
+	GetPrivateKeyFromSeed(seed string) []byte
+	GetPrivateKeyFromSeedUseSlip10(seed string) ([]byte, error)
+	GetPublicKeyFromPrivateKeyUseSlip10(privateKey []byte) ([]byte, error)
+	GetPublicKeyFromSeed(seed string) []byte
+	GetAddressFromSeed(prefix, seed string) string
+	GetPublicKeyFromPrivateKey(privateKey []byte) ([]byte, error)
+	GetPublicKeyString(publicKey []byte) string
+	GetPublicKeyFromEncodedAddress(addr string) ([]byte, error)
+	GetAddressFromPublicKey(prefix string, publicKey []byte) (string, error)
+}
 
 // Ed25519Signature represent of ed25519 signature
 type Ed25519Signature struct{}
@@ -93,21 +107,18 @@ func (*Ed25519Signature) GetPublicKeyString(publicKey []byte) string {
 	return base64.StdEncoding.EncodeToString(publicKey)
 }
 
-// GetPublicKeyFromAddress Get the raw public key from a formatted address
-func (*Ed25519Signature) GetPublicKeyFromAddress(addr []byte) ([]byte, error) {
+// GetPublicKeyFromEncodedAddress Get the raw public key from a formatted address
+func (*Ed25519Signature) GetPublicKeyFromEncodedAddress(addr string) ([]byte, error) {
 	// decode base64 back to byte
 	var (
-		//STEF delete this
-		// publicKey = make([]byte, 32)
-		err error
+		publicKey = make([]byte, 32)
+		err       error
 	)
-	account, err := accounttype.ParseBytesToAccountType(bytes.NewBuffer(addr))
 	if err != nil {
 		return nil, err
 	}
-	//STEF delete this
-	// err = address.DecodeZbcID(addr, publicKey)
-	return account.GetAccountPublicKey(), err
+	err = address.DecodeZbcID(addr, publicKey)
+	return publicKey, err
 }
 
 // GetAddressFromPublicKey Get the formatted address from a raw public key

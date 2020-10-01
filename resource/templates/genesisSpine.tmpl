@@ -13,7 +13,10 @@ var (
 	SpinechainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	SpinechainGenesisBlockTimestamp = int64({{.GenesisTimestamp}})
-	SpinechainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
+	// encoded "ZBC_ODR3YPWN_FQBDD6SV_OJ3YO3PK_E5UVSXW3_5DYQ3PTL_AXSJKNQ4_UDLNXYXC"
+	// hex "000000007daef1f5c0405ba20f712f185984e82742af76806b5bedb654c3b8107bdbd857"
+	SpinechainGenesisAccountAddress = []byte{0, 0, 0, 0, 112, 227, 188, 62, 205, 44, 2, 49, 250, 85, 114, 119, 135, 109, 234, 39, 105, 89,
+                                      		94, 219, 232, 241, 13, 190, 107, 5, 228, 149, 54, 28, 160, 214}
 	SpinechainGenesisBlockSeed      = make([]byte, 64)
 	SpinechainGenesisNodePublicKey  = make([]byte, 32)
 )

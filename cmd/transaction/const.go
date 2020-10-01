@@ -50,11 +50,11 @@ var (
 	property string
 	value    string
 	// escrowable
-	escrow            bool
-	esApproverAddress string
-	esCommission      int64
-	esTimeout         uint64
-	esInstruction     string
+	escrow               bool
+	esApproverAddressHex string
+	esCommission         int64
+	esTimeout            uint64
+	esInstruction        string
 
 	// escrowApproval
 	approval      bool
@@ -64,7 +64,7 @@ var (
 	unsignedTxHex     string
 	addressSignatures map[string]string
 	txHash            string
-	addresses         []string
+	addressesHex      []string
 	nonce             int64
 	minSignature      uint32
 

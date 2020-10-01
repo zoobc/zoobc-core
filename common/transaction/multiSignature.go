@@ -72,7 +72,7 @@ type (
 			dbTx bool,
 		) error
 		GetPendingTransactionBySenderAddress(
-			senderAddress string, txHeight uint32,
+			senderAddress []byte, txHeight uint32,
 		) ([]*model.PendingTransaction, error)
 		ApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
 		UndoApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
@@ -126,7 +126,7 @@ func (pth *PendingTransactionHelper) GetPendingTransactionByHash(
 }
 
 func (pth *PendingTransactionHelper) GetPendingTransactionBySenderAddress(
-	senderAddress string, txHeight uint32,
+	senderAddress []byte, txHeight uint32,
 ) ([]*model.PendingTransaction, error) {
 	var pendingTxs []*model.PendingTransaction
 	q, args := pth.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
@@ -268,7 +268,7 @@ func (sih *SignatureInfoHelper) GetPendingSignatureByTransactionHash(transaction
 
 func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	var (

@@ -124,7 +124,7 @@ func init() {
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
 	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
-	sendMoneyCmd.Flags().StringVar(&esApproverAddress, "approver-address", "", "Escrow fields: Approver account address")
+	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
 	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
 	sendMoneyCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
@@ -191,8 +191,8 @@ func init() {
 	/*
 		MultiSig Command
 	*/
-	multiSigCmd.Flags().StringSliceVar(&addresses, "addresses", []string{}, "list of participants "+
-		"--addresses='address1,address2'")
+	multiSigCmd.Flags().StringSliceVar(&addressesHex, "addressesHex", []string{}, "list of participants "+
+		"--addressesHex='address1,address2'")
 	multiSigCmd.Flags().Int64Var(&nonce, "nonce", 0, "random number / access code for the multisig info")
 	multiSigCmd.Flags().Uint32Var(&minSignature, "min-signature", 0, "minimum number of signature required for the transaction "+
 		"to be valid")
@@ -482,7 +482,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			fee,
 			recipientAccountAddress)
 
-		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addresses)
+		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {

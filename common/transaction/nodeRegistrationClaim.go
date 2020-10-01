@@ -17,7 +17,7 @@ import (
 type ClaimNodeRegistration struct {
 	ID                      int64
 	Fee                     int64
-	SenderAddress           string
+	SenderAddress           []byte
 	Height                  uint32
 	Body                    *model.ClaimNodeRegistrationTransactionBody
 	Escrow                  *model.Escrow
@@ -47,7 +47,8 @@ func (tx *ClaimNodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}

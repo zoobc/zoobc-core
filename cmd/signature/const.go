@@ -9,7 +9,7 @@ var (
 	ed25519UseSlip10 bool
 
 	// verify
-	signatureBytes string
-	signatureHex   string
-	accountAddress []byte
+	signatureBytes    string
+	signatureHex      string
+	accountAddressHex string
 )

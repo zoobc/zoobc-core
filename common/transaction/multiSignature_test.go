@@ -47,7 +47,7 @@ var (
 )
 
 func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) GetMultisignatureInfoByAddress(
-	string, uint32, uint32,
+	[]byte, uint32, uint32,
 ) (str string, args []interface{}) {
 	return "", []interface{}{}
 }
@@ -1132,7 +1132,7 @@ func (*mockValidateMultisigUtilValidateSignatureInfoSucess) ValidateSignatureInf
 
 func (*mockMultisignatureValidateMultisigInfoNotExist) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	return sql.ErrNoRows
@@ -1140,7 +1140,7 @@ func (*mockMultisignatureValidateMultisigInfoNotExist) GetMultisigInfoByAddress(
 
 func (*mockMultisignatureValidateMultisigInfoError) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	return errors.New("mockedError")
@@ -1148,11 +1148,11 @@ func (*mockMultisignatureValidateMultisigInfoError) GetMultisigInfoByAddress(
 
 func (*mockMultisignatureValidateMultisigInfoExist) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	*multisigInfo = model.MultiSignatureInfo{
-		Addresses: make([]string, 3),
+		Addresses: make([][]byte, 3),
 	}
 	return nil
 }

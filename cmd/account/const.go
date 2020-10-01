@@ -8,7 +8,7 @@ var (
 	bitcoinPrivateKeyLength int32
 	bitcoinPublicKeyFormat  int32
 	// multisig
-	multisigAddresses []string
-	multisigMinimSigs uint32
-	multiSigNonce     int64
+	multisigAddressesHex []string
+	multisigMinimSigs    uint32
+	multiSigNonce        int64
 )
