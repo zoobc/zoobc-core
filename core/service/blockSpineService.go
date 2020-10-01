@@ -639,7 +639,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		inlcludedBlocks   []*model.Block
 		newReferenceBlock uint32
 	)
-	// to avoid subtract from lower number
+	// to avoid subtract from the bigger number
 	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
 		newReferenceBlock = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
 	}
