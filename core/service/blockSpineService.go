@@ -636,7 +636,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 
 	var (
-		inlcludedBlocks   []*model.Block
+		includedBlocks    []*model.Block
 		newReferenceBlock uint32
 	)
 	// to avoid subtract from the bigger number
@@ -646,20 +646,20 @@ func (bs *BlockSpineService) GenerateBlock(
 	// make sure new reference block height is greater than previous Reference Block Height
 	if newReferenceBlock > previousBlock.ReferenceBlockHeight {
 		limit := newReferenceBlock - previousBlock.ReferenceBlockHeight
-		inlcludedBlocks, err = bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
+		includedBlocks, err = bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
 		if err != nil {
 			return nil, err
 		}
 	}
-	if len(inlcludedBlocks) == 0 {
+	if len(includedBlocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
 	}
 	var (
 		merkleRoot      commonUtils.MerkleRoot
 		hashedMainBlock []*bytes.Buffer
 	)
-	for i := 0; i < len(inlcludedBlocks); i++ {
-		hashedMainBlock = append(hashedMainBlock, bytes.NewBuffer(inlcludedBlocks[i].BlockHash))
+	for i := 0; i < len(includedBlocks); i++ {
+		hashedMainBlock = append(hashedMainBlock, bytes.NewBuffer(includedBlocks[i].BlockHash))
 	}
 	_, err = merkleRoot.GenerateMerkleRoot(hashedMainBlock)
 	if err != nil {
