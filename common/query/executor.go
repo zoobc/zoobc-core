@@ -19,6 +19,8 @@ type (
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
 		ExecuteTransactions(queries [][]interface{}) error
+		// CommitTx commit on every transaction stacked in Executor.Tx
+		// note: rollback is called in this function if commit fail, to avoid locking complication
 		CommitTx() error
 		RollbackTx() error
 	}
@@ -186,15 +188,15 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 		monitoring.SetDatabaseStats(qe.Db.Stats())
 		_, err = stmt.Exec(query[1:]...)
 		if err != nil {
-			stmt.Close()
+			_ = stmt.Close()
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		stmt.Close()
+		_ = stmt.Close()
 	}
 	return nil
 }
 
-// ExecuteTransactionCommit commit on every transaction stacked in Executor.Tx
+// CommitTx commit on every transaction stacked in Executor.Tx
 // note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx() error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())

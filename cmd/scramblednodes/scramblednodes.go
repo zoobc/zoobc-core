@@ -4,11 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"

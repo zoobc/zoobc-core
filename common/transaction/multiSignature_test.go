@@ -7,12 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/fee"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
-
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -1260,7 +1257,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatur
 	return errors.New("mockedError")
 }
 
-func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountID(
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountAddress(
 	accountBalance *model.AccountBalance, address string, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
@@ -1284,7 +1281,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	type args struct {
@@ -1510,7 +1506,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
@@ -1572,7 +1567,6 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -1638,7 +1632,6 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -1684,7 +1677,6 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -1750,7 +1742,6 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -1915,7 +1906,6 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -2021,7 +2011,6 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
@@ -2050,7 +2039,6 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	type args struct {
@@ -2113,7 +2101,6 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
@@ -2145,7 +2132,6 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
 		PendingTransactionHelper PendingTransactionHelperInterface
 		AccountBalanceHelper     AccountBalanceHelperInterface
-		AccountLedgerHelper      AccountLedgerHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
@@ -2194,7 +2180,6 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:      tt.fields.AccountLedgerHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			if got := tx.GetSize(); got != tt.want {
