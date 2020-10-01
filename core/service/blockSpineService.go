@@ -634,11 +634,22 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	newReferenceBlock := lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
-	limit := newReferenceBlock - previousBlock.ReferenceBlockHeight + 1
-	inlcludedBlocks, err := bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
-	if err != nil {
-		return nil, err
+
+	var (
+		inlcludedBlocks   []*model.Block
+		newReferenceBlock uint32
+	)
+	// to avoid subtract from lower number
+	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
+		newReferenceBlock = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+	}
+	// make sure new reference block height is greater than previous Reference Block Height
+	if newReferenceBlock > previousBlock.ReferenceBlockHeight {
+		limit := newReferenceBlock - previousBlock.ReferenceBlockHeight
+		inlcludedBlocks, err = bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(inlcludedBlocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
@@ -887,14 +898,14 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.GetReferenceBlockHeight() == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "NoIncludedMainBlock")
 	}
-	if (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "InValidReferenceBlockHeight")
+	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
 	var _, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-	// TODO: check hashes of reference main block
+	// TODO: check merkle root of included main block
 	return nil
 }
 
