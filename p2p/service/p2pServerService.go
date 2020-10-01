@@ -140,6 +140,7 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// if node receives own address don't do anything
+		var nodeAddressInfosToReceive = make([]*model.NodeAddressInfo, 0)
 		myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
 		myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
 		for _, info := range nodeAddressInfo {
@@ -160,10 +161,11 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 				// 	// blacklist peer!
 				// }
 			} else if !alreadyUpdated {
-				if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
-					return nil, status.Error(codes.Internal, err.Error())
-				}
+				nodeAddressInfosToReceive = append(nodeAddressInfosToReceive, info)
 			}
+		}
+		if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfosToReceive); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 
 		return &model.Empty{}, nil
