@@ -102,7 +102,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 					10, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:            fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
 			}, nil
 		default:

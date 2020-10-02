@@ -2383,7 +2383,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		PayloadLength: 44,
 		PayloadHash: []byte{55, 140, 121, 255, 150, 51, 177, 63, 86, 185, 40, 206, 151, 168, 77, 67, 61, 43, 54, 73, 162, 230,
 			10, 202, 83, 1, 185, 208, 203, 232, 73, 215},
-		ReferenceBlockHeight: 11,
+		ReferenceBlockHeight: mockSpineLastBlockData.ReferenceBlockHeight + constant.SpineReferenceBlockHeightOffset,
 	}
 	mockSpineBlockData.BlockHash = mockSpineGoodLastBlockHash
 

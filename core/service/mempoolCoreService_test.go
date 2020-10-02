@@ -250,6 +250,54 @@ func (*mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache) InsertFeeSca
 	return nil
 }
 
+type (
+	mockAccountDatasetQueryMempoolCoreService struct {
+		query.AccountDatasetQuery
+		wantNoRow bool
+	}
+)
+
+func (*mockAccountDatasetQueryMempoolCoreService) GetAccountDatasetEscrowApproval(string) (qry string, args []interface{}) {
+	return
+}
+func (m *mockAccountDatasetQueryMempoolCoreService) Scan(dataset *model.AccountDataset, _ *sql.Row) error {
+	if m.wantNoRow {
+		return sql.ErrNoRows
+	}
+	*dataset = model.AccountDataset{
+		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		Property:                "Admin",
+		Value:                   "You're Welcome",
+		IsActive:                true,
+		Latest:                  true,
+		Height:                  5,
+	}
+
+	return nil
+}
+
+type mockQueryExecutoMempoolCoreService struct {
+	query.Executor
+	wantErr     bool
+	wantErrType error
+}
+
+func (m *mockQueryExecutoMempoolCoreService) ExecuteSelectRow(qu string, tx bool, args ...interface{}) (*sql.Row, error) {
+	if m.wantErr {
+		if m.wantErrType == sql.ErrNoRows {
+			db, mock, _ := sqlmock.New()
+			mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnError(sql.ErrNoRows)
+			return db.QueryRow(qu), nil
+		}
+		return nil, m.wantErrType
+	}
+
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnRows(sqlmock.NewRows([]string{"column"}))
+	return db.QueryRow(qu), nil
+}
+
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	successTx1, _ := (&transaction.Util{
 		MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
@@ -301,7 +349,9 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				TransactionUtil: &transaction.Util{
-					FeeScaleService: &mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache{},
+					FeeScaleService:     &mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache{},
+					AccountDatasetQuery: &mockAccountDatasetQueryMempoolCoreService{wantNoRow: true},
+					QueryExecutor:       &mockQueryExecutoMempoolCoreService{},
 				},
 				Chaintype:           tt.fields.Chaintype,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
@@ -310,11 +360,11 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			}
 			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp, 0)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MempoolService.SelectTransactionsFromMempool() = %v, want %v", got, tt.want)
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -1200,6 +1250,8 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					FeeScaleService:     &mockValidateMempoolTransactionScaleServiceSuccessCache{},
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+					QueryExecutor:       &mockQueryExecutoMempoolCoreService{},
+					AccountDatasetQuery: &mockAccountDatasetQueryMempoolCoreService{wantNoRow: true},
 				},
 				TransactionCoreService: tt.fields.TransactionCoreService,
 				MempoolCacheStorage:    tt.fields.MempoolCacheStorage,
