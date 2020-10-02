@@ -320,7 +320,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 			continue
 		}
 
-		accType, err := accounttype.NewAccountType(acc.AccountAddress)
+		accType, err := accounttype.NewAccountTypeFromAccount(acc.AccountAddress)
 		if err != nil {
 			return nil, err
 		}

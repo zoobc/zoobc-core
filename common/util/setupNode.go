@@ -59,7 +59,7 @@ func (sn *SetupNode) CheckConfig() error {
 	if len(sn.Config.WellknownPeers) < 1 {
 		return errors.New("no wellknown peers found")
 	}
-	if sn.Config.Smithing && sn.Config.OwnerAccountAddressHex == "" {
+	if sn.Config.Smithing && sn.Config.OwnerAccountAddress == nil {
 		return errors.New("no owner account address found")
 	}
 	peePort, err := sn.portAvailability("PEER", int(sn.Config.PeerPort))

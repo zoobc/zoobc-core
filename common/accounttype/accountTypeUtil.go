@@ -7,8 +7,25 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
-// GetAccountType returns the appropriate AccountType object based on the account full address (account type + account public key)
-func NewAccountType(accountAddress []byte) (AccountType, error) {
+// NewAccountType returns the appropriate AccountType object based on the account account type nul and account public key
+func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountType, error) {
+	var (
+		acc AccountType
+	)
+	switch accTypeInt {
+	case 0:
+		acc = &ZbcAccountType{}
+	case 1:
+		acc = &BTCAccountType{}
+	default:
+		return nil, errors.New("InvalidAccountType")
+	}
+	acc.SetAccountPublicKey(accPubKey)
+	return acc, nil
+}
+
+// NewAccountTypeFromAccount returns the appropriate AccountType object based on the account full address (account type + account public key)
+func NewAccountTypeFromAccount(accountAddress []byte) (AccountType, error) {
 	buff := bytes.NewBuffer(accountAddress)
 	return ParseBytesToAccountType(buff)
 }

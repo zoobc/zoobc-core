@@ -961,8 +961,8 @@ func TestMultisigService_GetMultisigAddressByParticipantAddress(t *testing.T) {
 				param: &model.GetMultisigAddressByParticipantAddressRequest{},
 			},
 			want: &model.GetMultisigAddressByParticipantAddressResponse{
-				Total:              1,
-				MultiSignAddresses: []string{},
+				Total:             1,
+				MultisigAddresses: []string{},
 			},
 			wantErr: false,
 		},

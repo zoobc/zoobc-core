@@ -137,7 +137,7 @@ func (*Signature) VerifySignature(payload, signature, accountAddress []byte) err
 	)
 	switch model.SignatureType(signatureType) {
 	case model.SignatureType_DefaultSignature: // zoobc
-		accType, err := accounttype.NewAccountType(accountAddress)
+		accType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
 		if err != nil {
 			return err
 		}

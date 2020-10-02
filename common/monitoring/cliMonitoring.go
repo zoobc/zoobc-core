@@ -99,7 +99,8 @@ func (cm *CLIMonitoring) Start() {
 		if errNodePublicKey == nil {
 			cm.print("Node Public Key", nodePublicKey)
 		}
-		cm.print("Owner Account Address", cm.ConfigInfo.OwnerAccountAddressHex)
+		cm.print("Owner Account Address", cm.ConfigInfo.OwnerAccountAddress)
+		cm.print("Owner Account Address (hex)", cm.ConfigInfo.OwnerAccountAddressHex)
 		cm.print("Smithing Status", cm.ConfigInfo.Smithing)
 		cm.printLineBreak()
 

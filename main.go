@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -21,7 +22,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
-	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -133,7 +133,8 @@ type goDaemon struct {
 // initiateMainInstance initiation all instance that must be needed and exists before running the node
 func initiateMainInstance() {
 	var (
-		err error
+		err                   error
+		encodedAccountAddress string
 	)
 
 	// load config for default value to be feed to viper
@@ -146,6 +147,37 @@ func initiateMainInstance() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
+	// decode owner account address
+	if config.OwnerAccountAddressHex != "" {
+		config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// double check that the decoded account address is valid
+		accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		// TODO: move to crypto package in a function
+		switch accType.GetTypeInt() {
+		case 0:
+			ed25519 := crypto.NewEd25519Signature()
+			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
+			if err != nil {
+				log.Fatal(err)
+			}
+		case 1:
+			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+			if err != nil {
+				log.Fatal(err)
+			}
+		default:
+			log.Fatal("Invalid Owner Account Type")
+		}
+		config.OwnerEncodedAccountAddress = encodedAccountAddress
+		config.OwnerAccountAddressTypeInt = accType.GetTypeInt()
+	}
 
 	// early init configuration service
 	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
@@ -186,7 +218,7 @@ func initiateMainInstance() {
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
-	if config.OwnerAccountAddressHex == "" {
+	if config.OwnerAccountAddress == nil {
 		// todo: andy-shi88 refactor this
 		ed25519 := crypto.NewEd25519Signature()
 		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
@@ -199,11 +231,14 @@ func initiateMainInstance() {
 		if err != nil {
 			log.Fatal("Fail to generate account public key")
 		}
-		id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
+		accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), publicKey)
 		if err != nil {
-			log.Fatal("Fail generating address from node's seed")
+			log.Fatal(err)
 		}
-		config.OwnerAccountAddressHex = id
+		config.OwnerAccountAddress, err = accType.GetAccountAddress()
+		if err != nil {
+			log.Fatal(err)
+		}
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
@@ -674,7 +709,7 @@ func initObserverListeners() {
 func startServices() {
 	p2pServiceInstance.StartP2P(
 		config.MyAddress,
-		config.OwnerAccountAddressHex,
+		config.OwnerAccountAddress,
 		config.PeerPort,
 		config.NodeKey.Seed,
 		queryExecutor,
@@ -699,7 +734,7 @@ func startServices() {
 		blockStateStorages,
 		config.RPCAPIPort,
 		config.HTTPAPIPort,
-		config.OwnerAccountAddressHex,
+		config.OwnerAccountAddress,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		flagDebugMode,

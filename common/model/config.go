@@ -17,6 +17,8 @@ type (
 		NodeKey                                                   *NodeKey
 		MyAddress, OwnerAccountAddressHex, NodeSeed               string
 		OwnerAccountAddress                                       []byte
+		OwnerEncodedAccountAddress                                string
+		OwnerAccountAddressTypeInt                                int32
 		APICertFile, APIKeyFile                                   string
 		DatabaseFileName, ResourcePath,
 		NodeKeyFileName, SnapshotPath string
@@ -65,7 +67,7 @@ func (cfg *Config) LoadConfigurations() {
 func (cfg *Config) SaveConfig(filePath string) error {
 	var err error
 	viper.Set("smithing", cfg.Smithing)
-	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddressHex)
+	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddress)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
 	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)

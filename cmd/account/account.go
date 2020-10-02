@@ -40,6 +40,11 @@ private key both in bytes and hex representation + the secret phrase
 		Use:   "bitcoin",
 		Short: "Generate account based on Bitcoin signature that using Elliptic Curve Digital Signature Algorithm",
 	}
+	convAccuntToHexCmd = &cobra.Command{
+		Use:   "hexconv",
+		Short: "Convert a given (encoded/string) account address to hex format",
+	}
+
 	multiSigCmd = &cobra.Command{
 		Use:        "multisig",
 		Aliases:    []string{"musig", "ms"},
@@ -62,6 +67,9 @@ func init() {
 		int32(model.PrivateKeyBytesLength_PrivateKey256Bits),
 		"The length of private key Bitcoin want to generate. supported format are 32, 48 & 64 length",
 	)
+	convAccuntToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
+		"formatted/encoded account address. eg. ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML")
+	convAccuntToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
 	bitcoinAccuntCmd.Flags().Int32Var(
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
@@ -88,10 +96,50 @@ func Commands() *cobra.Command {
 	accountCmd.AddCommand(ed25519AccountCmd)
 	bitcoinAccuntCmd.Run = accountGeneratorInstance.GenerateBitcoinAccount()
 	accountCmd.AddCommand(bitcoinAccuntCmd)
+	convAccuntToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
+	accountCmd.AddCommand(convAccuntToHexCmd)
 	multiSigCmd.Run = accountGeneratorInstance.GenerateMultiSignatureAccount()
 	accountCmd.AddCommand(multiSigCmd)
 	return accountCmd
 
+}
+
+// GenerateMultiSignatureAccount to generate address for multi signature transaction
+func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
+	return func(cmd *cobra.Command, args []string) {
+		var (
+			accPubKey []byte
+			err       error
+		)
+		switch accountTypeInt {
+		case 0:
+			ed25519 := crypto.NewEd25519Signature()
+			accPubKey, err = ed25519.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
+		case 1:
+			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
+		}
+		accType, err := accounttype.NewAccountType(accountTypeInt, accPubKey)
+		if err != nil {
+			panic(err)
+		}
+		fullAccountAddress, err := accType.GetAccountAddress()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("account address type: %s (%d)\n", model.AccountType_name[accountTypeInt], accountTypeInt)
+		fmt.Printf("encoded account address: %s\n", encodedAccountAddress)
+		fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
+		fmt.Printf("public key bytes: %v\n", accPubKey)
+		fmt.Printf("full account address: %v\n", fullAccountAddress)
+		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
+	}
 }
 
 // GenerateMultiSignatureAccount to generate address for multi signature transaction

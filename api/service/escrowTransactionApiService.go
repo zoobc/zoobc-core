@@ -50,14 +50,14 @@ func (es *escrowTransactionService) GetEscrowTransactions(
 	}
 
 	caseQuery.Select(escrowQuery.TableName, escrowQuery.Fields...)
-	if params.GetApproverAddress() != "" {
+	if params.GetApproverAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("approver_address", params.GetApproverAddress()))
 	}
 
-	if params.GetSenderAddress() != "" {
+	if params.GetSenderAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("sender_address", params.GetSenderAddress()))
 	}
-	if params.GetRecipientAddress() != "" {
+	if params.GetRecipientAddress() != nil {
 		caseQuery.Or(caseQuery.Equal("recipient_address", params.GetRecipientAddress()))
 	}
 
