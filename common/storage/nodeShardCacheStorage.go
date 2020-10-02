@@ -78,7 +78,6 @@ func (n *NodeShardCacheStorage) GetItem(lastChange, item interface{}) error {
 				copy(shardMapCopy.ShardChunks[u], i)
 			}
 		}
-		// return blocker.NewBlocker(blocker.NotFound, "item not found")
 		return nil
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType lastChange")
