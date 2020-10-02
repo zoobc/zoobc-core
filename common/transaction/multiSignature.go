@@ -661,7 +661,6 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 	)
 	bufferBytes := bytes.NewBuffer(txBodyBytes)
 	// MultisigInfo
-	// STEF continue from here
 	multisigInfoPresent := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultisigFieldLength)))
 	if multisigInfoPresent == constant.MultiSigFieldPresent {
 		minSignatures := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigInfoMinSignature)))

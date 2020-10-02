@@ -314,6 +314,7 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 		return nil, err
 	}
 	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
+	//STEF restart from here (GetProofOfOwnershipSize has fixed account size, while from now on account size is variable)
 	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(true)))
 	if err != nil {
 		return nil, err

@@ -34,6 +34,7 @@ func GetGenesisTransactions(
 			if err != nil {
 				return nil, err
 			}
+			// as of now we only support default account type for genesis registrations, so no need to check the account type
 			accType := &accounttype.ZbcAccountType{}
 			accType.SetEncodedAccountAddress(genesisEntry.AccountAddress)
 			accType.SetAccountPublicKey(accPubKey)
