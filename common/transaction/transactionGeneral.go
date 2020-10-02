@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -31,6 +32,8 @@ type (
 	Util struct {
 		FeeScaleService     fee.FeeScaleServiceInterface
 		MempoolCacheStorage storage.CacheStorageInterface
+		QueryExecutor       query.ExecutorInterface
+		AccountDatasetQuery query.AccountDatasetQueryInterface
 	}
 
 	MultisigTransactionUtilInterface interface {
@@ -318,6 +321,24 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			blocker.ValidationErr,
 			"TxInvalidBodyFormat",
 		)
+	}
+
+	// Checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
+	// when tx is not escrowed
+	if tx.GetRecipientAccountAddress() != "" && (tx.Escrow != nil && tx.Escrow.GetApproverAddress() == "") {
+		var (
+			accountDataset model.AccountDataset
+			row            *sql.Row
+		)
+		accDatasetQ, accDatasetArgs := u.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAccountAddress)
+		row, _ = u.QueryExecutor.ExecuteSelectRow(accDatasetQ, false, accDatasetArgs...)
+		err = u.AccountDatasetQuery.Scan(&accountDataset, row)
+		if err != nil && err != sql.ErrNoRows {
+			return err
+		}
+		if accountDataset.GetIsActive() {
+			return fmt.Errorf("RecipientRequireEscrow")
+		}
 	}
 
 	unsignedTransactionBytes, err := u.GetTransactionBytes(tx, false)

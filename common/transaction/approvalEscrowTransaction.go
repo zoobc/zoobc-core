@@ -67,7 +67,7 @@ func (*ApprovalEscrowTransaction) GetSize() uint32 {
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow.ApproverAddress != nil {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)

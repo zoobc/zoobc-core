@@ -198,11 +198,10 @@ func (tx *FeeVoteCommitTransaction) GetAmount() int64 {
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
 func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow.ApproverAddress != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
-
 }
 
 // GetSize is size of transaction body
