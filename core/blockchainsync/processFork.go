@@ -293,9 +293,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
 		if err != nil {
 			fp.Logger.Warnf(err.Error())
-			err = fp.MempoolBackupStorage.RemoveItem(mempoolID)
-			if err != nil {
-				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), err.Error())
+			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
+				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
 			}
 			continue
 		}
@@ -304,8 +303,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		if err != nil {
 			// no need to break the process in this case
 			fp.Logger.Warnf(err.Error())
-			removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID)
-			if err != nil {
+			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
 				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
 			}
 			continue
@@ -314,8 +312,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
 			fp.Logger.Warnf(err.Error())
-			removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID)
-			if err != nil {
+			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
 				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
 			}
 			continue
