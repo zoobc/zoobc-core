@@ -91,7 +91,7 @@ func (ss *SnapshotScheduler) CheckChunksIntegrity() error {
 		for _, spinePublicKey := range spinePublicKeys {
 			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
 		}
-		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
+		shards, err = ss.SnapshotChunkUtil.GetShardAssignment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks() (err error) {
 			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
 		}
 
-		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
+		shards, err = ss.SnapshotChunkUtil.GetShardAssignment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 		if err != nil {
 			return err
 		}

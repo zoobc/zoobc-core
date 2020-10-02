@@ -3,7 +3,6 @@ package service
 import (
 	"crypto/sha256"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/util"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -11,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -101,7 +101,7 @@ func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
 
 // StartSnapshotListener setup listener for snapshots generation
 // TODO: allow only active blocksmiths (registered nodes at this block height) to generate snapshots
-// 	 one way to do this is to inject the actual node public key and noderegistration service into this service
+// 	 one way to do this is to inject the actual node public key and nodeRegistration service into this service
 func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(blockI interface{}, args ...interface{}) {
@@ -161,7 +161,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 							nodeIDs[i] = key.NodeID
 						}
 
-						_, err = ss.SnapshotChunkUtil.GetShardAssigment(manifestRes.GetFileChunkHashes(), sha256.Size, nodeIDs, true)
+						_, err = ss.SnapshotChunkUtil.GetShardAssignment(manifestRes.GetFileChunkHashes(), sha256.Size, nodeIDs, true)
 						if err != nil {
 							ss.Logger.Errorf("Fail calculating snapshot shard assignment at "+
 								"spineBlock height %d. Error %s", manifestRes.GetManifestSpineBlockHeight(), err)

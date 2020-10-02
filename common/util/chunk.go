@@ -13,7 +13,7 @@ import (
 type (
 	ChunkUtilInterface interface {
 		ShardChunk(chunks []byte, shardBitLength int) map[uint64][][]byte
-		GetShardAssigment(
+		GetShardAssignment(
 			chunks []byte,
 			shardBitLength int,
 			nodeIDs []int64,
@@ -62,9 +62,9 @@ func (c *ChunkUtil) ShardChunk(chunks []byte, shardBitLength int) map[uint64][][
 	return shards
 }
 
-// GetShardAssigment assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
+// GetShardAssignment assign built shard to provided nodeIDs and return the mapped data + cache to CacheStorage
 // nodeIDs could be sorted
-func (c *ChunkUtil) GetShardAssigment(
+func (c *ChunkUtil) GetShardAssignment(
 	chunks []byte,
 	shardBitLength int,
 	nodeIDs []int64,
@@ -84,7 +84,7 @@ func (c *ChunkUtil) GetShardAssigment(
 	)
 	lastChange := sha3.Sum256(chunks)
 	err = c.nodeShardCacheStorage.GetItem(lastChange, &shardMap)
-	if err == nil {
+	if err == nil && len(shardMap.NodeShards) == 0 {
 		return shardMap, nil
 	}
 	shards := c.ShardChunk(chunks, shardBitLength)
