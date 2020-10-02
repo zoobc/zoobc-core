@@ -284,26 +284,41 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		return err
 	}
 
-	for mempoolID, mempoolBytes := range mempools {
+	for mempoolID := range mempools {
 		var (
 			tx     *model.Transaction
 			txType transaction.TypeAction
 		)
 
-		tx, err = fp.TransactionUtil.ParseTransactionBytes(mempoolBytes, true)
+		tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
 		if err != nil {
-			return err
+			fp.Logger.Warnf(err.Error())
+			err = fp.MempoolBackupStorage.RemoveItem(mempoolID)
+			if err != nil {
+				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), err.Error())
+			}
+			continue
 		}
 
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
 			// no need to break the process in this case
-			fp.Logger.Warnf("Invalid mempool want to restore with ID: %d", tx.GetID())
+			fp.Logger.Warnf(err.Error())
+			removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID)
+			if err != nil {
+				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
+			}
+			continue
 		}
 
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return err
+			fp.Logger.Warnf(err.Error())
+			removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID)
+			if err != nil {
+				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
+			}
+			continue
 		}
 		// Apply Unconfirmed
 		err = fp.QueryExecutor.BeginTx()
@@ -316,15 +331,18 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			if rollbackErr != nil {
 				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
 			}
-			return err
+			fp.Logger.Warnf("error when ApplyUnconfirmedTransaction: %v", err)
+			continue
 		}
-		err = fp.MempoolService.AddMempoolTransaction(tx, mempoolBytes)
+		err = fp.MempoolService.AddMempoolTransaction(tx, mempools[mempoolID])
 		if err != nil {
 			rollbackErr := fp.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
 				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
 			}
-			return err
+			fp.Logger.Warnf("error when AddMempoolTransaction: %v", err)
+			continue
+
 		}
 		err = fp.QueryExecutor.CommitTx()
 		if err != nil {
@@ -332,7 +350,8 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = fp.MempoolBackupStorage.RemoveItem(mempoolID)
 		if err != nil {
-			return err
+			fp.Logger.Warnf(err.Error())
+			continue
 		}
 	}
 	return nil

@@ -1726,7 +1726,7 @@ func (bs *BlockService) BlockTransactionsRequestedListener() observer.Listener {
 			}
 
 			// check chaintype
-			if chainType != bs.Chaintype {
+			if chainType.GetTypeInt() != bs.Chaintype.GetTypeInt() {
 				bs.Logger.Warnf("chaintype is not macth, current chain is %s the incoming chain is %s",
 					bs.Chaintype.GetName(), chainType.GetName())
 				return
