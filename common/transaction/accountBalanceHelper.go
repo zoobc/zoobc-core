@@ -14,8 +14,9 @@ type (
 	// It better to use with QueryExecutor.BeginTX()
 	AccountBalanceHelperInterface interface {
 		AddAccountSpendableBalance(address []byte, amount int64) error
-		AddAccountBalance(address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error
-		GetBalanceByAccountID(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
+		AddAccountBalance(address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64,
+			blockTimestamp uint64) error
+		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
 		HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error)
 	}
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
@@ -119,7 +120,7 @@ func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address []
 		accountBalance model.AccountBalance
 	)
 
-	if bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
+	if !bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
 		qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
 		row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
 		if err != nil {

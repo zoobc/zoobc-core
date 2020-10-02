@@ -139,7 +139,7 @@ func readCertFile(config *model.Config, fileName string) error {
 			return fmt.Errorf("failed to assert certificate, %s", err.Error())
 		}
 		if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
-			config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
+			config.OwnerAccountAddressHex = fmt.Sprintf("%s", ownerAccountAddress)
 		} else {
 			return fmt.Errorf("invalid certificate format, ownerAccount not found")
 		}
@@ -275,9 +275,9 @@ func generateConfig(config model.Config) error {
 			color.White("OWNER ACCOUNT ADDRESS: ")
 			inputStr = shell.ReadLine()
 			if strings.TrimSpace(inputStr) != "" {
-				config.OwnerAccountAddress = inputStr
+				config.OwnerAccountAddressHex = inputStr
 			} else {
-				if config.OwnerAccountAddress != "" {
+				if config.OwnerAccountAddressHex != "" {
 					color.Cyan("previous ownerAccountAddress won't be replaced")
 				} else {
 					color.Yellow("! Node won't running when owner account address is empty.")

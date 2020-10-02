@@ -279,7 +279,7 @@ func (tx *NodeRegistration) GetAmount() int64 {
 }
 
 func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)

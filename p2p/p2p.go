@@ -28,7 +28,7 @@ type (
 	Peer2PeerServiceInterface interface {
 		StartP2P(
 			myAddress string,
-			ownerAccountAddress string,
+			ownerAccountAddress []byte,
 			peerPort uint32,
 			nodeSecretPhrase string,
 			queryExecutor query.ExecutorInterface,
@@ -92,7 +92,8 @@ func NewP2PService(
 
 // StartP2P initiate all p2p dependencies and run all p2p thread service
 func (s *Peer2PeerService) StartP2P(
-	myAddress, ownerAccountAddress string,
+	myAddress string,
+	ownerAccountAddress []byte,
 	peerPort uint32,
 	nodeSecretPhrase string,
 	queryExecutor query.ExecutorInterface,

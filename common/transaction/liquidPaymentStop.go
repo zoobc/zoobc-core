@@ -177,7 +177,7 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *LiquidPaymentStopTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -228,7 +228,7 @@ func (tx *LiquidPaymentStopTransaction) SkipMempoolTransaction(
 }
 
 func (tx *LiquidPaymentStopTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -282,7 +282,7 @@ func (tx *LiquidPaymentStopTransaction) EscrowUndoApplyUnconfirmed() error {
 func (tx *LiquidPaymentStopTransaction) EscrowValidate(dbTx bool) (err error) {
 	var enough bool
 
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

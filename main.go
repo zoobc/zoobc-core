@@ -186,7 +186,7 @@ func initiateMainInstance() {
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
-	if config.OwnerAccountAddress == "" {
+	if config.OwnerAccountAddressHex == "" {
 		// todo: andy-shi88 refactor this
 		ed25519 := crypto.NewEd25519Signature()
 		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
@@ -203,7 +203,7 @@ func initiateMainInstance() {
 		if err != nil {
 			log.Fatal("Fail generating address from node's seed")
 		}
-		config.OwnerAccountAddress = id
+		config.OwnerAccountAddressHex = id
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
 			log.Fatal("Fail to save new configuration")
@@ -674,7 +674,7 @@ func initObserverListeners() {
 func startServices() {
 	p2pServiceInstance.StartP2P(
 		config.MyAddress,
-		config.OwnerAccountAddress,
+		config.OwnerAccountAddressHex,
 		config.PeerPort,
 		config.NodeKey.Seed,
 		queryExecutor,
@@ -699,7 +699,7 @@ func startServices() {
 		blockStateStorages,
 		config.RPCAPIPort,
 		config.HTTPAPIPort,
-		config.OwnerAccountAddress,
+		config.OwnerAccountAddressHex,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName),
 		loggerAPIService,
 		flagDebugMode,

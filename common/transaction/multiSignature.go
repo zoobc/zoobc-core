@@ -608,7 +608,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *MultiSignatureTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -774,7 +774,7 @@ func (*MultiSignatureTransaction) SkipMempoolTransaction(
 }
 
 func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -816,7 +816,7 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {
