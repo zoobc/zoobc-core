@@ -1,15 +1,7 @@
 package constant
 
-import "github.com/zoobc/lib/address"
-
 var (
-	AccountAddressType   uint32 = 4
-	AccountAddressLength uint32 = 4
-	// STEF TODO: check all code that uses this and change it with account type logic
-	NodeAddressLength uint32 = 4
-	AccountAddress    uint32 = address.ZbcIDLength
-	// STEF TODO: check all code that uses this and change it with model.AccountType_EmptyAccountType
-	AccountAddressEmptyLength  uint32
+	AccountAddressType         uint32 = 4
 	TransactionSignatureLength uint32 = 4
 	// NodePublicKey TODO: this is valid for pub keys generated using Ed25519. in future we might have more implementations
 	NodePublicKey uint32 = 32

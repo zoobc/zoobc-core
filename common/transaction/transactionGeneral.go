@@ -113,9 +113,16 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
 	} else {
-		//STEF
-		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressLength))
-		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
+		// if no escrow, write an empty account for approver
+		emptyAccType, err := accounttype.NewAccountType(int32(model.AccountType_EmptyAccountType), []byte{})
+		if err != nil {
+			return nil, err
+		}
+		emptyAccAddr, err := emptyAccType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(emptyAccAddr)
 
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
@@ -177,25 +184,25 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	}
 	transaction.Timestamp = int64(util.ConvertBytesToUint64(chunkedBytes))
 
-	accType, err := accounttype.ParseBytesToAccountType(buffer)
+	senderAccType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	senderAddress, err := accType.GetAccountAddress()
+	senderAddress, err := senderAccType.GetAccountAddress()
 	if err != nil {
 		return nil, err
 	}
 	transaction.SenderAccountAddress = senderAddress
 
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	recipientAccType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	recipient, errRecipient := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
-	if errRecipient != nil {
-		return nil, errRecipient
+	recipientAddress, err := recipientAccType.GetAccountAddress()
+	if err != nil {
+		return nil, err
 	}
-	transaction.RecipientAccountAddress = recipient
+	transaction.RecipientAccountAddress = recipientAddress
 
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
@@ -219,11 +226,11 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	3. Timeout
 	4. Instruction
 	*/
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	approverAccType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	approverAddress, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
+	approverAddress, err := approverAccType.GetAccountAddress()
 	if err != nil {
 		return nil, err
 	}

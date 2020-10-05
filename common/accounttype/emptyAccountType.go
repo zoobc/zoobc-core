@@ -34,7 +34,7 @@ func (zAcc *EmptyAccountType) GetTypeInt() int32 {
 }
 
 func (zAcc *EmptyAccountType) GetAccountPublicKey() []byte {
-	if zAcc.GetAccountPublicKey() == nil {
+	if zAcc.accountPublicKey == nil {
 		return make([]byte, 0)
 	}
 	return zAcc.accountPublicKey
