@@ -30,7 +30,7 @@ type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
-		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
+		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error)
 		GetNodeProofOfOrigin(destPeer *model.Peer) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
@@ -216,14 +216,14 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
-		nodeIDs        []int64
+		nodeIDs        = make([]int64, len(nodeRegistrations))
 	)
 	defer func() {
 		cancelReq()
 	}()
 
-	for _, nr := range nodeRegistrations {
-		nodeIDs = append(nodeIDs, nr.NodeID)
+	for i, nr := range nodeRegistrations {
+		nodeIDs[i] = nr.NodeID
 	}
 
 	// context still not use ctx := cs.buildContext()
@@ -354,7 +354,7 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 }
 
 // SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
-func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 
@@ -370,7 +370,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 		cancelReq()
 	}()
 	res, err := p2pClient.SendNodeAddressInfo(ctx, &model.SendNodeAddressInfoRequest{
-		NodeAddressInfoMessage: nodeAddressInfo,
+		NodeAddressInfoMessage: nodeAddressInfos,
 	})
 	if err != nil {
 		return nil, err

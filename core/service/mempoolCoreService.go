@@ -273,7 +273,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 	}
 
 	if mpTx.GetID() == tx.GetID() {
-		return blocker.NewBlocker(blocker.ValidationErr, "TransactionAlreadyConfirmed")
+		return blocker.NewBlocker(blocker.DuplicateMempoolErr, "TransactionAlreadyConfirmed")
 	}
 
 	txType, err = mps.ActionTypeSwitcher.GetTransactionType(mpTx)

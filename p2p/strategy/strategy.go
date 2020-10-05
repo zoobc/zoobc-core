@@ -28,7 +28,7 @@ type (
 		PeerUnblacklist(peer *model.Peer) *model.Peer
 		ValidateRequest(ctx context.Context) bool
 		SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error)
-		ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error
+		ReceiveNodeAddressInfo(nodeAddressInfo []*model.NodeAddressInfo) error
 		UpdateOwnNodeAddressInfo(nodeAddress string, port uint32, forceBroadcast bool) error
 		GenerateProofOfOrigin(challengeMessage []byte, timestamp int64, secretPhrase string) *model.ProofOfOrigin
 	}
