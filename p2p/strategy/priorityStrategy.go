@@ -1339,50 +1339,64 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 			curNodeAddressInfo, ok := nodeAddressesInfo[nodeAddressInfo.NodeID]
 			if !ok || (ok && curNodeAddressInfo.BlockHeight < nodeAddressInfo.BlockHeight) {
 				nodeAddressesInfo[nodeAddressInfo.NodeID] = nodeAddressInfo
-				if err := ps.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
-					ps.Logger.Error(err)
-				}
+
 			}
 		}
 
 		if syncMyAddressWithPeers && !myAddressFound {
-			go ps.sendAddressInfoToPeer(peer, myAddressInfo)
+			go ps.sendAddressInfoToPeer(peer, []*model.NodeAddressInfo{myAddressInfo})
 		}
 		// all address info have been fetched
 		if len(nodeAddressesInfo) == len(nodeRegistrations) {
 			finished = true
 		}
 	}
+	nodeAddressesInfoArr := make([]*model.NodeAddressInfo, len(nodeAddressesInfo))
+	var i = 0
+	for _, nodeAddressInfo := range nodeAddressesInfo {
+		nodeAddressesInfoArr[i] = nodeAddressInfo
+		i++
+	}
+	if err := ps.ReceiveNodeAddressInfo(nodeAddressesInfoArr); err != nil {
+		ps.Logger.Error(err)
+	}
 	return nodeAddressesInfo, nil
 }
 
 // ReceiveNodeAddressInfo receive a node address info from a peer and save it to db
-func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo []*model.NodeAddressInfo) error {
 	// skip if received address is own address
 	myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
 	myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
-	if errAddr == nil &&
-		errPort == nil &&
-		nodeAddressInfo.GetAddress() == myAddress &&
-		nodeAddressInfo.GetPort() == myPort {
-		return nil
-	}
 
-	// check if received node is in active registered node (status = model.NodeRegistrationState_NodeRegistered)
-	_, err := ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(nodeAddressInfo.NodeID)
-	if err != nil {
-		castedBlocker := err.(blocker.Blocker)
-		if castedBlocker.Type == blocker.NotFound {
-			return nil
+	var (
+		nodeAddressInfosToBroadcast = make([]*model.NodeAddressInfo, 0)
+	)
+	for _, info := range nodeAddressInfo {
+		if errAddr == nil &&
+			errPort == nil &&
+			info.GetAddress() == myAddress &&
+			info.GetPort() == myPort {
+			continue
 		}
-		return err
+		// check if received node is in active registered node (status = model.NodeRegistrationState_NodeRegistered)
+		_, err := ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(info.NodeID)
+		if err != nil {
+			castedBlocker := err.(blocker.Blocker)
+			if castedBlocker.Type == blocker.NotFound {
+				return nil
+			}
+			ps.Logger.Errorf("ReceiveNodeAddressInfo-Err: nodeID: %d - %v", info.NodeID, err)
+			continue
+		}
+		// add it to nodeAddressInfo table
+		if updated, _ := ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(info, model.NodeAddressStatus_NodeAddressPending); updated {
+			nodeAddressInfosToBroadcast = append(nodeAddressInfosToBroadcast, info)
+		}
 	}
-	// add it to nodeAddressInfo table
-	if updated, _ := ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
-		// re-broadcast updated node address info
-		for _, peer := range ps.GetResolvedPeers() {
-			go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
-		}
+	// re-broadcast updated node address info
+	for _, peer := range ps.GetResolvedPeers() {
+		go ps.sendAddressInfoToPeer(peer, nodeAddressInfosToBroadcast)
 	}
 	// do not add to address info if still in queue or node got deleted
 	return nil
@@ -1439,7 +1453,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 						nodeAddress, port))
 			}
 			for _, peer := range resolvedPeers {
-				go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
+				go ps.sendAddressInfoToPeer(peer, []*model.NodeAddressInfo{nodeAddressInfo})
 			}
 		}
 	}
@@ -1470,20 +1484,27 @@ func (ps *PriorityStrategy) rndDelay() {
 	time.Sleep(time.Duration(rndTimer) * time.Millisecond)
 }
 
-func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) {
+func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) {
 	ps.rndDelay()
+	var (
+		addressInfosToBroadcast = make([]*model.NodeAddressInfo, 0)
+	)
 	peerInfo := peer.GetInfo()
 	// don't broadcast to peer with same address to be broadcast
-	if peerInfo.Address == nodeAddressInfo.Address && peerInfo.Port == nodeAddressInfo.Port {
-		return
+	for _, info := range nodeAddressInfos {
+		if peerInfo.Address == info.Address && peerInfo.Port == info.Port {
+			continue
+		}
+		addressInfosToBroadcast = append(addressInfosToBroadcast, info)
+		ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+			info.Address,
+			info.Port,
+			peerInfo.Address,
+			peerInfo.Port,
+			time.Now().Unix())
 	}
-	ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
-		nodeAddressInfo.Address,
-		nodeAddressInfo.Port,
-		peerInfo.Address,
-		peerInfo.Port,
-		time.Now().Unix())
-	if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
+
+	if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, addressInfosToBroadcast); err != nil {
 		ps.Logger.Warnf("Cannot send node address info message to peer %s:%d. Error: %s",
 			peer.Info.Address,
 			peer.Info.Port,

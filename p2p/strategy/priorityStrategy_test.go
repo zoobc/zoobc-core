@@ -228,10 +228,7 @@ func (p2pNssMock *p2pMockNodeConfigurationService) GetMyPeerPort() (uint32, erro
 	return 8001, nil
 }
 
-func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
-	destPeer *model.Peer,
-	nodeAddressInfo *model.NodeAddressInfo,
-) (*model.Empty, error) {
+func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
 	return nil, nil
 }
 
@@ -338,7 +335,7 @@ func (*mockPeerServiceClientSuccess) DeleteConnection(destPeer *model.Peer) erro
 	return nil
 }
 
-func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
 	return nil, nil
 }
 
@@ -2009,7 +2006,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 		PeerStrategyHelper       PeerStrategyHelperInterface
 	}
 	type args struct {
-		nodeAddressInfo *model.NodeAddressInfo
+		nodeAddressInfo []*model.NodeAddressInfo
 	}
 	tests := []struct {
 		name    string
@@ -2020,7 +2017,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 		{
 			name: "ReceiveNodeAddressInfo:success",
 			args: args{
-				nodeAddressInfo: &model.NodeAddressInfo{},
+				nodeAddressInfo: []*model.NodeAddressInfo{},
 			},
 			fields: fields{
 				NodeConfigurationService: &p2pMockNodeConfigurationService{
