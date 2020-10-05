@@ -140,11 +140,7 @@ func (sns *ScrambleNodeService) PopOffScrambleToHeight(height uint32) error {
 	}
 	nearestScrambleHeight := sns.GetBlockHeightToBuildScrambleNodes(height)
 	index = (nearestScrambleHeight - firstCachedScramble.BlockHeight) / constant.PriorityStrategyBuildScrambleNodesGap
-	if index > 0 {
-		err = sns.cacheStorage.PopTo(index - 1)
-	} else {
-		err = sns.cacheStorage.PopTo(0)
-	}
+	err = sns.cacheStorage.PopTo(index)
 	return err
 }
 
@@ -175,6 +171,7 @@ func (sns *ScrambleNodeService) GetScrambleNodesByHeight(
 		firstCachedScramble model.ScrambledNodes
 		result              model.ScrambledNodes
 	)
+
 	err = sns.cacheStorage.GetAtIndex(0, &firstCachedScramble)
 	if err != nil {
 		return nil, err
