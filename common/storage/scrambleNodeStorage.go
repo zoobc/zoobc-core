@@ -51,7 +51,9 @@ func (s *ScrambleCacheStackStorage) Push(item interface{}) error {
 	s.Lock()
 	defer s.Unlock()
 	if len(s.scrambledNodes) >= s.itemLimit {
-		s.scrambledNodes = s.scrambledNodes[1:] // remove first (oldest) cache to make room for new scramble
+		if len(s.scrambledNodes) != 0 {
+			s.scrambledNodes = s.scrambledNodes[1:] // remove first (oldest) cache to make room for new scramble
+		}
 	}
 	s.scrambledNodes = append(s.scrambledNodes, scrambleCopy)
 	if monitoring.IsMonitoringActive() {
