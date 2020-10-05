@@ -30,7 +30,7 @@ func (btcAcc *BTCAccountType) GetAccountAddress() ([]byte, error) {
 }
 
 func (btcAcc *BTCAccountType) GetTypeInt() int32 {
-	return 1
+	return int32(model.AccountType_BTCAccountType)
 }
 
 func (btcAcc *BTCAccountType) GetAccountPublicKey() []byte {

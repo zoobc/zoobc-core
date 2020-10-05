@@ -31,7 +31,7 @@ func (zAcc *ZbcAccountType) GetAccountAddress() ([]byte, error) {
 }
 
 func (zAcc *ZbcAccountType) GetTypeInt() int32 {
-	return 0
+	return int32(model.AccountType_ZbcAccountType)
 }
 
 func (zAcc *ZbcAccountType) GetAccountPublicKey() []byte {

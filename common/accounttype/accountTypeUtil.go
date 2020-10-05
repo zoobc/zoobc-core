@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // NewAccountType returns the appropriate AccountType object based on the account account type nul and account public key
@@ -13,10 +14,12 @@ func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountType, error) {
 		acc AccountType
 	)
 	switch accTypeInt {
-	case 0:
+	case int32(model.AccountType_ZbcAccountType):
 		acc = &ZbcAccountType{}
-	case 1:
+	case int32(model.AccountType_BTCAccountType):
 		acc = &BTCAccountType{}
+	case int32(model.AccountType_EmptyAccountType):
+		acc = &EmptyAccountType{}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}

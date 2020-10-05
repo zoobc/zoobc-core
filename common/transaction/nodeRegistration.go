@@ -292,8 +292,9 @@ func (tx *NodeRegistration) GetSize() (uint32, error) {
 	if err != nil {
 		return 0, err
 	}
+	accPubKeyLength := accType.GetAccountPublicKeyLength()
 	poown := util.GetProofOfOwnershipSize(accType, true)
-	return constant.NodePublicKey + constant.AccountAddressLength + constant.AccountAddress +
+	return constant.NodePublicKey + constant.AccountAddressType + accPubKeyLength +
 		constant.Balance + poown, nil
 }
 
@@ -305,25 +306,25 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 	if err != nil {
 		return nil, err
 	}
-	accountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	accType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	accountAddressLength := util.ConvertBytesToUint32(accountAddressLengthBytes)
-	accountAddress, err := util.ReadTransactionBytes(buffer, int(accountAddressLength))
+	accountAddress, err := accType.GetAccountAddress()
 	if err != nil {
 		return nil, err
 	}
+
 	lockedBalanceBytes, err := util.ReadTransactionBytes(buffer, int(constant.Balance))
 	if err != nil {
 		return nil, err
 	}
 	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
-	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	senderAccType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
 	if err != nil {
 		return nil, err
 	}
-	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(accType, true)))
+	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(senderAccType, true)))
 	if err != nil {
 		return nil, err
 	}
@@ -346,7 +347,6 @@ func (tx *NodeRegistration) GetBodyBytes() []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.AccountAddress)))))
 	buffer.Write([]byte(tx.Body.AccountAddress))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))

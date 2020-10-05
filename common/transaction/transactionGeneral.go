@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math"
 	"time"
 
@@ -78,8 +79,15 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 
 	// Address format: [len][address]
 	if transaction.GetRecipientAccountAddress() == nil {
-		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressEmptyLength))
-		buffer.Write(make([]byte, constant.AccountAddressEmptyLength)) // if no recipient pad with 44 (zoobc address length)
+		emptyAccType, err := accounttype.NewAccountType(int32(model.AccountType_EmptyAccountType), make([]byte, 0))
+		if err != nil {
+			return nil, err
+		}
+		emptyAccAddress, err := emptyAccType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
+		buffer.Write(emptyAccAddress)
 	} else {
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
 		buffer.Write([]byte(transaction.RecipientAccountAddress))
@@ -105,6 +113,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
 	} else {
+		//STEF
 		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressLength))
 		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
 
@@ -168,13 +177,13 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	}
 	transaction.Timestamp = int64(util.ConvertBytesToUint64(chunkedBytes))
 
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	accType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	senderAddress, errSender := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
-	if errSender != nil {
-		return nil, errSender
+	senderAddress, err := accType.GetAccountAddress()
+	if err != nil {
+		return nil, err
 	}
 	transaction.SenderAccountAddress = senderAddress
 
