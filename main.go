@@ -151,7 +151,7 @@ func initiateMainInstance() {
 	if config.OwnerAccountAddressHex != "" {
 		config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Invalid OwnerAccountAddress in config. It must be in hex format: %s", err)
 		}
 		// double check that the decoded account address is valid
 		accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
