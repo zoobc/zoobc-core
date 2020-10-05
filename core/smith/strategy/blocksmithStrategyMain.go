@@ -91,7 +91,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (bool, []Ca
 		lastBlockHash = prevBlock.BlockHash
 	}
 
-	if !bytes.Equal(lastBlockHash, prevBlock.BlockHash) { //melihat line 88, ini sudah pasti "Equal"
+	if !bytes.Equal(lastBlockHash, prevBlock.BlockHash) {
 		candidates = []Candidate{}
 
 		blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
