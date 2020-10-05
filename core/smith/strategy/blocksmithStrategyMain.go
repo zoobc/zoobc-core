@@ -1,8 +1,11 @@
 package strategy
 
 import (
+	"bytes"
+	"errors"
 	"math"
 	"math/big"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -21,6 +24,12 @@ import (
 )
 
 type (
+	Candidate struct {
+		Blocksmith *model.Blocksmith
+		StartTime  int64
+		ExpiryTime int64
+	}
+
 	BlocksmithStrategyMain struct {
 		QueryExecutor                          query.ExecutorInterface
 		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
@@ -48,6 +57,96 @@ func NewBlocksmithStrategyMain(
 		Logger:                 logger,
 		SortedBlocksmithsMap:   make(map[string]*int64),
 	}
+}
+
+func (bss *BlocksmithStrategyMain) IsMe(lastCandidate Candidate, block *model.Block) bool {
+	var (
+		now = time.Now()
+	)
+
+	if now.Unix() > lastCandidate.StartTime && bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, block.BlocksmithPublicKey) {
+		return true
+	}
+	return false
+}
+
+func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (bool, []Candidate, error) {
+	var (
+		err           error
+		blockSmiths   []*model.Blocksmith
+		lastCandidate Candidate
+		candidate     Candidate
+		candidates    []Candidate
+		lastBlockHash []byte
+		now           = time.Now()
+	)
+
+	blockSmiths, err = bss.GetBlocksmiths(prevBlock)
+	if err != nil {
+		return false, nil, errors.New("ErrorGetBlocksmiths")
+	}
+
+	lastBlockHash = prevBlock.BlockHash
+	if lastBlockHash != nil {
+		lastBlockHash = prevBlock.BlockHash
+	}
+
+	if !bytes.Equal(lastBlockHash, prevBlock.BlockHash) { //melihat line 88, ini sudah pasti "Equal"
+		candidates = []Candidate{}
+
+		blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
+		rand.Seed(blockSeedBigInt.Int64())
+	}
+
+	if len(candidates) > 0 {
+		lastCandidate = candidates[len(candidates)-1]
+		isMe := bss.IsMe(lastCandidate, prevBlock)
+		if err != nil {
+			return false, nil, errors.New("ErrorIsMe")
+		}
+
+		if isMe && now.Unix() < lastCandidate.ExpiryTime {
+			return true, nil, nil
+		}
+		if now.Unix() < lastCandidate.StartTime+10 {
+			return false, nil, errors.New("Failed")
+		}
+	}
+	idx := rand.Intn(len(blockSmiths))
+	candidate = Candidate{
+		Blocksmith: blockSmiths[idx],
+		StartTime:  prevBlock.Timestamp + int64(15) + int64(len(candidates)*10),
+		ExpiryTime: lastCandidate.StartTime + 45, // (45 = networkTolerance+blockCreation)
+	}
+
+	candidates = append(candidates, candidate)
+	return now.Unix() > candidate.StartTime, candidates, nil
+}
+
+func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) (bool, error) {
+	var (
+		err         error
+		blockSmiths []*model.Blocksmith
+	)
+	blockSmiths, err = bss.GetBlocksmiths(prevBlock)
+	if err != nil {
+		return false, errors.New("ErrorGetBlocksmiths")
+	}
+	timeGap := block.Timestamp - prevBlock.Timestamp
+	round := math.Floor(float64(timeGap)-15) / 10
+
+	blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
+	rand.Seed(blockSeedBigInt.Int64())
+
+	var idx int
+	for i := 0; i < int(round); i++ {
+		idx = rand.Intn(len(blockSmiths))
+	}
+	if bytes.Equal(blockSmiths[idx].NodePublicKey, block.BlocksmithPublicKey) {
+		return true, nil
+	}
+
+	return false, errors.New("Failed")
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)

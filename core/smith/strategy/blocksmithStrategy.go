@@ -6,6 +6,11 @@ import (
 
 type (
 	BlocksmithStrategyInterface interface {
+		WillSmith(prevBlock *model.Block) (bool, []Candidate, error)
+		IsBlockValid(prevBlock, block *model.Block) (bool, error)
+		IsMe(lastCandidate Candidate, block *model.Block) bool
+
+		// old
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		SortBlocksmiths(block *model.Block, withLock bool)
 		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith

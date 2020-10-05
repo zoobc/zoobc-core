@@ -45,6 +45,18 @@ func NewBlocksmithStrategySpine(
 	}
 }
 
+func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) (bool, error) {
+	return true, nil
+}
+
+func (bss *BlocksmithStrategySpine) IsMe(lastCandidate Candidate, block *model.Block) bool {
+	return true
+}
+
+func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (bool, []Candidate, error) {
+	return true, nil, nil
+}
+
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
