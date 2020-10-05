@@ -391,7 +391,7 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("ClaimNodeRegistration.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

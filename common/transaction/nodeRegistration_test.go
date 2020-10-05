@@ -1304,7 +1304,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1333,7 +1333,7 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := n.GetSize(); got != tt.want {
+			if got, _ := n.GetSize(); got != tt.want {
 				t.Errorf("NodeRegistration.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

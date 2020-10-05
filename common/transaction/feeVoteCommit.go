@@ -205,8 +205,8 @@ func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
 }
 
 // GetSize is size of transaction body
-func (tx *FeeVoteCommitTransaction) GetSize() uint32 {
-	return uint32(len(tx.GetBodyBytes()))
+func (tx *FeeVoteCommitTransaction) GetSize() (uint32, error) {
+	return uint32(len(tx.GetBodyBytes())), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields

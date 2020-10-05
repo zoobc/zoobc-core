@@ -132,14 +132,18 @@ func (tx *LiquidPaymentTransaction) GetAmount() int64 {
 	return tx.Body.Amount
 }
 
-func (tx *LiquidPaymentTransaction) GetSize() uint32 {
+func (tx *LiquidPaymentTransaction) GetSize() (uint32, error) {
 	// only amount
-	return constant.Balance + constant.LiquidPaymentCompleteMinutesLength
+	return constant.Balance + constant.LiquidPaymentCompleteMinutesLength, nil
 }
 
 func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}

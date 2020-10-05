@@ -42,8 +42,8 @@ func (*TXEmpty) GetMinimumFee() (int64, error) {
 func (*TXEmpty) GetAmount() int64 {
 	return 0
 }
-func (tx *TXEmpty) GetSize() uint32 {
-	return 0
+func (tx *TXEmpty) GetSize() (uint32, error) {
+	return 0, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields

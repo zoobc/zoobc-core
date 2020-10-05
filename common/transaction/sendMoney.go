@@ -159,15 +159,19 @@ func (tx *SendMoney) GetMinimumFee() (int64, error) {
 }
 
 // GetSize send money Amount should be 8
-func (*SendMoney) GetSize() uint32 {
+func (*SendMoney) GetSize() (uint32, error) {
 	// only amount
-	return constant.Balance
+	return constant.Balance, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}

@@ -922,7 +922,7 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 				AccountBalanceHelper:       tt.fields.AccountBalanceHelper,
 				QueryExecutor:              tt.fields.QueryExecutor,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("FeeVoteCommitTransaction.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

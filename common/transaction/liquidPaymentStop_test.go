@@ -889,7 +889,7 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("LiquidPaymentStop.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

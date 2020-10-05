@@ -342,9 +342,9 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 }
 
 // GetSize send money Amount should be 8
-func (tx *FeeVoteRevealTransaction) GetSize() uint32 {
+func (tx *FeeVoteRevealTransaction) GetSize() (uint32, error) {
 	// only amount
-	return uint32(len(tx.GetBodyBytes()))
+	return uint32(len(tx.GetBodyBytes())), nil
 }
 
 // Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option

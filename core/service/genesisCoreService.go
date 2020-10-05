@@ -124,6 +124,11 @@ func GetGenesisNodeRegistrationTx(
 		},
 		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
+	nrSize, err := nodeRegistration.GetSize()
+	if err != nil {
+		return nil, err
+	}
+
 	genesisTx := &model.Transaction{
 		Version:                 1,
 		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
@@ -132,7 +137,7 @@ func GetGenesisNodeRegistrationTx(
 		SenderAccountAddress:    constant.MainchainGenesisAccountAddress,
 		RecipientAccountAddress: accountAddress,
 		Fee:                     0,
-		TransactionBodyLength:   nodeRegistration.GetSize(),
+		TransactionBodyLength:   nrSize,
 		TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 			NodeRegistrationTransactionBody: nodeRegistration.Body,
 		},

@@ -9,8 +9,11 @@ import (
 )
 
 // GetProofOfOwnershipSize returns size in bytes of a proof of ownership message
-func GetProofOfOwnershipSize(withSignature bool) uint32 {
-	message := constant.AccountAddress + constant.BlockHash + constant.Height
+func GetProofOfOwnershipSize(accountAddressType accounttype.AccountType, withSignature bool) uint32 {
+	var (
+		accountAddressSize = constant.AccountAddressType + accountAddressType.GetAccountPublicKeyLength()
+	)
+	message := accountAddressSize + constant.BlockHash + constant.Height
 	if withSignature {
 		return message + constant.NodeSignature
 	}
@@ -28,8 +31,17 @@ func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 // ParseProofOfOwnershipBytes parse a byte array into a ProofOfOwnership struct (message + signature)
 // poownBytes if true returns size of message + signature
 func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, error) {
+	// copy poown bytes and parse first bytes as accountAddress to get the address size
+	var tmpPoonBytes = make([]byte, len(poownBytes))
+	copy(tmpPoonBytes, poownBytes)
+	tmpBuffer := bytes.NewBuffer(tmpPoonBytes)
+	accType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
+	if err != nil {
+		return nil, err
+	}
+
 	buffer := bytes.NewBuffer(poownBytes)
-	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(false)))
+	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(accType, false)))
 	if err != nil {
 		return nil, err
 	}

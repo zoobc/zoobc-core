@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -285,11 +286,15 @@ func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (tx *NodeRegistration) GetSize() uint32 {
+func (tx *NodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
-	poown := util.GetProofOfOwnershipSize(true)
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return 0, err
+	}
+	poown := util.GetProofOfOwnershipSize(accType, true)
 	return constant.NodePublicKey + constant.AccountAddressLength + constant.AccountAddress +
-		constant.Balance + poown
+		constant.Balance + poown, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -314,8 +319,11 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 		return nil, err
 	}
 	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
-	//STEF restart from here (GetProofOfOwnershipSize has fixed account size, while from now on account size is variable)
-	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(true)))
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return nil, err
+	}
+	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(accType, true)))
 	if err != nil {
 		return nil, err
 	}

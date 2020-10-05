@@ -618,7 +618,7 @@ func (*MultiSignatureTransaction) GetAmount() int64 {
 	return 0
 }
 
-func (tx *MultiSignatureTransaction) GetSize() uint32 {
+func (tx *MultiSignatureTransaction) GetSize() (uint32, error) {
 	var (
 		txByteSize, signaturesSize, multisigInfoSize uint32
 	)
@@ -649,7 +649,7 @@ func (tx *MultiSignatureTransaction) GetSize() uint32 {
 		}
 	}
 
-	return txByteSize + signaturesSize + multisigInfoSize
+	return txByteSize + signaturesSize + multisigInfoSize, nil
 }
 
 func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {

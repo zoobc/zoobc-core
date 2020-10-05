@@ -2182,7 +2182,7 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("GetSize() = %v, want %v", got, tt.want)
 			}
 		})

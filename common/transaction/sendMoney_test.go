@@ -455,7 +455,7 @@ func TestSendMoney_GetAmount(t *testing.T) {
 func TestSendMoney_GetSize(t *testing.T) {
 	t.Run("SendMoney:GetSize", func(t *testing.T) {
 		tx := &SendMoney{}
-		size := tx.GetSize()
+		size, _ := tx.GetSize()
 		if size != 8 {
 			t.Errorf("SendMoney size should be 8\nget: %d instead", size)
 		}

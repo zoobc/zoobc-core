@@ -217,8 +217,8 @@ func (tx *RemoveNodeRegistration) GetMinimumFee() (int64, error) {
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (tx *RemoveNodeRegistration) GetSize() uint32 {
-	return constant.NodePublicKey
+func (tx *RemoveNodeRegistration) GetSize() (uint32, error) {
+	return constant.NodePublicKey, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields

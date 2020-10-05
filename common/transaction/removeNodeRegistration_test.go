@@ -317,7 +317,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 func TestRemoveNodeRegistration_GetSize(t *testing.T) {
 	tx := &RemoveNodeRegistration{}
 	want := constant.NodePublicKey
-	if got := tx.GetSize(); got != want {
+	if got, _ := tx.GetSize(); got != want {
 		t.Errorf("TestRemoveNodeRegistration.GetSize() = %v, want %v", got, want)
 	}
 }

@@ -499,7 +499,7 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("RemoveAccountDataset.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

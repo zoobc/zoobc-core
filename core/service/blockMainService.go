@@ -1119,7 +1119,11 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 		if err != nil {
 			return nil, 0, err
 		}
-		payloadLength += txType.GetSize()
+		txTypeLength, err := txType.GetSize()
+		if err != nil {
+			return nil, 0, err
+		}
+		payloadLength += txTypeLength
 	}
 	// filter only good receipt
 	for _, br := range block.GetPublishedReceipts() {
@@ -1244,7 +1248,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
-		payloadLength += txType.GetSize()
+		txTypeLength, err := txType.GetSize()
+		if err != nil {
+			return nil, err
+		}
+		payloadLength += txTypeLength
 		tx.TransactionIndex = uint32(index) + 1
 		blockTransactions = append(blockTransactions, tx)
 	}

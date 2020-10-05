@@ -674,7 +674,7 @@ func TestLiquidPayment_GetSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentTransaction{}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("LiquidPayment.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

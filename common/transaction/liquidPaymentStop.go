@@ -187,14 +187,18 @@ func (tx *LiquidPaymentStopTransaction) GetAmount() int64 {
 	return tx.Fee
 }
 
-func (tx *LiquidPaymentStopTransaction) GetSize() uint32 {
+func (tx *LiquidPaymentStopTransaction) GetSize() (uint32, error) {
 	// only TransactionID
-	return constant.TransactionID
+	return constant.TransactionID, nil
 }
 
 func (tx *LiquidPaymentStopTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}

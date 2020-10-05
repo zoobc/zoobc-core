@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -216,10 +217,14 @@ func (tx *ClaimNodeRegistration) GetMinimumFee() (int64, error) {
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (*ClaimNodeRegistration) GetSize() uint32 {
+func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
-	poown := util.GetProofOfOwnershipSize(true)
-	return constant.AccountAddress + constant.NodePublicKey + poown
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return 0, err
+	}
+	poown := util.GetProofOfOwnershipSize(accType, true)
+	return constant.AccountAddress + constant.NodePublicKey + poown, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -231,7 +236,11 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 		return nil, err
 	}
 	// parse ProofOfOwnership (message + signature) bytes
-	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return nil, err
+	}
+	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(accType, true))))
 	if err != nil {
 		return nil, err
 	}

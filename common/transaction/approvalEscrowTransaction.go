@@ -62,8 +62,8 @@ func (tx *ApprovalEscrowTransaction) SkipMempoolTransaction(
 }
 
 // GetSize of approval transaction body bytes
-func (*ApprovalEscrowTransaction) GetSize() uint32 {
-	return constant.EscrowApprovalBytesLength
+func (*ApprovalEscrowTransaction) GetSize() (uint32, error) {
+	return constant.EscrowApprovalBytesLength, nil
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
