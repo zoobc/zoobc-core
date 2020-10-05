@@ -62,8 +62,9 @@ func (s *ScrambleCacheStackStorage) Push(item interface{}) error {
 	return nil
 }
 
+// PopTo pop the scramble stack to index-th element (last element = index-th element)
 func (s *ScrambleCacheStackStorage) PopTo(index uint32) error {
-	if len(s.scrambledNodes) <= int(index) {
+	if int(index)+1 > len(s.scrambledNodes) {
 		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
 	}
 	s.Lock()
