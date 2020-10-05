@@ -198,7 +198,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		if chaintype.IsSpineChain(bp.ChainType) {
 			blockerUsed = blocker.PushSpineBlockErr
 		}
-		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		return err
 	}
 	return nil
