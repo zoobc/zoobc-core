@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 
-	"github.com/mohae/deepcopy"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,13 +16,10 @@ import (
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 	var (
-		digest     = sha3.New256()
-		cloneBlock = deepcopy.Copy(*block).(model.Block)
+		digest = sha3.New256()
 	)
-
-	cloneBlock.BlockHash = nil
 	// TODO: this error should be managed. for now we leave it because it causes a cascade of failures in unit tests..
-	blockByte, _ := GetBlockByte(&cloneBlock, true, ct)
+	blockByte, _ := GetBlockByte(block, true, ct)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err

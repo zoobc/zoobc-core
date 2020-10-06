@@ -1394,10 +1394,13 @@ func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo []*model.Node
 			nodeAddressInfosToBroadcast = append(nodeAddressInfosToBroadcast, info)
 		}
 	}
-	// re-broadcast updated node address info
-	for _, peer := range ps.GetResolvedPeers() {
-		go ps.sendAddressInfoToPeer(peer, nodeAddressInfosToBroadcast)
+	if len(nodeAddressInfosToBroadcast) > 0 {
+		// re-broadcast updated node address info
+		for _, peer := range ps.GetResolvedPeers() {
+			go ps.sendAddressInfoToPeer(peer, nodeAddressInfosToBroadcast)
+		}
 	}
+
 	// do not add to address info if still in queue or node got deleted
 	return nil
 }
