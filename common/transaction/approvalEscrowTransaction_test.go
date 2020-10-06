@@ -15,7 +15,7 @@ func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                 int64
 		Fee                int64
-		SenderAddress      string
+		SenderAddress      []byte
 		Height             uint32
 		Body               *model.ApprovalEscrowTransactionBody
 		Escrow             *model.Escrow
@@ -34,7 +34,7 @@ func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
@@ -69,7 +69,7 @@ func TestApprovalEscrowTransaction_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                 int64
 		Fee                int64
-		SenderAddress      string
+		SenderAddress      []byte
 		Height             uint32
 		Body               *model.ApprovalEscrowTransactionBody
 		Escrow             *model.Escrow
@@ -93,7 +93,7 @@ func TestApprovalEscrowTransaction_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
@@ -186,7 +186,8 @@ func (*mockAccountBalanceQueryValidateFound) GetAccountBalanceByAccountAddress(s
 	return "", []interface{}{}
 }
 func (*mockAccountBalanceQueryValidateFound) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance.AccountAddress = "GHI"
+	accountBalance.AccountAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
 	accountBalance.Balance = 1000
 	accountBalance.Latest = true
 
@@ -216,7 +217,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
+		SenderAddress        []byte
 		Height               uint32
 		Body                 *model.ApprovalEscrowTransactionBody
 		Escrow               *model.Escrow
@@ -238,10 +239,11 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 		{
 			name: "wantError:NotFound",
 			fields: fields{
-				ID:            0,
-				Fee:           0,
-				SenderAddress: "GHI",
-				Height:        0,
+				ID:  0,
+				Fee: 0,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Height: 0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 120978123123,
@@ -255,10 +257,11 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 		{
 			name: "wantError:InvalidTransactionID",
 			fields: fields{
-				ID:            0,
-				Fee:           0,
-				SenderAddress: "GHI",
-				Height:        0,
+				ID:  0,
+				Fee: 0,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Height: 0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 0,
@@ -273,10 +276,11 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 		{
 			name: "wantError:AccountBalanceNotFound",
 			fields: fields{
-				ID:            0,
-				Fee:           0,
-				SenderAddress: "GHI",
-				Height:        0,
+				ID:  0,
+				Fee: 0,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Height: 0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 120978123123,
@@ -291,10 +295,11 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:            0,
-				Fee:           0,
-				SenderAddress: "GHI",
-				Height:        0,
+				ID:  0,
+				Fee: 0,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				Height: 0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 120978123123,
@@ -351,7 +356,7 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
+		SenderAddress        []byte
 		Height               uint32
 		Body                 *model.ApprovalEscrowTransactionBody
 		Escrow               *model.Escrow
@@ -371,7 +376,7 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:                   0,
 				Fee:                  1,
-				SenderAddress:        "",
+				SenderAddress:        nil,
 				Height:               0,
 				Body:                 nil,
 				Escrow:               nil,
@@ -418,7 +423,7 @@ func TestApprovalEscrowTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
+		SenderAddress        []byte
 		Height               uint32
 		Body                 *model.ApprovalEscrowTransactionBody
 		Escrow               *model.Escrow
@@ -438,7 +443,7 @@ func TestApprovalEscrowTransaction_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:                   0,
 				Fee:                  1,
-				SenderAddress:        "",
+				SenderAddress:        nil,
 				Height:               0,
 				Body:                 nil,
 				Escrow:               nil,
@@ -500,8 +505,10 @@ func (*mockTransactionQueryApplyConfirmedOK) Scan(tx *model.Transaction, row *sq
 	tx.BlockID = -123123123123
 	tx.Version = 1
 	tx.Height = 1
-	tx.SenderAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	tx.RecipientAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+	tx.SenderAccountAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	tx.RecipientAccountAddress = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+		47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
 	tx.TransactionType = binary.LittleEndian.Uint32([]byte{4, 0, 0, 0})
 	tx.Fee = 1
 	tx.Timestamp = 10000
@@ -515,9 +522,12 @@ func (*mockTransactionQueryApplyConfirmedOK) Scan(tx *model.Transaction, row *sq
 }
 func (*mockEscrowQueryApplyConfirmedOK) Scan(escrow *model.Escrow, _ *sql.Row) error {
 	escrow.ID = 1
-	escrow.SenderAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	escrow.RecipientAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
-	escrow.ApproverAddress = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
+	escrow.SenderAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	escrow.RecipientAddress = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+		47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	escrow.ApproverAddress = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	escrow.Amount = 10
 	escrow.Commission = 1
 	escrow.Timeout = 120
@@ -543,7 +553,7 @@ func TestApprovalEscrowTransaction_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
+		SenderAddress        []byte
 		Height               uint32
 		Body                 *model.ApprovalEscrowTransactionBody
 		Escrow               *model.Escrow
@@ -565,10 +575,11 @@ func TestApprovalEscrowTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:            1234567890,
-				Fee:           1,
-				SenderAddress: "ABC",
-				Height:        1,
+				ID:  1234567890,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 1234567890,

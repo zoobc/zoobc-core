@@ -113,7 +113,7 @@ func TestPendingTransactionQuery_BuildModel(t *testing.T) {
 			},
 			want: []*model.PendingTransaction{
 				{
-					SenderAddress:    "",
+					SenderAddress:    nil,
 					TransactionHash:  make([]byte, 32),
 					TransactionBytes: make([]byte, 100),
 					Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
@@ -263,7 +263,7 @@ func TestPendingTransactionQuery_GetPendingTransactionByHash(t *testing.T) {
 
 var (
 	mockInsertPendingTransaction = &model.PendingTransaction{
-		SenderAddress:    "",
+		SenderAddress:    nil,
 		TransactionHash:  make([]byte, 32),
 		TransactionBytes: make([]byte, 100),
 		Status:           model.PendingTransactionStatus_PendingTransactionExecuted,

@@ -41,7 +41,7 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address string
+		address []byte
 		amount  int64
 	}
 	tests := []struct {
@@ -89,7 +89,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address     string
+		address     []byte
 		amount      int64
 		blockHeight uint32
 	}

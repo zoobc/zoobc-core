@@ -14,13 +14,15 @@ import (
 var (
 	mockMempoolQuery = NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempool      = &model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		ArrivalTimestamp:        1000,
-		FeePerByte:              10,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
+		ID:               1,
+		BlockHeight:      0,
+		ArrivalTimestamp: 1000,
+		FeePerByte:       10,
+		TransactionBytes: []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	}
 )
 
@@ -242,12 +244,14 @@ func TestMempoolQuery_Scan(t *testing.T) {
 				row:     (&mockRowMempoolQueryScan{}).ExecuteSelectRow("", ""),
 			},
 			want: model.MempoolTransaction{
-				ID:                      1,
-				FeePerByte:              1,
-				ArrivalTimestamp:        1000,
-				TransactionBytes:        make([]byte, 88),
-				SenderAccountAddress:    "accountA",
-				RecipientAccountAddress: "accountB",
+				ID:               1,
+				FeePerByte:       1,
+				ArrivalTimestamp: 1000,
+				TransactionBytes: make([]byte, 88),
+				SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			},
 			wantErr: false,
 		},

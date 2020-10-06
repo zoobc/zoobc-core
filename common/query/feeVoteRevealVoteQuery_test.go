@@ -17,7 +17,7 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHe
 		TableName string
 	}
 	type args struct {
-		accountAddress string
+		accountAddress []byte
 		blockHeight    uint32
 	}
 	tests := []struct {
@@ -31,8 +31,9 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHe
 			name:   "WantSuccess",
 			fields: fields(*NewFeeVoteRevealVoteQuery()),
 			args: args{
-				accountAddress: "ABSCasjkdahsdasd",
-				blockHeight:    100,
+				accountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				blockHeight: 100,
 			},
 			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
 				"FROM fee_vote_reveal_vote WHERE voter_address = ? AND recent_block_height = ? ORDER BY block_height DESC LIMIT 1",
@@ -82,7 +83,8 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
-					VoterAddress:   "ABSCasjkdahsdasd",
+					VoterAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 					BlockHeight:    230,
 				},
@@ -152,7 +154,8 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
-					VoterAddress:   "ABSCasjkdahsdasd",
+					VoterAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 					BlockHeight:    230,
 				},
@@ -260,8 +263,9 @@ var (
 				FeeVote:           constant.OneZBC,
 			},
 			VoterSignature: make([]byte, 68),
-			VoterAddress:   "ABC",
-			BlockHeight:    120,
+			VoterAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+				72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			BlockHeight: 120,
 		},
 		{
 			VoteInfo: &model.FeeVoteInfo{
@@ -270,8 +274,9 @@ var (
 				FeeVote:           constant.OneZBC,
 			},
 			VoterSignature: make([]byte, 72),
-			VoterAddress:   "CBA",
-			BlockHeight:    130,
+			VoterAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			BlockHeight: 130,
 		},
 	}
 )

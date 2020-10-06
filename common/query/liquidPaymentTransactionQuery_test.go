@@ -12,14 +12,16 @@ import (
 
 func TestLiquidPaymentTransactionQuery_InsertLiquidPaymentTransaction(t *testing.T) {
 	liquidPayment := &model.LiquidPayment{
-		ID:               1,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
-		Amount:           123456,
-		AppliedTime:      1231413,
-		CompleteMinutes:  4343,
-		Status:           model.LiquidPaymentStatus_LiquidPaymentPending,
-		BlockHeight:      24,
+		ID: 1,
+		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		Amount:          123456,
+		AppliedTime:     1231413,
+		CompleteMinutes: 4343,
+		Status:          model.LiquidPaymentStatus_LiquidPaymentPending,
+		BlockHeight:     24,
 	}
 
 	type args struct {
@@ -197,15 +199,17 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 		{name: "wantSuccess",
 			args: args{
 				liquidPayment: &model.LiquidPayment{
-					ID:               123,
-					SenderAddress:    "ABC",
-					RecipientAddress: "CBA",
-					Amount:           1234,
-					AppliedTime:      12345,
-					CompleteMinutes:  123456,
-					Status:           1234567,
-					BlockHeight:      12345678,
-					Latest:           true,
+					ID: 123,
+					SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+						28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+					Amount:          1234,
+					AppliedTime:     12345,
+					CompleteMinutes: 123456,
+					Status:          1234567,
+					BlockHeight:     12345678,
+					Latest:          true,
 				},
 			},
 			want: []interface{}{123,
@@ -232,15 +236,17 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 func TestLiquidPaymentTransactionQuery_BuildModels(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
-		ID:               123,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
-		Amount:           1234,
-		AppliedTime:      12345,
-		CompleteMinutes:  123456,
-		Status:           1234567,
-		BlockHeight:      12345678,
-		Latest:           true,
+		ID: 123,
+		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		Amount:          1234,
+		AppliedTime:     12345,
+		CompleteMinutes: 123456,
+		Status:          1234567,
+		BlockHeight:     12345678,
+		Latest:          true,
 	}
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockLiquidPaymentTransaction.Fields)
@@ -293,15 +299,17 @@ func TestLiquidPaymentTransactionQuery_BuildModels(t *testing.T) {
 func TestLiquidPaymentTransactionQuery_Scan(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
-		ID:               123,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
-		Amount:           1234,
-		AppliedTime:      12345,
-		CompleteMinutes:  123456,
-		Status:           1234567,
-		BlockHeight:      12345678,
-		Latest:           true,
+		ID: 123,
+		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		Amount:          1234,
+		AppliedTime:     12345,
+		CompleteMinutes: 123456,
+		Status:          1234567,
+		BlockHeight:     12345678,
+		Latest:          true,
 	}
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockLiquidPaymentTransaction.Fields)

@@ -12,9 +12,10 @@ import (
 var (
 	mockNodeRegistrationQuery = NewNodeRegistrationQuery()
 	mockNodeRegistry          = &model.NodeRegistration{
-		NodeID:             1,
-		NodePublicKey:      []byte{1},
-		AccountAddress:     "BCZ",
+		NodeID:        1,
+		NodePublicKey: []byte{1},
+		AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		RegistrationHeight: 1,
 		LockedBalance:      10000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -74,7 +75,8 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 
 func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T) {
 	t.Run("GetNodeRegistrationByAccountAddress:success", func(t *testing.T) {
-		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
+		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress([]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62,
+			98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14})
 		want := "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1"
 		if res != want {
@@ -334,9 +336,10 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 				row: (&mockQueryExecutorScan{}).ExecuteSelectRow(""),
 			},
 			want: model.NodeRegistration{
-				NodeID:             1,
-				NodePublicKey:      []byte{1},
-				AccountAddress:     "BCZ",
+				NodeID:        1,
+				NodePublicKey: []byte{1},
+				AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+					202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 				RegistrationHeight: 1,
 				LockedBalance:      10000,
 				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),

@@ -112,10 +112,11 @@ func TestPendingSignatureQuery_BuildModel(t *testing.T) {
 			want: []*model.PendingSignature{
 				{
 					TransactionHash: make([]byte, 32),
-					AccountAddress:  "account_address",
-					Signature:       make([]byte, 64),
-					BlockHeight:     10,
-					Latest:          true,
+					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+						202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+					Signature:   make([]byte, 64),
+					BlockHeight: 10,
+					Latest:      true,
 				},
 			},
 			wantErr: false,
@@ -142,9 +143,10 @@ func TestPendingSignatureQuery_BuildModel(t *testing.T) {
 var (
 	mockExtractModelPendingSig = &model.PendingSignature{
 		TransactionHash: make([]byte, 32),
-		AccountAddress:  "A",
-		Signature:       make([]byte, 64),
-		BlockHeight:     10,
+		AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		Signature:   make([]byte, 64),
+		BlockHeight: 10,
 	}
 )
 
@@ -252,7 +254,7 @@ func TestPendingSignatureQuery_GetPendingSignatureByHash(t *testing.T) {
 var (
 	mockInsertPendingSignaturePendingSig = &model.PendingSignature{
 		TransactionHash: nil,
-		AccountAddress:  "",
+		AccountAddress:  nil,
 		Signature:       nil,
 		BlockHeight:     0,
 	}

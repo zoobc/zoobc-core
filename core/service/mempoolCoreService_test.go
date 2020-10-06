@@ -28,13 +28,15 @@ import (
 var (
 	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempoolTransaction = &model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		ArrivalTimestamp:        1000,
-		FeePerByte:              10,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
+		ID:               1,
+		BlockHeight:      0,
+		ArrivalTimestamp: 1000,
+		FeePerByte:       10,
+		TransactionBytes: []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	}
 )
 
@@ -111,12 +113,16 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			1,
 			1562893305,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	},
 	{
 		ID:               2,
@@ -125,12 +131,16 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			2,
 			1562893304,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	},
 	{
 		ID:               3,
@@ -139,12 +149,16 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			3,
 			1562893302,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	},
 	{
 		ID:               4,
@@ -153,12 +167,16 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			4,
 			1562893306,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	},
 	{
 		ID:               5,
@@ -167,12 +185,16 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			5,
 			1562893303,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	},
 }
 
@@ -265,13 +287,16 @@ func (m *mockAccountDatasetQueryMempoolCoreService) Scan(dataset *model.AccountD
 		return sql.ErrNoRows
 	}
 	*dataset = model.AccountDataset{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "You're Welcome",
-		IsActive:                true,
-		Latest:                  true,
-		Height:                  5,
+		SetterAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+
+		Property: "Admin",
+		Value:    "You're Welcome",
+		IsActive: true,
+		Latest:   true,
+		Height:   5,
 	}
 
 	return nil
@@ -427,8 +452,10 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, 
 	mTx := transaction.GetFixturesForSignedMempoolTransaction(
 		3,
 		1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		true,
 	)
 
@@ -466,8 +493,10 @@ func (*mockMempoolCacheStorageExpiryExist) GetAllItems(item interface{}) error {
 	}
 	mTx := transaction.GetFixturesForTransaction(
 		1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		true,
 	)
 	itemCopy[1111] = storage.MempoolCacheObject{
@@ -998,8 +1027,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1129,8 +1160,10 @@ func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(fe
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	successTx := transaction.GetFixturesForTransaction(
 		1562893302,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
@@ -1194,8 +1227,10 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1214,8 +1249,10 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1275,18 +1312,22 @@ type (
 func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
+	sender := []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144,
+		246, 37, 144, 213, 135}
+	recipient := []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229,
+		184, 77, 80, 80, 39, 254, 173, 28, 169}
 
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
 	mockedRows.AddRow(1, 0, 1, 1562893305, transaction.GetFixturesForSignedMempoolTransaction(1, 1562893305,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(2, 0, 10, 1562893304, transaction.GetFixturesForSignedMempoolTransaction(2, 1562893304,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(3, 0, 1, 1562893302, transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(4, 0, 100, 1562893306, transaction.GetFixturesForSignedMempoolTransaction(4, 1562893306,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(5, 0, 5, 1562893303, transaction.GetFixturesForSignedMempoolTransaction(5, 1562893303,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -1310,62 +1351,67 @@ func (*mockCacheStorageGetAllItemsError) GetAllItems(items interface{}) error {
 }
 
 var (
+	sender = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144,
+		246, 37, 144, 213, 135}
+	recipient = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229,
+		184, 77, 80, 80, 39, 254, 173, 28, 169}
+
 	mockMempoolObjectsMap = storage.MempoolMap{
 		1: {
 			Tx: model.Transaction{
 				ID:                      1,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       1,
 			ArrivalTimestamp: 1562893305,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(1, 1562893305,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		2: {
 			Tx: model.Transaction{
 				ID: 2,
 
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       10,
 			ArrivalTimestamp: 1562893304,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(2, 1562893304,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		3: {
 			Tx: model.Transaction{
 				ID:                      3,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       1,
 			ArrivalTimestamp: 1562893302,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		4: {
 			Tx: model.Transaction{
 				ID:                      4,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       100,
 			ArrivalTimestamp: 1562893306,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(4, 1562893306,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		5: {
 			Tx: model.Transaction{
 				ID:                      5,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       5,
 			ArrivalTimestamp: 1562893303,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(5, 1562893303,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 	}
 )

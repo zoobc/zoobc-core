@@ -184,6 +184,7 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		ms.Logger.Error(err)
 		return nil, status.Error(codes.Internal, "server error")
 	}
+	//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// get multisig info if exist
 	// sub query for getting addresses from multisignature_participant
 	subQ := query.NewCaseQuery()
@@ -231,6 +232,7 @@ func (ms *MultisigService) GetMultisignatureInfo(
 		totalRecords      uint32
 		err               error
 	)
+	//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// sub query for getting addresses from multisignature_participant
 	subQ := query.NewCaseQuery()
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
@@ -383,6 +385,7 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 		totalRecords      uint32
 		err               error
 	)
+	//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// sub query for getting addresses from multisignature_participant
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
 	subQ.Where("multisig_address = " + multisigInfoQuery.TableName + ".multisig_address")

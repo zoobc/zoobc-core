@@ -46,6 +46,7 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
+//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	multisigAddress []byte,
 	currentHeight, limit uint32,
@@ -267,6 +268,7 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 	}
 }
 
+//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
 		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
