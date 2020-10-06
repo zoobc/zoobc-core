@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -10,7 +11,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -616,10 +616,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				bs.queryAndCacheRollbackProcess("")
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
-					b := deepcopy.Copy(block)
-					blockToBroadcast, ok := b.(*model.Block)
-					if !ok {
-						return blocker.NewBlocker(blocker.AppErr, "FailCopyingBlock")
+					var (
+						blockBytes       []byte
+						blockToBroadcast *model.Block
+					)
+					blockBytes, err = json.Marshal(block)
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block")
+					}
+					err = json.Unmarshal(blockBytes, blockToBroadcast)
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes")
 					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
@@ -969,6 +976,9 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (transactions, receipts)
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusGettingBlocks)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusGettingBlocks)
+
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -977,9 +987,15 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 	defer rows.Close()
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model: "+err.Error())
 	}
-
+	if withAttachedData {
+		for i := 0; i < len(blocks); i++ {
+			if err = bs.PopulateBlockData(blocks[i]); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return blocks, nil
 }
 

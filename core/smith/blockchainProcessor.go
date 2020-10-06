@@ -187,7 +187,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.ValidateSpineBlockErr
 			}
-			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		}
 		return err
 	}

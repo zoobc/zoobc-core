@@ -387,8 +387,6 @@ func (ps *P2PServerService) GetNextBlocks(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
-		defer blockService.ChainWriteUnlock(constant.BlockchainSendingBlocks)
 		block, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -401,10 +399,6 @@ func (ps *P2PServerService) GetNextBlocks(
 		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
-			}
-			err = blockService.PopulateBlockData(block)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
 			}
 			blocksMessage = append(blocksMessage, block)
 		}
