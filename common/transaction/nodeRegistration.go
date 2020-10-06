@@ -322,9 +322,9 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
 
 	// get the poown account type by parsing proof of ownership bytes
-	var tmpPoonBytes = make([]byte, buffer.Len())
-	copy(tmpPoonBytes, buffer.Bytes())
-	tmpBuffer := bytes.NewBuffer(tmpPoonBytes)
+	var tmpPoownBytes = make([]byte, buffer.Len())
+	copy(tmpPoownBytes, buffer.Bytes())
+	tmpBuffer := bytes.NewBuffer(tmpPoownBytes)
 	poownAccType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
 	if err != nil {
 		return nil, err
