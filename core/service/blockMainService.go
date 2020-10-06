@@ -620,13 +620,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 						blockBytes       []byte
 						blockToBroadcast *model.Block
 					)
-					blockBytes, err = json.Marshal(block)
+					blockBytes, err = json.Marshal(*block)
 					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block")
+						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block:"+err.Error())
 					}
 					err = json.Unmarshal(blockBytes, blockToBroadcast)
 					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes")
+						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes"+err.Error())
 					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
