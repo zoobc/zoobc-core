@@ -341,7 +341,8 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 
 	// Checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
 	// when tx is not escrowed
-	if tx.GetRecipientAccountAddress() != nil && (tx.Escrow != nil && tx.Escrow.GetApproverAddress() == nil) {
+	if tx.GetRecipientAccountAddress() != nil && (tx.Escrow != nil &&
+		(tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}))) {
 		var (
 			accountDataset model.AccountDataset
 			row            *sql.Row
