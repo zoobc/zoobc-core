@@ -925,9 +925,7 @@ type (
 	mockGetNextBlocksBlockServiceGetBlocksFromHeightFail struct {
 		coreService.BlockService
 	}
-	mockGetNextBlocksBlockServicePopulateBlockDataFail struct {
-		coreService.BlockService
-	}
+
 	mockGetNextBlocksBlockServiceSuccess struct {
 		coreService.BlockService
 	}
@@ -953,19 +951,6 @@ func (*mockGetNextBlocksBlockServiceGetBlocksFromHeightFail) GetBlocksFromHeight
 	withAttachedData bool,
 ) ([]*model.Block, error) {
 	return nil, errors.New("mock Error")
-}
-
-func (*mockGetNextBlocksBlockServicePopulateBlockDataFail) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	return &mockGetNextBlocksSuccess, nil
-}
-func (*mockGetNextBlocksBlockServicePopulateBlockDataFail) GetBlocksFromHeight(
-	startHeight, limit uint32,
-	withAttachedData bool,
-) ([]*model.Block, error) {
-	return []*model.Block{&mockGetNextBlocksSuccess}, nil
-}
-func (*mockGetNextBlocksBlockServicePopulateBlockDataFail) PopulateBlockData(block *model.Block) error {
-	return errors.New("mock Error")
 }
 
 func (*mockGetNextBlocksBlockServiceSuccess) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
@@ -1075,23 +1060,6 @@ func TestP2PServerService_GetNextBlocks(t *testing.T) {
 			},
 			want:    &model.BlocksData{},
 			wantErr: false,
-		},
-		{
-			name: "wantFail:PopulateBlockData",
-			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategySuccess{},
-				BlockServices: map[int32]coreService.BlockServiceInterface{
-					mockChainType.GetTypeInt(): &mockGetNextBlocksBlockServicePopulateBlockDataFail{},
-				},
-			},
-			args: args{
-				ctx:         context.Background(),
-				chainType:   &mockChainType,
-				blockID:     mockBlock.GetID(),
-				blockIDList: []int64{mockGetNextBlocksSuccess.GetID()},
-			},
-			want:    nil,
-			wantErr: true,
 		},
 		{
 			name: "wantSuccess",

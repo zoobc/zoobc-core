@@ -415,6 +415,9 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
 func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusGettingBlocks)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusGettingBlocks)
+
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
