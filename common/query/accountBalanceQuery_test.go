@@ -36,7 +36,8 @@ var (
 		"block_height":    uint32(1),
 	}
 	mockAccountBalance = &model.AccountBalance{
-		AccountAddress:   "BCZ",
+		AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		BlockHeight:      0,
 		SpendableBalance: 0,
 		Balance:          0,

@@ -89,6 +89,10 @@ func TestNewAccountBalanceService(t *testing.T) {
 }
 
 func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
+	var (
+		accAddr = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229, 116, 202,
+			211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
+	)
 	type fields struct {
 		AccountBalanceQuery *query.AccountBalanceQuery
 		QueryExecutor       query.ExecutorInterface
@@ -110,7 +114,7 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceFail{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: "BCZ000000000000",
+				AccountAddress: accAddr,
 			}},
 			want:    nil,
 			wantErr: true,
@@ -122,7 +126,7 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceNotFound{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: "BCZ000000000000",
+				AccountAddress: accAddr,
 			}},
 			want:    nil,
 			wantErr: true,
@@ -134,11 +138,11 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceSuccess{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: "BCZ000000000000",
+				AccountAddress: accAddr,
 			}},
 			want: &model.GetAccountBalanceResponse{
 				AccountBalance: &model.AccountBalance{
-					AccountAddress:   "\001",
+					AccountAddress:   accAddr,
 					BlockHeight:      1,
 					SpendableBalance: 10000,
 					Balance:          10000,
@@ -230,8 +234,9 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountBalancesRequest{
-					AccountAddresses: []string{
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					AccountAddresses: [][]byte{
+						[]byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+							116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 					},
 				},
 			},
@@ -246,8 +251,9 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountBalancesRequest{
-					AccountAddresses: []string{
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					AccountAddresses: [][]byte{
+						[]byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+							116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 					},
 				},
 			},
@@ -262,15 +268,17 @@ func TestAccountBalanceService_GetAccountBalances(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountBalancesRequest{
-					AccountAddresses: []string{
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					AccountAddresses: [][]byte{
+						[]byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+							116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 					},
 				},
 			},
 			want: &model.GetAccountBalancesResponse{
 				AccountBalances: []*model.AccountBalance{
 					{
-						AccountAddress:   "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						AccountAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113,
+							140, 183, 229, 116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 						BlockHeight:      0,
 						SpendableBalance: 100000000000,
 						Balance:          101666666666,

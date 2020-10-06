@@ -1,6 +1,7 @@
 package util
 
 import (
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"reflect"
 	"testing"
 
@@ -10,7 +11,7 @@ import (
 
 func TestParseProofOfOwnershipBytes(t *testing.T) {
 	poown := &model.ProofOfOwnership{
-		MessageBytes: make([]byte, GetProofOfOwnershipSize(false)),
+		MessageBytes: make([]byte, GetProofOfOwnershipSize(&accounttype.ZbcAccountType{}, false)),
 		Signature:    make([]byte, constant.NodeSignature),
 	}
 	poownBytes := GetProofOfOwnershipBytes(poown)
@@ -42,7 +43,7 @@ func TestParseProofOfOwnershipBytes(t *testing.T) {
 		{
 			name: "ParseProofOfOwnershipBytes - fail (no signature / wrong signature size)",
 			args: args{
-				poownBytes: poownBytes[:GetProofOfOwnershipSize(false)],
+				poownBytes: poownBytes[:GetProofOfOwnershipSize(&accounttype.ZbcAccountType{}, false)],
 			},
 			want:    nil,
 			wantErr: true,
@@ -70,8 +71,8 @@ func TestParseProofOfOwnershipBytes(t *testing.T) {
 
 func TestGetProofOfOwnershipSize(t *testing.T) {
 	t.Run("WithAndWithoutSignature-Gap", func(t *testing.T) {
-		withSig := GetProofOfOwnershipSize(true)
-		withoutSig := GetProofOfOwnershipSize(false)
+		withSig := GetProofOfOwnershipSize(&accounttype.ZbcAccountType{}, true)
+		withoutSig := GetProofOfOwnershipSize(&accounttype.ZbcAccountType{}, false)
 		if withSig-withoutSig != constant.NodeSignature {
 			t.Errorf("GetPoownSize with and without signature should have %d difference",
 				constant.NodeSignature)
@@ -81,9 +82,10 @@ func TestGetProofOfOwnershipSize(t *testing.T) {
 
 func TestParseProofOfOwnershipMessageBytes(t *testing.T) {
 	poownMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		BlockHash:      make([]byte, constant.BlockHash),
-		BlockHeight:    0,
+		AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		BlockHash:   make([]byte, constant.BlockHash),
+		BlockHeight: 0,
 	}
 	poownMessageBytes := GetProofOfOwnershipMessageBytes(poownMessage)
 	type args struct {

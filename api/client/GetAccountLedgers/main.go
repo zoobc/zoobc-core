@@ -41,7 +41,8 @@ func main() {
 
 	res, err := rpcService.NewAccountLedgerServiceClient(conn).
 		GetAccountLedgers(context.Background(), &model.GetAccountLedgersRequest{
-			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			AccountAddress: []byte{0, 0, 0, 0, 98, 118, 38, 51, 199, 143, 112, 175, 220, 74, 221, 170, 56, 103, 159, 209, 242, 132, 219, 155,
+				169, 123, 104, 77, 139, 18, 224, 166, 162, 83, 125, 96},
 			// EventType:      model.EventType_EventAny,
 			TimestampStart: 1578548985,
 			TimestampEnd:   1578549075,
