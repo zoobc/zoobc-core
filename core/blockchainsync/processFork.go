@@ -116,7 +116,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if chaintype.IsSpineChain(fp.ChainType) {
 						blockerUsed = blocker.PushSpineBlockErr
 					}
-					fp.Logger.Warnf("\n\n[ProcessFork] PushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+					fp.Logger.Warnf("\n\n[ProcessFork] PushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 					break
 				}
 
@@ -192,7 +192,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if chaintype.IsSpineChain(fp.ChainType) {
 					blockerUsed = blocker.PushSpineBlockErr
 				}
-				fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+				fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
