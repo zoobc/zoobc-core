@@ -4,13 +4,11 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
 	log "github.com/sirupsen/logrus"
-
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 )
 
 func TestNewBlockchainProcessor(t *testing.T) {
@@ -21,6 +19,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
 		nodeRegistrationService service.NodeRegistrationServiceInterface
+		blockSmithStrategy      strategy.BlocksmithStrategyInterface
 	}
 	tests := []struct {
 		name string
@@ -47,14 +46,8 @@ func TestNewBlockchainProcessor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockchainProcessor(
-				tt.args.ct,
-				tt.args.blocksmith,
-				tt.args.blockService,
-				tt.args.logger,
-				tt.args.blockchainStatusService,
-				tt.args.nodeRegistrationService,
-			); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlockchainProcessor(tt.args.ct, tt.args.blocksmith, tt.args.blockService,
+				tt.args.logger, tt.args.blockchainStatusService, tt.args.nodeRegistrationService, tt.args.blockSmithStrategy); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}
 		})

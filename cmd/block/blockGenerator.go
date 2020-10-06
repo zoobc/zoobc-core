@@ -2,9 +2,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -36,6 +37,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
+	blockSmithStrategy      strategy.BlocksmithStrategyInterface
 	blocksmithStrategy      strategy.BlocksmithStrategyInterface
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
@@ -250,6 +252,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		log.New(),
 		&mockBlockchainStatusService{},
 		nodeRegistrationService,
+		blockSmithStrategy,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)
