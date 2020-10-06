@@ -106,8 +106,8 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
 	} else {
-		buffer.Write(util.ConvertUint32ToBytes(constant.AccountAddressLength))
-		buffer.Write(make([]byte, constant.AccountAddressEmptyLength))
+		buffer.Write(make([]byte, constant.AccountAddressLength))
+		buffer.Write(make([]byte, 0))
 
 		buffer.Write(make([]byte, constant.EscrowCommissionLength))
 		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
