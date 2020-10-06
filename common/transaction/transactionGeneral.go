@@ -73,11 +73,10 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	buffer.Write(util.ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Timestamp)))
 
-	// Address format: [len][address]
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.SenderAccountAddress)))))
-	buffer.Write([]byte(transaction.SenderAccountAddress))
+	// Address format (byte array): [account type][address public key]
+	buffer.Write(transaction.SenderAccountAddress)
 
-	// Address format: [len][address]
+	// Address format (byte array): [account type][address public key]
 	if transaction.GetRecipientAccountAddress() == nil {
 		emptyAccType, err := accounttype.NewAccountType(int32(model.AccountType_EmptyAccountType), make([]byte, 0))
 		if err != nil {
@@ -89,8 +88,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		}
 		buffer.Write(emptyAccAddress)
 	} else {
-		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.RecipientAccountAddress)))))
-		buffer.Write([]byte(transaction.RecipientAccountAddress))
+		buffer.Write(transaction.RecipientAccountAddress)
 	}
 	buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.Fee)))
 	// transaction body length
@@ -104,8 +102,8 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	4. Instruction
 	*/
 	if transaction.GetEscrow() != nil {
-		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetApproverAddress())))))
-		buffer.Write([]byte(transaction.GetEscrow().GetApproverAddress()))
+		// Address format (byte array): [account type][address public key]
+		buffer.Write(transaction.GetEscrow().GetApproverAddress())
 
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
 		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))

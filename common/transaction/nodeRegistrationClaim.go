@@ -230,18 +230,20 @@ func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
-	// read body bytes todo: add accountAddressLength to body
 	buffer := bytes.NewBuffer(txBodyBytes)
 	nodePublicKey, err := util.ReadTransactionBytes(buffer, int(constant.NodePublicKey))
 	if err != nil {
 		return nil, err
 	}
-	// parse ProofOfOwnership (message + signature) bytes
-	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	// get the poown account type by parsing proof of ownership bytes
+	var tmpPoownBytes = make([]byte, buffer.Len())
+	copy(tmpPoownBytes, buffer.Bytes())
+	tmpBuffer := bytes.NewBuffer(tmpPoownBytes)
+	poownAccType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
 	if err != nil {
 		return nil, err
 	}
-	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(accType, true))))
+	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(poownAccType, true))))
 	if err != nil {
 		return nil, err
 	}

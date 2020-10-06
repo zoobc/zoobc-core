@@ -352,7 +352,7 @@ func (tx *NodeRegistration) GetBodyBytes() []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	buffer.Write([]byte(tx.Body.AccountAddress))
+	buffer.Write(tx.Body.AccountAddress)
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
 	return buffer.Bytes()

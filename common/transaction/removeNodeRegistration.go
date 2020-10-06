@@ -237,7 +237,6 @@ func (tx *RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 
 // GetBodyBytes translate tx body to bytes representation
 func (tx *RemoveNodeRegistration) GetBodyBytes() []byte {
-
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	return buffer.Bytes()

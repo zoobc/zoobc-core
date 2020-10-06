@@ -325,12 +325,15 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 	}
 	lockedBalance = util.ConvertBytesToUint64(lockedBalanceBytes)
 
-	// parse ProofOfOwnership (message + signature) bytes
-	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	// get the poown account type by parsing proof of ownership bytes
+	var tmpPoownBytes = make([]byte, buffer.Len())
+	copy(tmpPoownBytes, buffer.Bytes())
+	tmpBuffer := bytes.NewBuffer(tmpPoownBytes)
+	poownAccType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
 	if err != nil {
 		return nil, err
 	}
-	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(accType, true)))
+	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(poownAccType, true)))
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +350,6 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 
 // GetBodyBytes translate tx body to bytes representation
 func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
-
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))

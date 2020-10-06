@@ -11,7 +11,15 @@ import (
 )
 
 var (
-	senderAddress1 = make([]byte, 36) //STEF TODO: update it with a real address (in bytes)
+	// ZBC_D2EDT53U_5VSQXGQD_COZMETMY_FUVV23NQ_UPLXTR7F_6LKVWNNF_J2SPLUDQ
+	senderAddress1 = []byte{0, 0, 0, 0, 30, 136, 57, 247, 116, 237, 101, 11, 154, 3, 19, 178, 194, 77, 152, 45, 43, 93, 109, 176, 163, 215,
+		121, 199, 229, 242, 213, 91, 53, 165, 78, 164}
+	// ZNK_IGXGYIX2_Q67MFEYO_7TVQRL7X_NKEVRI4H_OIKR5NXK_FKMFMPZT_G4ZZZ3TE
+	recipientAddress1 = []byte{0, 0, 0, 0, 65, 174, 108, 34, 250, 135, 190, 194, 147, 14, 252, 235, 8, 175, 247, 106, 137, 88, 163, 135,
+		114, 21, 30, 182, 234, 42, 152, 86, 63, 51, 55, 51}
+	// ZBC_EFA2GBTM_UJLAQGZ7_VGCV63HY_CHDBDXLZ_YNIMK67W_QJG7MJMB_3VKFLLYQ
+	approverAddress1 = []byte{0, 0, 0, 0, 33, 65, 163, 6, 108, 162, 86, 8, 27, 63, 169, 133, 95, 108, 248, 17, 198, 17, 221, 121, 195, 80,
+		197, 123, 246, 130, 77, 246, 37, 129, 221, 84}
 	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 	nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -41,8 +49,8 @@ var (
 		BlockID:                 0,
 		Height:                  0,
 		Timestamp:               1562806389280,
-		SenderAccountAddress:    make([]byte, 36), //STEF TODO: update it with a real address (in bytes)
-		RecipientAccountAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes)
+		SenderAccountAddress:    senderAddress1,
+		RecipientAccountAddress: recipientAddress1,
 		Fee:                     1,
 		TransactionHash: []byte{
 			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
@@ -237,7 +245,7 @@ func GetFixturesForTransaction(
 	if escrow {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.GetID(),
-			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
+			ApproverAddress: approverAddress1,
 			Commission:      1,
 			Timeout:         100,
 		}
@@ -348,7 +356,7 @@ func GetFixtureForSpecificTransaction(
 
 	if escrow {
 		tx.Escrow = &model.Escrow{
-			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
+			ApproverAddress: approverAddress1,
 			Commission:      1,
 			Timeout:         100,
 			Instruction:     "",

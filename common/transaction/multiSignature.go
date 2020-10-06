@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -367,7 +368,6 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
-		// TODO: make sure that addresses in tx.Body.SignatureInfo.Signatures have been encoded to hex when generating the map
 		for addrHex, sig := range tx.Body.SignatureInfo.Signatures {
 			addr, err := hex.DecodeString(addrHex)
 			if err != nil {
@@ -387,7 +387,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 
 		}
 	}
-	// checks for completion, if musigInfo && txBytes && signatureInfo exist, check if signature info complete
+	// checks for completion, if multisigInfo && txBytes && signatureInfo exist, check if signature info complete
 	txs, err := tx.MultisigUtil.CheckMultisigComplete(
 		tx.TransactionUtil,
 		tx.MultisignatureInfoHelper,
@@ -667,8 +667,11 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 		nonce := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.MultiSigInfoNonce)))
 		addressesLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigNumberOfAddress)))
 		for i := 0; i < int(addressesLength); i++ {
-			addressLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigAddressLength)))
-			address, err := util.ReadTransactionBytes(bufferBytes, int(addressLength))
+			accType, err := accounttype.ParseBytesToAccountType(bufferBytes)
+			if err != nil {
+				return nil, err
+			}
+			address, err := accType.GetAccountAddress()
 			if err != nil {
 				return nil, err
 			}
@@ -695,8 +698,11 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 		}
 		signaturesLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigNumberOfSignatures)))
 		for i := 0; i < int(signaturesLength); i++ {
-			addressLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigAddressLength)))
-			address, err := util.ReadTransactionBytes(bufferBytes, int(addressLength))
+			accType, err := accounttype.ParseBytesToAccountType(bufferBytes)
+			if err != nil {
+				return nil, err
+			}
+			address, err := accType.GetAccountAddress()
 			if err != nil {
 				return nil, err
 			}
@@ -731,7 +737,6 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.GetMultiSignatureInfo().GetNonce())))
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetMultiSignatureInfo().GetAddresses()))))
 		for _, v := range tx.Body.GetMultiSignatureInfo().GetAddresses() {
-			buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(v)))))
 			buffer.Write([]byte(v))
 		}
 	} else {
@@ -746,7 +751,6 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(tx.Body.GetSignatureInfo().GetTransactionHash())
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetSignatureInfo().GetSignatures()))))
 		for address, sig := range tx.Body.GetSignatureInfo().GetSignatures() {
-			buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(address)))))
 			buffer.Write([]byte(address))
 			buffer.Write(util.ConvertUint32ToBytes(uint32(len(sig))))
 			buffer.Write(sig)
