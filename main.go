@@ -40,6 +40,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -108,6 +109,8 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -366,12 +369,19 @@ func initiateMainInstance() {
 		fileService,
 	)
 
-	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
+	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 	)
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
+		queryExecutor,
+		query.NewSpinePublicKeyQuery(),
+		loggerCoreService,
+		query.NewBlockQuery(&chaintype.SpineChain{}),
+	)
+
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
@@ -833,6 +843,7 @@ func startMainchain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategyMain,
 		)
 		mainchainProcessor.Start(sleepPeriod)
 	}
@@ -906,6 +917,7 @@ func startSpinechain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategySpine,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}

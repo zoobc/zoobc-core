@@ -53,8 +53,8 @@ func (bss *BlocksmithStrategySpine) IsMe(lastCandidate Candidate, block *model.B
 	return true
 }
 
-func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (bool, []Candidate, error) {
-	return true, nil, nil
+func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlockID, blocksmithIndex int64, err error) {
+	return 0, 0, nil
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)

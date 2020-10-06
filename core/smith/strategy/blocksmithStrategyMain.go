@@ -20,6 +20,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -41,6 +42,9 @@ type (
 		LastEstimatedPersistedTimestampBlockID int64
 		SortedBlocksmithsLock                  sync.RWMutex
 		SortedBlocksmithsMap                   map[string]*int64
+		Chaintype                              chaintype.ChainType
+		candidates                             []Candidate
+		lastBlockHash                          []byte
 	}
 )
 
@@ -56,6 +60,8 @@ func NewBlocksmithStrategyMain(
 		SkippedBlocksmithQuery: skippedBlocksmithQuery,
 		Logger:                 logger,
 		SortedBlocksmithsMap:   make(map[string]*int64),
+		Chaintype:              &chaintype.MainChain{},
+		candidates:             make([]Candidate, 0),
 	}
 }
 
@@ -70,57 +76,55 @@ func (bss *BlocksmithStrategyMain) IsMe(lastCandidate Candidate, block *model.Bl
 	return false
 }
 
-func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (bool, []Candidate, error) {
+func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockID, blocksmithIndex int64, err error) {
 	var (
-		err           error
 		blockSmiths   []*model.Blocksmith
 		lastCandidate Candidate
 		candidate     Candidate
-		candidates    []Candidate
-		lastBlockHash []byte
 		now           = time.Now()
+		// err           error
 	)
 
 	blockSmiths, err = bss.GetBlocksmiths(prevBlock)
 	if err != nil {
-		return false, nil, errors.New("ErrorGetBlocksmiths")
+		return 0, 0, errors.New("ErrorGetBlocksmiths")
 	}
 
-	lastBlockHash = prevBlock.BlockHash
-	if lastBlockHash != nil {
-		lastBlockHash = prevBlock.BlockHash
+	if prevBlock.BlockHash != nil {
+		bss.lastBlockHash = prevBlock.BlockHash
 	}
 
-	if !bytes.Equal(lastBlockHash, prevBlock.BlockHash) {
-		candidates = []Candidate{}
+	if !bytes.Equal(bss.lastBlockHash, prevBlock.BlockHash) {
+		bss.candidates = []Candidate{}
 
 		blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
 		rand.Seed(blockSeedBigInt.Int64())
 	}
 
-	if len(candidates) > 0 {
-		lastCandidate = candidates[len(candidates)-1]
+	if len(bss.candidates) > 0 {
+		lastCandidate = bss.candidates[len(bss.candidates)-1]
 		isMe := bss.IsMe(lastCandidate, prevBlock)
 		if err != nil {
-			return false, nil, errors.New("ErrorIsMe")
+			return 0, 0, errors.New("ErrorIsMe")
 		}
 
 		if isMe && now.Unix() < lastCandidate.ExpiryTime {
-			return true, nil, nil
+			return 0, 0, nil
 		}
 		if now.Unix() < lastCandidate.StartTime+10 {
-			return false, nil, errors.New("Failed")
+			return 0, 0, errors.New("Failed")
 		}
 	}
 	idx := rand.Intn(len(blockSmiths))
 	candidate = Candidate{
 		Blocksmith: blockSmiths[idx],
-		StartTime:  prevBlock.Timestamp + int64(15) + int64(len(candidates)*10),
-		ExpiryTime: lastCandidate.StartTime + 45, // (45 = networkTolerance+blockCreation)
+		StartTime:  prevBlock.Timestamp + bss.Chaintype.GetSmithingPeriod() + int64(len(bss.candidates))*bss.Chaintype.GetBlocksmithTimeGap(),
+		ExpiryTime: lastCandidate.StartTime + bss.Chaintype.GetBlocksmithNetworkTolerance() + bss.Chaintype.GetBlocksmithBlockCreationTime(),
 	}
 
-	candidates = append(candidates, candidate)
-	return now.Unix() > candidate.StartTime, candidates, nil
+	bss.candidates = append(bss.candidates, candidate)
+	lastBlockID = util.GetBlockIDFromHash(bss.lastBlockHash)
+	return lastBlockID, int64(idx), nil
 }
 
 func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) (bool, error) {
@@ -133,7 +137,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) (
 		return false, errors.New("ErrorGetBlocksmiths")
 	}
 	timeGap := block.Timestamp - prevBlock.Timestamp
-	round := math.Floor(float64(timeGap)-15) / 10
+	round := timeGap - bss.Chaintype.GetSmithingPeriod()/bss.Chaintype.GetBlocksmithTimeGap()
 
 	blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
 	rand.Seed(blockSeedBigInt.Int64())

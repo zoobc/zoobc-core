@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 )
 
 type (
@@ -28,6 +29,7 @@ type (
 		ChainType               chaintype.ChainType
 		Generator               *model.Blocksmith
 		BlockService            service.BlockServiceInterface
+		BlockSmithStrategy      strategy.BlocksmithStrategyInterface
 		LastBlockID             int64
 		Logger                  *log.Logger
 		smithError              error
@@ -48,6 +50,7 @@ func NewBlockchainProcessor(
 	logger *log.Logger,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
+	blockSmithStrategy strategy.BlocksmithStrategyInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
 		ChainType:               ct,
@@ -56,6 +59,7 @@ func NewBlockchainProcessor(
 		Logger:                  logger,
 		BlockchainStatusService: blockchainStatusService,
 		NodeRegistrationService: nodeRegistrationService,
+		BlockSmithStrategy:      blockSmithStrategy,
 	}
 }
 
@@ -162,9 +166,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	// todo: move this piece of code to service layer
 	// caching: only calculate smith time once per new block
-	bp.LastBlockID, blocksmithIndex, err = bp.BlockService.WillSmith(
-		bp.Generator, bp.LastBlockID,
-	)
+	bp.LastBlockID, blocksmithIndex, err = bp.BlockSmithStrategy.WillSmith(lastBlock)
 	if err != nil {
 		return err
 	}
