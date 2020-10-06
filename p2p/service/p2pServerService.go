@@ -396,11 +396,11 @@ func (ps *P2PServerService) GetNextBlocks(
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
-		for idx, block := range blocks {
+		for idx := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
 			}
-			blocksMessage = append(blocksMessage, block)
+			blocksMessage = append(blocksMessage, blocks[idx])
 		}
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
