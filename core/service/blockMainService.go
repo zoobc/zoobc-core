@@ -991,7 +991,7 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 	}
 	if withAttachedData {
 		for i := 0; i < len(blocks); i++ {
-			if err = bs.PopulateBlockData(blocks[i]); err != nil {
+			if err := bs.PopulateBlockData(blocks[i]); err != nil {
 				return nil, err
 			}
 		}
