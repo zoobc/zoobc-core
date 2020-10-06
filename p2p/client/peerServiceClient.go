@@ -355,9 +355,13 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 
 // SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
 func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
+
+	if len(nodeAddressInfos) <= 0 {
+		return &model.Empty{}, nil
+	}
+
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
-
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
