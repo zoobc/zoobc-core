@@ -406,7 +406,7 @@ func TestBitcoinSignature_GetAddressBytes(t *testing.T) {
 		Curve         *btcec.KoblitzCurve
 	}
 	type args struct {
-		address string
+		encodedAddress string
 	}
 	tests := []struct {
 		name    string
@@ -422,7 +422,7 @@ func TestBitcoinSignature_GetAddressBytes(t *testing.T) {
 				Curve:         DefaultBitcoinCurve(),
 			},
 			args: args{
-				address: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
+				encodedAddress: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
 			},
 			want:    []byte{13, 137, 40, 212, 218, 119, 144, 80, 70, 113, 150, 129, 2, 84, 45, 144, 145, 17, 64, 134},
 			wantErr: false,
@@ -434,7 +434,7 @@ func TestBitcoinSignature_GetAddressBytes(t *testing.T) {
 				Curve:         DefaultBitcoinCurve(),
 			},
 			args: args{
-				address: "",
+				encodedAddress: "",
 			},
 			want:    nil,
 			wantErr: true,
@@ -446,7 +446,7 @@ func TestBitcoinSignature_GetAddressBytes(t *testing.T) {
 				NetworkParams: tt.fields.NetworkParams,
 				Curve:         tt.fields.Curve,
 			}
-			got, err := b.GetAddressBytes(tt.args.address)
+			got, err := b.GetAddressBytes(tt.args.encodedAddress)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BitcoinSignature.GetAddressBytes() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -271,7 +271,7 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 		FilePath      string
 	}
 	type args struct {
-		accountAddress string
+		accountAddress []byte
 	}
 	tests := []struct {
 		name    string
@@ -292,7 +292,8 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 				FilePath: "testdata/node_keys.json",
 			},
 			args: args{
-				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			},
 			want: &model.ProofOfOwnership{
 				MessageBytes: []byte{66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86, 102, 57, 90,
@@ -319,7 +320,8 @@ func TestNodeAdminService_GenerateProofOfOwnership(t *testing.T) {
 				FilePath: "testdata/node_keys.json",
 			},
 			args: args{
-				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			},
 			want: &model.ProofOfOwnership{
 				MessageBytes: []byte{66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68, 79, 86,

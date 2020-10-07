@@ -1,8 +1,10 @@
 package transaction
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"reflect"
 	"regexp"
 	"strings"
@@ -20,11 +22,15 @@ import (
 )
 
 var (
-	mockTxID                      int64  = 1390544043583530800
-	mockTxTimestamp               int64  = 1581301507
-	mockTxSenderAccountAddress           = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
-	mockTxRecipientAccountAddress        = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
-	mockTxBodyLength              uint32 = 8
+	mockTxID                   int64 = 1390544043583530800
+	mockTxTimestamp            int64 = 1581301507
+	mockTxSenderAccountAddress       = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	mockTxRecipientAccountAddress = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	mockTxApproverAccountAddress = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188, 43,
+		59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
+	mockTxBodyLength uint32 = 8
 )
 
 func TestGetTransactionBytes(t *testing.T) {
@@ -82,8 +88,8 @@ func TestGetTransactionBytes(t *testing.T) {
 					Version:                 1,
 					TransactionType:         2,
 					Timestamp:               1562806389280,
-					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
 					Fee:                     1000000,
 					TransactionBodyLength:   8,
 					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -108,8 +114,8 @@ func TestGetTransactionBytes(t *testing.T) {
 					TransactionType:         2,
 					Version:                 1,
 					Timestamp:               1562806389280,
-					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
 					Fee:                     1000000,
 					TransactionBodyLength:   8,
 					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -126,7 +132,7 @@ func TestGetTransactionBytes(t *testing.T) {
 					Version:               1,
 					TransactionType:       2,
 					Timestamp:             1562806389280,
-					SenderAccountAddress:  "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					SenderAccountAddress:  mockTxSenderAccountAddress,
 					Fee:                   1000000,
 					TransactionBodyLength: 8,
 					TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
@@ -157,13 +163,13 @@ func TestGetTransactionBytes(t *testing.T) {
 					Version:                 1,
 					TransactionType:         2,
 					Timestamp:               1562806389280,
-					SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
 					Fee:                     1000000,
 					TransactionBodyLength:   8,
 					TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
 					Escrow: &model.Escrow{
-						ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+						ApproverAddress: mockTxApproverAccountAddress,
 						Commission:      24,
 						Timeout:         100,
 					},
@@ -190,8 +196,8 @@ func TestGetTransactionBytes(t *testing.T) {
 					ID:                      1,
 					BlockID:                 1,
 					Height:                  1,
-					SenderAccountAddress:    "GHI",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: nil,
 					TransactionType:         4,
 					Fee:                     1,
 					Timestamp:               1562806389280,
@@ -215,8 +221,8 @@ func TestGetTransactionBytes(t *testing.T) {
 					ID:                      1,
 					BlockID:                 1,
 					Height:                  1,
-					SenderAccountAddress:    "GHI",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: nil,
 					TransactionType:         4,
 					Fee:                     1,
 					Timestamp:               1562806389280,
@@ -268,8 +274,8 @@ func TestParseTransactionBytes(t *testing.T) {
 		BlockID:                 0,
 		Height:                  0,
 		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		SenderAccountAddress:    mockTxSenderAccountAddress,
+		RecipientAccountAddress: mockTxRecipientAccountAddress,
 		Fee:                     1000000,
 		TransactionHash: []byte{
 			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
@@ -283,7 +289,7 @@ func TestParseTransactionBytes(t *testing.T) {
 			77, 80, 80, 39, 254, 173, 28, 169,
 		},
 		Escrow: &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: approverAddress1,
 			Commission:      24,
 			Timeout:         100,
 		},
@@ -294,8 +300,8 @@ func TestParseTransactionBytes(t *testing.T) {
 	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
 		-5081269314054617420,
 		12345678,
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"",
+		senderAddress1,
+		nil,
 		constant.EscrowApprovalBytesLength,
 		model.TransactionType_ApprovalEscrowTransaction,
 		&model.ApprovalEscrowTransactionBody{
@@ -313,8 +319,8 @@ func TestParseTransactionBytes(t *testing.T) {
 		BlockID:                 0,
 		Height:                  0,
 		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		SenderAccountAddress:    mockTxSenderAccountAddress,
+		RecipientAccountAddress: mockTxRecipientAccountAddress,
 		Fee:                     1000000,
 		TransactionHash: []byte{
 			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
@@ -328,7 +334,7 @@ func TestParseTransactionBytes(t *testing.T) {
 			77, 80, 80, 39, 254, 173, 28, 169,
 		},
 		Escrow: &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: approverAddress1,
 			Commission:      24,
 			Timeout:         100,
 		},
@@ -375,14 +381,14 @@ func TestParseTransactionBytes(t *testing.T) {
 				BlockID:                 0,
 				Height:                  0,
 				Timestamp:               1562806389280,
-				SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAccountAddress:    mockTxSenderAccountAddress,
+				RecipientAccountAddress: mockTxRecipientAccountAddress,
 				Fee:                     1000000,
 				TransactionHash:         successWithoutSigHashed[:],
 				TransactionBodyLength:   8,
 				TransactionBodyBytes:    []byte{1, 2, 3, 4, 5, 6, 7, 8},
 				Escrow: &model.Escrow{
-					ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					ApproverAddress: approverAddress1,
 					Commission:      24,
 					Timeout:         100,
 				},
@@ -513,7 +519,7 @@ type (
 	}
 )
 
-func (*mockAccountDatasetQueryValidateTransaction) GetAccountDatasetEscrowApproval(recipientAddress string) (qry string, args []interface{}) {
+func (*mockAccountDatasetQueryValidateTransaction) GetAccountDatasetEscrowApproval(recipientAddress []byte) (qry string, args []interface{}) {
 	return
 }
 func (m *mockAccountDatasetQueryValidateTransaction) Scan(dataset *model.AccountDataset, _ *sql.Row) error {
@@ -521,8 +527,8 @@ func (m *mockAccountDatasetQueryValidateTransaction) Scan(dataset *model.Account
 		return sql.ErrNoRows
 	}
 	*dataset = model.AccountDataset{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		SetterAccountAddress:    mockTxSenderAccountAddress,
+		RecipientAccountAddress: mockTxRecipientAccountAddress,
 		Property:                "Admin",
 		Value:                   "You're Welcome",
 		IsActive:                true,
@@ -560,8 +566,8 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	}
 	txValidateNoRecipient := GetFixturesForTransaction(
 		1562893303,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"",
+		senderAddress1,
+		nil,
 		true,
 	)
 	txBytesNoRecipient, _ := transactionUtil.GetTransactionBytes(txValidateNoRecipient, false)
@@ -572,8 +578,8 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 
 	txValidateMustEscrow := GetFixturesForTransaction(
 		1562893303,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM6",
+		senderAddress1,
+		recipientAddress1,
 		false,
 	)
 	txBytesMustEscrow, _ := transactionUtil.GetTransactionBytes(txValidateMustEscrow, false)
@@ -584,8 +590,8 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 
 	txValidateEscrow := GetFixturesForTransaction(
 		1562893303,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM6",
+		senderAddress1,
+		recipientAddress1,
 		true,
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txValidateEscrow, false)
@@ -619,8 +625,8 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 			args: args{
 				tx: GetFixturesForTransaction(
 					1562893303,
-					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-					"",
+					senderAddress1,
+					nil,
 					false,
 				),
 				typeAction:      &mockTypeActionValidateTransactionSuccess{},
@@ -688,7 +694,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    string
+		want    []byte
 		wantErr bool
 	}{
 		{
@@ -696,13 +702,13 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 			args: args{info: &model.MultiSignatureInfo{
 				MinimumSignatures: 2,
 				Nonce:             12,
-				Addresses: []string{
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-					"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-					"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				Addresses: [][]byte{
+					senderAddress1,
+					recipientAddress1,
+					approverAddress1,
 				},
 			}},
-			want: "ZBC_BNJGBG36_3D5RLOUW_ZVS7JFNZ_L3CGPMRH_27ICSFQH_QQJ4DEJ5_SHS5UQQQ",
+			want: senderAddress1,
 		},
 	}
 	for _, tt := range tests {
@@ -713,7 +719,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 				t.Errorf("GenerateMultiSigAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !bytes.Equal(got, tt.want) {
 				t.Errorf("GenerateMultiSigAddress() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -735,7 +741,7 @@ func TestMultisigTransactionUtil_ValidateMultisignatureInfo(t *testing.T) {
 				&model.MultiSignatureInfo{
 					MinimumSignatures: 0,
 					Nonce:             0,
-					Addresses:         make([]string, 1),
+					Addresses:         make([][]byte, 1),
 				},
 			},
 			wantErr: true,
@@ -746,7 +752,7 @@ func TestMultisigTransactionUtil_ValidateMultisignatureInfo(t *testing.T) {
 				&model.MultiSignatureInfo{
 					MinimumSignatures: 0,
 					Nonce:             0,
-					Addresses:         make([]string, 2),
+					Addresses:         make([][]byte, 2),
 				},
 			},
 			wantErr: true,
@@ -757,7 +763,7 @@ func TestMultisigTransactionUtil_ValidateMultisignatureInfo(t *testing.T) {
 				&model.MultiSignatureInfo{
 					MinimumSignatures: 1,
 					Nonce:             0,
-					Addresses:         make([]string, 2),
+					Addresses:         make([][]byte, 2),
 				},
 			},
 			wantErr: false,
@@ -781,7 +787,7 @@ func TestMultisigTransactionUtil_ValidateSignatureInfo(t *testing.T) {
 	}
 	sig := &crypto.Signature{}
 	txHash := make([]byte, 32)
-	_, _, _, validAddress, _ := sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, "a")
+	_, _, _, validAddress, _, _ := sig.GenerateAccountFromSeed(&accounttype.ZbcAccountType{}, "a")
 	validSignature, _ := sig.Sign(txHash, model.SignatureType_DefaultSignature, "a")
 	tests := []struct {
 		name    string

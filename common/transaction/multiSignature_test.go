@@ -1212,7 +1212,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxFail) ValidatePend
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
+	senderAddress []byte,
 	unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
@@ -1226,7 +1226,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSig
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
+	senderAddress []byte,
 	unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
@@ -1249,7 +1249,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingT
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
+	senderAddress []byte,
 	unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
@@ -1269,7 +1269,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatur
 }
 
 func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
 	return nil
@@ -1542,12 +1542,12 @@ type (
 )
 
 func (*mockAccountBalanceHelperAddAccountSpendableBalanceFail) AddAccountSpendableBalance(
-	address string, amount int64) error {
+	address []byte, amount int64) error {
 	return errors.New("mockedError")
 }
 
 func (*mockAccountBalanceHelperAddAccountSpendableBalanceSuccess) AddAccountSpendableBalance(
-	address string, amount int64) error {
+	address []byte, amount int64) error {
 	return nil
 }
 

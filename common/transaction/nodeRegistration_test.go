@@ -755,12 +755,12 @@ type (
 )
 
 func (*mockAccountBalanceHelperNRApplyConfirmedSuccess) AddAccountBalance(
-	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return nil
 }
 func (*mockAccountBalanceHelperNRApplyConfirmedFail) AddAccountBalance(
-	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return sql.ErrTxDone
 }
@@ -769,7 +769,7 @@ func TestNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		Body                     *model.NodeRegistrationTransactionBody
 		Fee                      int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Height                   uint32
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		ParticipationScoreQuery  query.ParticipationScoreQueryInterface
@@ -903,19 +903,19 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperNRSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperNRSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 func (*mockAccountBalanceHelperNRSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
-func (*mockAccountBalanceHelperNRFail) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperNRFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return sql.ErrTxDone
 }
 func (*mockAccountBalanceHelperNRFail) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return false, nil
 }
@@ -924,7 +924,7 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
@@ -992,7 +992,7 @@ func TestNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
@@ -1071,7 +1071,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
@@ -1260,7 +1260,7 @@ func TestNodeRegistration_GetAmount(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
@@ -1348,7 +1348,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1368,7 +1368,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1382,7 +1382,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1396,7 +1396,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1410,7 +1410,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1424,7 +1424,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1438,7 +1438,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1452,7 +1452,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1468,7 +1468,7 @@ func TestNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
@@ -1519,7 +1519,7 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1567,7 +1567,7 @@ func TestNodeRegistration_GetTransactionBody(t *testing.T) {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
 		Fee                     int64
-		SenderAddress           string
+		SenderAddress           []byte
 		Height                  uint32
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
@@ -1618,7 +1618,7 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
 		Fee                     int64
-		SenderAddress           string
+		SenderAddress           []byte
 		Height                  uint32
 		AccountBalanceHelper    AccountBalanceHelperInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
@@ -1642,20 +1642,20 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -1665,20 +1665,20 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -1687,20 +1687,20 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_SetupAccountDatasetTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_SendMoneyTransaction),
 					},
 				},

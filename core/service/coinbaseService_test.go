@@ -80,7 +80,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
-		want    []string
+		want    [][]byte
 		args    args
 		wantErr bool
 	}{
@@ -123,7 +123,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 					Timestamp: 1,
 				},
 			},
-			want: []string{
+			want: [][]byte{
 				bcsAddress3,
 				bcsAddress2,
 				bcsAddress2,

@@ -26,10 +26,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
+func (*mockAccountBalanceHelperApplyConfirmFail) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
 	return errors.New("MockedError")
 }
-func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
+func (*mockAccountBalanceHelperApplyConfirmSuccess) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
 
@@ -45,7 +45,7 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -67,10 +67,11 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantFailed:AddBalance",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -85,10 +86,11 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantFailed:InsertCommitVote",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -104,10 +106,11 @@ func TestFeeVoteCommitTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -152,10 +155,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApplyUnconfirmedFail) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperApplyUnconfirmedFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return errors.New("MockedError")
 }
-func (*mockAccountBalanceHelperApplyUnconfirmedSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 
@@ -163,7 +166,7 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
@@ -182,10 +185,11 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantFail:AddAccountSpendableBalance",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -197,10 +201,11 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -241,10 +246,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperFeeVoteUndoApplyUnconfirmedFail) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperFeeVoteUndoApplyUnconfirmedFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return errors.New("MockedError")
 }
-func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 
@@ -252,7 +257,7 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -270,10 +275,11 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantFail:AddAccountSpendableBalance",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -285,10 +291,11 @@ func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:            1,
-				Fee:           1,
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				Height:        1,
+				ID:  1,
+				Fee: 1,
+				SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				Height: 1,
 				Body: &model.FeeVoteCommitTransactionBody{
 					VoteHash: []byte{1, 2, 1},
 				},
@@ -469,7 +476,7 @@ func (*mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess) Scan(block *mod
 }
 
 func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) GetNodeRegistrationByAccountAddress(
-	accountAddress string) (str string, args []interface{},
+	accountAddress []byte) (str string, args []interface{},
 ) {
 	return "mock", nil
 }
@@ -478,7 +485,7 @@ func (*mockNodeRegistrationQueryFeeVoteCommitValidateFail) Scan(nr *model.NodeRe
 	return errors.New("MockedError")
 }
 func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) GetNodeRegistrationByAccountAddress(
-	accountAddress string) (str string, args []interface{},
+	accountAddress []byte) (str string, args []interface{},
 ) {
 	return "mockQuery", nil
 }
@@ -489,7 +496,7 @@ func (*mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow) Scan(
 	return sql.ErrNoRows
 }
 func (*mockNodeRegistrationQueryFeeVoteCommitValidateSuccess) GetNodeRegistrationByAccountAddress(
-	accountAddress string) (str string, args []interface{},
+	accountAddress []byte) (str string, args []interface{},
 ) {
 	return "mockQuery", nil
 }
@@ -519,33 +526,33 @@ func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.Fee
 }
 
 func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	return errors.New("MockedError")
 }
 func (*mockAccountBalanceHelperFeeVoteCommitValidateFail) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return false, sql.ErrNoRows
 }
 func (*mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate - 1
 	return nil
 }
 func (*mockAccountBalanceHelperFeeVoteCommitValidateNotEnoughSpendable) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return false, nil
 }
 func (*mockAccountBalanceHelperFeeVoteCommitValidateSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
 func (*mockAccountBalanceHelperFeeVoteCommitValidateSuccess) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeValidate + 1
 	return nil
@@ -556,7 +563,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -774,7 +781,7 @@ func TestFeeVoteCommitTransaction_GetAmount(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -821,7 +828,7 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -884,7 +891,7 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -933,7 +940,7 @@ func TestFeeVoteCommitTransaction_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -985,7 +992,7 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface
@@ -1096,7 +1103,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                         int64
 		Fee                        int64
-		SenderAddress              string
+		SenderAddress              []byte
 		Height                     uint32
 		Body                       *model.FeeVoteCommitTransactionBody
 		FeeScaleService            fee.FeeScaleServiceInterface

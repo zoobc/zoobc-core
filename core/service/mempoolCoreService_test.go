@@ -279,7 +279,7 @@ type (
 	}
 )
 
-func (*mockAccountDatasetQueryMempoolCoreService) GetAccountDatasetEscrowApproval(string) (qry string, args []interface{}) {
+func (*mockAccountDatasetQueryMempoolCoreService) GetAccountDatasetEscrowApproval([]byte) (qry string, args []interface{}) {
 	return
 }
 func (m *mockAccountDatasetQueryMempoolCoreService) Scan(dataset *model.AccountDataset, _ *sql.Row) error {

@@ -204,13 +204,15 @@ type (
 )
 
 func (*mockAccountApprovalEscrowTransactionAccountBalanceHelperAccountBalanceNotFound) HasEnoughSpendableBalance(
-	bool, string, int64,
-) (enough bool, err error) {
+	dbTX bool,
+	address []byte,
+	compareBalance int64) (enough bool, err error) {
 	return false, sql.ErrNoRows
 }
 func (*mockAccountBalanceApprovalEscrowTransactionAccountBalanceHelperWantSuccess) HasEnoughSpendableBalance(
-	bool, string, int64,
-) (enough bool, err error) {
+	dbTX bool,
+	address []byte,
+	compareBalance int64) (enough bool, err error) {
 	return true, nil
 }
 func TestApprovalEscrowTransaction_Validate(t *testing.T) {
@@ -349,7 +351,7 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApprovalEscrowTransactionApplyUnconfirmed) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperApprovalEscrowTransactionApplyUnconfirmed) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
@@ -415,7 +417,7 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 
@@ -544,7 +546,7 @@ type (
 )
 
 func (*mockAccountBalanceHelperApprovalEscrowTransactionApplyConfirmedSuccess) AddAccountBalance(
-	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return nil
 }

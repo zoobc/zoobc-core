@@ -29,8 +29,8 @@ type (
 	}
 
 	mockLiquidPaymentTransactionQuerySuccess struct {
-		Sender    string
-		Recipient string
+		Sender    []byte
+		Recipient []byte
 		Status    model.LiquidPaymentStatus
 		query.LiquidPaymentTransactionQuery
 	}
@@ -53,6 +53,13 @@ type (
 		isError bool
 		LiquidPaymentTransaction
 	}
+)
+
+var (
+	address1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	address2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
 )
 
 func (*executorSetupLiquidPaymentStopSuccess) ExecuteTransactions([][]interface{}) error {
@@ -137,8 +144,8 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -363,8 +370,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -384,8 +391,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    address1,
+				RecipientAddress: address2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -406,8 +413,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "ZBC_",
-				RecipientAddress: "ZBC_1",
+				SenderAddress:    address1,
+				RecipientAddress: address2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -451,8 +458,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -472,8 +479,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    address1,
+				RecipientAddress: address2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -494,8 +501,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    address1,
+				RecipientAddress: address2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -546,12 +553,12 @@ var (
 )
 
 func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
 func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeLiquidPaymentStopValidate + 1
 	return nil
@@ -561,8 +568,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -586,7 +593,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -607,7 +614,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 0,
@@ -628,7 +635,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -649,7 +656,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -670,15 +677,15 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender:    "abc",
-					Recipient: "vca",
+					Sender:    address1,
+					Recipient: address2,
 				},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorSetupLiquidPaymentStopSuccess{},
@@ -694,14 +701,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "dfdas",
+					Sender: address1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
 				AccountBalanceHelper: NewAccountBalanceHelper(
@@ -718,14 +725,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "asdfasdf",
+					Sender: address1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
@@ -738,14 +745,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "asdfasdf",
+					Sender: address1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
@@ -758,14 +765,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: address1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Recipient: "asdfasdf",
+					Recipient: address1,
 					Status:    model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
@@ -801,8 +808,8 @@ func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -852,8 +859,8 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -900,8 +907,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -926,8 +933,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -940,8 +947,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -954,8 +961,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -998,8 +1005,8 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -1021,8 +1028,8 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 					TransactionID: 1000,
 				},
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -1058,8 +1065,8 @@ func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -1114,8 +1121,8 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -1174,8 +1181,8 @@ func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface

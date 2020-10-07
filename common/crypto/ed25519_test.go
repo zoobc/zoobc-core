@@ -138,7 +138,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 
 func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 	type args struct {
-		address string
+		address []byte
 	}
 	tests := []struct {
 		name    string

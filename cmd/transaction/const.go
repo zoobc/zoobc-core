@@ -23,28 +23,28 @@ var (
 	signature = &crypto.Signature{}
 
 	// Basic transaction data
-	outputType              string
-	version                 uint32
-	timestamp               int64
-	senderSeed              string
-	recipientAccountAddress string
-	fee                     int64
-	post                    bool
-	postHost                string
-	senderAddress           string
-	senderSignatureType     int32
-	sign                    bool
+	outputType                 string
+	version                    uint32
+	timestamp                  int64
+	senderSeed                 string
+	recipientAccountAddressHex string
+	fee                        int64
+	post                       bool
+	postHost                   string
+	senderAddressHex           string
+	senderSignatureType        int32
+	sign                       bool
 
 	// Send money transaction
 	sendAmount int64
 
 	// node registration transaction
-	nodeSeed                string
-	nodeOwnerAccountAddress string
-	lockedBalance           int64
-	proofOfOwnershipHex     string
-	databasePath            string
-	databaseName            string
+	nodeSeed                   string
+	nodeOwnerAccountAddressHex string
+	lockedBalance              int64
+	proofOfOwnershipHex        string
+	databasePath               string
+	databaseName               string
 
 	// dataset transaction
 	property string
