@@ -49,6 +49,7 @@ type (
 		NodeAddressInfoStorage     storage.TransactionalCache
 		PendingNodeRegistryStorage storage.TransactionalCache
 		ActiveNodeRegistryStorage  storage.TransactionalCache
+		FeeScaleService            fee.FeeScaleServiceInterface
 	}
 )
 
@@ -59,14 +60,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		accountBalanceHelper = NewAccountBalanceHelper(ts.Executor, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
 		transactionHelper    = NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
 		transactionBody      model.TransactionBodyInterface
-		feeScaleService      = fee.NewFeeScaleService(
-			query.NewFeeScaleQuery(),
-			query.NewBlockQuery(&chaintype.MainChain{}),
-			ts.Executor,
-		)
-		transactionUtil = &Util{
+		transactionUtil      = &Util{
 			MempoolCacheStorage: ts.MempoolCacheStorage,
-			FeeScaleService:     feeScaleService,
+			FeeScaleService:     ts.FeeScaleService,
 		}
 		err error
 	)
@@ -426,7 +422,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
-				FeeScaleService:            feeScaleService,
+				FeeScaleService:            ts.FeeScaleService,
 				Escrow:                     tx.GetEscrow(),
 				EscrowQuery:                query.NewEscrowTransactionQuery(),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
@@ -453,7 +449,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				SignatureInterface:     crypto.NewSignature(),
-				FeeScaleService:        feeScaleService,
+				FeeScaleService:        ts.FeeScaleService,
 				Escrow:                 tx.GetEscrow(),
 				EscrowQuery:            query.NewEscrowTransactionQuery(),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(

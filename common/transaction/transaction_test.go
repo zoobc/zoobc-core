@@ -17,6 +17,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
+type (
+	mockMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
+)
+
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	_, _, nodeRegistrationBody, nodeRegistrationBodyBytes := GetFixturesForNoderegistration(query.NewNodeRegistrationQuery())
 	_, _, updateNodeRegistrationBody, updateNodeRegistrationBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
@@ -53,6 +59,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		PendingNodeRegistryStorage storage.TransactionalCache
 		ActiveNodeRegistryStorage  storage.TransactionalCache
 		NodeAddressInfoStorage     storage.TransactionalCache
+		FeeScaleService            fee.FeeScaleServiceInterface
 	}
 	type args struct {
 		tx *model.Transaction
@@ -391,6 +398,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			name: "wantFeeVoteCommitTransaction",
 			fields: fields{
 				Executor: &query.Executor{},
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					&mockMainBlockStateStorageSuccess{},
+					&query.Executor{},
+				),
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -415,7 +427,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeScaleService: fee.NewFeeScaleService(
 					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(&chaintype.MainChain{}),
+					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
@@ -429,6 +441,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			name: "wantFeeVoteRevealTransaction",
 			fields: fields{
 				Executor: &query.Executor{},
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					&mockMainBlockStateStorageSuccess{},
+					&query.Executor{},
+				),
 			},
 			args: args{
 				tx: &model.Transaction{
@@ -457,7 +474,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				FeeScaleService: fee.NewFeeScaleService(
 					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(&chaintype.MainChain{}),
+					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
@@ -543,6 +560,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryStorage,
 				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryStorage,
 				NodeAddressInfoStorage:     tt.fields.NodeAddressInfoStorage,
+				FeeScaleService:            tt.fields.FeeScaleService,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)
