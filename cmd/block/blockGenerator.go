@@ -2,9 +2,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -196,7 +197,7 @@ func initialize(
 	)
 	feeScaleService := fee.NewFeeScaleService(
 		query.NewFeeScaleQuery(),
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		blockStorage,
 		queryExecutor,
 	)
 	blockService = service.NewBlockMainService(

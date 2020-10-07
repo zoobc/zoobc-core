@@ -266,7 +266,7 @@ func initiateMainInstance() {
 	)
 	// initialize services
 	blockchainStatusService = service.NewBlockchainStatusService(true, loggerCoreService)
-	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), query.NewBlockQuery(mainchain), queryExecutor)
+	feeScaleService = fee.NewFeeScaleService(query.NewFeeScaleQuery(), mainBlockStateStorage, queryExecutor)
 	transactionUtil = &transaction.Util{
 		FeeScaleService:     feeScaleService,
 		MempoolCacheStorage: mempoolStorage,
@@ -300,6 +300,7 @@ func initiateMainInstance() {
 		NodeAddressInfoStorage:     txNodeAddressInfoStorage,
 		ActiveNodeRegistryStorage:  txActiveNodeRegistryStorage,
 		PendingNodeRegistryStorage: txPendingNodeRegistryStorage,
+		FeeScaleService:            feeScaleService,
 	}
 
 	nodeAddressInfoService = service.NewNodeAddressInfoService(

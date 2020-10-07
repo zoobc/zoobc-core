@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/storage"
 
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -41,11 +42,11 @@ func (*mockInsertFeeScaleExecutorSuccess) ExecuteStatement(string, ...interface{
 
 func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 	type fields struct {
-		lastBlockTimestamp  int64
-		lastFeeScale        model.FeeScale
-		feeScaleQuery       query.FeeScaleQueryInterface
-		mainchainBlockQuery query.BlockQueryInterface
-		executor            query.ExecutorInterface
+		lastBlockTimestamp    int64
+		lastFeeScale          model.FeeScale
+		feeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		executor              query.ExecutorInterface
 	}
 	type args struct {
 		feeScale *model.FeeScale
@@ -60,11 +61,11 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 		{
 			name: "InsertFeeScale-executorFail-txFalse",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockInsertFeeScaleExecutorFail{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &storage.BlockStateStorage{},
+				executor:              &mockInsertFeeScaleExecutorFail{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -75,11 +76,11 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 		{
 			name: "InsertFeeScale-executorFail-txTrue",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockInsertFeeScaleExecutorFail{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockInsertFeeScaleExecutorFail{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -90,11 +91,11 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 		{
 			name: "InsertFeeScale-executorSuccess-txFalse",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockInsertFeeScaleExecutorSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockInsertFeeScaleExecutorSuccess{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -105,11 +106,11 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 		{
 			name: "InsertFeeScale-executorSuccess-txTrue",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockInsertFeeScaleExecutorSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockInsertFeeScaleExecutorSuccess{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -121,11 +122,11 @@ func TestFeeScaleService_InsertFeeScale(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fss := &FeeScaleService{
-				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
-				lastFeeScale:        tt.fields.lastFeeScale,
-				FeeScaleQuery:       tt.fields.feeScaleQuery,
-				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				Executor:            tt.fields.executor,
+				lastBlockTimestamp:    tt.fields.lastBlockTimestamp,
+				lastFeeScale:          tt.fields.lastFeeScale,
+				FeeScaleQuery:         tt.fields.feeScaleQuery,
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
+				Executor:              tt.fields.executor,
 			}
 			if err := fss.InsertFeeScale(tt.args.feeScale); (err != nil) != tt.wantErr {
 				t.Errorf("InsertFeeScale() error = %v, wantErr %v", err, tt.wantErr)
@@ -167,11 +168,11 @@ func (*mockGetLatestFeeScaleQueryScanSuccess) Scan(*model.FeeScale, *sql.Row) er
 
 func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 	type fields struct {
-		lastBlockTimestamp  int64
-		lastFeeScale        model.FeeScale
-		feeScaleQuery       query.FeeScaleQueryInterface
-		mainchainBlockQuery query.BlockQueryInterface
-		executor            query.ExecutorInterface
+		lastBlockTimestamp    int64
+		lastFeeScale          model.FeeScale
+		feeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		executor              query.ExecutorInterface
 	}
 	type args struct {
 		feeScale *model.FeeScale
@@ -189,9 +190,9 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 				lastFeeScale: model.FeeScale{
 					FeeScale: constant.OneZBC,
 				},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            nil,
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              nil,
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -201,11 +202,11 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 		{
 			name: "GetLatestFeeScale - Executor fail",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       query.NewFeeScaleQuery(),
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockGetLatestFeeScaleExecutorSelectFail{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         query.NewFeeScaleQuery(),
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetLatestFeeScaleExecutorSelectFail{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -215,11 +216,11 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 		{
 			name: "GetLatestFeeScale - scan fail",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       &mockGetLatestFeeScaleQueryScanFail{},
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockGetLatestFeeScaleExecutorSelectSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         &mockGetLatestFeeScaleQueryScanFail{},
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetLatestFeeScaleExecutorSelectSuccess{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -229,11 +230,11 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 		{
 			name: "GetLatestFeeScale - success",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       &mockGetLatestFeeScaleQueryScanSuccess{},
-				mainchainBlockQuery: query.NewBlockQuery(&chaintype.MainChain{}),
-				executor:            &mockGetLatestFeeScaleExecutorSelectSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         &mockGetLatestFeeScaleQueryScanSuccess{},
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetLatestFeeScaleExecutorSelectSuccess{},
 			},
 			args: args{
 				feeScale: &model.FeeScale{},
@@ -244,11 +245,11 @@ func TestFeeScaleService_GetLatestFeeScale(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fss := &FeeScaleService{
-				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
-				lastFeeScale:        tt.fields.lastFeeScale,
-				FeeScaleQuery:       tt.fields.feeScaleQuery,
-				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				Executor:            tt.fields.executor,
+				lastBlockTimestamp:    tt.fields.lastBlockTimestamp,
+				lastFeeScale:          tt.fields.lastFeeScale,
+				FeeScaleQuery:         tt.fields.feeScaleQuery,
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
+				Executor:              tt.fields.executor,
 			}
 			if err := fss.GetLatestFeeScale(tt.args.feeScale); (err != nil) != tt.wantErr {
 				t.Errorf("GetLatestFeeScale() error = %v, wantErr %v", err, tt.wantErr)
@@ -261,11 +262,11 @@ type (
 	mockGetCurrentPhaseExecutorGetLastBlockSuccess struct {
 		query.ExecutorInterface
 	}
-	mockGetCurrentPhaseBlockQueryGetLastBlockSuccess struct {
-		query.BlockQueryInterface
+	mockFeeMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
 	}
-	mockGetCurrentPhaseBlockQueryGetLastBlockFail struct {
-		query.BlockQueryInterface
+	mockFeeMainBlockStateStorageFail struct {
+		storage.CacheStorageInterface
 	}
 )
 
@@ -276,34 +277,30 @@ var (
 	mockGetCurrentPhaseBlockTimestampLastNoAdjust = time.Date(2020, 1, 2, 23, 59, 59, 0, time.UTC)
 )
 
-func (*mockGetCurrentPhaseExecutorGetLastBlockSuccess) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
-	return nil, nil
-}
-
-func (*mockGetCurrentPhaseBlockQueryGetLastBlockFail) Scan(*model.Block, *sql.Row) error {
-	return errors.New("mockedError")
-}
-
-func (*mockGetCurrentPhaseBlockQueryGetLastBlockFail) GetLastBlock() string {
-	return "mockQuery"
-}
-
-func (*mockGetCurrentPhaseBlockQueryGetLastBlockSuccess) Scan(block *model.Block, row *sql.Row) error {
+func (*mockFeeMainBlockStateStorageSuccess) GetItem(key, item interface{}) error {
+	block, ok := item.(*model.Block)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item, expected *model.Block")
+	}
 	block.Timestamp = mockGetCurrentPhaseBlockTimestampNowCommit.Unix()
 	return nil
 }
 
-func (*mockGetCurrentPhaseBlockQueryGetLastBlockSuccess) GetLastBlock() string {
-	return "mockQuery"
+func (*mockFeeMainBlockStateStorageFail) GetItem(key, item interface{}) error {
+	return errors.New("mockedError")
+}
+
+func (*mockGetCurrentPhaseExecutorGetLastBlockSuccess) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
+	return nil, nil
 }
 
 func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 	type fields struct {
-		lastBlockTimestamp  int64
-		lastFeeScale        model.FeeScale
-		feeScaleQuery       query.FeeScaleQueryInterface
-		mainchainBlockQuery query.BlockQueryInterface
-		executor            query.ExecutorInterface
+		lastBlockTimestamp    int64
+		lastFeeScale          model.FeeScale
+		feeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		executor              query.ExecutorInterface
 	}
 	type args struct {
 		blockTimestamp    int64
@@ -320,11 +317,11 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 		{
 			name: "GetCurrentPhase - not cached - getlastblock fail",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: &mockGetCurrentPhaseBlockQueryGetLastBlockFail{},
-				executor:            &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         nil,
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageFail{},
+				executor:              &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
 			},
 			args: args{
 				blockTimestamp:    0,
@@ -337,11 +334,11 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 		{
 			name: "GetCurrentPhase - not cached - getlastblock success - not PostTransaction",
 			fields: fields{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: &mockGetCurrentPhaseBlockQueryGetLastBlockSuccess{},
-				executor:            &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         nil,
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
 			},
 			args: args{
 				blockTimestamp:    mockGetCurrentPhaseBlockTimestampNowCommit.Unix(),
@@ -354,11 +351,11 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 		{
 			name: "GetCurrentPhase - cached - adjust",
 			fields: fields{
-				lastBlockTimestamp:  mockGetCurrentPhaseBlockTimestampLastAdjust.Unix(),
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: &mockGetCurrentPhaseBlockQueryGetLastBlockSuccess{},
-				executor:            &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
+				lastBlockTimestamp:    mockGetCurrentPhaseBlockTimestampLastAdjust.Unix(),
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         nil,
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
 			},
 			args: args{
 				blockTimestamp:    mockGetCurrentPhaseBlockTimestampNowCommit.Unix(),
@@ -371,11 +368,11 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 		{
 			name: "GetCurrentPhase - cached - reveal",
 			fields: fields{
-				lastBlockTimestamp:  mockGetCurrentPhaseBlockTimestampLastNoAdjust.Unix(),
-				lastFeeScale:        model.FeeScale{},
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: &mockGetCurrentPhaseBlockQueryGetLastBlockSuccess{},
-				executor:            &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
+				lastBlockTimestamp:    mockGetCurrentPhaseBlockTimestampLastNoAdjust.Unix(),
+				lastFeeScale:          model.FeeScale{},
+				feeScaleQuery:         nil,
+				MainBlockStateStorage: &mockFeeMainBlockStateStorageSuccess{},
+				executor:              &mockGetCurrentPhaseExecutorGetLastBlockSuccess{},
 			},
 			args: args{
 				blockTimestamp:    mockGetCurrentPhaseBlockTimestampNowReveal.Unix(),
@@ -389,11 +386,11 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fss := &FeeScaleService{
-				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
-				lastFeeScale:        tt.fields.lastFeeScale,
-				FeeScaleQuery:       tt.fields.feeScaleQuery,
-				MainchainBlockQuery: tt.fields.mainchainBlockQuery,
-				Executor:            tt.fields.executor,
+				lastBlockTimestamp:    tt.fields.lastBlockTimestamp,
+				lastFeeScale:          tt.fields.lastFeeScale,
+				FeeScaleQuery:         tt.fields.feeScaleQuery,
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
+				Executor:              tt.fields.executor,
 			}
 			got, got1, err := fss.GetCurrentPhase(tt.args.blockTimestamp, tt.args.isPostTransaction)
 			if (err != nil) != tt.wantErr {
@@ -412,9 +409,9 @@ func TestFeeScaleService_GetCurrentPhase(t *testing.T) {
 
 func TestNewFeeScaleService(t *testing.T) {
 	type args struct {
-		feeScaleQuery       query.FeeScaleQueryInterface
-		mainchainBlockQuery query.BlockQueryInterface
-		executor            query.ExecutorInterface
+		feeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		executor              query.ExecutorInterface
 	}
 	tests := []struct {
 		name string
@@ -424,22 +421,22 @@ func TestNewFeeScaleService(t *testing.T) {
 		{
 			name: "NewFeeScaleService",
 			args: args{
-				feeScaleQuery:       nil,
-				mainchainBlockQuery: nil,
-				executor:            nil,
+				feeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				executor:              nil,
 			},
 			want: &FeeScaleService{
-				lastBlockTimestamp:  0,
-				lastFeeScale:        model.FeeScale{},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				lastBlockTimestamp:    0,
+				lastFeeScale:          model.FeeScale{},
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewFeeScaleService(tt.args.feeScaleQuery, tt.args.mainchainBlockQuery, tt.args.executor); !reflect.DeepEqual(got, tt.want) {
+			if got := NewFeeScaleService(tt.args.feeScaleQuery, tt.args.MainBlockStateStorage, tt.args.executor); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewFeeScaleService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -565,11 +562,11 @@ var (
 func TestFeeScaleService_SelectVote(t *testing.T) {
 	previousScale := constant.OneZBC
 	type fields struct {
-		lastBlockTimestamp  int64
-		lastFeeScale        model.FeeScale
-		FeeScaleQuery       query.FeeScaleQueryInterface
-		MainchainBlockQuery query.BlockQueryInterface
-		Executor            query.ExecutorInterface
+		lastBlockTimestamp    int64
+		lastFeeScale          model.FeeScale
+		FeeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		Executor              query.ExecutorInterface
 	}
 	type args struct {
 		votes                []*model.FeeVoteInfo
@@ -589,9 +586,9 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 					FeeScale: previousScale,
 					Latest:   true,
 				},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 			args: args{
 				votes:                []*model.FeeVoteInfo{},
@@ -607,9 +604,9 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 					FeeScale: previousScale,
 					Latest:   true,
 				},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 			args: args{
 				votes:                mockMedianLowerConstraintsPassed,
@@ -625,9 +622,9 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 					FeeScale: previousScale,
 					Latest:   true,
 				},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 			args: args{
 				votes:                mockMedianHigherConstraintsPassed,
@@ -643,9 +640,9 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 					FeeScale: previousScale,
 					Latest:   true,
 				},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 			args: args{
 				votes:                mockMedianWithinConstraintsEven,
@@ -661,9 +658,9 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 					FeeScale: previousScale,
 					Latest:   true,
 				},
-				FeeScaleQuery:       nil,
-				MainchainBlockQuery: nil,
-				Executor:            nil,
+				FeeScaleQuery:         nil,
+				MainBlockStateStorage: nil,
+				Executor:              nil,
 			},
 			args: args{
 				votes:                mockMedianWithinConstraintsOdd,
@@ -675,11 +672,11 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			fss := &FeeScaleService{
-				lastBlockTimestamp:  tt.fields.lastBlockTimestamp,
-				lastFeeScale:        tt.fields.lastFeeScale,
-				FeeScaleQuery:       tt.fields.FeeScaleQuery,
-				MainchainBlockQuery: tt.fields.MainchainBlockQuery,
-				Executor:            tt.fields.Executor,
+				lastBlockTimestamp:    tt.fields.lastBlockTimestamp,
+				lastFeeScale:          tt.fields.lastFeeScale,
+				FeeScaleQuery:         tt.fields.FeeScaleQuery,
+				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
+				Executor:              tt.fields.Executor,
 			}
 			if got := fss.SelectVote(tt.args.votes, tt.args.originalSendMoneyFee); got != tt.want {
 				t.Errorf("SelectVote() = %v, want %v", got, tt.want)
