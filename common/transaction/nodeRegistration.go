@@ -294,7 +294,7 @@ func (tx *NodeRegistration) GetSize() (uint32, error) {
 	}
 	accPubKeyLength := accType.GetAccountPublicKeyLength()
 	poown := util.GetProofOfOwnershipSize(accType, true)
-	return constant.NodePublicKey + constant.AccountAddressType + accPubKeyLength +
+	return constant.NodePublicKey + constant.AccountAddressTypeLength + accPubKeyLength +
 		constant.Balance + poown, nil
 }
 

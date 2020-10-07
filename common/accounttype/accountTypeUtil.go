@@ -39,8 +39,8 @@ func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
 		accPubKey []byte
 		acc       AccountType
 	)
-	accTypeIntBytes := bufferBytes.Next(int(constant.AccountAddressType))
-	if len(accTypeIntBytes) < int(constant.AccountAddressType) {
+	accTypeIntBytes := bufferBytes.Next(int(constant.AccountAddressTypeLength))
+	if len(accTypeIntBytes) < int(constant.AccountAddressTypeLength) {
 		return nil, errors.New("InvalidAccountFormat")
 	}
 	accTypeInt := binary.LittleEndian.Uint32(accTypeIntBytes)

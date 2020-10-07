@@ -11,7 +11,7 @@ import (
 // GetProofOfOwnershipSize returns size in bytes of a proof of ownership message
 func GetProofOfOwnershipSize(accountAddressType accounttype.AccountType, withSignature bool) uint32 {
 	var (
-		accountAddressSize = constant.AccountAddressType + accountAddressType.GetAccountPublicKeyLength()
+		accountAddressSize = constant.AccountAddressTypeLength + accountAddressType.GetAccountPublicKeyLength()
 	)
 	message := accountAddressSize + constant.BlockHash + constant.Height
 	if withSignature {

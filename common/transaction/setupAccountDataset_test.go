@@ -506,8 +506,8 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
@@ -524,9 +524,11 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 					Property: "Admin",
 					Value:    "Welcome",
 				},
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				Fee: 1,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				RecipientAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 				Height:              5,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,

@@ -224,7 +224,7 @@ func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {
 		return 0, err
 	}
 	poown := util.GetProofOfOwnershipSize(senderAccType, true)
-	accountAddressSize := constant.AccountAddressType + senderAccType.GetAccountPublicKeyLength()
+	accountAddressSize := constant.AccountAddressTypeLength + senderAccType.GetAccountPublicKeyLength()
 	return accountAddressSize + constant.NodePublicKey + poown, nil
 }
 
