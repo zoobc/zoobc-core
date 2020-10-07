@@ -773,6 +773,12 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
+		os.Exit(1)
+	}
+
 	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -789,6 +795,7 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
+
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -1033,12 +1040,6 @@ func start() {
 	if flagDebugMode {
 		startNodeMonitoring()
 		blocker.SetIsDebugMode(true)
-	}
-
-	// preload-caches
-	err := mempoolService.InitMempoolTransaction()
-	if err != nil {
-		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
 	}
 
 	mainchainSyncChannel := make(chan bool, 1)

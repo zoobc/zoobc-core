@@ -1396,7 +1396,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetMempoolTransactions:Success",
+			name: "GetNonExpiredMempoolTransactions:Success",
 			fields: fields{
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor:       &mockQueryExecutorGetMempoolTransactionsSuccess{},
@@ -1412,7 +1412,7 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GetMempoolTransactions:Fail",
+			name: "GetNonExpiredMempoolTransactions:Fail",
 			fields: fields{
 				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
 				QueryExecutor:       &mockQueryExecutorGetMempoolTransactionsFail{},
@@ -1431,11 +1431,11 @@ func TestMempoolService_GetMempoolTransactions(t *testing.T) {
 			}
 			got, err := mg.GetMempoolTransactions()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetNonExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if len(got) != len(tt.want) {
-				t.Errorf("GetMempoolTransactions() error different length")
+				t.Errorf("GetNonExpiredMempoolTransactions() error different length")
 			}
 		})
 	}

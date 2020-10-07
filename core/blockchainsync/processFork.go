@@ -279,7 +279,7 @@ func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 	// TODO: analyze if this mechanism is necessary
 }
 
-// restoreMempoolsBackup will restore transactio and try to re-ApplyUnconfirmed
+// restoreMempoolsBackup will restore transactions and try to re-ApplyUnconfirmed
 func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
@@ -332,19 +332,11 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}
 		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
 			fp.Logger.Warnf("error when ApplyUnconfirmedTransaction: %v", err)
 			continue
 		}
 		err = fp.MempoolService.AddMempoolTransaction(tx, mempools[mempoolID])
 		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
 			fp.Logger.Warnf("error when AddMempoolTransaction: %v", err)
 			continue
 
