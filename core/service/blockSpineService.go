@@ -416,6 +416,9 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
 func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusGettingBlocks)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusGettingBlocks)
+
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -770,7 +773,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block))
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID()))
 	}
 	return nil
 }
@@ -839,7 +842,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
-							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 
@@ -851,7 +854,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
-							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 					bs.Logger.Info("pushing back popped off block")
@@ -886,7 +889,10 @@ func (bs *BlockSpineService) ReceiveBlock(
 		}
 		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
-			bs.Logger.Errorf("receiveBlock pushBlock fail: %v", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+			bs.Logger.Errorf(
+				"[ReceiveBlock] pushBlock fail: %v",
+				blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
+			)
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		return nil

@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -10,7 +11,6 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -616,15 +616,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				bs.queryAndCacheRollbackProcess("")
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
-					b := deepcopy.Copy(block)
-					blockToBroadcast, ok := b.(*model.Block)
-					if !ok {
-						return blocker.NewBlocker(blocker.AppErr, "FailCopyingBlock")
+					var (
+						blockBytes       []byte
+						blockToBroadcast model.Block
+					)
+					blockBytes, err = json.Marshal(*block)
+
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
+					}
+					err = json.Unmarshal(blockBytes, &blockToBroadcast)
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
 					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
 					blockToBroadcast.Transactions = []*model.Transaction{}
-					bs.Observer.Notify(observer.BroadcastBlock, blockToBroadcast, bs.Chaintype)
+					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
 				}
 				return nil
 			}
@@ -806,7 +814,10 @@ func (bs *BlockService) ScanBlockPool() error {
 
 		err = bs.ValidateBlock(block, &previousBlock)
 		if err != nil {
-			bs.Logger.Warnf("ScanBlockPool:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
+			bs.Logger.Warnf(
+				"ScanBlockPool:blockValidationFail: %v\n",
+				blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()),
+			)
 			return blocker.NewBlocker(
 				blocker.BlockErr, "ScanBlockPool:ValidateBlockFail",
 			)
@@ -814,7 +825,10 @@ func (bs *BlockService) ScanBlockPool() error {
 		err = bs.PushBlock(&previousBlock, block, true, true)
 
 		if err != nil {
-			bs.Logger.Warnf("ScanBlockPool:PushBlockFail: %v\n", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
+			bs.Logger.Warnf(
+				"ScanBlockPool:PushBlockFail: %v\n",
+				blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()),
+			)
 			return blocker.NewBlocker(
 				blocker.BlockErr, "ScanBlockPool:PushBlockFail",
 			)
@@ -969,6 +983,9 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (transactions, receipts)
 func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusGettingBlocks)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusGettingBlocks)
+
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -977,9 +994,15 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 	defer rows.Close()
 	blocks, err = bs.BlockQuery.BuildModel(blocks, rows)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
+		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model: "+err.Error())
 	}
-
+	if withAttachedData {
+		for i := 0; i < len(blocks); i++ {
+			if err := bs.PopulateBlockData(blocks[i]); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return blocks, nil
 }
 
@@ -1582,7 +1605,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
 				bs.Logger.Warnf("ProcessCompletedBlock:blockValidationFail: %v\n",
-					blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, previousBlock))
+					blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()))
 				return status.Error(codes.InvalidArgument, "InvalidBlock")
 			}
 			lastBlocks, err := bs.PopOffToBlock(previousBlock)
@@ -1593,11 +1616,11 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			err = bs.PushBlock(previousBlock, block, true, true)
 			if err != nil {
 				bs.Logger.Warn("Push ProcessCompletedBlock:fail ",
-					blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
+					blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()))
 				errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 				if errPushBlock != nil {
 					bs.Logger.Errorf("ProcessCompletedBlock pushing back popped off block fail: %v",
-						blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, previousBlock))
+						blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()))
 					return status.Error(codes.InvalidArgument, "InvalidBlock")
 				}
 				bs.Logger.Info("pushing back popped off block")
@@ -1612,12 +1635,18 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	// Validate incoming block
 	err = bs.ValidateBlock(block, lastBlock)
 	if err != nil {
-		bs.Logger.Warnf("ProcessCompletedBlock2:blockValidationFail: %v\n", blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block, lastBlock))
+		bs.Logger.Warnf(
+			"ProcessCompletedBlock2:blockValidationFail: %v\n",
+			blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
+		)
 		return status.Error(codes.InvalidArgument, "InvalidBlock")
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
-		bs.Logger.Errorf("ProcessCompletedBlock2 push Block fail: %v", blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block, lastBlock))
+		bs.Logger.Errorf(
+			"ProcessCompletedBlock2 push Block fail: %v",
+			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
+		)
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil

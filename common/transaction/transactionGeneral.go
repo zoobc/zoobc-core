@@ -6,9 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
