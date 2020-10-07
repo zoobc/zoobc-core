@@ -56,10 +56,12 @@ type (
 )
 
 var (
-	address1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+	liquidPayStopAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
 		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
-	address2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+	liquidPayStopAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
 		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	liquidPayStopAddress3 = []byte{0, 0, 0, 0, 33, 130, 42, 143, 177, 97, 43, 208, 76, 119, 240, 91, 41, 170, 240, 161, 55, 224, 8, 205,
+		139, 227, 189, 146, 86, 211, 52, 194, 131, 126, 233, 100}
 )
 
 func (*executorSetupLiquidPaymentStopSuccess) ExecuteTransactions([][]interface{}) error {
@@ -391,8 +393,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    address1,
-				RecipientAddress: address2,
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -413,8 +415,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    address1,
-				RecipientAddress: address2,
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -479,8 +481,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    address1,
-				RecipientAddress: address2,
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -501,8 +503,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    address1,
-				RecipientAddress: address2,
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -553,7 +555,9 @@ var (
 )
 
 func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address []byte, compareBalance int64,
+	dbTX bool,
+	address []byte,
+	compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
@@ -614,7 +618,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 0,
@@ -635,7 +639,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -656,7 +660,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
@@ -677,15 +681,15 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress3,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender:    address1,
-					Recipient: address2,
+					Sender:    liquidPayStopAddress1,
+					Recipient: liquidPayStopAddress2,
 				},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorSetupLiquidPaymentStopSuccess{},
@@ -701,14 +705,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: address1,
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
 				AccountBalanceHelper: NewAccountBalanceHelper(
@@ -725,14 +729,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: address1,
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
@@ -745,14 +749,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: address1,
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
@@ -765,14 +769,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: address1,
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Recipient: address1,
+					Recipient: liquidPayStopAddress1,
 					Status:    model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},

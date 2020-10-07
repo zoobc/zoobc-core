@@ -10,18 +10,25 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+var (
+	liquidPayTxAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	liquidPayTxAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	liquidPayTxAddress3 = []byte{0, 0, 0, 0, 33, 130, 42, 143, 177, 97, 43, 208, 76, 119, 240, 91, 41, 170, 240, 161, 55, 224, 8, 205,
+		139, 227, 189, 146, 86, 211, 52, 194, 131, 126, 233, 100}
+)
+
 func TestLiquidPaymentTransactionQuery_InsertLiquidPaymentTransaction(t *testing.T) {
 	liquidPayment := &model.LiquidPayment{
-		ID: 1,
-		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-		Amount:          123456,
-		AppliedTime:     1231413,
-		CompleteMinutes: 4343,
-		Status:          model.LiquidPaymentStatus_LiquidPaymentPending,
-		BlockHeight:     24,
+		ID:               1,
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
+		Amount:           123456,
+		AppliedTime:      1231413,
+		CompleteMinutes:  4343,
+		Status:           model.LiquidPaymentStatus_LiquidPaymentPending,
+		BlockHeight:      24,
 	}
 
 	type args struct {
@@ -199,22 +206,20 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 		{name: "wantSuccess",
 			args: args{
 				liquidPayment: &model.LiquidPayment{
-					ID: 123,
-					SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-					RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-						28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-					Amount:          1234,
-					AppliedTime:     12345,
-					CompleteMinutes: 123456,
-					Status:          1234567,
-					BlockHeight:     12345678,
-					Latest:          true,
+					ID:               123,
+					SenderAddress:    liquidPayTxAddress1,
+					RecipientAddress: liquidPayTxAddress2,
+					Amount:           1234,
+					AppliedTime:      12345,
+					CompleteMinutes:  123456,
+					Status:           1234567,
+					BlockHeight:      12345678,
+					Latest:           true,
 				},
 			},
 			want: []interface{}{123,
-				"ABC",
-				"CBA",
+				liquidPayTxAddress1,
+				liquidPayTxAddress2,
 				1234,
 				12345,
 				123456,
@@ -236,17 +241,15 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 func TestLiquidPaymentTransactionQuery_BuildModels(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
-		ID: 123,
-		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-		Amount:          1234,
-		AppliedTime:     12345,
-		CompleteMinutes: 123456,
-		Status:          1234567,
-		BlockHeight:     12345678,
-		Latest:          true,
+		ID:               123,
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
+		Amount:           1234,
+		AppliedTime:      12345,
+		CompleteMinutes:  123456,
+		Status:           1234567,
+		BlockHeight:      12345678,
+		Latest:           true,
 	}
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockLiquidPaymentTransaction.Fields)
@@ -299,17 +302,15 @@ func TestLiquidPaymentTransactionQuery_BuildModels(t *testing.T) {
 func TestLiquidPaymentTransactionQuery_Scan(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
-		ID: 123,
-		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		RecipientAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-			28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-		Amount:          1234,
-		AppliedTime:     12345,
-		CompleteMinutes: 123456,
-		Status:          1234567,
-		BlockHeight:     12345678,
-		Latest:          true,
+		ID:               123,
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
+		Amount:           1234,
+		AppliedTime:      12345,
+		CompleteMinutes:  123456,
+		Status:           1234567,
+		BlockHeight:      12345678,
+		Latest:           true,
 	}
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockLiquidPaymentTransaction.Fields)

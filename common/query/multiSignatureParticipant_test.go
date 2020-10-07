@@ -9,6 +9,13 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+var (
+	multisigAccountAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	multisigAccountAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+		47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+)
+
 func TestMultiSignatureParticipantQuery_ExtractModel(t *testing.T) {
 	type fields struct {
 		Fields    []string
@@ -28,12 +35,10 @@ func TestMultiSignatureParticipantQuery_ExtractModel(t *testing.T) {
 			fields: fields(*NewMultiSignatureParticipantQuery()),
 			args: args{
 				participant: &model.MultiSignatureParticipant{
-					AccountAddressIndex: 0,
-					MultiSignatureAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
-						239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
-						47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-					BlockHeight: 100,
+					AccountAddressIndex:   0,
+					MultiSignatureAddress: multisigAccountAddress1,
+					AccountAddress:        multisigAccountAddress2,
+					BlockHeight:           100,
 				},
 			},
 			want: []interface{}{
@@ -91,13 +96,11 @@ func TestMultiSignatureParticipantQuery_BuildModel(t *testing.T) {
 			},
 			wantParticipants: []*model.MultiSignatureParticipant{
 				{
-					MultiSignatureAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
-						239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
-						47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-					AccountAddressIndex: 0,
-					Latest:              true,
-					BlockHeight:         100,
+					MultiSignatureAddress: multisigAccountAddress1,
+					AccountAddress:        multisigAccountAddress2,
+					AccountAddressIndex:   0,
+					Latest:                true,
+					BlockHeight:           100,
 				},
 			},
 		},
@@ -192,34 +195,39 @@ func TestMultiSignatureParticipantQuery_InsertMultisignatureParticipants(t *test
 			args: args{
 				participants: []*model.MultiSignatureParticipant{
 					{
-						MultiSignatureAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
-							239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-						AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
-							47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-						AccountAddressIndex: 0,
-						BlockHeight:         100,
-						Latest:              true,
+						MultiSignatureAddress: multisigAccountAddress1,
+						AccountAddress:        multisigAccountAddress2,
+						AccountAddressIndex:   0,
+						BlockHeight:           100,
+						Latest:                true,
 					},
 					{
-						MultiSignatureAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
-							47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-						AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
-							239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-						AccountAddressIndex: 1,
-						BlockHeight:         100,
-						Latest:              true,
+						MultiSignatureAddress: multisigAccountAddress2,
+						AccountAddress:        multisigAccountAddress1,
+						AccountAddressIndex:   1,
+						BlockHeight:           100,
+						Latest:                true,
 					},
 				},
 			},
 			wantQueries: [][]interface{}{
 				{
-					"INSERT OR REPLACE INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
-						"VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)",
-					"MSG_", "BCZ_0", uint32(0), true, uint32(100), "MSG_", "BCZ_1", uint32(1), true, uint32(100),
+					"INSERT OR REPLACE INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, " +
+						"block_height) VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)",
+					multisigAccountAddress1,
+					multisigAccountAddress2,
+					uint32(0),
+					true,
+					uint32(100),
+					multisigAccountAddress2,
+					multisigAccountAddress1,
+					uint32(1),
+					true,
+					uint32(100),
 				},
 				{
 					"UPDATE multisignature_participant SET latest = ? WHERE multisig_address = ? AND block_height != ? AND latest = ?",
-					false, "MSG_", uint32(100), true,
+					false, multisigAccountAddress1, uint32(100), true,
 				},
 			},
 		},
