@@ -169,12 +169,15 @@ func (*Signature) VerifySignature(payload, signature, accountAddress []byte) err
 		if err != nil {
 			return err
 		}
-		// check sender account address to address from public key in signature
-		account, err := accounttype.ParseBytesToAccountType(bytes.NewBuffer(accountAddress))
+		accType, err := accounttype.ParseBytesToAccountType(bytes.NewBuffer(accountAddress))
 		if err != nil {
 			return err
 		}
-		accountAddress, err := bitcoinSignature.GetAddressFromPublicKey(account.GetAccountPublicKey())
+		accPubKey := accType.GetAccountPublicKey()
+		accountAddress, err := bitcoinSignature.GetAddressFromPublicKey(accPubKey)
+		if err != nil {
+			return err
+		}
 		if accountAddress != signaturePubKeyAddress {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,

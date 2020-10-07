@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -46,7 +47,7 @@ func (btcAcc *BTCAccountType) GetName() string {
 }
 
 func (btcAcc *BTCAccountType) GetAccountPublicKeyLength() uint32 {
-	return 32
+	return btcec.PubKeyBytesLenCompressed
 }
 
 func (btcAcc *BTCAccountType) IsEqual(acc AccountType) bool {

@@ -3,12 +3,10 @@ package crypto
 import (
 	"bytes"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/lib/address"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -153,8 +151,8 @@ func TestSignature_VerifySignature(t *testing.T) {
 			name: "VerifySignature:success-{bitcoin-signature}",
 			args: args{
 				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
-					139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				accountAddress: []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
+					45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
 				signature: []byte{1, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
 					42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
 					227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
@@ -177,20 +175,6 @@ func TestSignature_VerifySignature(t *testing.T) {
 				blocker.ValidationErr,
 				"InvalidSignatureType",
 			),
-		},
-		{
-			name: "VerifySignature:failed-{ed25519-invalid-PublicKey}",
-			args: args{
-				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: []byte{0, 0, 0, 0, 174, 8, 69, 186, 181, 103, 207, 111, 16, 204, 183, 18, 162, 64, 217, 82, 41, 208, 14,
-					252, 193, 14, 191, 200, 158, 211, 172, 37, 0, 58, 107, 64},
-				signature: []byte{0, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
-					42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
-					227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
-					106, 172, 10, 8, 201, 172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90,
-					133},
-			},
-			want: address.ErrChecksumNotMatch,
 		},
 	}
 	for _, tt := range tests {
