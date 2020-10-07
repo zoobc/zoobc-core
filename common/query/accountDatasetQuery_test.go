@@ -171,8 +171,10 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 			wantQStr: "SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset " +
 				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			wantArgs: []interface{}{
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 				"AccountDatasetEscrowApproval",
 				1,
 			},
