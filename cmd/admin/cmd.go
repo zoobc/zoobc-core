@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 
+	logrus2 "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/cmd/helper"
@@ -103,7 +105,7 @@ func GetProofOfOwnerShip(
 	if err != nil {
 		panic(fmt.Sprintf("OpenDB err: %s", err.Error()))
 	}
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB, logrus2.New()), query.NewBlockQuery(chaintype.GetChainType(0)))
 	if err != nil {
 		panic(err)
 	}

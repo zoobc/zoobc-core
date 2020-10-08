@@ -99,7 +99,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
 	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
 	var (
-		queryExecutor          = query.NewQueryExecutor(dB)
+		queryExecutor          = query.NewQueryExecutor(dB, logrus.New())
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
 			query.NewNodeAddressInfoQuery(),

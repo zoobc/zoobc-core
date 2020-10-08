@@ -487,13 +487,13 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "NewBlockService:InitiateBlockServiceInstance",
 			args: args{
-				queryExecutor: query.NewQueryExecutor(db),
+				queryExecutor: query.NewQueryExecutor(db, nil),
 				blockCoreServices: map[int32]coreService.BlockServiceInterface{
 					0: &coreService.BlockService{},
 				},
 			},
 			want: &BlockService{
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, nil),
 				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
 					0: &coreService.BlockService{},
 				},

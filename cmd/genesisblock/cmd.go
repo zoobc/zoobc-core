@@ -14,6 +14,8 @@ import (
 	"text/template"
 	"time"
 
+	logrus2 "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/spf13/cobra"
@@ -298,7 +300,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	queryExecutor := query.NewQueryExecutor(db)
+	queryExecutor := query.NewQueryExecutor(db, logrus2.New())
 	accountBalanceQuery := query.NewAccountBalanceQuery()
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	participationScoreQuery := query.NewParticipationScoreQuery()

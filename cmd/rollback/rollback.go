@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	logrus2 "github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -67,7 +69,7 @@ func rollbackBlockChain() RunCommand {
 			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
 			blockQuery      = query.NewBlockQuery(chaintypeRollback)
 			dB, err         = getSqliteDB(dBPath, dBName)
-			queryExecutor   = query.NewQueryExecutor(dB)
+			queryExecutor   = query.NewQueryExecutor(dB, logrus2.New())
 			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
 			lastBlock       model.Block
 		)

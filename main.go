@@ -230,7 +230,7 @@ func initiateMainInstance() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, loggerCoreService)
 
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()

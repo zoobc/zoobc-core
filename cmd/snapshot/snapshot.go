@@ -3,9 +3,10 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/util"
 	"math/rand"
 	"os"
+
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -75,7 +76,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor = query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB, logrus.New())
 		mempoolStorage := storage.NewMempoolStorage()
 		nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 		snapshotMainService := service.NewSnapshotMainBlockService(
@@ -173,7 +174,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 				logger.Errorf("Snapshot Failed: %s", err.Error())
 				os.Exit(0)
 			}
-			executor = query.NewQueryExecutor(sqliteDB)
+			executor = query.NewQueryExecutor(sqliteDB, logrus.New())
 			migration := database.Migration{
 				Query: executor,
 			}
@@ -262,7 +263,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor = query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB, logrus.New())
 		typeSwitcher := &transaction.TypeSwitcher{
 			Executor:            executor,
 			NodeAuthValidation:  nodeAuthValidationService,

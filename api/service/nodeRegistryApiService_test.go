@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -31,10 +31,10 @@ func TestNewNodeRegistryService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				queryExecutor: query.NewQueryExecutor(db),
+				queryExecutor: query.NewQueryExecutor(db, nil),
 			},
 			want: &NodeRegistryService{
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, nil),
 			},
 		},
 	}

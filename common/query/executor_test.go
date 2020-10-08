@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	logrus2 "github.com/sirupsen/logrus"
+
 	"github.com/DATA-DOG/go-sqlmock"
 )
 
@@ -328,7 +330,7 @@ func TestNewQueryExecutor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewQueryExecutor(tt.args.db); !reflect.DeepEqual(got, tt.want) {
+			if got := NewQueryExecutor(tt.args.db, nil); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewQueryExecutor() = %v, want %v", got, tt.want)
 			}
 		})
@@ -339,7 +341,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:fail-{prepareFail}", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, logrus2.New())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail prepare").WillReturnError(errors.New("mockError:prepareFail"))
 		_ = executor.BeginTx()
@@ -351,7 +353,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:fail-{execFail}", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, logrus2.New())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail exec")
 		mock.ExpectExec("fail exec").WillReturnError(errors.New("mockError:execFail"))
@@ -364,7 +366,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, logrus2.New())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("success")
 		mock.ExpectExec("success").WillReturnResult(sqlmock.NewResult(1, 1))

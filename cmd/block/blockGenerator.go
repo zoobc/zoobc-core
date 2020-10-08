@@ -117,7 +117,7 @@ func initialize(
 	if err != nil {
 		panic(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, log.New())
 	mempoolStorage := storage.NewMempoolStorage()
 
 	actionSwitcher := &transaction.TypeSwitcher{

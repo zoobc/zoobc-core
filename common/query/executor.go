@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/mattn/go-sqlite3"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 )
@@ -30,13 +32,15 @@ type (
 		Db           *sql.DB
 		sync.RWMutex // mutex should only lock tx
 		Tx           *sql.Tx
+		Logger       *logrus.Logger
 	}
 )
 
 // NewQueryExecutor create new query executor instance
-func NewQueryExecutor(db *sql.DB) *Executor {
+func NewQueryExecutor(db *sql.DB, logger *logrus.Logger) *Executor {
 	return &Executor{
-		Db: db,
+		Db:     db,
+		Logger: logger,
 	}
 }
 
@@ -50,6 +54,8 @@ func (qe *Executor) BeginTx() error {
 	tx, err := qe.Db.Begin()
 
 	if err != nil {
+		qe.sqlError("BeginTX", err)
+
 		qe.Unlock()
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -69,13 +75,15 @@ func (qe *Executor) Execute(query string) (sql.Result, error) {
 	result, err := qe.Db.Exec(query)
 
 	if err != nil {
+		qe.sqlError("Execute", err)
+
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return result, nil
 }
 
 /*
-Execute execute a single query string
+ExecuteStatement execute a single query string
 return error if query not executed successfully
 error will be nil otherwise.
 */
@@ -85,6 +93,7 @@ func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Res
 	stmt, err := qe.Db.Prepare(query)
 
 	if err != nil {
+		qe.sqlError("ExecuteStatement.Prepare", err)
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
@@ -92,6 +101,7 @@ func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Res
 	result, err := stmt.Exec(args...)
 
 	if err != nil {
+		qe.sqlError("ExecuteStatement.Exec", err)
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return result, nil
@@ -124,6 +134,7 @@ func (qe *Executor) ExecuteSelect(query string, tx bool, args ...interface{}) (*
 		rows, err = qe.Db.Query(query, args...)
 	}
 	if err != nil {
+		qe.sqlError("ExecuteSelect", err)
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return rows, nil
@@ -165,6 +176,7 @@ func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	}
 	var stmt, err = qe.Tx.Prepare(qStr)
 	if err != nil {
+		qe.sqlError("ExecuteTransaction.Prepare", err)
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
@@ -172,6 +184,7 @@ func (qe *Executor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	_, err = stmt.Exec(args...)
 	if err != nil {
+		qe.sqlError("ExecuteTransaction.Exec", err)
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
@@ -183,15 +196,22 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 	for _, query := range queries {
 		stmt, err := qe.Tx.Prepare(fmt.Sprintf("%v", query[0]))
 		if err != nil {
+			qe.sqlError("ExecuteTransactions.Prepare", err)
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 		monitoring.SetDatabaseStats(qe.Db.Stats())
 		_, err = stmt.Exec(query[1:]...)
 		if err != nil {
-			_ = stmt.Close()
+			qe.sqlError("ExecuteTransactions.Exec", err)
+			if e := stmt.Close(); e != nil {
+				qe.sqlError("ExecuteTransactions.StmtClose", e)
+			}
+
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		_ = stmt.Close()
+		if e := stmt.Close(); e != nil {
+			qe.sqlError("ExecuteTransactions.StmtClose1", e)
+		}
 	}
 	return nil
 }
@@ -207,6 +227,7 @@ func (qe *Executor) CommitTx() error {
 
 	}()
 	if err != nil {
+		qe.sqlError("CommitTx.Commit", err)
 		var errRollback = qe.Tx.Rollback()
 		if errRollback != nil {
 			return blocker.NewBlocker(
@@ -228,7 +249,14 @@ func (qe *Executor) RollbackTx() error {
 		qe.Unlock()
 	}()
 	if err != nil {
+		qe.sqlError("Rollback", err)
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
+}
+
+func (qe *Executor) sqlError(when string, err error) {
+	if sqlErr, ok := err.(sqlite3.Error); ok {
+		logrus.Errorf("%s: ErrCode: %d, Message: %s, Extends: %v", when, sqlErr.Code, sqlErr.Error(), sqlErr.ExtendedCode)
+	}
 }

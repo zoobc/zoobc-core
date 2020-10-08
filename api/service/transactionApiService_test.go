@@ -5,9 +5,10 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
@@ -201,7 +202,7 @@ func TestNewTransactionService(t *testing.T) {
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
 			want: &TransactionService{
-				Query:           query.NewQueryExecutor(db),
+				Query:           query.NewQueryExecutor(db, nil),
 				TransactionUtil: transactionUtil,
 			},
 		},
@@ -209,7 +210,7 @@ func TestNewTransactionService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewTransactionService(
-				query.NewQueryExecutor(db),
+				query.NewQueryExecutor(db, nil),
 				nil,
 				nil,
 				nil,

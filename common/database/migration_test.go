@@ -5,6 +5,8 @@ import (
 	"regexp"
 	"testing"
 
+	logrus2 "github.com/sirupsen/logrus"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -62,7 +64,7 @@ func TestMigration_Init(t *testing.T) {
 						"created_date" TIMESTAMP NOT NULL
 					);`,
 				},
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, logrus2.New()),
 			},
 			wantErr: false,
 		},
