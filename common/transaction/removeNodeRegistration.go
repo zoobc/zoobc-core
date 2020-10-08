@@ -130,21 +130,18 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
-	err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
-	if err != nil {
-		castedErr := err.(blocker.Blocker)
-		if castedErr.Type != blocker.NotFound {
-			return err
-		}
-	}
 	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
 	if err != nil {
 		castedErr := err.(blocker.Blocker)
 		if castedErr.Type != blocker.NotFound {
 			return err
 		}
-		return nil
+		err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+		if err != nil {
+			return err
+		}
 	}
+
 	return err
 }
 
