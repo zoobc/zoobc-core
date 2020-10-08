@@ -67,10 +67,10 @@ func NewBlocksmithStrategyMain(
 
 func (bss *BlocksmithStrategyMain) isMe(lastCandidate Candidate, block *model.Block) bool {
 	var (
-		now = time.Now()
+		now = time.Now().Unix()
 	)
 
-	if now.Unix() > lastCandidate.StartTime && bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, block.BlocksmithPublicKey) {
+	if now > lastCandidate.StartTime && bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, block.BlocksmithPublicKey) {
 		return true
 	}
 	return false
@@ -81,7 +81,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 		blockSmiths   []*model.Blocksmith
 		lastCandidate Candidate
 		candidate     Candidate
-		now           = time.Now()
+		now           = time.Now().Unix()
 		// err           error
 	)
 
@@ -108,10 +108,10 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 			return 0, 0, errors.New("ErrorIsMe")
 		}
 
-		if isMe && now.Unix() < lastCandidate.ExpiryTime {
+		if isMe && now < lastCandidate.ExpiryTime {
 			return 0, 0, nil
 		}
-		if now.Unix() < lastCandidate.StartTime+10 {
+		if now < lastCandidate.StartTime+10 {
 			return 0, 0, errors.New("Failed")
 		}
 	}
