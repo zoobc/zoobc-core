@@ -185,26 +185,6 @@ func (bss *BlocksmithStrategySpine) CalculateScore(generator *model.Blocksmith, 
 	return nil
 }
 
-// IsBlockTimestampValid check if currentBlock timestamp is valid
-func (bss *BlocksmithStrategySpine) IsBlockTimestampValid(
-	blocksmithIndex, numberOfBlocksmiths int64,
-	previousBlock, currentBlock *model.Block,
-) error {
-	var (
-		elapsedFromLastBlock int64
-	)
-	ct := &chaintype.SpineChain{}
-	if blocksmithIndex < 1 {
-		elapsedFromLastBlock = ct.GetSmithingPeriod()
-	} else {
-		elapsedFromLastBlock = blocksmithIndex*ct.GetBlocksmithTimeGap() + ct.GetSmithingPeriod()
-	}
-	if currentBlock.GetTimestamp() < previousBlock.GetTimestamp()+elapsedFromLastBlock {
-		return blocker.NewBlocker(blocker.InvalidBlockTimestamp, "InvalidBlockTimestamp")
-	}
-	return nil
-}
-
 func (*BlocksmithStrategySpine) CanPersistBlock(
 	blocksmithIndex, numberOfBlocksmiths int64,
 	previousBlock *model.Block,

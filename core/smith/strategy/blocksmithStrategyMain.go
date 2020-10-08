@@ -291,40 +291,6 @@ func (bss *BlocksmithStrategyMain) EstimateLastBlockPersistedTime(
 	return nil
 }
 
-// IsBlockTimestampValid check if the block provided (currentBlock) has valid timestamp based on the previous block
-// of the current node. This function is save to be called on download process, it does not make use of node current time.
-func (bss *BlocksmithStrategyMain) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
-	currentBlock *model.Block) error {
-	var (
-		err error
-		ct  = &chaintype.MainChain{}
-	)
-	// calculate estimated starting time
-	if bss.LastEstimatedPersistedTimestampBlockID != previousBlock.ID {
-		err = bss.EstimateLastBlockPersistedTime(previousBlock, ct)
-		if err != nil {
-			return err
-		}
-	}
-	// check if is valid time
-	timeGapCurrentLastBlock := currentBlock.GetTimestamp() - bss.LastEstimatedBlockPersistedTimestamp
-	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
-	// exception: first blocksmith check
-	if blocksmithIndex == 0 && timeGapCurrentLastBlock >= ct.GetSmithingPeriod() {
-		if timeGapCurrentLastBlock <= ct.GetSmithingPeriod()+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
-			return nil
-		}
-	}
-	remainder := (timeGapCurrentLastBlock - ct.GetSmithingPeriod()) % timeForOneRound
-	if remainder >= blocksmithIndex*ct.GetBlocksmithTimeGap() {
-		if remainder > (blocksmithIndex*ct.GetBlocksmithTimeGap())+ct.GetBlocksmithBlockCreationTime()+ct.GetBlocksmithNetworkTolerance() {
-			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithExpired")
-		}
-		return nil
-	}
-	return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
-}
-
 // CanPersistBlock check if currentTime is a time to persist the provided block.
 // This function uses current node time, which make it unsafe to validate past block.
 // numberOfBlocksmiths must be > 0
