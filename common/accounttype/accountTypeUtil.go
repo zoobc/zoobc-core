@@ -43,12 +43,14 @@ func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
 	if len(accTypeIntBytes) < int(constant.AccountAddressTypeLength) {
 		return nil, errors.New("InvalidAccountFormat")
 	}
-	accTypeInt := binary.LittleEndian.Uint32(accTypeIntBytes)
+	accTypeInt := int32(binary.LittleEndian.Uint32(accTypeIntBytes))
 	switch accTypeInt {
-	case 0:
+	case int32(model.AccountType_ZbcAccountType):
 		acc = &ZbcAccountType{}
-	case 1:
+	case int32(model.AccountType_BTCAccountType):
 		acc = &BTCAccountType{}
+	case int32(model.AccountType_EmptyAccountType):
+		acc = &EmptyAccountType{}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}

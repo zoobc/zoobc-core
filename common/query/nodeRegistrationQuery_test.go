@@ -298,7 +298,7 @@ func (*mockQueryExecutorScan) ExecuteSelectRow(qStr string, args ...interface{})
 		sqlmock.NewRows(mockNodeRegistrationQuery.Fields).AddRow(
 			1,
 			[]byte{1},
-			"BCZ",
+			mockNodeRegistry.AccountAddress,
 			1,
 			10000,
 			uint32(model.NodeRegistrationState_NodeQueued),
@@ -336,10 +336,9 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 				row: (&mockQueryExecutorScan{}).ExecuteSelectRow(""),
 			},
 			want: model.NodeRegistration{
-				NodeID:        1,
-				NodePublicKey: []byte{1},
-				AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
-					202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+				NodeID:             1,
+				NodePublicKey:      []byte{1},
+				AccountAddress:     mockNodeRegistry.AccountAddress,
 				RegistrationHeight: 1,
 				LockedBalance:      10000,
 				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),

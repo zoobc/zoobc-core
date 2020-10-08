@@ -241,10 +241,9 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 		if err != nil {
 			return nil, err
 		}
-		//STEF
-		// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+		//STEF TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
 		// multisigInfo.Addresses = strings.Split(addresses, ",")
-		// mss = append(mss, &multisigInfo)
+		mss = append(mss, &multisigInfo)
 	}
 	return mss, nil
 }

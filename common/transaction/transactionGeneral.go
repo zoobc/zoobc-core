@@ -78,7 +78,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	buffer.Write(transaction.SenderAccountAddress)
 
 	// Address format (byte array): [account type][address public key]
-	if transaction.GetRecipientAccountAddress() == nil {
+	if transaction.GetRecipientAccountAddress() == nil || bytes.Equal(transaction.GetRecipientAccountAddress(), []byte{}) {
 		emptyAccType, err := accounttype.NewAccountType(int32(model.AccountType_EmptyAccountType), make([]byte, 0))
 		if err != nil {
 			return nil, err
@@ -102,7 +102,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 	3. Timeout
 	4. Instruction
 	*/
-	if transaction.GetEscrow() != nil {
+	if transaction.GetEscrow() != nil && transaction.GetEscrow().GetApproverAddress() != nil {
 		// Address format (byte array): [account type][address public key]
 		buffer.Write(transaction.GetEscrow().GetApproverAddress())
 
@@ -122,12 +122,6 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 			return nil, err
 		}
 		buffer.Write(emptyAccAddr)
-
-		buffer.Write(make([]byte, constant.EscrowCommissionLength))
-		buffer.Write(make([]byte, constant.EscrowTimeoutLength))
-
-		buffer.Write(make([]byte, constant.EscrowInstructionLength))
-		buffer.Write(make([]byte, 0))
 	}
 
 	if sign {
@@ -233,31 +227,36 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if err != nil {
 		return nil, err
 	}
-	escrow.ApproverAddress = approverAddress
 
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
-	if err != nil {
-		return nil, err
-	}
-	escrow.Commission = int64(util.ConvertBytesToUint64(chunkedBytes))
+	// if approver account is empty (== empty account type), then skip the escrow part
+	if approverAccType.GetTypeInt() != int32(model.AccountType_EmptyAccountType) {
+		escrow.ApproverAddress = approverAddress
 
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowTimeoutLength))
-	if err != nil {
-		return nil, err
-	}
-	escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
+		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
+		if err != nil {
+			return nil, err
+		}
+		escrow.Commission = int64(util.ConvertBytesToUint64(chunkedBytes))
 
-	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
-	if err != nil {
-		return nil, err
-	}
-	instruction, err := util.ReadTransactionBytes(buffer, int(util.ConvertBytesToUint32(chunkedBytes)))
-	if err != nil {
-		return nil, err
-	}
-	escrow.Instruction = string(instruction)
+		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowTimeoutLength))
+		if err != nil {
+			return nil, err
+		}
+		escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
 
-	transaction.Escrow = &escrow
+		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
+		if err != nil {
+			return nil, err
+		}
+		instructionLength := int(util.ConvertBytesToUint32(chunkedBytes))
+		instruction, err := util.ReadTransactionBytes(buffer, instructionLength)
+		if err != nil {
+			return nil, err
+		}
+		escrow.Instruction = string(instruction)
+
+		transaction.Escrow = &escrow
+	}
 
 	if sign {
 		var signatureLengthBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionSignatureLength))
@@ -388,7 +387,6 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
 	for _, address := range info.GetAddresses() {
 		//STEF we don't need to add the address length because we can derive it from addressType (first 4 bytes of accountAddress)
-		// buff.Write(util.ConvertUint32ToBytes(uint32(len(address))))
 		buff.Write(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())

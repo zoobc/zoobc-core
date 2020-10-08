@@ -25,7 +25,11 @@ type (
 	}
 )
 
-var mockAccountBalanceQuery = query.NewAccountBalanceQuery()
+var (
+	accBalanceAccountAddress1 = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229, 116, 202,
+		211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
+	mockAccountBalanceQuery = query.NewAccountBalanceQuery()
+)
 
 func (*mockExecutorGetAccountBalanceSuccess) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -89,10 +93,6 @@ func TestNewAccountBalanceService(t *testing.T) {
 }
 
 func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
-	var (
-		accAddr = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229, 116, 202,
-			211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
-	)
 	type fields struct {
 		AccountBalanceQuery *query.AccountBalanceQuery
 		QueryExecutor       query.ExecutorInterface
@@ -114,7 +114,7 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceFail{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: accAddr,
+				AccountAddress: accBalanceAccountAddress1,
 			}},
 			want:    nil,
 			wantErr: true,
@@ -126,7 +126,7 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceNotFound{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: accAddr,
+				AccountAddress: accBalanceAccountAddress1,
 			}},
 			want:    nil,
 			wantErr: true,
@@ -138,11 +138,11 @@ func TestAccountBalanceService_GetAccountBalance(t *testing.T) {
 				QueryExecutor:       &mockExecutorGetAccountBalanceSuccess{},
 			},
 			args: args{request: &model.GetAccountBalanceRequest{
-				AccountAddress: accAddr,
+				AccountAddress: accBalanceAccountAddress1,
 			}},
 			want: &model.GetAccountBalanceResponse{
 				AccountBalance: &model.AccountBalance{
-					AccountAddress:   accAddr,
+					AccountAddress:   []byte{1},
 					BlockHeight:      1,
 					SpendableBalance: 10000,
 					Balance:          10000,
@@ -200,7 +200,7 @@ func (*mockGetAccountBalancesQuerySuccess) ExecuteSelect(string, bool, ...interf
 
 	mockRows := mock.NewRows(query.NewAccountBalanceQuery().Fields)
 	mockRows.AddRow(
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		accBalanceAccountAddress1,
 		0,
 		100000000000,
 		101666666666,

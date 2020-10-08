@@ -69,6 +69,7 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
 		//STEF TODO: refactor this once the query has been split into two (cannot use string.Join on byte arrays)
 		// strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
+		[]byte{},
 	))
 	row := db.QueryRow("")
 	return row, nil

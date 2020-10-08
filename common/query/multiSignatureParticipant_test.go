@@ -12,8 +12,12 @@ import (
 var (
 	multisigAccountAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
 		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
-	multisigAccountAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
-		47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	multisigAccountAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79,
+		137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	multisigAccountAddress3 = []byte{0, 0, 0, 0, 131, 252, 92, 188, 219, 93, 20, 95, 223, 162, 209, 53, 10, 27, 14, 67, 202, 149, 108,
+		229, 12, 146, 136, 6, 143, 228, 45, 178, 0, 80, 142, 52}
+	multisigAccountAddress4 = []byte{0, 0, 0, 0, 105, 222, 141, 38, 68, 245, 215, 242, 62, 223, 180, 145, 157, 218, 78, 17, 142, 168, 27,
+		201, 233, 140, 154, 249, 237, 88, 166, 241, 232, 239, 168, 33}
 )
 
 func TestMultiSignatureParticipantQuery_ExtractModel(t *testing.T) {
@@ -42,8 +46,8 @@ func TestMultiSignatureParticipantQuery_ExtractModel(t *testing.T) {
 				},
 			},
 			want: []interface{}{
-				"MSG_",
-				"BCZ_",
+				multisigAccountAddress1,
+				multisigAccountAddress2,
 				uint32(0),
 				false,
 				uint32(100),
@@ -67,8 +71,8 @@ func TestMultiSignatureParticipantQuery_BuildModel(t *testing.T) {
 	dbMock, sqlMock, _ := sqlmock.New()
 	sqlMock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(NewMultiSignatureParticipantQuery().Fields).
 		AddRow(
-			"MZG_",
-			"BCZ_",
+			multisigAccountAddress1,
+			multisigAccountAddress2,
 			0,
 			true,
 			100,
@@ -127,8 +131,8 @@ func TestMultiSignatureParticipantQuery_Scan(t *testing.T) {
 	dbMock, sqlMock, _ := sqlmock.New()
 	sqlMock.ExpectQuery("").WillReturnRows(sqlMock.NewRows(NewMultiSignatureParticipantQuery().Fields).
 		AddRow(
-			"MZG_",
-			"BCZ_",
+			multisigAccountAddress1,
+			multisigAccountAddress2,
 			0,
 			true,
 			100,

@@ -58,7 +58,7 @@ func getPendingTransactionQueryBuildModelSuccessRow() *sql.Rows {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(mockPendingTransactionQueryInstance.Fields)
 	mockRow.AddRow(
-		"",
+		nil,
 		make([]byte, 32),
 		make([]byte, 100),
 		model.PendingTransactionStatus_PendingTransactionExecuted,

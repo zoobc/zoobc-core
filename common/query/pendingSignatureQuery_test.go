@@ -12,6 +12,8 @@ import (
 
 var (
 	mockPendingSignatureQueryIntance = NewPendingSignatureQuery()
+	pendingSigAccountAddress1        = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
 )
 
 func TestNewPendingSignatureQuery(t *testing.T) {
@@ -58,7 +60,7 @@ func getPendingSignatureQueryBuildModelRowsSuccess() *sql.Rows {
 	mockRow := sqlmock.NewRows(mockPendingSignatureQueryIntance.Fields)
 	mockRow.AddRow(
 		make([]byte, 32),
-		"account_address",
+		pendingSigAccountAddress1,
 		make([]byte, 64),
 		uint32(10),
 		true,
@@ -112,11 +114,10 @@ func TestPendingSignatureQuery_BuildModel(t *testing.T) {
 			want: []*model.PendingSignature{
 				{
 					TransactionHash: make([]byte, 32),
-					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
-						202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-					Signature:   make([]byte, 64),
-					BlockHeight: 10,
-					Latest:      true,
+					AccountAddress:  pendingSigAccountAddress1,
+					Signature:       make([]byte, 64),
+					BlockHeight:     10,
+					Latest:          true,
 				},
 			},
 			wantErr: false,
@@ -143,10 +144,9 @@ func TestPendingSignatureQuery_BuildModel(t *testing.T) {
 var (
 	mockExtractModelPendingSig = &model.PendingSignature{
 		TransactionHash: make([]byte, 32),
-		AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
-			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-		Signature:   make([]byte, 64),
-		BlockHeight: 10,
+		AccountAddress:  pendingSigAccountAddress1,
+		Signature:       make([]byte, 64),
+		BlockHeight:     10,
 	}
 )
 

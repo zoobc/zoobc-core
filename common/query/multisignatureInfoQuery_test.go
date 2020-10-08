@@ -29,12 +29,12 @@ func getBuildModelSuccessMockRows() *sql.Rows {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
 	mockRow.AddRow(
-		"multisig_address",
+		multisigAccountAddress1,
 		uint32(1),
 		int64(10),
 		uint32(12),
 		true,
-		"address_1,address_2",
+		[]byte{}, //STEF TODO: refactor this after having split queries with group_concat
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -82,18 +82,16 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 			},
 			want: []*model.MultiSignatureInfo{
 				{
-					MultisigAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-						72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+					MultisigAddress:   multisigAccountAddress1,
 					MinimumSignatures: 1,
 					Nonce:             10,
 					BlockHeight:       12,
 					Latest:            true,
-					Addresses: [][]byte{
-						[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-							45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-						[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-					},
+					// STEF TODO: refactor this once having refactored queries with group_concat
+					// Addresses: [][]byte{
+					// 	multisigAccountAddress2,
+					// 	multisigAccountAddress3,
+					// },
 				},
 			},
 			wantErr: false,
@@ -123,10 +121,8 @@ var (
 		MinimumSignatures: 0,
 		Nonce:             0,
 		Addresses: [][]byte{
-			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-				72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			multisigAccountAddress2,
+			multisigAccountAddress3,
 		},
 		MultisigAddress: nil,
 		BlockHeight:     0,
@@ -245,17 +241,13 @@ var (
 		MinimumSignatures: 0,
 		Nonce:             0,
 		Addresses: [][]byte{
-			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-				72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-			[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
-				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+			multisigAccountAddress2,
+			multisigAccountAddress3,
+			multisigAccountAddress3,
 		},
-		MultisigAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		BlockHeight: 0,
-		Latest:      true,
+		MultisigAddress: multisigAccountAddress1,
+		BlockHeight:     0,
+		Latest:          true,
 	}
 	// InsertMultisignatureInfo mocks
 )
@@ -374,12 +366,12 @@ func getNumberScanSuccessMockRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
 	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
 	mockRow.AddRow(
-		"multisig_address",
+		multisigAccountAddress1,
 		uint32(123),
 		int64(10),
 		uint32(12),
 		true,
-		"addresses",
+		[]byte{}, //STEF TODO: refactor this after having split the queries with group_concat
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")
@@ -628,7 +620,9 @@ func TestMultisignatureInfoQuery_InsertMultiSignatureInfos(t *testing.T) {
 				{
 					"INSERT INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
 						"VALUES(?, ?, ?, ?, ?),(?, ?, ?, ?, ?),(?, ?, ?, ?, ?)",
-					"MSG_", "A", uint32(0), true, uint32(0), "MSG_", "B", uint32(1), true, uint32(0), "MSG_", "C", uint32(2), true, uint32(0),
+					multisigAccountAddress1, multisigAccountAddress2, uint32(0), true, uint32(0), multisigAccountAddress1,
+					multisigAccountAddress3, uint32(1), true, uint32(0), multisigAccountAddress1, multisigAccountAddress3, uint32(2), true,
+					uint32(0),
 				},
 			},
 		},
