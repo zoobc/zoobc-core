@@ -604,17 +604,17 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
-		mempoolsBackup    []*model.Transaction
-		mempoolsBackupIDs []int64
-		err               error
-		backupMempools    = make(map[int64][]byte)
+		mempoolsBackup []*model.Transaction
+		err            error
+		backupMempools = make(map[int64][]byte)
 	)
 
 	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
 	if err != nil {
 		return err
 	}
-	mps.Logger.Warnf("mempool tx backup %d in total with block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
+	mps.Logger.Warnf("mempool tx want to backup %d in total at block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
+
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
@@ -623,13 +623,14 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	for _, mempoolTx := range mempoolsBackup {
 		var (
-			txType transaction.TypeAction
+			txType      transaction.TypeAction
+			mempoolByte []byte
 		)
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(mempoolTx)
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
-				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+				mps.Logger.Warnf("[BackupMempools] GetTransactionType failed - %v", rollbackErr)
 			}
 			return err
 		}
@@ -638,21 +639,20 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
-				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+				mps.Logger.Warnf("[BackupMempools] UndoApplyUnconfirmed failed - %v", rollbackErr)
 			}
 			return err
 		}
 
-		mempoolByte, err := mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
+		mempoolByte, err = mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
-				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+				mps.Logger.Warnf("[BackupMempools] GetTransactionBytes failed - %v", rollbackErr)
 			}
 			return err
 		}
 
-		mempoolsBackupIDs = append(mempoolsBackupIDs, mempoolTx.GetID())
 		backupMempools[mempoolTx.GetID()] = mempoolByte
 	}
 
@@ -662,17 +662,19 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		if err != nil {
 			rollbackErr := mps.QueryExecutor.RollbackTx()
 			if rollbackErr != nil {
-				mps.Logger.Warnf("rollbackErr:BackupMempools - %v", rollbackErr)
+				mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
 			}
 			return err
 		}
 	}
-	err = mps.MempoolCacheStorage.RemoveItem(mempoolsBackupIDs)
+
+	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
 		initMempoolErr := mps.InitMempoolTransaction()
 		if initMempoolErr != nil {
-			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
+			mps.Logger.Warnf("[BackupMempools] Ini Mempools failed - %v", initMempoolErr)
 		}
+		return err
 	}
 	err = mps.QueryExecutor.CommitTx()
 	if err != nil {
