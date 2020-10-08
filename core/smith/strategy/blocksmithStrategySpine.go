@@ -45,8 +45,8 @@ func NewBlocksmithStrategySpine(
 	}
 }
 
-func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) (bool, error) {
-	return true, nil
+func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) error {
+	return nil
 }
 
 func (bss *BlocksmithStrategySpine) isMe(lastCandidate Candidate, block *model.Block) bool {

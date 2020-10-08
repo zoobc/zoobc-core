@@ -127,14 +127,14 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 	return lastBlockID, int64(idx), nil
 }
 
-func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) (bool, error) {
+func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) error {
 	var (
 		err         error
 		blockSmiths []*model.Blocksmith
 	)
 	blockSmiths, err = bss.GetBlocksmiths(prevBlock)
 	if err != nil {
-		return false, errors.New("ErrorGetBlocksmiths")
+		return errors.New("ErrorGetBlocksmiths")
 	}
 	timeGap := block.Timestamp - prevBlock.Timestamp
 	round := timeGap - bss.Chaintype.GetSmithingPeriod()/bss.Chaintype.GetBlocksmithTimeGap()
@@ -147,10 +147,10 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) (
 		idx = rand.Intn(len(blockSmiths))
 	}
 	if bytes.Equal(blockSmiths[idx].NodePublicKey, block.BlocksmithPublicKey) {
-		return true, nil
+		return nil
 	}
 
-	return false, errors.New("Failed")
+	return errors.New("Failed")
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
