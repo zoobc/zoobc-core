@@ -65,7 +65,7 @@ func NewBlocksmithStrategyMain(
 	}
 }
 
-func (bss *BlocksmithStrategyMain) IsMe(lastCandidate Candidate, block *model.Block) bool {
+func (bss *BlocksmithStrategyMain) isMe(lastCandidate Candidate, block *model.Block) bool {
 	var (
 		now = time.Now()
 	)
@@ -103,7 +103,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 
 	if len(bss.candidates) > 0 {
 		lastCandidate = bss.candidates[len(bss.candidates)-1]
-		isMe := bss.IsMe(lastCandidate, prevBlock)
+		isMe := bss.isMe(lastCandidate, prevBlock)
 		if err != nil {
 			return 0, 0, errors.New("ErrorIsMe")
 		}

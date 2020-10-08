@@ -8,7 +8,7 @@ type (
 	BlocksmithStrategyInterface interface {
 		WillSmith(prevBlock *model.Block) (int64, int64, error)
 		IsBlockValid(prevBlock, block *model.Block) (bool, error)
-		IsMe(lastCandidate Candidate, block *model.Block) bool
+		isMe(lastCandidate Candidate, block *model.Block) bool
 
 		// old
 		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)

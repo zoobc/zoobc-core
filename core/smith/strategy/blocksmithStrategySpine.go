@@ -49,7 +49,7 @@ func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) 
 	return true, nil
 }
 
-func (bss *BlocksmithStrategySpine) IsMe(lastCandidate Candidate, block *model.Block) bool {
+func (bss *BlocksmithStrategySpine) isMe(lastCandidate Candidate, block *model.Block) bool {
 	return true
 }
 
