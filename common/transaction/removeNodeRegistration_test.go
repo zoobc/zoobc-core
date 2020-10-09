@@ -95,7 +95,7 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe 
 		}).AddRow(
 			0,
 			body.NodePublicKey,
-			"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			senderAddress1,
 			1,
 			1,
 			1,
@@ -119,7 +119,7 @@ func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelectRow(qe st
 	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields).AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		1,
@@ -138,7 +138,7 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted) Execute
 	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields).AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		uint32(model.NodeRegistrationState_NodeDeleted),
@@ -161,7 +161,7 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelectRow
 	mockedRows.AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		1,
@@ -412,7 +412,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         senderAddress1,
+				SenderAddress:         senderAddress2,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -755,15 +755,15 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: senderAddress2,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: senderAddress3,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: senderAddress4,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},

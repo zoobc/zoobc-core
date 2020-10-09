@@ -219,13 +219,16 @@ func (tx *ClaimNodeRegistration) GetMinimumFee() (int64, error) {
 
 func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
+	if tx.SenderAddress == nil {
+		return 0, blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
+	}
 	senderAccType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
 	if err != nil {
 		return 0, err
 	}
-	poown := util.GetProofOfOwnershipSize(senderAccType, true)
+	poownSize := util.GetProofOfOwnershipSize(senderAccType, true)
 	accountAddressSize := constant.AccountAddressTypeLength + senderAccType.GetAccountPublicKeyLength()
-	return accountAddressSize + constant.NodePublicKey + poown, nil
+	return accountAddressSize + constant.NodePublicKey + poownSize, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields

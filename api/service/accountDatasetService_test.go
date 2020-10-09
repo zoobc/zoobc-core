@@ -16,6 +16,13 @@ type (
 	}
 )
 
+var (
+	accDatasetSetterAccount1 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+		213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
+	accDatasetRecipientAccount1 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213,
+		137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
+)
+
 func (*mockGetAccountDatasetsExecutor) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"total"}).AddRow(1))
@@ -27,8 +34,8 @@ func (*mockGetAccountDatasetsExecutor) ExecuteSelect(string, bool, ...interface{
 
 	mockRows := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mockRows.AddRow(
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		accDatasetSetterAccount1,
+		accDatasetRecipientAccount1,
 		"AccountDatasetEscrowApproval",
 		"Message",
 		true,
@@ -63,12 +70,11 @@ func TestAccountDatasetService_GetAccountDatasets(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountDatasetsRequest{
-					Property: "AccountDatasetEscrowApproval",
-					Value:    "Message",
-					RecipientAccountAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213,
-						137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
-					SetterAccountAddress: nil,
-					Height:               0,
+					Property:                "AccountDatasetEscrowApproval",
+					Value:                   "Message",
+					RecipientAccountAddress: accDatasetRecipientAccount1,
+					SetterAccountAddress:    nil,
+					Height:                  0,
 					Pagination: &model.Pagination{
 						OrderField: "height",
 						OrderBy:    model.OrderBy_ASC,
@@ -81,15 +87,13 @@ func TestAccountDatasetService_GetAccountDatasets(t *testing.T) {
 				Total: 1,
 				AccountDatasets: []*model.AccountDataset{
 					{
-						SetterAccountAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
-							213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
-						RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-						Property: "AccountDatasetEscrowApproval",
-						Value:    "Message",
-						Height:   5,
-						Latest:   true,
-						IsActive: true,
+						SetterAccountAddress:    accDatasetSetterAccount1,
+						RecipientAccountAddress: accDatasetRecipientAccount1,
+						Property:                "AccountDatasetEscrowApproval",
+						Value:                   "Message",
+						Height:                  5,
+						Latest:                  true,
+						IsActive:                true,
 					},
 				},
 			},
@@ -128,8 +132,8 @@ func (*mockExecutorGetAccountDataset) ExecuteSelectRow(string, bool, ...interfac
 
 	mockRow := mock.NewRows(query.NewAccountDatasetsQuery().Fields)
 	mockRow.AddRow(
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		accDatasetSetterAccount1,
+		accDatasetRecipientAccount1,
 		"AccountDatasetEscrowApproval",
 		"Message",
 		true,
@@ -188,15 +192,13 @@ func TestAccountDatasetService_GetAccountDataset(t *testing.T) {
 				},
 			},
 			want: &model.AccountDataset{
-				SetterAccountAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
-					213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
-				RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
-					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				Property: "AccountDatasetEscrowApproval",
-				Value:    "Message",
-				Height:   5,
-				Latest:   true,
-				IsActive: true,
+				SetterAccountAddress:    accDatasetSetterAccount1,
+				RecipientAccountAddress: accDatasetRecipientAccount1,
+				Property:                "AccountDatasetEscrowApproval",
+				Value:                   "Message",
+				Height:                  5,
+				Latest:                  true,
+				IsActive:                true,
 			},
 		},
 	}

@@ -1,15 +1,12 @@
 package transaction
 
 import (
-	"bytes"
-	"golang.org/x/crypto/sha3"
-	"log"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -384,9 +381,6 @@ func GetFixtureForSpecificTransaction(
 	var transactionUtil = &Util{}
 	transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, false)
 	if sign {
-		if !bytes.Equal(tx.SenderAccountAddress, senderAddress1) {
-			log.Fatalf("sender account must be: %v", senderAddress1)
-		}
 		tx.Signature, _ = (&crypto.Signature{}).Sign(
 			transactionBytes,
 			model.SignatureType_DefaultSignature,
@@ -399,29 +393,6 @@ func GetFixtureForSpecificTransaction(
 	}
 	tx.TransactionBody = nil
 	return tx, transactionBytes
-}
-
-func GetFixtureForSpecificTransactionWithTxBodyAndSignature(
-	tx model.Transaction,
-) (*model.Transaction, []byte) {
-	var (
-		transactionBytes []byte
-	)
-	if !bytes.Equal(tx.SenderAccountAddress, senderAddress1) {
-		log.Fatalf("sender account must be: %v", senderAddress1)
-	}
-	var transactionUtil = &Util{}
-	transactionBytes, _ = transactionUtil.GetTransactionBytes(&tx, false)
-	tx.Signature, _ = (&crypto.Signature{}).Sign(
-		transactionBytes,
-		model.SignatureType_DefaultSignature,
-		senderAddress1PassPhrase,
-	)
-	transactionBytes, _ = transactionUtil.GetTransactionBytes(&tx, true)
-	hashed := sha3.Sum256(transactionBytes)
-	tx.TransactionHash = hashed[:]
-	tx.TransactionBody = nil
-	return &tx, transactionBytes
 }
 
 func GetFixturesForBlock(height uint32, id int64) *model.Block {

@@ -1319,8 +1319,9 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body:                  &model.NodeRegistrationTransactionBody{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				SenderAddress:         senderAddress1,
 			},
-			want: 276,
+			want: 212,
 		},
 	}
 	for _, tt := range tests {
@@ -1333,7 +1334,11 @@ func TestNodeRegistration_GetSize(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got, _ := n.GetSize(); got != tt.want {
+			got, err := n.GetSize()
+			if err != nil {
+				t.Errorf("NodeRegistration.GetSize() = err %s", err)
+			}
+			if got != tt.want {
 				t.Errorf("NodeRegistration.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1647,15 +1652,15 @@ func TestNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: senderAddress2,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: senderAddress3,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: senderAddress4,
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},

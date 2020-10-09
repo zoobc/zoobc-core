@@ -370,12 +370,15 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 	}
 	tests := []struct {
 		name   string
-		fields fields
+		fields *fields
 		want   uint32
 	}{
 		{
 			name: "GetSize:success",
-			want: 264,
+			fields: &fields{
+				SenderAddress: senderAddress1,
+			},
+			want: 204,
 		},
 	}
 	for _, tt := range tests {
@@ -391,7 +394,11 @@ func TestClaimNodeRegistration_GetSize(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if got, _ := tx.GetSize(); got != tt.want {
+			got, err := tx.GetSize()
+			if err != nil {
+				t.Errorf("ClaimNodeRegistration.GetSize() = err %s", err)
+			}
+			if got != tt.want {
 				t.Errorf("ClaimNodeRegistration.GetSize() = %v, want %v", got, tt.want)
 			}
 		})

@@ -288,6 +288,9 @@ func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
 
 func (tx *NodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
+	if tx.SenderAddress == nil {
+		return 0, blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
+	}
 	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
 	if err != nil {
 		return 0, err

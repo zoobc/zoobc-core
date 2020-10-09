@@ -14,6 +14,13 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+var (
+	mempoolTxApiSenderAccountAddress1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+		28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	mempoolTxApiRecipientAccountAddress1 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+)
+
 func TestNewMempoolTransactionsService(t *testing.T) {
 	type args struct {
 		queryExecutor query.ExecutorInterface
@@ -76,8 +83,8 @@ func (*mockQueryExecutorGetMempoolTXs) ExecuteSelect(qStr string, tx bool, args 
 					1,
 					1000,
 					make([]byte, 88),
-					"accountA",
-					"accountA",
+					mempoolTxApiSenderAccountAddress1,
+					mempoolTxApiRecipientAccountAddress1,
 				))
 	}
 	return db.Query(qStr)
@@ -140,14 +147,12 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 				Total: 1,
 				MempoolTransactions: []*model.MempoolTransaction{
 					{
-						ID:               1,
-						FeePerByte:       1,
-						ArrivalTimestamp: 1000,
-						SenderAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-						RecipientAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-							45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-						TransactionBytes: make([]byte, 88),
+						ID:                      1,
+						FeePerByte:              1,
+						ArrivalTimestamp:        1000,
+						SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
+						RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+						TransactionBytes:        make([]byte, 88),
 					},
 				},
 			},
@@ -161,22 +166,19 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetMempoolTransactionsRequest{
-					Address: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					Address: mempoolTxApiSenderAccountAddress1,
 				},
 			},
 			want: &model.GetMempoolTransactionsResponse{
 				Total: 1,
 				MempoolTransactions: []*model.MempoolTransaction{
 					{
-						ID:               1,
-						FeePerByte:       1,
-						ArrivalTimestamp: 1000,
-						SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-							45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-						RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-						TransactionBytes: make([]byte, 88),
+						ID:                      1,
+						FeePerByte:              1,
+						ArrivalTimestamp:        1000,
+						SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
+						RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+						TransactionBytes:        make([]byte, 88),
 					},
 				},
 			},
@@ -231,8 +233,8 @@ func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, tx bo
 			1,
 			1000,
 			make([]byte, 88),
-			"accountA",
-			"accountB",
+			mempoolTxApiSenderAccountAddress1,
+			mempoolTxApiRecipientAccountAddress1,
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -283,14 +285,12 @@ func TestMempoolTransactionService_GetMempoolTransaction(t *testing.T) {
 			},
 			want: &model.GetMempoolTransactionResponse{
 				Transaction: &model.MempoolTransaction{
-					ID:               1,
-					FeePerByte:       1,
-					ArrivalTimestamp: 1000,
-					SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-					RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
-						28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
-					TransactionBytes: make([]byte, 88),
+					ID:                      1,
+					FeePerByte:              1,
+					ArrivalTimestamp:        1000,
+					SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
+					RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+					TransactionBytes:        make([]byte, 88),
 				},
 			},
 			wantErr: false,
