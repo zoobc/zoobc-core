@@ -1396,15 +1396,9 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check if already broadcast receipt to this node
-	duplicated, duplicatedErr := bs.ReceiptService.IsDuplicated(senderPublicKey, block.GetBlockHash())
-	if duplicatedErr != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			duplicatedErr.Error(),
-		)
-	}
-	if duplicated {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	err = bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash())
+	if err != nil {
+		return nil, err
 	}
 
 	// generate receipt and return as response

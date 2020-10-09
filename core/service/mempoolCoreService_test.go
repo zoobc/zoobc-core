@@ -758,14 +758,17 @@ func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
 	return &model.BatchReceipt{}, nil
 }
 
-func (mrs *mockReceiptServiceSucces) IsDuplicated(_, _ []byte) (bool, error) {
+func (mrs *mockReceiptServiceSucces) CheckDuplication(publicKey, datumHash []byte) error {
 	if mrs.WantErr {
-		return false, errors.New("want error")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailedGetReceiptKey",
+		)
 	}
 	if mrs.WantDuplicated {
-		return true, nil
+		return blocker.NewBlocker(blocker.DuplicateReceiptErr, "ReceiptExistsOnReminder")
 	}
-	return false, nil
+	return nil
 }
 
 type (

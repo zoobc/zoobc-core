@@ -446,12 +446,12 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		}
 
 		// already exist in mempool, check if already generated a receipt for this sender
-		duplicated, duplicatedErr := mps.ReceiptService.IsDuplicated(senderPublicKey, receivedTxHash[:])
-		if duplicatedErr != nil {
+		err = mps.ReceiptService.CheckDuplication(senderPublicKey, receivedTxHash[:])
+		if err != nil {
+			if b := err.(blocker.Blocker); b.Type == blocker.DuplicateReceiptErr {
+				return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
+			}
 			return nil, nil, status.Errorf(codes.Internal, err.Error())
-		}
-		if duplicated {
-			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
 		}
 		duplicateTx = true
 	}
