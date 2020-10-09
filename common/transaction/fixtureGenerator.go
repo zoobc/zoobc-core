@@ -73,7 +73,7 @@ var (
 			139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 		},
 		Escrow: &model.Escrow{
-			ApproverAddress: make([]byte, 36), //STEF TODO: update it with a real address (in bytes),
+			ApproverAddress: make([]byte, 36), // STEF TODO: update it with a real address (in bytes),
 			Commission:      1,
 			Timeout:         100,
 		},

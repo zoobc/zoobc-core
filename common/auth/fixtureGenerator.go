@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	//STEF TODO: insert real accountAddress here
+	// STEF TODO: insert real accountAddress here
 	senderAddress1 = make([]byte, 36)
 	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"

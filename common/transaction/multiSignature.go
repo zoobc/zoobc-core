@@ -631,7 +631,7 @@ func (tx *MultiSignatureTransaction) GetSize() (uint32, error) {
 		multisigInfoSize += constant.MultiSigNumberOfAddress
 		for _, v := range multisigInfo.GetAddresses() {
 			multisigInfoSize += constant.MultiSigAddressLength
-			multisigInfoSize += uint32(len([]byte(v)))
+			multisigInfoSize += uint32(len(v))
 		}
 	}
 	// TransactionBytes
@@ -738,7 +738,7 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() ([]byte, error) {
 		buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.GetMultiSignatureInfo().GetNonce())))
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetMultiSignatureInfo().GetAddresses()))))
 		for _, v := range tx.Body.GetMultiSignatureInfo().GetAddresses() {
-			buffer.Write([]byte(v))
+			buffer.Write(v)
 		}
 	} else {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldMissing))

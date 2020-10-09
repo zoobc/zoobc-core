@@ -67,7 +67,7 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
-		//STEF TODO: refactor this once the query has been split into two (cannot use string.Join on byte arrays)
+		// STEF TODO: refactor this once the query has been split into two (cannot use string.Join on byte arrays)
 		// strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
 		[]byte{},
 	))
@@ -1211,8 +1211,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxFail) ValidatePend
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress []byte,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -1225,8 +1224,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSig
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress []byte,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -1248,8 +1246,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingT
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress []byte,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -1899,7 +1896,7 @@ func TestPendingTransactionHelper_UndoApplyUnconfirmedPendingTransaction(t *test
 	}
 }
 
-//STEF TODO: add test for error condition (only needed for multisig. for now)
+// STEF TODO: add test for error condition (only needed for multisig. for now)
 func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                       int64

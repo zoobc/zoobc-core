@@ -34,7 +34,7 @@ func getBuildModelSuccessMockRows() *sql.Rows {
 		int64(10),
 		uint32(12),
 		true,
-		[]byte{}, //STEF TODO: refactor this after having split queries with group_concat
+		[]byte{}, // STEF TODO: refactor this after having split queries with group_concat
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -176,7 +176,7 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 	}
 }
 
-//STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
+// STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
 // func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 // 	type fields struct {
 // 		Fields    []string
@@ -371,7 +371,7 @@ func getNumberScanSuccessMockRow() *sql.Row {
 		int64(10),
 		uint32(12),
 		true,
-		[]byte{}, //STEF TODO: refactor this after having split the queries with group_concat
+		[]byte{}, // STEF TODO: refactor this after having split the queries with group_concat
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")
@@ -498,7 +498,7 @@ func TestNewMultisignatureInfoQuery(t *testing.T) {
 	}
 }
 
-//STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
+// STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
 // func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 // 	type fields struct {
 // 		Fields    []string

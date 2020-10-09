@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	mempoolTxApiSenderAccountAddress1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+	mempoolTxAPISenderAccountAddress1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
 		28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
-	mempoolTxApiRecipientAccountAddress1 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+	mempoolTxAPIRecipientAccountAddress1 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 )
 
@@ -83,8 +83,8 @@ func (*mockQueryExecutorGetMempoolTXs) ExecuteSelect(qStr string, tx bool, args 
 					1,
 					1000,
 					make([]byte, 88),
-					mempoolTxApiSenderAccountAddress1,
-					mempoolTxApiRecipientAccountAddress1,
+					mempoolTxAPISenderAccountAddress1,
+					mempoolTxAPIRecipientAccountAddress1,
 				))
 	}
 	return db.Query(qStr)
@@ -150,8 +150,8 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 						ID:                      1,
 						FeePerByte:              1,
 						ArrivalTimestamp:        1000,
-						SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
-						RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+						SenderAccountAddress:    mempoolTxAPISenderAccountAddress1,
+						RecipientAccountAddress: mempoolTxAPIRecipientAccountAddress1,
 						TransactionBytes:        make([]byte, 88),
 					},
 				},
@@ -166,7 +166,7 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetMempoolTransactionsRequest{
-					Address: mempoolTxApiSenderAccountAddress1,
+					Address: mempoolTxAPISenderAccountAddress1,
 				},
 			},
 			want: &model.GetMempoolTransactionsResponse{
@@ -176,8 +176,8 @@ func TestMempoolTransactionService_GetMempoolTransactions(t *testing.T) {
 						ID:                      1,
 						FeePerByte:              1,
 						ArrivalTimestamp:        1000,
-						SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
-						RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+						SenderAccountAddress:    mempoolTxAPISenderAccountAddress1,
+						RecipientAccountAddress: mempoolTxAPIRecipientAccountAddress1,
 						TransactionBytes:        make([]byte, 88),
 					},
 				},
@@ -233,8 +233,8 @@ func (*mockQueryExecutorGetMempoolTXSuccess) ExecuteSelectRow(qStr string, tx bo
 			1,
 			1000,
 			make([]byte, 88),
-			mempoolTxApiSenderAccountAddress1,
-			mempoolTxApiRecipientAccountAddress1,
+			mempoolTxAPISenderAccountAddress1,
+			mempoolTxAPIRecipientAccountAddress1,
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -288,8 +288,8 @@ func TestMempoolTransactionService_GetMempoolTransaction(t *testing.T) {
 					ID:                      1,
 					FeePerByte:              1,
 					ArrivalTimestamp:        1000,
-					SenderAccountAddress:    mempoolTxApiSenderAccountAddress1,
-					RecipientAccountAddress: mempoolTxApiRecipientAccountAddress1,
+					SenderAccountAddress:    mempoolTxAPISenderAccountAddress1,
+					RecipientAccountAddress: mempoolTxAPIRecipientAccountAddress1,
 					TransactionBytes:        make([]byte, 88),
 				},
 			},

@@ -46,7 +46,8 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
-//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
+// GetMultisignatureInfoByAddress
+// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	multisigAddress []byte,
 	currentHeight, limit uint32,
@@ -201,7 +202,7 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&addresses,
 	)
 
-	//STEF
+	// STEF
 	// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
 	// bufferBytes := bytes.NewBuffer(addresses)
 	//
@@ -241,7 +242,7 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 		if err != nil {
 			return nil, err
 		}
-		//STEF TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+		// STEF TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
 		// multisigInfo.Addresses = strings.Split(addresses, ",")
 		mss = append(mss, &multisigInfo)
 	}
@@ -267,7 +268,7 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 	}
 }
 
-//STEF TODO: split this query into two (cannot do group_concat with byte arrays)
+// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
 		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
