@@ -6,7 +6,6 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
-	"sort"
 	"sync"
 	"time"
 
@@ -186,9 +185,6 @@ func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.
 func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
-		bss.SortBlocksmiths(block, false)
-	}
 	var result = make([]*model.Blocksmith, len(bss.SortedBlocksmiths))
 	copy(result, bss.SortedBlocksmiths)
 	return result
@@ -201,54 +197,10 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) m
 	)
 	bss.SortedBlocksmithsLock.RLock()
 	defer bss.SortedBlocksmithsLock.RUnlock()
-	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
-		bss.SortBlocksmiths(block, false)
-	}
 	for k, v := range bss.SortedBlocksmithsMap {
 		result[k] = v
 	}
 	return result
-}
-
-// SortBlocksmiths sort the list of active node of current block height, index start from 0.
-func (bss *BlocksmithStrategyMain) SortBlocksmiths(block *model.Block, withLock bool) {
-	if block.ID == bss.LastSortedBlockID && block.ID != constant.MainchainGenesisBlockID {
-		return
-	}
-	// fetch valid blocksmiths
-	var blocksmiths []*model.Blocksmith
-	nextBlocksmiths, err := bss.GetBlocksmiths(block)
-	if err != nil {
-		bss.Logger.Errorf("SortBlocksmith (Main):GetBlocksmiths fail: %s", err)
-		return
-	}
-	// copy the nextBlocksmiths pointers array into an array of blocksmiths
-	blocksmiths = append(blocksmiths, nextBlocksmiths...)
-	// sort blocksmiths by SmithOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		if blocksmiths[i].BlockSeed == blocksmiths[j].BlockSeed {
-			return blocksmiths[i].NodeID < blocksmiths[j].NodeID
-		}
-		// ascending sort
-		return blocksmiths[i].BlockSeed < blocksmiths[j].BlockSeed
-	})
-
-	if withLock {
-		bss.SortedBlocksmithsLock.Lock()
-		defer bss.SortedBlocksmithsLock.Unlock()
-	}
-	// clean up bss.SortedBlocksmithsMap
-	bss.SortedBlocksmithsMap = make(map[string]*int64)
-	// copying the sorted list to map[string(publicKey)]index
-	for index, blocksmith := range blocksmiths {
-		blocksmithIndex := int64(index)
-		bss.SortedBlocksmithsMap[string(blocksmith.NodePublicKey)] = &blocksmithIndex
-	}
-	// set last sorted block id
-	bss.LastSortedBlockID = block.ID
-	bss.SortedBlocksmiths = blocksmiths
-
-	monitoring.SetNextSmith(blocksmiths, bss.SortedBlocksmithsMap)
 }
 
 // CalculateScore calculate the blocksmith score

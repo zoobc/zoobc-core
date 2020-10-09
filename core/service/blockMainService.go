@@ -750,8 +750,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
-	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
