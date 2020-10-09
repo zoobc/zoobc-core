@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -2920,11 +2922,14 @@ func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
 	return nil, nil
 }
 
-func (mrs *mockReceiptServiceSuccess) IsDuplicated([]byte, []byte) (duplicated bool, err error) {
+func (mrs *mockReceiptServiceSuccess) CheckDuplication([]byte, []byte) (err error) {
 	if mrs.WantDuplicated {
-		return true, nil
+		return blocker.NewBlocker(
+			blocker.DuplicateReceiptErr,
+			err.Error(),
+		)
 	}
-	return false, nil
+	return nil
 }
 
 func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
@@ -3332,6 +3337,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					TransactionIDs: []int64{
 						mockTransaction.GetID(),
 					},
+					BlockHash: mockLastBlockData.GetBlockHash(),
 				},
 				nodeSecretPhrase: "",
 			},

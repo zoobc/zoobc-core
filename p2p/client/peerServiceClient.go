@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -440,7 +439,12 @@ func (psc *PeerServiceClient) SendBlock(
 	if response == nil || response.BatchReceipt == nil {
 		return err
 	}
+
 	// validate receipt before storing
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	if err != nil {
+		return err
+	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
 		return err
@@ -482,6 +486,11 @@ func (psc *PeerServiceClient) SendTransaction(
 	if response == nil || response.BatchReceipt == nil {
 		return nil
 	}
+
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	if err != nil {
+		return err
+	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
 		return err
@@ -521,9 +530,18 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 		return nil
 	}
 
+	// continue even though some receipts are failing
 	for _, batchReceipt := range response.BatchReceipts {
-		// continue even though some receipts are failing
-		_ = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, batchReceipt.GetDatumHash())
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
+			continue
+		}
+		err = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
+			continue
+		}
 		_ = psc.storeReceipt(batchReceipt)
 	}
 	return err
@@ -727,15 +745,7 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
 
-	duplicated, err := psc.ReceiptService.IsDuplicated(psc.NodePublicKey, batchReceipt.GetDatumHash())
-	if err != nil {
-		return err
-	}
-	if duplicated {
-		return errors.New("duplicated receipt")
-	}
-
-	err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
+	var err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
 	if err != nil {
 		return err
 	}

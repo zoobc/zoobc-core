@@ -30,7 +30,7 @@ var (
 	AuthErr                   TypeBlocker = "AuthErr"
 	ValidationErr             TypeBlocker = "ValidationErr"
 	DuplicateMempoolErr       TypeBlocker = "DuplicateMempoolErr"
-	DuplicateTransactionErr   TypeBlocker = "DuplicateTransactionErr"
+	DuplicateReceiptErr       TypeBlocker = "DuplicateReceiptErr"
 	ParserErr                 TypeBlocker = "ParserErr"
 	ServerError               TypeBlocker = "ServerError"
 	SmithingErr               TypeBlocker = "SmithingErr"
