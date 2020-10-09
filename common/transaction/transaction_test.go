@@ -308,7 +308,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    senderAddress1,
+					SenderAccountAddress:    senderAddress2,
 					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
@@ -352,7 +352,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                 mockRemoveAccountDatasetBody,
 				Height:               5,
 				SenderAddress:        senderAddress1,
-				RecipientAddress:     recipientAddress1,
+				RecipientAddress:     nil,
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,

@@ -191,12 +191,12 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if err != nil {
 		return nil, err
 	}
-	recipientAddress, err := recipientAccType.GetAccountAddress()
-	if err != nil {
-		return nil, err
+	if recipientAccType.GetTypeInt() != int32(model.AccountType_EmptyAccountType) {
+		transaction.RecipientAccountAddress, err = recipientAccType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
 	}
-	transaction.RecipientAccountAddress = recipientAddress
-
 	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.Fee))
 	if err != nil {
 		return nil, err
@@ -223,14 +223,12 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if err != nil {
 		return nil, err
 	}
-	approverAddress, err := approverAccType.GetAccountAddress()
-	if err != nil {
-		return nil, err
-	}
-
 	// if approver account is empty (== empty account type), then skip the escrow part
 	if approverAccType.GetTypeInt() != int32(model.AccountType_EmptyAccountType) {
-		escrow.ApproverAddress = approverAddress
+		escrow.ApproverAddress, err = approverAccType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
 
 		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowCommissionLength))
 		if err != nil {

@@ -11,8 +11,8 @@ import (
 
 var (
 	// ZBC_D2EDT53U_5VSQXGQD_COZMETMY_FUVV23NQ_UPLXTR7F_6LKVWNNF_J2SPLUDQ
-	senderAddress1 = []byte{0, 0, 0, 0, 30, 136, 57, 247, 116, 237, 101, 11, 154, 3, 19, 178, 194, 77, 152, 45, 43, 93, 109, 176, 163, 215,
-		121, 199, 229, 242, 213, 91, 53, 165, 78, 164}
+	senderAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+		229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
 	senderAddress1PassPhrase = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	// ZBC_BZP2BUBM_NIFDFNSM_BP7J2K5H_RXSPH5OT_2WTPVIUU_KLH6I3DZ_TTD6XEHE
 	senderAddress2 = []byte{0, 0, 0, 0, 14, 95, 160, 208, 44, 106, 10, 50, 182, 76, 11, 254, 157, 43, 167, 141, 228, 243, 245, 211, 213,
@@ -361,12 +361,6 @@ func GetFixtureForSpecificTransaction(
 		TransactionIndex:        0,
 		TransactionBody:         transactionBody,
 		Signature:               nil,
-		Escrow: &model.Escrow{
-			ApproverAddress: nil,
-			Commission:      0,
-			Timeout:         0,
-			Instruction:     "",
-		},
 	}
 
 	if escrow {
