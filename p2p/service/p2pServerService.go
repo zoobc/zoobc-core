@@ -387,20 +387,20 @@ func (ps *P2PServerService) GetNextBlocks(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		block, err := blockService.GetBlockByID(blockID, false)
+		commonBlock, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
+		blocks, err := blockService.GetBlocksFromHeight(commonBlock.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
-		for idx := range blocks {
+		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
 			}
-			blocksMessage = append(blocksMessage, blocks[idx])
+			blocksMessage = append(blocksMessage, block)
 		}
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
