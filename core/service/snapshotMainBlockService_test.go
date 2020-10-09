@@ -505,6 +505,10 @@ func (*mockBlockMainServiceSuccess) UpdateLastBlockCache(block *model.Block) err
 	return nil
 }
 
+func (*mockBlockMainServiceSuccess) InitializeBlocksCache() error {
+	return nil
+}
+
 func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
 	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
 	return mockedBlock, nil

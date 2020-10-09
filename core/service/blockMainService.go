@@ -86,6 +86,7 @@ type (
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		PruneQuery                  []query.PruneQuery
 		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
 		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
@@ -126,6 +127,7 @@ func NewBlockMainService(
 	feeScaleService fee.FeeScaleServiceInterface,
 	pruneQuery []query.PruneQuery,
 	blockStateStorage storage.CacheStorageInterface,
+	blocksStorage storage.CacheStackStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 ) *BlockService {
@@ -164,6 +166,7 @@ func NewBlockMainService(
 		FeeScaleService:             feeScaleService,
 		PruneQuery:                  pruneQuery,
 		BlockStateStorage:           blockStateStorage,
+		BlocksStorage:               blocksStorage,
 		BlockchainStatusService:     blockchainStatusService,
 		ScrambleNodeService:         scrambleNodeService,
 	}
@@ -751,10 +754,20 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Logger.Warnf("FailedUpdateLastblockCache-%v", err)
 		_ = bs.UpdateLastBlockCache(nil)
 	}
+	// cache last block into blocks cache storage
+	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
+		Height:    block.Height,
+		BlockHash: block.BlockHash,
+		ID:        block.ID,
+	})
+	if err != nil {
+		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
+		_ = bs.InitializeBlocksCache()
+	}
 	// cache next node admissiom timestamp
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nodeAdmissionTimestamp)
 	if err != nil {
-		bs.Logger.Warnf("FailedUpdateLastblockCache-%v", err)
+		bs.Logger.Warnf("FailedNextNodeAdmissionCache-%v", err)
 		_ = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
@@ -971,11 +984,10 @@ func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Bl
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
 	}
 	if withAttachedData {
-		var transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
+		err = bs.PopulateBlockData(&block)
 		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			return nil, err
 		}
-		block.Transactions = transactions
 	}
 	return &block, nil
 }
@@ -1028,25 +1040,21 @@ func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
 	return commonUtils.GetBlockHash(block, bs.GetChainType())
 }
 
-// GetBlockByHeight return the last pushed block
+// GetBlockByHeight return block by provided height
 func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	var (
-		transactions []*model.Transaction
-		block        *model.Block
-		err          error
+		block *model.Block
+		err   error
 	)
 
 	block, err = commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
 		return nil, err
 	}
-
-	transactions, err = bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
+	err = bs.PopulateBlockData(block)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, err
 	}
-	block.Transactions = transactions
-
 	return block, nil
 }
 
@@ -1126,6 +1134,39 @@ func (bs *BlockService) UpdateLastBlockCache(block *model.Block) error {
 	err = bs.BlockStateStorage.SetItem(nil, *lastBlock)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (bs *BlockService) InitializeBlocksCache() error {
+	var err = bs.BlocksStorage.Clear()
+	if err != nil {
+		return err
+	}
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	var firstBlocksHeightCache uint32 = 0
+	if lastBlock.Height > constant.MaxBlocksCacheStorage {
+		firstBlocksHeightCache = lastBlock.Height - constant.MaxBlocksCacheStorage
+	}
+	var (
+		blocks []*model.Block
+	)
+	blocks, err = bs.GetBlocksFromHeight(firstBlocksHeightCache, constant.MaxBlocksCacheStorage, false)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(blocks); i++ {
+		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
+			Height:    blocks[i].Height,
+			BlockHash: blocks[i].BlockHash,
+			ID:        blocks[i].ID,
+		})
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -1471,6 +1512,10 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// cache last block state
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(nil)
+	if err != nil {
+		return nil, err
+	}
+	err = bs.BlocksStorage.PopTo(commonBlock.Height)
 	if err != nil {
 		return nil, err
 	}

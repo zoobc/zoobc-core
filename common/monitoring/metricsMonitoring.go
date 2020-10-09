@@ -563,6 +563,7 @@ var (
 	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
 	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
 	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
+	TypeBlocksCacheStorage          CacheStorageType = "blocks_cache_object"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {

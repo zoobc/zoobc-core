@@ -556,6 +556,10 @@ func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
 	return nil
 }
 
+func (bs *BlockSpineService) InitializeBlocksCache() error {
+	return nil
+}
+
 // GetPayloadHashAndLength compute and return the block's payload hash
 func (bs *BlockSpineService) GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error) {
 	var (
