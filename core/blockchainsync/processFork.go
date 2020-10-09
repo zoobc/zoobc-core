@@ -230,56 +230,51 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		txBytes []byte
 		txType  transaction.TypeAction
 	)
+	err = fp.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	for _, tx := range txs {
 		// Validate Tx
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:GetTransactionType - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:GetTransactionBytes - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:ValidateMempoolTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
-		// Apply Unconfirmed
-		err = fp.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
+
 		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
-				return errRollback
-			}
-			return err
+			fp.Logger.Warnf("ProcessLater:ApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 		err = fp.MempoolService.AddMempoolTransaction(tx, txBytes)
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
-				return err
-			}
-			return err
+			fp.Logger.Warnf("ProcessLater:AddMempoolFail - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
-		err = fp.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
+
 	}
-	return nil
+	err = fp.QueryExecutor.CommitTx()
+	return err
 }
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 	// TODO: analyze if this mechanism is necessary
 }
 
-// restoreMempoolsBackup will restore transactio and try to re-ApplyUnconfirmed
+// restoreMempoolsBackup will restore transactions and try to re-ApplyUnconfirmed
 func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
@@ -291,73 +286,55 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 	if err != nil {
 		return err
 	}
-
-	for mempoolID := range mempools {
-		var (
-			tx     *model.Transaction
-			txType transaction.TypeAction
-		)
-
-		tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
-		if err != nil {
-			fp.Logger.Warnf(err.Error())
-			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
-				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
-			}
-			continue
-		}
-
-		err = fp.MempoolService.ValidateMempoolTransaction(tx)
-		if err != nil {
-			// no need to break the process in this case
-			fp.Logger.Warnf(err.Error())
-			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
-				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
-			}
-			continue
-		}
-
-		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			fp.Logger.Warnf(err.Error())
-			if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
-				fp.Logger.Warnf("Failed remove backup mempool ID: %d; %s", tx.GetID(), removeErr.Error())
-			}
-			continue
-		}
-		// Apply Unconfirmed
-		err = fp.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
-		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
-			fp.Logger.Warnf("error when ApplyUnconfirmedTransaction: %v", err)
-			continue
-		}
-		err = fp.MempoolService.AddMempoolTransaction(tx, mempools[mempoolID])
-		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
-			fp.Logger.Warnf("error when AddMempoolTransaction: %v", err)
-			continue
-
-		}
-		err = fp.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-		err = fp.MempoolBackupStorage.RemoveItem(mempoolID)
-		if err != nil {
-			fp.Logger.Warnf(err.Error())
-			continue
-		}
+	// Apply Unconfirmed // todo-fuck: finding #1
+	err = fp.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
 	}
-	return nil
+	for id := range mempools {
+		func(mempoolID int64) {
+			var (
+				tx     *model.Transaction
+				txType transaction.TypeAction
+			)
+
+			defer func() {
+				if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
+					fp.Logger.Warnf("restoreMemmpoolBackup - mempool ID: %d; %s", tx.GetID(), removeErr.Error())
+				}
+			}()
+			tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
+			if err != nil {
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			err = fp.MempoolService.ValidateMempoolTransaction(tx)
+			if err != nil {
+				// no need to break the process in this case
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
+			if err != nil {
+				fp.Logger.Warnf("restoreMempoolsBackup:ApplyUnconfirmedTransaction: %v", err)
+				return
+			}
+			err = fp.MempoolService.AddMempoolTransaction(tx, mempools[mempoolID])
+			if err != nil {
+				fp.Logger.Warnf("error when AddMempoolTransaction: %v", err)
+				return
+			}
+		}(id)
+
+	}
+	err = fp.QueryExecutor.CommitTx()
+	return err
 }

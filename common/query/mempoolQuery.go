@@ -17,7 +17,6 @@ type (
 		DeleteMempoolTransaction() string
 		DeleteMempoolTransactions([]string) string
 		DeleteExpiredMempoolTransactions(expiration int64) string
-		GetExpiredMempoolTransactions(expiration int64) string
 		GetMempoolTransactionsWantToByHeight(height uint32) (qStr string)
 		ExtractModel(block *model.MempoolTransaction) []interface{}
 		BuildModel(mempools []*model.MempoolTransaction, rows *sql.Rows) ([]*model.MempoolTransaction, error)
@@ -57,7 +56,7 @@ func (mpq *MempoolQuery) GetMempoolTransactions() string {
 	return fmt.Sprintf("SELECT %s FROM %s ORDER BY fee_per_byte DESC", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
 
-// GetMempoolTransactions returns query string to get multiple mempool transactions
+// GetMempoolTransaction returns query string to get multiple mempool transactions
 func (mpq *MempoolQuery) GetMempoolTransaction() string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE id = :id", strings.Join(mpq.Fields, ", "), mpq.getTableName())
 }
@@ -76,7 +75,7 @@ func (mpq *MempoolQuery) DeleteMempoolTransaction() string {
 	return fmt.Sprintf("DELETE FROM %s WHERE id = :id", mpq.getTableName())
 }
 
-// DeleteMempoolTransaction delete one mempool transaction by id
+// DeleteMempoolTransactions delete one mempool transaction by id
 func (mpq *MempoolQuery) DeleteMempoolTransactions(idsStr []string) string {
 	return fmt.Sprintf("DELETE FROM %s WHERE id IN (%s)", mpq.getTableName(), strings.Join(idsStr, ","))
 }
@@ -85,16 +84,6 @@ func (mpq *MempoolQuery) DeleteMempoolTransactions(idsStr []string) string {
 func (mpq *MempoolQuery) DeleteExpiredMempoolTransactions(expiration int64) string {
 	return fmt.Sprintf(
 		"DELETE FROM %s WHERE arrival_timestamp <= %d",
-		mpq.getTableName(),
-		expiration,
-	)
-}
-
-// GetExpiredMempoolTransactions build query for select * where arrival_timestamp <= foo
-func (mpq *MempoolQuery) GetExpiredMempoolTransactions(expiration int64) string {
-	return fmt.Sprintf(
-		"SELECT %s FROM %s WHERE arrival_timestamp <= %d",
-		strings.Join(mpq.Fields, ", "),
 		mpq.getTableName(),
 		expiration,
 	)

@@ -283,11 +283,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		highestBlock *model.Block
 	)
 
-	err := ss.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		var (
 			qry = snapshotQuery.TrimDataBeforeSnapshot(0, height)
@@ -441,7 +436,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		}
 	}
-
+	err := ss.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	err = ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		rollbackErr := ss.QueryExecutor.RollbackTx()
