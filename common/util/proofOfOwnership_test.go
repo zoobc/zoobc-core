@@ -111,14 +111,14 @@ func TestParseProofOfOwnershipMessageBytes(t *testing.T) {
 		},
 		{
 			name:    "ParseProofOfOwnershipMessageBytes:fail - no block hash",
-			args:    args{poownMessageBytes: poownMessageBytes[:len([]byte(poownMessage.AccountAddress))]},
+			args:    args{poownMessageBytes: poownMessageBytes[:len(poownMessage.AccountAddress)]},
 			want:    nil,
 			wantErr: true,
 		},
 		{
 			name: "ParseProofOfOwnershipMessageBytes:fail - no block height",
 			args: args{
-				poownMessageBytes: poownMessageBytes[:(len([]byte(poownMessage.AccountAddress)) +
+				poownMessageBytes: poownMessageBytes[:(len(poownMessage.AccountAddress) +
 					int(constant.BlockHash))],
 			},
 			want:    nil,

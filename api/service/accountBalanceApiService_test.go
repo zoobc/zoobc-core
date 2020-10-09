@@ -26,7 +26,8 @@ type (
 )
 
 var (
-	accBalanceAccountAddress1 = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229, 116, 202,
+	accBalanceAccountAddress1 = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140,
+		183, 229, 116, 202,
 		211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
 	mockAccountBalanceQuery = query.NewAccountBalanceQuery()
 )

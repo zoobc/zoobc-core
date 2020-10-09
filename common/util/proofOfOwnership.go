@@ -58,7 +58,7 @@ func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, err
 // GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
 func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write([]byte(poownMessage.AccountAddress))
+	buffer.Write(poownMessage.AccountAddress)
 	buffer.Write(poownMessage.BlockHash)
 	buffer.Write(ConvertUint32ToBytes(poownMessage.BlockHeight))
 	return buffer.Bytes()
