@@ -210,10 +210,10 @@ func (tx *LiquidPaymentStopTransaction) ParseBodyBytes(txBodyBytes []byte) (mode
 	}, nil
 }
 
-func (tx *LiquidPaymentStopTransaction) GetBodyBytes() []byte {
+func (tx *LiquidPaymentStopTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.TransactionID)))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *LiquidPaymentStopTransaction) GetTransactionBody(transaction *model.Transaction) {

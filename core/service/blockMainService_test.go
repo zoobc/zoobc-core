@@ -230,8 +230,8 @@ var (
 			Amount: 10,
 		},
 	}
-	mockSendMoneyTxBodyBytes = mockSendMoneyTxBody.GetBodyBytes()
-	mockTransaction          = &model.Transaction{
+	mockSendMoneyTxBodyBytes, _ = mockSendMoneyTxBody.GetBodyBytes()
+	mockTransaction             = &model.Transaction{
 		ID:      1,
 		BlockID: 1,
 		Height:  0,
@@ -3630,7 +3630,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    6814267491716457933,
+			want:    -8874904806100897508,
 		},
 	}
 	for _, tt := range tests {

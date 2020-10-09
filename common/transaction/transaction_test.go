@@ -64,6 +64,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	type args struct {
 		tx *model.Transaction
 	}
+
+	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
+		Body: feeVoteRevealBody,
+	}).GetBodyBytes()
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -455,10 +460,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					TransactionBody: &model.Transaction_FeeVoteRevealTransactionBody{
 						FeeVoteRevealTransactionBody: feeVoteRevealBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
-					TransactionBodyBytes: (&FeeVoteRevealTransaction{
-						Body: feeVoteRevealBody,
-					}).GetBodyBytes(),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
+					TransactionBodyBytes: txBodyBytes1,
 				},
 			},
 			want: &FeeVoteRevealTransaction{

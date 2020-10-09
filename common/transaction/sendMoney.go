@@ -184,10 +184,10 @@ func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyIn
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *SendMoney) GetBodyBytes() []byte {
+func (tx *SendMoney) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf

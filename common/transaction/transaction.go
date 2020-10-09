@@ -27,7 +27,7 @@ type (
 		GetAmount() int64
 		GetSize() (uint32, error)
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
-		GetBodyBytes() []byte
+		GetBodyBytes() ([]byte, error)
 		GetTransactionBody(transaction *model.Transaction)
 		SkipMempoolTransaction(
 			selectedTransactions []*model.Transaction,

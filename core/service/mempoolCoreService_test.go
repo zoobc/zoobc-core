@@ -1159,12 +1159,16 @@ func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(fe
 }
 
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
+	var (
+		senderAccountAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+		recipientAccountAddress = []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	)
 	successTx := transaction.GetFixturesForTransaction(
 		1562893302,
-		[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
-			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		senderAccountAddress,
+		recipientAccountAddress,
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)

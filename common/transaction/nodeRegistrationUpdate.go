@@ -349,13 +349,13 @@ func (tx *UpdateNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *UpdateNodeRegistration) GetBodyBytes() []byte {
+func (tx *UpdateNodeRegistration) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *UpdateNodeRegistration) GetTransactionBody(transaction *model.Transaction) {

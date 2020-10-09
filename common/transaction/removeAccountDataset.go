@@ -182,7 +182,11 @@ func (tx *RemoveAccountDataset) GetMinimumFee() (int64, error) {
 
 // GetSize is size of transaction body
 func (tx *RemoveAccountDataset) GetSize() (uint32, error) {
-	return uint32(len(tx.GetBodyBytes())), nil
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -222,7 +226,7 @@ func (tx *RemoveAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transa
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
+func (tx *RemoveAccountDataset) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))
@@ -230,7 +234,7 @@ func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetValue())))))
 	buffer.Write([]byte(tx.Body.GetValue()))
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody return transaction body of RemoveAccountDataset transactions

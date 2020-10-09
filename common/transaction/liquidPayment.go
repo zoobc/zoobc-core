@@ -157,11 +157,11 @@ func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 	}, nil
 }
 
-func (tx *LiquidPaymentTransaction) GetBodyBytes() []byte {
+func (tx *LiquidPaymentTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
 	buffer.Write(util.ConvertUint64ToBytes(tx.Body.CompleteMinutes))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *LiquidPaymentTransaction) GetTransactionBody(transaction *model.Transaction) {

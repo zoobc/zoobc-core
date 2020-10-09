@@ -206,7 +206,11 @@ func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
 
 // GetSize is size of transaction body
 func (tx *FeeVoteCommitTransaction) GetSize() (uint32, error) {
-	return uint32(len(tx.GetBodyBytes())), nil
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -224,10 +228,10 @@ func (tx *FeeVoteCommitTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeVoteCommitTransaction) GetBodyBytes() []byte {
+func (tx *FeeVoteCommitTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.VoteHash)
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody return transaction body of FeeVoteCommitTransaction transactions

@@ -243,10 +243,10 @@ func (tx *RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *RemoveNodeRegistration) GetBodyBytes() []byte {
+func (tx *RemoveNodeRegistration) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *RemoveNodeRegistration) GetTransactionBody(transaction *model.Transaction) {

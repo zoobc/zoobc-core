@@ -1058,7 +1058,7 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LiquidPaymentStop.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

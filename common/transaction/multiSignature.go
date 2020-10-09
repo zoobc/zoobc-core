@@ -711,7 +711,8 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 			if err != nil {
 				return nil, err
 			}
-			signatures[string(address)] = signature
+			// encode address to hex string to be able to build the map (signature order must be preserved, so we can't use slices)
+			signatures[hex.EncodeToString(address)] = signature
 		}
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
@@ -726,7 +727,7 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 	}, nil
 }
 
-func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
+func (tx *MultiSignatureTransaction) GetBodyBytes() ([]byte, error) {
 	var (
 		buffer = bytes.NewBuffer([]byte{})
 	)
@@ -750,8 +751,12 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldPresent))
 		buffer.Write(tx.Body.GetSignatureInfo().GetTransactionHash())
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetSignatureInfo().GetSignatures()))))
-		for address, sig := range tx.Body.GetSignatureInfo().GetSignatures() {
-			buffer.Write([]byte(address))
+		for addressHex, sig := range tx.Body.GetSignatureInfo().GetSignatures() {
+			accountAddress, err := hex.DecodeString(addressHex)
+			if err != nil {
+				return nil, err
+			}
+			buffer.Write(accountAddress)
 			buffer.Write(util.ConvertUint32ToBytes(uint32(len(sig))))
 			buffer.Write(sig)
 		}
@@ -759,7 +764,7 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldMissing))
 	}
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *MultiSignatureTransaction) GetTransactionBody(transaction *model.Transaction) {

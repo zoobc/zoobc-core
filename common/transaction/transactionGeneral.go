@@ -68,7 +68,7 @@ type (
 // GetTransactionBytes translate transaction model to its byte representation
 // provide sign = true to translate transaction with its signature, sign = false
 // for without signature (used for verify signature)
-func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]byte, error) {
+func (*Util) GetTransactionBytes(transaction *model.Transaction, signed bool) ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(transaction.TransactionType))
 	buffer.Write(util.ConvertUint32ToBytes(transaction.Version)[:constant.TransactionVersion])
@@ -124,7 +124,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, sign bool) ([]b
 		buffer.Write(emptyAccAddr)
 	}
 
-	if sign {
+	if signed {
 		if transaction.Signature == nil {
 			return nil, errors.New("TransactionSignatureNotExist")
 		}

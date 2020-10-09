@@ -348,14 +348,14 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *NodeRegistration) GetBodyBytes() []byte {
+func (tx *NodeRegistration) GetBodyBytes() ([]byte, error) {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	buffer.Write(tx.Body.AccountAddress)
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {

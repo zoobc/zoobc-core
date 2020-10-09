@@ -437,7 +437,7 @@ func TestClaimNodeRegistration_GetBodyBytes(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ClaimNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

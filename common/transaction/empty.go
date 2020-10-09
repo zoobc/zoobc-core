@@ -52,8 +52,8 @@ func (*TXEmpty) ParseBodyBytes([]byte) (model.TransactionBodyInterface, error) {
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (*TXEmpty) GetBodyBytes() []byte {
-	return []byte{}
+func (*TXEmpty) GetBodyBytes() ([]byte, error) {
+	return []byte{}, nil
 }
 
 func (*TXEmpty) GetTransactionBody(*model.Transaction) {}

@@ -236,7 +236,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RemoveNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

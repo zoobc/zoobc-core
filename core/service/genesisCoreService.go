@@ -130,6 +130,11 @@ func GetGenesisNodeRegistrationTx(
 		return nil, err
 	}
 
+	nodeRegistrationTxBodyBytes, err := nodeRegistration.GetBodyBytes()
+	if err != nil {
+		return nil, err
+	}
+
 	genesisTx := &model.Transaction{
 		Version:                 1,
 		TransactionType:         util.ConvertBytesToUint32([]byte{2, 0, 0, 0}),
@@ -142,7 +147,7 @@ func GetGenesisNodeRegistrationTx(
 		TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 			NodeRegistrationTransactionBody: nodeRegistration.Body,
 		},
-		TransactionBodyBytes: nodeRegistration.GetBodyBytes(),
+		TransactionBodyBytes: nodeRegistrationTxBodyBytes,
 		Signature:            constant.MainchainGenesisTransactionSignature,
 	}
 

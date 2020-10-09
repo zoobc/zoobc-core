@@ -1,7 +1,9 @@
 package transaction
 
 import (
+	"bytes"
 	"golang.org/x/crypto/sha3"
+	"log"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -14,6 +16,7 @@ var (
 	// ZBC_D2EDT53U_5VSQXGQD_COZMETMY_FUVV23NQ_UPLXTR7F_6LKVWNNF_J2SPLUDQ
 	senderAddress1 = []byte{0, 0, 0, 0, 30, 136, 57, 247, 116, 237, 101, 11, 154, 3, 19, 178, 194, 77, 152, 45, 43, 93, 109, 176, 163, 215,
 		121, 199, 229, 242, 213, 91, 53, 165, 78, 164}
+	senderAddress1PassPhrase = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	// ZBC_BZP2BUBM_NIFDFNSM_BP7J2K5H_RXSPH5OT_2WTPVIUU_KLH6I3DZ_TTD6XEHE
 	senderAddress2 = []byte{0, 0, 0, 0, 14, 95, 160, 208, 44, 106, 10, 50, 182, 76, 11, 254, 157, 43, 167, 141, 228, 243, 245, 211, 213,
 		166, 250, 162, 148, 82, 207, 228, 108, 121, 156, 199}
@@ -108,7 +111,7 @@ func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistration
 		Body:                  txBody,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
 }
 
@@ -140,7 +143,7 @@ func GetFixturesForUpdateNoderegistration(nodeRegistrationQuery query.NodeRegist
 		Body:                  txBody,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
 }
 
@@ -169,7 +172,7 @@ func GetFixturesForClaimNoderegistration() (
 	nr := ClaimNodeRegistration{
 		Body: txBody,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return
 }
 
@@ -184,7 +187,7 @@ func GetFixturesForRemoveNoderegistration() (
 	nr := RemoveNodeRegistration{
 		Body: txBody,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return txBody, txBodyBytes
 }
 
@@ -200,7 +203,8 @@ func GetFixturesForSetupAccountDataset() (
 	sa := SetupAccountDataset{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForRemoveAccountDataset() (
@@ -215,7 +219,8 @@ func GetFixturesForRemoveAccountDataset() (
 	ra := RemoveAccountDataset{
 		Body: txBody,
 	}
-	return txBody, ra.GetBodyBytes()
+	txBodyBytes, _ = ra.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes []byte, hashed [32]byte) {
@@ -273,7 +278,7 @@ func GetFixturesForSignedMempoolTransaction(
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	txBytesHash := sha3.Sum256(txBytes)
 	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+		senderAddress1PassPhrase)
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
@@ -298,7 +303,8 @@ func GetFixturesForApprovalEscrowTransaction() (
 	sa := ApprovalEscrowTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForLiquidPaymentTransaction() (
@@ -313,7 +319,9 @@ func GetFixturesForLiquidPaymentTransaction() (
 	sa := LiquidPaymentTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
+
 }
 
 func GetFixturesForLiquidPaymentStopTransaction() (
@@ -327,7 +335,8 @@ func GetFixturesForLiquidPaymentStopTransaction() (
 	sa := LiquidPaymentStopTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixtureForSpecificTransaction(
@@ -375,10 +384,13 @@ func GetFixtureForSpecificTransaction(
 	var transactionUtil = &Util{}
 	transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, false)
 	if sign {
+		if !bytes.Equal(tx.SenderAccountAddress, senderAddress1) {
+			log.Fatalf("sender account must be: %v", senderAddress1)
+		}
 		tx.Signature, _ = (&crypto.Signature{}).Sign(
 			transactionBytes,
 			model.SignatureType_DefaultSignature,
-			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			senderAddress1PassPhrase,
 		)
 		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 		hashed := sha3.Sum256(transactionBytes)
@@ -387,6 +399,29 @@ func GetFixtureForSpecificTransaction(
 	}
 	tx.TransactionBody = nil
 	return tx, transactionBytes
+}
+
+func GetFixtureForSpecificTransactionWithTxBodyAndSignature(
+	tx model.Transaction,
+) (*model.Transaction, []byte) {
+	var (
+		transactionBytes []byte
+	)
+	if !bytes.Equal(tx.SenderAccountAddress, senderAddress1) {
+		log.Fatalf("sender account must be: %v", senderAddress1)
+	}
+	var transactionUtil = &Util{}
+	transactionBytes, _ = transactionUtil.GetTransactionBytes(&tx, false)
+	tx.Signature, _ = (&crypto.Signature{}).Sign(
+		transactionBytes,
+		model.SignatureType_DefaultSignature,
+		senderAddress1PassPhrase,
+	)
+	transactionBytes, _ = transactionUtil.GetTransactionBytes(&tx, true)
+	hashed := sha3.Sum256(transactionBytes)
+	tx.TransactionHash = hashed[:]
+	tx.TransactionBody = nil
+	return &tx, transactionBytes
 }
 
 func GetFixturesForBlock(height uint32, id int64) *model.Block {
@@ -426,7 +461,8 @@ func GetFixtureForFeeVoteCommitTransaction(
 	sa := FeeVoteCommitTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixtureForFeeVoteRevealTransaction(

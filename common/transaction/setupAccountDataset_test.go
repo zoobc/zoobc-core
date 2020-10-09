@@ -602,7 +602,7 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SetupAccountDataset.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

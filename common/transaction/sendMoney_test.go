@@ -569,7 +569,7 @@ func TestSendMoney_GetBodyBytes(t *testing.T) {
 				Height:           tt.fields.Height,
 				QueryExecutor:    tt.fields.QueryExecutor,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

@@ -254,12 +254,12 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *ClaimNodeRegistration) GetBodyBytes() []byte {
+func (tx *ClaimNodeRegistration) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *ClaimNodeRegistration) GetTransactionBody(transaction *model.Transaction) {

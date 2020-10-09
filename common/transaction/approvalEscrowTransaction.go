@@ -79,11 +79,11 @@ func (tx *ApprovalEscrowTransaction) GetAmount() int64 {
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *ApprovalEscrowTransaction) GetBodyBytes() []byte {
+func (tx *ApprovalEscrowTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(tx.Body.GetApproval())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.GetTransactionID())))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf

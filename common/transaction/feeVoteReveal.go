@@ -264,14 +264,14 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeVoteRevealTransaction) GetBodyBytes() []byte {
+func (tx *FeeVoteRevealTransaction) GetBodyBytes() ([]byte, error) {
 	buff := bytes.NewBuffer([]byte{})
 	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.VoterSignature))))
 	buff.Write(tx.Body.VoterSignature)
-	return buff.Bytes()
+	return buff.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf
@@ -344,7 +344,11 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 // GetSize send money Amount should be 8
 func (tx *FeeVoteRevealTransaction) GetSize() (uint32, error) {
 	// only amount
-	return uint32(len(tx.GetBodyBytes())), nil
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option

@@ -1082,7 +1082,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("UpdateNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

@@ -1554,7 +1554,7 @@ func TestNodeRegistration_GetBodyBytes(t *testing.T) {
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			if got := n.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := n.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})

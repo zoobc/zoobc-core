@@ -49,7 +49,7 @@ func GenerateTxRegisterNode(
 		LockedBalance: lockedBalance,
 		Poown:         proofOfOwnerShip,
 	}
-	txBodyBytes := (&transaction.NodeRegistration{
+	txBodyBytes, _ := (&transaction.NodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -79,7 +79,7 @@ func GenerateTxUpdateNode(
 		LockedBalance: lockedBalance,
 		Poown:         proofOfOwnerShip,
 	}
-	txBodyBytes := (&transaction.UpdateNodeRegistration{
+	txBodyBytes, _ := (&transaction.UpdateNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -101,7 +101,7 @@ func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Trans
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
-	txBodyBytes := (&transaction.RemoveNodeRegistration{
+	txBodyBytes, _ := (&transaction.RemoveNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -129,7 +129,7 @@ func GenerateTxClaimNode(
 			NodePublicKey: nodePubKey,
 			Poown:         proofOfOwnerShip,
 		}
-		txBodyBytes = (&transaction.ClaimNodeRegistration{
+		txBodyBytes, _ = (&transaction.ClaimNodeRegistration{
 			Body: txBody,
 		}).GetBodyBytes()
 	)
@@ -172,7 +172,7 @@ func GenerateTxSetupAccountDataset(
 		Property: property,
 		Value:    value,
 	}
-	txBodyBytes := (&transaction.SetupAccountDataset{
+	txBodyBytes, _ := (&transaction.SetupAccountDataset{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -197,7 +197,7 @@ func GenerateTxRemoveAccountDataset(
 		Property: property,
 		Value:    value,
 	}
-	txBodyBytes := (&transaction.RemoveAccountDataset{
+	txBodyBytes, _ := (&transaction.RemoveAccountDataset{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -387,7 +387,7 @@ func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction
 		Approval:      chosen,
 		TransactionID: transactionID,
 	}
-	txBodyBytes := (&transaction.ApprovalEscrowTransaction{
+	txBodyBytes, _ := (&transaction.ApprovalEscrowTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -496,9 +496,11 @@ func GeneratedMultiSignatureTransaction(
 		UnsignedTransactionBytes: unsignedTx,
 		SignatureInfo:            signatureInfo,
 	}
-	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
+	if tx.TransactionBodyBytes, err = (&transaction.MultiSignatureTransaction{
 		Body: txBody,
-	}).GetBodyBytes()
+	}).GetBodyBytes(); err != nil {
+		panic(err)
+	}
 	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
 	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
 	return tx
@@ -508,7 +510,7 @@ func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *mod
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
-	txBodyBytes := (&transaction.RemoveNodeRegistration{
+	txBodyBytes, _ := (&transaction.RemoveNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -534,7 +536,7 @@ func GenerateTxFeeVoteCommitment(
 		txBody = &model.FeeVoteCommitTransactionBody{
 			VoteHash: voteHash,
 		}
-		txBodyBytes = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
+		txBodyBytes, _ = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
 	)
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommit"])
 	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
@@ -552,7 +554,7 @@ func GenerateTxFeeVoteRevealPhase(tx *model.Transaction, voteInfo *model.FeeVote
 			FeeVoteInfo:    voteInfo,
 			VoterSignature: voteInfoSigned,
 		}
-		txBodyBytes = (&transaction.FeeVoteRevealTransaction{
+		txBodyBytes, _ = (&transaction.FeeVoteRevealTransaction{
 			Body: txBody,
 		}).GetBodyBytes()
 	)
@@ -575,7 +577,7 @@ func GenerateTxLiquidPayment(tx *model.Transaction, sendAmount int64, completeMi
 	tx.TransactionBody = &model.Transaction_LiquidPaymentTransactionBody{
 		LiquidPaymentTransactionBody: txBody,
 	}
-	txBodyBytes := (&transaction.LiquidPaymentTransaction{
+	txBodyBytes, _ := (&transaction.LiquidPaymentTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
@@ -592,7 +594,7 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	tx.TransactionBody = &model.Transaction_LiquidPaymentStopTransactionBody{
 		LiquidPaymentStopTransactionBody: txBody,
 	}
-	txBodyBytes := (&transaction.LiquidPaymentStopTransaction{
+	txBodyBytes, _ := (&transaction.LiquidPaymentStopTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes

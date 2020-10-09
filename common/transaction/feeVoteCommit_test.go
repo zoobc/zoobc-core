@@ -913,6 +913,13 @@ func TestFeeVoteCommitTransaction_GetSize(t *testing.T) {
 			},
 			want: uint32(len(mockFeeVoteCommitTxBodyBytes)),
 		},
+		{
+			name: "wantError",
+			fields: fields{
+				Body: mockFeeVoteCommitTxBody,
+			},
+			want: uint32(len(mockFeeVoteCommitTxBodyBytes)),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

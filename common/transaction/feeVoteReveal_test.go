@@ -600,6 +600,10 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	type args struct {
 		txBodyBytes []byte
 	}
+	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -610,9 +614,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 		{
 			name: "WantSuccess",
 			args: args{
-				txBodyBytes: (&FeeVoteRevealTransaction{
-					Body: txBody,
-				}).GetBodyBytes(),
+				txBodyBytes: txBodyBytes1,
 			},
 			want: txBody,
 		},
