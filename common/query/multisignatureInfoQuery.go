@@ -47,26 +47,30 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 }
 
 // GetMultisignatureInfoByAddress
-// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 	multisigAddress []byte,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
 	var (
-		blockHeight uint32
+		blockHeight   uint32
+		t1Fields      []string
+		msParticipant = NewMultiSignatureParticipantQuery()
 	)
 	if currentHeight > limit {
 		blockHeight = currentHeight - limit
 	}
-	query := fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-		strings.Join(msi.Fields, ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') "+
-			"FROM multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height "+
-			"ORDER BY account_address_index DESC) as addresses",
+	for _, msiField := range msi.Fields {
+		t1Fields = append(t1Fields, fmt.Sprintf("t1.%s", msiField))
+	}
+	queryMultisigInfo := fmt.Sprintf(
+		"SELECT %s, t2.account_address FROM %s t1 LEFT JOIN %s t2 ON t1.multisig_address = t2.multisig_address "+
+			"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true "+
+			"ORDER BY t2.account_address_index DESC",
+		strings.Join(t1Fields, ", "),
 		msi.getTableName(),
+		msParticipant.getTableName(),
 	)
-	return query, []interface{}{
+	return queryMultisigInfo, []interface{}{
 		multisigAddress,
 		multisigAddress,
 		blockHeight,
@@ -189,9 +193,10 @@ func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
 
 // Scan will build model from *sql.Row that expect has addresses column
 // which is result from sub query of multisignature_participant
+// STEF update code that uses scan to use buildmodel
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
 	var (
-		addresses []byte
+		participantAddress []byte
 	)
 	err := row.Scan(
 		&multisigInfo.MultisigAddress,
@@ -199,14 +204,9 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&multisigInfo.Nonce,
 		&multisigInfo.BlockHeight,
 		&multisigInfo.Latest,
-		&addresses,
+		&participantAddress,
 	)
-
-	// STEF
-	// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
-	// bufferBytes := bytes.NewBuffer(addresses)
-	//
-	// multisigInfo.Addresses = strings.Split(addresses, ",")
+	multisigInfo.Addresses = [][]byte{participantAddress}
 	return err
 }
 
@@ -228,8 +228,8 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 ) ([]*model.MultiSignatureInfo, error) {
 	for rows.Next() {
 		var (
-			multisigInfo model.MultiSignatureInfo
-			addresses    string
+			multisigInfo       model.MultiSignatureInfo
+			participantAddress []byte
 		)
 		err := rows.Scan(
 			&multisigInfo.MultisigAddress,
@@ -237,13 +237,12 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Nonce,
 			&multisigInfo.BlockHeight,
 			&multisigInfo.Latest,
-			&addresses,
+			&participantAddress,
 		)
+		multisigInfo.Addresses = [][]byte{participantAddress}
 		if err != nil {
 			return nil, err
 		}
-		// STEF TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
-		// multisigInfo.Addresses = strings.Split(addresses, ",")
 		mss = append(mss, &multisigInfo)
 	}
 	return mss, nil

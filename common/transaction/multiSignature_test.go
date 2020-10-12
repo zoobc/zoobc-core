@@ -19,6 +19,7 @@ type (
 		query.MultisignatureInfoQuery
 	}
 	multisignatureInfoHelperQueryExecutorSuccess struct {
+		emptyResultSet bool
 		query.Executor
 	}
 	// multisignatureInfoHelper mocks
@@ -61,18 +62,38 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	multisigInfoQuery := query.NewMultisignatureInfoQuery()
-	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "addresses")).AddRow(
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "account_address")).AddRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
-		// STEF TODO: refactor this once the query has been split into two (cannot use string.Join on byte arrays)
-		// strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
+		mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses[0],
 		[]byte{},
 	))
 	row := db.QueryRow("")
 	return row, nil
+}
+
+func (mockMsi *multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	dbMocked, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	multisigInfoQuery := query.NewMultisignatureInfoQuery()
+	if mockMsi.emptyResultSet {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "account_address")))
+	} else {
+		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "account_address")).AddRow(
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses[0],
+		))
+	}
+	return dbMocked.Query("")
+
 }
 
 func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
@@ -111,7 +132,9 @@ func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
 			name: "GetMultisigInfo - scan fail",
 			fields: fields{
 				MultisignatureInfoQuery: &multisignatureInfoHelperMultisignatureInfoQueryScanFail{},
-				QueryExecutor:           &multisignatureInfoHelperQueryExecutorSuccess{},
+				QueryExecutor: &multisignatureInfoHelperQueryExecutorSuccess{
+					emptyResultSet: true,
+				},
 			},
 			args: args{
 				multisigInfo:    &multisigInfoSuccess,

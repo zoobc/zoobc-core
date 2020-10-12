@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
 
@@ -27,14 +28,14 @@ func getBuildModelErrorMockRows() *sql.Rows {
 
 func getBuildModelSuccessMockRows() *sql.Rows {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
+	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "multisig_address"))
 	mockRow.AddRow(
 		multisigAccountAddress1,
 		uint32(1),
 		int64(10),
 		uint32(12),
 		true,
-		[]byte{}, // STEF TODO: refactor this after having split queries with group_concat
+		multisigAccountAddress2,
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
@@ -87,11 +88,9 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 					Nonce:             10,
 					BlockHeight:       12,
 					Latest:            true,
-					// STEF TODO: refactor this once having refactored queries with group_concat
-					// Addresses: [][]byte{
-					// 	multisigAccountAddress2,
-					// 	multisigAccountAddress3,
-					// },
+					Addresses: [][]byte{
+						multisigAccountAddress2,
+					},
 				},
 			},
 			wantErr: false,
@@ -176,64 +175,67 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 	}
 }
 
-// STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
-// func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
-// 	type fields struct {
-// 		Fields    []string
-// 		TableName string
-// 	}
-// 	type args struct {
-// 		multisigAddress      []byte
-// 		currentHeight, limit uint32
-// 	}
-// 	tests := []struct {
-// 		name     string
-// 		fields   fields
-// 		args     args
-// 		wantStr  string
-// 		wantArgs []interface{}
-// 	}{
-// 		{
-// 			name: "GetMultisignatureInfoByAddress-Success",
-// 			fields: fields{
-// 				Fields:    mockMultisigInfoQueryInstance.Fields,
-// 				TableName: mockMultisigInfoQueryInstance.TableName,
-// 			},
-// 			args: args{
-// 				multisigAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-// 					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-// 				currentHeight: 0,
-// 				limit:         constant.MinRollbackBlocks,
-// 			},
-// 			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, " +
-// 				"(SELECT GROUP_CONCAT(account_address, ',') FROM " +
-// 				"multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height " +
-// 				"ORDER BY account_address_index DESC) as addresses " +
-// 				"FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-// 			wantArgs: []interface{}{"A", "A", uint32(0)},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			msi := &MultisignatureInfoQuery{
-// 				Fields:    tt.fields.Fields,
-// 				TableName: tt.fields.TableName,
-// 			}
-// 			gotStr, gotArgs := msi.GetMultisignatureInfoByAddress(
-// 				tt.args.multisigAddress,
-// 				tt.args.currentHeight,
-// 				tt.args.limit,
-// 			)
-// 			if gotStr != tt.wantStr {
-// 				t.Errorf("GetMultisignatureInfoByAddress() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
-// 				return
-// 			}
-// 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-// 				t.Errorf("GetMultisignatureInfoByAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
-// 			}
-// 		})
-// 	}
-// }
+func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		multisigAddress      []byte
+		currentHeight, limit uint32
+	}
+
+	var (
+		multisigAddr = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	)
+
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name: "GetMultisignatureInfoByAddress-Success",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				multisigAddress: multisigAddr,
+				currentHeight:   0,
+				limit:           constant.MinRollbackBlocks,
+			},
+			wantStr: "SELECT t1.multisig_address, t1.minimum_signatures, t1.nonce, t1.block_height, t1.latest, t2.account_address " +
+				"FROM multisignature_info t1 LEFT JOIN multisignature_participant t2 ON t1.multisig_address = t2.multisig_address " +
+				"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true " +
+				"ORDER BY t2.account_address_index DESC",
+			wantArgs: []interface{}{multisigAddr, multisigAddr, uint32(0)},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := msi.GetMultisignatureInfoByAddress(
+				tt.args.multisigAddress,
+				tt.args.currentHeight,
+				tt.args.limit,
+			)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetMultisignatureInfoByAddress() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				return
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetMultisignatureInfoByAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
 
 var (
 	// InsertMultisignatureInfo mocks
