@@ -10,9 +10,9 @@ import (
 
 type (
 	BlocksmithServiceInterface interface {
-		GetBlocksmithAccountAddress(block *model.Block) (string, error)
+		GetBlocksmithAccountAddress(block *model.Block) ([]byte, error)
 		RewardBlocksmithAccountAddresses(
-			blocksmithAccountAddresses []string,
+			blocksmithAccountAddresses [][]byte,
 			totalReward, blockTimestamp int64,
 			height uint32,
 		) error
@@ -43,7 +43,7 @@ func NewBlocksmithService(
 }
 
 // GetBlocksmithAccountAddress get the address of blocksmith by its public key at the block's height
-func (bs *BlocksmithService) GetBlocksmithAccountAddress(block *model.Block) (string, error) {
+func (bs *BlocksmithService) GetBlocksmithAccountAddress(block *model.Block) ([]byte, error) {
 	var (
 		nr []*model.NodeRegistration
 	)
@@ -51,20 +51,20 @@ func (bs *BlocksmithService) GetBlocksmithAccountAddress(block *model.Block) (st
 	qry, args := bs.NodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey(block.BlocksmithPublicKey, block.Height)
 	rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
-		return "", blocker.NewBlocker(blocker.DBErr, err.Error())
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer rows.Close()
 
 	nr, err = bs.NodeRegistrationQuery.BuildModel(nr, rows)
 	if (err != nil) || len(nr) == 0 {
-		return "", blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
+		return nil, blocker.NewBlocker(blocker.DBErr, "VersionedNodeRegistrationNotFound")
 	}
 	return nr[0].AccountAddress, nil
 }
 
 // RewardBlocksmithAccountAddresses accrue the block total fees + total coinbase to selected list of accounts
 func (bs *BlocksmithService) RewardBlocksmithAccountAddresses(
-	blocksmithAccountAddresses []string,
+	blocksmithAccountAddresses [][]byte,
 	totalReward, blockTimestamp int64,
 	height uint32,
 ) error {

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -31,20 +30,24 @@ var (
 	mockMultisignatureInfoHelperMultisigInfoSuccess = &model.MultiSignatureInfo{
 		MinimumSignatures: 2,
 		Nonce:             1,
-		Addresses: []string{
-			"A",
-			"B",
-			"C",
+		Addresses: [][]byte{
+			{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+				28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+			{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		},
-		MultisigAddress: "multisig_address",
-		BlockHeight:     720,
-		Latest:          true,
+		MultisigAddress: []byte{0, 0, 0, 0, 178, 223, 128, 179, 51, 150, 104, 6, 181, 133, 185, 121, 163, 139, 51, 120, 246, 15, 250, 56,
+			118, 159, 166, 97, 98, 40, 70, 130, 35, 164, 104, 182},
+		BlockHeight: 720,
+		Latest:      true,
 	}
 	// multisignatureInfoHelper mocks
 )
 
 func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) GetMultisignatureInfoByAddress(
-	string, uint32, uint32,
+	[]byte, uint32, uint32,
 ) (str string, args []interface{}) {
 	return "", []interface{}{}
 }
@@ -64,7 +67,9 @@ func (*multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelectRow(
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
 		mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
-		strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
+		// STEF TODO: refactor this once the query has been split into two (cannot use string.Join on byte arrays)
+		// strings.Join(mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses, ", "),
+		[]byte{},
 	))
 	row := db.QueryRow("")
 	return row, nil
@@ -80,7 +85,7 @@ func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
 	}
 	type args struct {
 		multisigInfo    *model.MultiSignatureInfo
-		multisigAddress string
+		multisigAddress []byte
 		blockHeight     uint32
 	}
 	tests := []struct {
@@ -97,7 +102,7 @@ func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
 			},
 			args: args{
 				multisigInfo:    &multisigInfoSuccess,
-				multisigAddress: "multisig_address",
+				multisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 				blockHeight:     720,
 			},
 			wantErr: false,
@@ -110,7 +115,7 @@ func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
 			},
 			args: args{
 				multisigInfo:    &multisigInfoSuccess,
-				multisigAddress: "multisig_address",
+				multisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 				blockHeight:     720,
 			},
 			wantErr: true,
@@ -298,10 +303,11 @@ var (
 	mockGetPendingSignatureByTransactionHashSuccessPendingSignatures = []*model.PendingSignature{
 		{
 			TransactionHash: make([]byte, 32),
-			AccountAddress:  "a",
-			Signature:       make([]byte, 68),
-			BlockHeight:     720,
-			Latest:          true,
+			AccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			Signature:   make([]byte, 68),
+			BlockHeight: 720,
+			Latest:      true,
 		},
 	}
 	// mock multisignatureInfoHelperGetPendingSignatureByTransactionHashExecutor
@@ -501,7 +507,8 @@ type (
 
 var (
 	mockGetPendingTransactionByHashPendingTransactionSuccess = &model.PendingTransaction{
-		SenderAddress:    "a",
+		SenderAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		TransactionHash:  make([]byte, 32),
 		TransactionBytes: make([]byte, 30),
 		Status:           model.PendingTransactionStatus_PendingTransactionPending,
@@ -623,7 +630,8 @@ var (
 	// mock multisignatureInfoHelperGetPendingTransactionByTransactionHashExecutor
 	mockPendingTransactionHelperGetPendingTransactionsBySenderAddressSuccessPendingTransactions = []*model.PendingTransaction{
 		{
-			SenderAddress:    "multisig_address",
+			SenderAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 			TransactionHash:  make([]byte, 32),
 			TransactionBytes: make([]byte, 30),
 			Status:           model.PendingTransactionStatus_PendingTransactionPending,
@@ -675,7 +683,7 @@ func TestPendingTransactionHelper_GetPendingTransactionBySenderAddress(t *testin
 	}
 	type args struct {
 		pendingTxs    []*model.PendingTransaction
-		senderAddress string
+		senderAddress []byte
 		txHeight      uint32
 	}
 	tests := []struct {
@@ -764,11 +772,13 @@ type (
 var (
 	// mock pendingTransactionHelperApplyUnconfirmedPendingTransaction
 	pendingTransactionHelperApplyUnconfirmedPendingTransactionTransaction = &model.Transaction{
-		ID:                      1,
-		BlockID:                 1,
-		Height:                  720,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		ID:      1,
+		BlockID: 1,
+		Height:  720,
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	}
 	// mock pendingTransactionHelperApplyUnconfirmedPendingTransaction
 )
@@ -1129,7 +1139,7 @@ func (*mockValidateMultisigUtilValidateSignatureInfoSucess) ValidateSignatureInf
 
 func (*mockMultisignatureValidateMultisigInfoNotExist) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	return sql.ErrNoRows
@@ -1137,7 +1147,7 @@ func (*mockMultisignatureValidateMultisigInfoNotExist) GetMultisigInfoByAddress(
 
 func (*mockMultisignatureValidateMultisigInfoError) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	return errors.New("mockedError")
@@ -1145,11 +1155,11 @@ func (*mockMultisignatureValidateMultisigInfoError) GetMultisigInfoByAddress(
 
 func (*mockMultisignatureValidateMultisigInfoExist) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	*multisigInfo = model.MultiSignatureInfo{
-		Addresses: make([]string, 3),
+		Addresses: make([][]byte, 3),
 	}
 	return nil
 }
@@ -1201,8 +1211,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxFail) ValidatePend
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -1215,13 +1224,12 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSig
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
 	*multisigInfo = model.MultiSignatureInfo{
-		Addresses: make([]string, 2),
+		Addresses: make([][]byte, 2),
 	}
 	return nil
 }
@@ -1238,8 +1246,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingT
 	multisigInfoHelper MultisignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
 	multisigInfo *model.MultiSignatureInfo,
-	senderAddress string,
-	unsignedTxBytes []byte,
+	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
 	dbTx bool,
 ) error {
@@ -1258,7 +1265,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatur
 }
 
 func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
 	return nil
@@ -1267,7 +1274,7 @@ func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccoun
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -1531,12 +1538,12 @@ type (
 )
 
 func (*mockAccountBalanceHelperAddAccountSpendableBalanceFail) AddAccountSpendableBalance(
-	address string, amount int64) error {
+	address []byte, amount int64) error {
 	return errors.New("mockedError")
 }
 
 func (*mockAccountBalanceHelperAddAccountSpendableBalanceSuccess) AddAccountSpendableBalance(
-	address string, amount int64) error {
+	address []byte, amount int64) error {
 	return nil
 }
 
@@ -1553,7 +1560,7 @@ func (*mockUndoApplyUnconfirmedPendingTransactionHelperUndoPendingSuccess) UndoA
 func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -1663,7 +1670,7 @@ func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess) Appl
 func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -1889,10 +1896,11 @@ func TestPendingTransactionHelper_UndoApplyUnconfirmedPendingTransaction(t *test
 	}
 }
 
+// STEF TODO: add test for error condition (only needed for multisig. for now)
 func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -1920,10 +1928,15 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 					MultiSignatureInfo: &model.MultiSignatureInfo{
 						MinimumSignatures: 2,
 						Nonce:             1,
-						Addresses: []string{
-							"a", "b", "c",
+						Addresses: [][]byte{
+							{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+								45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+							{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+								81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+							{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+								47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						},
-						MultisigAddress: "ABC",
+						MultisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 						BlockHeight:     720,
 						Latest:          true,
 					},
@@ -1931,18 +1944,22 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 					SignatureInfo: &model.SignatureInfo{
 						TransactionHash: make([]byte, 32),
 						Signatures: map[string][]byte{
-							"a": make([]byte, 32),
+							"00000000b2df80b333966806b585b979a38b3378f60ffa38769fa6616228468223a468b6": make([]byte, 32),
 						},
 					},
 				},
 			},
 			want: []byte{
-				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
-				99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125,
+				75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88,
+				220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 0, 0,
+				0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77,
+				206, 170, 27, 124, 232, 110, 14, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+				0, 178, 223, 128, 179, 51, 150, 104, 6, 181, 133, 185, 121, 163, 139, 51, 120, 246, 15, 250, 56, 118, 159, 166, 97, 98,
+				40, 70, 130, 35, 164, 104, 182, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0,
 			},
 		},
 		{
@@ -1954,17 +1971,17 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 					SignatureInfo: &model.SignatureInfo{
 						TransactionHash: make([]byte, 32),
 						Signatures: map[string][]byte{
-							"a": make([]byte, 32),
+							"00000000b2df80b333966806b585b979a38b3378f60ffa38769fa6616228468223a468b6": make([]byte, 32),
 						},
 					},
 				},
 			},
 			want: []byte{
-				0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 178, 223, 128, 179,
+				51, 150, 104, 6, 181, 133, 185, 121, 163, 139, 51, 120, 246, 15, 250, 56, 118, 159, 166, 97, 98, 40, 70, 130, 35, 164, 104,
+				182, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
 		},
 		{
@@ -1974,10 +1991,15 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 					MultiSignatureInfo: &model.MultiSignatureInfo{
 						MinimumSignatures: 2,
 						Nonce:             1,
-						Addresses: []string{
-							"a", "b", "c",
+						Addresses: [][]byte{
+							{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+								45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+							{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+								81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+							{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+								47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						},
-						MultisigAddress: "ABC",
+						MultisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 						BlockHeight:     720,
 						Latest:          true,
 					},
@@ -1986,10 +2008,13 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				},
 			},
 			want: []byte{
-				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
-				99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				0, 0, 0, 0,
+				1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125,
+				75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88,
+				220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 0, 0,
+				0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77,
+				206, 170, 27, 124, 232, 110, 14, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0,
 			},
 		},
 	}
@@ -2000,8 +2025,6 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				SenderAddress:            tt.fields.SenderAddress,
 				Fee:                      tt.fields.Fee,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
-				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
 				Height:                   tt.fields.Height,
@@ -2013,19 +2036,49 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			got, err := tx.GetBodyBytes()
+			if err != nil {
+				t.Errorf("GetBodyBytes() = err %s", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-//
-
 func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
+	var (
+		multisigTxBody = &model.MultiSignatureTransactionBody{
+			MultiSignatureInfo: &model.MultiSignatureInfo{
+				MinimumSignatures: 2,
+				Nonce:             1,
+				Addresses: [][]byte{
+					senderAddress1,
+					senderAddress2,
+					senderAddress3,
+				},
+			},
+			UnsignedTransactionBytes: make([]byte, 64),
+			SignatureInfo: &model.SignatureInfo{
+				TransactionHash: make([]byte, 32),
+				Signatures: map[string][]byte{
+					"00000000b2df80b333966806b585b979a38b3378f60ffa38769fa6616228468223a468b6": make([]byte, 64),
+				},
+			},
+		}
+		tx1 = &MultiSignatureTransaction{
+			ID:            1390544043583530800,
+			SenderAddress: senderAddress1,
+			Fee:           1,
+			Body:          multisigTxBody,
+		}
+		multisigTx1BodyBytes, _ = tx1.GetBodyBytes()
+	)
+
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -2052,34 +2105,19 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "parseBodyBytes - complete",
-			fields: fields{},
+			name: "parseBodyBytes - complete",
+			fields: fields{
+				ID:            1390544043583530800,
+				SenderAddress: senderAddress1,
+				Body:          multisigTxBody,
+				Fee:           1,
+				BlockID:       int64(111),
+				Height:        uint32(10),
+			},
 			args: args{
-				txBodyBytes: []byte{
-					1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 1, 0, 0, 0, 97, 1, 0, 0, 0, 98, 1, 0, 0, 0,
-					99, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 1, 0, 0, 0, 1, 0, 0, 0, 97, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-				},
+				txBodyBytes: multisigTx1BodyBytes,
 			},
-			want: &model.MultiSignatureTransactionBody{
-				MultiSignatureInfo: &model.MultiSignatureInfo{
-					MinimumSignatures: 2,
-					Nonce:             1,
-					Addresses: []string{
-						"a", "b", "c",
-					},
-				},
-				UnsignedTransactionBytes: make([]byte, 64),
-				SignatureInfo: &model.SignatureInfo{
-					TransactionHash: make([]byte, 32),
-					Signatures: map[string][]byte{
-						"a": make([]byte, 32),
-					},
-				},
-			},
+			want:    multisigTxBody,
 			wantErr: false,
 		},
 	}
@@ -2118,7 +2156,7 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 	type fields struct {
 		ID                       int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Fee                      int64
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
@@ -2146,20 +2184,22 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 					MultiSignatureInfo: &model.MultiSignatureInfo{
 						MinimumSignatures: 2,
 						Nonce:             1,
-						Addresses: []string{
-							"a", "b", "c",
+						Addresses: [][]byte{
+							senderAddress1,
+							senderAddress2,
+							senderAddress3,
 						},
 					},
 					UnsignedTransactionBytes: make([]byte, 64),
 					SignatureInfo: &model.SignatureInfo{
 						TransactionHash: make([]byte, 32),
 						Signatures: map[string][]byte{
-							"a": make([]byte, 32),
+							"00000000b2df80b333966806b585b979a38b3378f60ffa38769fa6616228468223a468b6": make([]byte, 32),
 						},
 					},
 				},
 			},
-			want: 184,
+			want: 360,
 		},
 	}
 	for _, tt := range tests {
@@ -2182,7 +2222,7 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("GetSize() = %v, want %v", got, tt.want)
 			}
 		})

@@ -166,7 +166,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	if len(params.GetNodePublicKey()) != 0 {
 		caseQuery.And(caseQuery.Equal("node_public_key", params.GetNodePublicKey()))
 	}
-	if params.GetAccountAddress() != "" {
+	if params.GetAccountAddress() != nil {
 		caseQuery.And(caseQuery.Equal("account_address", params.GetAccountAddress()))
 	}
 	if params.GetRegistrationHeight() != 0 {

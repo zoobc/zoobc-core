@@ -18,7 +18,7 @@ import (
 type FeeVoteCommitTransaction struct {
 	ID                         int64
 	Fee                        int64
-	SenderAddress              string
+	SenderAddress              []byte
 	Height                     uint32
 	Body                       *model.FeeVoteCommitTransactionBody
 	Escrow                     *model.Escrow
@@ -198,15 +198,19 @@ func (tx *FeeVoteCommitTransaction) GetAmount() int64 {
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
 func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize is size of transaction body
-func (tx *FeeVoteCommitTransaction) GetSize() uint32 {
-	return uint32(len(tx.GetBodyBytes()))
+func (tx *FeeVoteCommitTransaction) GetSize() (uint32, error) {
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -224,10 +228,10 @@ func (tx *FeeVoteCommitTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeVoteCommitTransaction) GetBodyBytes() []byte {
+func (tx *FeeVoteCommitTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.VoteHash)
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody return transaction body of FeeVoteCommitTransaction transactions
@@ -260,7 +264,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee vote commit tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteCommitmentVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+		if sameTxType && bytes.Equal(tx.SenderAddress, selectedTx.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -277,7 +281,7 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 
 // Escrowable will check the transaction is escrow or not. Curently doesn't have ecrow option
 func (tx *FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -318,7 +322,7 @@ func (tx *FeeVoteCommitTransaction) EscrowUndoApplyUnconfirmed() error {
 }
 
 func (tx *FeeVoteCommitTransaction) EscrowValidate(dbTx bool) (err error) {
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

@@ -245,9 +245,6 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
-				}
 				return err
 			}
 		}

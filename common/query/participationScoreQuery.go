@@ -19,7 +19,6 @@ type (
 			blockHeight uint32,
 		) [][]interface{}
 		GetParticipationScoreByNodeID(id int64) (str string, args []interface{})
-		GetParticipationScoreByAccountAddress(accountAddress string) (str string)
 		GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{})
 		GetParticipationScoresByBlockHeightRange(
 			fromBlockHeight, toBlockHeight uint32) (str string, args []interface{})
@@ -155,26 +154,6 @@ func (ps *ParticipationScoreQuery) UpdateParticipationScore(
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodeID(id int64) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE node_id = ? AND latest=1",
 		strings.Join(ps.Fields, ", "), ps.getTableName()), []interface{}{id}
-}
-
-func (ps *ParticipationScoreQuery) GetParticipationScoreByAccountAddress(accountAddress string) (str string) {
-	psTable := ps.getTableName()
-	psTableAlias := "A"
-	nrTable := NewNodeRegistrationQuery().getTableName()
-	nrTableAlias := "B"
-	psTableFields := make([]string, 0)
-	for _, field := range ps.Fields {
-		psTableFields = append(psTableFields, psTableAlias+"."+field)
-	}
-
-	return fmt.Sprintf("SELECT %s FROM "+psTable+" as "+psTableAlias+" "+
-		"INNER JOIN "+nrTable+" as "+nrTableAlias+" ON "+psTableAlias+".node_id = "+nrTableAlias+".id "+
-		"WHERE "+nrTableAlias+".account_address='%s' "+
-		"AND "+nrTableAlias+".latest=1 "+
-		"AND "+nrTableAlias+".registration_status=%d "+
-		"AND "+psTableAlias+".latest=1",
-		strings.Join(psTableFields, ", "),
-		accountAddress, uint32(model.NodeRegistrationState_NodeRegistered))
 }
 
 func (ps *ParticipationScoreQuery) GetParticipationScoreByNodePublicKey(nodePublicKey []byte) (str string, args []interface{}) {

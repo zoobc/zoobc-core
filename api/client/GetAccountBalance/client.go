@@ -37,7 +37,8 @@ func main() {
 	c := rpc_service.NewAccountBalanceServiceClient(conn)
 
 	response, err := c.GetAccountBalance(context.Background(), &rpc_model.GetAccountBalanceRequest{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		AccountAddress: []byte{0, 0, 0, 0, 98, 118, 38, 51, 199, 143, 112, 175, 220, 74, 221, 170, 56, 103, 159, 209, 242, 132, 219, 155,
+			169, 123, 104, 77, 139, 18, 224, 166, 162, 83, 125, 96},
 	})
 
 	if err != nil {

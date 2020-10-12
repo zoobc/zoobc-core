@@ -29,6 +29,7 @@ type (
 			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
 		GenerateReceiptsMerkleRoot() error
+		// ValidateReceipt to validating *model.BatchReceipt when send block or send transaction and also when want to publishing receipt
 		ValidateReceipt(
 			receipt *model.BatchReceipt,
 		) error
@@ -41,7 +42,8 @@ type (
 			nodeSecretPhrase string,
 			datumType uint32,
 		) (*model.BatchReceipt, error)
-		IsDuplicated(publicKey []byte, datumHash []byte) (duplicated bool, err error)
+		// CheckDuplication to check duplication of *model.BatchReceipt when get response from send block and send transaction
+		CheckDuplication(publicKey []byte, datumHash []byte) (err error)
 		StoreBatchReceipt(batchReceipt *model.BatchReceipt, senderPublicKey []byte, chaintype chaintype.ChainType) error
 	}
 
@@ -59,6 +61,7 @@ type (
 		ScrambleNodeService      ScrambleNodeServiceInterface
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
+		MainBlocksStorage        storage.CacheStackStorageInterface
 		// local cache
 		LastMerkleRoot []byte
 	}
@@ -76,6 +79,7 @@ func NewReceiptService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
+	mainBlocksStorage storage.CacheStackStorageInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:         nodeReceiptQuery,
@@ -91,6 +95,7 @@ func NewReceiptService(
 		ScrambleNodeService:      scrambleNodeService,
 		ReceiptReminderStorage:   receiptReminderStorage,
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
+		MainBlocksStorage:        mainBlocksStorage,
 		LastMerkleRoot:           nil,
 	}
 }
@@ -339,21 +344,21 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	return nil
 }
 
-// IsDuplicated check existing batch receipt in cache storage
-func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated bool, err error) {
+// CheckDuplication check existing batch receipt in cache storage
+func (rs *ReceiptService) CheckDuplication(publicKey, datumHash []byte) (err error) {
 	var (
 		receiptKey []byte
 		cType      chaintype.ChainType
 	)
 	if len(publicKey) == 0 && len(datumHash) == 0 {
-		return duplicated, blocker.NewBlocker(
+		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"EmptyParams",
 		)
 	}
 	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
 	if err != nil {
-		return duplicated, blocker.NewBlocker(
+		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			err.Error(),
 		)
@@ -361,19 +366,22 @@ func (rs *ReceiptService) IsDuplicated(publicKey, datumHash []byte) (duplicated 
 
 	err = rs.ReceiptReminderStorage.GetItem(hex.EncodeToString(receiptKey), &cType)
 	if err != nil {
-		return duplicated, blocker.NewBlocker(
+		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"FailedGetReceiptKey",
 		)
 	}
-	return cType != nil, nil
+	if cType != nil {
+		return blocker.NewBlocker(blocker.DuplicateReceiptErr, "ReceiptExistsOnReminder")
+	}
+	return nil
 }
 
 func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.BatchReceipt,
 ) error {
 	var (
-		blockAtHeight model.Block
+		blockAtHeight *storage.BlockCacheObject
 		err           error
 	)
 	unsignedBytes := rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(receipt)
@@ -388,9 +396,12 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptSignature",
 		)
 	}
-	blockAtHeightQ := rs.BlockQuery.GetBlockByHeight(receipt.ReferenceBlockHeight)
-	blockAtHeightRow, _ := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ, false)
-	err = rs.BlockQuery.Scan(&blockAtHeight, blockAtHeightRow)
+	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+		receipt.ReferenceBlockHeight,
+		rs.QueryExecutor,
+		rs.BlockQuery,
+		rs.MainBlocksStorage,
+	)
 	if err != nil {
 		return err
 	}

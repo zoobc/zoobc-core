@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -30,7 +29,7 @@ type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
-		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
+		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error)
 		GetNodeProofOfOrigin(destPeer *model.Peer) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
@@ -216,14 +215,14 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
-		nodeIDs        []int64
+		nodeIDs        = make([]int64, len(nodeRegistrations))
 	)
 	defer func() {
 		cancelReq()
 	}()
 
-	for _, nr := range nodeRegistrations {
-		nodeIDs = append(nodeIDs, nr.NodeID)
+	for i, nr := range nodeRegistrations {
+		nodeIDs[i] = nr.NodeID
 	}
 
 	// context still not use ctx := cs.buildContext()
@@ -354,10 +353,14 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 }
 
 // SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
-func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
+
+	if len(nodeAddressInfos) == 0 {
+		return &model.Empty{}, nil
+	}
+
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
-
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -370,7 +373,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 		cancelReq()
 	}()
 	res, err := p2pClient.SendNodeAddressInfo(ctx, &model.SendNodeAddressInfoRequest{
-		NodeAddressInfoMessage: nodeAddressInfo,
+		NodeAddressInfoMessage: nodeAddressInfos,
 	})
 	if err != nil {
 		return nil, err
@@ -436,7 +439,12 @@ func (psc *PeerServiceClient) SendBlock(
 	if response == nil || response.BatchReceipt == nil {
 		return err
 	}
+
 	// validate receipt before storing
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	if err != nil {
+		return err
+	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
 		return err
@@ -478,6 +486,11 @@ func (psc *PeerServiceClient) SendTransaction(
 	if response == nil || response.BatchReceipt == nil {
 		return nil
 	}
+
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	if err != nil {
+		return err
+	}
 	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
 	if err != nil {
 		return err
@@ -517,9 +530,18 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 		return nil
 	}
 
+	// continue even though some receipts are failing
 	for _, batchReceipt := range response.BatchReceipts {
-		// continue even though some receipts are failing
-		_ = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, batchReceipt.GetDatumHash())
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
+			continue
+		}
+		err = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
+			continue
+		}
 		_ = psc.storeReceipt(batchReceipt)
 	}
 	return err
@@ -723,15 +745,7 @@ func (psc *PeerServiceClient) GetNextBlocks(
 // and will generate _merkle_root_
 func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
 
-	duplicated, err := psc.ReceiptService.IsDuplicated(psc.NodePublicKey, batchReceipt.GetDatumHash())
-	if err != nil {
-		return err
-	}
-	if duplicated {
-		return errors.New("duplicated receipt")
-	}
-
-	err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
+	var err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
 	if err != nil {
 		return err
 	}

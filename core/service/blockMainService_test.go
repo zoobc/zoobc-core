@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -103,7 +105,8 @@ func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTADMITTED",
+			AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		},
 	}, nil
 }
@@ -119,7 +122,8 @@ func (*mockNodeRegistrationServiceSuccess) CommitCacheTransaction() error {
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		},
 	}, nil
 }
@@ -159,7 +163,8 @@ func (*mockNodeRegistrationServiceFail) AddParticipationScore(
 func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+				255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		},
 	}, nil
 }
@@ -210,9 +215,12 @@ func (*mockNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastB
 }
 
 var (
-	bcsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	bcsAddress2    = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
-	bcsAddress3    = "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd"
+	bcsAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	bcsAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	bcsAddress3 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188, 43,
+		59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
 	bcsNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey2 = []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -224,38 +232,42 @@ var (
 			Amount: 10,
 		},
 	}
-	mockSendMoneyTxBodyBytes = mockSendMoneyTxBody.GetBodyBytes()
-	mockTransaction          = &model.Transaction{
-		ID:                      1,
-		BlockID:                 1,
-		Height:                  0,
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		TransactionType:         1,
-		Fee:                     10,
-		Timestamp:               1000,
-		TransactionHash:         []byte{},
-		TransactionBodyLength:   8,
-		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
-		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Version:                 1,
-		TransactionIndex:        1,
+	mockSendMoneyTxBodyBytes, _ = mockSendMoneyTxBody.GetBodyBytes()
+	mockTransaction             = &model.Transaction{
+		ID:      1,
+		BlockID: 1,
+		Height:  0,
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		TransactionType:       1,
+		Fee:                   10,
+		Timestamp:             1000,
+		TransactionHash:       []byte{},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:               1,
+		TransactionIndex:      1,
 	}
 	mockTransactionExpired = &model.Transaction{
-		ID:                      1,
-		BlockID:                 1,
-		Height:                  12,
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		TransactionType:         1,
-		Fee:                     10,
-		Timestamp:               1000,
-		TransactionHash:         []byte{},
-		TransactionBodyLength:   8,
-		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
-		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Version:                 1,
-		TransactionIndex:        1,
+		ID:      1,
+		BlockID: 1,
+		Height:  12,
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		TransactionType:       1,
+		Fee:                   10,
+		Timestamp:             1000,
+		TransactionHash:       []byte{},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:               1,
+		TransactionIndex:      1,
 	}
 
 	mockAccountBalance = &model.AccountBalance{
@@ -1082,11 +1094,11 @@ func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintyp
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
 	scoreSum float64,
 	blockTimestamp int64,
-	previousBlock *model.Block) ([]string, error) {
-	return []string{}, nil
+	previousBlock *model.Block) ([][]byte, error) {
+	return make([][]byte, 0), nil
 }
 
-func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([]string, int64, int64, uint32) error {
+func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([][]byte, int64, int64, uint32) error {
 	return nil
 }
 
@@ -1193,6 +1205,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		PublishedReceiptService   PublishedReceiptServiceInterface
 		FeeScaleService           fee.FeeScaleServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		MempoolService            MempoolServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
@@ -1275,6 +1288,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1319,6 +1333,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1365,6 +1380,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1411,6 +1427,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeFail{},
@@ -1453,6 +1470,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   tt.fields.PublishedReceiptService,
 				FeeScaleService:           tt.fields.FeeScaleService,
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				MempoolService:            tt.fields.MempoolService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
@@ -1716,8 +1734,10 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 				transactions: []*model.Transaction{
 					transaction.GetFixturesForTransaction(
 						1562893303,
-						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+						[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+							213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 						false,
 					),
 				},
@@ -1736,8 +1756,10 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 				transactions: []*model.Transaction{
 					transaction.GetFixturesForTransaction(
 						1562893303,
-						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+						[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+							213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 						false,
 					),
 				},
@@ -1809,8 +1831,10 @@ func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, arg
 		transaction.GetFixturesForSignedMempoolTransaction(
 			1,
 			1562893305,
-			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+				72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+				213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 			false,
 		).TransactionBytes),
 	)
@@ -1825,8 +1849,10 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model
 			TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 				1,
 				1562893305,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+					213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 				false,
 			).TransactionBytes,
 		},
@@ -1838,8 +1864,10 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+			213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 		false,
 	).TransactionBytes
 	txHash := sha3.Sum256(txByte)
@@ -2114,6 +2142,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		TransactionCoreService    TransactionCoreServiceInterface
 		PublishedReceiptService   PublishedReceiptServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
 		PendingTransactionService PendingTransactionServiceInterface
@@ -2156,6 +2185,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				),
 				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
@@ -2185,6 +2215,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				PublishedReceiptService:   tt.fields.PublishedReceiptService,
 				FeeScaleService:           &mockAddGenesisFeeScaleServiceCache{},
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
 				PendingTransactionService: tt.fields.PendingTransactionService,
@@ -2432,6 +2463,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByHeight mocks
+	mockGetBlockByHeightPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2464,6 +2498,10 @@ func (*mockGetBlockByHeightTransactionCoreServiceSuccess) GetTransactionsByBlock
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByHeightPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2476,6 +2514,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		ActionTypeSwitcher     transaction.TypeActionSwitcher
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 		Observer               *observer.Observer
 	}
 	type args struct {
@@ -2496,6 +2535,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByHeightTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByHeightPublishedReceiptUtilSuccess{},
 			},
 			want:    &mockGetBlockByHeightResult,
 			wantErr: false,
@@ -2527,6 +2567,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -2628,7 +2669,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByID mocks
-
+	mockGetBlockByIDPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2661,6 +2704,10 @@ func (*mockGetBlockByIDTransactionCoreServiceSuccess) GetTransactionsByBlockID(b
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByIDPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2674,6 +2721,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		Observer               *observer.Observer
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 	}
 	type args struct {
 		ID               int64
@@ -2694,6 +2742,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByIDTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByIDPublishedReceiptUtilSuccess{},
 			},
 			args: args{
 				ID:               int64(1),
@@ -2727,6 +2776,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
@@ -2920,11 +2970,14 @@ func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
 	return nil, nil
 }
 
-func (mrs *mockReceiptServiceSuccess) IsDuplicated([]byte, []byte) (duplicated bool, err error) {
+func (mrs *mockReceiptServiceSuccess) CheckDuplication([]byte, []byte) (err error) {
 	if mrs.WantDuplicated {
-		return true, nil
+		return blocker.NewBlocker(
+			blocker.DuplicateReceiptErr,
+			err.Error(),
+		)
 	}
-	return false, nil
+	return nil
 }
 
 func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
@@ -3332,6 +3385,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 					TransactionIDs: []int64{
 						mockTransaction.GetID(),
 					},
+					BlockHash: mockLastBlockData.GetBlockHash(),
 				},
 				nodeSecretPhrase: "",
 			},
@@ -3610,7 +3664,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    -1590500092516375213,
+			want:    -8874904806100897508,
 		},
 	}
 	for _, tt := range tests {
@@ -4341,6 +4395,9 @@ type (
 	mockPopOffToBlockBlockStateStorageSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockPopOffToBlockBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 	mockPopOffToBlockBlockStateStorageHardForkSuccess struct {
 		storage.CacheStorageInterface
 	}
@@ -4354,6 +4411,10 @@ func (*mockBlockPoolServicePopOffToBlockSuccess) ClearBlockPool() {}
 
 func (*mockPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
+}
+
+func (*mockPopOffToBlockBlocksStorageSuccess) PopTo(uint32) error {
+	return nil
 }
 
 type (
@@ -4504,6 +4565,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
 		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
@@ -4632,6 +4694,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4664,6 +4727,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4696,6 +4760,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4738,6 +4803,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				ParticipationScoreService:   tt.fields.ParticipationScoreService,
 				PublishedReceiptService:     tt.fields.PublishedReceiptService,
 				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlocksStorage:               tt.fields.BlocksStorage,
 				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)

@@ -178,6 +178,9 @@ func (n *NodeRegistryCacheStorage) RemoveItem(idx interface{}) error {
 	default:
 		return blocker.NewBlocker(blocker.ValidationErr, "UnknownType")
 	}
+	if idxToRemove >= len(n.transactionalNodeRegistries) {
+		return blocker.NewBlocker(blocker.NotFound, "RemoveItem:IndexOutOfRange")
+	}
 	tempLeft := n.nodeRegistries[:idxToRemove]
 	tempRight := n.nodeRegistries[idxToRemove+1:]
 	n.nodeRegistries = append(tempLeft, tempRight...)
@@ -351,8 +354,12 @@ func (n *NodeRegistryCacheStorage) TxRemoveItem(idx interface{}) error {
 	case int:
 		idToRemove = n.transactionalNodeRegistries[castedIdx].Node.GetNodeID()
 		idxToRemove = castedIdx
+
 	default:
-		return blocker.NewBlocker(blocker.ValidationErr, "UnknownType")
+		return blocker.NewBlocker(blocker.ValidationErr, "TxRemoveItem:UnknownType")
+	}
+	if idxToRemove >= len(n.transactionalNodeRegistries) {
+		return blocker.NewBlocker(blocker.NotFound, "TxRemoveItem:IndexOutOfRange")
 	}
 	tempLeft := n.transactionalNodeRegistries[:idxToRemove]
 	tempRight := n.transactionalNodeRegistries[idxToRemove+1:]

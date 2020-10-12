@@ -140,29 +140,34 @@ func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// if node receives own address don't do anything
+		var nodeAddressInfosToReceive = make([]*model.NodeAddressInfo, 0)
 		myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
 		myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
-		if errAddr == nil && errPort == nil && myAddress == nodeAddressInfo.GetAddress() && myPort == nodeAddressInfo.GetPort() {
-			return &model.Empty{}, nil
-		}
-		// validate node address info message and signature
-		if alreadyUpdated, err := ps.NodeAddressInfoService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
-			//  or address is already in db or peer sent an old, but valid addressinfo)
-			// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
-			// errorMsg := err.Error()
-			// errCasted, ok := err.(blocker.Blocker)
-			// if ok {
-			// 	errorMsg = errCasted.Message
-			// }
-			// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
-			// 	// blacklist peer!
-			// }
-		} else if !alreadyUpdated {
-			if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+		for _, info := range nodeAddressInfo {
+			if errAddr == nil && errPort == nil && myAddress == info.GetAddress() && myPort == info.GetPort() {
+				return &model.Empty{}, nil
+			}
+			// validate node address info message and signature
+			if alreadyUpdated, err := ps.NodeAddressInfoService.ValidateNodeAddressInfo(info); err != nil {
+				// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
+				//  or address is already in db or peer sent an old, but valid addressinfo)
+				// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
+				// errorMsg := err.Error()
+				// errCasted, ok := err.(blocker.Blocker)
+				// if ok {
+				// 	errorMsg = errCasted.Message
+				// }
+				// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
+				// 	// blacklist peer!
+				// }
+			} else if !alreadyUpdated {
+				nodeAddressInfosToReceive = append(nodeAddressInfosToReceive, info)
 			}
 		}
+		if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfosToReceive); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -382,15 +387,11 @@ func (ps *P2PServerService) GetNextBlocks(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		/* Temporary diable block service ChainWriteLock when getting blocks
-		it seems caused extremely increase go routines
-		// blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
-		// defer blockService.ChainWriteUnlock(constant.BlockchainSendingBlocks)*/
-		block, err := blockService.GetBlockByID(blockID, false)
+		commonBlock, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
+		blocks, err := blockService.GetBlocksFromHeight(commonBlock.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -398,10 +399,6 @@ func (ps *P2PServerService) GetNextBlocks(
 		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
-			}
-			err = blockService.PopulateBlockData(block)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
 			}
 			blocksMessage = append(blocksMessage, block)
 		}

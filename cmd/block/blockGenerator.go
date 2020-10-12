@@ -2,9 +2,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -140,6 +141,7 @@ func initialize(
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -196,7 +198,7 @@ func initialize(
 	)
 	feeScaleService := fee.NewFeeScaleService(
 		query.NewFeeScaleQuery(),
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		blockStorage,
 		queryExecutor,
 	)
 	blockService = service.NewBlockMainService(
@@ -232,7 +234,7 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
-		), nil, nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil)
+		), nil, nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil, nil)
 
 	migration = database.Migration{Query: queryExecutor}
 }

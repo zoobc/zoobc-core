@@ -114,7 +114,8 @@ func (*mockSpineNodeRegistrationServiceSuccess) AddParticipationScore(
 func (*mockSpineNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTADMITTED",
+			AccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		},
 	}, nil
 }
@@ -126,7 +127,8 @@ func (*mockSpineNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*
 func (*mockSpineNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		},
 	}, nil
 }
@@ -142,7 +144,8 @@ func (*mockSpineNodeRegistrationServiceFail) AddParticipationScore(
 func (*mockSpineNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		},
 	}, nil
 }
@@ -1363,8 +1366,10 @@ func (*mockSpineQueryExecutorMempoolSuccess) ExecuteSelect(string, bool, ...inte
 		transaction.GetFixturesForSignedMempoolTransaction(
 			1,
 			1562893305,
-			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+				45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			false,
 		).TransactionBytes),
 	)
@@ -1379,8 +1384,10 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*
 			TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 				1,
 				1562893305,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+					81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 				false,
 			).TransactionBytes,
 		},
@@ -1392,8 +1399,10 @@ func (*mockSpineMempoolServiceSelectSuccess) SelectTransactionsFromMempool(int64
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		false,
 	).TransactionBytes
 	txHash := sha3.Sum256(txByte)

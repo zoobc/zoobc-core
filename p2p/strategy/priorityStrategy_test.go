@@ -228,10 +228,7 @@ func (p2pNssMock *p2pMockNodeConfigurationService) GetMyPeerPort() (uint32, erro
 	return 8001, nil
 }
 
-func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(
-	destPeer *model.Peer,
-	nodeAddressInfo *model.NodeAddressInfo,
-) (*model.Empty, error) {
+func (p2pMpsc *p2pMockPeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
 	return nil, nil
 }
 
@@ -259,8 +256,9 @@ func (p2pNr *p2pMockNodeRegistraionService) GetNodeRegistrationByNodePublicKey(n
 			return p2pNr.nodeRegistration, nil
 		}
 		return &model.NodeRegistration{
-			NodeID:             111,
-			AccountAddress:     "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			NodeID: 111,
+			AccountAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188,
+				43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 			LockedBalance:      10000000,
 			RegistrationHeight: 10,
 			RegistrationStatus: uint32(model.NodeRegistrationState_NodeRegistered),
@@ -314,7 +312,8 @@ func (p2pNr *p2pMockNodeRegistraionService) GenerateNodeAddressInfo(
 }
 
 var (
-	nrsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
+	nrsAddress1 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188,
+		43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
 	nrsNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 )
@@ -338,7 +337,7 @@ func (*mockPeerServiceClientSuccess) DeleteConnection(destPeer *model.Peer) erro
 	return nil
 }
 
-func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
 	return nil, nil
 }
 
@@ -1792,7 +1791,8 @@ func TestPriorityStrategy_SyncNodeAddressInfoTable(t *testing.T) {
 			RegistrationStatus: 0,
 			RegistrationHeight: 0,
 			LockedBalance:      0,
-			AccountAddress:     "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			AccountAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188,
+				43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 		},
 	}
 
@@ -2009,7 +2009,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 		PeerStrategyHelper       PeerStrategyHelperInterface
 	}
 	type args struct {
-		nodeAddressInfo *model.NodeAddressInfo
+		nodeAddressInfo []*model.NodeAddressInfo
 	}
 	tests := []struct {
 		name    string
@@ -2020,7 +2020,7 @@ func TestPriorityStrategy_ReceiveNodeAddressInfo(t *testing.T) {
 		{
 			name: "ReceiveNodeAddressInfo:success",
 			args: args{
-				nodeAddressInfo: &model.NodeAddressInfo{},
+				nodeAddressInfo: []*model.NodeAddressInfo{},
 			},
 			fields: fields{
 				NodeConfigurationService: &p2pMockNodeConfigurationService{

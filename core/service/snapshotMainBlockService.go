@@ -283,11 +283,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		highestBlock *model.Block
 	)
 
-	err := ss.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
-
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		var (
 			qry = snapshotQuery.TrimDataBeforeSnapshot(0, height)
@@ -441,7 +436,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		}
 	}
-
+	err := ss.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	err = ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		rollbackErr := ss.QueryExecutor.RollbackTx()
@@ -466,6 +464,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
+	err = ss.BlockMainService.InitializeBlocksCache()
+	if err != nil {
+		return err
+	}
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }

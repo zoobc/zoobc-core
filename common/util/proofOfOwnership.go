@@ -2,14 +2,18 @@ package util
 
 import (
 	"bytes"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // GetProofOfOwnershipSize returns size in bytes of a proof of ownership message
-func GetProofOfOwnershipSize(withSignature bool) uint32 {
-	message := constant.AccountAddress + constant.BlockHash + constant.Height
+func GetProofOfOwnershipSize(accountAddressType accounttype.AccountType, withSignature bool) uint32 {
+	var (
+		accountAddressSize = constant.AccountAddressTypeLength + accountAddressType.GetAccountPublicKeyLength()
+	)
+	message := accountAddressSize + constant.BlockHash + constant.Height
 	if withSignature {
 		return message + constant.NodeSignature
 	}
@@ -27,8 +31,17 @@ func GetProofOfOwnershipBytes(poown *model.ProofOfOwnership) []byte {
 // ParseProofOfOwnershipBytes parse a byte array into a ProofOfOwnership struct (message + signature)
 // poownBytes if true returns size of message + signature
 func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, error) {
+	// copy poown bytes and parse first bytes as accountAddress to get the address size
+	var tmpPoonBytes = make([]byte, len(poownBytes))
+	copy(tmpPoonBytes, poownBytes)
+	tmpBuffer := bytes.NewBuffer(tmpPoonBytes)
+	accType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
+	if err != nil {
+		return nil, err
+	}
+
 	buffer := bytes.NewBuffer(poownBytes)
-	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(false)))
+	poownMessageBytes, err := ReadTransactionBytes(buffer, int(GetProofOfOwnershipSize(accType, false)))
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +58,7 @@ func ParseProofOfOwnershipBytes(poownBytes []byte) (*model.ProofOfOwnership, err
 // GetProofOfOwnershipMessageBytes serialize ProofOfOwnershipMessage struct into bytes
 func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage) []byte {
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write([]byte(poownMessage.AccountAddress))
+	buffer.Write(poownMessage.AccountAddress)
 	buffer.Write(poownMessage.BlockHash)
 	buffer.Write(ConvertUint32ToBytes(poownMessage.BlockHeight))
 	return buffer.Bytes()
@@ -54,7 +67,7 @@ func GetProofOfOwnershipMessageBytes(poownMessage *model.ProofOfOwnershipMessage
 // ParseProofOfOwnershipMessageBytes parse a byte array into a ProofOfOwnershipMessage struct (only the message, no signature)
 func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOfOwnershipMessage, error) {
 	buffer := bytes.NewBuffer(poownMessageBytes)
-	accountAddress, err := ReadTransactionBytes(buffer, int(constant.AccountAddress))
+	account, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +80,12 @@ func ParseProofOfOwnershipMessageBytes(poownMessageBytes []byte) (*model.ProofOf
 		return nil, err
 	}
 	height := ConvertBytesToUint32(heightBytes)
+	accountAddress, err := account.GetAccountAddress()
+	if err != nil {
+		return nil, err
+	}
 	return &model.ProofOfOwnershipMessage{
-		AccountAddress: string(accountAddress),
+		AccountAddress: accountAddress,
 		BlockHash:      blockHash,
 		BlockHeight:    height,
 	}, nil

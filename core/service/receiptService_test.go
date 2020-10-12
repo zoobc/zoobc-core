@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -125,7 +126,7 @@ var (
 	mockNodeRegistrationData = model.NodeRegistration{
 		NodeID:             111,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,
@@ -140,7 +141,7 @@ var (
 	mockNodeRegistrationDataB = model.NodeRegistration{
 		NodeID:             222,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,
@@ -642,12 +643,26 @@ type (
 	mockScrambleNodeServiceSelectReceiptsSuccess struct {
 		ScrambleNodeService
 	}
+	mockSelectReceiptsMainBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 )
 
 func (*mockScrambleNodeServiceSelectReceiptsSuccess) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
 	return mockSelectReceiptGoodScrambleNode, nil
+}
+
+func (*mockSelectReceiptsMainBlocksStorageSuccess) GetAtIndex(height uint32, item interface{}) error {
+	blockCacheObjCopy, ok := item.(*storage.BlockCacheObject)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "mockedErr")
+	}
+	blockCacheObjCopy.BlockHash = mockBlockDataSelectReceipt.BlockHash
+	blockCacheObjCopy.Height = mockBlockDataSelectReceipt.Height
+	blockCacheObjCopy.ID = mockBlockDataSelectReceipt.ID
+	return nil
 }
 
 func TestReceiptService_SelectReceipts(t *testing.T) {
@@ -660,6 +675,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		ScrambleNodeService     ScrambleNodeServiceInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 	}
 	type args struct {
 		blockTimestamp  int64
@@ -725,6 +741,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				ScrambleNodeService:     &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				MainBlocksStorage:       &mockSelectReceiptsMainBlocksStorageSuccess{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -749,6 +766,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
 				ScrambleNodeService:     &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				MainBlocksStorage:       &mockSelectReceiptsMainBlocksStorageSuccess{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -778,6 +796,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 				ScrambleNodeService:     tt.fields.ScrambleNodeService,
+				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 			}
 			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
 			if (err != nil) != tt.wantErr {
@@ -1134,6 +1153,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			},
 			args:           args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
 			wantDuplicated: true,
+			wantErr:        true,
 		},
 		{
 			name: "want:Success",
@@ -1159,13 +1179,15 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
 				ReceiptReminderStorage:  tt.fields.ReceiptReminderStorage,
 			}
-			gotDuplicated, err := rs.IsDuplicated(tt.args.publicKey, tt.args.datumHash)
+			err := rs.CheckDuplication(tt.args.publicKey, tt.args.datumHash)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IsDuplicated() error = %v, wantErr %v", err, tt.wantErr)
+				b := err.(blocker.Blocker)
+				if tt.wantDuplicated && b.Type != blocker.DuplicateReceiptErr {
+					t.Errorf("CheckDuplication() gotDuplicated = %v, want %v", b.Type, tt.wantDuplicated)
+					return
+				}
+				t.Errorf("CheckDuplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if gotDuplicated != tt.wantDuplicated {
-				t.Errorf("IsDuplicated() gotDuplicated = %v, want %v", gotDuplicated, tt.wantDuplicated)
 			}
 		})
 	}
