@@ -96,19 +96,22 @@ func (b *BlocksStorage) GetAll(items interface{}) error {
 
 // GetAtIndex get block cache object based on given index
 func (b *BlocksStorage) GetAtIndex(height uint32, item interface{}) error {
-	if height > b.lastBlockHeight {
-		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
-	}
-	blockCacheObjCopy, ok := item.(*BlockCacheObject)
+	var blockCacheObjCopy, ok = item.(*BlockCacheObject)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNotBlockCacheObject")
 	}
 	b.RLock()
 	defer b.RUnlock()
+	if height > b.lastBlockHeight {
+		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
+	}
 	var (
 		lastIndex   = len(b.blocks) - 1
 		heightIndex = lastIndex - int(b.lastBlockHeight-height)
 	)
+	if heightIndex < 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
+	}
 	*blockCacheObjCopy = b.copy(b.blocks[heightIndex])
 	return nil
 }
@@ -117,7 +120,7 @@ func (b *BlocksStorage) GetTop(item interface{}) error {
 	b.RLock()
 	defer b.RUnlock()
 	topIndex := len(b.blocks) - 1
-	if topIndex == -1 {
+	if topIndex < 0 {
 		return blocker.NewBlocker(blocker.CacheEmpty, "EmptyBlocksCache")
 	}
 	blockCacheObjCopy, ok := item.(*BlockCacheObject)
