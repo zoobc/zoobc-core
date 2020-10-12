@@ -433,25 +433,26 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		receivedTx  *model.Transaction
 		duplicateTx bool
 	)
+
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
 	receivedTxHash := sha3.Sum256(receivedTxBytes)
+	err = mps.ReceiptService.CheckDuplication(senderPublicKey, receivedTxHash[:])
+	if err != nil {
+		if b := err.(blocker.Blocker); b.Type == blocker.DuplicateReceiptErr {
+			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
+		}
+		return nil, nil, status.Errorf(codes.Internal, err.Error())
+	}
+
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(receivedTx); err != nil {
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type != blocker.DuplicateMempoolErr {
 			return nil, nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-
-		// already exist in mempool, check if already generated a receipt for this sender
-		err = mps.ReceiptService.CheckDuplication(senderPublicKey, receivedTxHash[:])
-		if err != nil {
-			if b := err.(blocker.Blocker); b.Type == blocker.DuplicateReceiptErr {
-				return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
-			}
-			return nil, nil, status.Errorf(codes.Internal, err.Error())
 		}
 		duplicateTx = true
 	}
