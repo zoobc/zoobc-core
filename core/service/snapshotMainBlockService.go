@@ -464,6 +464,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
+	err = ss.BlockMainService.InitializeBlocksCache()
+	if err != nil {
+		return err
+	}
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }

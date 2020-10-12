@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -58,7 +59,7 @@ var (
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
-	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
+	scrambleNodeStorage, mainBlocksStorage                                 storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -293,6 +294,7 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
+	mainBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -400,6 +402,7 @@ func initiateMainInstance() {
 		receiptReminderStorage,
 		batchReceiptCacheStorage,
 		scrambleNodeService,
+		mainBlocksStorage,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -528,6 +531,7 @@ func initiateMainInstance() {
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
 		mainBlockStateStorage,
+		mainBlocksStorage,
 		blockchainStatusService,
 		scrambleNodeService,
 	)
@@ -824,12 +828,11 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
-	err = mempoolService.InitMempoolTransaction()
+	err = mainchainBlockService.InitializeBlocksCache()
 	if err != nil {
-		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
+		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
-
 	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -948,10 +951,17 @@ func startSpinechain() {
 	err = spinechainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
+	err = spinechainBlockService.InitializeBlocksCache()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	monitoring.SetLastBlock(spinechain, lastBlockAtStart)
 

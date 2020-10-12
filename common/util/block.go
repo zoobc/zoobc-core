@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -98,7 +99,6 @@ func GetBlockByHeight(
 		row   *sql.Row
 		err   error
 	)
-
 	row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -106,11 +106,34 @@ func GetBlockByHeight(
 	err = blockQuery.Scan(&block, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+			return nil, blocker.NewBlocker(blocker.DBErr, "BlockScanErr, ", err.Error())
 		}
 		return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
 	}
 	return &block, nil
+}
+
+func GetBlockByHeightUseBlocksCache(
+	height uint32,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
+) (*storage.BlockCacheObject, error) {
+	var (
+		blockCacheObject storage.BlockCacheObject
+		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
+	)
+	if err == nil {
+		return &blockCacheObject, nil
+	}
+	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
+	if err != nil {
+		return nil, err
+	}
+	blockCacheObject.BlockHash = block.BlockHash
+	blockCacheObject.Height = block.Height
+	blockCacheObject.ID = block.ID
+	return &blockCacheObject, nil
 }
 
 func GetMinRollbackHeight(currentHeight uint32) uint32 {

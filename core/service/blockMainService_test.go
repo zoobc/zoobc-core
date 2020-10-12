@@ -1205,6 +1205,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 		PublishedReceiptService   PublishedReceiptServiceInterface
 		FeeScaleService           fee.FeeScaleServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		MempoolService            MempoolServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
@@ -1287,6 +1288,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1331,6 +1333,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1377,6 +1380,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess{},
@@ -1423,6 +1427,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   &mockPushBlockPublishedReceiptServiceSuccess{},
 				FeeScaleService:           &mockPushBlockFeeScaleServiceNoAdjust{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				MempoolService:            &mockMempoolServiceRemoveTransactionsSuccess{},
 				ScrambleNodeService:       &mockScrambleNodeServicePushBlockBuildScrambleNodeFail{},
@@ -1465,6 +1470,7 @@ func TestBlockService_PushBlock(t *testing.T) {
 				PublishedReceiptService:   tt.fields.PublishedReceiptService,
 				FeeScaleService:           tt.fields.FeeScaleService,
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				MempoolService:            tt.fields.MempoolService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
@@ -2136,6 +2142,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		TransactionCoreService    TransactionCoreServiceInterface
 		PublishedReceiptService   PublishedReceiptServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
 		PendingTransactionService PendingTransactionServiceInterface
@@ -2178,6 +2185,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				),
 				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
@@ -2207,6 +2215,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				PublishedReceiptService:   tt.fields.PublishedReceiptService,
 				FeeScaleService:           &mockAddGenesisFeeScaleServiceCache{},
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
 				PendingTransactionService: tt.fields.PendingTransactionService,
@@ -2454,6 +2463,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByHeight mocks
+	mockGetBlockByHeightPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2486,6 +2498,10 @@ func (*mockGetBlockByHeightTransactionCoreServiceSuccess) GetTransactionsByBlock
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByHeightPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2498,6 +2514,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		ActionTypeSwitcher     transaction.TypeActionSwitcher
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 		Observer               *observer.Observer
 	}
 	type args struct {
@@ -2518,6 +2535,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByHeightTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByHeightPublishedReceiptUtilSuccess{},
 			},
 			want:    &mockGetBlockByHeightResult,
 			wantErr: false,
@@ -2549,6 +2567,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -2650,7 +2669,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByID mocks
-
+	mockGetBlockByIDPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2683,6 +2704,10 @@ func (*mockGetBlockByIDTransactionCoreServiceSuccess) GetTransactionsByBlockID(b
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByIDPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2696,6 +2721,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		Observer               *observer.Observer
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 	}
 	type args struct {
 		ID               int64
@@ -2716,6 +2742,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByIDTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByIDPublishedReceiptUtilSuccess{},
 			},
 			args: args{
 				ID:               int64(1),
@@ -2749,6 +2776,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
@@ -4367,6 +4395,9 @@ type (
 	mockPopOffToBlockBlockStateStorageSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockPopOffToBlockBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 	mockPopOffToBlockBlockStateStorageHardForkSuccess struct {
 		storage.CacheStorageInterface
 	}
@@ -4380,6 +4411,10 @@ func (*mockBlockPoolServicePopOffToBlockSuccess) ClearBlockPool() {}
 
 func (*mockPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
+}
+
+func (*mockPopOffToBlockBlocksStorageSuccess) PopTo(uint32) error {
+	return nil
 }
 
 type (
@@ -4530,6 +4565,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
 		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
@@ -4658,6 +4694,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4690,6 +4727,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4722,6 +4760,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
@@ -4764,6 +4803,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				ParticipationScoreService:   tt.fields.ParticipationScoreService,
 				PublishedReceiptService:     tt.fields.PublishedReceiptService,
 				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlocksStorage:               tt.fields.BlocksStorage,
 				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)

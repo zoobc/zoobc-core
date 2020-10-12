@@ -61,6 +61,7 @@ type (
 		ScrambleNodeService      ScrambleNodeServiceInterface
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
+		MainBlocksStorage        storage.CacheStackStorageInterface
 		// local cache
 		LastMerkleRoot []byte
 	}
@@ -78,6 +79,7 @@ func NewReceiptService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
+	mainBlocksStorage storage.CacheStackStorageInterface,
 ) *ReceiptService {
 	return &ReceiptService{
 		NodeReceiptQuery:         nodeReceiptQuery,
@@ -93,6 +95,7 @@ func NewReceiptService(
 		ScrambleNodeService:      scrambleNodeService,
 		ReceiptReminderStorage:   receiptReminderStorage,
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
+		MainBlocksStorage:        mainBlocksStorage,
 		LastMerkleRoot:           nil,
 	}
 }
@@ -378,7 +381,7 @@ func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.BatchReceipt,
 ) error {
 	var (
-		blockAtHeight model.Block
+		blockAtHeight *storage.BlockCacheObject
 		err           error
 	)
 	unsignedBytes := rs.ReceiptUtil.GetUnsignedBatchReceiptBytes(receipt)
@@ -393,9 +396,12 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptSignature",
 		)
 	}
-	blockAtHeightQ := rs.BlockQuery.GetBlockByHeight(receipt.ReferenceBlockHeight)
-	blockAtHeightRow, _ := rs.QueryExecutor.ExecuteSelectRow(blockAtHeightQ, false)
-	err = rs.BlockQuery.Scan(&blockAtHeight, blockAtHeightRow)
+	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+		receipt.ReferenceBlockHeight,
+		rs.QueryExecutor,
+		rs.BlockQuery,
+		rs.MainBlocksStorage,
+	)
 	if err != nil {
 		return err
 	}

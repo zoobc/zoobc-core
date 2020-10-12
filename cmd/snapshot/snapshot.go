@@ -3,9 +3,10 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/util"
 	"math/rand"
 	"os"
+
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -303,6 +304,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			storage.NewBlockStateStorage(),
+			nil,
 			nil,
 			nil,
 		)

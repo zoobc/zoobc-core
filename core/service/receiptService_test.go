@@ -10,9 +10,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -644,12 +643,26 @@ type (
 	mockScrambleNodeServiceSelectReceiptsSuccess struct {
 		ScrambleNodeService
 	}
+	mockSelectReceiptsMainBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 )
 
 func (*mockScrambleNodeServiceSelectReceiptsSuccess) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
 	return mockSelectReceiptGoodScrambleNode, nil
+}
+
+func (*mockSelectReceiptsMainBlocksStorageSuccess) GetAtIndex(height uint32, item interface{}) error {
+	blockCacheObjCopy, ok := item.(*storage.BlockCacheObject)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "mockedErr")
+	}
+	blockCacheObjCopy.BlockHash = mockBlockDataSelectReceipt.BlockHash
+	blockCacheObjCopy.Height = mockBlockDataSelectReceipt.Height
+	blockCacheObjCopy.ID = mockBlockDataSelectReceipt.ID
+	return nil
 }
 
 func TestReceiptService_SelectReceipts(t *testing.T) {
@@ -662,6 +675,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
 		ScrambleNodeService     ScrambleNodeServiceInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 	}
 	type args struct {
 		blockTimestamp  int64
@@ -727,6 +741,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				ScrambleNodeService:     &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				MainBlocksStorage:       &mockSelectReceiptsMainBlocksStorageSuccess{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -751,6 +766,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
 				ScrambleNodeService:     &mockScrambleNodeServiceSelectReceiptsSuccess{},
+				MainBlocksStorage:       &mockSelectReceiptsMainBlocksStorageSuccess{},
 			},
 			args: args{
 				blockTimestamp:  0,
@@ -780,6 +796,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
 				ReceiptUtil:             &coreUtil.ReceiptUtil{},
 				ScrambleNodeService:     tt.fields.ScrambleNodeService,
+				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 			}
 			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
 			if (err != nil) != tt.wantErr {
