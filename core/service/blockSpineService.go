@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math/big"
 	"sort"
 	"sync"
@@ -698,10 +699,14 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 		payloadBytes                         []byte
 		payloadLength                        uint32
 		digest                               = sha3.New256()
+		err                                  error
 	)
 
 	// add spine public keys from mainchain genesis configuration to spine genesis block
-	spineChainPublicKeys = bs.getGenesisSpinePublicKeys(genesisEntries)
+	spineChainPublicKeys, err = bs.getGenesisSpinePublicKeys(genesisEntries)
+	if err != nil {
+		return nil, err
+	}
 	sort.SliceStable(spineChainPublicKeys, func(i, j int) bool {
 		intI := new(big.Int).SetBytes(spineChainPublicKeys[i].NodePublicKey)
 		intJ := new(big.Int).SetBytes(spineChainPublicKeys[j].NodePublicKey)
@@ -1019,20 +1024,34 @@ func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*mode
 // based on nodes registered at genesis
 func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 	genesisEntries []constant.GenesisConfigEntry,
-) (spinePublicKeys []*model.SpinePublicKey) {
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
 	spinePublicKeys = make([]*model.SpinePublicKey, 0)
 	for _, mainchainGenesisEntry := range genesisEntries {
 		if mainchainGenesisEntry.NodePublicKey == nil {
 			continue
 		}
+		// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
+		ed25519 := crypto.NewEd25519Signature()
+		accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(mainchainGenesisEntry.AccountAddress)
+		if err != nil {
+			return nil, err
+		}
+		accType := &accounttype.ZbcAccountType{}
+		accType.SetEncodedAccountAddress(mainchainGenesisEntry.AccountAddress)
+		accType.SetAccountPublicKey(accPubKey)
+		accountFullAddress, err := accType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
+
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
-			mainchainGenesisEntry.AccountAddress,
+			accountFullAddress,
 			mainchainGenesisEntry.NodeAddress,
 			mainchainGenesisEntry.LockedBalance,
 			mainchainGenesisEntry.NodePublicKey,
 		)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
@@ -1044,7 +1063,7 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		}
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
-	return spinePublicKeys
+	return spinePublicKeys, nil
 }
 
 func (bs *BlockSpineService) ReceivedValidatedBlockTransactionsListener() observer.Listener {

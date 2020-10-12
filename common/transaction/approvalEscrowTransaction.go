@@ -17,7 +17,7 @@ type (
 	ApprovalEscrowTransaction struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
+		SenderAddress        []byte
 		Height               uint32
 		Body                 *model.ApprovalEscrowTransactionBody
 		Escrow               *model.Escrow
@@ -62,12 +62,12 @@ func (tx *ApprovalEscrowTransaction) SkipMempoolTransaction(
 }
 
 // GetSize of approval transaction body bytes
-func (*ApprovalEscrowTransaction) GetSize() uint32 {
-	return constant.EscrowApprovalBytesLength
+func (*ApprovalEscrowTransaction) GetSize() (uint32, error) {
+	return constant.EscrowApprovalBytesLength, nil
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -79,11 +79,11 @@ func (tx *ApprovalEscrowTransaction) GetAmount() int64 {
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *ApprovalEscrowTransaction) GetBodyBytes() []byte {
+func (tx *ApprovalEscrowTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(tx.Body.GetApproval())))
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.GetTransactionID())))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf
@@ -180,7 +180,7 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 	}
 
 	// Check sender, should be approver address
-	if latestEscrow.GetApproverAddress() != tx.SenderAddress {
+	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.SenderAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSenderAddress")
 	}
 
@@ -288,7 +288,7 @@ Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false

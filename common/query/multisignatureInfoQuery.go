@@ -12,7 +12,7 @@ import (
 type (
 	MultisignatureInfoQueryInterface interface {
 		GetMultisignatureInfoByAddress(
-			multisigAddress string,
+			multisigAddress []byte,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{}
@@ -46,8 +46,10 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
+// GetMultisignatureInfoByAddress
+// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
-	multisigAddress string,
+	multisigAddress []byte,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
 	var (
@@ -188,7 +190,9 @@ func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
 // Scan will build model from *sql.Row that expect has addresses column
 // which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
-	var addresses string
+	var (
+		addresses []byte
+	)
 	err := row.Scan(
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
@@ -197,7 +201,12 @@ func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row
 		&multisigInfo.Latest,
 		&addresses,
 	)
-	multisigInfo.Addresses = strings.Split(addresses, ",")
+
+	// STEF
+	// TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+	// bufferBytes := bytes.NewBuffer(addresses)
+	//
+	// multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
 }
 
@@ -230,10 +239,11 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Latest,
 			&addresses,
 		)
-		multisigInfo.Addresses = strings.Split(addresses, ",")
 		if err != nil {
 			return nil, err
 		}
+		// STEF TODO: since sqlite doesn't support blob concatenation, we have to refactor this to use multiple queries
+		// multisigInfo.Addresses = strings.Split(addresses, ",")
 		mss = append(mss, &multisigInfo)
 	}
 	return mss, nil
@@ -258,6 +268,7 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 	}
 }
 
+// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
 		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+

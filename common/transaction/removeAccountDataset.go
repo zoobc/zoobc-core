@@ -16,8 +16,8 @@ import (
 type RemoveAccountDataset struct {
 	ID                   int64
 	Fee                  int64
-	SenderAddress        string
-	RecipientAddress     string
+	SenderAddress        []byte
+	RecipientAddress     []byte
 	Height               uint32
 	Body                 *model.RemoveAccountDatasetTransactionBody
 	Escrow               *model.Escrow
@@ -174,15 +174,19 @@ func (tx *RemoveAccountDataset) GetAmount() int64 {
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
 func (tx *RemoveAccountDataset) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize is size of transaction body
-func (tx *RemoveAccountDataset) GetSize() uint32 {
-	return uint32(len(tx.GetBodyBytes()))
+func (tx *RemoveAccountDataset) GetSize() (uint32, error) {
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -222,7 +226,7 @@ func (tx *RemoveAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transa
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
+func (tx *RemoveAccountDataset) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))
@@ -230,7 +234,7 @@ func (tx *RemoveAccountDataset) GetBodyBytes() []byte {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetValue())))))
 	buffer.Write([]byte(tx.Body.GetValue()))
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody return transaction body of RemoveAccountDataset transactions
@@ -245,7 +249,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *RemoveAccountDataset) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -275,7 +279,7 @@ func (tx *RemoveAccountDataset) EscrowValidate(dbTx bool) error {
 		enough bool
 	)
 
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

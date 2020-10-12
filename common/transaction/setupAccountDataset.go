@@ -16,8 +16,8 @@ import (
 type SetupAccountDataset struct {
 	ID                   int64
 	Fee                  int64
-	SenderAddress        string
-	RecipientAddress     string
+	SenderAddress        []byte
+	RecipientAddress     []byte
 	Height               uint32
 	Body                 *model.SetupAccountDatasetTransactionBody
 	Escrow               *model.Escrow
@@ -119,7 +119,7 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 
 	// Recipient required while property set as AccountDatasetEscrowApproval
 	_, ok := model.AccountDatasetProperty_value[tx.Body.GetProperty()]
-	if ok && tx.RecipientAddress == "" {
+	if ok && tx.RecipientAddress == nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientRequired")
 	}
 
@@ -171,15 +171,19 @@ func (tx *SetupAccountDataset) GetAmount() int64 {
 
 // GetMinimumFee return minimum fee of transaction
 func (tx *SetupAccountDataset) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize is size of transaction body
-func (tx *SetupAccountDataset) GetSize() uint32 {
-	return uint32(len(tx.GetBodyBytes()))
+func (tx *SetupAccountDataset) GetSize() (uint32, error) {
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -220,7 +224,7 @@ func (tx *SetupAccountDataset) ParseBodyBytes(txBodyBytes []byte) (model.Transac
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *SetupAccountDataset) GetBodyBytes() []byte {
+func (tx *SetupAccountDataset) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetProperty())))))
 	buffer.Write([]byte(tx.Body.GetProperty()))
@@ -228,7 +232,7 @@ func (tx *SetupAccountDataset) GetBodyBytes() []byte {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.GetValue())))))
 	buffer.Write([]byte(tx.Body.GetValue()))
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody return transaction body of SetupAccountDataset transactions
@@ -243,7 +247,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -273,7 +277,7 @@ func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
 	}
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {

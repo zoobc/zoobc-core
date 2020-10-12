@@ -16,7 +16,7 @@ import (
 type (
 	// NodeAdminServiceInterface represents interface for NodeAdminService
 	NodeAdminServiceInterface interface {
-		GenerateProofOfOwnership(accountAddress string) (*model.ProofOfOwnership, error)
+		GenerateProofOfOwnership(accountAddress []byte) (*model.ProofOfOwnership, error)
 		ParseKeysFile() ([]*model.NodeKey, error)
 		GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKey
 		GenerateNodeKey(seed string) ([]byte, error)
@@ -49,7 +49,7 @@ func NewNodeAdminService(
 
 // generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(
-	accountAddress string) (*model.ProofOfOwnership, error) {
+	accountAddress []byte) (*model.ProofOfOwnership, error) {
 
 	// get the node seed (private key)
 	nodeKeys, err := nas.ParseKeysFile()

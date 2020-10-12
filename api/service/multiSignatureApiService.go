@@ -80,7 +80,7 @@ func (ms *MultisigService) GetPendingTransactions(
 		args         []interface{}
 	)
 	caseQuery.Select(musigQuery.TableName, musigQuery.Fields...)
-	if param.GetSenderAddress() != "" {
+	if param.GetSenderAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
 	}
 	caseQuery.Where(caseQuery.Equal("status", param.GetStatus()))
@@ -184,6 +184,7 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		ms.Logger.Error(err)
 		return nil, status.Error(codes.Internal, "server error")
 	}
+	// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// get multisig info if exist
 	// sub query for getting addresses from multisignature_participant
 	subQ := query.NewCaseQuery()
@@ -231,6 +232,7 @@ func (ms *MultisigService) GetMultisignatureInfo(
 		totalRecords      uint32
 		err               error
 	)
+	// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// sub query for getting addresses from multisignature_participant
 	subQ := query.NewCaseQuery()
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
@@ -241,7 +243,7 @@ func (ms *MultisigService) GetMultisignatureInfo(
 
 	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
 	caseQuery.Args = append(caseQuery.Args, subArgs...)
-	if param.GetMultisigAddress() != "" {
+	if param.GetMultisigAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("multisig_address", param.GetMultisigAddress()))
 	}
 	caseQuery.Where(caseQuery.Equal("latest", true))
@@ -285,7 +287,7 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 	param *model.GetMultisigAddressByParticipantAddressRequest,
 ) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
 	var (
-		multiSignatureAddresses        = []string{}
+		multisigAddresses              = [][]byte{}
 		caseQuery                      = query.NewCaseQuery()
 		multisignatureParticipantQuery = query.NewMultiSignatureParticipantQuery()
 		selectQuery                    string
@@ -322,7 +324,7 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 	defer multiSignatureAddressesRows.Close()
 
 	for multiSignatureAddressesRows.Next() {
-		var multisigAddress string
+		var multisigAddress []byte
 		err = multiSignatureAddressesRows.Scan(
 			&multisigAddress,
 		)
@@ -332,12 +334,12 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 			}
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		multiSignatureAddresses = append(multiSignatureAddresses, multisigAddress)
+		multisigAddresses = append(multisigAddresses, multisigAddress)
 	}
 
 	return &model.GetMultisigAddressByParticipantAddressResponse{
-		Total:              totalRecords,
-		MultiSignAddresses: multiSignatureAddresses,
+		Total:             totalRecords,
+		MultisigAddresses: multisigAddresses,
 	}, err
 }
 
@@ -383,6 +385,7 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 		totalRecords      uint32
 		err               error
 	)
+	// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 	// sub query for getting addresses from multisignature_participant
 	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
 	subQ.Where("multisig_address = " + multisigInfoQuery.TableName + ".multisig_address")
@@ -483,13 +486,14 @@ func (ms *MultisigService) GetParticipantsByMultisigAddresses(
 		return nil, err
 	}
 
+	participantMultiSignatureAddressHex := hex.EncodeToString(multiSignatureParticipant.MultiSignatureAddress)
 	for _, msParticipant := range result {
-		if multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] == nil {
-			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] = &model.MultiSignatureParticipants{}
+		if multiSignatureParticipants[participantMultiSignatureAddressHex] == nil {
+			multiSignatureParticipants[participantMultiSignatureAddressHex] = &model.MultiSignatureParticipants{}
 		}
 
-		multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants = append(
-			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants,
+		multiSignatureParticipants[participantMultiSignatureAddressHex].MultiSignatureParticipants = append(
+			multiSignatureParticipants[participantMultiSignatureAddressHex].MultiSignatureParticipants,
 			msParticipant)
 	}
 

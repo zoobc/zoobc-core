@@ -20,13 +20,13 @@ type (
 	}
 
 	NodeHardwareService struct {
-		OwnerAccountAddress string
+		OwnerAccountAddress []byte
 		Signature           crypto.SignatureInterface
 	}
 )
 
 func NewNodeHardwareService(
-	ownerAccountAddress string,
+	ownerAccountAddress []byte,
 	signature crypto.SignatureInterface,
 ) *NodeHardwareService {
 	return &NodeHardwareService{

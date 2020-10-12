@@ -95,7 +95,7 @@ func (*mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail) ExecuteSelect(qe 
 		}).AddRow(
 			0,
 			body.NodePublicKey,
-			"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+			senderAddress1,
 			1,
 			1,
 			1,
@@ -119,7 +119,7 @@ func (*mockExecutorValidateRemoveNodeRegistrationSuccess) ExecuteSelectRow(qe st
 	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields).AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		1,
@@ -138,7 +138,7 @@ func (*mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted) Execute
 	mock.ExpectQuery("SELECT").WillReturnRows(mock.NewRows(query.NewNodeRegistrationQuery().Fields).AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		uint32(model.NodeRegistrationState_NodeDeleted),
@@ -161,7 +161,7 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteSelectRow
 	mockedRows.AddRow(
 		0,
 		body.NodePublicKey,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAddress1,
 		1,
 		1,
 		1,
@@ -206,7 +206,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -236,7 +236,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("RemoveNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -251,7 +251,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -317,7 +317,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 func TestRemoveNodeRegistration_GetSize(t *testing.T) {
 	tx := &RemoveNodeRegistration{}
 	want := constant.NodePublicKey
-	if got := tx.GetSize(); got != want {
+	if got, _ := tx.GetSize(); got != want {
 		t.Errorf("TestRemoveNodeRegistration.GetSize() = %v, want %v", got, want)
 	}
 }
@@ -347,20 +347,20 @@ var (
 )
 
 func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateFail) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	return errors.New("MockedError")
 }
 
 func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateNotEnoughSpendable) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate - 1
 	return nil
 }
 
 func (*mockAccountBalanceHelperRemoveNodeRegistrationValidateSuccess) GetBalanceByAccountAddress(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeRemoveNodeRegistrationValidate + 1
 	return nil
@@ -371,7 +371,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -387,7 +387,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -400,7 +400,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailGetRNode{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -412,7 +412,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:         senderAddress2,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -424,7 +424,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -436,7 +436,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   mockFeeRemoveNodeRegistrationValidate,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -449,7 +449,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   mockFeeRemoveNodeRegistrationValidate,
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				Height:                1,
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -481,7 +481,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -495,7 +495,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:fail-{executeTransactionsFail}",
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				Fee:                   1,
@@ -507,7 +507,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				SenderAddress:         "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				Fee:                   1,
@@ -540,7 +540,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -556,7 +556,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:         senderAddress1,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
@@ -568,7 +568,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body:                  body,
 				Fee:                   1,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:         senderAddress1,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
@@ -609,7 +609,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		Body                     *model.RemoveNodeRegistrationTransactionBody
 		Fee                      int64
-		SenderAddress            string
+		SenderAddress            []byte
 		Height                   uint32
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		QueryExecutor            query.ExecutorInterface
@@ -629,7 +629,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                     body,
 				Fee:                      1,
-				SenderAddress:            "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:            senderAddress1,
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperSuccess{},
@@ -643,7 +643,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                     body,
 				Fee:                      1,
-				SenderAddress:            "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:            senderAddress1,
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
 				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
@@ -682,7 +682,7 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -727,7 +727,7 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
 		Fee                     int64
-		SenderAddress           string
+		SenderAddress           []byte
 		Height                  uint32
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
@@ -750,20 +750,20 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -773,20 +773,20 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -795,20 +795,20 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_SetupAccountDatasetTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_SendMoneyTransaction),
 					},
 				},

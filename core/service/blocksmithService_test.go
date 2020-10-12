@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"reflect"
@@ -46,7 +47,8 @@ type (
 
 var (
 	// GetBlocksmithAccountAddress mocks
-	mockGetBlocksmithAccountAddressNodeRegistry = &model.NodeRegistration{AccountAddress: "BCZ_MOCK_ACCOUNT"}
+	mockGetBlocksmithAccountAddressNodeRegistry = &model.NodeRegistration{AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88,
+		220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}}
 )
 
 func (*mockExecutorGetBlocksmithAccountAddressExecuteSelectFail) ExecuteSelect(
@@ -110,7 +112,7 @@ func TestBlocksmithService_GetBlocksmithAccountAddress(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    string
+		want    []byte
 		wantErr bool
 	}{
 		{
@@ -122,7 +124,7 @@ func TestBlocksmithService_GetBlocksmithAccountAddress(t *testing.T) {
 			args: args{
 				block: &model.Block{},
 			},
-			want:    "",
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -134,7 +136,7 @@ func TestBlocksmithService_GetBlocksmithAccountAddress(t *testing.T) {
 			args: args{
 				block: &model.Block{},
 			},
-			want:    "",
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -146,7 +148,7 @@ func TestBlocksmithService_GetBlocksmithAccountAddress(t *testing.T) {
 			args: args{
 				block: &model.Block{},
 			},
-			want:    "",
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -173,7 +175,7 @@ func TestBlocksmithService_GetBlocksmithAccountAddress(t *testing.T) {
 				t.Errorf("GetBlocksmithAccountAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
+			if !bytes.Equal(got, tt.want) {
 				t.Errorf("GetBlocksmithAccountAddress() got = %v, want %v", got, tt.want)
 			}
 		})
@@ -188,7 +190,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 	}
 	type args struct {
-		blocksmithAccountAddresses []string
+		blocksmithAccountAddresses [][]byte
 		totalReward                int64
 		timestamp                  int64
 		height                     uint32
@@ -202,7 +204,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		{
 			name: "RewardBlocksmithAccountAddress:NoAccountToBeRewarded",
 			args: args{
-				blocksmithAccountAddresses: []string{},
+				blocksmithAccountAddresses: [][]byte{},
 				totalReward:                10000,
 				timestamp:                  1578549075,
 				height:                     1,
@@ -217,7 +219,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		{
 			name: "RewardBlocksmithAccountAddress:executorFailExecuteTransactions",
 			args: args{
-				blocksmithAccountAddresses: []string{bcsAddress1},
+				blocksmithAccountAddresses: [][]byte{bcsAddress1},
 				totalReward:                10000,
 				timestamp:                  1578549075,
 				height:                     1,
@@ -232,7 +234,7 @@ func TestBlockService_RewardBlocksmithAccountAddresses(t *testing.T) {
 		{
 			name: "RewardBlocksmithAccountAddress:success",
 			args: args{
-				blocksmithAccountAddresses: []string{bcsAddress1},
+				blocksmithAccountAddresses: [][]byte{bcsAddress1},
 				totalReward:                10000,
 				timestamp:                  1578549075,
 				height:                     1,

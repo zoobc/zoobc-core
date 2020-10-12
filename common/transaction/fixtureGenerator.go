@@ -1,17 +1,34 @@
 package transaction
 
 import (
-	"golang.org/x/crypto/sha3"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
-	senderAddress1 = "ZNK_TE5DFSAH_HVWOLTBQ_Y6IRKY35_JMYS25TB_3NIPF5DE_Q2IPMJMQ_2WDWZB5Q"
+	// ZBC_D2EDT53U_5VSQXGQD_COZMETMY_FUVV23NQ_UPLXTR7F_6LKVWNNF_J2SPLUDQ
+	senderAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81,
+		229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	senderAddress1PassPhrase = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
+	// ZBC_BZP2BUBM_NIFDFNSM_BP7J2K5H_RXSPH5OT_2WTPVIUU_KLH6I3DZ_TTD6XEHE
+	senderAddress2 = []byte{0, 0, 0, 0, 14, 95, 160, 208, 44, 106, 10, 50, 182, 76, 11, 254, 157, 43, 167, 141, 228, 243, 245, 211, 213,
+		166, 250, 162, 148, 82, 207, 228, 108, 121, 156, 199}
+	// ZBC_GRIZVZTE_RPDU4OVB_OUF64H22_F4KDXJBQ_3UIWOXPI_SQE2ILRV_WK6BK6G4
+	senderAddress3 = []byte{0, 0, 0, 0, 52, 81, 154, 230, 100, 139, 199, 78, 58, 161, 117, 11, 238, 31, 90, 47, 20, 59, 164, 48, 221, 17,
+		103, 93, 232, 148, 9, 164, 46, 53, 178, 188}
+	// ZBC_HHBIMCR5_7GTKH3SE_HVM2QPDI_DQIR4OLD_3NU5UQDT_BY2HHOS6_DBBEJSLT
+	senderAddress4 = []byte{0, 0, 0, 0, 57, 194, 134, 10, 61, 249, 166, 163, 238, 68, 61, 89, 168, 60, 104, 28, 17, 30, 57, 99, 219, 105,
+		218, 64, 115, 14, 52, 115, 186, 94, 24, 66}
+	// ZNK_IGXGYIX2_Q67MFEYO_7TVQRL7X_NKEVRI4H_OIKR5NXK_FKMFMPZT_G4ZZZ3TE
+	recipientAddress1 = []byte{0, 0, 0, 0, 65, 174, 108, 34, 250, 135, 190, 194, 147, 14, 252, 235, 8, 175, 247, 106, 137, 88, 163, 135,
+		114, 21, 30, 182, 234, 42, 152, 86, 63, 51, 55, 51}
+	// ZBC_EFA2GBTM_UJLAQGZ7_VGCV63HY_CHDBDXLZ_YNIMK67W_QJG7MJMB_3VKFLLYQ
+	approverAddress1 = []byte{0, 0, 0, 0, 33, 65, 163, 6, 108, 162, 86, 8, 27, 63, 169, 133, 95, 108, 248, 17, 198, 17, 221, 121, 195, 80,
+		197, 123, 246, 130, 77, 246, 37, 129, 221, 84}
 	// var senderSeed1 = "prune filth cleaver removable earthworm tricky sulfur citation hesitate stout snort guy"
 	nodeSeed1   = "sprinkled sneak species pork outpost thrift unwind cheesy vexingly dizzy neurology neatness"
 	nodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -41,8 +58,8 @@ var (
 		BlockID:                 0,
 		Height:                  0,
 		Timestamp:               1562806389280,
-		SenderAccountAddress:    "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		SenderAccountAddress:    senderAddress1,
+		RecipientAccountAddress: recipientAddress1,
 		Fee:                     1,
 		TransactionHash: []byte{
 			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
@@ -56,7 +73,7 @@ var (
 			139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
 		},
 		Escrow: &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: make([]byte, 36), // STEF TODO: update it with a real address (in bytes),
 			Commission:      1,
 			Timeout:         100,
 		},
@@ -91,7 +108,7 @@ func GetFixturesForNoderegistration(nodeRegistrationQuery query.NodeRegistration
 		Body:                  txBody,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
 }
 
@@ -123,7 +140,7 @@ func GetFixturesForUpdateNoderegistration(nodeRegistrationQuery query.NodeRegist
 		Body:                  txBody,
 		NodeRegistrationQuery: nodeRegistrationQuery,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return poownMessage, poown, txBody, txBodyBytes
 }
 
@@ -152,7 +169,7 @@ func GetFixturesForClaimNoderegistration() (
 	nr := ClaimNodeRegistration{
 		Body: txBody,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return
 }
 
@@ -167,7 +184,7 @@ func GetFixturesForRemoveNoderegistration() (
 	nr := RemoveNodeRegistration{
 		Body: txBody,
 	}
-	txBodyBytes = nr.GetBodyBytes()
+	txBodyBytes, _ = nr.GetBodyBytes()
 	return txBody, txBodyBytes
 }
 
@@ -183,7 +200,8 @@ func GetFixturesForSetupAccountDataset() (
 	sa := SetupAccountDataset{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForRemoveAccountDataset() (
@@ -198,7 +216,8 @@ func GetFixturesForRemoveAccountDataset() (
 	ra := RemoveAccountDataset{
 		Body: txBody,
 	}
-	return txBody, ra.GetBodyBytes()
+	txBodyBytes, _ = ra.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes []byte, hashed [32]byte) {
@@ -209,7 +228,7 @@ func GetFixturesForTransactionBytes(tx *model.Transaction, sign bool) (txBytes [
 
 func GetFixturesForTransaction(
 	timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	escrow bool,
 ) *model.Transaction {
 
@@ -229,7 +248,7 @@ func GetFixturesForTransaction(
 		TransactionBody:         nil,
 		Signature:               make([]byte, 64),
 		Escrow: &model.Escrow{
-			ApproverAddress: "",
+			ApproverAddress: nil,
 			Commission:      0,
 			Timeout:         0,
 		},
@@ -237,7 +256,7 @@ func GetFixturesForTransaction(
 	if escrow {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.GetID(),
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: approverAddress1,
 			Commission:      1,
 			Timeout:         100,
 		}
@@ -248,7 +267,7 @@ func GetFixturesForTransaction(
 
 func GetFixturesForSignedMempoolTransaction(
 	id, timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	escrow bool,
 ) *model.MempoolTransaction {
 	transactionUtil := &Util{}
@@ -256,7 +275,7 @@ func GetFixturesForSignedMempoolTransaction(
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	txBytesHash := sha3.Sum256(txBytes)
 	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
-		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
+		senderAddress1PassPhrase)
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 	return &model.MempoolTransaction{
@@ -281,7 +300,8 @@ func GetFixturesForApprovalEscrowTransaction() (
 	sa := ApprovalEscrowTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixturesForLiquidPaymentTransaction() (
@@ -296,7 +316,9 @@ func GetFixturesForLiquidPaymentTransaction() (
 	sa := LiquidPaymentTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
+
 }
 
 func GetFixturesForLiquidPaymentStopTransaction() (
@@ -310,12 +332,13 @@ func GetFixturesForLiquidPaymentStopTransaction() (
 	sa := LiquidPaymentStopTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,
-	sender, recipient string,
+	sender, recipient []byte,
 	bodyLength uint32,
 	transactionType model.TransactionType,
 	transactionBody model.TransactionBodyInterface,
@@ -338,17 +361,11 @@ func GetFixtureForSpecificTransaction(
 		TransactionIndex:        0,
 		TransactionBody:         transactionBody,
 		Signature:               nil,
-		Escrow: &model.Escrow{
-			ApproverAddress: "",
-			Commission:      0,
-			Timeout:         0,
-			Instruction:     "",
-		},
 	}
 
 	if escrow {
 		tx.Escrow = &model.Escrow{
-			ApproverAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+			ApproverAddress: approverAddress1,
 			Commission:      1,
 			Timeout:         100,
 			Instruction:     "",
@@ -361,7 +378,7 @@ func GetFixtureForSpecificTransaction(
 		tx.Signature, _ = (&crypto.Signature{}).Sign(
 			transactionBytes,
 			model.SignatureType_DefaultSignature,
-			"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+			senderAddress1PassPhrase,
 		)
 		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
 		hashed := sha3.Sum256(transactionBytes)
@@ -409,7 +426,8 @@ func GetFixtureForFeeVoteCommitTransaction(
 	sa := FeeVoteCommitTransaction{
 		Body: txBody,
 	}
-	return txBody, sa.GetBodyBytes()
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
 }
 
 func GetFixtureForFeeVoteRevealTransaction(

@@ -127,7 +127,7 @@ var (
 	mockNodeRegistrationData = model.NodeRegistration{
 		NodeID:             111,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,
@@ -142,7 +142,7 @@ var (
 	mockNodeRegistrationDataB = model.NodeRegistration{
 		NodeID:             222,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,

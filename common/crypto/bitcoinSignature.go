@@ -159,9 +159,9 @@ func (b *BitcoinSignature) GetAddressFromPublicKey(publicKey []byte) (string, er
 	return address.EncodeAddress(), nil
 }
 
-// GetAddressBytes Get raw bytes of address
-func (b *BitcoinSignature) GetAddressBytes(address string) ([]byte, error) {
-	var decodedAddress, err = btcutil.DecodeAddress(address, b.GetNetworkParams())
+// GetAddressBytes Get raw bytes of a string encoded address
+func (b *BitcoinSignature) GetAddressBytes(encodedAddress string) ([]byte, error) {
+	var decodedAddress, err = btcutil.DecodeAddress(encodedAddress, b.GetNetworkParams())
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.ParserErr, err.Error())
 	}

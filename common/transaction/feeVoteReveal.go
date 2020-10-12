@@ -20,7 +20,7 @@ type (
 	FeeVoteRevealTransaction struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -264,14 +264,14 @@ func (*FeeVoteRevealTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *FeeVoteRevealTransaction) GetBodyBytes() []byte {
+func (tx *FeeVoteRevealTransaction) GetBodyBytes() ([]byte, error) {
 	buff := bytes.NewBuffer([]byte{})
 	buff.Write(tx.Body.FeeVoteInfo.RecentBlockHash)
 	buff.Write(util.ConvertUint32ToBytes(tx.Body.FeeVoteInfo.RecentBlockHeight))
 	buff.Write(util.ConvertUint64ToBytes(uint64(tx.Body.FeeVoteInfo.FeeVote)))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.VoterSignature))))
 	buff.Write(tx.Body.VoterSignature)
-	return buff.Bytes()
+	return buff.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf
@@ -297,7 +297,7 @@ func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 
 // GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -326,7 +326,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee reveal tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if sameTxType && tx.SenderAddress == selectedTx.SenderAccountAddress {
+		if sameTxType && bytes.Equal(tx.SenderAddress, selectedTx.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -342,14 +342,18 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 }
 
 // GetSize send money Amount should be 8
-func (tx *FeeVoteRevealTransaction) GetSize() uint32 {
+func (tx *FeeVoteRevealTransaction) GetSize() (uint32, error) {
 	// only amount
-	return uint32(len(tx.GetBodyBytes()))
+	txBodyBytes, err := tx.GetBodyBytes()
+	if err != nil {
+		return 0, err
+	}
+	return uint32(len(txBodyBytes)), nil
 }
 
 // Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option
 func (tx *FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -390,7 +394,7 @@ func (tx *FeeVoteRevealTransaction) EscrowUndoApplyUnconfirmed() error {
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

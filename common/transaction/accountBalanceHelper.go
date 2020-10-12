@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"bytes"
 	"database/sql"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -12,10 +13,11 @@ type (
 	// AccountBalanceHelperInterface methods collection for transaction helper, it for account balance stuff and account ledger also
 	// It better to use with QueryExecutor.BeginTX()
 	AccountBalanceHelperInterface interface {
-		AddAccountSpendableBalance(address string, amount int64) error
-		AddAccountBalance(address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64) error
-		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address string, dbTx bool) error
-		HasEnoughSpendableBalance(dbTX bool, address string, compareBalance int64) (enough bool, err error)
+		AddAccountSpendableBalance(address []byte, amount int64) error
+		AddAccountBalance(address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64,
+			blockTimestamp uint64) error
+		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
+		HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error)
 	}
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
@@ -41,7 +43,7 @@ func NewAccountBalanceHelper(
 
 // AddAccountSpendableBalance add spendable_balance field to the address provided, must be executed inside db transaction
 // scope
-func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amount int64) error {
+func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address []byte, amount int64) error {
 	accountBalanceSenderQ, accountBalanceSenderQArgs := abh.AccountBalanceQuery.AddAccountSpendableBalance(
 		amount,
 		map[string]interface{}{
@@ -57,7 +59,7 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address string, amou
 //      - Add new record into account_balance
 //      - Add new record into account_ledger
 func (abh *AccountBalanceHelper) AddAccountBalance(
-	address string,
+	address []byte,
 	amount int64,
 	event model.EventType,
 	blockHeight uint32,
@@ -89,7 +91,7 @@ func (abh *AccountBalanceHelper) AddAccountBalance(
 }
 
 // GetBalanceByAccountAddress fetching the balance of an account from database
-func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address string, dbTx bool) error {
+func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address []byte, dbTx bool) error {
 	var (
 		row *sql.Row
 		err error
@@ -112,13 +114,13 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *mode
 }
 
 // HasEnoughSpendableBalance check if account has enough has spendable balance and will save
-func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address string, compareBalance int64) (enough bool, err error) {
+func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error) {
 	var (
 		row            *sql.Row
 		accountBalance model.AccountBalance
 	)
 
-	if abh.accountBalance.GetAccountAddress() != address {
+	if !bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
 		qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
 		row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
 		if err != nil {

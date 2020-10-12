@@ -134,7 +134,7 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	accountAddress := params.GetAccountAddress()
-	if accountAddress != "" {
+	if accountAddress != nil {
 		caseQuery.AndOr(
 			caseQuery.Equal("sender_account_address", accountAddress),
 			caseQuery.Equal("recipient_account_address", accountAddress),

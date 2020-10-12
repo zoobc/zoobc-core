@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -21,7 +22,6 @@ import (
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
-	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -133,7 +133,8 @@ type goDaemon struct {
 // initiateMainInstance initiation all instance that must be needed and exists before running the node
 func initiateMainInstance() {
 	var (
-		err error
+		err                   error
+		encodedAccountAddress string
 	)
 
 	// load config for default value to be feed to viper
@@ -146,6 +147,42 @@ func initiateMainInstance() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
+	// decode owner account address
+	if config.OwnerAccountAddressHex != "" {
+		config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+		if err != nil {
+			log.Errorf("Invalid OwnerAccountAddress in config. It must be in hex format: %s", err)
+			os.Exit(1)
+		}
+		// double check that the decoded account address is valid
+		accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
+		if err != nil {
+			log.Error(err)
+			os.Exit(1)
+		}
+		// TODO: move to crypto package in a function
+		switch accType.GetTypeInt() {
+		case 0:
+			ed25519 := crypto.NewEd25519Signature()
+			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
+		case 1:
+			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
+		default:
+			log.Error("Invalid Owner Account Type")
+			os.Exit(1)
+		}
+		config.OwnerEncodedAccountAddress = encodedAccountAddress
+		config.OwnerAccountAddressTypeInt = accType.GetTypeInt()
+	}
 
 	// early init configuration service
 	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
@@ -153,60 +190,71 @@ func initiateMainInstance() {
 	// check and validate configurations
 	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
-		log.Fatalf("Unknown error occurred - error: %s", err.Error())
-
-		return
+		log.Errorf("Unknown error occurred - error: %s", err.Error())
+		os.Exit(1)
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 	if len(config.NodeKey.Seed) > 0 {
 		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
 		if err != nil {
-			log.Fatal("Fail to generate node key")
+			log.Error("Fail to generate node key")
+			os.Exit(1)
 		}
 	} else {
 		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
-			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			log.Error("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			os.Exit(1)
 		}
 		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
 
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
-		log.Fatalf("ParseKnownPeers Err: %s", err.Error())
+		log.Errorf("ParseKnownPeers Err: %s", err.Error())
+		os.Exit(1)
 	}
 
 	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
 		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
-		log.Fatal("node seed is empty")
+		log.Error("node seed is empty")
+		os.Exit(1)
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
-	if config.OwnerAccountAddress == "" {
+	if config.OwnerAccountAddress == nil {
 		// todo: andy-shi88 refactor this
 		ed25519 := crypto.NewEd25519Signature()
 		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
 			config.NodeKey.Seed,
 		)
 		if err != nil {
-			log.Fatal("Fail to generate account private key")
+			log.Error("Fail to generate account private key")
+			os.Exit(1)
 		}
 		publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
 		if err != nil {
-			log.Fatal("Fail to generate account public key")
+			log.Error("Fail to generate account public key")
+			os.Exit(1)
 		}
-		id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
+		accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), publicKey)
 		if err != nil {
-			log.Fatal("Fail generating address from node's seed")
+			log.Error(err)
+			os.Exit(1)
 		}
-		config.OwnerAccountAddress = id
+		config.OwnerAccountAddress, err = accType.GetAccountAddress()
+		if err != nil {
+			log.Error(err)
+			os.Exit(1)
+		}
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
-			log.Fatal("Fail to save new configuration")
+			log.Error("Fail to save new configuration")
+			os.Exit(1)
 		}
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
@@ -282,15 +330,18 @@ func initiateMainInstance() {
 	)
 	txNodeAddressInfoStorage, ok := nodeAddressInfoStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 	txActiveNodeRegistryStorage, ok := activeNodeRegistryCacheStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 	txPendingNodeRegistryStorage, ok := pendingNodeRegistryCacheStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 
 	actionSwitcher = &transaction.TypeSwitcher{
@@ -884,11 +935,13 @@ func startSpinechain() {
 
 	exist, errGenesis := spinechainBlockService.CheckGenesis()
 	if errGenesis != nil {
-		log.Fatal(errGenesis)
+		log.Error(errGenesis)
+		os.Exit(1)
 	}
 	if !exist { // Add genesis if not exist
 		if err = spinechainBlockService.AddGenesis(); err != nil {
-			log.Fatal(err)
+			log.Error(err)
+			os.Exit(1)
 		}
 	}
 	// update cache last spine block  block
@@ -1023,7 +1076,8 @@ func start() {
 	if flagProfiling {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.CPUProfilingPort), nil); err != nil {
-				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
+				log.Errorf(fmt.Sprintf("failed to start profiling http server: %s", err))
+				os.Exit(1)
 			}
 		}()
 	}
@@ -1122,7 +1176,8 @@ func main() {
 			god = goDaemon{srvDaemon}
 			if runtime.GOOS == "darwin" {
 				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
-					log.Fatal(dErr)
+					log.Error(dErr)
+					os.Exit(1)
 				}
 			}
 

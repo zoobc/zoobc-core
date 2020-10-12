@@ -25,9 +25,9 @@ type (
 		Validate(dbTx bool) error
 		GetMinimumFee() (int64, error)
 		GetAmount() int64
-		GetSize() uint32
+		GetSize() (uint32, error)
 		ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error)
-		GetBodyBytes() []byte
+		GetBodyBytes() ([]byte, error)
 		GetTransactionBody(transaction *model.Transaction)
 		SkipMempoolTransaction(
 			selectedTransactions []*model.Transaction,
