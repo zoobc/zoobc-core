@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -19,7 +20,7 @@ import (
 type NodeRegistration struct {
 	ID                       int64
 	Fee                      int64
-	SenderAddress            string
+	SenderAddress            []byte
 	Height                   uint32
 	Body                     *model.NodeRegistrationTransactionBody
 	Escrow                   *model.Escrow
@@ -49,7 +50,8 @@ func (tx *NodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -62,7 +64,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		queries                                                     [][]interface{}
 		registrationStatus                                          uint32
 		prevNodeRegistrationByPubKey, prevNodeRegistrationByAccount model.NodeRegistration
-		nodeAccountAddress                                          string
+		nodeAccountAddress                                          []byte
 		prevNodeFound                                               bool
 		err                                                         error
 		row                                                         *sql.Row
@@ -208,7 +210,7 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	)
 
 	// no need to validate node registration transaction for genesis block
-	if tx.SenderAddress == constant.MainchainGenesisAccountAddress {
+	if bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
 		return nil
 	}
 
@@ -278,17 +280,25 @@ func (tx *NodeRegistration) GetAmount() int64 {
 }
 
 func (tx *NodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (tx *NodeRegistration) GetSize() uint32 {
+func (tx *NodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
-	poown := util.GetProofOfOwnershipSize(true)
-	return constant.NodePublicKey + constant.AccountAddressLength + constant.AccountAddress +
-		constant.Balance + poown
+	if tx.SenderAddress == nil {
+		return 0, blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
+	}
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return 0, err
+	}
+	accPubKeyLength := accType.GetAccountPublicKeyLength()
+	poown := util.GetProofOfOwnershipSize(accType, true)
+	return constant.NodePublicKey + constant.AccountAddressTypeLength + accPubKeyLength +
+		constant.Balance + poown, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -299,21 +309,30 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 	if err != nil {
 		return nil, err
 	}
-	accountAddressLengthBytes, err := util.ReadTransactionBytes(buffer, int(constant.AccountAddressLength))
+	accType, err := accounttype.ParseBytesToAccountType(buffer)
 	if err != nil {
 		return nil, err
 	}
-	accountAddressLength := util.ConvertBytesToUint32(accountAddressLengthBytes)
-	accountAddress, err := util.ReadTransactionBytes(buffer, int(accountAddressLength))
+	accountAddress, err := accType.GetAccountAddress()
 	if err != nil {
 		return nil, err
 	}
+
 	lockedBalanceBytes, err := util.ReadTransactionBytes(buffer, int(constant.Balance))
 	if err != nil {
 		return nil, err
 	}
 	lockedBalance := util.ConvertBytesToUint64(lockedBalanceBytes)
-	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(true)))
+
+	// get the poown account type by parsing proof of ownership bytes
+	var tmpPoownBytes = make([]byte, buffer.Len())
+	copy(tmpPoownBytes, buffer.Bytes())
+	tmpBuffer := bytes.NewBuffer(tmpPoownBytes)
+	poownAccType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
+	if err != nil {
+		return nil, err
+	}
+	poownBytes, err := util.ReadTransactionBytes(buffer, int(util.GetProofOfOwnershipSize(poownAccType, true)))
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +343,7 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 
 	txBody := &model.NodeRegistrationTransactionBody{
 		NodePublicKey:  nodePublicKey,
-		AccountAddress: string(accountAddress),
+		AccountAddress: accountAddress,
 		LockedBalance:  int64(lockedBalance),
 		Poown:          poown,
 	}
@@ -332,15 +351,14 @@ func (tx *NodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Transactio
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *NodeRegistration) GetBodyBytes() []byte {
+func (tx *NodeRegistration) GetBodyBytes() ([]byte, error) {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(tx.Body.AccountAddress)))))
-	buffer.Write([]byte(tx.Body.AccountAddress))
+	buffer.Write(tx.Body.AccountAddress)
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.LockedBalance)))
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *NodeRegistration) GetTransactionBody(transaction *model.Transaction) {
@@ -363,7 +381,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -387,7 +405,7 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 		enough bool
 	)
 
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

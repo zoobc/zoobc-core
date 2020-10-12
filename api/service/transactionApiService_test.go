@@ -74,7 +74,13 @@ type (
 	}
 )
 
-var mockLog = logrus.New()
+var (
+	mockLog             = logrus.New()
+	txAPISenderAccount1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+		28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	txAPIRecipientAccount1 = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+		116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
+)
 
 func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
 	return &mockTxTypeValidateFail{}, nil
@@ -274,10 +280,10 @@ func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { ret
 func TestTransactionService_PostTransaction(t *testing.T) {
 
 	txTypeSuccess, transactionHashed := transaction.GetFixtureForSpecificTransaction(
-		1390544043583530800,
+		1655828751895385352,
 		1562806389280,
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		txAPISenderAccount1,
+		txAPIRecipientAccount1,
 		8,
 		model.TransactionType_SendMoneyTransaction,
 		&model.SendMoneyTransactionBody{
@@ -287,10 +293,10 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		true,
 	)
 	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
-		1681608995461262354,
+		8880850336851038037,
 		1581301507,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"",
+		txAPISenderAccount1,
+		nil,
 		12,
 		model.TransactionType_ApprovalEscrowTransaction,
 		&model.ApprovalEscrowTransactionBody{
@@ -623,8 +629,8 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				4545420970999433273,
 				1,
 				1,
-				"senderA",
-				"recipientA",
+				txAPISenderAccount1,
+				txAPIRecipientAccount1,
 				1,
 				1,
 				10000,
@@ -674,7 +680,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Limit: 2,
 						Page:  0,
 					},
-					AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					AccountAddress: txAPISenderAccount1,
 				},
 			},
 			want:    nil,
@@ -710,7 +716,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Limit: 1,
 						Page:  0,
 					},
-					AccountAddress: "accountA",
+					AccountAddress: txAPISenderAccount1,
 					Height:         1,
 				},
 			},
@@ -721,8 +727,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						ID:                      4545420970999433273,
 						BlockID:                 1,
 						Height:                  1,
-						SenderAccountAddress:    "senderA",
-						RecipientAccountAddress: "recipientA",
+						SenderAccountAddress:    txAPISenderAccount1,
+						RecipientAccountAddress: txAPIRecipientAccount1,
 						TransactionType:         1,
 						Fee:                     1,
 						Timestamp:               10000,
@@ -777,8 +783,8 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(
 			4545420970999433273,
 			1,
 			1,
-			"senderA",
-			"recipientA",
+			txAPISenderAccount1,
+			txAPIRecipientAccount1,
 			0,
 			1,
 			10000,
@@ -800,8 +806,8 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				4545420970999433273,
 				1,
 				1,
-				"senderA",
-				"recipientA",
+				txAPISenderAccount1,
+				txAPIRecipientAccount1,
 				0,
 				1,
 				10000,
@@ -877,8 +883,8 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				ID:                      4545420970999433273,
 				BlockID:                 1,
 				Height:                  1,
-				SenderAccountAddress:    "senderA",
-				RecipientAccountAddress: "recipientA",
+				SenderAccountAddress:    txAPISenderAccount1,
+				RecipientAccountAddress: txAPIRecipientAccount1,
 				TransactionType:         0,
 				Fee:                     1,
 				Timestamp:               10000,

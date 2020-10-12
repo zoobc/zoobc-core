@@ -40,7 +40,7 @@ func (adh *AccountDatasetHandler) GetAccountDataset(
 	request *model.GetAccountDatasetRequest,
 ) (*model.AccountDataset, error) {
 
-	if request.GetRecipientAccountAddress() == "" && request.GetProperty() == "" {
+	if request.GetRecipientAccountAddress() == nil && request.GetProperty() == "" {
 		return nil, status.Error(codes.InvalidArgument, "Request must have Property or RecipientAccountAddress")
 	}
 

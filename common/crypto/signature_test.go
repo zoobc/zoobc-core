@@ -1,12 +1,12 @@
 package crypto
 
 import (
+	"bytes"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/lib/address"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -128,7 +128,7 @@ func TestSignature_VerifySignature(t *testing.T) {
 	type args struct {
 		payload        []byte
 		signature      []byte
-		accountAddress string
+		accountAddress []byte
 	}
 	tests := []struct {
 		name string
@@ -138,8 +138,9 @@ func TestSignature_VerifySignature(t *testing.T) {
 		{
 			name: "VerifySignature:success-{ed25519-signature}",
 			args: args{
-				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+					139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 				signature: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
 					45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 					103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
@@ -149,8 +150,9 @@ func TestSignature_VerifySignature(t *testing.T) {
 		{
 			name: "VerifySignature:success-{bitcoin-signature}",
 			args: args{
-				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
+				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountAddress: []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
+					45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
 				signature: []byte{1, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
 					42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
 					227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
@@ -162,8 +164,9 @@ func TestSignature_VerifySignature(t *testing.T) {
 		{
 			name: "VerifySignature:failed-{invalid-signature-type}",
 			args: args{
-				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+					139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 				signature: []byte{255, 255, 0, 255, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
 					45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 					103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
@@ -172,19 +175,6 @@ func TestSignature_VerifySignature(t *testing.T) {
 				blocker.ValidationErr,
 				"InvalidSignatureType",
 			),
-		},
-		{
-			name: "VerifySignature:failed-{ed25519-invalid-PublicKey}",
-			args: args{
-				payload:        []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				accountAddress: "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM6",
-				signature: []byte{0, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
-					42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
-					227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
-					106, 172, 10, 8, 201, 172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90,
-					133},
-			},
-			want: address.ErrChecksumNotMatch,
 		},
 	}
 	for _, tt := range tests {
@@ -234,8 +224,8 @@ func TestSignature_VerifyNodeSignature(t *testing.T) {
 
 func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 	type args struct {
-		signatureType model.SignatureType
-		seed          string
+		accountType accounttype.AccountType
+		seed        string
 	}
 	tests := []struct {
 		name                string
@@ -244,14 +234,15 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 		wantPrivateKey      []byte
 		wantPublicKey       []byte
 		wantPublicKeyString string
-		wantAddress         string
+		wantEncodedAddress  string
+		wantFullAddress     []byte
 		wantErr             bool
 	}{
 		{
 			name: "GenerateAccountFromSeed:success-{DefaultSignature}",
 			args: args{
-				signatureType: model.SignatureType_DefaultSignature,
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				accountType: &accounttype.ZbcAccountType{},
+				seed:        "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93, 71,
 				172, 247, 140, 12, 13, 53, 119, 251, 233, 244, 212, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214,
@@ -259,40 +250,34 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 			wantPublicKey: []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
 				139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 			wantPublicKeyString: "ZNK_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUUXGSS",
-			wantAddress:         "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			wantErr:             false,
+			wantEncodedAddress:  "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
+			wantFullAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+				139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			wantErr: false,
 		},
 		{
 			name: "GenerateAccountFromSeed:success-{BitcoinSignature}",
 			args: args{
-				signatureType: model.SignatureType_BitcoinSignature,
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				accountType: &accounttype.BTCAccountType{},
+				seed:        "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			wantPrivateKey: []byte{215, 143, 134, 166, 8, 238, 10, 130, 59, 25, 200, 58, 125, 85, 55, 94, 206, 50, 194, 93,
 				71, 172, 247, 140, 12, 13, 53, 119, 251, 233, 244, 212},
 			wantPublicKey: []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
 				45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
 			wantPublicKeyString: "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
-			wantAddress:         "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
-			wantErr:             false,
-		},
-		{
-			name: "GenerateAccountFromSeed:fiiled-{invalid-signature-type}",
-			args: args{
-				signatureType: model.SignatureType(-1),
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
-			},
-			wantPrivateKey:      nil,
-			wantPublicKey:       nil,
-			wantPublicKeyString: "",
-			wantAddress:         "",
-			wantErr:             true,
+			wantEncodedAddress:  "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
+			wantFullAddress: []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
+				45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Signature{}
-			gotPrivateKey, gotPublicKey, gotPublickKeyString, gotAddress, err := s.GenerateAccountFromSeed(tt.args.signatureType, tt.args.seed)
+			gotPrivateKey, gotPublicKey, gotPublickKeyString, gotAddress, gotFullAccountAddress,
+				err := s.GenerateAccountFromSeed(tt.args.accountType,
+				tt.args.seed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Signature.GenerateAccountFromSeed() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -306,8 +291,11 @@ func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 			if gotPublickKeyString != tt.wantPublicKeyString {
 				t.Errorf("Signature.GenerateAccountFromSeed() gotPublickKeyString = %v, want %v", gotPublickKeyString, tt.wantPublicKeyString)
 			}
-			if gotAddress != tt.wantAddress {
-				t.Errorf("Signature.GenerateAccountFromSeed() gotAddress = %v, want %v", gotAddress, tt.wantAddress)
+			if gotAddress != tt.wantEncodedAddress {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotAddress = %v, want %v", gotAddress, tt.wantEncodedAddress)
+			}
+			if !bytes.Equal(gotFullAccountAddress, tt.wantFullAddress) {
+				t.Errorf("Signature.GenerateAccountFromSeed() gotFullAddress = %v, want %v", gotFullAccountAddress, tt.wantFullAddress)
 			}
 		})
 	}

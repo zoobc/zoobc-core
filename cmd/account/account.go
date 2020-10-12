@@ -3,8 +3,8 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -40,6 +40,11 @@ private key both in bytes and hex representation + the secret phrase
 		Use:   "bitcoin",
 		Short: "Generate account based on Bitcoin signature that using Elliptic Curve Digital Signature Algorithm",
 	}
+	convAccuntToHexCmd = &cobra.Command{
+		Use:   "hexconv",
+		Short: "Convert a given (encoded/string) account address to hex format",
+	}
+
 	multiSigCmd = &cobra.Command{
 		Use:        "multisig",
 		Aliases:    []string{"musig", "ms"},
@@ -62,6 +67,9 @@ func init() {
 		int32(model.PrivateKeyBytesLength_PrivateKey256Bits),
 		"The length of private key Bitcoin want to generate. supported format are 32, 48 & 64 length",
 	)
+	convAccuntToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
+		"formatted/encoded account address. eg. ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML")
+	convAccuntToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
 	bitcoinAccuntCmd.Flags().Int32Var(
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
@@ -69,7 +77,9 @@ func init() {
 		"Defines the format of public key Bitcoin want to generate. 0 for compressed format & 1 for uncompressed format",
 	)
 	// multisig
-	multiSigCmd.Flags().StringSliceVar(&multisigAddresses, "addresses", []string{}, "addresses that provides")
+	multiSigCmd.Flags().StringSliceVar(&multisigAddressesHex, "addresses", []string{},
+		"addresses that provides in hex format. decoded accountAddress is in the form of a byte array with: first 4 bytes = accountType, "+
+			"remaining bytes = account public key")
 	multiSigCmd.Flags().Uint32Var(&multisigMinimSigs, "min-sigs", 0, "min-sigs that provide minimum signs")
 	multiSigCmd.Flags().Int64Var(&multiSigNonce, "nonce", 0, "nonce that provides")
 }
@@ -86,6 +96,8 @@ func Commands() *cobra.Command {
 	accountCmd.AddCommand(ed25519AccountCmd)
 	bitcoinAccuntCmd.Run = accountGeneratorInstance.GenerateBitcoinAccount()
 	accountCmd.AddCommand(bitcoinAccuntCmd)
+	convAccuntToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
+	accountCmd.AddCommand(convAccuntToHexCmd)
 	multiSigCmd.Run = accountGeneratorInstance.GenerateMultiSignatureAccount()
 	accountCmd.AddCommand(multiSigCmd)
 	return accountCmd
@@ -93,12 +105,60 @@ func Commands() *cobra.Command {
 }
 
 // GenerateMultiSignatureAccount to generate address for multi signature transaction
+func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
+	return func(cmd *cobra.Command, args []string) {
+		var (
+			accPubKey []byte
+			err       error
+		)
+		switch accountTypeInt {
+		case 0:
+			ed25519 := crypto.NewEd25519Signature()
+			accPubKey, err = ed25519.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
+		case 1:
+			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
+		}
+		accType, err := accounttype.NewAccountType(accountTypeInt, accPubKey)
+		if err != nil {
+			panic(err)
+		}
+		fullAccountAddress, err := accType.GetAccountAddress()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("account address type: %s (%d)\n", model.AccountType_name[accountTypeInt], accountTypeInt)
+		fmt.Printf("encoded account address: %s\n", encodedAccountAddress)
+		fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
+		fmt.Printf("public key bytes: %v\n", accPubKey)
+		fmt.Printf("full account address: %v\n", fullAccountAddress)
+		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
+	}
+}
+
+// GenerateMultiSignatureAccount to generate address for multi signature transaction
 func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
+	var (
+		multisigFullAccountAddresses [][]byte
+	)
+	for _, accAddrHex := range multisigAddressesHex {
+		decodedAddr, err := hex.DecodeString(accAddrHex)
+		if err != nil {
+			panic(err)
+		}
+		multisigFullAccountAddresses = append(multisigFullAccountAddresses, decodedAddr)
+	}
 	return func(cmd *cobra.Command, args []string) {
 		info := &model.MultiSignatureInfo{
 			MinimumSignatures: multisigMinimSigs,
 			Nonce:             multiSigNonce,
-			Addresses:         multisigAddresses,
+			Addresses:         multisigFullAccountAddresses,
 		}
 		address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
 		if err != nil {
@@ -115,10 +175,11 @@ func (gc *GeneratorCommands) GenerateEd25519Account() RunCommand {
 		if seed == "" {
 			seed = util.GetSecureRandomSeed()
 		}
+
 		var (
-			signatureType                                        = model.SignatureType_DefaultSignature
-			privateKey, publicKey, publicKeyString, address, err = gc.Signature.GenerateAccountFromSeed(
-				signatureType,
+			accountType                                                              = &accounttype.ZbcAccountType{}
+			privateKey, publicKey, publicKeyString, address, fullAccountAddress, err = gc.Signature.GenerateAccountFromSeed(
+				accountType,
 				seed,
 				ed25519UseSlip10,
 			)
@@ -127,12 +188,13 @@ func (gc *GeneratorCommands) GenerateEd25519Account() RunCommand {
 			panic(err)
 		}
 		PrintAccount(
-			int32(signatureType),
+			accountType,
 			seed,
 			publicKeyString,
 			address,
 			privateKey,
 			publicKey,
+			fullAccountAddress,
 		)
 	}
 }
@@ -144,9 +206,9 @@ func (gc *GeneratorCommands) GenerateBitcoinAccount() RunCommand {
 			seed = util.GetSecureRandomSeed()
 		}
 		var (
-			signatureType                                        = model.SignatureType_BitcoinSignature
-			privateKey, publicKey, publicKeyString, address, err = gc.Signature.GenerateAccountFromSeed(
-				signatureType,
+			accountType                                                              = &accounttype.BTCAccountType{}
+			privateKey, publicKey, publicKeyString, address, fullAccountAddress, err = gc.Signature.GenerateAccountFromSeed(
+				accountType,
 				seed,
 				model.PrivateKeyBytesLength(bitcoinPrivateKeyLength),
 				model.BitcoinPublicKeyFormat(bitcoinPublicKeyFormat),
@@ -156,28 +218,32 @@ func (gc *GeneratorCommands) GenerateBitcoinAccount() RunCommand {
 			panic(err)
 		}
 		PrintAccount(
-			int32(signatureType),
+			accountType,
 			seed,
 			publicKeyString,
 			address,
 			privateKey,
 			publicKey,
+			fullAccountAddress,
 		)
 	}
 }
 
 // PrintAccount print out the generated account
 func PrintAccount(
-	signatureType int32,
-	seed, publicKeyString, address string,
-	privateKey, publicKey []byte,
+	accountType accounttype.AccountType,
+	seed, publicKeyString, encodedAddress string,
+	privateKey, publicKey, fullAccountAddress []byte,
 ) {
-	fmt.Printf("signature type: %s\n", model.SignatureType_name[signatureType])
+	fmt.Printf("account type: %s\n", model.AccountType_name[accountType.GetTypeInt()])
+	fmt.Printf("signature type: %s\n", model.SignatureType_name[int32(accountType.GetSignatureType())])
 	fmt.Printf("seed: %s\n", seed)
 	fmt.Printf("public key hex: %s\n", hex.EncodeToString(publicKey))
 	fmt.Printf("public key bytes: %v\n", publicKey)
 	fmt.Printf("public key string : %v\n", publicKeyString)
 	fmt.Printf("private key bytes: %v\n", privateKey)
 	fmt.Printf("private key hex: %v\n", hex.EncodeToString(privateKey))
-	fmt.Printf("address: %s\n", address)
+	fmt.Printf("encodedAddress: %s\n", encodedAddress)
+	fmt.Printf("full account address: %v\n", fullAccountAddress)
+	fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
 }

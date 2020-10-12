@@ -34,7 +34,8 @@ func main() {
 	c := rpcService.NewEscrowTransactionServiceClient(conn)
 
 	response, err := c.GetEscrowTransactions(context.Background(), &rpcModel.GetEscrowTransactionsRequest{
-		ApproverAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+		ApproverAddress: []byte{0, 0, 0, 0, 98, 118, 38, 51, 199, 143, 112, 175, 220, 74, 221, 170, 56, 103, 159, 209, 242, 132, 219,
+			155, 169, 123, 104, 77, 139, 18, 224, 166, 162, 83, 125, 96},
 		Statuses: []rpcModel.EscrowStatus{
 			rpcModel.EscrowStatus_Approved,
 		},

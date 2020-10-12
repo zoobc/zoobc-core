@@ -40,7 +40,7 @@ var (
 func init() {
 	generateProofOfOwnerShipCmd.Flags().StringVar(&outputType, "output-type", "hex",
 		"defines the type of the output to be generated [\"hex\", \"bytes\"]")
-	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeOwnerAccountAddress, "node-owner-account-address", "",
+	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeOwnerAccountAddressHex, "node-owner-account-address", "",
 		"Account address of the owner of the node")
 	generateProofOfOwnerShipCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
 	generateProofOfOwnerShipCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
@@ -71,7 +71,7 @@ func GenerateProofOfOwnerShip(*cobra.Command, []string) {
 		poow = GetProofOfOwnerShip(
 			databasePath,
 			databaseName,
-			nodeOwnerAccountAddress,
+			nodeOwnerAccountAddressHex,
 			nodeSeed)
 		poowBytes = util.GetProofOfOwnershipBytes(poow)
 	)
@@ -86,9 +86,9 @@ func GenerateProofOfOwnerShip(*cobra.Command, []string) {
 	}
 }
 
-// GetProofOfOwnerShip will return proof of ownership based on provided nodeOwnerAccountAddress & nodeSeed in a DB
+// GetProofOfOwnerShip will return proof of ownership based on provided nodeOwnerAccountAddressHex & nodeSeed in a DB
 func GetProofOfOwnerShip(
-	dbPath, dbname, nodeOwnerAccountAddress, nodeSeed string,
+	dbPath, dbname, nodeOwnerAccountAddressHex, nodeSeed string,
 ) *model.ProofOfOwnership {
 	var (
 		sqliteDbInstance = database.NewSqliteDB()
@@ -107,8 +107,12 @@ func GetProofOfOwnerShip(
 	if err != nil {
 		panic(err)
 	}
+	decodedAddress, err := hex.DecodeString(nodeOwnerAccountAddressHex)
+	if err != nil {
+		panic(err)
+	}
 	poowMessage := &model.ProofOfOwnershipMessage{
-		AccountAddress: nodeOwnerAccountAddress,
+		AccountAddress: decodedAddress,
 		BlockHash:      lastBlock.BlockHash,
 		BlockHeight:    lastBlock.Height,
 	}

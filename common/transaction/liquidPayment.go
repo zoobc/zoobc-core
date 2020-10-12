@@ -20,8 +20,8 @@ type (
 	LiquidPaymentTransaction struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		Escrow                        *model.Escrow
@@ -99,10 +99,10 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
-	if tx.SenderAddress == "" {
+	if tx.SenderAddress == nil {
 		return errors.New("transaction must have a valid sender account id")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.RecipientAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 
@@ -122,7 +122,7 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *LiquidPaymentTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -132,14 +132,18 @@ func (tx *LiquidPaymentTransaction) GetAmount() int64 {
 	return tx.Body.Amount
 }
 
-func (tx *LiquidPaymentTransaction) GetSize() uint32 {
+func (tx *LiquidPaymentTransaction) GetSize() (uint32, error) {
 	// only amount
-	return constant.Balance + constant.LiquidPaymentCompleteMinutesLength
+	return constant.Balance + constant.LiquidPaymentCompleteMinutesLength, nil
 }
 
 func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}
@@ -153,11 +157,11 @@ func (tx *LiquidPaymentTransaction) ParseBodyBytes(txBodyBytes []byte) (model.Tr
 	}, nil
 }
 
-func (tx *LiquidPaymentTransaction) GetBodyBytes() []byte {
+func (tx *LiquidPaymentTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
 	buffer.Write(util.ConvertUint64ToBytes(tx.Body.CompleteMinutes))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *LiquidPaymentTransaction) GetTransactionBody(transaction *model.Transaction) {
@@ -238,7 +242,7 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 }
 
 func (tx *LiquidPaymentTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -294,7 +298,7 @@ func (tx *LiquidPaymentTransaction) EscrowUndoApplyUnconfirmed() (err error) {
 
 func (tx *LiquidPaymentTransaction) EscrowValidate(dbTx bool) (err error) {
 	var enough bool
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

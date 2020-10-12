@@ -2,9 +2,11 @@ package configure
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"io/ioutil"
 	"os"
 	"path"
@@ -41,10 +43,11 @@ func Commands() *cobra.Command {
 }
 func generateConfigFileCommand(*cobra.Command, []string) {
 	var (
-		err        error
-		configFile = "config.toml"
-		shell      = ishell.New()
-		config     model.Config
+		err                   error
+		configFile            = "config.toml"
+		shell                 = ishell.New()
+		config                model.Config
+		encodedAccountAddress string
 	)
 
 	_, err = os.Stat(configFile)
@@ -67,6 +70,38 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 			}
 			shell.Close()
 			config.LoadConfigurations()
+			// decode owner account address
+			if config.OwnerAccountAddressHex != "" {
+				config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+				if err != nil {
+					panic(err)
+				}
+				// double check that the decoded account address is valid
+				accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
+				if err != nil {
+					panic(err)
+				}
+				// TODO: move to crypto package in a function
+				switch accType.GetTypeInt() {
+				case 0:
+					ed25519 := crypto.NewEd25519Signature()
+					encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
+					if err != nil {
+						panic(err)
+					}
+				case 1:
+					bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+					encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+					if err != nil {
+						panic(err)
+					}
+				default:
+					panic("Invalid Owner Account Type")
+				}
+				config.OwnerEncodedAccountAddress = encodedAccountAddress
+				config.OwnerAccountAddressTypeInt = accType.GetTypeInt()
+			}
+
 			err = generateConfig(config)
 			if err != nil {
 				color.Red(err.Error())
@@ -139,7 +174,12 @@ func readCertFile(config *model.Config, fileName string) error {
 			return fmt.Errorf("failed to assert certificate, %s", err.Error())
 		}
 		if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
-			config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
+			config.OwnerAccountAddressHex = fmt.Sprintf("%s", ownerAccountAddress)
+			config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+			if err != nil {
+				color.Red("Invalid Owner Account Address")
+				continue
+			}
 		} else {
 			return fmt.Errorf("invalid certificate format, ownerAccount not found")
 		}
@@ -275,9 +315,9 @@ func generateConfig(config model.Config) error {
 			color.White("OWNER ACCOUNT ADDRESS: ")
 			inputStr = shell.ReadLine()
 			if strings.TrimSpace(inputStr) != "" {
-				config.OwnerAccountAddress = inputStr
+				config.OwnerAccountAddressHex = inputStr
 			} else {
-				if config.OwnerAccountAddress != "" {
+				if config.OwnerAccountAddressHex != "" {
 					color.Cyan("previous ownerAccountAddress won't be replaced")
 				} else {
 					color.Yellow("! Node won't running when owner account address is empty.")

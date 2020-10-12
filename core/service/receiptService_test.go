@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -126,7 +128,7 @@ var (
 	mockNodeRegistrationData = model.NodeRegistration{
 		NodeID:             111,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,
@@ -141,7 +143,7 @@ var (
 	mockNodeRegistrationDataB = model.NodeRegistration{
 		NodeID:             222,
 		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-		AccountAddress:     "",
+		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
 		RegistrationStatus: 0,
@@ -1153,6 +1155,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			},
 			args:           args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
 			wantDuplicated: true,
+			wantErr:        true,
 		},
 		{
 			name: "want:Success",
@@ -1178,13 +1181,15 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
 				ReceiptReminderStorage:  tt.fields.ReceiptReminderStorage,
 			}
-			gotDuplicated, err := rs.IsDuplicated(tt.args.publicKey, tt.args.datumHash)
+			err := rs.CheckDuplication(tt.args.publicKey, tt.args.datumHash)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IsDuplicated() error = %v, wantErr %v", err, tt.wantErr)
+				b := err.(blocker.Blocker)
+				if tt.wantDuplicated && b.Type != blocker.DuplicateReceiptErr {
+					t.Errorf("CheckDuplication() gotDuplicated = %v, want %v", b.Type, tt.wantDuplicated)
+					return
+				}
+				t.Errorf("CheckDuplication() error = %v, wantErr %v", err, tt.wantErr)
 				return
-			}
-			if gotDuplicated != tt.wantDuplicated {
-				t.Errorf("IsDuplicated() gotDuplicated = %v, want %v", gotDuplicated, tt.wantDuplicated)
 			}
 		})
 	}

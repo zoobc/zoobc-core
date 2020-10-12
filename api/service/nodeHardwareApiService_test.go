@@ -9,12 +9,13 @@ import (
 
 var (
 	mockSignature    = crypto.NewSignature()
-	mockOwnerAddress = "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE"
+	mockOwnerAddress = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+		28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
 )
 
 func TestNewNodeHardwareService(t *testing.T) {
 	type args struct {
-		ownerAccountAddress string
+		ownerAccountAddress []byte
 		signature           crypto.SignatureInterface
 	}
 	tests := []struct {

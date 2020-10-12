@@ -113,7 +113,9 @@ func init() {
 	proto.RegisterType((*Pagination)(nil), "model.Pagination")
 }
 
-func init() { proto.RegisterFile("model/pagination.proto", fileDescriptor_2b2a27585dcb3fe4) }
+func init() {
+	proto.RegisterFile("model/pagination.proto", fileDescriptor_2b2a27585dcb3fe4)
+}
 
 var fileDescriptor_2b2a27585dcb3fe4 = []byte{
 	// 204 bytes of a gzipped FileDescriptorProto

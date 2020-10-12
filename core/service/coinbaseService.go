@@ -23,7 +23,7 @@ type (
 			scoreSum float64,
 			blockTimestamp int64,
 			previousBlock *model.Block,
-		) ([]string, error)
+		) ([][]byte, error)
 	}
 
 	CoinbaseService struct {
@@ -74,10 +74,10 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum float64, blockTimestamp int64,
-	previousBlock *model.Block) ([]string, error) {
+	previousBlock *model.Block) ([][]byte, error) {
 
 	var (
-		selectedAccounts []string
+		selectedAccounts [][]byte
 		numRewards       int64
 	)
 	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)

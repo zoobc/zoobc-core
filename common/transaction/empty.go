@@ -42,8 +42,8 @@ func (*TXEmpty) GetMinimumFee() (int64, error) {
 func (*TXEmpty) GetAmount() int64 {
 	return 0
 }
-func (tx *TXEmpty) GetSize() uint32 {
-	return 0
+func (tx *TXEmpty) GetSize() (uint32, error) {
+	return 0, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -52,8 +52,8 @@ func (*TXEmpty) ParseBodyBytes([]byte) (model.TransactionBodyInterface, error) {
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (*TXEmpty) GetBodyBytes() []byte {
-	return []byte{}
+func (*TXEmpty) GetBodyBytes() ([]byte, error) {
+	return []byte{}, nil
 }
 
 func (*TXEmpty) GetTransactionBody(*model.Transaction) {}

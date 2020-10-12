@@ -1183,7 +1183,11 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 		if err != nil {
 			return nil, 0, err
 		}
-		payloadLength += txType.GetSize()
+		txTypeLength, err := txType.GetSize()
+		if err != nil {
+			return nil, 0, err
+		}
+		payloadLength += txTypeLength
 	}
 	// filter only good receipt
 	for _, br := range block.GetPublishedReceipts() {
@@ -1308,7 +1312,11 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		}
 		totalAmount += txType.GetAmount()
 		totalFee += tx.Fee
-		payloadLength += txType.GetSize()
+		txTypeLength, err := txType.GetSize()
+		if err != nil {
+			return nil, err
+		}
+		payloadLength += txTypeLength
 		tx.TransactionIndex = uint32(index) + 1
 		blockTransactions = append(blockTransactions, tx)
 	}
@@ -1429,15 +1437,9 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check if already broadcast receipt to this node
-	duplicated, duplicatedErr := bs.ReceiptService.IsDuplicated(senderPublicKey, block.GetBlockHash())
-	if duplicatedErr != nil {
-		return nil, blocker.NewBlocker(
-			blocker.BlockErr,
-			duplicatedErr.Error(),
-		)
-	}
-	if duplicated {
-		return nil, blocker.NewBlocker(blocker.BlockErr, "already send receipt for this block")
+	err = bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash())
+	if err != nil {
+		return nil, err
 	}
 
 	// generate receipt and return as response

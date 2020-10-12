@@ -35,7 +35,7 @@ func main() {
 
 	response, err := c.GetMultisignatureInfo(context.Background(),
 		&rpc_model.GetMultisignatureInfoRequest{
-			MultisigAddress: "",
+			MultisigAddress: nil,
 			Pagination: &rpc_model.Pagination{
 				OrderField: "block_height",
 				OrderBy:    rpc_model.OrderBy_DESC,

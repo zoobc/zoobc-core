@@ -17,8 +17,9 @@ import (
 var (
 	// mock GetPendingTransactionByAddress
 	mockGetPendingTransactionsExecutorCountFailParam = &model.GetPendingTransactionsRequest{
-		SenderAddress: "abc",
-		Status:        model.PendingTransactionStatus_PendingTransactionPending,
+		SenderAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		Status: model.PendingTransactionStatus_PendingTransactionPending,
 		Pagination: &model.Pagination{
 			OrderField: "block_height",
 			OrderBy:    model.OrderBy_DESC,
@@ -230,7 +231,8 @@ var (
 		Height: 1000,
 	}
 	mockPendingTransaction = &model.PendingTransaction{
-		SenderAddress:    "ABC",
+		SenderAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 		TransactionHash:  make([]byte, 32),
 		TransactionBytes: make([]byte, 100),
 		Status:           model.PendingTransactionStatus_PendingTransactionPending,
@@ -240,10 +242,18 @@ var (
 	mockMultisigInfo = &model.MultiSignatureInfo{
 		MinimumSignatures: 2,
 		Nonce:             3,
-		Addresses:         []string{"A", "B", "C"},
-		MultisigAddress:   "ABC",
-		BlockHeight:       400,
-		Latest:            true,
+		Addresses: [][]byte{
+			{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+				116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+			{0, 0, 0, 0, 8, 32, 68, 38, 181, 138, 127, 184, 190, 125, 84, 174, 13, 162, 122, 62, 183, 130, 70, 18, 103, 47, 177, 161,
+				153, 143, 61, 130, 145, 81, 222, 70},
+			{0, 0, 0, 0, 160, 121, 129, 83, 225, 164, 195, 123, 8, 181, 41, 251, 17, 3, 93, 37, 182, 109, 32, 174, 168, 68, 193, 212,
+				79, 54, 156, 213, 117, 27, 185, 167},
+		},
+		MultisigAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		BlockHeight: 400,
+		Latest:      true,
 	}
 
 // mock GetPendingTransactionByAddress
@@ -594,7 +604,8 @@ func TestNewMultisigService(t *testing.T) {
 var (
 	// mock GetMultisigInfo
 	mockGetMultisigInfoExecutorParam = &model.GetMultisignatureInfoRequest{
-		MultisigAddress: "abc",
+		MultisigAddress: []byte{0, 0, 0, 0, 160, 121, 129, 83, 225, 164, 195, 123, 8, 181, 41, 251, 17, 3, 93, 37, 182, 109, 32, 174, 168,
+			68, 193, 212, 79, 54, 156, 213, 117, 27, 185, 167},
 		Pagination: &model.Pagination{
 			OrderField: "block_height",
 			OrderBy:    model.OrderBy_DESC,
@@ -961,8 +972,8 @@ func TestMultisigService_GetMultisigAddressByParticipantAddress(t *testing.T) {
 				param: &model.GetMultisigAddressByParticipantAddressRequest{},
 			},
 			want: &model.GetMultisigAddressByParticipantAddressResponse{
-				Total:              1,
-				MultiSignAddresses: []string{},
+				Total:             1,
+				MultisigAddresses: [][]byte{},
 			},
 			wantErr: false,
 		},
