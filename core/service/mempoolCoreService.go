@@ -429,9 +429,9 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 	nodeSecretPhrase string,
 ) (*model.BatchReceipt, *model.Transaction, error) {
 	var (
-		err         error
-		receivedTx  *model.Transaction
-		duplicateTx bool
+		batchReceipt *model.BatchReceipt
+		receivedTx   *model.Transaction
+		err          error
 	)
 
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
@@ -448,28 +448,25 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Errorf(codes.Internal, err.Error())
 	}
 
+	batchReceipt, err = mps.ReceiptService.GenerateBatchReceiptWithReminder(
+		mps.Chaintype, receivedTxHash[:],
+		lastBlock, senderPublicKey,
+		nodeSecretPhrase,
+		constant.ReceiptDatumTypeTransaction,
+	)
+	if err != nil {
+		return nil, nil, status.Error(codes.Internal, err.Error())
+	}
+
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(receivedTx); err != nil {
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type != blocker.DuplicateMempoolErr {
 			return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		duplicateTx = true
-	}
-
-	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
-		mps.Chaintype, receivedTxHash[:],
-		lastBlock, senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeTransaction,
-	)
-
-	if err != nil {
-		return nil, nil, status.Error(codes.Internal, err.Error())
-	}
-	if duplicateTx {
 		return batchReceipt, nil, nil
 	}
+
 	return batchReceipt, receivedTx, nil
 }
 
