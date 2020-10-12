@@ -298,7 +298,11 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	if len(multisigInfos) == 0 {
 		return blocker.NewBlocker(blocker.AppErr, "EmptyResultSet")
 	}
-	multisigInfo = multisigInfos[0]
+	// make sure we have all data from db when returning
+	multisigInfo.Latest = multisigInfos[0].Latest
+	multisigInfo.BlockHeight = multisigInfos[0].BlockHeight
+	multisigInfo.MinimumSignatures = multisigInfos[0].MinimumSignatures
+	multisigInfo.Nonce = multisigInfos[0].Nonce
 	for _, msInfo := range multisigInfos {
 		if len(msInfo.Addresses[0]) > 0 {
 			multisigAccounts = append(multisigAccounts, msInfo.Addresses[0])
