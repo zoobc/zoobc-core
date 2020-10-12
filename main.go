@@ -374,6 +374,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
+		config.NodeKey.PublicKey,
 	)
 	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,

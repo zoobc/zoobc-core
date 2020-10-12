@@ -44,6 +44,7 @@ type (
 		Chaintype                              chaintype.ChainType
 		candidates                             []Candidate
 		lastBlockHash                          []byte
+		CurrentNodePublicKey                   []byte
 	}
 )
 
@@ -52,6 +53,7 @@ func NewBlocksmithStrategyMain(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	logger *log.Logger,
+	currentNodePublicKey []byte,
 ) *BlocksmithStrategyMain {
 	return &BlocksmithStrategyMain{
 		QueryExecutor:          queryExecutor,
@@ -61,6 +63,7 @@ func NewBlocksmithStrategyMain(
 		SortedBlocksmithsMap:   make(map[string]*int64),
 		Chaintype:              &chaintype.MainChain{},
 		candidates:             make([]Candidate, 0),
+		CurrentNodePublicKey:   currentNodePublicKey,
 	}
 }
 
@@ -69,7 +72,7 @@ func (bss *BlocksmithStrategyMain) isMe(lastCandidate Candidate, block *model.Bl
 		now = time.Now().Unix()
 	)
 
-	if now > lastCandidate.StartTime && bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, block.BlocksmithPublicKey) {
+	if now > lastCandidate.StartTime && bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, bss.CurrentNodePublicKey) {
 		return true
 	}
 	return false
@@ -132,7 +135,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 		return errors.New("ErrorGetBlocksmiths")
 	}
 	timeGap := block.Timestamp - prevBlock.Timestamp
-	round := timeGap - bss.Chaintype.GetSmithingPeriod()/bss.Chaintype.GetBlocksmithTimeGap()
+	round := (timeGap - bss.Chaintype.GetSmithingPeriod()) / bss.Chaintype.GetBlocksmithTimeGap()
 
 	blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
 	rand.Seed(blockSeedBigInt.Int64())
