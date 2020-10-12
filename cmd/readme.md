@@ -140,13 +140,13 @@ go run main.go generate block fake-blocks --numberOfBlocks=1000 --blocksmithSecr
 ### Account Generate Using Ed25519 Algorithm
 
 ```bash
-go run main.go generate account ed25519 --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --use-slip10
+go run main.go account ed25519 --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --use-slip10
 ```
 
 ### Account Generate Using Bitcoin Algorithm
 
 ```bash
-go run main.go generate account bitcoin --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --private-key-length 32 --public-key-format 1
+go run main.go account bitcoin --seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --private-key-length 32 --public-key-format 1
 ### Genesis Generate From cmd/genesisblock/preRegisteredNodes.json
 
 ```
@@ -154,7 +154,12 @@ go run main.go generate account bitcoin --seed "concur vocalist rotten busload g
 ### Account Generating multisig
 
 ```bash
-go run main.go generate account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
+go run main.go account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN" --addresses "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7" --addresses "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J" —-min-sigs=2 --nonce=3
+```
+
+### Account Converting from encoded to hex
+```bash
+go run main.go account hexconv --encodedAccountAddress="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --accountType=0
 ```
 
 ## Other Commands
