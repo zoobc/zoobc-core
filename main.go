@@ -381,6 +381,7 @@ func initiateMainInstance() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 		query.NewBlockQuery(&chaintype.SpineChain{}),
+		config.NodeKey.PublicKey,
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -544,6 +545,7 @@ func initiateMainInstance() {
 		query.NewSpinePublicKeyQuery(),
 		loggerCoreService,
 		query.NewBlockQuery(spinechain),
+		config.NodeKey.PublicKey,
 	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
