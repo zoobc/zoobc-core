@@ -297,22 +297,6 @@ func (bs *BlockService) ValidatePayloadHash(block *model.Block) error {
 	return nil
 }
 
-// PreValidateBlock validate block without it's transactions
-func (bs *BlockService) PreValidateBlock(block, previousLastBlock *model.Block) error {
-	// check if blocksmith can smith at the time
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
-	if blocksmithIndex == nil {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
-	}
-	// check smithtime
-	err := bs.BlocksmithStrategy.IsValidSmithTime(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock)
-	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidSmithTime")
-	}
-	return nil
-}
-
 // ValidateBlock validate block to be pushed into the blockchain
 func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) error {
 	if err := bs.ValidatePayloadHash(block); err != nil {
@@ -1346,7 +1330,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// pre validation block
-	if err = bs.PreValidateBlock(block, lastBlock); err != nil {
+	if err = bs.BlocksmithStrategy.IsBlockValid(lastBlock, block); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "BlockFailPrevalidation")
 	}
 

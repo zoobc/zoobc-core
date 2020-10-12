@@ -1051,46 +1051,6 @@ func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Liste
 	}
 }
 
-func (bs *BlockSpineService) WillSmith(
-	blocksmith *model.Blocksmith,
-	blockchainProcessorLastBlockID int64,
-) (lastBlockID, blocksmithIndex int64, err error) {
-	lastBlock, err := bs.GetLastBlock()
-	if err != nil {
-		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
-			blocker.SmithingErr, "genesis block has not been applied")
-	}
-	// caching: only calculate smith time once per new block
-	if lastBlock.GetID() != blockchainProcessorLastBlockID {
-		blockchainProcessorLastBlockID = lastBlock.GetID()
-		blockSmithStrategy := bs.GetBlocksmithStrategy()
-		// check if eligible to create block in this round
-		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		blocksmithIdx, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
-		if !ok {
-			return blockchainProcessorLastBlockID, blocksmithIndex,
-				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
-		}
-		// calculate blocksmith score for the block type
-		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
-		blocksmithScore := constant.DefaultParticipationScore
-		err = blockSmithStrategy.CalculateScore(blocksmith, blocksmithScore)
-		if err != nil {
-			return blockchainProcessorLastBlockID, blocksmithIndex, err
-		}
-		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
-	}
-	// check if it's legal to create block for current blocksmith now
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
-	if err == nil {
-		return blockchainProcessorLastBlockID, blocksmithIndex, nil
-	}
-	return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
-		blocker.SmithingErr, "NotTimeToSmithYet",
-	)
-}
-
 func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {
 	var (
 		block model.Block

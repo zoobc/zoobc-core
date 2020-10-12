@@ -103,10 +103,6 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 	if len(bss.candidates) > 0 {
 		lastCandidate = bss.candidates[len(bss.candidates)-1]
 		isMe := bss.isMe(lastCandidate, prevBlock)
-		if err != nil {
-			return 0, 0, errors.New("ErrorIsMe")
-		}
-
 		if isMe && now < lastCandidate.ExpiryTime {
 			return 0, 0, nil
 		}

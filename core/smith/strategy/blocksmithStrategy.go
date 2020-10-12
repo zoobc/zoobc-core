@@ -16,10 +16,5 @@ type (
 		GetSortedBlocksmithsMap(block *model.Block) map[string]*int64
 		CalculateScore(generator *model.Blocksmith, score int64) error
 		CanPersistBlock(blocksmithIndex, numberOfBlocksmiths int64, previousBlock *model.Block) error
-		IsValidSmithTime(
-			blocksmithIndex, numberOfBlocksmiths int64,
-			previousBlock *model.Block,
-
-		) error
 	}
 )
