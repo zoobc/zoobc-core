@@ -74,6 +74,10 @@ jobs:
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+            - run:
+                name: TEST MAKE GEN
+                command: |
+                    make generate-gen gen-target=develop
             - save_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                   paths:
