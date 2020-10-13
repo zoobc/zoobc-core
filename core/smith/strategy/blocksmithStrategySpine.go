@@ -7,6 +7,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -51,6 +52,7 @@ func NewBlocksmithStrategySpine(
 		SortedBlocksmithsMap: make(map[string]*int64),
 		SpineBlockQuery:      spineBlockQuery,
 		CurrentNodePublicKey: currentNodePublicKey,
+		Chaintype:            &chaintype.MainChain{},
 		candidates:           make([]Candidate, 0),
 	}
 }
@@ -139,7 +141,37 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 }
 
 func (bss *BlocksmithStrategySpine) CalculateCumulativeDifficulty(prevBlock, block *model.Block) string {
-	return "0"
+	round := bss.GetSmithingRound(prevBlock, block)
+	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / int64(round)
+	return strconv.FormatInt(currentCumulativeDifficulty, 16)
+}
+
+func (bss *BlocksmithStrategySpine) GetSmithingRound(previousBlock, block *model.Block) int {
+	var (
+		round = 1 // round start from 1
+	)
+	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
+	firstBlocksmithTime := bss.Chaintype.GetSmithingPeriod() + bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	if timeGap < firstBlocksmithTime {
+		return round // first blocksmith
+	}
+	afterFirstBlocksmith := math.Ceil(float64(timeGap-firstBlocksmithTime) / float64(bss.Chaintype.GetBlocksmithTimeGap()))
+	round += int(afterFirstBlocksmith)
+	return round
+}
+
+func (bss *BlocksmithStrategySpine) CanPersistBlock(previousBlock, block *model.Block, timestamp int64) error {
+	round := bss.GetSmithingRound(previousBlock, block)
+	if round <= 1 {
+		return nil
+	}
+	blocksmithBaseTime := bss.Chaintype.GetSmithingPeriod() + bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	previousExpiryTimestamp := blocksmithBaseTime + int64(round-1)*bss.Chaintype.GetBlocksmithTimeGap()
+	currentExpiryTimestamp := previousExpiryTimestamp + bss.Chaintype.GetBlocksmithTimeGap()
+	if timestamp > previousExpiryTimestamp && timestamp < previousExpiryTimestamp+currentExpiryTimestamp {
+		return nil
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
@@ -203,13 +235,6 @@ func (bss *BlocksmithStrategySpine) CalculateScore(generator *model.Blocksmith, 
 	// FIXME: ask @barton probably the way we compute spine blocksmith has to be reviewed, since we don't have ps and receipts,
 	//		  attached to spine blocks
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
-	return nil
-}
-
-func (*BlocksmithStrategySpine) CanPersistBlock(
-	blocksmithIndex, numberOfBlocksmiths int64,
-	previousBlock *model.Block,
-) error {
 	return nil
 }
 

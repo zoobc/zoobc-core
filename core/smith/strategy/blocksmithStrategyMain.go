@@ -127,9 +127,8 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 }
 
 func (bss *BlocksmithStrategyMain) CalculateCumulativeDifficulty(prevBlock, block *model.Block) string {
-	timeGap := block.Timestamp - prevBlock.Timestamp
-	round := (timeGap - bss.Chaintype.GetSmithingPeriod()) / bss.Chaintype.GetBlocksmithTimeGap()
-	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / round
+	round := bss.GetSmithingRound(prevBlock, block)
+	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / int64(round)
 	return strconv.FormatInt(currentCumulativeDifficulty, 16)
 }
 
@@ -142,8 +141,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	if err != nil {
 		return errors.New("ErrorGetBlocksmiths")
 	}
-	timeGap := block.Timestamp - prevBlock.Timestamp
-	round := (timeGap - bss.Chaintype.GetSmithingPeriod()) / bss.Chaintype.GetBlocksmithTimeGap()
+	round := bss.GetSmithingRound(prevBlock, block)
 
 	blockSeedBigInt := new(big.Int).SetBytes(prevBlock.BlockSeed)
 	rand.Seed(blockSeedBigInt.Int64())
@@ -159,7 +157,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	return errors.New("Failed")
 }
 
-func (bss *BlocksmithStrategyMain) CanPersistNew(previousBlock, block *model.Block, timestamp int64) error {
+func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.Block, timestamp int64) error {
 	round := bss.GetSmithingRound(previousBlock, block)
 	if round <= 1 {
 		return nil
@@ -225,19 +223,6 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*m
 	return result
 }
 
-// GetSortedBlocksmithsMap get the sorted blocksmiths in map
-func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	var (
-		result = make(map[string]*int64)
-	)
-	bss.SortedBlocksmithsLock.RLock()
-	defer bss.SortedBlocksmithsLock.RUnlock()
-	for k, v := range bss.SortedBlocksmithsMap {
-		result[k] = v
-	}
-	return result
-}
-
 // CalculateScore calculate the blocksmith score
 func (bss *BlocksmithStrategyMain) CalculateScore(generator *model.Blocksmith, score int64) error {
 	generator.Score = big.NewInt(score / int64(constant.ScalarReceiptScore))
@@ -276,67 +261,6 @@ func (bss *BlocksmithStrategyMain) EstimateLastBlockPersistedTime(
 	}
 	bss.LastEstimatedPersistedTimestampBlockID = previousBlock.ID
 	return nil
-}
-
-// CanPersistBlock check if currentTime is a time to persist the provided block.
-// This function uses current node time, which make it unsafe to validate past block.
-// numberOfBlocksmiths must be > 0
-func (bss *BlocksmithStrategyMain) CanPersistBlock(
-	blocksmithIndex, numberOfBlocksmiths int64,
-	previousBlock *model.Block,
-) error {
-	var (
-		err                                                                             error
-		ct                                                                              = &chaintype.MainChain{}
-		currentTime                                                                     = time.Now().Unix()
-		remainder, prevRoundBegin, prevRoundExpired, prevRound2Begin, prevRound2Expired int64
-	)
-	// always return true for the first block | keeping in mind genesis block's timestamps is far behind, let fork processor
-	// handle to get highest cum-diff block
-	if previousBlock.GetHeight() == 0 {
-		return nil
-	}
-	// calculate estimated starting time
-	if bss.LastEstimatedPersistedTimestampBlockID != previousBlock.ID {
-		err = bss.EstimateLastBlockPersistedTime(previousBlock, ct)
-		if err != nil {
-			return err
-		}
-	}
-	// check if is valid time
-	// calculate total time before every blocksmiths are skipped
-	timeForOneRound := numberOfBlocksmiths * ct.GetBlocksmithTimeGap()
-	timeSinceLastBlock := currentTime - bss.LastEstimatedBlockPersistedTimestamp
-	if timeSinceLastBlock < ct.GetSmithingPeriod() {
-		return blocker.NewBlocker(blocker.SmithingPending, "SmithingPending")
-	}
-	modTimeSinceLastBlock := timeSinceLastBlock - ct.GetSmithingPeriod()
-	timeRound := math.Floor(float64(modTimeSinceLastBlock) / float64(timeForOneRound))
-	remainder = modTimeSinceLastBlock % timeForOneRound
-	nearestRoundBeginning := currentTime - remainder
-	if timeRound > 0 { // if more than one round has passed, calculate previous round start-expiry time for overlap
-		prevRoundStart := nearestRoundBeginning - timeForOneRound
-		prevRoundBegin = prevRoundStart + blocksmithIndex*ct.GetBlocksmithTimeGap()
-		prevRoundExpired = prevRoundBegin + ct.GetBlocksmithBlockCreationTime() +
-			ct.GetBlocksmithNetworkTolerance()
-	}
-	if timeRound > 1 { // handle small network, go one more round
-		prevRound2Start := nearestRoundBeginning - 2*timeForOneRound
-		prevRound2Begin = prevRound2Start + blocksmithIndex*ct.GetBlocksmithTimeGap()
-		prevRound2Expired = prevRound2Begin + ct.GetBlocksmithBlockCreationTime() +
-			ct.GetBlocksmithNetworkTolerance()
-	}
-	// calculate current round begin and expiry time
-	allowedBeginTime := blocksmithIndex*ct.GetBlocksmithTimeGap() + nearestRoundBeginning
-	expiredTime := allowedBeginTime + ct.GetBlocksmithBlockCreationTime() +
-		ct.GetBlocksmithNetworkTolerance()
-	// check if current time is in {(expire-timeGap) < x < (expire)} in either previous round or current round
-	if (currentTime > (expiredTime-ct.GetBlocksmithTimeGap()) && currentTime <= expiredTime) ||
-		(currentTime > (prevRoundExpired-ct.GetBlocksmithTimeGap()) && currentTime <= prevRoundExpired) ||
-		(currentTime > (prevRound2Expired-ct.GetBlocksmithTimeGap()) && currentTime <= prevRound2Expired) {
-		return nil
-	}
-	return blocker.NewBlocker(blocker.BlockErr, "CannotPersistBlock")
 }
 
 func (bss *BlocksmithStrategyMain) IsValidSmithTime(

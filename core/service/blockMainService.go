@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/mohae/deepcopy"
 	log "github.com/sirupsen/logrus"
@@ -567,17 +568,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
 	if !persist { // block content are validated
-		// get blocksmith index
-		blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex = blocksmithsMap[string(block.BlocksmithPublicKey)]
-		if blocksmithIndex == nil {
-			bs.queryAndCacheRollbackProcess("")
-			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
-		}
+		round := bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block)
 		// handle if is first index
-		if *blocksmithIndex > 0 {
+		if round > 1 {
 			// check if current block is in pushable window
-			err = bs.BlocksmithStrategy.CanPersistBlock(*blocksmithIndex, int64(len(blocksmithsMap)), previousBlock)
+			err = bs.BlocksmithStrategy.CanPersistBlock(previousBlock, block, time.Now().Unix())
 			if err != nil {
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
@@ -763,9 +758,8 @@ func (bs *BlockService) ScanBlockPool() error {
 		return err
 	}
 	blocks := bs.BlockPoolService.GetBlocks()
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmiths(&previousBlock)
-	for index, block := range blocks {
-		err = bs.BlocksmithStrategy.CanPersistBlock(index, int64(len(blocksmithsMap)), &previousBlock)
+	for _, block := range blocks {
+		err = bs.BlocksmithStrategy.CanPersistBlock(&previousBlock, block, time.Now().Unix())
 		if err != nil {
 			continue
 		}
