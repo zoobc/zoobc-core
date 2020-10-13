@@ -42,6 +42,7 @@ func (m *MempoolCacheStorage) SetItem(key, item interface{}) error {
 		m.mempoolMap[keyInt64] = mempoolMap
 		if monitoring.IsMonitoringActive() {
 			monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
+			monitoring.SetMempoolTransactionCount(len(m.mempoolMap))
 		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
@@ -100,6 +101,7 @@ func (m *MempoolCacheStorage) RemoveItem(keys interface{}) error {
 	}
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
+		monitoring.SetMempoolTransactionCount(len(m.mempoolMap))
 	}
 	return nil
 }
