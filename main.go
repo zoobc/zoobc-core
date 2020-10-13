@@ -859,9 +859,6 @@ func startMainchain() {
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(config.NodeKey.PublicKey)
 		if err != nil {
-			loggerCoreService.Fatal(err)
-			os.Exit(1)
-		} else if node == nil {
 			// no nodes registered with current node public key, only warn the user but we keep running smithing goroutine
 			// so it immediately start when register+admitted to the registry
 			loggerCoreService.Error(

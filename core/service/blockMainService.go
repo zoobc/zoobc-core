@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -401,6 +402,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
+		start           = time.Now()
 		blocksmithIndex *int64
 		err             error
 		mempoolMap      storage.MempoolMap
@@ -786,6 +788,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
+	monitoring.SetBlockProcessTime(time.Since(start).Milliseconds())
 	return nil
 }
 
