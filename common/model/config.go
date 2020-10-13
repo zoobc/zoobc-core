@@ -67,7 +67,7 @@ func (cfg *Config) LoadConfigurations() {
 func (cfg *Config) SaveConfig(filePath string) error {
 	var err error
 	viper.Set("smithing", cfg.Smithing)
-	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddress)
+	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddressHex)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
 	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)

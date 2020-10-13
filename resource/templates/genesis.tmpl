@@ -36,6 +36,7 @@ var (
 	GenesisConfig         = []GenesisConfigEntry{
 {{range $key, $value := .MainchainGenesisConfig}}		{
             AccountAddressType: 0,
+            //EncodedAccountAddress: "{{$value.EncodedAccountAddress}}"
 			AccountAddress: "{{$value.AccountAddress}}",
 			AccountBalance: {{$value.AccountBalance}},{{if $value.HasNodePublicKey}}
 			NodePublicKey:  {{$value.NodePublicKeyString}},
