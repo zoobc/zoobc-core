@@ -483,10 +483,16 @@ func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
 }
 
 func SetBlockProcessTime(timeMs int64) {
+	if !isMonitoringActive {
+		return
+	}
 	blockProcessTimeGaugeVector.WithLabelValues("BlockProcessTime").Set(float64(timeMs))
 }
 
 func SetMempoolTransactionCount(mempoolTxCount int) {
+	if !isMonitoringActive {
+		return
+	}
 	mempoolTransactionCountGaugeVector.WithLabelValues("MempoolTransactionCount").Set(float64(mempoolTxCount))
 }
 
