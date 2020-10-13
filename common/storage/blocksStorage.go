@@ -74,6 +74,7 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 	b.Lock()
 	defer b.Unlock()
 	b.blocks = b.blocks[:heightIndex+1]
+	b.lastBlockHeight = height
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
 	}
@@ -132,7 +133,10 @@ func (b *BlocksStorage) GetTop(item interface{}) error {
 }
 
 func (b *BlocksStorage) Clear() error {
+	b.RLock()
+	defer b.RUnlock()
 	b.blocks = make([]BlockCacheObject, 0, b.itemLimit)
+	b.lastBlockHeight = 0
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, 0)
 	}

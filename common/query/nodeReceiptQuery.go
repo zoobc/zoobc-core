@@ -238,3 +238,12 @@ func (*NodeReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
 	return err
 
 }
+
+func (rq *NodeReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE reference_block_height > ?", rq.getTableName()),
+			height,
+		},
+	}
+}
