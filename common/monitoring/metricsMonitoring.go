@@ -19,32 +19,34 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
-	sendAddressInfoToPeer            prometheus.Counter
-	getAddressInfoTableFromPeer      prometheus.Counter
-	receiptCounter                   prometheus.Counter
-	nodeAddressInfoCounter           prometheus.Gauge
-	confirmedAddressCounter          prometheus.Gauge
-	pendingAddressCounter            prometheus.Gauge
-	unresolvedPeersCounter           prometheus.Gauge
-	resolvedPeersCounter             prometheus.Gauge
-	unresolvedPriorityPeersCounter   prometheus.Gauge
-	resolvedPriorityPeersCounter     prometheus.Gauge
-	activeRegisteredNodesGauge       prometheus.Gauge
-	nodeScore                        prometheus.Gauge
-	blockerCounterVector             *prometheus.CounterVec
-	statusLockGaugeVector            *prometheus.GaugeVec
-	blockchainStatusGaugeVector      *prometheus.GaugeVec
-	blockchainSmithIndexGaugeVector  *prometheus.GaugeVec
-	blockchainIDMsbGaugeVector       *prometheus.GaugeVec
-	blockchainIDLsbGaugeVector       *prometheus.GaugeVec
-	blockchainHeightGaugeVector      *prometheus.GaugeVec
-	goRoutineActivityGaugeVector     *prometheus.GaugeVec
-	downloadCycleDebuggerGaugeVector *prometheus.GaugeVec
-	apiGaugeVector                   *prometheus.GaugeVec
-	apiRunningGaugeVector            *prometheus.GaugeVec
-	snapshotDownloadRequestCounter   *prometheus.CounterVec
-	dbStatGaugeVector                *prometheus.GaugeVec
-	cacheStorageGaugeVector          *prometheus.GaugeVec
+	sendAddressInfoToPeer              prometheus.Counter
+	getAddressInfoTableFromPeer        prometheus.Counter
+	receiptCounter                     prometheus.Counter
+	nodeAddressInfoCounter             prometheus.Gauge
+	confirmedAddressCounter            prometheus.Gauge
+	pendingAddressCounter              prometheus.Gauge
+	unresolvedPeersCounter             prometheus.Gauge
+	resolvedPeersCounter               prometheus.Gauge
+	unresolvedPriorityPeersCounter     prometheus.Gauge
+	resolvedPriorityPeersCounter       prometheus.Gauge
+	activeRegisteredNodesGauge         prometheus.Gauge
+	nodeScore                          prometheus.Gauge
+	blockerCounterVector               *prometheus.CounterVec
+	statusLockGaugeVector              *prometheus.GaugeVec
+	blockchainStatusGaugeVector        *prometheus.GaugeVec
+	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
+	blockchainIDMsbGaugeVector         *prometheus.GaugeVec
+	blockchainIDLsbGaugeVector         *prometheus.GaugeVec
+	blockchainHeightGaugeVector        *prometheus.GaugeVec
+	goRoutineActivityGaugeVector       *prometheus.GaugeVec
+	downloadCycleDebuggerGaugeVector   *prometheus.GaugeVec
+	apiGaugeVector                     *prometheus.GaugeVec
+	apiRunningGaugeVector              *prometheus.GaugeVec
+	snapshotDownloadRequestCounter     *prometheus.CounterVec
+	dbStatGaugeVector                  *prometheus.GaugeVec
+	cacheStorageGaugeVector            *prometheus.GaugeVec
+	mempoolTransactionCountGaugeVector *prometheus.GaugeVec
+	blockProcessTimeGaugeVector        *prometheus.GaugeVec
 
 	cliMonitoringInstance CLIMonitoringInteface
 )
@@ -268,6 +270,18 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"status"})
 	prometheus.MustRegister(dbStatGaugeVector)
 
+	blockProcessTimeGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_block_process_time_ms",
+		Help: "Block process time",
+	}, []string{"block_height"})
+	prometheus.MustRegister(blockProcessTimeGaugeVector)
+
+	mempoolTransactionCountGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_mempool_transaction_count",
+		Help: "Mempool count",
+	}, []string{"block_height"})
+	prometheus.MustRegister(mempoolTransactionCountGaugeVector)
+
 	// Cache Storage
 	cacheStorageGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_cache_storage",
@@ -466,6 +480,14 @@ func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
 	blockchainIDMsbGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetID() / int64(1000000000)))
 	blockchainIDLsbGaugeVector.WithLabelValues(chainType.GetName()).Set(math.Abs(float64(block.GetID() % int64(1000000000))))
 	blockchainHeightGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetHeight()))
+}
+
+func SetBlockProcessTime(timeMs int64) {
+	blockProcessTimeGaugeVector.WithLabelValues("BlockProcessTime").Set(float64(timeMs))
+}
+
+func SetMempoolTransactionCount(mempoolTxCount int) {
+	mempoolTransactionCountGaugeVector.WithLabelValues("MempoolTransactionCount").Set(float64(mempoolTxCount))
 }
 
 func IncrementGoRoutineActivity(activityName string) {
