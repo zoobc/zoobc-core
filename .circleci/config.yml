@@ -93,12 +93,6 @@ jobs:
                   paths:
                       - ./dist
             - run:
-                  name: ↓ RSYNC
-                  command: |
-                      if [ ! -d rsync ]; then
-                          sudo apt-get update && sudo apt-get install rsync
-                      fi
-            - run:
                   name: GENERATING GENESIS
                   command: |
                     if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" || ${CIRCLE_BRANCH} == "experimental" ]]; then
@@ -108,7 +102,6 @@ jobs:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
-            #                       rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
