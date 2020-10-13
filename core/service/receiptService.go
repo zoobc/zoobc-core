@@ -267,8 +267,8 @@ func (rs *ReceiptService) pickReceipts(
 	return pickedReceipts, nil
 }
 
-// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts
-// generating will do when number of collected receipts(batch receipts) already same with number of required
+// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
+// generating will do when number of collected receipts(batch receipts) already <= the number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	var (
 		batchReceiptsCached, batchReceipts []model.BatchReceipt
@@ -290,22 +290,28 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		sort.SliceStable(batchReceiptsCached, func(i, j int) bool {
 			return batchReceiptsCached[i].ReferenceBlockHeight < batchReceiptsCached[j].ReferenceBlockHeight
 		})
-		batchReceipts = batchReceiptsCached[0:constant.ReceiptBatchMaximum]
-		batchReceiptsCached = batchReceiptsCached[len(batchReceipts):]
 
-		// Hash receipts and generate merkle root
-		for _, batchReceipt := range batchReceipts {
+		for k, batchReceipt := range batchReceiptsCached {
+			if len(batchReceipts) == int(constant.ReceiptBatchMaximum) {
+				break
+			}
 			b := batchReceipt
-			hashedBatchReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(&b))
-			hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedBatchReceipt[:]))
+			err = rs.ValidateReceipt(&b)
+			if err == nil {
+				batchReceipts = append(batchReceipts, b)
+				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(&b))
+				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
+			}
+			batchReceiptsCached = batchReceiptsCached[k:]
 		}
+
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
 		if err != nil {
 			return err
 		}
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
 
-		queries = make([][]interface{}, constant.ReceiptBatchMaximum+1)
+		queries = make([][]interface{}, len(hashedReceipts)+1)
 		for k, batchReceipt := range batchReceipts {
 			b := batchReceipt
 			receipt = &model.Receipt{
@@ -321,7 +327,11 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			return err
 		}
 		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
-			rootMerkle, treeMerkle, time.Now().Unix(), block.Height)
+			rootMerkle,
+			treeMerkle,
+			time.Now().Unix(),
+			block.Height,
+		)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
 		err = rs.QueryExecutor.BeginTx()
