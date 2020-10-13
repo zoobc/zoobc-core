@@ -190,7 +190,9 @@ func initialize(
 	)
 
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(), nil,
+		queryExecutor, nodeRegistrationService,
+		query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(),
+		log.New(), nil,
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),

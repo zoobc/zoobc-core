@@ -3,6 +3,7 @@ package strategy
 import (
 	"bytes"
 	"errors"
+	"github.com/zoobc/zoobc-core/core/service"
 	"math"
 	"math/big"
 	"math/rand"
@@ -34,6 +35,7 @@ type (
 	BlocksmithStrategyMain struct {
 		QueryExecutor                          query.ExecutorInterface
 		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
+		NodeRegistrationService                service.NodeRegistrationServiceInterface
 		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
 		Logger                                 *log.Logger
 		SortedBlocksmiths                      []*model.Blocksmith
@@ -51,20 +53,22 @@ type (
 
 func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
+	nodeRegistrationService service.NodeRegistrationServiceInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	logger *log.Logger,
 	currentNodePublicKey []byte,
 ) *BlocksmithStrategyMain {
 	return &BlocksmithStrategyMain{
-		QueryExecutor:          queryExecutor,
-		NodeRegistrationQuery:  nodeRegistrationQuery,
-		SkippedBlocksmithQuery: skippedBlocksmithQuery,
-		Logger:                 logger,
-		SortedBlocksmithsMap:   make(map[string]*int64),
-		Chaintype:              &chaintype.MainChain{},
-		candidates:             make([]Candidate, 0),
-		CurrentNodePublicKey:   currentNodePublicKey,
+		QueryExecutor:           queryExecutor,
+		NodeRegistrationService: nodeRegistrationService,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		SkippedBlocksmithQuery:  skippedBlocksmithQuery,
+		Logger:                  logger,
+		SortedBlocksmithsMap:    make(map[string]*int64),
+		Chaintype:               &chaintype.MainChain{},
+		candidates:              make([]Candidate, 0),
+		CurrentNodePublicKey:    currentNodePublicKey,
 	}
 }
 
@@ -169,6 +173,32 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 		return nil
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
+}
+
+// GetSkippedBlocksmiths return the list of skipped blocksmiths
+// previousBlock must be latest last block since we'll be fetching registered nodes from cache.
+func (bss *BlocksmithStrategyMain) GetSkippedBlocksmiths(previousBlock, block *model.Block) ([]*model.Blocksmith, error) {
+	var (
+		result = make([]*model.Blocksmith, 0)
+		err    error
+	)
+	// get node registry
+	activeNodeRegistries, err := bss.NodeRegistrationService.GetActiveRegisteredNodes()
+	if err != nil {
+		return result, err
+	}
+	// get round
+	round := bss.GetSmithingRound(previousBlock, block)
+	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
+	rand.Seed(blockSeedBigInt.Int64())
+	for i := 0; i < round-1; i++ {
+		skippedNodeIdx := rand.Intn(len(activeNodeRegistries))
+		result = append(result, &model.Blocksmith{
+			NodeID:        activeNodeRegistries[skippedNodeIdx].GetNodeID(),
+			NodePublicKey: activeNodeRegistries[skippedNodeIdx].GetNodePublicKey(),
+		})
+	}
+	return result, nil
 }
 
 func (bss *BlocksmithStrategyMain) GetSmithingRound(previousBlock, block *model.Block) int {

@@ -371,6 +371,7 @@ func initiateMainInstance() {
 
 	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
+		nodeRegistrationService,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
