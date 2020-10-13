@@ -159,6 +159,34 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	return errors.New("Failed")
 }
 
+func (bss *BlocksmithStrategyMain) CanPersistNew(previousBlock, block *model.Block, timestamp int64) error {
+	round := bss.GetSmithingRound(previousBlock, block)
+	if round <= 1 {
+		return nil
+	}
+	blocksmithBaseTime := bss.Chaintype.GetSmithingPeriod() + bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	previousExpiryTimestamp := blocksmithBaseTime + int64(round-1)*bss.Chaintype.GetBlocksmithTimeGap()
+	currentExpiryTimestamp := previousExpiryTimestamp + bss.Chaintype.GetBlocksmithTimeGap()
+	if timestamp > previousExpiryTimestamp && timestamp < previousExpiryTimestamp+currentExpiryTimestamp {
+		return nil
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
+}
+
+func (bss *BlocksmithStrategyMain) GetSmithingRound(previousBlock, block *model.Block) int {
+	var (
+		round = 1 // round start from 1
+	)
+	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
+	firstBlocksmithTime := bss.Chaintype.GetSmithingPeriod() + bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	if timeGap < firstBlocksmithTime {
+		return round // first blocksmith
+	}
+	afterFirstBlocksmith := math.Ceil(float64(timeGap-firstBlocksmithTime) / float64(bss.Chaintype.GetBlocksmithTimeGap()))
+	round += int(afterFirstBlocksmith)
+	return round
+}
+
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
