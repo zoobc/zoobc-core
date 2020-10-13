@@ -81,7 +81,7 @@ func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress
 		}
 	case int32(model.AccountType_BTCAccountType):
 		// TODO: not implemented yet!
-		return nil, errors.New("Parsing encoded BTC accounts is not implemented yet")
+		return nil, errors.New("parsing encoded BTC accounts is not implemented yet")
 	}
 	accType, err := NewAccountType(int32(model.AccountType_ZbcAccountType), accPubKey)
 	if err != nil {
