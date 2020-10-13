@@ -302,13 +302,6 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
 	}
-
-	// check if blocksmith can smith at the time
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
-	if blocksmithIndex == nil {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
-	}
 	err := bs.BlocksmithStrategy.IsBlockValid(previousLastBlock, block)
 	if err != nil {
 		return err
@@ -389,11 +382,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex = sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
-		if blocksmithIndex == nil {
-			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
-		}
+
 		// check for duplicate in block pool
 		blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
 		if blockPool != nil && !persist {
@@ -401,13 +390,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				blocker.BlockErr, "DuplicateBlockPool",
 			)
 		}
-		blockCumulativeDifficulty, err := coreUtil.CalculateCumulativeDifficulty(
-			previousBlock, *blocksmithIndex,
-		)
-		if err != nil {
-			return err
-		}
-		block.CumulativeDifficulty = blockCumulativeDifficulty
+
+		block.CumulativeDifficulty = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
 	}
 
 	// start db transaction here

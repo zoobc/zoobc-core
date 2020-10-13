@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"strconv"
 	"sync"
 	"time"
 
@@ -123,6 +124,13 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (lastBlockI
 	bss.candidates = append(bss.candidates, candidate)
 	lastBlockID = util.GetBlockIDFromHash(bss.lastBlockHash)
 	return lastBlockID, int64(idx), nil
+}
+
+func (bss *BlocksmithStrategyMain) CalculateCumulativeDifficulty(prevBlock, block *model.Block) string {
+	timeGap := block.Timestamp - prevBlock.Timestamp
+	round := (timeGap - bss.Chaintype.GetSmithingPeriod()) / bss.Chaintype.GetBlocksmithTimeGap()
+	currentCumulativeDifficulty := constant.CumulativeDifficultyDivisor / round
+	return strconv.FormatInt(currentCumulativeDifficulty, 16)
 }
 
 func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) error {

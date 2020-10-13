@@ -138,6 +138,10 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 	return lastBlockID, int64(idx), nil
 }
 
+func (bss *BlocksmithStrategySpine) CalculateCumulativeDifficulty(prevBlock, block *model.Block) string {
+	return "0"
+}
+
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bss *BlocksmithStrategySpine) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
