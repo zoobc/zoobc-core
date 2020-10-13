@@ -235,6 +235,10 @@ func initiateMainInstance() {
 			config.NodeKey.Seed,
 			true,
 		)
+		if err != nil {
+			log.Error("error generating node owner account")
+			os.Exit(1)
+		}
 		config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
