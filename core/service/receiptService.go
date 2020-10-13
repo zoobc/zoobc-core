@@ -291,7 +291,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 			return batchReceiptsCached[i].ReferenceBlockHeight < batchReceiptsCached[j].ReferenceBlockHeight
 		})
 
-		for k, batchReceipt := range batchReceiptsCached {
+		var cacheCount int
+		for _, batchReceipt := range batchReceiptsCached {
 			if len(batchReceipts) == int(constant.ReceiptBatchMaximum) {
 				break
 			}
@@ -302,8 +303,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedBatchReceiptBytes(&b))
 				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
 			}
-			batchReceiptsCached = batchReceiptsCached[k:]
+			cacheCount++
 		}
+		batchReceiptsCached = batchReceiptsCached[cacheCount:]
 
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
 		if err != nil {
