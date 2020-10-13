@@ -292,7 +292,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		})
 
 		for k, batchReceipt := range batchReceiptsCached {
-			if len(batchReceipts) >= int(constant.ReceiptBatchMaximum) {
+			if len(batchReceipts) == int(constant.ReceiptBatchMaximum) {
 				break
 			}
 			b := batchReceipt
