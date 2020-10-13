@@ -174,12 +174,17 @@ func readCertFile(config *model.Config, fileName string) error {
 			return fmt.Errorf("failed to assert certificate, %s", err.Error())
 		}
 		if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
-			config.OwnerAccountAddressHex = fmt.Sprintf("%s", ownerAccountAddress)
-			config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+			// TODO: if in future we accept any account type in genesis, certificate must contain a full account address in hex format.
+			//  As of now we have to parse an encoded address into its full hex format to be put in config.toml
+			config.OwnerAccountAddress, err = accounttype.ParseEncodedAccountToAccountAddress(
+				int32(model.AccountType_ZbcAccountType),
+				fmt.Sprintf("%s", ownerAccountAddress),
+			)
 			if err != nil {
-				color.Red("Invalid Owner Account Address")
-				continue
+				color.Cyan("Invalid Owner Account Address: It must be a valid ZBC account")
+				return err
 			}
+			config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		} else {
 			return fmt.Errorf("invalid certificate format, ownerAccount not found")
 		}
@@ -314,8 +319,19 @@ func generateConfig(config model.Config) error {
 			color.Cyan("! Create one on zoobc.one")
 			color.White("OWNER ACCOUNT ADDRESS: ")
 			inputStr = shell.ReadLine()
-			if strings.TrimSpace(inputStr) != "" {
-				config.OwnerAccountAddressHex = inputStr
+			inputStr = strings.TrimSpace(inputStr)
+			if inputStr != "" {
+				// TODO: if in future we accept any account type in genesis, certificate must contain a full account address in hex format.
+				//  As of now we have to parse an encoded address into its full hex format to be put in config.toml
+				config.OwnerAccountAddress, err = accounttype.ParseEncodedAccountToAccountAddress(
+					int32(model.AccountType_ZbcAccountType),
+					inputStr,
+				)
+				if err != nil {
+					color.Cyan("Invalid Owner Account Address: It must be a valid ZBC account")
+					return err
+				}
+				config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 			} else {
 				if config.OwnerAccountAddressHex != "" {
 					color.Cyan("previous ownerAccountAddress won't be replaced")

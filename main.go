@@ -229,29 +229,13 @@ func initiateMainInstance() {
 
 	if config.OwnerAccountAddress == nil {
 		// todo: andy-shi88 refactor this
-		ed25519 := crypto.NewEd25519Signature()
-		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
+		signature := crypto.NewSignature()
+		_, _, _, config.OwnerEncodedAccountAddress, config.OwnerAccountAddress, err = signature.GenerateAccountFromSeed(
+			&accounttype.ZbcAccountType{},
 			config.NodeKey.Seed,
+			true,
 		)
-		if err != nil {
-			log.Error("Fail to generate account private key")
-			os.Exit(1)
-		}
-		publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
-		if err != nil {
-			log.Error("Fail to generate account public key")
-			os.Exit(1)
-		}
-		accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), publicKey)
-		if err != nil {
-			log.Error(err)
-			os.Exit(1)
-		}
-		config.OwnerAccountAddress, err = accType.GetAccountAddress()
-		if err != nil {
-			log.Error(err)
-			os.Exit(1)
-		}
+		config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
 			log.Error("Fail to save new configuration")
