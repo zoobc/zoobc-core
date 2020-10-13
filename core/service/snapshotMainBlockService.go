@@ -131,8 +131,10 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
-				fromHeight uint32
-				rows       *sql.Rows
+				fromHeight               uint32
+				rows                     *sql.Rows
+				multisigInfos            []*model.MultiSignatureInfo
+				multisigParticipantQuery = query.NewMultiSignatureParticipantQuery()
 			)
 			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
 				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
@@ -166,7 +168,34 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 			case "pendingSignature":
 				snapshotPayload.PendingSignatures, err = ss.PendingSignatureQuery.BuildModel([]*model.PendingSignature{}, rows)
 			case "multisignatureInfo":
-				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
+				multisigInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
+				query.NewMultiSignatureParticipantQuery()
+				for idx, multisigInfo := range multisigInfos {
+					err = func(idx int, multisigInfos []*model.MultiSignatureInfo) error {
+						qry, args := multisigParticipantQuery.GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(
+							multisigInfo.GetMultisigAddress(),
+							fromHeight,
+							snapshotPayloadHeight,
+						)
+						rows2, err := ss.QueryExecutor.ExecuteSelect(qry, false, args...)
+						if err != nil {
+							return err
+						}
+						defer rows2.Close()
+						participants, err := multisigParticipantQuery.BuildModel(rows2)
+						if err != nil {
+							return err
+						}
+						for _, participant := range participants {
+							multisigInfos[idx].Addresses = append(multisigInfos[idx].Addresses, participant.GetAccountAddress())
+						}
+						return nil
+					}(idx, multisigInfos)
+					if err != nil {
+						return
+					}
+				}
+				snapshotPayload.MultiSignatureInfos = multisigInfos
 			case "skippedBlocksmith":
 				snapshotPayload.SkippedBlocksmiths, err = ss.SkippedBlocksmithQuery.BuildModel([]*model.SkippedBlocksmith{}, rows)
 			case "feeScale":

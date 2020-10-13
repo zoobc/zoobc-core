@@ -14,6 +14,11 @@ type (
 		InsertMultisignatureParticipants(participants []*model.MultiSignatureParticipant) (queries [][]interface{})
 		Scan(participant *model.MultiSignatureParticipant, row *sql.Row) error
 		BuildModel(rows *sql.Rows) (participants []*model.MultiSignatureParticipant, err error)
+		GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(
+			multisigAddress []byte,
+			fromHeight,
+			toHeight uint32,
+		) (str string, args []interface{})
 	}
 	MultiSignatureParticipantQuery struct {
 		Fields    []string
@@ -113,6 +118,21 @@ func (msq *MultiSignatureParticipantQuery) InsertMultisignatureParticipants(
 		return queries
 	}
 	return nil
+}
+
+func (msq *MultiSignatureParticipantQuery) GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(
+	multisigAddress []byte,
+	fromHeight,
+	toHeight uint32,
+) (str string, args []interface{}) {
+	qry := fmt.Sprintf("SELECT %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND block_height <= ? "+
+		"ORDER BY account_address_index",
+		strings.Join(msq.Fields, ","), msq.getTableName())
+	return qry, []interface{}{
+		multisigAddress,
+		fromHeight,
+		toHeight,
+	}
 }
 
 func (msq *MultiSignatureParticipantQuery) Rollback(blockHeight uint32) [][]interface{} {

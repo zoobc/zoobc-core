@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
@@ -500,54 +501,52 @@ func TestNewMultisignatureInfoQuery(t *testing.T) {
 	}
 }
 
-// STEF TODO: refactor this test once the query has been splitted into two (cannot do group_concat with byte arrays)
-// func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
-// 	type fields struct {
-// 		Fields    []string
-// 		TableName string
-// 	}
-// 	type args struct {
-// 		fromHeight uint32
-// 		toHeight   uint32
-// 	}
-// 	tests := []struct {
-// 		name   string
-// 		fields fields
-// 		args   args
-// 		want   string
-// 	}{
-// 		{
-// 			name: "SelectDataForSnapshot",
-// 			fields: fields{
-// 				Fields:    mockMultisigInfoQueryInstance.Fields,
-// 				TableName: mockMultisigInfoQueryInstance.TableName,
-// 			},
-// 			args: args{
-// 				fromHeight: 1,
-// 				toHeight:   10,
-// 			},
-// 			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
-// 				"SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant " +
-// 				"GROUP BY multisig_address, block_height ORDER BY account_address_index ASC" +
-// 				") as addresses FROM multisignature_info " +
-// 				"WHERE (multisig_address, block_height) IN (" +
-// 				"SELECT t2.multisig_address, MAX(t2.block_height) " +
-// 				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
-// 				"GROUP BY t2.multisig_address) ORDER BY block_height",
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			msi := &MultisignatureInfoQuery{
-// 				Fields:    tt.fields.Fields,
-// 				TableName: tt.fields.TableName,
-// 			}
-// 			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
-// 				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = \n%v, want \n%v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		fromHeight uint32
+		toHeight   uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "SelectDataForSnapshot",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				fromHeight: 1,
+				toHeight:   10,
+			},
+			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest FROM multisignature_info " +
+				"WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) " +
+				"FROM multisignature_info t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+				"GROUP BY t2.multisig_address) ORDER BY block_height",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight)
+			fmt.Printf("%s", got)
+			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
+				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = \n%v, want \n%v", got, tt.want)
+			}
+
+		})
+	}
+}
 
 func TestMultisignatureInfoQuery_TrimDataBeforeSnapshot(t *testing.T) {
 	type fields struct {

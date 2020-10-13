@@ -83,14 +83,32 @@ func (mockMsi *multisignatureInfoHelperQueryExecutorSuccess) ExecuteSelect(qStr 
 	if mockMsi.emptyResultSet {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "account_address")))
 	} else {
-		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(append(multisigInfoQuery.Fields, "account_address")).AddRow(
+		mockRows := mock.NewRows(append(multisigInfoQuery.Fields, "account_address"))
+		mockRows.AddRow(
 			mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
 			mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
 			mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
 			mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
 			mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
 			mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses[0],
-		))
+		)
+		mockRows.AddRow(
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses[1],
+		)
+		mockRows.AddRow(
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.MinimumSignatures,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Nonce,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.BlockHeight,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Latest,
+			mockMultisignatureInfoHelperMultisigInfoSuccess.Addresses[2],
+		)
+		mock.ExpectQuery("").WillReturnRows(mockRows)
 	}
 	return dbMocked.Query("")
 
@@ -129,7 +147,7 @@ func TestMultisignatureInfoHelper_GetMultisigInfoByAddress(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "GetMultisigInfo - scan fail",
+			name: "GetMultisigInfo - buildModel empty",
 			fields: fields{
 				MultisignatureInfoQuery: &multisignatureInfoHelperMultisignatureInfoQueryScanFail{},
 				QueryExecutor: &multisignatureInfoHelperQueryExecutorSuccess{

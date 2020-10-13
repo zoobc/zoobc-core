@@ -272,6 +272,7 @@ func (sih *SignatureInfoHelper) GetPendingSignatureByTransactionHash(transaction
 	return pendingSigs, nil
 }
 
+// STEF example for updating queries that use group_concat
 func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
 	multisigAddress []byte,

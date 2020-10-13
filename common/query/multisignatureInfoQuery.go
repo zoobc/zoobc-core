@@ -267,21 +267,29 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 	}
 }
 
-// STEF TODO: split this query into two (cannot do group_concat with byte arrays)
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
-			"IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
-			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
-			"GROUP BY t2.multisig_address) ORDER BY block_height",
+		"SELECT %s FROM %s WHERE (multisig_address, block_height) IN "+
+			"(SELECT t2.multisig_address, MAX(t2.block_height) FROM %s t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.multisig_address) "+
+			"ORDER BY block_height",
 		strings.Join(msi.Fields, ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
-			"ORDER BY account_address_index ASC) as addresses",
 		msi.getTableName(),
 		msi.getTableName(),
 		fromHeight,
 		toHeight,
 	)
+	//
+	// return fmt.Sprintf(
+	// 	"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s t2 WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.multisig_address) ORDER BY block_height, account_address_index",
+	// 	strings.Join(msi.Fields, ", "),
+	// 	"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
+	// 		"ORDER BY account_address_index ASC) as addresses",
+	// 	msi.getTableName(),
+	// 	msi.getTableName(),
+	// 	fromHeight,
+	// 	toHeight,
+	// )
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
