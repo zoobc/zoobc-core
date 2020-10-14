@@ -42,7 +42,7 @@ func getBuildModelSuccessMockRows(withParticipant bool) *sql.Rows {
 		rows, _ := db.Query("")
 		return rows
 	}
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
+	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
 	mockRow.AddRow(
 		multisigAccountAddress1,
 		uint32(1),
@@ -448,7 +448,7 @@ func getNumberScanFailMockRow() *sql.Row {
 
 func getNumberScanSuccessMockRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
+	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
 	mockRow.AddRow(
 		multisigAccountAddress1,
 		uint32(123),

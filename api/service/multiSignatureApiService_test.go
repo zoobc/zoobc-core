@@ -425,9 +425,7 @@ func (*mockGetPendingTransactionByTransactionHashMultisigParticipantBuildModelSu
 	participants []*model.MultiSignatureParticipant,
 	err error,
 ) {
-	for _, mockParticipant := range mockMultisigParticipants {
-		participants = append(participants, mockParticipant)
-	}
+	participants = append(participants, mockMultisigParticipants...)
 	return participants, nil
 }
 
