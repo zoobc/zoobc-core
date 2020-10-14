@@ -17,24 +17,26 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
 	BlocksmithStrategySpine struct {
-		QueryExecutor         query.ExecutorInterface
-		SpinePublicKeyQuery   query.SpinePublicKeyQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		LastSortedBlockID     int64
-		SortedBlocksmithsLock sync.RWMutex
-		SortedBlocksmithsMap  map[string]*int64
-		SpineBlockQuery       query.BlockQueryInterface
-		CurrentNodePublicKey  []byte
-		Chaintype             chaintype.ChainType
-		candidates            []Candidate
-		lastBlockHash         []byte
+		QueryExecutor                  query.ExecutorInterface
+		SpinePublicKeyQuery            query.SpinePublicKeyQueryInterface
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
+		SortedBlocksmiths              []*model.Blocksmith
+		LastSortedBlockID              int64
+		SortedBlocksmithsLock          sync.RWMutex
+		SortedBlocksmithsMap           map[string]*int64
+		SpineBlockQuery                query.BlockQueryInterface
+		CurrentNodePublicKey           []byte
+		Chaintype                      chaintype.ChainType
+		candidates                     []Candidate
+		lastBlockHash                  []byte
 	}
 )
 
@@ -44,16 +46,18 @@ func NewBlocksmithStrategySpine(
 	logger *log.Logger,
 	spineBlockQuery query.BlockQueryInterface,
 	currentNodePublicKey []byte,
+	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
 ) *BlocksmithStrategySpine {
 	return &BlocksmithStrategySpine{
-		QueryExecutor:        queryExecutor,
-		SpinePublicKeyQuery:  spinePublicKeyQuery,
-		Logger:               logger,
-		SortedBlocksmithsMap: make(map[string]*int64),
-		SpineBlockQuery:      spineBlockQuery,
-		CurrentNodePublicKey: currentNodePublicKey,
-		Chaintype:            &chaintype.MainChain{},
-		candidates:           make([]Candidate, 0),
+		QueryExecutor:                  queryExecutor,
+		SpinePublicKeyQuery:            spinePublicKeyQuery,
+		Logger:                         logger,
+		SortedBlocksmithsMap:           make(map[string]*int64),
+		SpineBlockQuery:                spineBlockQuery,
+		CurrentNodePublicKey:           currentNodePublicKey,
+		Chaintype:                      &chaintype.SpineChain{},
+		candidates:                     make([]Candidate, 0),
+		ActiveNodeRegistryCacheStorage: activeNodeRegistryCacheStorage,
 	}
 }
 
@@ -95,16 +99,17 @@ func (bss *BlocksmithStrategySpine) isMe(lastCandidate Candidate, block *model.B
 
 func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlockID, blocksmithIndex int64, err error) {
 	var (
-		blockSmiths   []*model.Blocksmith
-		lastCandidate Candidate
-		candidate     Candidate
-		now           = time.Now().Unix()
+		activeNodeRegistry []storage.NodeRegistry
+		lastCandidate      Candidate
+		candidate          Candidate
+		now                = time.Now().Unix()
 		// err           error
 	)
 
-	blockSmiths, err = bss.GetBlocksmiths(prevBlock)
+	// get node registry
+	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
-		return 0, 0, errors.New("ErrorGetBlocksmiths")
+		return 0, 0, err
 	}
 
 	if prevBlock.BlockHash != nil {
@@ -128,9 +133,13 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 			return 0, 0, errors.New("Failed")
 		}
 	}
-	idx := rand.Intn(len(blockSmiths))
+	idx := rand.Intn(len(activeNodeRegistry))
+	blockSmith := model.Blocksmith{
+		NodeID:        activeNodeRegistry[idx].Node.GetNodeID(),
+		NodePublicKey: activeNodeRegistry[idx].Node.GetNodePublicKey(),
+	}
 	candidate = Candidate{
-		Blocksmith: blockSmiths[idx],
+		Blocksmith: &blockSmith,
 		StartTime:  prevBlock.Timestamp + bss.Chaintype.GetSmithingPeriod() + int64(len(bss.candidates))*bss.Chaintype.GetBlocksmithTimeGap(),
 		ExpiryTime: lastCandidate.StartTime + bss.Chaintype.GetBlocksmithNetworkTolerance() + bss.Chaintype.GetBlocksmithBlockCreationTime(),
 	}
@@ -172,6 +181,10 @@ func (bss *BlocksmithStrategySpine) CanPersistBlock(previousBlock, block *model.
 		return nil
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
+}
+
+func (bss *BlocksmithStrategySpine) GetBlocksBlocksmiths(previousBlock, block *model.Block) ([]*model.Blocksmith, error) {
+	return nil, nil
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)

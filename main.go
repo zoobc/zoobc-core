@@ -371,11 +371,11 @@ func initiateMainInstance() {
 
 	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
-		nodeRegistrationService,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
 	)
 	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
@@ -383,6 +383,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -547,6 +548,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		query.NewBlockQuery(spinechain),
 		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
 	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"reflect"
 	"sort"
 	"sync"
 	"time"
@@ -376,16 +375,18 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		blocksmithIndex *int64
-		err             error
-		mempoolMap      storage.MempoolMap
+		round      int64
+		err        error
+		mempoolMap storage.MempoolMap
 	)
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 
+		round = int64(bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block))
+
 		// check for duplicate in block pool
-		blockPool := bs.BlockPoolService.GetBlock(*blocksmithIndex)
+		blockPool := bs.BlockPoolService.GetBlock(round)
 		if blockPool != nil && !persist {
 			return blocker.NewBlocker(
 				blocker.BlockErr, "DuplicateBlockPool",
@@ -566,16 +567,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
 	if !persist { // block content are validated
-		round := bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block)
 		// handle if is first index
 		if round > 1 {
 			// check if current block is in pushable window
 			err = bs.BlocksmithStrategy.CanPersistBlock(previousBlock, block, time.Now().Unix())
 			if err != nil {
 				// insert into block pool
-				bs.BlockPoolService.InsertBlock(block, *blocksmithIndex)
+				bs.BlockPoolService.InsertBlock(block, round)
 				bs.queryAndCacheRollbackProcess("")
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
@@ -609,11 +610,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+
 	// adjust fee if end of fee-vote period
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
 		return err
 	}
+
 	if adjust {
 		// fetch vote-reveals
 		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
@@ -642,6 +645,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 			return result, nil
 		}()
+
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
 			return err
@@ -654,6 +658,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			BlockHeight: block.Height,
 			Latest:      true,
 		})
+
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
 			return err
@@ -716,7 +721,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
-	if broadcast && !persist && *blocksmithIndex == 0 {
+	if broadcast && !persist && round == 1 {
 		// add transactionIDs and remove transaction before broadcast
 		block.TransactionIDs = transactionIDs
 		block.Transactions = []*model.Transaction{}
@@ -853,24 +858,18 @@ func (bs *BlockService) expelNodes(block *model.Block) error {
 
 func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *model.Block) error {
 	var (
-		blocksmithNode  *model.Blocksmith
-		blocksmithIndex = -1
-		err             error
+		err error
 	)
-	for i, bsm := range bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock) {
-		if reflect.DeepEqual(block.BlocksmithPublicKey, bsm.NodePublicKey) {
-			blocksmithIndex = i
-			blocksmithNode = bsm
-			break
-		}
+
+	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
+	if err != nil {
+		return err
 	}
-	if blocksmithIndex < 0 {
-		return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInBlocksmithList")
-	}
+	blocksBlocksmithsLenght := len(blocksBlocksmiths)
 	// punish the skipped (index earlier than current blocksmith) blocksmith
-	for i, bsm := range (bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))[:blocksmithIndex] {
+	for i := 0; i < blocksBlocksmithsLenght-1; i++ {
 		skippedBlocksmith := &model.SkippedBlocksmith{
-			BlocksmithPublicKey: bsm.NodePublicKey,
+			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
 			POPChange:           constant.ParticipationScorePunishAmount,
 			BlockHeight:         block.Height,
 			BlocksmithIndex:     int32(i),
@@ -884,12 +883,13 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			return err
 		}
 		// punish score
-		_, err = bs.NodeRegistrationService.AddParticipationScore(bsm.NodeID, constant.ParticipationScorePunishAmount, block.Height, true)
+		_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[i].NodeID,
+			constant.ParticipationScorePunishAmount, block.Height, true)
 		if err != nil {
 			return err
 		}
 	}
-	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksmithNode.NodeID, popScore, block.Height, true)
+	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[blocksBlocksmithsLenght-1].NodeID, popScore, block.Height, true)
 
 	return err
 }

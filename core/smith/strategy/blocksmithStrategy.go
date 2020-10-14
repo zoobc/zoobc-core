@@ -10,9 +10,9 @@ type (
 		IsBlockValid(prevBlock, block *model.Block) error
 		isMe(lastCandidate Candidate, block *model.Block) bool
 		CalculateCumulativeDifficulty(prevBlock, block *model.Block) string
+		GetBlocksBlocksmiths(previousBlock, block *model.Block) ([]*model.Blocksmith, error)
 
 		// old
-		GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error)
 		GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith
 		CalculateScore(generator *model.Blocksmith, score int64) error
 		GetSmithingRound(previousBlock, block *model.Block) int
