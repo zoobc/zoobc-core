@@ -41,20 +41,18 @@ func getBuildModelSuccessMockRows(withParticipant bool) *sql.Rows {
 		mock.ExpectQuery("").WillReturnRows(mockRow)
 		rows, _ := db.Query("")
 		return rows
-	} else {
-		mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
-		mockRow.AddRow(
-			multisigAccountAddress1,
-			uint32(1),
-			int64(10),
-			uint32(12),
-			true,
-		)
-		mock.ExpectQuery("").WillReturnRows(mockRow)
-		rows, _ := db.Query("")
-		return rows
 	}
-
+	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
+	mockRow.AddRow(
+		multisigAccountAddress1,
+		uint32(1),
+		int64(10),
+		uint32(12),
+		true,
+	)
+	mock.ExpectQuery("").WillReturnRows(mockRow)
+	rows, _ := db.Query("")
+	return rows
 }
 
 func TestMultisignatureInfoQuery_BuildModelWithParticipant(t *testing.T) {

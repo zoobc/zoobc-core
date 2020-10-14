@@ -248,7 +248,6 @@ func (msi *MultisignatureInfoQuery) BuildModelWithParticipant(
 			multisigInfo       model.MultiSignatureInfo
 			participantAddress []byte
 		)
-		rows.Columns()
 		err := rows.Scan(
 			&multisigInfo.MultisigAddress,
 			&multisigInfo.MinimumSignatures,
