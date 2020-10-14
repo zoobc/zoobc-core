@@ -379,20 +379,19 @@ func (bs *BlockService) validateMerkleRoot(block *model.Block) error {
 		randomTxIndex := rand.Intn(len(block.Transactions))
 		// Flatten the Merkle Root
 		merkleRoot.HashTree = merkleRoot.FromBytes(block.MerkleTree, block.MerkleRoot)
-		b := block.Transactions[randomTxIndex].TransactionHash
-		intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(b), int32(randomTxIndex))
+		randomTx := block.Transactions[randomTxIndex].TransactionHash
+		intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(randomTx), int32(randomTxIndex))
 		for _, buf := range intermediateHashesBuffer {
 			intermediateHashes = append(intermediateHashes, buf.Bytes())
 		}
 		flattenIntermediateHashes := merkleRoot.FlattenIntermediateHashes(intermediateHashes)
 
 		root, err := merkleRoot.GetMerkleRootFromIntermediateHashes(
-			b,
+			randomTx,
 			uint32(randomTxIndex),
 			merkleRoot.RestoreIntermediateHashes(flattenIntermediateHashes),
 		)
 		validateMerkleRoot := bytes.Equal(root, block.MerkleRoot)
-		log.Println(validateMerkleRoot)
 		if !validateMerkleRoot {
 			return err
 		}
