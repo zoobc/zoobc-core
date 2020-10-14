@@ -538,6 +538,7 @@ func initiateMainInstance() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewMultiSignatureParticipantQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
