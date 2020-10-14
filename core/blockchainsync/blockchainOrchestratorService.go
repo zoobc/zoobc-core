@@ -108,7 +108,10 @@ func (bos *BlockchainOrchestratorService) DownloadSnapshot(ct chaintype.ChainTyp
 		if err != nil {
 			bos.Logger.Warning(err)
 			return err
-		} else if err := bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo); err != nil {
+		}
+
+		err = bos.MainchainSnapshotBlockServices.ImportSnapshotFile(snapshotFileInfo)
+		if err != nil {
 			bos.Logger.Warningf("error importing snapshot file for chaintype %s at height %d: %s\n", ct.GetName(),
 				lastSpineBlockManifest.ManifestReferenceHeight, err.Error())
 			return err
