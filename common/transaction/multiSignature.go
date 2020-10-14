@@ -283,7 +283,7 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 		multisigInfos    []*model.MultiSignatureInfo
 		multisigAccounts [][]byte
 	)
-	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddress(
+	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddressWithParticipants(
 		multisigAddress, blockHeight, constant.MinRollbackBlocks,
 	)
 	rows, err := msi.QueryExecutor.ExecuteSelect(q, false, args...)
@@ -291,7 +291,7 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 		return status.Error(codes.Internal, err.Error())
 	}
 	defer rows.Close()
-	multisigInfos, err = msi.MultisignatureInfoQuery.BuildModel(multisigInfos, rows)
+	multisigInfos, err = msi.MultisignatureInfoQuery.BuildModelWithParticipant(multisigInfos, rows)
 	if err != nil {
 		return err
 	}

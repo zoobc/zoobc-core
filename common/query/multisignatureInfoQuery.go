@@ -11,7 +11,7 @@ import (
 
 type (
 	MultisignatureInfoQueryInterface interface {
-		GetMultisignatureInfoByAddress(
+		GetMultisignatureInfoByAddressWithParticipants(
 			multisigAddress []byte,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
@@ -20,6 +20,7 @@ type (
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
+		BuildModelWithParticipant(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
 	}
 
 	MultisignatureInfoQuery struct {
@@ -46,8 +47,8 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
-// GetMultisignatureInfoByAddress
-func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
+// GetMultisignatureInfoByAddressWithParticipants
+func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddressWithParticipants(
 	multisigAddress []byte,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
@@ -221,9 +222,33 @@ func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureI
 	}
 }
 
-// BuildModel will build model from *sql.Rows that expect has addresses column
-// which is result from sub query of multisignature_participant
+// BuildModel will build model from *sql.Rows
 func (msi *MultisignatureInfoQuery) BuildModel(
+	mss []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	for rows.Next() {
+		var (
+			multisigInfo model.MultiSignatureInfo
+		)
+		rows.Columns()
+		err := rows.Scan(
+			&multisigInfo.MultisigAddress,
+			&multisigInfo.MinimumSignatures,
+			&multisigInfo.Nonce,
+			&multisigInfo.BlockHeight,
+			&multisigInfo.Latest,
+		)
+		if err != nil {
+			return nil, err
+		}
+		mss = append(mss, &multisigInfo)
+	}
+	return mss, nil
+}
+
+// BuildModelWithParticipant will build model from *sql.Rows that expect has addresses column
+// which is result from sub query of multisignature_participant
+func (msi *MultisignatureInfoQuery) BuildModelWithParticipant(
 	mss []*model.MultiSignatureInfo, rows *sql.Rows,
 ) ([]*model.MultiSignatureInfo, error) {
 	for rows.Next() {
@@ -231,6 +256,7 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			multisigInfo       model.MultiSignatureInfo
 			participantAddress []byte
 		)
+		rows.Columns()
 		err := rows.Scan(
 			&multisigInfo.MultisigAddress,
 			&multisigInfo.MinimumSignatures,

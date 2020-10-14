@@ -2,7 +2,6 @@ package query
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
@@ -27,20 +26,107 @@ func getBuildModelErrorMockRows() *sql.Rows {
 	return rows
 }
 
-func getBuildModelSuccessMockRows() *sql.Rows {
+func getBuildModelSuccessMockRows(withParticipant bool) *sql.Rows {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "multisig_address"))
-	mockRow.AddRow(
-		multisigAccountAddress1,
-		uint32(1),
-		int64(10),
-		uint32(12),
-		true,
-		multisigAccountAddress2,
-	)
-	mock.ExpectQuery("").WillReturnRows(mockRow)
-	rows, _ := db.Query("")
-	return rows
+	if withParticipant {
+		mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "multisig_address"))
+		mockRow.AddRow(
+			multisigAccountAddress1,
+			uint32(1),
+			int64(10),
+			uint32(12),
+			true,
+			multisigAccountAddress2,
+		)
+		mock.ExpectQuery("").WillReturnRows(mockRow)
+		rows, _ := db.Query("")
+		return rows
+	} else {
+		mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
+		mockRow.AddRow(
+			multisigAccountAddress1,
+			uint32(1),
+			int64(10),
+			uint32(12),
+			true,
+		)
+		mock.ExpectQuery("").WillReturnRows(mockRow)
+		rows, _ := db.Query("")
+		return rows
+	}
+
+}
+
+func TestMultisignatureInfoQuery_BuildModelWithParticipant(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		mss  []*model.MultiSignatureInfo
+		rows *sql.Rows
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.MultiSignatureInfo
+		wantErr bool
+	}{
+		{
+			name: "BuildModel-RowsError",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				mss:  []*model.MultiSignatureInfo{},
+				rows: getBuildModelErrorMockRows(),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "BuildModel",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				mss:  []*model.MultiSignatureInfo{},
+				rows: getBuildModelSuccessMockRows(true),
+			},
+			want: []*model.MultiSignatureInfo{
+				{
+					MultisigAddress:   multisigAccountAddress1,
+					MinimumSignatures: 1,
+					Nonce:             10,
+					BlockHeight:       12,
+					Latest:            true,
+					Addresses: [][]byte{
+						multisigAccountAddress2,
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got, err := msi.BuildModelWithParticipant(tt.args.mss, tt.args.rows)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildModel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildModel() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
@@ -80,7 +166,7 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 			},
 			args: args{
 				mss:  []*model.MultiSignatureInfo{},
-				rows: getBuildModelSuccessMockRows(),
+				rows: getBuildModelSuccessMockRows(false),
 			},
 			want: []*model.MultiSignatureInfo{
 				{
@@ -89,9 +175,6 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 					Nonce:             10,
 					BlockHeight:       12,
 					Latest:            true,
-					Addresses: [][]byte{
-						multisigAccountAddress2,
-					},
 				},
 			},
 			wantErr: false,
@@ -176,7 +259,7 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 	}
 }
 
-func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
+func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddressWithParticipants(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -199,7 +282,7 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 		wantArgs []interface{}
 	}{
 		{
-			name: "GetMultisignatureInfoByAddress-Success",
+			name: "GetMultisignatureInfoByAddressWithParticipants-Success",
 			fields: fields{
 				Fields:    mockMultisigInfoQueryInstance.Fields,
 				TableName: mockMultisigInfoQueryInstance.TableName,
@@ -222,17 +305,17 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := msi.GetMultisignatureInfoByAddress(
+			gotStr, gotArgs := msi.GetMultisignatureInfoByAddressWithParticipants(
 				tt.args.multisigAddress,
 				tt.args.currentHeight,
 				tt.args.limit,
 			)
 			if gotStr != tt.wantStr {
-				t.Errorf("GetMultisignatureInfoByAddress() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				t.Errorf("GetMultisignatureInfoByAddressWithParticipants() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetMultisignatureInfoByAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("GetMultisignatureInfoByAddressWithParticipants() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -538,8 +621,6 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight)
-			fmt.Printf("%s", got)
 			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = \n%v, want \n%v", got, tt.want)
 			}

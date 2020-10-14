@@ -47,7 +47,7 @@ var (
 	// multisignatureInfoHelper mocks
 )
 
-func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) GetMultisignatureInfoByAddress(
+func (*multisignatureInfoHelperMultisignatureInfoQueryScanFail) GetMultisignatureInfoByAddressWithParticipants(
 	[]byte, uint32, uint32,
 ) (str string, args []interface{}) {
 	return "", []interface{}{}
