@@ -363,16 +363,6 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			}
 		}
 	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
-		"FROM main_block AS mb1 WHERE mb1.timestamp >= 12345600) AND height <= (SELECT MAX(height) " +
-		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
-		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
-	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
-		"FROM main_block AS mb1 WHERE mb1.timestamp >= 0) AND height <= (SELECT MAX(height) " +
-		"FROM main_block AS mb2 WHERE mb2.timestamp < 12345678) AND registration_status != 1 AND latest=1 ORDER BY height":
-		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields))
-	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 		"registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND height <= ? " +
 		"ORDER BY height DESC LIMIT 1":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{"id", "node_public_key",
@@ -1432,6 +1422,9 @@ type (
 	mockSpineGenerateblockMainBlockServiceSuccess struct {
 		BlockServiceInterface
 	}
+	mockSpineGenerateBlockSpinePublicKeyServiceSuccess struct {
+		BlockSpinePublicKeyServiceInterface
+	}
 )
 
 var (
@@ -1448,6 +1441,14 @@ func (*mockSpineGenerateblockMainBlockServiceSuccess) GetBlocksFromHeight(startH
 	return []*model.Block{
 		&mockGenerateBlockMainBlock,
 	}, nil
+}
+
+func (*mockSpineGenerateBlockSpinePublicKeyServiceSuccess) BuildSpinePublicKeysFromNodeRegistry(
+	mainFromHeight,
+	mainToHeight,
+	spineHeight uint32,
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
+	return []*model.SpinePublicKey{}, nil
 }
 
 func TestBlockSpineService_GenerateBlock(t *testing.T) {
@@ -1495,16 +1496,10 @@ func TestBlockSpineService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockSpineTypeActionSuccess{},
 					},
 				},
-				BlocksmithStrategy: &mockSpineBlocksmithServicePushBlock{},
-				ReceiptService:     &mockSpineReceiptServiceReturnEmpty{},
-				ActionTypeSwitcher: &mockSpineTypeActionSuccess{},
-				SpinePublicKeyService: &BlockSpinePublicKeyService{
-					Logger:                log.New(),
-					NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-					QueryExecutor:         &mockSpineQueryExecutorSuccess{},
-					Signature:             nil,
-					SpinePublicKeyQuery:   query.NewSpinePublicKeyQuery(),
-				},
+				BlocksmithStrategy:    &mockSpineBlocksmithServicePushBlock{},
+				ReceiptService:        &mockSpineReceiptServiceReturnEmpty{},
+				ActionTypeSwitcher:    &mockSpineTypeActionSuccess{},
+				SpinePublicKeyService: &mockSpineGenerateBlockSpinePublicKeyServiceSuccess{},
 				SpineBlockManifestService: &mockSpineBlockManifestService{
 					ResSpineBlockManifests: []*model.SpineBlockManifest{
 						{
