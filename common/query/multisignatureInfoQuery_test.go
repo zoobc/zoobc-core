@@ -450,14 +450,13 @@ func getNumberScanFailMockRow() *sql.Row {
 
 func getNumberScanSuccessMockRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
+	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields))
 	mockRow.AddRow(
 		multisigAccountAddress1,
 		uint32(123),
 		int64(10),
 		uint32(12),
 		true,
-		[]byte{}, // STEF TODO: refactor this after having split the queries with group_concat
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")

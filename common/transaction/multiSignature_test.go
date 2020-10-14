@@ -1937,7 +1937,6 @@ func TestPendingTransactionHelper_UndoApplyUnconfirmedPendingTransaction(t *test
 	}
 }
 
-// STEF TODO: add test for error condition (only needed for multisig. for now)
 func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                       int64
@@ -1958,9 +1957,10 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 		TransactionHelper        TransactionHelperInterface
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   []byte
+		name    string
+		fields  fields
+		want    []byte
+		wantErr bool
 	}{
 		{
 			name: "GetMultisignatureBodyBytes - success",
@@ -2058,6 +2058,75 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				0, 0,
 			},
 		},
+		{
+			name: "GetMultisignatureBodyBytes - fail",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo: &model.MultiSignatureInfo{
+						MinimumSignatures: 2,
+						Nonce:             1,
+						Addresses: [][]byte{
+							{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+								45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+							{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+								81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+							{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+								47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+						},
+						MultisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
+						BlockHeight:     720,
+						Latest:          true,
+					},
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						Signatures: map[string][]byte{
+							"0000IamAnInvalidAccount": make([]byte, 64),
+						},
+						TransactionHash: make([]byte, 32),
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "GetMultisignatureBodyBytes - successParsingSignatures",
+			fields: fields{
+				Body: &model.MultiSignatureTransactionBody{
+					MultiSignatureInfo: &model.MultiSignatureInfo{
+						MinimumSignatures: 2,
+						Nonce:             1,
+						Addresses: [][]byte{
+							{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+								45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+							{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+								81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+							{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98,
+								47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+						},
+						MultisigAddress: mockMultisignatureInfoHelperMultisigInfoSuccess.MultisigAddress,
+						BlockHeight:     720,
+						Latest:          true,
+					},
+					UnsignedTransactionBytes: make([]byte, 64),
+					SignatureInfo: &model.SignatureInfo{
+						Signatures: map[string][]byte{
+							"00000000b2df80b333966806b585b979a38b3378f60ffa38769fa6616228468223a468b6": make([]byte, 64),
+						},
+						TransactionHash: make([]byte, 32),
+					},
+				},
+			},
+			want: []byte{1, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21,
+				99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135, 0, 0, 0, 0, 4, 38, 68, 24, 230,
+				247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28,
+				169, 0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243,
+				132, 77, 206, 170, 27, 124, 232, 110, 14, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+				0, 0, 0, 0, 178, 223, 128, 179, 51, 150, 104, 6, 181, 133, 185, 121, 163, 139, 51, 120, 246, 15, 250, 56, 118, 159, 166,
+				97, 98, 40, 70, 130, 35, 164, 104, 182, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2078,8 +2147,9 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
 			got, err := tx.GetBodyBytes()
-			if err != nil {
-				t.Errorf("GetBodyBytes() = err %s", err)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBodyBytes() error = %v, wantErr %v", err, tt.wantErr)
+				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)

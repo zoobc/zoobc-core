@@ -32,6 +32,7 @@ func NewMultiSignatureParticipantQuery() *MultiSignatureParticipantQuery {
 			"multisig_address",
 			"account_address",
 			"account_address_index",
+			// TODO: multisig participants should not have latest field. once they are added to a multisig address they can never been updated
 			"latest",
 			"block_height",
 		},

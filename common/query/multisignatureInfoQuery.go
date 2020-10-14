@@ -192,22 +192,15 @@ func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
 	}
 }
 
-// Scan will build model from *sql.Row that expect has addresses column
-// which is result from sub query of multisignature_participant
-// STEF update code that uses scan to use buildmodel
+// Scan will build model from *sql.Row
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
-	var (
-		participantAddress []byte
-	)
 	err := row.Scan(
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
 		&multisigInfo.Nonce,
 		&multisigInfo.BlockHeight,
 		&multisigInfo.Latest,
-		&participantAddress,
 	)
-	multisigInfo.Addresses = [][]byte{participantAddress}
 	return err
 }
 
