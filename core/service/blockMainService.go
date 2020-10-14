@@ -322,7 +322,10 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
 	}
-
+	// verify Merkle Root
+	if err := bs.validateMerkleRoot(block); err != nil {
+		return err
+	}
 	// check if blocksmith can smith at the time
 	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
 	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
@@ -361,10 +364,6 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
 	}
-	// verify Merkle Root
-	if err := bs.validateMerkleRoot(block); err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -391,9 +390,12 @@ func (bs *BlockService) validateMerkleRoot(block *model.Block) error {
 			uint32(randomTxIndex),
 			merkleRoot.RestoreIntermediateHashes(flattenIntermediateHashes),
 		)
+		if err != nil {
+			return err
+		}
 		validateMerkleRoot := bytes.Equal(root, block.MerkleRoot)
 		if !validateMerkleRoot {
-			return err
+			return blocker.NewBlocker(blocker.BlockErr, "InvalidMerkleRoot")
 		}
 	}
 	return nil
