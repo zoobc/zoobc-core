@@ -665,6 +665,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 			PreviousBlockHash:   []byte{},
 			BlockSeed:           []byte{},
 			BlocksmithPublicKey: bcsNodePubKey1,
+			MerkleRoot:          []byte{},
+			MerkleTree:          []byte{},
 			Timestamp:           15875392,
 			TotalAmount:         0,
 			TotalFee:            0,
@@ -694,6 +696,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 		previousBlockHash   []byte
 		blockSeed           []byte
 		blockSmithPublicKey []byte
+		merkleRoot          []byte
+		merkleTree          []byte
 		previousBlockHeight uint32
 		timestamp           int64
 		totalAmount         int64
@@ -721,6 +725,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 				previousBlockHash:   []byte{},
 				blockSeed:           []byte{},
 				blockSmithPublicKey: bcsNodePubKey1,
+				merkleRoot:          []byte{},
+				merkleTree:          []byte{},
 				previousBlockHeight: 0,
 				timestamp:           15875392,
 				totalAmount:         0,
@@ -749,6 +755,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
+				tt.args.merkleRoot,
+				tt.args.merkleTree,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
