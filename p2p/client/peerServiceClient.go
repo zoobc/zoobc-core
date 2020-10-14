@@ -449,8 +449,12 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	err = psc.storeReceipt(response.BatchReceipt)
-	return err
+
+	return psc.ReceiptService.StoreBatchReceipt(
+		response.GetBatchReceipt(),
+		response.GetBatchReceipt().GetSenderPublicKey(),
+		&chaintype.MainChain{},
+	)
 }
 
 // SendTransaction send transaction to selected peer
@@ -495,8 +499,11 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	err = psc.storeReceipt(response.BatchReceipt)
-	return err
+	return psc.ReceiptService.StoreBatchReceipt(
+		response.GetBatchReceipt(),
+		response.GetBatchReceipt().GetSenderPublicKey(),
+		&chaintype.MainChain{},
+	)
 }
 
 // SendBlockTransactions sends transactions required by a block requested by the peer
@@ -542,7 +549,13 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
 			continue
 		}
-		_ = psc.storeReceipt(batchReceipt)
+		if e := psc.ReceiptService.StoreBatchReceipt(
+			batchReceipt,
+			batchReceipt.GetSenderPublicKey(),
+			&chaintype.MainChain{},
+		); e != nil {
+			psc.Logger.Warnf("SendBlockTransactions: %s", e.Error())
+		}
 	}
 	return err
 }
@@ -739,17 +752,4 @@ func (psc *PeerServiceClient) GetNextBlocks(
 		return nil, err
 	}
 	return res, err
-}
-
-// storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
-// and will generate _merkle_root_
-func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
-
-	var err = psc.ReceiptService.StoreBatchReceipt(batchReceipt, batchReceipt.SenderPublicKey, &chaintype.MainChain{})
-	if err != nil {
-		return err
-	}
-
-	monitoring.IncrementReceiptCounter()
-	return nil
 }
