@@ -595,10 +595,10 @@ func (bs *BlockSpineService) GenerateBlock(
 	_ bool,
 ) (*model.Block, error) {
 	var (
+		err                         error
 		spinePublicKeys             []*model.SpinePublicKey
 		spineBlockManifests         []*model.SpineBlockManifest
 		includedMainBlocks          []*model.Block
-		err                         error
 		blockSmithPublicKey         = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight              = previousBlock.Height + 1
 		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight + 1
@@ -922,7 +922,6 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 		rootHash   []byte
 		leafIndex  = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
 	)
-	fmt.Println()
 	rootHash, err = merkleRoot.GetMerkleRootFromIntermediateHashes(
 		referenceBlock.BlockHash,
 		leafIndex,
