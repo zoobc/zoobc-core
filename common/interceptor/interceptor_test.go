@@ -19,8 +19,9 @@ import (
 )
 
 var (
-	mockOwnerAddress = "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7"
-	mockOwnerSeed    = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
+	mockOwnerAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+		81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	mockOwnerSeed = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 )
 
 type (
@@ -91,7 +92,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 func TestNewServerInterceptor(t *testing.T) {
 	type args struct {
 		logger              *logrus.Logger
-		ownerAccountAddress string
+		ownerAccountAddress []byte
 		ignoredErrCodes     map[codes.Code]string
 	}
 	tests := []struct {
@@ -103,8 +104,9 @@ func TestNewServerInterceptor(t *testing.T) {
 		{
 			name: "wantRecover",
 			args: args{
-				logger:              logrus.New(),
-				ownerAccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+				logger: logrus.New(),
+				ownerAccountAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112,
+					113, 140, 183, 229, 116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 			},
 			want: func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 				return nil, status.Errorf(codes.Internal, "there's something wrong")
@@ -264,7 +266,7 @@ func testClientInterceptor(fn grpc.UnaryClientInterceptor, wantRecover bool, ign
 func TestNewNodeAdminAuthStreamInterceptor(t *testing.T) {
 
 	type args struct {
-		ownerAddress string
+		ownerAddress []byte
 		fullMethod   string
 		handler      grpc.StreamHandler
 		serverStream grpc.ServerStream

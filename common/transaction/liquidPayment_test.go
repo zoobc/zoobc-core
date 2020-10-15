@@ -21,6 +21,13 @@ type (
 	}
 )
 
+var (
+	liquidPayAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	liquidPayAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+)
+
 func (*executorSetupLiquidPaymentSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
@@ -49,8 +56,8 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -72,8 +79,8 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -96,8 +103,8 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -141,8 +148,8 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -160,8 +167,8 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -183,8 +190,8 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -227,8 +234,8 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -246,8 +253,8 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -269,8 +276,8 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -332,8 +339,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -355,8 +362,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          0,
@@ -378,8 +385,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          -1,
@@ -401,8 +408,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "",
-				RecipientAddress: "dfdas",
+				SenderAddress:    nil,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -424,8 +431,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: nil,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -447,8 +454,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "fddasdf",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: liquidPayAddress1,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -470,8 +477,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "fddasdf",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: liquidPayAddress1,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -493,8 +500,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "ZBC_1",
-				RecipientAddress: "ZBC_2",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -514,8 +521,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "ZBC_1",
-				RecipientAddress: "ZBC_2",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -556,8 +563,8 @@ func TestLiquidPayment_GetMinimumFee(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -612,8 +619,8 @@ func TestLiquidPayment_GetAmount(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -674,7 +681,7 @@ func TestLiquidPayment_GetSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentTransaction{}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("LiquidPayment.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -685,8 +692,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -709,8 +716,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -724,8 +731,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -739,8 +746,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -783,8 +790,8 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -805,8 +812,8 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 					CompleteMinutes: 200,
 				},
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -830,7 +837,7 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LiquidPayment.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -841,8 +848,8 @@ func TestLiquidPayment_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -893,8 +900,8 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -930,8 +937,8 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -957,8 +964,8 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -1001,8 +1008,8 @@ func TestLiquidPayment_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
@@ -1057,8 +1064,8 @@ func TestLiquidPayment_Escrowable(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface

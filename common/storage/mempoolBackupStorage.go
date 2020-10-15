@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -79,7 +78,6 @@ func (m *MempoolBackupStorage) GetItem(key, item interface{}) error {
 		mempoolByte *[]byte
 		ok          bool
 	)
-	fmt.Println("get item")
 
 	if id, ok = key.(int64); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")

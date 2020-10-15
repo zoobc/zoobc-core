@@ -18,8 +18,8 @@ type (
 	SendMoney struct {
 		ID                   int64
 		Fee                  int64
-		SenderAddress        string
-		RecipientAddress     string
+		SenderAddress        []byte
+		RecipientAddress     []byte
 		Height               uint32
 		Body                 *model.SendMoneyTransactionBody
 		QueryExecutor        query.ExecutorInterface
@@ -118,14 +118,14 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.RecipientAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
 	}
 
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
-	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
-		if tx.SenderAddress == "" {
+	if !bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
+		if tx.SenderAddress == nil {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
@@ -152,22 +152,26 @@ func (tx *SendMoney) GetAmount() int64 {
 }
 
 func (tx *SendMoney) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize send money Amount should be 8
-func (*SendMoney) GetSize() uint32 {
+func (*SendMoney) GetSize() (uint32, error) {
 	// only amount
-	return constant.Balance
+	return constant.Balance, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}
@@ -180,10 +184,10 @@ func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyIn
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *SendMoney) GetBodyBytes() []byte {
+func (tx *SendMoney) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf
@@ -198,7 +202,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:               tx.ID,
 			SenderAddress:    tx.SenderAddress,
@@ -228,10 +232,10 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
 	}
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.Escrow.GetRecipientAddress() == "" {
+	if tx.Escrow.GetRecipientAddress() == nil || bytes.Equal(tx.Escrow.GetRecipientAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {

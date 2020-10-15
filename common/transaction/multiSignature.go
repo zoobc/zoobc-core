@@ -3,6 +3,10 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -19,7 +23,7 @@ type (
 	// wrapped
 	MultiSignatureTransaction struct {
 		ID              int64
-		SenderAddress   string
+		SenderAddress   []byte
 		Fee             int64
 		Body            *model.MultiSignatureTransactionBody
 		NormalFee       fee.FeeModelInterface
@@ -54,7 +58,7 @@ type (
 	MultisignatureInfoHelperInterface interface {
 		GetMultisigInfoByAddress(
 			multisigInfo *model.MultiSignatureInfo,
-			multisigAddress string,
+			multisigAddress []byte,
 			blockHeight uint32,
 		) error
 		InsertMultisignatureInfo(
@@ -74,7 +78,7 @@ type (
 			dbTx bool,
 		) error
 		GetPendingTransactionBySenderAddress(
-			senderAddress string, txHeight uint32,
+			senderAddress []byte, txHeight uint32,
 		) ([]*model.PendingTransaction, error)
 		ApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
 		UndoApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
@@ -128,7 +132,7 @@ func (pth *PendingTransactionHelper) GetPendingTransactionByHash(
 }
 
 func (pth *PendingTransactionHelper) GetPendingTransactionBySenderAddress(
-	senderAddress string, txHeight uint32,
+	senderAddress []byte, txHeight uint32,
 ) ([]*model.PendingTransaction, error) {
 	var pendingTxs []*model.PendingTransaction
 	q, args := pth.PendingTransactionQuery.GetPendingTransactionsBySenderAddress(
@@ -270,20 +274,41 @@ func (sih *SignatureInfoHelper) GetPendingSignatureByTransactionHash(transaction
 
 func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	multisigInfo *model.MultiSignatureInfo,
-	multisigAddress string,
+	multisigAddress []byte,
 	blockHeight uint32,
 ) error {
 	var (
-		err error
+		err              error
+		multisigInfos    []*model.MultiSignatureInfo
+		multisigAccounts [][]byte
 	)
-	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddress(
+	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddressWithParticipants(
 		multisigAddress, blockHeight, constant.MinRollbackBlocks,
 	)
-	row, _ := msi.QueryExecutor.ExecuteSelectRow(q, false, args...)
-	err = msi.MultisignatureInfoQuery.Scan(multisigInfo, row)
+	rows, err := msi.QueryExecutor.ExecuteSelect(q, false, args...)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+	multisigInfos, err = msi.MultisignatureInfoQuery.BuildModelWithParticipant(multisigInfos, rows)
 	if err != nil {
 		return err
 	}
+
+	if len(multisigInfos) == 0 {
+		return blocker.NewBlocker(blocker.AppErr, "EmptyResultSet")
+	}
+	// make sure we have all data from db when returning
+	multisigInfo.Latest = multisigInfos[0].Latest
+	multisigInfo.BlockHeight = multisigInfos[0].BlockHeight
+	multisigInfo.MinimumSignatures = multisigInfos[0].MinimumSignatures
+	multisigInfo.Nonce = multisigInfos[0].Nonce
+	for _, msInfo := range multisigInfos {
+		if len(msInfo.Addresses[0]) > 0 {
+			multisigAccounts = append(multisigAccounts, msInfo.Addresses[0])
+		}
+	}
+	multisigInfo.Addresses = multisigAccounts
 	return nil
 }
 
@@ -366,7 +391,11 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
-		for addr, sig := range tx.Body.SignatureInfo.Signatures {
+		for addrHex, sig := range tx.Body.SignatureInfo.Signatures {
+			addr, err := hex.DecodeString(addrHex)
+			if err != nil {
+				return nil
+			}
 			pendingSig := &model.PendingSignature{
 				TransactionHash: tx.Body.SignatureInfo.TransactionHash,
 				AccountAddress:  addr,
@@ -381,7 +410,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 
 		}
 	}
-	// checks for completion, if musigInfo && txBytes && signatureInfo exist, check if signature info complete
+	// checks for completion, if multisigInfo && txBytes && signatureInfo exist, check if signature info complete
 	txs, err := tx.MultisigUtil.CheckMultisigComplete(
 		tx.TransactionUtil,
 		tx.MultisignatureInfoHelper,
@@ -514,7 +543,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			return err
 		}
 		for _, address := range body.MultiSignatureInfo.Addresses {
-			multisigInfoAddresses[address] = true
+			multisigInfoAddresses[hex.EncodeToString(address)] = true
 		}
 		if len(body.UnsignedTransactionBytes) > 0 {
 			err := tx.MultisigUtil.ValidatePendingTransactionBytes(
@@ -589,7 +618,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 					return err
 				}
 				for _, address := range multisigInfo.Addresses {
-					multisigInfoAddresses[address] = true
+					multisigInfoAddresses[hex.EncodeToString(address)] = true
 				}
 			}
 			err = tx.MultisigUtil.ValidateSignatureInfo(tx.Signature, body.SignatureInfo, multisigInfoAddresses)
@@ -602,7 +631,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *MultiSignatureTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
@@ -612,7 +641,7 @@ func (*MultiSignatureTransaction) GetAmount() int64 {
 	return 0
 }
 
-func (tx *MultiSignatureTransaction) GetSize() uint32 {
+func (tx *MultiSignatureTransaction) GetSize() (uint32, error) {
 	var (
 		txByteSize, signaturesSize, multisigInfoSize uint32
 	)
@@ -625,7 +654,7 @@ func (tx *MultiSignatureTransaction) GetSize() uint32 {
 		multisigInfoSize += constant.MultiSigNumberOfAddress
 		for _, v := range multisigInfo.GetAddresses() {
 			multisigInfoSize += constant.MultiSigAddressLength
-			multisigInfoSize += uint32(len([]byte(v)))
+			multisigInfoSize += uint32(len(v))
 		}
 	}
 	// TransactionBytes
@@ -643,12 +672,12 @@ func (tx *MultiSignatureTransaction) GetSize() uint32 {
 		}
 	}
 
-	return txByteSize + signaturesSize + multisigInfoSize
+	return txByteSize + signaturesSize + multisigInfoSize, nil
 }
 
 func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	var (
-		addresses     []string
+		addresses     [][]byte
 		signatures    = make(map[string][]byte)
 		multisigInfo  *model.MultiSignatureInfo
 		signatureInfo *model.SignatureInfo
@@ -661,12 +690,15 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 		nonce := util.ConvertBytesToUint64(bufferBytes.Next(int(constant.MultiSigInfoNonce)))
 		addressesLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigNumberOfAddress)))
 		for i := 0; i < int(addressesLength); i++ {
-			addressLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigAddressLength)))
-			address, err := util.ReadTransactionBytes(bufferBytes, int(addressLength))
+			accType, err := accounttype.ParseBytesToAccountType(bufferBytes)
 			if err != nil {
 				return nil, err
 			}
-			addresses = append(addresses, string(address))
+			address, err := accType.GetAccountAddress()
+			if err != nil {
+				return nil, err
+			}
+			addresses = append(addresses, address)
 		}
 		multisigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignatures,
@@ -689,8 +721,11 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 		}
 		signaturesLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigNumberOfSignatures)))
 		for i := 0; i < int(signaturesLength); i++ {
-			addressLength := util.ConvertBytesToUint32(bufferBytes.Next(int(constant.MultiSigAddressLength)))
-			address, err := util.ReadTransactionBytes(bufferBytes, int(addressLength))
+			accType, err := accounttype.ParseBytesToAccountType(bufferBytes)
+			if err != nil {
+				return nil, err
+			}
+			address, err := accType.GetAccountAddress()
 			if err != nil {
 				return nil, err
 			}
@@ -699,7 +734,8 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 			if err != nil {
 				return nil, err
 			}
-			signatures[string(address)] = signature
+			// encode address to hex string to be able to build the map (signature order must be preserved, so we can't use slices)
+			signatures[hex.EncodeToString(address)] = signature
 		}
 		signatureInfo = &model.SignatureInfo{
 			TransactionHash: transactionHash,
@@ -714,7 +750,7 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 	}, nil
 }
 
-func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
+func (tx *MultiSignatureTransaction) GetBodyBytes() ([]byte, error) {
 	var (
 		buffer = bytes.NewBuffer([]byte{})
 	)
@@ -725,8 +761,7 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.GetMultiSignatureInfo().GetNonce())))
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetMultiSignatureInfo().GetAddresses()))))
 		for _, v := range tx.Body.GetMultiSignatureInfo().GetAddresses() {
-			buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(v)))))
-			buffer.Write([]byte(v))
+			buffer.Write(v)
 		}
 	} else {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldMissing))
@@ -739,9 +774,12 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldPresent))
 		buffer.Write(tx.Body.GetSignatureInfo().GetTransactionHash())
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetSignatureInfo().GetSignatures()))))
-		for address, sig := range tx.Body.GetSignatureInfo().GetSignatures() {
-			buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(address)))))
-			buffer.Write([]byte(address))
+		for addressHex, sig := range tx.Body.GetSignatureInfo().GetSignatures() {
+			accountAddress, err := hex.DecodeString(addressHex)
+			if err != nil {
+				return nil, err
+			}
+			buffer.Write(accountAddress)
 			buffer.Write(util.ConvertUint32ToBytes(uint32(len(sig))))
 			buffer.Write(sig)
 		}
@@ -749,7 +787,7 @@ func (tx *MultiSignatureTransaction) GetBodyBytes() []byte {
 		buffer.Write(util.ConvertUint32ToBytes(constant.MultiSigFieldMissing))
 	}
 
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *MultiSignatureTransaction) GetTransactionBody(transaction *model.Transaction) {
@@ -767,7 +805,7 @@ func (*MultiSignatureTransaction) SkipMempoolTransaction(
 }
 
 func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -809,7 +847,7 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

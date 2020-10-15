@@ -3,9 +3,10 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/util"
 	"math/rand"
 	"os"
+
+	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -95,6 +96,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewPendingTransactionQuery(),
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
+			query.NewMultiSignatureParticipantQuery(),
 			query.NewSkippedBlocksmithQuery(),
 			query.NewFeeScaleQuery(),
 			query.NewFeeVoteCommitmentVoteQuery(),
@@ -305,6 +307,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			storage.NewBlockStateStorage(),
 			nil,
 			nil,
+			nil,
 		)
 		err = mainBlockService.UpdateLastBlockCache(nil)
 		if err != nil {
@@ -328,6 +331,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewPendingTransactionQuery(),
 			query.NewPendingSignatureQuery(),
 			query.NewMultisignatureInfoQuery(),
+			query.NewMultiSignatureParticipantQuery(),
 			query.NewSkippedBlocksmithQuery(),
 			query.NewFeeScaleQuery(),
 			query.NewFeeVoteCommitmentVoteQuery(),

@@ -21,7 +21,7 @@ type (
 	NodeAdminService struct {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
-		ownerAccountAddress  string
+		ownerAccountAddress  []byte
 	}
 )
 
@@ -31,7 +31,8 @@ var nodeAdminServiceInstance *NodeAdminService
 func NewNodeAdminService(
 	queryExecutor query.ExecutorInterface,
 	blockService coreService.BlockServiceInterface,
-	ownerAccountAddress, nodeKeyFilePath string,
+	ownerAccountAddress []byte,
+	nodeKeyFilePath string,
 ) *NodeAdminService {
 	if nodeAdminServiceInstance == nil {
 		mainchain := chaintype.GetChainType(0)

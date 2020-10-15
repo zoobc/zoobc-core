@@ -17,7 +17,7 @@ import (
 type RemoveNodeRegistration struct {
 	ID                       int64
 	Fee                      int64
-	SenderAddress            string
+	SenderAddress            []byte
 	Height                   uint32
 	Body                     *model.RemoveNodeRegistrationTransactionBody
 	Escrow                   *model.Escrow
@@ -47,7 +47,8 @@ func (tx *RemoveNodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -130,11 +131,18 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	if err != nil {
 		return err
 	}
-	err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
-	if err != nil {
-		return err
-	}
 	err = tx.ActiveNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+	if err != nil {
+		castedErr := err.(blocker.Blocker)
+		if castedErr.Type != blocker.NotFound {
+			return err
+		}
+		err = tx.PendingNodeRegistryCache.TxRemoveItem(nodeReg.NodeID)
+		if err != nil {
+			return err
+		}
+	}
+
 	return err
 }
 
@@ -184,7 +192,7 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// sender must be node owner
-	if tx.SenderAddress != nodeReg.GetAccountAddress() {
+	if !bytes.Equal(tx.SenderAddress, nodeReg.GetAccountAddress()) {
 		return blocker.NewBlocker(blocker.AuthErr, "AccountNotNodeOwner")
 	}
 	if nodeReg.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeDeleted) {
@@ -210,14 +218,14 @@ func (tx *RemoveNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *RemoveNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (tx *RemoveNodeRegistration) GetSize() uint32 {
-	return constant.NodePublicKey
+func (tx *RemoveNodeRegistration) GetSize() (uint32, error) {
+	return constant.NodePublicKey, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
@@ -235,11 +243,10 @@ func (tx *RemoveNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Tran
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *RemoveNodeRegistration) GetBodyBytes() []byte {
-
+func (tx *RemoveNodeRegistration) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *RemoveNodeRegistration) GetTransactionBody(transaction *model.Transaction) {
@@ -253,7 +260,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *RemoveNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -277,7 +284,7 @@ func (tx *RemoveNodeRegistration) EscrowValidate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

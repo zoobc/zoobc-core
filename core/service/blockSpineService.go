@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math/big"
 	"sort"
 	"sync"
@@ -396,6 +397,9 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
 func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusGettingBlocks)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusGettingBlocks)
+
 	var blocks []*model.Block
 	rows, err := bs.QueryExecutor.ExecuteSelect(bs.BlockQuery.GetBlockFromHeight(startHeight, limit), false)
 	if err != nil {
@@ -531,6 +535,10 @@ func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (bs *BlockSpineService) InitializeBlocksCache() error {
 	return nil
 }
 
@@ -676,10 +684,14 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 		payloadBytes                         []byte
 		payloadLength                        uint32
 		digest                               = sha3.New256()
+		err                                  error
 	)
 
 	// add spine public keys from mainchain genesis configuration to spine genesis block
-	spineChainPublicKeys = bs.getGenesisSpinePublicKeys(genesisEntries)
+	spineChainPublicKeys, err = bs.getGenesisSpinePublicKeys(genesisEntries)
+	if err != nil {
+		return nil, err
+	}
 	sort.SliceStable(spineChainPublicKeys, func(i, j int) bool {
 		intI := new(big.Int).SetBytes(spineChainPublicKeys[i].NodePublicKey)
 		intJ := new(big.Int).SetBytes(spineChainPublicKeys[j].NodePublicKey)
@@ -746,7 +758,7 @@ func (bs *BlockSpineService) AddGenesis() error {
 	}
 	err = bs.PushBlock(&model.Block{ID: -1, Height: 0}, block, false, true)
 	if err != nil {
-		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block))
+		bs.Logger.Fatal("PushGenesisBlock:fail ", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID()))
 	}
 	return nil
 }
@@ -815,7 +827,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
-							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 
@@ -827,7 +839,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 					errPushBlock := bs.PushBlock(previousBlock, lastBlocks[0], false, true)
 					if errPushBlock != nil {
 						bs.Logger.Errorf("ReceiveBlock:pushing back popped off block fail: %v",
-							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+							blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()))
 						return status.Error(codes.InvalidArgument, "InvalidBlock")
 					}
 					bs.Logger.Info("pushing back popped off block")
@@ -862,7 +874,10 @@ func (bs *BlockSpineService) ReceiveBlock(
 		}
 		err = bs.PushBlock(lastBlock, block, true, true)
 		if err != nil {
-			bs.Logger.Errorf("receiveBlock pushBlock fail: %v", blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block, lastBlock))
+			bs.Logger.Errorf(
+				"[ReceiveBlock] pushBlock fail: %v",
+				blocker.NewBlocker(blocker.PushSpineBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
+			)
 			return status.Error(codes.InvalidArgument, err.Error())
 		}
 		return nil
@@ -994,20 +1009,34 @@ func (bs *BlockSpineService) getGenesisSpinePayloadBytes(spinePublicKeys []*mode
 // based on nodes registered at genesis
 func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 	genesisEntries []constant.GenesisConfigEntry,
-) (spinePublicKeys []*model.SpinePublicKey) {
+) (spinePublicKeys []*model.SpinePublicKey, err error) {
 	spinePublicKeys = make([]*model.SpinePublicKey, 0)
 	for _, mainchainGenesisEntry := range genesisEntries {
 		if mainchainGenesisEntry.NodePublicKey == nil {
 			continue
 		}
+		// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
+		ed25519 := crypto.NewEd25519Signature()
+		accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(mainchainGenesisEntry.AccountAddress)
+		if err != nil {
+			return nil, err
+		}
+		accType := &accounttype.ZbcAccountType{}
+		accType.SetEncodedAccountAddress(mainchainGenesisEntry.AccountAddress)
+		accType.SetAccountPublicKey(accPubKey)
+		accountFullAddress, err := accType.GetAccountAddress()
+		if err != nil {
+			return nil, err
+		}
+
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
-			mainchainGenesisEntry.AccountAddress,
+			accountFullAddress,
 			mainchainGenesisEntry.NodeAddress,
 			mainchainGenesisEntry.LockedBalance,
 			mainchainGenesisEntry.NodePublicKey,
 		)
 		if err != nil {
-			return nil
+			return nil, err
 		}
 		spinePublicKey := &model.SpinePublicKey{
 			NodePublicKey:   mainchainGenesisEntry.NodePublicKey,
@@ -1019,7 +1048,7 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		}
 		spinePublicKeys = append(spinePublicKeys, spinePublicKey)
 	}
-	return spinePublicKeys
+	return spinePublicKeys, nil
 }
 
 func (bs *BlockSpineService) ReceivedValidatedBlockTransactionsListener() observer.Listener {

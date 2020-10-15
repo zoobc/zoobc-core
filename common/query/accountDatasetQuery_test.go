@@ -12,13 +12,15 @@ import (
 var (
 	mockDatasetQuery = NewAccountDatasetsQuery()
 	mockDataset      = &model.AccountDataset{
-		SetterAccountAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-		Property:                "Admin",
-		Value:                   "You're Welcome",
-		IsActive:                true,
-		Latest:                  true,
-		Height:                  5,
+		SetterAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 174, 8, 69, 186, 181, 103, 207, 111, 16, 204, 183, 18, 162, 64, 217, 82, 41, 208, 14,
+			252, 193, 14, 191, 200, 158, 211, 172, 37, 0, 58, 107, 64},
+		Property: "Admin",
+		Value:    "You're Welcome",
+		IsActive: true,
+		Latest:   true,
+		Height:   5,
 	}
 )
 
@@ -43,8 +45,8 @@ func TestNewAccountDatasetsQuery(t *testing.T) {
 
 func TestAccountDatasetsQuery_GetLastAccountDataset(t *testing.T) {
 	type args struct {
-		SetterAccountAddress    string
-		RecipientAccountAddress string
+		SetterAccountAddress    []byte
+		RecipientAccountAddress []byte
 		property                string
 	}
 	tests := []struct {
@@ -152,7 +154,7 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		accountAddress string
+		accountAddress []byte
 	}
 	tests := []struct {
 		name     string
@@ -164,12 +166,15 @@ func TestAccountDatasetsQuery_GetAccountDatasetEscrowApproval(t *testing.T) {
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockDatasetQuery),
-			args:   args{accountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"},
+			args: args{accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+				239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}},
 			wantQStr: "SELECT setter_account_address, recipient_account_address, property, value, is_active, latest, height FROM account_dataset " +
 				"WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			wantArgs: []interface{}{
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 				"AccountDatasetEscrowApproval",
 				1,
 			},

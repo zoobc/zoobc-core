@@ -84,7 +84,7 @@ func (c *ChunkUtil) GetShardAssignment(
 	)
 	lastChange := sha3.Sum256(chunks)
 	err = c.nodeShardCacheStorage.GetItem(lastChange, &shardMap)
-	if err == nil && len(shardMap.NodeShards) == 0 {
+	if err == nil && len(shardMap.NodeShards) != 0 {
 		return shardMap, nil
 	}
 	shards := c.ShardChunk(chunks, shardBitLength)
@@ -122,7 +122,6 @@ func (c *ChunkUtil) GetShardAssignment(
 		if err != nil {
 			c.logger.Warnf("ErrUpdateNodeShardCache: %v\n", err)
 		}
-
 	}
 	return shardMap, err
 }

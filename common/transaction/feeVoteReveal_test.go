@@ -89,10 +89,10 @@ func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetCurrentPhase(int64, boo
 func (*mockFeeScaleFeeVoteRevealTXValidateDuplicated) GetLatestFeeScale(feeScale *model.FeeScale) error {
 	return nil
 }
-func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, string) error {
+func (*mockSignatureFeeVoteRevealTXValidateInvalid) VerifySignature([]byte, []byte, []byte) error {
 	return errors.New("invalid")
 }
-func (*mockSignatureFeeVoteRevealTXValidateSuccess) VerifySignature([]byte, []byte, string) error {
+func (*mockSignatureFeeVoteRevealTXValidateSuccess) VerifySignature([]byte, []byte, []byte) error {
 	return nil
 }
 
@@ -155,26 +155,27 @@ func (*mockCommitmentVoteQueryFeeVoteRevealTXValidateFound) Scan(vote *model.Fee
 	return nil
 }
 
-func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateNotFound) GetNodeRegistrationByAccountAddress(string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateNotFound) GetNodeRegistrationByAccountAddress([]byte) (str string,
+	args []interface{}) {
 	return "", []interface{}{}
 }
 func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateNotFound) Scan(_ *model.NodeRegistration, _ *sql.Row) error {
 	return sql.ErrNoRows
 }
-func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateFound) GetNodeRegistrationByAccountAddress(string) (str string, args []interface{}) {
+func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateFound) GetNodeRegistrationByAccountAddress([]byte) (str string, args []interface{}) {
 	return "", []interface{}{}
 }
 func (*mockNodeRegistrationQueryFeeVoteRevealTXValidateFound) Scan(*model.NodeRegistration, *sql.Row) error {
 	return nil
 }
 
-func (*mockVoteRevealQueryFeeVoteRevealTXValidateFound) GetFeeVoteRevealByAccountAddress(string) (str string, args []interface{}) {
+func (*mockVoteRevealQueryFeeVoteRevealTXValidateFound) GetFeeVoteRevealByAccountAddress([]byte) (str string, args []interface{}) {
 	return "", []interface{}{}
 }
 func (*mockVoteRevealQueryFeeVoteRevealTXValidateFound) Scan(*model.FeeVoteRevealVote, *sql.Row) error {
 	return nil
 }
-func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) GetFeeVoteRevealByAccountAddress(string) (str string, args []interface{}) {
+func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) GetFeeVoteRevealByAccountAddress([]byte) (str string, args []interface{}) {
 	return "", []interface{}{}
 }
 func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVoteRevealVote, *sql.Row) error {
@@ -182,11 +183,11 @@ func (*mockVoteRevealQueryFeeVoteRevealTXValidateNotFound) Scan(*model.FeeVoteRe
 }
 
 func (*mockAccountBalanceHelperValidateSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
-func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, _ string, _ bool) error {
+func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountAddress(accountBalance *model.AccountBalance, _ []byte, _ bool) error {
 	accountBalance.SpendableBalance = 100
 	return nil
 }
@@ -194,7 +195,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -391,10 +392,10 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
-func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance(string, int64, model.EventType, uint32, int64, uint64) error {
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
 
@@ -406,7 +407,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -460,7 +461,7 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -514,7 +515,7 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -583,7 +584,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                     int64
 		Fee                    int64
-		SenderAddress          string
+		SenderAddress          []byte
 		Height                 uint32
 		Timestamp              int64
 		Body                   *model.FeeVoteRevealTransactionBody
@@ -599,6 +600,10 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	type args struct {
 		txBodyBytes []byte
 	}
+	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+
 	tests := []struct {
 		name    string
 		fields  fields
@@ -609,9 +614,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 		{
 			name: "WantSuccess",
 			args: args{
-				txBodyBytes: (&FeeVoteRevealTransaction{
-					Body: txBody,
-				}).GetBodyBytes(),
+				txBodyBytes: txBodyBytes1,
 			},
 			want: txBody,
 		},

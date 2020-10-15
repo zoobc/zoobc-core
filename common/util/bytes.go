@@ -6,9 +6,15 @@ import (
 	"errors"
 	"hash"
 	"io/ioutil"
+	"sort"
 
 	"github.com/zoobc/zoobc-core/common/constant"
 )
+
+// SortByteArrays sort a slices array
+func SortByteArrays(src [][]byte) {
+	sort.Slice(src, func(i, j int) bool { return bytes.Compare(src[i], src[j]) < 0 })
+}
 
 // ReadTransactionBytes get a slice containing the next nBytes from the buffer
 func ReadTransactionBytes(buf *bytes.Buffer, nBytes int) ([]byte, error) {
