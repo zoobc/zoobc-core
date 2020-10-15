@@ -242,6 +242,14 @@ var (
 	mockMultisigInfo = &model.MultiSignatureInfo{
 		MinimumSignatures: 2,
 		Nonce:             3,
+		MultisigAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		BlockHeight: 400,
+		Latest:      true,
+	}
+	mockMultisigInfoWithParticipants = &model.MultiSignatureInfo{
+		MinimumSignatures: 2,
+		Nonce:             3,
 		Addresses: [][]byte{
 			{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
 				116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
@@ -254,6 +262,38 @@ var (
 			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 		BlockHeight: 400,
 		Latest:      true,
+	}
+	mockMultisigParticipant1 = &model.MultiSignatureParticipant{
+		MultiSignatureAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		BlockHeight: 400,
+		Latest:      true,
+		AccountAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		AccountAddressIndex: 0,
+	}
+	mockMultisigParticipant2 = &model.MultiSignatureParticipant{
+		MultiSignatureAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		BlockHeight: 400,
+		Latest:      true,
+		AccountAddress: []byte{0, 0, 0, 0, 8, 32, 68, 38, 181, 138, 127, 184, 190, 125, 84, 174, 13, 162, 122, 62, 183, 130, 70, 18, 103, 47, 177, 161,
+			153, 143, 61, 130, 145, 81, 222, 70},
+		AccountAddressIndex: 1,
+	}
+	mockMultisigParticipant3 = &model.MultiSignatureParticipant{
+		MultiSignatureAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+			116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+		BlockHeight: 400,
+		Latest:      true,
+		AccountAddress: []byte{0, 0, 0, 0, 160, 121, 129, 83, 225, 164, 195, 123, 8, 181, 41, 251, 17, 3, 93, 37, 182, 109, 32, 174, 168, 68, 193, 212,
+			79, 54, 156, 213, 117, 27, 185, 167},
+		AccountAddressIndex: 2,
+	}
+	mockMultisigParticipants = []*model.MultiSignatureParticipant{
+		mockMultisigParticipant1,
+		mockMultisigParticipant2,
+		mockMultisigParticipant3,
 	}
 
 // mock GetPendingTransactionByAddress
@@ -303,6 +343,9 @@ type (
 	}
 	mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess struct {
 		query.MultisignatureInfoQuery
+	}
+	mockGetPendingTransactionByTransactionHashMultisigParticipantBuildModelSuccess struct {
+		query.MultiSignatureParticipantQuery
 	}
 )
 
@@ -378,14 +421,23 @@ func (*mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess) Scan(m
 	return nil
 }
 
+func (*mockGetPendingTransactionByTransactionHashMultisigParticipantBuildModelSuccess) BuildModel(rows *sql.Rows) (
+	participants []*model.MultiSignatureParticipant,
+	err error,
+) {
+	participants = append(participants, mockMultisigParticipants...)
+	return participants, nil
+}
+
 func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing.T) {
 	type fields struct {
-		Executor                query.ExecutorInterface
-		BlockService            coreService.BlockServiceInterface
-		PendingTransactionQuery query.PendingTransactionQueryInterface
-		PendingSignatureQuery   query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery query.MultisignatureInfoQueryInterface
-		Logger                  *logrus.Logger
+		Executor                       query.ExecutorInterface
+		BlockService                   coreService.BlockServiceInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultisignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		Logger                         *logrus.Logger
 	}
 	type args struct {
 		param *model.GetPendingTransactionDetailByTransactionHashRequest
@@ -400,12 +452,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-getlastblock-error",
 			fields: fields{
-				Executor:                nil,
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceFail{},
-				PendingTransactionQuery: nil,
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       nil,
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceFail{},
+				PendingTransactionQuery:        nil,
+				PendingSignatureQuery:          nil,
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -416,12 +469,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-wrongTxHashHex",
 			fields: fields{
-				Executor:                nil,
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: nil,
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       nil,
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        nil,
+				PendingSignatureQuery:          nil,
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: &model.GetPendingTransactionDetailByTransactionHashRequest{
@@ -434,12 +488,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-no-pendingTx",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByTransactionHashGetPendingTxExecutorSuccess{},
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: &mockGetPendingTransactionByTransactionHashPendingQueryScanNoRow{},
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       &mockGetPendingTransactionByTransactionHashGetPendingTxExecutorSuccess{},
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        &mockGetPendingTransactionByTransactionHashPendingQueryScanNoRow{},
+				PendingSignatureQuery:          nil,
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -451,12 +506,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-scanError",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByTransactionHashGetPendingTxExecutorSuccess{},
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: &mockGetPendingTransactionByTransactionHashPendingQueryScanOtherError{},
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       &mockGetPendingTransactionByTransactionHashGetPendingTxExecutorSuccess{},
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        &mockGetPendingTransactionByTransactionHashPendingQueryScanOtherError{},
+				PendingSignatureQuery:          nil,
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -467,12 +523,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-executorPendingSigFail",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorFail{},
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
-				PendingSignatureQuery:   nil,
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorFail{},
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
+				PendingSignatureQuery:          nil,
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -483,12 +540,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-fail-QueryPendingSigFail",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorSuccess{},
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
-				PendingSignatureQuery:   &mockGetPendingTransactionByTransactionHashPendingSigQueryBuildFail{},
-				MultisignatureInfoQuery: nil,
-				Logger:                  logrus.New(),
+				Executor:                       &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorSuccess{},
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
+				PendingSignatureQuery:          &mockGetPendingTransactionByTransactionHashPendingSigQueryBuildFail{},
+				MultisignatureInfoQuery:        nil,
+				MultisignatureParticipantQuery: nil,
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -512,16 +570,16 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 			want:    nil,
 			wantErr: true,
 		},
-
 		{
 			name: "GetPendingTransactionDetailByTransactionHash-Success",
 			fields: fields{
-				Executor:                &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorSuccess{},
-				BlockService:            &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
-				PendingTransactionQuery: &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
-				PendingSignatureQuery:   &mockGetPendingTransactionByTransactionHashPendingSigQueryBuildSuccess{},
-				MultisignatureInfoQuery: &mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess{},
-				Logger:                  logrus.New(),
+				Executor:                       &mockGetPendingTransactionByTransactionHashGetPendingSigExecutorSuccess{},
+				BlockService:                   &mockGetPendingTransactionByTransactionHashBlockServiceSuccess{},
+				PendingTransactionQuery:        &mockGetPendingTransactionByTransactionHashPendingQueryScanSuccess{},
+				PendingSignatureQuery:          &mockGetPendingTransactionByTransactionHashPendingSigQueryBuildSuccess{},
+				MultisignatureInfoQuery:        &mockGetPendingTransactionByTransactionHashMultisigInfoScanSuccess{},
+				MultisignatureParticipantQuery: &mockGetPendingTransactionByTransactionHashMultisigParticipantBuildModelSuccess{},
+				Logger:                         logrus.New(),
 			},
 			args: args{
 				param: mockGetPendingTransactionDetailByTransactionHashExecutorCountFailParam,
@@ -529,7 +587,7 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 			want: &model.GetPendingTransactionDetailByTransactionHashResponse{
 				PendingTransaction: mockPendingTransaction,
 				PendingSignatures:  []*model.PendingSignature{},
-				MultiSignatureInfo: mockMultisigInfo,
+				MultiSignatureInfo: mockMultisigInfoWithParticipants,
 			},
 			wantErr: false,
 		},
@@ -537,12 +595,13 @@ func TestMultisigService_GetPendingTransactionDetailByTransactionHash(t *testing
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ms := &MultisigService{
-				Executor:                tt.fields.Executor,
-				BlockService:            tt.fields.BlockService,
-				PendingTransactionQuery: tt.fields.PendingTransactionQuery,
-				PendingSignatureQuery:   tt.fields.PendingSignatureQuery,
-				MultisignatureInfoQuery: tt.fields.MultisignatureInfoQuery,
-				Logger:                  tt.fields.Logger,
+				Executor:                       tt.fields.Executor,
+				BlockService:                   tt.fields.BlockService,
+				PendingTransactionQuery:        tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:          tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:        tt.fields.MultisignatureInfoQuery,
+				MultiSignatureParticipantQuery: tt.fields.MultisignatureParticipantQuery,
+				Logger:                         tt.fields.Logger,
 			}
 			got, err := ms.GetPendingTransactionDetailByTransactionHash(tt.args.param)
 			if (err != nil) != tt.wantErr {

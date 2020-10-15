@@ -246,3 +246,55 @@ func TestMultiSignatureParticipantQuery_InsertMultisignatureParticipants(t *test
 		})
 	}
 }
+
+func TestMultiSignatureParticipantQuery_GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		multisigAddress []byte
+		fromHeight      uint32
+		toHeight        uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name: "GetMultiSignatureParticipantsByMultisigAddressAndHeightRange-wantSuccess",
+			args: args{
+				fromHeight:      1,
+				toHeight:        10,
+				multisigAddress: multisigAccountAddress1,
+			},
+			fields: fields(*NewMultiSignatureParticipantQuery()),
+			wantStr: "SELECT multisig_address,account_address,account_address_index,latest,block_height " +
+				"FROM multisignature_participant WHERE multisig_address = ? AND block_height >= ? AND block_height <= ? " +
+				"ORDER BY account_address_index",
+			wantArgs: []interface{}{
+				multisigAccountAddress1,
+				uint32(1),
+				uint32(10),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msq := &MultiSignatureParticipantQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := msq.GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(tt.args.multisigAddress, tt.args.fromHeight, tt.args.toHeight)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetMultiSignatureParticipantsByMultisigAddressAndHeightRange() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetMultiSignatureParticipantsByMultisigAddressAndHeightRange() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

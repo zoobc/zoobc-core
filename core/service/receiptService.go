@@ -34,6 +34,7 @@ type (
 			receipt *model.BatchReceipt,
 		) error
 		GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error)
+		// GenerateBatchReceiptWithReminder generating batch receipt and store to reminder also
 		GenerateBatchReceiptWithReminder(
 			ct chaintype.ChainType,
 			receivedDatumHash []byte,
@@ -523,10 +524,15 @@ func (rs *ReceiptService) GenerateBatchReceiptWithReminder(
 		nodeSecretPhrase,
 	)
 
-	err = rs.StoreBatchReceipt(batchReceipt, senderPublicKey, ct)
+	receiptKey, err := rs.ReceiptUtil.GetReceiptKey(batchReceipt.GetDatumHash(), senderPublicKey)
 	if err != nil {
-		return nil, err
+		return batchReceipt, err
 	}
+	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receiptKey), ct)
+	if err != nil {
+		return batchReceipt, err
+	}
+
 	return batchReceipt, err
 }
 

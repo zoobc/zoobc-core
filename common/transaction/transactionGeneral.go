@@ -384,7 +384,6 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
 	for _, address := range info.GetAddresses() {
-		// STEF we don't need to add the address length because we can derive it from addressType (first 4 bytes of accountAddress)
 		buff.Write(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
