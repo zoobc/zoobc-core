@@ -217,7 +217,8 @@ func GenerateBasicTransaction(
 	senderSignatureType int32,
 	version uint32,
 	timestamp, fee int64,
-	recipientAccountAddressHex string,
+	recipientAccountAddressHex,
+	message string,
 ) *model.Transaction {
 	var (
 		senderAccountAddressHex string
@@ -290,6 +291,7 @@ func GenerateBasicTransaction(
 			Commission:      0,
 			Timeout:         0,
 		},
+		Message: message,
 	}
 }
 

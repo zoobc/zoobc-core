@@ -99,6 +99,7 @@ func init() {
 	/*
 		TXCommandRoot
 	*/
+	txCmd.PersistentFlags().StringVar(&message, "message", "", "arbitrary message that can be added to any transaction")
 	txCmd.PersistentFlags().BoolVarP(&sign, "sign", "s", true, "defines transaction should be signed")
 	txCmd.PersistentFlags().StringVar(&outputType, "output", "bytes", "defines the type of the output to be generated [\"bytes\", \"hex\"]")
 	txCmd.PersistentFlags().Uint32Var(&version, "version", 1, "defines version of the transaction")
@@ -271,6 +272,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		tx = GenerateTxSendMoney(tx, sendAmount)
 		if escrow {
@@ -292,6 +294,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 				timestamp,
 				fee,
 				recipientAccountAddressHex,
+				message,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
@@ -327,6 +330,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 				timestamp,
 				fee,
 				recipientAccountAddressHex,
+				message,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
@@ -362,6 +366,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 		tx = GenerateTxRemoveNode(tx, nodePubKey)
@@ -384,6 +389,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 				timestamp,
 				fee,
 				recipientAccountAddressHex,
+				message,
 			)
 			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
@@ -417,6 +423,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 
 		// Recipient required while property set as AccountDatasetEscrowApproval
@@ -444,6 +451,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		tx = GenerateTxRemoveAccountDataset(tx, property, value)
 		if escrow {
@@ -464,6 +472,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
@@ -480,7 +489,9 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			version,
 			timestamp,
 			fee,
-			recipientAccountAddressHex)
+			recipientAccountAddressHex,
+			message,
+		)
 
 		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
 		if tx == nil {
@@ -506,7 +517,9 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 				version,
 				timestamp,
 				fee,
-				recipientAccountAddressHex)
+				recipientAccountAddressHex,
+				message,
+			)
 		)
 
 		dbInstance := database.NewSqliteDB()
@@ -579,7 +592,8 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 				version,
 				timestamp,
 				fee,
-				recipientAccountAddressHex)
+				recipientAccountAddressHex,
+				message)
 		)
 
 		if recentBlockHeight != 0 {
@@ -661,6 +675,7 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
@@ -678,6 +693,7 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)

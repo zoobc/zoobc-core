@@ -23,6 +23,7 @@ var (
 	signature = &crypto.Signature{}
 
 	// Basic transaction data
+	message                    string
 	outputType                 string
 	version                    uint32
 	timestamp                  int64
