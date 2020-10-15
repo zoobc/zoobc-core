@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"golang.org/x/crypto/sha3"
 	"math/big"
 )
 
@@ -21,8 +22,9 @@ func (r *RandomNumberGenerator) Reset(prefix string, seed []byte) error {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write([]byte(prefix))
 	buffer.Write(seed)
-	blockSeedBigInt := new(big.Int).SetBytes(buffer.Bytes())
-	r.rand.Seed(blockSeedBigInt.Int64())
+	randSeedHash := sha3.Sum256(buffer.Bytes())
+	randSeedBigInt := new(big.Int).SetBytes(randSeedHash[:])
+	r.rand.Seed(randSeedBigInt.Int64())
 	return nil
 }
 
