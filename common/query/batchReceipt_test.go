@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	mockReceiptQuery = NewNodeReceiptQuery()
-	mockReceipt      = &model.Receipt{
-		BatchReceipt: &model.BatchReceipt{
+	mockReceiptQuery = NewBatchReceiptQuery()
+	mockBatchReceipt = &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey:      []byte("BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"),
 			RecipientPublicKey:   []byte("BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"),
 			DatumType:            uint32(1),
@@ -34,7 +34,7 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipts []*model.Receipt
+		batchReceipts []*model.BatchReceipt
 	}
 	tests := []struct {
 		name     string
@@ -47,7 +47,7 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockReceiptQuery),
 			args: args{
-				receipts: []*model.Receipt{mockReceipt},
+				batchReceipts: []*model.BatchReceipt{mockBatchReceipt},
 			},
 			wantQStr: "INSERT INTO node_receipt " +
 				"(sender_public_key, recipient_public_key, " +
@@ -55,32 +55,32 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 				"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index) " +
 				"VALUES(?,? ,? ,? ,? ,? ,? ,? ,? ,? )",
 			wantArgs: []interface{}{
-				&mockReceipt.BatchReceipt.SenderPublicKey,
-				&mockReceipt.BatchReceipt.RecipientPublicKey,
-				&mockReceipt.BatchReceipt.DatumType,
-				&mockReceipt.BatchReceipt.DatumHash,
-				&mockReceipt.BatchReceipt.ReferenceBlockHeight,
-				&mockReceipt.BatchReceipt.ReferenceBlockHash,
-				&mockReceipt.BatchReceipt.RMRLinked,
-				&mockReceipt.BatchReceipt.RecipientSignature,
-				&mockReceipt.RMR,
-				&mockReceipt.RMRIndex,
+				&mockBatchReceipt.Receipt.SenderPublicKey,
+				&mockBatchReceipt.Receipt.RecipientPublicKey,
+				&mockBatchReceipt.Receipt.DatumType,
+				&mockBatchReceipt.Receipt.DatumHash,
+				&mockBatchReceipt.Receipt.ReferenceBlockHeight,
+				&mockBatchReceipt.Receipt.ReferenceBlockHash,
+				&mockBatchReceipt.Receipt.RMRLinked,
+				&mockBatchReceipt.Receipt.RecipientSignature,
+				&mockBatchReceipt.RMR,
+				&mockBatchReceipt.RMRIndex,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &NodeReceiptQuery{
+			rq := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotQStr, gotArgs := rq.InsertReceipts(tt.args.receipts)
+			gotQStr, gotArgs := rq.InsertReceipts(tt.args.batchReceipts)
 			if gotQStr != tt.wantQStr {
-				t.Errorf("NodeReceiptQuery.InsertReceipts() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
+				t.Errorf("BatchReceiptQuery.InsertReceipts() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("NodeReceiptQuery.InsertReceipts() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("BatchReceiptQuery.InsertReceipts() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -92,7 +92,7 @@ func TestReceiptQuery_InsertReceipt(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipt *model.Receipt
+		batchReceipt *model.BatchReceipt
 	}
 	tests := []struct {
 		name     string
@@ -105,39 +105,39 @@ func TestReceiptQuery_InsertReceipt(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockReceiptQuery),
 			args: args{
-				receipt: mockReceipt,
+				batchReceipt: mockBatchReceipt,
 			},
 			wantStr: "INSERT INTO node_receipt " +
 				"(sender_public_key, recipient_public_key, datum_type, datum_hash, " +
 				"reference_block_height, reference_block_hash, rmr_linked, " +
 				"recipient_signature, rmr, rmr_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
 			wantArgs: []interface{}{
-				&mockReceipt.BatchReceipt.SenderPublicKey,
-				&mockReceipt.BatchReceipt.RecipientPublicKey,
-				&mockReceipt.BatchReceipt.DatumType,
-				&mockReceipt.BatchReceipt.DatumHash,
-				&mockReceipt.BatchReceipt.ReferenceBlockHeight,
-				&mockReceipt.BatchReceipt.ReferenceBlockHash,
-				&mockReceipt.BatchReceipt.RMRLinked,
-				&mockReceipt.BatchReceipt.RecipientSignature,
-				&mockReceipt.RMR,
-				&mockReceipt.RMRIndex,
+				&mockBatchReceipt.Receipt.SenderPublicKey,
+				&mockBatchReceipt.Receipt.RecipientPublicKey,
+				&mockBatchReceipt.Receipt.DatumType,
+				&mockBatchReceipt.Receipt.DatumHash,
+				&mockBatchReceipt.Receipt.ReferenceBlockHeight,
+				&mockBatchReceipt.Receipt.ReferenceBlockHash,
+				&mockBatchReceipt.Receipt.RMRLinked,
+				&mockBatchReceipt.Receipt.RecipientSignature,
+				&mockBatchReceipt.RMR,
+				&mockBatchReceipt.RMRIndex,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &NodeReceiptQuery{
+			rq := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := rq.InsertReceipt(tt.args.receipt)
+			gotStr, gotArgs := rq.InsertReceipt(tt.args.batchReceipt)
 			if gotStr != tt.wantStr {
-				t.Errorf("NodeReceiptQuery.InsertReceipt() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				t.Errorf("BatchReceiptQuery.InsertReceipt() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("NodeReceiptQuery.InsertReceipt() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
+				t.Errorf("BatchReceiptQuery.InsertReceipt() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -171,12 +171,12 @@ func TestReceiptQuery_GetReceipts(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &NodeReceiptQuery{
+			rq := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
 			if got := rq.GetReceipts(tt.args.paginate); got != tt.want {
-				t.Errorf("NodeReceiptQuery.GetReceipts() = \n%v, want \n%v", got, tt.want)
+				t.Errorf("BatchReceiptQuery.GetReceipts() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -211,8 +211,8 @@ func TestReceiptQuery_Scan(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipt *model.Receipt
-		row     *sql.Row
+		batchReceipt *model.BatchReceipt
+		row          *sql.Row
 	}
 	tests := []struct {
 		name    string
@@ -224,20 +224,20 @@ func TestReceiptQuery_Scan(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockReceiptQuery),
 			args: args{
-				receipt: mockReceipt,
-				row:     (&mockQueryExecutorNodeReceiptScan{}).ExecuteSelectRow("", ""),
+				batchReceipt: mockBatchReceipt,
+				row:          (&mockQueryExecutorNodeReceiptScan{}).ExecuteSelectRow("", ""),
 			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &NodeReceiptQuery{
+			r := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if err := r.Scan(tt.args.receipt, tt.args.row); (err != nil) != tt.wantErr {
-				t.Errorf("NodeReceiptQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
+			if err := r.Scan(tt.args.batchReceipt, tt.args.row); (err != nil) != tt.wantErr {
+				t.Errorf("BatchReceiptQuery.Scan() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -272,8 +272,8 @@ func TestReceiptQuery_BuildModel(t *testing.T) {
 		TableName string
 	}
 	type args struct {
-		receipts []*model.Receipt
-		rows     *sql.Rows
+		batchReceipts []*model.BatchReceipt
+		rows          *sql.Rows
 	}
 	rows, err := (&mockQueryExecutorNodeReceiptBuildModel{}).ExecuteSelect("", false, "")
 	if err != nil {
@@ -286,25 +286,25 @@ func TestReceiptQuery_BuildModel(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   []*model.Receipt
+		want   []*model.BatchReceipt
 	}{
 		{
 			name:   "wantSuccess",
 			fields: fields(*mockReceiptQuery),
 			args: args{
-				receipts: []*model.Receipt{},
-				rows:     rows,
+				batchReceipts: []*model.BatchReceipt{},
+				rows:          rows,
 			},
-			want: []*model.Receipt{mockReceipt},
+			want: []*model.BatchReceipt{mockBatchReceipt},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			re := &NodeReceiptQuery{
+			re := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got, _ := re.BuildModel(tt.args.receipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := re.BuildModel(tt.args.batchReceipts, tt.args.rows); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("BuildModel() = %v, want %v", got, tt.want)
 			}
 		})
@@ -340,7 +340,7 @@ func TestNodeReceiptQuery_PruneData(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rq := &NodeReceiptQuery{
+			rq := &BatchReceiptQuery{
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
