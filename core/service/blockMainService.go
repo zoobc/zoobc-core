@@ -383,19 +383,17 @@ func (bs *BlockService) validateMerkleRoot(block *model.Block) error {
 		for _, buf := range intermediateHashesBuffer {
 			intermediateHashes = append(intermediateHashes, buf.Bytes())
 		}
-		flattenIntermediateHashes := merkleRoot.FlattenIntermediateHashes(intermediateHashes)
 
 		root, err := merkleRoot.GetMerkleRootFromIntermediateHashes(
 			randomTx,
 			uint32(randomTxIndex),
-			merkleRoot.RestoreIntermediateHashes(flattenIntermediateHashes),
+			intermediateHashes,
 		)
 		if err != nil {
 			return err
 		}
-		validateMerkleRoot := bytes.Equal(root, block.MerkleRoot)
-		if !validateMerkleRoot {
-			return blocker.NewBlocker(blocker.BlockErr, "InvalidMerkleRoot")
+		if !bytes.Equal(root, block.MerkleRoot) {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidMerkleRootBlock")
 		}
 	}
 	return nil
