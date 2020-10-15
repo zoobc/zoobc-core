@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math/big"
 	"sort"
 	"sync"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -451,6 +452,10 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 		return nil, err
 	}
 	return &lastBlock, nil
+}
+
+func (bs *BlockSpineService) GetLastBlockCacheFromat() (*storage.BlockCacheObject, error) {
+	return nil, blocker.NewBlocker(blocker.AppErr, "NotImplementedYet")
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
