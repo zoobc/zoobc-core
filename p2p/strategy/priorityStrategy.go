@@ -197,7 +197,7 @@ func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 		priorityPeers = make(map[string]*model.Peer)
 		host          = ps.NodeConfigurationService.GetHost()
 	)
-	lastBlock, err := ps.BlockMainService.GetLastBlockCacheFromat()
+	lastBlock, err := ps.BlockMainService.GetLastBlockCacheFormat()
 	if err != nil {
 		return priorityPeers
 	}
@@ -308,7 +308,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			}
 
 			// get scramble node
-			lastBlock, err := ps.BlockMainService.GetLastBlockCacheFromat()
+			lastBlock, err := ps.BlockMainService.GetLastBlockCacheFormat()
 			if err != nil {
 				ps.Logger.Errorf("ValidateRequestFailGetLastBlock: %v", err)
 				return false

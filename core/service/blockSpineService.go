@@ -454,7 +454,7 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 	return &lastBlock, nil
 }
 
-func (bs *BlockSpineService) GetLastBlockCacheFromat() (*storage.BlockCacheObject, error) {
+func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, blocker.NewBlocker(blocker.AppErr, "NotImplementedYet")
 }
 

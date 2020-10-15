@@ -345,7 +345,7 @@ func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, n
 func (*mockPeerServiceClientFail) DeleteConnection(destPeer *model.Peer) error {
 	return errors.New("mockedError")
 }
-func (*mockBlockMainServiceSuccess) GetLastBlockCacheFromat() (*storage.BlockCacheObject, error) {
+func (*mockBlockMainServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return &storage.BlockCacheObject{
 		ID:        mockGoodBlock.ID,
 		Height:    mockGoodBlock.Height,
