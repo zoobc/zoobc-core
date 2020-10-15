@@ -126,9 +126,9 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 				},
 			},
 			want: [][]byte{
-				bcsAddress2,
-				bcsAddress2,
 				bcsAddress3,
+				bcsAddress2,
+				bcsAddress2,
 			},
 			wantErr: false,
 		},
