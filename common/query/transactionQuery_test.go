@@ -33,6 +33,7 @@ var (
 		TransactionBodyBytes:  make([]byte, 88),
 		Signature:             make([]byte, 68),
 		TransactionIndex:      1,
+		Message:               "test message",
 	}
 	// mockTransactionRow represent a transaction row for test purpose only
 	// copy just the values only,
@@ -51,6 +52,7 @@ var (
 		make([]byte, 68),
 		1,
 		1,
+		"",
 	}
 )
 var _ = mockTransactionRow
@@ -75,7 +77,7 @@ func TestGetTransaction(t *testing.T) {
 			want: "SELECT id, block_id, block_height, sender_account_address, " +
 				"recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index, multisig_child from \"transaction\"" +
+				"transaction_index, multisig_child, message from \"transaction\"" +
 				" WHERE id = 1",
 		},
 	}
@@ -246,8 +248,8 @@ func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
 			fields: fields(*mockTransactionQuery),
 			args:   args{txIds: []int64{1, 2, 3, 4}},
 			wantStr: "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
-				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, multisig_child " +
-				"FROM \"transaction\" WHERE multisig_child = false AND id IN(?, ?, ?, ?)",
+				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, " +
+				"multisig_child, message FROM \"transaction\" WHERE multisig_child = false AND id IN(?, ?, ?, ?)",
 			wantArgs: []interface{}{
 				int64(1),
 				int64(2),
@@ -299,6 +301,7 @@ func (*mockQueryExecutorBuildModel) ExecuteSelect(query string, tx bool, args ..
 			1,
 			1,
 			false,
+			"test message",
 		),
 	)
 	return db.Query("")
@@ -371,6 +374,7 @@ func (*mockRowTransactionQueryScan) ExecuteSelectRow(qStr string, args ...interf
 			1,
 			1,
 			false,
+			"",
 		),
 	)
 	return db.QueryRow("")

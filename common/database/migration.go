@@ -65,7 +65,6 @@ func (m *Migration) Init() error {
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
 				"version" INTEGER,
-				"message"	TEXT,
 				PRIMARY KEY("id")
 			);`,
 			`
@@ -473,6 +472,10 @@ func (m *Migration) Init() error {
 			`
 			ALTER TABLE "spine_block"
 				ADD COLUMN "reference_block_height" INTEGER AFTER "merkle_tree"
+			`,
+			`
+			ALTER TABLE "transaction"
+				ADD COLUMN "message" TEXT
 			`,
 		}
 		return nil

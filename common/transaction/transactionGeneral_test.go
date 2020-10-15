@@ -244,6 +244,7 @@ func TestGetTransactionBytes(t *testing.T) {
 				for _, bt := range got {
 					byteStrArr = append(byteStrArr, fmt.Sprintf("%v", bt))
 				}
+				fmt.Println(byteStrArr)
 				t.Errorf("GetTransactionBytes() = \n%v, want \n%v", got, tt.want)
 			}
 		})

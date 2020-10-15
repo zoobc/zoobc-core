@@ -1080,6 +1080,7 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 			nil,
 			make([]byte, 64),
 			false,
+			"",
 		),
 	)
 	return db.QueryRow(qStr), nil

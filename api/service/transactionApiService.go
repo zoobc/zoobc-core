@@ -188,6 +188,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Version,
 			&tx.TransactionIndex,
 			&tx.MultisigChild,
+			&tx.Message,
 		)
 		if err != nil {
 			if err != sql.ErrNoRows {
