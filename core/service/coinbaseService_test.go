@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"testing"
@@ -11,7 +12,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -70,10 +70,11 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 	type fields struct {
 		QueryExecutor         query.ExecutorInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+		rng                   *crypto.RandomNumberGenerator
 	}
 	type args struct {
 		activeRegistries []storage.NodeRegistry
-		scoreSum         float64
+		scoreSum         int64
 		blockTimestamp   int64
 		previousBlock    *model.Block
 	}
@@ -89,6 +90,7 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			fields: fields{
 				QueryExecutor:         &mockCoinbaseLotteryWinnersQueryExecutorSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				rng:                   crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				activeRegistries: []storage.NodeRegistry{
@@ -117,16 +119,16 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 						ParticipationScore: 5,
 					},
 				},
-				scoreSum:       (1 / float64(constant.OneZBC)) + (10 / float64(constant.OneZBC)) + (5 / float64(constant.OneZBC)),
+				scoreSum:       (1 / 3) + (10 / 3) + (5 / 3),
 				blockTimestamp: 10,
 				previousBlock: &model.Block{
 					Timestamp: 1,
 				},
 			},
 			want: [][]byte{
+				bcsAddress2,
+				bcsAddress2,
 				bcsAddress3,
-				bcsAddress2,
-				bcsAddress2,
 			},
 			wantErr: false,
 		},
@@ -136,8 +138,11 @@ func TestBlockService_CoinbaseLotteryWinners(t *testing.T) {
 			bs := &CoinbaseService{
 				QueryExecutor:         tt.fields.QueryExecutor,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+				Rng:                   tt.fields.rng,
 			}
-			got, err := bs.CoinbaseLotteryWinners(tt.args.activeRegistries, tt.args.scoreSum, tt.args.blockTimestamp, tt.args.previousBlock)
+			got, err := bs.CoinbaseLotteryWinners(
+				tt.args.activeRegistries, tt.args.scoreSum, tt.args.blockTimestamp, tt.args.previousBlock,
+			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.CoinbaseLotteryWinners() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -197,6 +202,7 @@ func TestNewCoinbaseService(t *testing.T) {
 		nodeRegistrationQuery query.NodeRegistrationQueryInterface
 		queryExecutor         query.ExecutorInterface
 		chaintype             chaintype.ChainType
+		rng                   *crypto.RandomNumberGenerator
 	}
 	tests := []struct {
 		name string
@@ -208,10 +214,12 @@ func TestNewCoinbaseService(t *testing.T) {
 			args: args{
 				nodeRegistrationQuery: nil,
 				queryExecutor:         nil,
+				rng:                   crypto.NewRandomNumberGenerator(),
 			},
 			want: &CoinbaseService{
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
+				Rng:                   crypto.NewRandomNumberGenerator(),
 			},
 		},
 	}
@@ -221,6 +229,7 @@ func TestNewCoinbaseService(t *testing.T) {
 				tt.args.nodeRegistrationQuery,
 				tt.args.queryExecutor,
 				tt.args.chaintype,
+				tt.args.rng,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewCoinbaseService() = %v, want %v", got, tt.want)
 			}

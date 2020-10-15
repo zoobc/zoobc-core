@@ -90,7 +90,7 @@ type (
 	}
 )
 
-func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error) {
 	return []storage.NodeRegistry{}, 0, nil
 }
 
@@ -1091,10 +1091,11 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
-	scoreSum float64,
-	blockTimestamp int64,
-	previousBlock *model.Block) ([][]byte, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
+	activeNodeRegistries []storage.NodeRegistry,
+	scoreSum, blockTimestamp int64,
+	previousBlock *model.Block,
+) ([][]byte, error) {
 	return make([][]byte, 0), nil
 }
 
