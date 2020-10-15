@@ -24,6 +24,8 @@ var (
 	// DatasetValueLength is max length of string property value in dataset
 	DatasetValueLength uint32 = 4
 
+	TxMessageBytesLength uint32 = 4
+
 	EscrowApproverAddressLength uint32 = 4
 	EscrowCommissionLength      uint32 = 8
 	EscrowTimeoutLength         uint32 = 8

@@ -3,7 +3,6 @@ package accounttype
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -100,20 +99,4 @@ func GetAccountTypes() map[uint32]AccountType {
 		uint32(zbcAccount.GetTypeInt()):   zbcAccount,
 		uint32(dummyAccount.GetTypeInt()): dummyAccount,
 	}
-}
-
-// ParseEncodedAccountToAccountAddressHex parse an encoded account type into a full account address (hex encoded)
-// Note: we must know the account type first to do it
-func ParseEncodedAccountToAccountAddressHex(accTypeInt int32, encodedAccountAddress string) (string, error) {
-	accountAddress, err := ParseEncodedAccountToAccountAddress(accTypeInt, encodedAccountAddress)
-	if err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(accountAddress), nil
-}
-
-// IsZbcAccount validates whether an account type is a default account (ZBC)
-func IsZbcAccount(at AccountType) bool {
-	_, ok := at.(*ZbcAccountType)
-	return ok
 }

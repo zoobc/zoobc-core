@@ -45,9 +45,10 @@ func GenerateTxRegisterNode(
 ) *model.Transaction {
 
 	txBody := &model.NodeRegistrationTransactionBody{
-		NodePublicKey: nodePubKey,
-		LockedBalance: lockedBalance,
-		Poown:         proofOfOwnerShip,
+		AccountAddress: tx.SenderAccountAddress,
+		NodePublicKey:  nodePubKey,
+		LockedBalance:  lockedBalance,
+		Poown:          proofOfOwnerShip,
 	}
 	txBodyBytes, _ := (&transaction.NodeRegistration{
 		Body:                  txBody,

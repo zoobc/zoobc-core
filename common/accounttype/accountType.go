@@ -30,6 +30,8 @@ type (
 		IsEqual(acc AccountType) bool
 		// GetSignatureType return the signature type number for this account type
 		GetSignatureType() model.SignatureType
+		// GetSignatureLength return the signature length for this account type
+		GetSignatureLength() uint32
 
 		// // GetAccountSignatureInterface return the signature implementation for this account type
 		// // TODO: for now there is only one signature implementation that implements multiple signatures

@@ -32,8 +32,9 @@ var (
 	post                       bool
 	postHost                   string
 	senderAddressHex           string
-	senderSignatureType        int32
-	sign                       bool
+	// TODO: deprecated (remove)
+	senderSignatureType int32
+	sign                bool
 
 	// Send money transaction
 	sendAmount int64

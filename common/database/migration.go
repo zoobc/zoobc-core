@@ -65,6 +65,7 @@ func (m *Migration) Init() error {
 				"transaction_body_bytes"	BLOB,
 				"signature"	BLOB,
 				"version" INTEGER,
+				"message"	TEXT,
 				PRIMARY KEY("id")
 			);`,
 			`

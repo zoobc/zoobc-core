@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"github.com/btcsuite/btcd/btcec"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -14,68 +15,63 @@ type BTCAccountType struct {
 	encodedAddress   string
 }
 
-func (btcAcc *BTCAccountType) SetAccountPublicKey(accountPublicKey []byte) {
-	btcAcc.accountPublicKey = accountPublicKey
+func (acc *BTCAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	acc.accountPublicKey = accountPublicKey
 }
 
-func (btcAcc *BTCAccountType) GetAccountAddress() ([]byte, error) {
-	if btcAcc.GetAccountPublicKey() == nil {
+func (acc *BTCAccountType) GetAccountAddress() ([]byte, error) {
+	if acc.GetAccountPublicKey() == nil {
 		return nil, errors.New("AccountAddressPublicKeyEmpty")
 	}
 	buff := bytes.NewBuffer([]byte{})
 	tmpBuf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmpBuf, uint32(btcAcc.GetTypeInt()))
+	binary.LittleEndian.PutUint32(tmpBuf, uint32(acc.GetTypeInt()))
 	buff.Write(tmpBuf)
-	buff.Write(btcAcc.GetAccountPublicKey())
+	buff.Write(acc.GetAccountPublicKey())
 	return buff.Bytes(), nil
 }
 
-func (btcAcc *BTCAccountType) GetTypeInt() int32 {
+func (acc *BTCAccountType) GetTypeInt() int32 {
 	return int32(model.AccountType_BTCAccountType)
 }
 
-func (btcAcc *BTCAccountType) GetAccountPublicKey() []byte {
-	return btcAcc.accountPublicKey
+func (acc *BTCAccountType) GetAccountPublicKey() []byte {
+	return acc.accountPublicKey
 }
 
-func (btcAcc *BTCAccountType) GetAccountPrefix() string {
-	return "DUM"
+func (acc *BTCAccountType) GetAccountPrefix() string {
+	return "BTC"
 }
 
-func (btcAcc *BTCAccountType) GetName() string {
-	return "Dummy"
+func (acc *BTCAccountType) GetName() string {
+	return "BTCAccount"
 }
 
-func (btcAcc *BTCAccountType) GetAccountPublicKeyLength() uint32 {
+func (acc *BTCAccountType) GetAccountPublicKeyLength() uint32 {
 	return btcec.PubKeyBytesLenCompressed
 }
 
-func (btcAcc *BTCAccountType) IsEqual(acc AccountType) bool {
-	return bytes.Equal(acc.GetAccountPublicKey(), btcAcc.GetAccountPublicKey()) && acc.GetTypeInt() == btcAcc.GetTypeInt()
+func (acc *BTCAccountType) IsEqual(acc2 AccountType) bool {
+	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 
-// func (dAcc *BTCAccountType) GetSignatureTypeInterface() crypto.SignatureTypeInterface {
-// 	return crypto.NewBitcoinSignature()
-// }
-//
-//
-// func (dAcc *BTCAccountType) GetAccountSignatureInterface() crypto.SignatureInterface {
-// 	return crypto.NewSignature()
-// }
-
-func (btcAcc *BTCAccountType) GetSignatureType() model.SignatureType {
+func (acc *BTCAccountType) GetSignatureType() model.SignatureType {
 	return model.SignatureType_BitcoinSignature
 }
 
-func (btcAcc *BTCAccountType) GetFormattedAccount() (string, error) {
-	if btcAcc.encodedAddress != "" {
-		return btcAcc.encodedAddress, nil
+func (acc *BTCAccountType) GetSignatureLength() uint32 {
+	return constant.BTCECDSASignatureLength
+}
+
+func (acc *BTCAccountType) GetFormattedAccount() (string, error) {
+	if acc.encodedAddress != "" {
+		return acc.encodedAddress, nil
 	}
 	// TODO: for now, due to the high complexity of bringing in signing methods in this package,
 	//  instead of calculating the encoded address, we return an error if this variable has not been calculated before
 	return "", errors.New("EmptyAddress")
 }
 
-func (btcAcc *BTCAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	btcAcc.encodedAddress = encodedAccount
+func (acc *BTCAccountType) SetEncodedAccountAddress(encodedAccount string) {
+	acc.encodedAddress = encodedAccount
 }

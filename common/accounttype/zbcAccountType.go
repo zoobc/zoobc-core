@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
@@ -14,68 +15,61 @@ type ZbcAccountType struct {
 	encodedAddress   string
 }
 
-func (zAcc *ZbcAccountType) SetAccountPublicKey(accountPublicKey []byte) {
-	zAcc.accountPublicKey = accountPublicKey
+func (acc *ZbcAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	acc.accountPublicKey = accountPublicKey
 }
 
-func (zAcc *ZbcAccountType) GetAccountAddress() ([]byte, error) {
-	if zAcc.GetAccountPublicKey() == nil {
+func (acc *ZbcAccountType) GetAccountAddress() ([]byte, error) {
+	if acc.GetAccountPublicKey() == nil {
 		return nil, errors.New("AccountAddressPublicKeyEmpty")
 	}
 	buff := bytes.NewBuffer([]byte{})
 	tmpBuf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmpBuf, uint32(zAcc.GetTypeInt()))
+	binary.LittleEndian.PutUint32(tmpBuf, uint32(acc.GetTypeInt()))
 	buff.Write(tmpBuf)
-	buff.Write(zAcc.GetAccountPublicKey())
+	buff.Write(acc.GetAccountPublicKey())
 	return buff.Bytes(), nil
 }
 
-func (zAcc *ZbcAccountType) GetTypeInt() int32 {
+func (acc *ZbcAccountType) GetTypeInt() int32 {
 	return int32(model.AccountType_ZbcAccountType)
 }
 
-func (zAcc *ZbcAccountType) GetAccountPublicKey() []byte {
-	return zAcc.accountPublicKey
+func (acc *ZbcAccountType) GetAccountPublicKey() []byte {
+	return acc.accountPublicKey
 }
 
-func (zAcc *ZbcAccountType) GetAccountPrefix() string {
+func (acc *ZbcAccountType) GetAccountPrefix() string {
 	return constant.PrefixZoobcDefaultAccount
 }
 
-func (zAcc *ZbcAccountType) GetName() string {
+func (acc *ZbcAccountType) GetName() string {
 	return "ZooBC"
 }
 
-func (zAcc *ZbcAccountType) GetAccountPublicKeyLength() uint32 {
+func (acc *ZbcAccountType) GetAccountPublicKeyLength() uint32 {
 	return 32
 }
 
-func (zAcc *ZbcAccountType) IsEqual(acc AccountType) bool {
-	return bytes.Equal(acc.GetAccountPublicKey(), zAcc.GetAccountPublicKey()) && acc.GetTypeInt() == zAcc.GetTypeInt()
+func (acc *ZbcAccountType) IsEqual(acc2 AccountType) bool {
+	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 
-// func (zAcc *ZbcAccountType) GetSignatureTypeInterface() crypto.SignatureTypeInterface {
-// 	return crypto.NewEd25519Signature()
-// }
-//
-// func (zAcc *ZbcAccountType) GetAccountSignatureInterface() crypto.SignatureInterface {
-// 	return crypto.NewSignature()
-// }
-
-func (zAcc *ZbcAccountType) GetSignatureType() model.SignatureType {
+func (acc *ZbcAccountType) GetSignatureType() model.SignatureType {
 	return model.SignatureType_DefaultSignature
 }
 
-func (zAcc *ZbcAccountType) GetFormattedAccount() (string, error) {
-	if zAcc.encodedAddress != "" {
-		return zAcc.encodedAddress, nil
-	}
-
-	// TODO: for now, due to the high complexity of bringing in signing methods in this package,
-	//  instead of calculating the encoded address, we return an error if this variable has not been calculated before
-	return "", errors.New("EmptyAddress")
+func (acc *ZbcAccountType) GetSignatureLength() uint32 {
+	return constant.ZBCSignatureLength
 }
 
-func (zAcc *ZbcAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	zAcc.encodedAddress = encodedAccount
+func (acc *ZbcAccountType) GetFormattedAccount() (string, error) {
+	if acc.GetAccountPublicKey() == nil || bytes.Equal(acc.GetAccountPublicKey(), []byte{}) {
+		return "", errors.New("EmptyAccountPublicKey")
+	}
+	return address.EncodeZbcID(acc.GetAccountPrefix(), acc.GetAccountPublicKey())
+}
+
+func (acc *ZbcAccountType) SetEncodedAccountAddress(encodedAccount string) {
+	acc.encodedAddress = encodedAccount
 }
