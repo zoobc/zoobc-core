@@ -2349,6 +2349,10 @@ func (*mockReceiveBlockMainBlockServiceSuccess) GetBlockByHeight(uint32) (*model
 	return &model.Block{}, nil
 }
 
+func (*mockReceiveBlockMainBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
+	return &model.Block{}, nil
+}
+
 func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 
 	mockSpineLastBlockData := model.Block{
@@ -2855,7 +2859,8 @@ var (
 		BlockHash: make([]byte, 32),
 		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255, 77, 228,
 			59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-		Height: 1,
+		Height:               1,
+		ReferenceBlockHeight: 1,
 		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
@@ -2876,7 +2881,18 @@ type (
 	mockSpineBlocksmithServiceValidateBlockSuccess struct {
 		strategy.BlocksmithStrategyMain
 	}
+	mockValidateBlockMainBlockServiceSuccess struct {
+		BlockServiceInterface
+	}
 )
+
+func (*mockValidateBlockMainBlockServiceSuccess) GetBlockByHeight(uint32) (*model.Block, error) {
+	return &model.Block{}, nil
+}
+
+func (*mockValidateBlockMainBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
+	return &model.Block{}, nil
+}
 
 func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model.Block) map[string]*int64 {
 	firstIndex := int64(0)
@@ -2908,6 +2924,7 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
+		MainBlockService        BlockServiceInterface
 		Observer                *observer.Observer
 		Logger                  *log.Logger
 	}
@@ -3001,6 +3018,7 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 				BlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				QueryExecutor:      &mockSpineQueryExecutorValidateBlockSuccess{},
 				BlocksmithStrategy: &mockSpineBlocksmithServiceValidateBlockSuccess{},
+				MainBlockService:   &mockValidateBlockMainBlockServiceSuccess{},
 			},
 		},
 	}
@@ -3012,6 +3030,7 @@ func TestBlockSpineService_ValidateBlock(t *testing.T) {
 				BlockQuery:         tt.fields.BlockQuery,
 				Signature:          tt.fields.Signature,
 				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
+				MainBlockService:   tt.fields.MainBlockService,
 				Observer:           tt.fields.Observer,
 				Logger:             tt.fields.Logger,
 			}

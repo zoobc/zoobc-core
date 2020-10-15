@@ -266,6 +266,11 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
 	}
+	// check included main block
+	err = bs.validateIncludedMainBlock(previousLastBlock, block)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -810,11 +815,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	// check existing last main block
-	err = bs.validateIncludedMainBlock(lastBlock, block)
-	if err != nil {
-		return nil, err
-	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.BlockHash, block.PreviousBlockHash) {
 		// check if incoming block is of higher quality
@@ -913,19 +913,36 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
-	var referenceBlock, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+	var mainLastBlock, err = bs.MainBlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
+	// no need validate merkle root when reference block height is higher than curerent last main block
+	if incomingBlock.ReferenceBlockHeight > mainLastBlock.Height {
+		return nil
+	}
+	var referenceBlock = mainLastBlock
+	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
+		referenceBlock, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+		if err != nil {
+			return err
+		}
+	}
 	var (
-		merkleRoot commonUtils.MerkleRoot
-		rootHash   []byte
-		leafIndex  = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
+		merkleRoot         commonUtils.MerkleRoot
+		rootHash           []byte
+		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
+		intermediateHashes [][]byte
 	)
+	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
+	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
 	rootHash, err = merkleRoot.GetMerkleRootFromIntermediateHashes(
 		referenceBlock.BlockHash,
 		leafIndex,
-		merkleRoot.RestoreIntermediateHashes(incomingBlock.MerkleTree),
+		intermediateHashes,
 	)
 	if err != nil {
 		return err
