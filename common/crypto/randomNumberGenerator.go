@@ -28,6 +28,6 @@ func (r *RandomNumberGenerator) Reset(prefix string, seed []byte) error {
 	return nil
 }
 
-func (r *RandomNumberGenerator) Next() uint64 {
-	return r.rand.Uint64()
+func (r *RandomNumberGenerator) Next() int64 {
+	return r.rand.Int63()
 }
