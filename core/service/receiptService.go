@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
-	"sort"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -28,7 +26,6 @@ type (
 			numberOfReceipt uint32,
 			lastBlockHeight uint32,
 		) ([]*model.PublishedReceipt, error)
-		GenerateReceiptsMerkleRoot() error
 		// ValidateReceipt to validating *model.BatchReceipt when send block or send transaction and also when want to publishing receipt
 		ValidateReceipt(
 			receipt *model.Receipt,
@@ -49,20 +46,20 @@ type (
 	}
 
 	ReceiptService struct {
-		NodeReceiptQuery         query.BatchReceiptQueryInterface
-		MerkleTreeQuery          query.MerkleTreeQueryInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		BlockQuery               query.BlockQueryInterface
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationService  NodeRegistrationServiceInterface
-		Signature                crypto.SignatureInterface
-		PublishedReceiptQuery    query.PublishedReceiptQueryInterface
-		ReceiptUtil              coreUtil.ReceiptUtilInterface
-		MainBlockStateStorage    storage.CacheStorageInterface
-		ScrambleNodeService      ScrambleNodeServiceInterface
-		ReceiptReminderStorage   storage.CacheStorageInterface
-		BatchReceiptCacheStorage storage.CacheStorageInterface
-		MainBlocksStorage        storage.CacheStackStorageInterface
+		NodeReceiptQuery        query.BatchReceiptQueryInterface
+		MerkleTreeQuery         query.MerkleTreeQueryInterface
+		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
+		BlockQuery              query.BlockQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
+		Signature               crypto.SignatureInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage   storage.CacheStorageInterface
+		ScrambleNodeService     ScrambleNodeServiceInterface
+		ReceiptReminderStorage  storage.CacheStorageInterface
+		ReceiptPoolCacheStorage storage.CacheStorageInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 		// local cache
 		LastMerkleRoot []byte
 	}
@@ -78,26 +75,26 @@ func NewReceiptService(
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
+	mainBlockStateStorage, receiptReminderStorage, receiptPoolCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 	mainBlocksStorage storage.CacheStackStorageInterface,
 ) *ReceiptService {
 	return &ReceiptService{
-		NodeReceiptQuery:         nodeReceiptQuery,
-		MerkleTreeQuery:          merkleTreeQuery,
-		NodeRegistrationQuery:    nodeRegistrationQuery,
-		BlockQuery:               blockQuery,
-		QueryExecutor:            queryExecutor,
-		NodeRegistrationService:  nodeRegistrationService,
-		Signature:                signature,
-		PublishedReceiptQuery:    publishedReceiptQuery,
-		ReceiptUtil:              receiptUtil,
-		MainBlockStateStorage:    mainBlockStateStorage,
-		ScrambleNodeService:      scrambleNodeService,
-		ReceiptReminderStorage:   receiptReminderStorage,
-		BatchReceiptCacheStorage: batchReceiptCacheStorage,
-		MainBlocksStorage:        mainBlocksStorage,
-		LastMerkleRoot:           nil,
+		NodeReceiptQuery:        nodeReceiptQuery,
+		MerkleTreeQuery:         merkleTreeQuery,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		BlockQuery:              blockQuery,
+		QueryExecutor:           queryExecutor,
+		NodeRegistrationService: nodeRegistrationService,
+		Signature:               signature,
+		PublishedReceiptQuery:   publishedReceiptQuery,
+		ReceiptUtil:             receiptUtil,
+		MainBlockStateStorage:   mainBlockStateStorage,
+		ScrambleNodeService:     scrambleNodeService,
+		ReceiptReminderStorage:  receiptReminderStorage,
+		ReceiptPoolCacheStorage: receiptPoolCacheStorage,
+		MainBlocksStorage:       mainBlocksStorage,
+		LastMerkleRoot:          nil,
 	}
 }
 
@@ -266,95 +263,6 @@ func (rs *ReceiptService) pickReceipts(
 		}
 	}
 	return pickedReceipts, nil
-}
-
-// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
-// generating will do when number of collected receipts(batch receipts) already <= the number of required
-func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
-	var (
-		receiptsCached, receipts []model.Receipt
-		hashedReceipts           []*bytes.Buffer
-		merkleRoot               util.MerkleRoot
-		queries                  [][]interface{}
-		batchReceipt             *model.BatchReceipt
-		block                    model.Block
-		err                      error
-	)
-
-	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
-	if err != nil {
-		return err
-	}
-
-	if len(receiptsCached) >= int(constant.ReceiptBatchMaximum) {
-		// Need to sorting before do next
-		sort.SliceStable(receiptsCached, func(i, j int) bool {
-			return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
-		})
-
-		var cacheCount int
-		for _, receipt := range receiptsCached {
-			if len(receipts) == int(constant.ReceiptBatchMaximum) {
-				break
-			}
-			b := receipt
-			err = rs.ValidateReceipt(&b)
-			if err == nil {
-				receipts = append(receipts, b)
-				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&b))
-				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
-			}
-			cacheCount++
-		}
-		receiptsCached = receiptsCached[cacheCount:]
-
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		rootMerkle, treeMerkle := merkleRoot.ToBytes()
-
-		queries = make([][]interface{}, len(hashedReceipts)+1)
-		for k, receipt := range receipts {
-			b := receipt
-			batchReceipt = &model.BatchReceipt{
-				Receipt:  &b,
-				RMR:      rootMerkle,
-				RMRIndex: uint32(k),
-			}
-			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(batchReceipt)
-			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
-		}
-		err = rs.MainBlockStateStorage.GetItem(nil, &block)
-		if err != nil {
-			return err
-		}
-		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
-			rootMerkle,
-			treeMerkle,
-			time.Now().Unix(),
-			block.Height,
-		)
-		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
-
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = rs.QueryExecutor.RollbackTx()
-			return err
-		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-		rs.LastMerkleRoot = rootMerkle // update local cache
-		return rs.BatchReceiptCacheStorage.SetItems(receiptsCached)
-	}
-
-	return nil
 }
 
 // CheckDuplication check existing batch receipt in cache storage
@@ -542,7 +450,7 @@ func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey [
 		return err
 	}
 	b := *receipt
-	err = rs.BatchReceiptCacheStorage.SetItem(nil, b)
+	err = rs.ReceiptPoolCacheStorage.SetItem(receiptKey, b)
 	if err != nil {
 		return err
 	}

@@ -11,33 +11,38 @@ import (
 type (
 	ReceiptPoolCacheStorage struct {
 		sync.RWMutex
-		receipts []model.Receipt
+		receipts map[string][]model.Receipt
 	}
 )
 
 func NewReceiptPoolCacheStorage() *ReceiptPoolCacheStorage {
 	return &ReceiptPoolCacheStorage{
-		receipts: make([]model.Receipt, 0),
+		receipts: make(map[string][]model.Receipt),
 	}
 }
 
 // SetItem set new value to ReceiptPoolCacheStorage
 //      - key: nil
-//      - item: BatchReceiptCache
-func (brs *ReceiptPoolCacheStorage) SetItem(_, item interface{}) error {
+//      - item: model.Receipt
+func (brs *ReceiptPoolCacheStorage) SetItem(key, item interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
 		ok    bool
 		nItem model.Receipt
+		nKey  string
 	)
 
-	if nItem, ok = item.(model.Receipt); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
+	if nKey, ok = key.(string); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid key type")
 	}
 
-	brs.receipts = append(brs.receipts, nItem)
+	if nItem, ok = item.(model.Receipt); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid receipt item")
+	}
+
+	brs.receipts[nKey] = append(brs.receipts[nKey], nItem)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, float64(brs.size()))
 	}
@@ -45,18 +50,18 @@ func (brs *ReceiptPoolCacheStorage) SetItem(_, item interface{}) error {
 }
 
 // SetItems store and replace the old items.
-//      - items: []model.BatchReceipt
+//      - items: []model.Receipt
 func (brs *ReceiptPoolCacheStorage) SetItems(items interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
-		nItems []model.Receipt
+		nItems map[string][]model.Receipt
 		ok     bool
 	)
-	nItems, ok = items.([]model.Receipt)
+	nItems, ok = items.(map[string][]model.Receipt)
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid receipt item")
 	}
 	brs.receipts = nItems
 	if monitoring.IsMonitoringActive() {
@@ -67,45 +72,80 @@ func (brs *ReceiptPoolCacheStorage) SetItems(items interface{}) error {
 
 // GetItem getting single item of ReceiptPoolCacheStorage refill the reference item
 //      - key: receiptKey which is a string
-//      - item: BatchReceiptCache
-func (brs *ReceiptPoolCacheStorage) GetItem(_, _ interface{}) error {
+//      - item: *[]model.Receipt
+func (brs *ReceiptPoolCacheStorage) GetItem(key, items interface{}) error {
+	brs.Lock()
+	defer brs.Unlock()
+
+	var (
+		nItems *[]model.Receipt
+		nKey   string
+		ok     bool
+	)
+
+	if nKey, ok = key.(string); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid key type")
+	}
+
+	if nItems, ok = items.(*[]model.Receipt); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid receipt item")
+	}
+
+	*nItems = brs.receipts[nKey]
 	return nil
 }
 
 // GetAllItems get all items of ReceiptPoolCacheStorage
-//      - items: *map[string]BatchReceipt
+//      - items: *map[string][]model.Receipt
 func (brs *ReceiptPoolCacheStorage) GetAllItems(items interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
-		nItem *[]model.Receipt
+		nItem *map[string][]model.Receipt
 		ok    bool
 	)
-	if nItem, ok = items.(*[]model.Receipt); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
+	if nItem, ok = items.(*map[string][]model.Receipt); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid receipt item")
 	}
 	*nItem = brs.receipts
 	return nil
 }
 
-func (brs *ReceiptPoolCacheStorage) RemoveItem(_ interface{}) error {
+func (brs *ReceiptPoolCacheStorage) RemoveItem(key interface{}) error {
+
+	brs.Lock()
+	defer brs.Unlock()
+
+	var (
+		nKey string
+		ok   bool
+	)
+
+	nKey, ok = key.(string)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "invalid key type")
+	}
+
+	delete(brs.receipts, nKey)
 	return nil
 }
 
 func (brs *ReceiptPoolCacheStorage) size() int64 {
 	var size int64
-	for _, cache := range brs.receipts {
-		var s int
-		s += len(cache.GetSenderPublicKey())
-		s += len(cache.GetRecipientPublicKey())
-		s += 4 // this is cache.GetDatumType()
-		s += len(cache.GetDatumHash())
-		s += 4 // this is cache.GetReferenceBlockHeight()
-		s += len(cache.GetRMRLinked())
-		s += len(cache.GetReferenceBlockHash())
-		s += len(cache.GetRecipientSignature())
-		size += int64(s)
+	for _, receipts := range brs.receipts {
+		for _, receipt := range receipts {
+			var s int
+			s += len(receipt.GetSenderPublicKey())
+			s += len(receipt.GetRecipientPublicKey())
+			s += 4 // this is cache.GetDatumType()
+			s += len(receipt.GetDatumHash())
+			s += 4 // this is cache.GetReferenceBlockHeight()
+			s += len(receipt.GetRMRLinked())
+			s += len(receipt.GetReferenceBlockHash())
+			s += len(receipt.GetRecipientSignature())
+			size += int64(s)
+		}
 	}
 	return size
 }
@@ -120,7 +160,7 @@ func (brs *ReceiptPoolCacheStorage) ClearCache() error {
 	brs.Lock()
 	defer brs.Unlock()
 
-	brs.receipts = make([]model.Receipt, 0)
+	brs.receipts = make(map[string][]model.Receipt)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
 	}

@@ -16,7 +16,7 @@ func TestRandomNumberGenerator_SequenceConsistency(t *testing.T) {
 	if err != nil {
 		t.Errorf("fail to reset rng seed: %v\n", err)
 	}
-	var result = make([]uint64, 10)
+	var result = make([]int64, 10)
 	for i := 0; i < len(result); i++ {
 		result[i] = rngInstance.Next()
 	}
@@ -41,7 +41,7 @@ func TestRandomNumberGenerator_DifferentPrefix(t *testing.T) {
 	if err != nil {
 		t.Errorf("fail to reset rng seed: %v\n", err)
 	}
-	var result = make([]uint64, 10)
+	var result = make([]int64, 10)
 	for i := 0; i < len(result); i++ {
 		result[i] = rngInstance.Next()
 	}
