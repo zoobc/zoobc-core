@@ -578,6 +578,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		nil,
+		storage.NewReceiptBatchStackStorage(),
 	)
 	block, err := bs.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

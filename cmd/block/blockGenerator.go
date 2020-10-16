@@ -234,7 +234,21 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
-		), nil, nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil, nil)
+		),
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		nil,
+		feeScaleService,
+		query.GetPruneQuery(chainType),
+		nil,
+		nil,
+		nil,
+		nil,
+		storage.NewReceiptBatchStackStorage(),
+	)
 
 	migration = database.Migration{Query: queryExecutor}
 }

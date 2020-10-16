@@ -268,6 +268,59 @@ func (rs *ReceiptService) pickReceipts(
 	return pickedReceipts, nil
 }
 
+// SaveReceiptAndMerkle save receipts and its generated merkle root to database and memory
+func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error {
+	if len(receiptBatchObject.ReceiptBatch) == 0 {
+		// at least `PreviousBlock` receipt (even if empty) is required
+		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastOneRowOfReceiptBatchRequired")
+	}
+	var (
+		merkleRoot   util.MerkleRoot
+		err          error
+		receiptCount = len(receiptBatchObject.ReceiptBatch) * len(receiptBatchObject.ReceiptBatch[0])
+		merkleLeafs  = make([]*bytes.Buffer, 0, receiptCount)
+		queries      = make([][]interface{}, receiptCount+1)
+	)
+	for i := 0; i < len(receiptBatchObject.ReceiptBatch); i++ {
+		for j := 0; j < len(receiptBatchObject.ReceiptBatch[i]); j++ {
+			rcHash := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&(receiptBatchObject.ReceiptBatch[i][j])))
+			merkleLeafs = append(merkleLeafs, bytes.NewBuffer(rcHash[:]))
+		}
+	}
+	_, err = merkleRoot.GenerateMerkleRoot(merkleLeafs)
+	if err != nil {
+		return err
+	}
+	root, merkleTree := merkleRoot.ToBytes()
+	receiptBatchObject.MerkleRoot = root
+	for i := 0; i < len(receiptBatchObject.ReceiptBatch); i++ {
+		for j := 0; j < len(receiptBatchObject.ReceiptBatch[i]); j++ {
+			batchReceipt := &model.BatchReceipt{
+				Receipt:  &(receiptBatchObject.ReceiptBatch[i][j]),
+				RMR:      receiptBatchObject.MerkleRoot,
+				RMRIndex: uint32(i*j + j),
+			}
+			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(batchReceipt)
+			queries[i*j+j] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
+		}
+	}
+	insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
+		receiptBatchObject.MerkleRoot,
+		merkleTree,
+		time.Now().Unix(),
+		receiptBatchObject.BlockHeight,
+	)
+	queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
+
+	err = rs.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
+	}
+	rs.LastMerkleRoot = receiptBatchObject.MerkleRoot // update local cache
+	// todo: store to cache
+	return nil
+}
+
 // GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
 // generating will do when number of collected receipts(batch receipts) already <= the number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {

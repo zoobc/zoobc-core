@@ -60,6 +60,7 @@ var (
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
 	scrambleNodeStorage, mainBlocksStorage                                 storage.CacheStackStorageInterface
+	receiptBatchStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -283,6 +284,7 @@ func initiateMainInstance() {
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
+	receiptBatchStorage = storage.NewReceiptBatchStackStorage()
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -523,6 +525,7 @@ func initiateMainInstance() {
 		mainBlocksStorage,
 		blockchainStatusService,
 		scrambleNodeService,
+		receiptBatchStorage,
 	)
 
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(

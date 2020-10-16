@@ -12,4 +12,7 @@ const (
 	ReceiptBatchPickMultiplier      = uint32(5)
 	ReceiptHashSize                 = 32 // sha256
 	ReceiptGenerateMarkleRootPeriod = 20 * time.Second
+	// cache
+	// MaxReceiptBatchCacheRound
+	MaxReceiptBatchCacheRound = 40
 )

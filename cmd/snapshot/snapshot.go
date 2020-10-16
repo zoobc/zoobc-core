@@ -308,6 +308,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			nil,
 			nil,
 			nil,
+			storage.NewReceiptBatchStackStorage(),
 		)
 		err = mainBlockService.UpdateLastBlockCache(nil)
 		if err != nil {

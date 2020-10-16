@@ -40,7 +40,7 @@ func (s *ScrambleCacheStackStorage) Pop() error {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeScrambleNodeCacheStorage, float64(s.size()))
 	}
 	// no more to pop
-	return blocker.NewBlocker(blocker.ValidationErr, "StackEmpty")
+	return blocker.NewBlocker(blocker.CacheEmpty, "StackEmpty")
 }
 
 func (s *ScrambleCacheStackStorage) Push(item interface{}) error {
