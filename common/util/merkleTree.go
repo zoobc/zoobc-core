@@ -64,7 +64,7 @@ func (mr *MerkleRoot) hash(a, b *bytes.Buffer, level int32) *bytes.Buffer {
 
 // GetMerkleRootFromIntermediateHashes hash the root to every intermediate hashes in order until it returns the
 // merkle root hash
-func (mr *MerkleRoot) GetMerkleRootFromIntermediateHashes(
+func (*MerkleRoot) GetMerkleRootFromIntermediateHashes(
 	leaf []byte, leafIndex uint32,
 	intermediateHashes [][]byte,
 ) (root []byte, err error) {

@@ -266,6 +266,11 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
 	}
+	// check included main block
+	err = bs.validateIncludedMainBlock(previousLastBlock, block)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -595,22 +600,55 @@ func (bs *BlockSpineService) GenerateBlock(
 	_ bool,
 ) (*model.Block, error) {
 	var (
-		spinePublicKeys     []*model.SpinePublicKey
-		err                 error
-		digest              = sha3.New256()
-		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
-		fromTimestamp       = previousBlock.Timestamp
-		spineBlockManifests []*model.SpineBlockManifest
+		err                         error
+		spinePublicKeys             []*model.SpinePublicKey
+		spineBlockManifests         []*model.SpineBlockManifest
+		includedMainBlocks          []*model.Block
+		blockSmithPublicKey         = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		newBlockHeight              = previousBlock.Height + 1
+		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight + 1
+		newReferenceBlockHeight     uint32
 	)
-	newBlockHeight := previousBlock.Height + 1
-	// compute spine pub keys from mainchain node registrations
-	// Note: since spine blocks are not in sync with main blocks and they are unaware of the height (on mainchain) where to retrieve
-	// node registration's public keys, we use timestamps instead of block heights
-	if fromTimestamp == bs.GetChainType().GetGenesisBlockTimestamp() {
-		fromTimestamp++
+	// select main block to be include in spine block
+	lastMainBlock, err := bs.MainBlockService.GetLastBlock()
+	if err != nil {
+		return nil, err
 	}
-	// TODO: spine public key should in the range of included main block
-	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(fromTimestamp, timestamp, newBlockHeight)
+	// check last main block height still higher from SpineReferenceBlockHeightOffset
+	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
+		newReferenceBlockHeight = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+	}
+	// make sure new reference block height is greater than previous Reference Block Height
+	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
+		limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
+		includedMainBlocks, err = bs.MainBlockService.GetBlocksFromHeight(newIncludedFirstBlockHeight, limit, false)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(includedMainBlocks) == 0 {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
+	}
+	// generate merkle root & merkle tree for new spnine block
+	var (
+		merkleRoot      commonUtils.MerkleRoot
+		hashedMainBlock []*bytes.Buffer
+	)
+	for i := 0; i < len(includedMainBlocks); i++ {
+		hashedMainBlock = append(hashedMainBlock, bytes.NewBuffer(includedMainBlocks[i].BlockHash))
+	}
+	_, err = merkleRoot.GenerateMerkleRoot(hashedMainBlock)
+	if err != nil {
+		return nil, err
+	}
+	mRoot, mTree := merkleRoot.ToBytes()
+
+	// compute spine pub keys from mainchain node registrations
+	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(
+		newIncludedFirstBlockHeight,
+		newReferenceBlockHeight,
+		newBlockHeight,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -624,12 +662,11 @@ func (bs *BlockSpineService) GenerateBlock(
 	for _, spm := range spineBlockManifests {
 		spm.ManifestSpineBlockHeight = newBlockHeight
 	}
-	// loop through transaction to build block hash
+	digest := sha3.New256()
 	digest.Reset() // reset the digest
 	if _, err := digest.Write(previousBlock.GetBlockSeed()); err != nil {
 		return nil, err
 	}
-
 	previousSeedHash := digest.Sum([]byte{})
 	blockSeed := bs.Signature.GenerateBlockSeed(previousSeedHash, secretPhrase)
 	digest.Reset() // reset the digest
@@ -638,43 +675,7 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	// select main block to be include in spine block
-	lastMainBlock, err := bs.MainBlockService.GetLastBlock()
-	if err != nil {
-		return nil, err
-	}
 
-	var (
-		includedBlocks    []*model.Block
-		newReferenceBlock uint32
-	)
-	// to avoid subtract from the bigger number
-	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
-		newReferenceBlock = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
-	}
-	// make sure new reference block height is greater than previous Reference Block Height
-	if newReferenceBlock > previousBlock.ReferenceBlockHeight {
-		limit := newReferenceBlock - previousBlock.ReferenceBlockHeight
-		includedBlocks, err = bs.MainBlockService.GetBlocksFromHeight(previousBlock.ReferenceBlockHeight+1, limit, false)
-		if err != nil {
-			return nil, err
-		}
-	}
-	if len(includedBlocks) == 0 {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
-	}
-	var (
-		merkleRoot      commonUtils.MerkleRoot
-		hashedMainBlock []*bytes.Buffer
-	)
-	for i := 0; i < len(includedBlocks); i++ {
-		hashedMainBlock = append(hashedMainBlock, bytes.NewBuffer(includedBlocks[i].BlockHash))
-	}
-	_, err = merkleRoot.GenerateMerkleRoot(hashedMainBlock)
-	if err != nil {
-		return nil, err
-	}
-	mRoot, mTree := merkleRoot.ToBytes()
 	block, err := bs.NewSpineBlock(
 		1,
 		previousBlockHash,
@@ -683,7 +684,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		mRoot,
 		mTree,
 		newBlockHeight,
-		newReferenceBlock,
+		newReferenceBlockHeight,
 		timestamp,
 		secretPhrase,
 		spinePublicKeys,
@@ -814,11 +815,6 @@ func (bs *BlockSpineService) ReceiveBlock(
 			"last block hash does not exist",
 		)
 	}
-	// check existing last main block
-	err = bs.validateIncludedMainBlock(lastBlock, block)
-	if err != nil {
-		return nil, err
-	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.BlockHash, block.PreviousBlockHash) {
 		// check if incoming block is of higher quality
@@ -917,11 +913,43 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
-	var _, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+	var mainLastBlock, err = bs.MainBlockService.GetLastBlock()
 	if err != nil {
 		return err
 	}
-	// TODO: check merkle root of included main block
+	// no need validate merkle root when reference block height is higher than curerent last main block
+	if incomingBlock.ReferenceBlockHeight > mainLastBlock.Height {
+		return nil
+	}
+	var referenceBlock = mainLastBlock
+	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
+		referenceBlock, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+		if err != nil {
+			return err
+		}
+	}
+	var (
+		merkleRoot         commonUtils.MerkleRoot
+		rootHash           []byte
+		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
+		intermediateHashes [][]byte
+	)
+	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
+	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
+	rootHash, err = merkleRoot.GetMerkleRootFromIntermediateHashes(
+		referenceBlock.BlockHash,
+		leafIndex,
+		intermediateHashes,
+	)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(incomingBlock.MerkleRoot, rootHash) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidMerkleRootBlock")
+	}
 	return nil
 }
 
