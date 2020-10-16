@@ -47,7 +47,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)
@@ -79,7 +79,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)

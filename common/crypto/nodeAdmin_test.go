@@ -36,7 +36,7 @@ func setupVerifyAuthAPI() {
 	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
 	validSignature, _ := (&Signature{}).Sign(
 		bufferValid.Bytes(),
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	bufferValid.Write(validSignature)

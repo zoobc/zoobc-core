@@ -261,7 +261,7 @@ func (*mockMempoolCacheStorageSuccessGet) GetItem(key, item interface{}) error {
 
 func TestParseTransactionBytes(t *testing.T) {
 	var mockTransactionWithEscrow = &model.Transaction{
-		ID:                      -8024433657321239105,
+		ID:                      9040547499122759451,
 		Version:                 1,
 		TransactionType:         2,
 		BlockID:                 0,
@@ -277,7 +277,7 @@ func TestParseTransactionBytes(t *testing.T) {
 		TransactionBodyLength: 8,
 		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
+			4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
 			68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
 			77, 80, 80, 39, 254, 173, 28, 169,
 		},
@@ -291,7 +291,7 @@ func TestParseTransactionBytes(t *testing.T) {
 	mockTransactionWithEscrow.TransactionHash = transactionWithEscrowHashed[:]
 
 	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
-		-7109988043015466157,
+		-8289164386094074251,
 		12345678,
 		senderAddress1,
 		nil,
@@ -565,7 +565,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesNoRecipient, _ := transactionUtil.GetTransactionBytes(txValidateNoRecipient, false)
 	txBytesHash := sha3.Sum256(txBytesNoRecipient)
-	signatureTXValidateNoRecipient, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateNoRecipient, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateNoRecipient.Signature = signatureTXValidateNoRecipient
 
@@ -577,7 +577,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesMustEscrow, _ := transactionUtil.GetTransactionBytes(txValidateMustEscrow, false)
 	txBytesMustEscrowHash := sha3.Sum256(txBytesMustEscrow)
-	signatureTXValidateMustEscrow, _ := (&crypto.Signature{}).Sign(txBytesMustEscrowHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateMustEscrow, _ := (&crypto.Signature{}).Sign(txBytesMustEscrowHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateMustEscrow.Signature = signatureTXValidateMustEscrow
 
@@ -589,7 +589,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txValidateEscrow, false)
 	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
-	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateEscrow.Signature = signatureTXValidateEscrow
 
@@ -783,7 +783,7 @@ func TestMultisigTransactionUtil_ValidateSignatureInfo(t *testing.T) {
 	txHash := make([]byte, 32)
 	_, _, _, _, validAddress, _ := sig.GenerateAccountFromSeed(&accounttype.ZbcAccountType{}, "a")
 	validAddressHex := hex.EncodeToString(validAddress)
-	validSignature, _ := sig.Sign(txHash, model.SignatureType_DefaultSignature, "a")
+	validSignature, _ := sig.Sign(txHash, model.AccountType_ZbcAccountType, "a")
 	tests := []struct {
 		name    string
 		args    args

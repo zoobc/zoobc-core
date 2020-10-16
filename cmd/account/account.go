@@ -231,7 +231,7 @@ func (gc *GeneratorCommands) GenerateBitcoinAccount() RunCommand {
 
 // PrintAccount print out the generated account
 func PrintAccount(
-	accountType accounttype.AccountType,
+	accountType accounttype.AccountTypeInterface,
 	seed, publicKeyString, encodedAddress string,
 	privateKey, publicKey, fullAccountAddress []byte,
 ) {

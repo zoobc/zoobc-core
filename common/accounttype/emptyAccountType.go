@@ -52,7 +52,7 @@ func (acc *EmptyAccountType) GetAccountPublicKeyLength() uint32 {
 	return 0
 }
 
-func (acc *EmptyAccountType) IsEqual(acc2 AccountType) bool {
+func (acc *EmptyAccountType) IsEqual(acc2 AccountTypeInterface) bool {
 	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 

@@ -1169,7 +1169,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
 	txBytesHash := sha3.Sum256(txBytes)
-	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
 		Chaintype              chaintype.ChainType

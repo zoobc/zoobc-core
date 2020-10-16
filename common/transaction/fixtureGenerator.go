@@ -274,7 +274,7 @@ func GetFixturesForSignedMempoolTransaction(
 	tx := GetFixturesForTransaction(timestamp, sender, recipient, escrow)
 	txBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	txBytesHash := sha3.Sum256(txBytes)
-	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	signature, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	tx.Signature = signature
 	txBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
@@ -377,7 +377,7 @@ func GetFixtureForSpecificTransaction(
 	if sign {
 		tx.Signature, _ = (&crypto.Signature{}).Sign(
 			transactionBytes,
-			model.SignatureType_DefaultSignature,
+			model.AccountType_ZbcAccountType,
 			senderAddress1PassPhrase,
 		)
 		transactionBytes, _ = transactionUtil.GetTransactionBytes(tx, true)
@@ -442,7 +442,7 @@ func GetFixtureForFeeVoteRevealTransaction(
 
 	feeVoteSigned, _ := (&crypto.Signature{}).Sign(
 		tx.GetFeeVoteInfoBytes(),
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		seed,
 	)
 

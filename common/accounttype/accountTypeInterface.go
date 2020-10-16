@@ -4,9 +4,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-// AccountType interface define the different behavior of each address
+// AccountTypeInterface interface define the different behavior of each address
 type (
-	AccountType interface {
+	AccountTypeInterface interface {
 		// SetAccountPublicKey set/update account public key
 		SetAccountPublicKey(accountPublicKey []byte)
 		// SetEncodedAccountAddress set/update encoded accountAddress (string representation of the accountAddress)
@@ -27,7 +27,7 @@ type (
 		GetAccountPublicKeyLength() uint32
 		// GetFormattedAccount return a string encoded/formatted account address
 		GetFormattedAccount() (string, error) // IsEqual checks if two account have same type and pub key
-		IsEqual(acc AccountType) bool
+		IsEqual(acc AccountTypeInterface) bool
 		// GetSignatureType return the signature type number for this account type
 		GetSignatureType() model.SignatureType
 		// GetSignatureLength return the signature length for this account type

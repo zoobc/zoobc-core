@@ -117,7 +117,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	}
 	signature, err = gc.Signature.Sign(
 		unsignedBytes,
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		seed,
 		ed25519UseSlip10,
 	)

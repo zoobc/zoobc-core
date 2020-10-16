@@ -291,7 +291,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 	)
 
 	txTypeSuccess, transactionBytes := transaction.GetFixtureForSpecificTransaction(
-		3604219699276106331,
+		5298837107897007947,
 		1562806389280,
 		txAPISenderAccount1,
 		txAPIRecipientAccount1,
@@ -304,7 +304,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		true,
 	)
 	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
-		-1116501021902709404,
+		-62373445000112233,
 		1581301507,
 		txAPISenderAccount1,
 		nil,

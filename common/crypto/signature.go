@@ -3,7 +3,6 @@ package crypto
 import (
 	"bytes"
 	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zed25519/zed"
@@ -18,11 +17,11 @@ import (
 type (
 	// SignatureInterface represent interface of signature
 	SignatureInterface interface {
-		Sign(payload []byte, signatureType model.SignatureType, seed string, optionalParams ...interface{}) ([]byte, error)
+		Sign(payload []byte, accountType model.AccountType, seed string, optionalParams ...interface{}) ([]byte, error)
 		SignByNode(payload []byte, nodeSeed string) []byte
 		VerifySignature(payload, signature, accountAddress []byte) error
 		VerifyNodeSignature(payload, signature []byte, nodePublicKey []byte) bool
-		GenerateAccountFromSeed(accountType accounttype.AccountType, seed string, optionalParams ...interface{}) (
+		GenerateAccountFromSeed(accountType accounttype.AccountTypeInterface, seed string, optionalParams ...interface{}) (
 			privateKey, publicKey []byte,
 			publicKeyString, encodedAddress string,
 			fullAccountAddress []byte,
@@ -45,13 +44,16 @@ func NewSignature() *Signature {
 // signature method associated with account.Type
 func (*Signature) Sign(
 	payload []byte,
-	signatureType model.SignatureType,
+	accountTypeEnum model.AccountType,
 	seed string,
 	optionalParams ...interface{},
 ) ([]byte, error) {
+	accountType, err := accounttype.NewAccountType(int32(accountTypeEnum), nil)
+	if err != nil {
+		return nil, err
+	}
 	buffer := bytes.NewBuffer([]byte{})
-	buffer.Write(util.ConvertUint32ToBytes(uint32(signatureType)))
-	switch signatureType {
+	switch accountType.GetSignatureType() {
 	case model.SignatureType_DefaultSignature:
 		var (
 			ed25519Signature  = NewEd25519Signature()
@@ -133,16 +135,21 @@ func (*Signature) SignByNode(payload []byte, nodeSeed string) []byte {
 // then verify the signature + public key against the payload based on the
 func (*Signature) VerifySignature(payload, signature, accountAddress []byte) error {
 	var (
-		signatureType = util.ConvertBytesToUint32(signature[:4])
+		accountTypeInt = int32(util.ConvertBytesToUint32(accountAddress[:4]))
 	)
-	switch model.SignatureType(signatureType) {
+	accountType, err := accounttype.NewAccountType(accountTypeInt, accountAddress[4:])
+	if err != nil {
+		return err
+	}
+	// TODO: move this logic into AccountTypeInterface interface (remove switch cases for every account/signature type)
+	switch accountType.GetSignatureType() {
 	case model.SignatureType_DefaultSignature: // zoobc
 		accType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
 		if err != nil {
 			return err
 		}
 		ed25519Signature := NewEd25519Signature()
-		if !ed25519Signature.Verify(accType.GetAccountPublicKey(), payload, signature[4:]) {
+		if !ed25519Signature.Verify(accType.GetAccountPublicKey(), payload, signature) {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
 				"InvalidSignature",
@@ -152,9 +159,9 @@ func (*Signature) VerifySignature(payload, signature, accountAddress []byte) err
 	case model.SignatureType_BitcoinSignature: // bitcoin
 		var (
 			bitcoinSignature = NewBitcoinSignature(DefaultBitcoinNetworkParams(), DefaultBitcoinCurve())
-			// 2 bytes after signature type bytes is length of public key
-			pubKeyFirstBytesIndex    = 6
-			pubKeyBytesLength        = util.ConvertBytesToUint16(signature[4:pubKeyFirstBytesIndex])
+			// first 2 bytes are the public key length
+			pubKeyFirstBytesIndex    = 2
+			pubKeyBytesLength        = util.ConvertBytesToUint16(signature[:pubKeyFirstBytesIndex])
 			signatureFirstBytesIndex = pubKeyFirstBytesIndex + int(pubKeyBytesLength)
 			signaturePubKeyBytes     = signature[pubKeyFirstBytesIndex:signatureFirstBytesIndex]
 			signaturePubKey, err     = bitcoinSignature.GetPublicKeyFromBytes(signaturePubKeyBytes)
@@ -212,7 +219,7 @@ func (*Signature) VerifyNodeSignature(payload, signature, nodePublicKey []byte) 
 }
 
 // GenerateAccountFromSeed to generate account based on provided seed
-func (*Signature) GenerateAccountFromSeed(accountType accounttype.AccountType, seed string, optionalParams ...interface{}) (
+func (*Signature) GenerateAccountFromSeed(accountType accounttype.AccountTypeInterface, seed string, optionalParams ...interface{}) (
 	privateKey, publicKey []byte,
 	publicKeyString, encodedAddress string,
 	fullAccountAddress []byte,

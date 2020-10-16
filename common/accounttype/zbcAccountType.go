@@ -16,6 +16,9 @@ type ZbcAccountType struct {
 }
 
 func (acc *ZbcAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	if accountPublicKey == nil {
+		acc.accountPublicKey = make([]byte, 0)
+	}
 	acc.accountPublicKey = accountPublicKey
 }
 
@@ -51,7 +54,7 @@ func (acc *ZbcAccountType) GetAccountPublicKeyLength() uint32 {
 	return 32
 }
 
-func (acc *ZbcAccountType) IsEqual(acc2 AccountType) bool {
+func (acc *ZbcAccountType) IsEqual(acc2 AccountTypeInterface) bool {
 	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 

@@ -16,6 +16,9 @@ type BTCAccountType struct {
 }
 
 func (acc *BTCAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	if accountPublicKey == nil {
+		acc.accountPublicKey = make([]byte, 0)
+	}
 	acc.accountPublicKey = accountPublicKey
 }
 
@@ -51,7 +54,7 @@ func (acc *BTCAccountType) GetAccountPublicKeyLength() uint32 {
 	return btcec.PubKeyBytesLenCompressed
 }
 
-func (acc *BTCAccountType) IsEqual(acc2 AccountType) bool {
+func (acc *BTCAccountType) IsEqual(acc2 AccountTypeInterface) bool {
 	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 

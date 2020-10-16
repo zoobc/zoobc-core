@@ -50,7 +50,7 @@ func main() {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GeneratetNodeKey)))
 	sig, err := signature.Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		accountSeed,
 	)
 	if err != nil {
