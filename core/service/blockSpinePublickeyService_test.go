@@ -3,11 +3,11 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"github.com/DATA-DOG/go-sqlmock"
 	"reflect"
 	"regexp"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -25,9 +25,8 @@ func (*mockNodeRegistrationQueryExecutorSuccess) ExecuteSelect(qStr string, tx b
 	defer db.Close()
 	switch qStr {
 	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
-		"registration_status, latest, height FROM node_registry WHERE height >= (SELECT MIN(height) " +
-		"FROM main_block AS mb1 WHERE mb1.timestamp >= 1) AND height <= (SELECT MAX(height) " +
-		"FROM main_block AS mb2 WHERE mb2.timestamp < 2) AND registration_status != 1 AND latest=1 ORDER BY height":
+		"registration_status, latest, height FROM node_registry WHERE height >= 1 AND height <= 2 " +
+		"AND registration_status != 1 AND latest=1 ORDER BY height":
 		mockNodeRegistrationRows := mockSpine.NewRows(query.NewNodeRegistrationQuery().Fields)
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockNodeRegistrationRows)
 	default:
@@ -46,9 +45,9 @@ func TestBlockSpinePublicKeyService_BuildSpinePublicKeysFromNodeRegistry(t *test
 		Logger                *log.Logger
 	}
 	type args struct {
-		fromTimestamp int64
-		toTimestamp   int64
-		spineHeight   uint32
+		mainFromHeight uint32
+		mainToHeight   uint32
+		spineHeight    uint32
 	}
 	tests := []struct {
 		name                string
@@ -67,9 +66,9 @@ func TestBlockSpinePublicKeyService_BuildSpinePublicKeysFromNodeRegistry(t *test
 				Logger:                log.New(),
 			},
 			args: args{
-				fromTimestamp: 1,
-				toTimestamp:   2,
-				spineHeight:   1,
+				mainFromHeight: 1,
+				mainToHeight:   2,
+				spineHeight:    1,
 			},
 			wantSpinePublicKeys: []*model.SpinePublicKey{},
 		},
@@ -83,7 +82,7 @@ func TestBlockSpinePublicKeyService_BuildSpinePublicKeysFromNodeRegistry(t *test
 				SpinePublicKeyQuery:   tt.fields.SpinePublicKeyQuery,
 				Logger:                tt.fields.Logger,
 			}
-			gotSpinePublicKeys, err := bsf.BuildSpinePublicKeysFromNodeRegistry(tt.args.fromTimestamp, tt.args.toTimestamp, tt.args.spineHeight)
+			gotSpinePublicKeys, err := bsf.BuildSpinePublicKeysFromNodeRegistry(tt.args.mainFromHeight, tt.args.mainToHeight, tt.args.spineHeight)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry() error = %v, wantErr %v", err, tt.wantErr)
 				return
