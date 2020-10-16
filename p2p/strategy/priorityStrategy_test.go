@@ -12,6 +12,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
@@ -344,8 +345,12 @@ func (*mockPeerServiceClientSuccess) SendNodeAddressInfo(destPeer *model.Peer, n
 func (*mockPeerServiceClientFail) DeleteConnection(destPeer *model.Peer) error {
 	return errors.New("mockedError")
 }
-func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return mockGoodBlock, nil
+func (*mockBlockMainServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockGoodBlock.ID,
+		Height:    mockGoodBlock.Height,
+		BlockHash: mockGoodBlock.BlockHash,
+	}, nil
 }
 
 func TestPriorityStrategy_GetResolvedPeers(t *testing.T) {
