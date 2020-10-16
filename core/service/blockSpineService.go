@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 	"math/big"
 	"sort"
 	"sync"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -802,7 +803,7 @@ func (bs *BlockSpineService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 	peer *model.Peer,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	var (
 		err error
 	)

@@ -477,14 +477,14 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
 			"receipt_index", "published_index",
 		}).AddRow(
-			mockSpinePublishedReceipt[0].BatchReceipt.SenderPublicKey,
-			mockSpinePublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-			mockSpinePublishedReceipt[0].BatchReceipt.DatumType,
-			mockSpinePublishedReceipt[0].BatchReceipt.DatumHash,
-			mockSpinePublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-			mockSpinePublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-			mockSpinePublishedReceipt[0].BatchReceipt.RMRLinked,
-			mockSpinePublishedReceipt[0].BatchReceipt.RecipientSignature,
+			mockSpinePublishedReceipt[0].Receipt.SenderPublicKey,
+			mockSpinePublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockSpinePublishedReceipt[0].Receipt.DatumType,
+			mockSpinePublishedReceipt[0].Receipt.DatumHash,
+			mockSpinePublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockSpinePublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockSpinePublishedReceipt[0].Receipt.RMRLinked,
+			mockSpinePublishedReceipt[0].Receipt.RecipientSignature,
 			mockSpinePublishedReceipt[0].IntermediateHashes,
 			mockSpinePublishedReceipt[0].BlockHeight,
 			mockSpinePublishedReceipt[0].ReceiptIndex,
@@ -511,7 +511,7 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 
 var mockSpinePublishedReceipt = []*model.PublishedReceipt{
 	{
-		BatchReceipt: &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey:      make([]byte, 32),
 			RecipientPublicKey:   make([]byte, 32),
 			DatumType:            0,
@@ -2430,7 +2430,7 @@ func TestBlockSpineService_ReceiveBlock(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.BatchReceipt
+		want    *model.Receipt
 		wantErr bool
 	}{
 		{
