@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -292,7 +293,7 @@ func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.Receip
 	var (
 		merkleRoot   util.MerkleRoot
 		receiptCount = len(receiptBatchObject.ReceiptBatch) * len(receiptBatchObject.ReceiptBatch[0])
-		merkleLeafs  = make([]*bytes.Buffer, receiptCount)
+		merkleLeafs  = make([]*bytes.Buffer, 0, receiptCount)
 		queries      = make([][]interface{}, receiptCount+1)
 		err          error
 	)
@@ -515,16 +516,12 @@ func (rs *ReceiptService) GenerateReceiptWithReminder(
 }
 
 func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error {
-	receiptKey, err := rs.ReceiptUtil.GetReceiptKey(receipt.GetDatumHash(), senderPublicKey)
-	if err != nil {
-		return err
-	}
 	b := *receipt
-	err = rs.ReceiptPoolCacheStorage.SetItem(receiptKey, b)
+	err := rs.ReceiptPoolCacheStorage.SetItem(hex.EncodeToString(receipt.DatumHash), b)
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receiptKey), chaintype)
+	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receipt.DatumHash), chaintype)
 	if err != nil {
 		return err
 	}
