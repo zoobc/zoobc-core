@@ -29,7 +29,7 @@ var (
 	}
 
 	mockPublishedReceipt = &model.PublishedReceipt{
-		BatchReceipt: &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey:      make([]byte, 32),
 			RecipientPublicKey:   make([]byte, 32),
 			DatumType:            1,
@@ -89,14 +89,14 @@ func TestPublishedReceiptQuery_ExtractModel(t *testing.T) {
 				publishedReceipt: mockPublishedReceipt,
 			},
 			want: []interface{}{
-				&mockPublishedReceipt.BatchReceipt.SenderPublicKey,
-				&mockPublishedReceipt.BatchReceipt.RecipientPublicKey,
-				&mockPublishedReceipt.BatchReceipt.DatumType,
-				&mockPublishedReceipt.BatchReceipt.DatumHash,
-				&mockPublishedReceipt.BatchReceipt.ReferenceBlockHeight,
-				&mockPublishedReceipt.BatchReceipt.ReferenceBlockHash,
-				&mockPublishedReceipt.BatchReceipt.RMRLinked,
-				&mockPublishedReceipt.BatchReceipt.RecipientSignature,
+				&mockPublishedReceipt.Receipt.SenderPublicKey,
+				&mockPublishedReceipt.Receipt.RecipientPublicKey,
+				&mockPublishedReceipt.Receipt.DatumType,
+				&mockPublishedReceipt.Receipt.DatumHash,
+				&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
+				&mockPublishedReceipt.Receipt.ReferenceBlockHash,
+				&mockPublishedReceipt.Receipt.RMRLinked,
+				&mockPublishedReceipt.Receipt.RecipientSignature,
 				&mockPublishedReceipt.IntermediateHashes,
 				&mockPublishedReceipt.BlockHeight,
 				&mockPublishedReceipt.ReceiptIndex,
@@ -192,14 +192,14 @@ func TestPublishedReceiptQuery_InsertPublishedReceipt(t *testing.T) {
 				"reference_block_height, reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, " +
 				"block_height, receipt_index, published_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
 			wantArgs: []interface{}{
-				&mockPublishedReceipt.BatchReceipt.SenderPublicKey,
-				&mockPublishedReceipt.BatchReceipt.RecipientPublicKey,
-				&mockPublishedReceipt.BatchReceipt.DatumType,
-				&mockPublishedReceipt.BatchReceipt.DatumHash,
-				&mockPublishedReceipt.BatchReceipt.ReferenceBlockHeight,
-				&mockPublishedReceipt.BatchReceipt.ReferenceBlockHash,
-				&mockPublishedReceipt.BatchReceipt.RMRLinked,
-				&mockPublishedReceipt.BatchReceipt.RecipientSignature,
+				&mockPublishedReceipt.Receipt.SenderPublicKey,
+				&mockPublishedReceipt.Receipt.RecipientPublicKey,
+				&mockPublishedReceipt.Receipt.DatumType,
+				&mockPublishedReceipt.Receipt.DatumHash,
+				&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
+				&mockPublishedReceipt.Receipt.ReferenceBlockHash,
+				&mockPublishedReceipt.Receipt.RMRLinked,
+				&mockPublishedReceipt.Receipt.RecipientSignature,
 				&mockPublishedReceipt.IntermediateHashes,
 				&mockPublishedReceipt.BlockHeight,
 				&mockPublishedReceipt.ReceiptIndex,
@@ -226,20 +226,20 @@ func TestPublishedReceiptQuery_InsertPublishedReceipt(t *testing.T) {
 
 func TestPublishedReceiptQuery_Scan(t *testing.T) {
 	var mockTempReceipt = model.PublishedReceipt{
-		BatchReceipt: &model.BatchReceipt{},
+		Receipt: &model.Receipt{},
 	}
 
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(mockPublishedReceiptQuery.Fields).AddRow(
-		&mockPublishedReceipt.BatchReceipt.SenderPublicKey,
-		&mockPublishedReceipt.BatchReceipt.RecipientPublicKey,
-		&mockPublishedReceipt.BatchReceipt.DatumType,
-		&mockPublishedReceipt.BatchReceipt.DatumHash,
-		&mockPublishedReceipt.BatchReceipt.ReferenceBlockHeight,
-		&mockPublishedReceipt.BatchReceipt.ReferenceBlockHash,
-		&mockPublishedReceipt.BatchReceipt.RMRLinked,
-		&mockPublishedReceipt.BatchReceipt.RecipientSignature,
+		&mockPublishedReceipt.Receipt.SenderPublicKey,
+		&mockPublishedReceipt.Receipt.RecipientPublicKey,
+		&mockPublishedReceipt.Receipt.DatumType,
+		&mockPublishedReceipt.Receipt.DatumHash,
+		&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
+		&mockPublishedReceipt.Receipt.ReferenceBlockHash,
+		&mockPublishedReceipt.Receipt.RMRLinked,
+		&mockPublishedReceipt.Receipt.RecipientSignature,
 		&mockPublishedReceipt.IntermediateHashes,
 		&mockPublishedReceipt.BlockHeight,
 		&mockPublishedReceipt.ReceiptIndex,

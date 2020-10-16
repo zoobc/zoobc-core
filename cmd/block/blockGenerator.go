@@ -128,7 +128,7 @@ func initialize(
 	blockStorage := storage.NewBlockStateStorage()
 	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
