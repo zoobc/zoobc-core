@@ -744,10 +744,10 @@ func (*mockReceiptUtilError) GetReceiptKey(
 	return nil, errors.New("")
 }
 
-func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
+func (*mockReceiptServiceSucces) GenerateReceiptWithReminder(
 	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
-) (*model.BatchReceipt, error) {
-	return &model.BatchReceipt{}, nil
+) (*model.Receipt, error) {
+	return &model.Receipt{}, nil
 }
 
 func (mrs *mockReceiptServiceSucces) CheckDuplication(publicKey, datumHash []byte) error {
@@ -796,7 +796,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		nodeSecretPhrase                 string
 	}
 	type want struct {
-		batchReceipt *model.BatchReceipt
+		batchReceipt *model.Receipt
 		transaction  *model.Transaction
 		err          bool
 	}

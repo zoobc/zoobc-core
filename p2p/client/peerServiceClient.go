@@ -70,7 +70,7 @@ type (
 		Dialer                   Dialer
 		Logger                   *log.Logger
 		QueryExecutor            query.ExecutorInterface
-		NodeReceiptQuery         query.NodeReceiptQueryInterface
+		NodeReceiptQuery         query.BatchReceiptQueryInterface
 		MerkleTreeQuery          query.MerkleTreeQueryInterface
 		ReceiptService           coreService.ReceiptServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
@@ -87,7 +87,7 @@ type (
 // NewPeerServiceClient to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
-	nodeReceiptQuery query.NodeReceiptQueryInterface,
+	nodeReceiptQuery query.BatchReceiptQueryInterface,
 	nodePublicKey []byte,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
@@ -436,23 +436,23 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipt == nil {
+	if response == nil || response.GetReceipt() == nil {
 		return err
 	}
 
 	// validate receipt before storing
-	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetReceipt().GetDatumHash())
 	if err != nil {
 		return err
 	}
-	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
 	if err != nil {
 		return err
 	}
 
-	return psc.ReceiptService.StoreBatchReceipt(
-		response.GetBatchReceipt(),
-		response.GetBatchReceipt().GetSenderPublicKey(),
+	return psc.ReceiptService.StoreReceipt(
+		response.GetReceipt(),
+		response.GetReceipt().GetSenderPublicKey(),
 		&chaintype.MainChain{},
 	)
 }
@@ -487,21 +487,21 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipt == nil {
+	if response == nil || response.GetReceipt() == nil {
 		return nil
 	}
 
-	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetBatchReceipt().GetDatumHash())
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetReceipt().GetDatumHash())
 	if err != nil {
 		return err
 	}
-	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
 	if err != nil {
 		return err
 	}
-	return psc.ReceiptService.StoreBatchReceipt(
-		response.GetBatchReceipt(),
-		response.GetBatchReceipt().GetSenderPublicKey(),
+	return psc.ReceiptService.StoreReceipt(
+		response.GetReceipt(),
+		response.GetReceipt().GetSenderPublicKey(),
 		&chaintype.MainChain{},
 	)
 }
@@ -533,25 +533,25 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipts == nil || len(response.BatchReceipts) == 0 {
+	if response == nil || response.GetReceipts() == nil || len(response.GetReceipts()) == 0 {
 		return nil
 	}
 
 	// continue even though some receipts are failing
-	for _, batchReceipt := range response.BatchReceipts {
-		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, batchReceipt.GetDatumHash())
+	for _, receipt := range response.GetReceipts() {
+		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, receipt.GetDatumHash())
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
 			continue
 		}
-		err = psc.ReceiptService.ValidateReceipt(batchReceipt)
+		err = psc.ReceiptService.ValidateReceipt(receipt)
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
 			continue
 		}
-		if e := psc.ReceiptService.StoreBatchReceipt(
-			batchReceipt,
-			batchReceipt.GetSenderPublicKey(),
+		if e := psc.ReceiptService.StoreReceipt(
+			receipt,
+			receipt.GetSenderPublicKey(),
 			&chaintype.MainChain{},
 		); e != nil {
 			psc.Logger.Warnf("SendBlockTransactions: %s", e.Error())

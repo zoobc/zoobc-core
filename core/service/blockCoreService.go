@@ -44,11 +44,10 @@ type (
 		ChainWriteUnlock(actionType int)
 		ReceiveBlock(
 			senderPublicKey []byte,
-			lastBlock,
-			block *model.Block,
+			lastBlock, block *model.Block,
 			nodeSecretPhrase string,
 			peer *model.Peer,
-		) (*model.BatchReceipt, error)
+		) (*model.Receipt, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener

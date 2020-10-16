@@ -90,7 +90,7 @@ type (
 	}
 )
 
-func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error) {
 	return []storage.NodeRegistry{}, 0, nil
 }
 
@@ -561,14 +561,14 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
 			"receipt_index", "published_index",
 		}).AddRow(
-			mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
-			mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-			mockPublishedReceipt[0].BatchReceipt.DatumType,
-			mockPublishedReceipt[0].BatchReceipt.DatumHash,
-			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].BatchReceipt.RMRLinked,
-			mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+			mockPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockPublishedReceipt[0].Receipt.DatumType,
+			mockPublishedReceipt[0].Receipt.DatumHash,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockPublishedReceipt[0].Receipt.RMRLinked,
+			mockPublishedReceipt[0].Receipt.RecipientSignature,
 			mockPublishedReceipt[0].IntermediateHashes,
 			mockPublishedReceipt[0].BlockHeight,
 			mockPublishedReceipt[0].ReceiptIndex,
@@ -649,7 +649,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 
 var mockPublishedReceipt = []*model.PublishedReceipt{
 	{
-		BatchReceipt: &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey:      make([]byte, 32),
 			RecipientPublicKey:   make([]byte, 32),
 			DatumType:            0,
@@ -1091,10 +1091,11 @@ type (
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
-func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry,
-	scoreSum float64,
-	blockTimestamp int64,
-	previousBlock *model.Block) ([][]byte, error) {
+func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
+	activeNodeRegistries []storage.NodeRegistry,
+	scoreSum, blockTimestamp int64,
+	previousBlock *model.Block,
+) ([][]byte, error) {
 	return make([][]byte, 0), nil
 }
 
@@ -2964,9 +2965,9 @@ type (
 	}
 )
 
-func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
+func (*mockReceiptServiceSuccess) GenerateReceiptWithReminder(
 	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	return nil, nil
 }
 
@@ -3177,7 +3178,7 @@ func TestBlockService_ReceiveBlock(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    *model.BatchReceipt
+		want    *model.Receipt
 		wantErr bool
 	}{
 		{
@@ -5163,14 +5164,14 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 			WillReturnRows(sqlmock.NewRows(
 				query.NewPublishedReceiptQuery().Fields,
 			).AddRow(
-				mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
-				mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-				mockPublishedReceipt[0].BatchReceipt.DatumType,
-				mockPublishedReceipt[0].BatchReceipt.DatumHash,
-				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-				mockPublishedReceipt[0].BatchReceipt.RMRLinked,
-				mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+				mockPublishedReceipt[0].Receipt.SenderPublicKey,
+				mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+				mockPublishedReceipt[0].Receipt.DatumType,
+				mockPublishedReceipt[0].Receipt.DatumHash,
+				mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+				mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+				mockPublishedReceipt[0].Receipt.RMRLinked,
+				mockPublishedReceipt[0].Receipt.RecipientSignature,
 				mockPublishedReceipt[0].IntermediateHashes,
 				mockPublishedReceipt[0].BlockHeight,
 				mockPublishedReceipt[0].ReceiptIndex,
@@ -5335,7 +5336,7 @@ type (
 	}
 )
 
-func (mRu *mockReceiptUtil) GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
+func (mRu *mockReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte {
 	if mRu.resSignetBytes != nil {
 		return mRu.resSignetBytes
 	}

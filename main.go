@@ -280,7 +280,7 @@ func initiateMainInstance() {
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
+	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
@@ -377,7 +377,7 @@ func initiateMainInstance() {
 	)
 
 	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -431,6 +431,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		mainchain,
+		crypto.NewRandomNumberGenerator(),
 	)
 	mainchainParticipationScoreService = service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
@@ -659,7 +660,7 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor, query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewBatchReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewMerkleTreeQuery(),

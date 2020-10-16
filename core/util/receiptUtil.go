@@ -13,20 +13,14 @@ import (
 type (
 	ReceiptUtilInterface interface {
 		GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32
-
-		GenerateBatchReceipt(
+		GenerateReceipt(
 			ct chaintype.ChainType,
 			referenceBlock *model.Block,
 			senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 			datumType uint32,
-		) (*model.BatchReceipt, error)
-
-		GetUnsignedBatchReceiptBytes(
-			receipt *model.BatchReceipt,
-		) []byte
-
-		GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte
-
+		) (*model.Receipt, error)
+		GetUnsignedReceiptBytes(receipt *model.Receipt) []byte
+		GetSignedReceiptBytes(receipt *model.Receipt) []byte
 		GetReceiptKey(
 			dataHash, senderPublicKey []byte,
 		) ([]byte, error)
@@ -46,20 +40,20 @@ func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uin
 	return constant.PriorityStrategyMaxPriorityPeers
 }
 
-// GenerateBatchReceipt generate receipt object that act as proof of receipt on data. Data received can be
+// GenerateReceipt generate receipt object that act as proof of receipt on data. Data received can be
 // block, transaction, etc.
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
-func (ru *ReceiptUtil) GenerateBatchReceipt(
+func (ru *ReceiptUtil) GenerateReceipt(
 	ct chaintype.ChainType,
 	referenceBlock *model.Block,
 	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 	datumType uint32,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	refBlockHash, err := util.GetBlockHash(referenceBlock, ct)
 	if err != nil {
 		return nil, err
 	}
-	return &model.BatchReceipt{
+	return &model.Receipt{
 		SenderPublicKey:      senderPublicKey,
 		RecipientPublicKey:   recipientPublicKey,
 		DatumType:            datumType,
@@ -70,10 +64,8 @@ func (ru *ReceiptUtil) GenerateBatchReceipt(
 	}, nil
 }
 
-// GetUnsignedBatchReceiptBytes Client task while doing validation signature
-func (ru *ReceiptUtil) GetUnsignedBatchReceiptBytes(
-	receipt *model.BatchReceipt,
-) []byte {
+// GetUnsignedReceiptBytes Client task while doing validation signature
+func (ru *ReceiptUtil) GetUnsignedReceiptBytes(receipt *model.Receipt) []byte {
 
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(receipt.SenderPublicKey)
@@ -86,8 +78,8 @@ func (ru *ReceiptUtil) GetUnsignedBatchReceiptBytes(
 	return buffer.Bytes()
 }
 
-// GetSignedBatchReceiptBytes Client task before store into database batch_receipt
-func (ru *ReceiptUtil) GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
+// GetSignedReceiptBytes Client task before store into database batch_receipt
+func (ru *ReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(receipt.SenderPublicKey)
 	buffer.Write(receipt.RecipientPublicKey)

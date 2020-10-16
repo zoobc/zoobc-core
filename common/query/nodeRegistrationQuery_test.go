@@ -683,3 +683,15 @@ func TestNodeRegistrationQuery_GetPendingNodeRegistrations(t *testing.T) {
 		})
 	}
 }
+
+func TestNodeRegistrationQuery_GetNodeRegistrationsByBlockHeightInterval(t *testing.T) {
+	t.Run("GetNodeRegistrationsByBlockHeightInterval", func(t *testing.T) {
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByBlockHeightInterval(0, 1)
+		want := "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
+			"registration_status, latest, height FROM node_registry WHERE height >= 0 AND height <= 1 AND " +
+			"registration_status != 1 AND latest=1 ORDER BY height"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
+}

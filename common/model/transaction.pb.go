@@ -1451,10 +1451,10 @@ func (m *SendTransactionRequest) GetSenderPublicKey() []byte {
 
 // SendTransactionResponse a model response of send a transaction in p2pCommunication service
 type SendTransactionResponse struct {
-	BatchReceipt         *BatchReceipt `protobuf:"bytes,1,opt,name=BatchReceipt,proto3" json:"BatchReceipt,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
-	XXX_unrecognized     []byte        `json:"-"`
-	XXX_sizecache        int32         `json:"-"`
+	Receipt              *Receipt `protobuf:"bytes,1,opt,name=Receipt,proto3" json:"Receipt,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *SendTransactionResponse) Reset()         { *m = SendTransactionResponse{} }
@@ -1482,9 +1482,9 @@ func (m *SendTransactionResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SendTransactionResponse proto.InternalMessageInfo
 
-func (m *SendTransactionResponse) GetBatchReceipt() *BatchReceipt {
+func (m *SendTransactionResponse) GetReceipt() *Receipt {
 	if m != nil {
-		return m.BatchReceipt
+		return m.Receipt
 	}
 	return nil
 }
@@ -1603,10 +1603,10 @@ func (m *SendBlockTransactionsRequest) GetSenderPublicKey() []byte {
 
 // SendBlockTransactionsResponse a model response of a process sending block's transactions
 type SendBlockTransactionsResponse struct {
-	BatchReceipts        []*BatchReceipt `protobuf:"bytes,1,rep,name=BatchReceipts,proto3" json:"BatchReceipts,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
+	Receipts             []*Receipt `protobuf:"bytes,1,rep,name=Receipts,proto3" json:"Receipts,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *SendBlockTransactionsResponse) Reset()         { *m = SendBlockTransactionsResponse{} }
@@ -1634,9 +1634,9 @@ func (m *SendBlockTransactionsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SendBlockTransactionsResponse proto.InternalMessageInfo
 
-func (m *SendBlockTransactionsResponse) GetBatchReceipts() []*BatchReceipt {
+func (m *SendBlockTransactionsResponse) GetReceipts() []*Receipt {
 	if m != nil {
-		return m.BatchReceipts
+		return m.Receipts
 	}
 	return nil
 }
@@ -1752,9 +1752,7 @@ func init() {
 	proto.RegisterType((*GetTransactionMinimumFeeResponse)(nil), "model.GetTransactionMinimumFeeResponse")
 }
 
-func init() {
-	proto.RegisterFile("model/transaction.proto", fileDescriptor_8333001f09b34082)
-}
+func init() { proto.RegisterFile("model/transaction.proto", fileDescriptor_8333001f09b34082) }
 
 var fileDescriptor_8333001f09b34082 = []byte{
 	// 1628 bytes of a gzipped FileDescriptorProto

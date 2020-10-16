@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"math"
 	"math/big"
 
 	log "github.com/sirupsen/logrus"
@@ -20,7 +21,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
-		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error)
+		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
@@ -185,19 +186,19 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 	return nodeRegistries, nil
 }
 
-func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
 		err                error
+		scoreSum           int64
 	)
 	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	scoreSum := float64(0)
+	activeRegistryLength := len(activeNodeRegistry)
 	for _, registry := range activeNodeRegistry {
-		scoreSum += float64(registry.ParticipationScore) / float64(constant.OneZBC)
+		scoreSum += int64(math.Floor(float64(registry.ParticipationScore) / float64(activeRegistryLength)))
 	}
 	return activeNodeRegistry, scoreSum, nil
 }

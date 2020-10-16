@@ -12,9 +12,9 @@ import (
 type (
 	BlockSpinePublicKeyServiceInterface interface {
 		BuildSpinePublicKeysFromNodeRegistry(
-			fromTimestamp,
-			toTimestamp int64,
-			spineBlockHeight uint32,
+			mainFromHeight,
+			mainToHeight,
+			spineHeight uint32,
 		) (spinePublicKeys []*model.SpinePublicKey, err error)
 		GetSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error)
 		GetValidSpinePublicKeyByBlockHeightInterval(
@@ -83,14 +83,14 @@ func (bsf *BlockSpinePublicKeyService) GetSpinePublicKeysByBlockHeight(height ui
 
 // BuildSpinePublicKeysFromNodeRegistry build the list of spine public keys from the node registry
 func (bsf *BlockSpinePublicKeyService) BuildSpinePublicKeysFromNodeRegistry(
-	fromTimestamp,
-	toTimestamp int64,
+	mainFromHeight,
+	mainToHeight,
 	spineHeight uint32,
 ) (spinePublicKeys []*model.SpinePublicKey, err error) {
 	var (
 		nodeRegistrations []*model.NodeRegistration
 	)
-	qry := bsf.NodeRegistrationQuery.GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp)
+	qry := bsf.NodeRegistrationQuery.GetNodeRegistrationsByBlockHeightInterval(mainFromHeight, mainToHeight)
 	rows, err := bsf.QueryExecutor.ExecuteSelect(
 		qry,
 		false,
