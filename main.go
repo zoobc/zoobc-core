@@ -431,6 +431,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		mainchain,
+		crypto.NewRandomNumberGenerator(),
 	)
 	mainchainParticipationScoreService = service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
