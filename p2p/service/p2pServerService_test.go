@@ -1121,14 +1121,18 @@ func (*mockSendBlockBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, 
 func (*mockSendBlockBlockServiceReceiveBlockFail) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
-func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(senderPublicKey []byte, lastBlock, block *model.Block, nodeSecretPhrase string, peer *model.Peer) (*model.Receipt, error) {
+func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(
+	[]byte, *model.Block, *model.Block, string, *model.Peer,
+) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
 func (*mockSendBlockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
-func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(senderPublicKey []byte, lastBlock, block *model.Block, nodeSecretPhrase string, peer *model.Peer) (*model.Receipt, error) {
+func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(
+	[]byte, *model.Block, *model.Block, string, *model.Peer,
+) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},
 	}, nil
@@ -1302,11 +1306,15 @@ func (*mockSendTransactionBlockServiceGetLastBlockFail) GetLastBlock() (*model.B
 func (*mockSendTransactionBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
-func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(senderPublicKey, receivedTxBytes []byte, lastBlock *model.Block, nodeSecretPhrase string) (*model.Receipt, error) {
+func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(
+	[]byte, []byte, *model.Block, string,
+) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
-func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(senderPublicKey, receivedTxBytes []byte, lastBlock *model.Block, nodeSecretPhrase string) (*model.Receipt, error) {
+func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
+	[]byte, []byte, *model.Block, string,
+) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},
 	}, nil
@@ -1469,10 +1477,14 @@ func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlock() (*model.
 func (*mockSendTransactionsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
-func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(senderPublicKey []byte, receivedTxBytes [][]byte, lastBlock *model.Block, nodeSecretPhrase string) ([]*model.Receipt, error) {
+func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(
+	[]byte, [][]byte, *model.Block, string,
+) ([]*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(senderPublicKey []byte, receivedTxBytes [][]byte, lastBlock *model.Block, nodeSecretPhrase string) ([]*model.Receipt, error) {
+func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
+	[]byte, [][]byte, *model.Block, string,
+) ([]*model.Receipt, error) {
 	return []*model.Receipt{{
 		SenderPublicKey: []byte{1},
 	}}, nil
