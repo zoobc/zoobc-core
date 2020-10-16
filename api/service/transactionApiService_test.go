@@ -624,41 +624,41 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 		want    *model.GetTransactionsResponse
 		wantErr bool
 	}{
-		// {
-		// 	name: "RequestFilledExecuteSelectGetTxsFail",
-		// 	fields: fields{
-		// 		Query: &mockQueryGetTransactionsFail{},
-		// 	},
-		// 	args: args{
-		// 		chainType: &chaintype.MainChain{},
-		// 		params: &model.GetTransactionsRequest{
-		// 			Pagination: &model.Pagination{
-		// 				Limit: 2,
-		// 				Page:  0,
-		// 			},
-		// 			AccountAddress: txAPISenderAccount1,
-		// 		},
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name: "RequestExceptAccountAddressExecuteSelectGetTxsFail",
-		// 	fields: fields{
-		// 		Query: &mockQueryGetTransactionsFail{},
-		// 	},
-		// 	args: args{
-		// 		chainType: &chaintype.MainChain{},
-		// 		params: &model.GetTransactionsRequest{
-		// 			Pagination: &model.Pagination{
-		// 				Limit: 2,
-		// 				Page:  0,
-		// 			},
-		// 		},
-		// 	},
-		// 	want:    nil,
-		// 	wantErr: true,
-		// },
+		{
+			name: "RequestFilledExecuteSelectGetTxsFail",
+			fields: fields{
+				Query: &mockQueryGetTransactionsFail{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				params: &model.GetTransactionsRequest{
+					Pagination: &model.Pagination{
+						Limit: 2,
+						Page:  0,
+					},
+					AccountAddress: txAPISenderAccount1,
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "RequestExceptAccountAddressExecuteSelectGetTxsFail",
+			fields: fields{
+				Query: &mockQueryGetTransactionsFail{},
+			},
+			args: args{
+				chainType: &chaintype.MainChain{},
+				params: &model.GetTransactionsRequest{
+					Pagination: &model.Pagination{
+						Limit: 2,
+						Page:  0,
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
 		{
 			name: "RequestSuccess",
 			fields: fields{
