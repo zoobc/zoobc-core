@@ -44,7 +44,7 @@ func NewBatchReceiptQuery() *BatchReceiptQuery {
 			"rmr",
 			"rmr_index",
 		},
-		TableName: "node_receipt",
+		TableName: "batch_receipt",
 	}
 }
 

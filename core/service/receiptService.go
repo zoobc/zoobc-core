@@ -277,19 +277,22 @@ func (rs *ReceiptService) GetReceiptFromPool(hash []byte) ([]model.Receipt, erro
 	)
 	hashHex := hex.EncodeToString(hash)
 	err = rs.ReceiptPoolCacheStorage.GetItem(hashHex, &result)
+	if result == nil {
+		result = make([]model.Receipt, 0)
+	}
 	return result, err
 }
 
 // SaveReceiptAndMerkle save receipts and its generated merkle root to database and memory
 func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error {
-	if len(receiptBatchObject.ReceiptBatch) == 0 {
-		// at least `PreviousBlock` receipt (even if empty) is required
-		return blocker.NewBlocker(blocker.ValidationErr, "AtLeastOneRowOfReceiptBatchRequired")
+	if len(receiptBatchObject.ReceiptBatch) == 0 || len(receiptBatchObject.ReceiptBatch[0]) == 0 {
+		// we don't need to process empty receipts
+		return nil
 	}
 	var (
 		merkleRoot   util.MerkleRoot
 		receiptCount = len(receiptBatchObject.ReceiptBatch) * len(receiptBatchObject.ReceiptBatch[0])
-		merkleLeafs  = make([]*bytes.Buffer, 0, receiptCount)
+		merkleLeafs  = make([]*bytes.Buffer, receiptCount)
 		queries      = make([][]interface{}, receiptCount+1)
 		err          error
 	)

@@ -90,7 +90,6 @@ type (
 		BlocksStorage               storage.CacheStackStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
 		ScrambleNodeService         ScrambleNodeServiceInterface
-		ReceiptBatchStorage         storage.CacheStackStorageInterface
 	}
 )
 
@@ -132,7 +131,6 @@ func NewBlockMainService(
 	blocksStorage storage.CacheStackStorageInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
-	receiptBatchStorage storage.CacheStackStorageInterface,
 ) *BlockService {
 	return &BlockService{
 		Chaintype:                   ct,
@@ -172,7 +170,6 @@ func NewBlockMainService(
 		BlocksStorage:               blocksStorage,
 		BlockchainStatusService:     blockchainStatusService,
 		ScrambleNodeService:         scrambleNodeService,
-		ReceiptBatchStorage:         receiptBatchStorage,
 	}
 }
 
@@ -409,13 +406,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		blocksmithIndex *int64
 		err             error
 		mempoolMap      storage.MempoolMap
-		receiptBatch    = storage.ReceiptBatchObject{
-			BlockHash:    block.GetBlockHash(),
-			BlockHeight:  block.GetHeight(),
-			ReceiptBatch: make([][]model.Receipt, 0, len(block.GetTransactionIDs())+1),
-		}
-		merkleLeafs   = make([]*bytes.Buffer, 0, len(block.GetTransactionIDs())+1)
-		merkleTreeGen = commonUtils.MerkleRoot{}
 	)
 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
@@ -440,6 +430,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
+
+	var (
+		receiptBatch = storage.ReceiptBatchObject{
+			BlockHash:    block.GetBlockHash(),
+			BlockHeight:  block.GetHeight(),
+			ReceiptBatch: make([][]model.Receipt, len(block.GetTransactions())+1),
+		}
+	)
 
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
@@ -492,9 +490,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.queryAndCacheRollbackProcess("")
 		return err
 	}
-	// todo: insert previous block's receipt to first index of batch
-	merkleLeafs[0] = bytes.NewBuffer(previousBlock.GetBlockHash())
-	receiptBatch.ReceiptBatch[0] = make([]model.Receipt, 0)
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
 		// assign block id and block height to tx
@@ -537,19 +532,27 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			bs.queryAndCacheRollbackProcess("")
 			return err
 		}
-		// todo: replace this with receipts of this tx.Hash from receipt pool
-		merkleLeafs[index+1] = bytes.NewBuffer(tx.GetTransactionHash())
-		receiptBatch.ReceiptBatch[index+1] = make([]model.Receipt, 0)
+		receipts, err := bs.ReceiptService.GetReceiptFromPool(tx.GetTransactionHash())
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
+			return err
+		}
+		receiptBatch.ReceiptBatch[index+1] = receipts
 	}
-
-	// generate merkle tree
-	root, err := merkleTreeGen.GenerateMerkleRoot(merkleLeafs)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("PushBlock:FailGenerateMerkleRoot: %v", err))
-		return err
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		// save batch's receipt and merkle root
+		receipts, err := bs.ReceiptService.GetReceiptFromPool(previousBlock.GetBlockHash())
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
+			return err
+		}
+		receiptBatch.ReceiptBatch[0] = receipts
+		err = bs.ReceiptService.SaveReceiptAndMerkle(receiptBatch)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailSaveReceipt - %v", err))
+			return err
+		}
 	}
-	receiptBatch.MerkleRoot = root.Bytes()
-	// save batch's receipt and merkle root
 
 	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {

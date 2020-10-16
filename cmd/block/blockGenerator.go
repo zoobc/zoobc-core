@@ -141,7 +141,7 @@ func initialize(
 		nil,
 		nil,
 		nil,
-		nil,
+		nil, storage.NewReceiptBatchStackStorage(),
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
@@ -247,7 +247,6 @@ func initialize(
 		nil,
 		nil,
 		nil,
-		storage.NewReceiptBatchStackStorage(),
 	)
 
 	migration = database.Migration{Query: queryExecutor}

@@ -393,6 +393,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		receiptBatchStorage,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -525,7 +526,6 @@ func initiateMainInstance() {
 		mainBlocksStorage,
 		blockchainStatusService,
 		scrambleNodeService,
-		receiptBatchStorage,
 	)
 
 	snapshotBlockServices[mainchain.GetTypeInt()] = service.NewSnapshotMainBlockService(

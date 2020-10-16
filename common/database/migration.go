@@ -131,7 +131,7 @@ func (m *Migration) Init() error {
 				PRIMARY KEY("node_id", "height")
 			);`,
 			`
-			CREATE TABLE IF NOT EXISTS "node_receipt" (
+			CREATE TABLE IF NOT EXISTS "batch_receipt" (
 				"sender_public_key" BLOB,
 				"recipient_public_key" BLOB,
 				"datum_type" INTEGER,
@@ -147,7 +147,9 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "merkle_tree" (
 				"id" BLOB,
-				"tree" BLOB
+				"tree" BLOB,
+				"timestamp" INTEGER,
+				"block_height" INTEGER
 			)
 			`,
 			`
@@ -167,10 +169,6 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
-			ALTER TABLE "merkle_tree"
-				ADD COLUMN "timestamp" INTEGER AFTER "tree"
-			`,
-			`
 			ALTER TABLE "node_registry"
 				RENAME COLUMN "queued" TO "registration_status"
 			`,
@@ -188,10 +186,6 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "mempool"
-				ADD COLUMN "block_height" INTEGER AFTER "id"
-			`,
-			`
-			ALTER TABLE "merkle_tree"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,
 			`
@@ -328,13 +322,13 @@ func (m *Migration) Init() error {
 			CREATE INDEX "merkle_tree_block_height_idx" ON "merkle_tree" ("block_height")
 			`,
 			`
-			CREATE INDEX "node_receipt_rmr_idx" ON "node_receipt" ("rmr")
+			CREATE INDEX "batch_receipt_rmr_idx" ON "batch_receipt" ("rmr")
 			`,
 			`
-			CREATE INDEX "node_receipt_recipient_public_key_idx" ON "node_receipt" ("recipient_public_key")
+			CREATE INDEX "batch_receipt_recipient_public_key_idx" ON "batch_receipt" ("recipient_public_key")
 			`,
 			`
-			CREATE INDEX "node_receipt_reference_block_height_idx" ON "node_receipt" ("reference_block_height")
+			CREATE INDEX "batch_receipt_reference_block_height_idx" ON "batch_receipt" ("reference_block_height")
 			`,
 			`
 			CREATE INDEX "published_receipt_datum_hash_idx" ON "published_receipt" ("datum_hash")

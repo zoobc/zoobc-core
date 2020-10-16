@@ -2,7 +2,6 @@ package blockchainsync
 
 import (
 	"errors"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
@@ -344,7 +343,6 @@ func TestGetNextBlocks(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		storage.NewReceiptBatchStackStorage(),
 	)
 	blockchainDownloader := &BlockchainDownloader{
 		BlockService:            blockService,
