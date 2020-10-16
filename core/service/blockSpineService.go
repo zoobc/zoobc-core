@@ -459,6 +459,10 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 	return &lastBlock, nil
 }
 
+func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return nil, blocker.NewBlocker(blocker.AppErr, "NotImplementedYet")
+}
+
 // GetBlockHash return block's hash (makes sure always include spine public keys)
 func (bs *BlockSpineService) GetBlockHash(block *model.Block) ([]byte, error) {
 	err := bs.PopulateBlockData(block)

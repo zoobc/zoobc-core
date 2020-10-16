@@ -1058,6 +1058,19 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	return &lastBlock, nil
 }
 
+// GetLastBlockCacheFormat return the last pushed block in storage.BlockCacheObject format
+// block getting from Blocks Storage Cache
+func (bs *BlockService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	var (
+		lastBlock storage.BlockCacheObject
+		err       = bs.BlocksStorage.GetTop(&lastBlock)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &lastBlock, nil
+}
+
 // GetBlockHash return block's hash (makes sure always include transactions)
 func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
 	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
