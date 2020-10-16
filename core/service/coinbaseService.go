@@ -98,9 +98,9 @@ func (cbs *CoinbaseService) CoinbaseLotteryWinners(
 			tempPreviousSum int64
 			rawRandomNumber = cbs.Rng.Next()
 			// scale down random number to [0-scoreSum]
-			rounds             = int64(rawRandomNumber) / scoreSum
+			rounds             = rawRandomNumber / scoreSum
 			roundWithRemainder = rounds * scoreSum
-			winnerScore        = int64(rawRandomNumber) - roundWithRemainder
+			winnerScore        = rawRandomNumber - roundWithRemainder
 		)
 
 		for j := 0; j < activeRegistryLength; j++ {
