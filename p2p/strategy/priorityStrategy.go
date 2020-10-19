@@ -4,17 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -1449,7 +1449,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		updated          bool
 		nodeAddressInfo  *model.NodeAddressInfo
 		nodeSecretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
-		nodePublicKey    = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey    = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		resolvedPeers    = ps.GetResolvedPeers()
 		hostInfo         = ps.GetHostInfo()
 	)

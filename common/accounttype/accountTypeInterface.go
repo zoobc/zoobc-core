@@ -25,19 +25,21 @@ type (
 		GetName() string
 		// GetAccountPublicKeyLength return the length of this account address type (for parsing tx and message bytes that embed an address)
 		GetAccountPublicKeyLength() uint32
-		// GetFormattedAccount return a string encoded/formatted account address
-		GetFormattedAccount() (string, error) // IsEqual checks if two account have same type and pub key
+		// GetEncodedAddress return a string encoded/formatted account address
+		GetEncodedAddress() (string, error)
+		// GetAccountPublicKeyString return a string encoded account public key
+		GetAccountPublicKeyString() (string, error)
+		GetAccountPrivateKey() ([]byte, error)
+		// IsEqual checks if two account have same type and pub key
 		IsEqual(acc AccountTypeInterface) bool
 		// GetSignatureType return the signature type number for this account type
 		GetSignatureType() model.SignatureType
 		// GetSignatureLength return the signature length for this account type
 		GetSignatureLength() uint32
 
-		// // GetAccountSignatureInterface return the signature implementation for this account type
-		// // TODO: for now there is only one signature implementation that implements multiple signatures
-		// GetAccountSignatureInterface() crypto.SignatureInterface
-		// // GetSignatureTypeInterface return the signature type implementation for this account type
-		// GetSignatureTypeInterface() crypto.SignatureTypeInterface
-
+		// Sign accept a payload to be signed with an account seed then return the signature byte based on the
+		Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error)
+		VerifySignature(payload, signature, accountAddress []byte) error
+		GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error
 	}
 )

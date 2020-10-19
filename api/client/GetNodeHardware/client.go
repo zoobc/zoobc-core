@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"

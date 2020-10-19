@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 	"path"
@@ -13,7 +15,6 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -146,7 +147,7 @@ func GenerateNodeKeysFile(seed string) {
 	nodeKey = &model.NodeKeyFromFile{
 		Seed: seed,
 	}
-	pubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(seed)
+	pubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(seed)
 	publicKeyStr, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, pubKey)
 	if err != nil {
 		fmt.Println(err.Error())

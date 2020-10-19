@@ -5,13 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
@@ -243,25 +243,25 @@ func GenerateBasicTransaction(
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
-			b, err := crypto.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
+			b, err := signaturetype.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
 			if err != nil {
 				panic(err.Error())
 			}
-			bb, err := crypto.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			bb, err := signaturetype.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddressHex, err = crypto.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
 			if err != nil {
 				panic(err.Error())
 			}
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
 					senderSeed,
-					crypto.DefaultBitcoinPublicKeyFormat(),
-					crypto.DefaultBitcoinPrivateKeyLength(),
+					signaturetype.DefaultBitcoinPublicKeyFormat(),
+					signaturetype.DefaultBitcoinPrivateKeyLength(),
 				)
 			)
 			if err != nil {

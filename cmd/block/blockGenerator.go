@@ -2,6 +2,8 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"strings"
 	"time"
 
@@ -11,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -107,7 +108,7 @@ func initialize(
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
 	observerInstance := observer.NewObserver()
-	blocksmith = model.NewBlocksmith(secretPhrase, crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase), 0)
+	blocksmith = model.NewBlocksmith(secretPhrase, signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase), 0)
 	// initialize/open db and queryExecutor
 	dbInstance := database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {

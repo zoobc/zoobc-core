@@ -3,6 +3,7 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"path"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -289,7 +289,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 				recipientAccountAddressHex,
 				message,
 			)
-			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			nodePubKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,
@@ -325,7 +325,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 				recipientAccountAddressHex,
 				message,
 			)
-			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			nodePubKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,
@@ -361,7 +361,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 			recipientAccountAddressHex,
 			message,
 		)
-		nodePubKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 		tx = GenerateTxRemoveNode(tx, nodePubKey)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
@@ -384,7 +384,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 				recipientAccountAddressHex,
 				message,
 			)
-			nodePubKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+			nodePubKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 			poow       = GenerateProofOfOwnership(
 				databasePath,
 				databaseName,

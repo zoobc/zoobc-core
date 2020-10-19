@@ -6,9 +6,8 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"time"
-
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"

@@ -3,7 +3,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -29,7 +29,7 @@ func GetGenesisTransactions(
 	case *chaintype.MainChain:
 		for _, genesisEntry := range genesisEntries {
 			// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(genesisEntry.AccountAddress)
 			if err != nil {
 				return nil, err

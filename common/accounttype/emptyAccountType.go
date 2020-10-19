@@ -3,6 +3,7 @@ package accounttype
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -64,10 +65,39 @@ func (acc *EmptyAccountType) GetSignatureLength() uint32 {
 	return 0
 }
 
-func (acc *EmptyAccountType) GetFormattedAccount() (string, error) {
+func (acc *EmptyAccountType) GetEncodedAddress() (string, error) {
 	return "", nil
 }
 
 func (acc *EmptyAccountType) SetEncodedAccountAddress(encodedAccount string) {
 	acc.encodedAddress = ""
+}
+
+func (acc *EmptyAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
+	return nil, blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotSign",
+	)
+}
+
+func (acc *EmptyAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
+	return blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotSign",
+	)
+}
+
+func (acc *EmptyAccountType) GetAccountPublicKeyString() (string, error) {
+	return "", nil
+}
+
+func (acc *EmptyAccountType) GetAccountPrivateKey() ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (acc *EmptyAccountType) GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error {
+	return blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotGenerateAccountFromSeed",
+	)
 }
