@@ -1073,6 +1073,9 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 			int32(model.AccountType_ZbcAccountType),
 			mainchainGenesisEntry.AccountAddress,
 		)
+		if err != nil {
+			return nil, err
+		}
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
 			accountFullAddress,
 			mainchainGenesisEntry.NodeAddress,
