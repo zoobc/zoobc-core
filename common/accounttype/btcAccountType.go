@@ -13,7 +13,6 @@ import (
 
 // BTCAccountType a dummy account type
 type BTCAccountType struct {
-	seed                               string
 	privateKey, publicKey, fullAddress []byte
 	publicKeyString, encodedAddress    string
 }

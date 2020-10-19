@@ -13,7 +13,6 @@ import (
 
 // ZbcAccountType the default account type
 type ZbcAccountType struct {
-	seed                               string
 	privateKey, publicKey, fullAddress []byte
 	publicKeyString, encodedAddress    string
 }
