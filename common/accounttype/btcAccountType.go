@@ -25,6 +25,9 @@ func (acc *BTCAccountType) SetAccountPublicKey(accountPublicKey []byte) {
 }
 
 func (acc *BTCAccountType) GetAccountAddress() ([]byte, error) {
+	if acc.fullAddress != nil {
+		return acc.fullAddress, nil
+	}
 	if acc.GetAccountPublicKey() == nil {
 		return nil, errors.New("AccountAddressPublicKeyEmpty")
 	}
@@ -33,7 +36,8 @@ func (acc *BTCAccountType) GetAccountAddress() ([]byte, error) {
 	binary.LittleEndian.PutUint32(tmpBuf, uint32(acc.GetTypeInt()))
 	buff.Write(tmpBuf)
 	buff.Write(acc.GetAccountPublicKey())
-	return buff.Bytes(), nil
+	acc.fullAddress = buff.Bytes()
+	return acc.fullAddress, nil
 }
 
 func (acc *BTCAccountType) GetTypeInt() int32 {
