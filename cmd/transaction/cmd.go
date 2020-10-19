@@ -93,6 +93,11 @@ var (
 		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
 		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
 	}
+	atomicCmd = &cobra.Command{
+		Use:   "atomic",
+		Short: "transaction sub command used to generate `atomic` transaction",
+		Long:  "transaction sub command used to generate `atomic` transaction",
+	}
 )
 
 func init() {
@@ -223,6 +228,11 @@ func init() {
 		liquidPaymentStopCmd
 	*/
 	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
+
+	/*
+		Atomic Transaction Cmd
+	*/
+	atomicCmd.Flags().Uint32VarP(&inners, "inners", "i", 1, "inners = 2, inner transactions that want to have")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -257,6 +267,8 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(liquidPaymentCmd)
 	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
 	txCmd.AddCommand(liquidPaymentStopCmd)
+	atomicCmd.Run = txGeneratorCommandsInstance.AtomicProcess()
+	txCmd.AddCommand(atomicCmd)
 	return txCmd
 }
 
@@ -680,6 +692,22 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			recipientAccountAddressHex,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
+	}
+}
+
+func (*TXGeneratorCommands) AtomicProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddressHex,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddressHex,
+		)
+		tx = GenerateTxAtomic(tx, inners)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }

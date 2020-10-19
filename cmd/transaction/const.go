@@ -19,6 +19,7 @@ var (
 		"liquidPaymentStop":      {6, 1, 0, 0},
 		"feeVoteCommit":          {7, 0, 0, 0},
 		"feeVoteReveal":          {7, 1, 0, 0},
+		"atomic":                 {8, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -74,4 +75,7 @@ var (
 	dbPath, dBName    string
 	// liquidPayment
 	completeMinutes uint64
+
+	// atomic transaction
+	inners uint32
 )

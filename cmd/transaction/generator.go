@@ -585,7 +585,7 @@ func GenerateTxLiquidPayment(tx *model.Transaction, sendAmount int64, completeMi
 	return tx
 }
 
-// GenerateTxLiquidPaymentStop return liquid payment stop transaction based on provided basic transaction & ammunt
+// GenerateTxLiquidPaymentStop return liquid payment stop transaction based on provided basic transaction & amount
 func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *model.Transaction {
 	txBody := &model.LiquidPaymentStopTransactionBody{
 		TransactionID: transactionID,
@@ -599,5 +599,37 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+// GenerateTxAtomic return atomic transaction based on provided basic transaction
+// inner transaction is send money with sender address is the tx.SenderAddress
+func GenerateTxAtomic(tx *model.Transaction, innerCount uint32) *model.Transaction {
+	var (
+		atomicInnerTX = make(map[string]*model.AtomicInnerTransaction)
+	)
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["atomic"])
+	for i := 0; i < int(innerCount); i++ {
+		innerTx := GenerateBasicTransaction(
+			senderAddressHex,
+			"",
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddressHex,
+		)
+		innerTx = GenerateTxSendMoney(tx, 10)
+		unsignedTxBytes, err := (&transaction.Util{}).GetTransactionBytes(innerTx, false)
+		if err != nil {
+			return nil
+		}
+		atomicInnerTX[senderAddressHex] = &model.AtomicInnerTransaction{
+			AtomicInnerItem: [][]byte{
+				unsignedTxBytes,
+			},
+		}
+
+	}
 	return tx
 }
