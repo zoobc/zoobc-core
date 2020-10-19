@@ -10,7 +10,6 @@ import (
 // EmptyAccountType the default account type
 type EmptyAccountType struct {
 	accountPublicKey []byte
-	encodedAddress   string
 }
 
 func (acc *EmptyAccountType) SetAccountPublicKey(accountPublicKey []byte) {

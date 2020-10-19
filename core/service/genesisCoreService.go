@@ -32,6 +32,9 @@ func GetGenesisTransactions(
 				int32(model.AccountType_ZbcAccountType),
 				genesisEntry.AccountAddress,
 			)
+			if err != nil {
+				return nil, err
+			}
 			accType, err := accounttype.NewAccountTypeFromAccount(fullAccountAddress)
 			if err != nil {
 				return nil, err
