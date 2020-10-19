@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -124,11 +124,17 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, signed bool) ([
 		buffer.Write(emptyAccAddr)
 	}
 
+	// transaction message
+	msgLength := len([]byte(transaction.GetMessage()))
+	buffer.Write(util.ConvertUint32ToBytes(uint32(msgLength)))
+	if msgLength > 0 {
+		buffer.Write([]byte(transaction.GetMessage()))
+	}
+
 	if signed {
 		if transaction.Signature == nil {
 			return nil, errors.New("TransactionSignatureNotExist")
 		}
-		buffer.Write(util.ConvertUint32ToBytes(uint32(len(transaction.Signature))))
 		buffer.Write(transaction.Signature)
 	}
 	return buffer.Bytes(), nil
@@ -256,12 +262,22 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 		transaction.Escrow = &escrow
 	}
 
-	if sign {
-		var signatureLengthBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionSignatureLength))
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TxMessageBytesLength))
+	if err != nil {
+		return nil, err
+	}
+	messageLength := int(util.ConvertBytesToUint32(chunkedBytes))
+	if messageLength > 0 {
+		message, err := util.ReadTransactionBytes(buffer, messageLength)
 		if err != nil {
 			return nil, err
 		}
-		signatureLength := util.ConvertBytesToUint32(signatureLengthBytes)
+		// TODO: sanitize the string?
+		transaction.Message = string(message)
+	}
+
+	if sign {
+		signatureLength := senderAccType.GetSignatureLength()
 		transaction.Signature, err = util.ReadTransactionBytes(buffer, int(signatureLength))
 		if err != nil {
 			return nil, blocker.NewBlocker(
@@ -298,6 +314,12 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeZero",
+		)
+	}
+	if len([]byte(tx.Message)) > constant.MaxMessageLength {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxMessageMaxLengthExceeded",
 		)
 	}
 	err = u.FeeScaleService.GetLatestFeeScale(&feeScale)

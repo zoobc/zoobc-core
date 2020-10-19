@@ -9,7 +9,7 @@ import (
 )
 
 // GetProofOfOwnershipSize returns size in bytes of a proof of ownership message
-func GetProofOfOwnershipSize(accountAddressType accounttype.AccountType, withSignature bool) uint32 {
+func GetProofOfOwnershipSize(accountAddressType accounttype.AccountTypeInterface, withSignature bool) uint32 {
 	var (
 		accountAddressSize = constant.AccountAddressTypeLength + accountAddressType.GetAccountPublicKeyLength()
 	)

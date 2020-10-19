@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"reflect"
 	"sort"
@@ -16,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -1232,7 +1233,7 @@ func (bs *BlockService) GenerateBlock(
 		publishedReceipts   []*model.PublishedReceipt
 		err                 error
 		digest              = sha3.New256()
-		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight      = previousBlock.Height + 1
 	)
 

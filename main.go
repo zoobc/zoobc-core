@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -164,14 +165,14 @@ func initiateMainInstance() {
 		// TODO: move to crypto package in a function
 		switch accType.GetTypeInt() {
 		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
 			}
 		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
