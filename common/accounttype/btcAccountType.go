@@ -77,10 +77,6 @@ func (acc *BTCAccountType) GetEncodedAddress() (string, error) {
 	return bitcoinSignature.GetAddressFromPublicKey(acc.GetAccountPublicKey())
 }
 
-func (acc *BTCAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	// acc.encodedAddress = encodedAccount
-}
-
 func (acc *BTCAccountType) GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error {
 	var (
 		bitcoinSignature = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())

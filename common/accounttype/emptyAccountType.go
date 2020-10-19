@@ -69,10 +69,6 @@ func (acc *EmptyAccountType) GetEncodedAddress() (string, error) {
 	return "", nil
 }
 
-func (acc *EmptyAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	acc.encodedAddress = ""
-}
-
 func (acc *EmptyAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
 	return nil, blocker.NewBlocker(
 		blocker.ValidationErr,

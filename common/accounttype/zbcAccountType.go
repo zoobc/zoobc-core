@@ -76,10 +76,6 @@ func (acc *ZbcAccountType) GetEncodedAddress() (string, error) {
 	return address.EncodeZbcID(acc.GetAccountPrefix(), acc.GetAccountPublicKey())
 }
 
-func (acc *ZbcAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	// acc.encodedAddress = encodedAccount
-}
-
 func (acc *ZbcAccountType) GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error {
 	var (
 		ed25519Signature = signaturetype.NewEd25519Signature()

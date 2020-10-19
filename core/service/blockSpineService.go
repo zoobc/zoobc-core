@@ -1069,19 +1069,10 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 			continue
 		}
 		// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
-		ed25519 := signaturetype.NewEd25519Signature()
-		accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(mainchainGenesisEntry.AccountAddress)
-		if err != nil {
-			return nil, err
-		}
-		accType := &accounttype.ZbcAccountType{}
-		accType.SetEncodedAccountAddress(mainchainGenesisEntry.AccountAddress)
-		accType.SetAccountPublicKey(accPubKey)
-		accountFullAddress, err := accType.GetAccountAddress()
-		if err != nil {
-			return nil, err
-		}
-
+		accountFullAddress, err := accounttype.ParseEncodedAccountToAccountAddress(
+			int32(model.AccountType_ZbcAccountType),
+			mainchainGenesisEntry.AccountAddress,
+		)
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
 			accountFullAddress,
 			mainchainGenesisEntry.NodeAddress,

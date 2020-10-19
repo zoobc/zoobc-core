@@ -9,10 +9,6 @@ type (
 	AccountTypeInterface interface {
 		// SetAccountPublicKey set/update account public key
 		SetAccountPublicKey(accountPublicKey []byte)
-		// SetEncodedAccountAddress set/update encoded accountAddress (string representation of the accountAddress)
-		// TODO: this should be calculated internally,
-		//  but due to the difficulty in using crypto package inside this package for now we do it outside the scope of this interface
-		SetEncodedAccountAddress(encodedAccount string)
 		// GetAccountAddress return the full (raw) account address in bytes
 		GetAccountAddress() ([]byte, error)
 		// GetTypeInt return the value of the account address type in int
