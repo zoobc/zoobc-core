@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
-	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
