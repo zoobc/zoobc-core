@@ -3,6 +3,7 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
 
@@ -14,7 +15,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"

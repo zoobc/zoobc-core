@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"sort"
 	"sync"
@@ -14,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -608,7 +609,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		spinePublicKeys             []*model.SpinePublicKey
 		spineBlockManifests         []*model.SpineBlockManifest
 		includedMainBlocks          []*model.Block
-		blockSmithPublicKey         = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey         = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight              = previousBlock.Height + 1
 		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight + 1
 		newReferenceBlockHeight     uint32
@@ -1068,19 +1069,13 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 			continue
 		}
 		// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
-		ed25519 := crypto.NewEd25519Signature()
-		accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(mainchainGenesisEntry.AccountAddress)
+		accountFullAddress, err := accounttype.ParseEncodedAccountToAccountAddress(
+			int32(model.AccountType_ZbcAccountType),
+			mainchainGenesisEntry.AccountAddress,
+		)
 		if err != nil {
 			return nil, err
 		}
-		accType := &accounttype.ZbcAccountType{}
-		accType.SetEncodedAccountAddress(mainchainGenesisEntry.AccountAddress)
-		accType.SetAccountPublicKey(accPubKey)
-		accountFullAddress, err := accType.GetAccountAddress()
-		if err != nil {
-			return nil, err
-		}
-
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
 			accountFullAddress,
 			mainchainGenesisEntry.NodeAddress,

@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
@@ -14,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -160,19 +161,19 @@ func fixtureGenerateMerkle() {
 	signature := crypto.NewSignature()
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockLinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[hex.EncodeToString(mockLinkedReceipt.Receipt.RecipientPublicKey)] =
 		222
 	unsignedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockLinkedReceipt.Receipt)
 	mockLinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceiptWithLinkedRMR.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
 	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.Receipt)
 	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature = signature.SignByNode(
 		unsignedUnlinkedReceiptByte, mockSeed)
 	// sign no rmr linked
-	mockUnlinkedReceipt.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceipt.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
 	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceipt.Receipt)
 	mockUnlinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(

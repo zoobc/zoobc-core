@@ -5,12 +5,12 @@ import (
 	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"runtime"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 

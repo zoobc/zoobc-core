@@ -24,6 +24,7 @@ var (
 	signature = &crypto.Signature{}
 
 	// Basic transaction data
+	message                    string
 	outputType                 string
 	version                    uint32
 	timestamp                  int64
@@ -33,7 +34,6 @@ var (
 	post                       bool
 	postHost                   string
 	senderAddressHex           string
-	senderSignatureType        int32
 	sign                       bool
 
 	// Send money transaction

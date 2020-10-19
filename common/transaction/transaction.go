@@ -2,7 +2,6 @@ package transaction
 
 import (
 	"fmt"
-
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"

@@ -3,67 +3,96 @@ package accounttype
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
 // EmptyAccountType the default account type
 type EmptyAccountType struct {
 	accountPublicKey []byte
-	encodedAddress   string
 }
 
-func (zAcc *EmptyAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+func (acc *EmptyAccountType) SetAccountPublicKey(accountPublicKey []byte) {
 	if accountPublicKey == nil {
-		zAcc.accountPublicKey = make([]byte, 0)
+		acc.accountPublicKey = make([]byte, 0)
 	}
 	// could be a zero-padded pub key
-	zAcc.accountPublicKey = accountPublicKey
+	acc.accountPublicKey = accountPublicKey
 }
 
-func (zAcc *EmptyAccountType) GetAccountAddress() ([]byte, error) {
+func (acc *EmptyAccountType) GetAccountAddress() ([]byte, error) {
 	buff := bytes.NewBuffer([]byte{})
 	tmpBuf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(tmpBuf, uint32(zAcc.GetTypeInt()))
+	binary.LittleEndian.PutUint32(tmpBuf, uint32(acc.GetTypeInt()))
 	buff.Write(tmpBuf)
-	buff.Write(zAcc.GetAccountPublicKey())
+	buff.Write(acc.GetAccountPublicKey())
 	return buff.Bytes(), nil
 }
 
-func (zAcc *EmptyAccountType) GetTypeInt() int32 {
+func (acc *EmptyAccountType) GetTypeInt() int32 {
 	return int32(model.AccountType_EmptyAccountType)
 }
 
-func (zAcc *EmptyAccountType) GetAccountPublicKey() []byte {
-	if zAcc.accountPublicKey == nil {
+func (acc *EmptyAccountType) GetAccountPublicKey() []byte {
+	if acc.accountPublicKey == nil {
 		return make([]byte, 0)
 	}
-	return zAcc.accountPublicKey
+	return acc.accountPublicKey
 }
 
-func (zAcc *EmptyAccountType) GetAccountPrefix() string {
+func (acc *EmptyAccountType) GetAccountPrefix() string {
 	return ""
 }
 
-func (zAcc *EmptyAccountType) GetName() string {
+func (acc *EmptyAccountType) GetName() string {
 	return "Empty"
 }
 
-func (zAcc *EmptyAccountType) GetAccountPublicKeyLength() uint32 {
+func (acc *EmptyAccountType) GetAccountPublicKeyLength() uint32 {
 	return 0
 }
 
-func (zAcc *EmptyAccountType) IsEqual(acc AccountType) bool {
-	return bytes.Equal(acc.GetAccountPublicKey(), zAcc.GetAccountPublicKey()) && acc.GetTypeInt() == zAcc.GetTypeInt()
+func (acc *EmptyAccountType) IsEqual(acc2 AccountTypeInterface) bool {
+	return bytes.Equal(acc.GetAccountPublicKey(), acc2.GetAccountPublicKey()) && acc.GetTypeInt() == acc2.GetTypeInt()
 }
 
-func (zAcc *EmptyAccountType) GetSignatureType() model.SignatureType {
+func (acc *EmptyAccountType) GetSignatureType() model.SignatureType {
 	return model.SignatureType_DefaultSignature
 }
 
-func (zAcc *EmptyAccountType) GetFormattedAccount() (string, error) {
+func (acc *EmptyAccountType) GetSignatureLength() uint32 {
+	return 0
+}
+
+func (acc *EmptyAccountType) GetEncodedAddress() (string, error) {
 	return "", nil
 }
 
-func (zAcc *EmptyAccountType) SetEncodedAccountAddress(encodedAccount string) {
-	zAcc.encodedAddress = ""
+func (acc *EmptyAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
+	return nil, blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotSign",
+	)
+}
+
+func (acc *EmptyAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
+	return blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotSign",
+	)
+}
+
+func (acc *EmptyAccountType) GetAccountPublicKeyString() (string, error) {
+	return "", nil
+}
+
+func (acc *EmptyAccountType) GetAccountPrivateKey() ([]byte, error) {
+	return []byte{}, nil
+}
+
+func (acc *EmptyAccountType) GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error {
+	return blocker.NewBlocker(
+		blocker.ValidationErr,
+		"EmptyAccountTypeCannotGenerateAccountFromSeed",
+	)
 }

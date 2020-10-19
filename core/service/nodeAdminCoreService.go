@@ -2,12 +2,13 @@ package service
 
 import (
 	"encoding/json"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
@@ -123,7 +124,7 @@ func (*NodeAdminService) GetLastNodeKey(nodeKeys []*model.NodeKey) *model.NodeKe
 
 // GenerateNodeKey generates a new node key from its seed and store it, together with relative public key into node_keys file
 func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
-	publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(seed)
+	publicKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(seed)
 	nodeKey := &model.NodeKey{
 		Seed:      seed,
 		PublicKey: publicKey,

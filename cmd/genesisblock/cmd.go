@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,7 +25,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -258,7 +259,7 @@ func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState 
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 	var (
-		ed25519Signature = crypto.NewEd25519Signature()
+		ed25519Signature = signaturetype.NewEd25519Signature()
 	)
 	if accountAddress == "" {
 		var (
@@ -325,7 +326,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if err != nil {
 			return nil, err
 		}
-		ed25519 := crypto.NewEd25519Signature()
+		ed25519 := signaturetype.NewEd25519Signature()
 		encodedAccountAddress, err := ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 		if err != nil {
 			return nil, err
@@ -393,7 +394,7 @@ func validateGenesisFile(genesisEntries []genesisEntry) bool {
 		numberOfUnmatched = 0
 		errorLog          = []*parseErrorLog{}
 	)
-	ed25519 := crypto.NewEd25519Signature()
+	ed25519 := signaturetype.NewEd25519Signature()
 	for _, genesisEntry := range genesisEntries {
 		if genesisEntry.NodeSeed == "" {
 			continue
@@ -634,7 +635,7 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 
 func convZBCAddressToHex(encodedAccountAddress string) string {
 	var (
-		defSignature = crypto.NewEd25519Signature()
+		defSignature = signaturetype.NewEd25519Signature()
 	)
 	pubKey, err := defSignature.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
 	if err != nil {

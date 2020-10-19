@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -1080,6 +1080,7 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 			nil,
 			make([]byte, 64),
 			false,
+			"",
 		),
 	)
 	return db.QueryRow(qStr), nil
@@ -1168,7 +1169,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
 	txBytesHash := sha3.Sum256(txBytes)
-	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
 		Chaintype              chaintype.ChainType

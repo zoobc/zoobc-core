@@ -31,9 +31,9 @@ func TestNewSignature(t *testing.T) {
 
 func TestSignature_Sign(t *testing.T) {
 	type args struct {
-		payload       []byte
-		signatureType model.SignatureType
-		seed          string
+		payload     []byte
+		accountType model.AccountType
+		seed        string
 	}
 	tests := []struct {
 		name    string
@@ -44,11 +44,11 @@ func TestSignature_Sign(t *testing.T) {
 		{
 			name: "Sign:valid-DefaultSignature",
 			args: args{
-				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: model.SignatureType_DefaultSignature,
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				payload:     []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountType: model.AccountType_ZbcAccountType,
+				seed:        "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
-			want: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
+			want: []byte{42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
 				45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 				103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
 			wantErr: false,
@@ -56,11 +56,11 @@ func TestSignature_Sign(t *testing.T) {
 		{
 			name: "Sign:valid-BitcoinSignature",
 			args: args{
-				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: model.SignatureType_BitcoinSignature,
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				payload:     []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountType: model.AccountType_BTCAccountType,
+				seed:        "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
-			want: []byte{1, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
+			want: []byte{33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
 				42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
 				227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
 				106, 172, 10, 8, 201, 172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90,
@@ -70,9 +70,9 @@ func TestSignature_Sign(t *testing.T) {
 		{
 			name: "Sign:invalid-signature-type}",
 			args: args{
-				payload:       []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
-				signatureType: 1011,
-				seed:          "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
+				payload:     []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
+				accountType: 1011,
+				seed:        "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 			},
 			want:    nil,
 			wantErr: true,
@@ -81,7 +81,7 @@ func TestSignature_Sign(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := &Signature{}
-			got, err := s.Sign(tt.args.payload, tt.args.signatureType, tt.args.seed)
+			got, err := s.Sign(tt.args.payload, tt.args.accountType, tt.args.seed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Signature.Sign() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -141,7 +141,7 @@ func TestSignature_VerifySignature(t *testing.T) {
 				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
 					139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
-				signature: []byte{0, 0, 0, 0, 42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
+				signature: []byte{42, 62, 47, 200, 180, 101, 85, 204, 179, 147, 143, 68, 30, 111, 6, 94, 81, 248, 219, 43, 90, 6, 167,
 					45, 132, 96, 130, 0, 153, 244, 159, 137, 159, 113, 78, 9, 164, 154, 213, 255, 17, 206, 153, 156, 176, 206, 33,
 					103, 72, 182, 228, 148, 234, 15, 176, 243, 50, 221, 106, 152, 53, 54, 173, 15},
 			},
@@ -153,7 +153,7 @@ func TestSignature_VerifySignature(t *testing.T) {
 				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				accountAddress: []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231,
 					45, 42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122},
-				signature: []byte{1, 0, 0, 0, 33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
+				signature: []byte{33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
 					42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 68, 2, 32, 90, 19, 249, 248, 141, 2, 142, 176, 69, 131, 63, 122,
 					227, 255, 114, 26, 116, 34, 23, 167, 245, 190, 121, 156, 49, 171, 110, 198, 76, 191, 126, 236, 2, 32, 9, 133, 158, 144,
 					106, 172, 10, 8, 201, 172, 22, 1, 23, 102, 80, 158, 55, 191, 144, 127, 111, 186, 226, 211, 3, 203, 131, 93, 140, 126, 90,
@@ -162,7 +162,7 @@ func TestSignature_VerifySignature(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "VerifySignature:failed-{invalid-signature-type}",
+			name: "VerifySignature:failed-{invalid-signature}",
 			args: args{
 				payload: []byte{12, 43, 65, 65, 12, 123, 43, 12, 1, 24, 5, 5, 12, 54},
 				accountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
@@ -173,7 +173,7 @@ func TestSignature_VerifySignature(t *testing.T) {
 			},
 			want: blocker.NewBlocker(
 				blocker.ValidationErr,
-				"InvalidSignatureType",
+				"InvalidSignature",
 			),
 		},
 	}
@@ -224,7 +224,7 @@ func TestSignature_VerifyNodeSignature(t *testing.T) {
 
 func TestSignature_GenerateAccountFromSeed(t *testing.T) {
 	type args struct {
-		accountType accounttype.AccountType
+		accountType accounttype.AccountTypeInterface
 		seed        string
 	}
 	tests := []struct {

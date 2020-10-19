@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -411,7 +413,7 @@ func (rs *ReceiptService) GenerateReceiptWithReminder(
 		rmrLinked     = rs.LastMerkleRoot
 		receipt       *model.Receipt
 		err           error
-		nodePublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 	)
 
 	// generate receipt
