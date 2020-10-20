@@ -1,20 +1,16 @@
 package accounttype
 
 import (
-	"bytes"
+	"github.com/btcsuite/btcd/btcec"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
 )
 
-func TestZbcAccountType_GenerateAccountFromSeed(t *testing.T) {
+func TestBTCAccountType_GenerateAccountFromSeed(t *testing.T) {
 	var (
-		seed         = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
-		pubKeySlip10 = []byte{149, 1, 110, 5, 224, 150, 132, 85, 59, 205, 45, 168, 107, 143, 209, 215, 181, 221, 109, 23, 39, 95, 248, 147, 114,
-			91, 115, 75, 51, 31, 148, 108}
-		pubKey = []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77,
-			80, 80, 39, 254, 173, 28, 169}
+		seed = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	)
 	type fields struct {
 		privateKey      []byte
@@ -32,35 +28,41 @@ func TestZbcAccountType_GenerateAccountFromSeed(t *testing.T) {
 		fields  fields
 		args    args
 		wantErr bool
-		want    []byte
+		want    string
 	}{
 		{
-			name: "GenerateAccountFromSeed:success-{ed25519-slip10}",
-			args: args{
-				seed:           seed,
-				optionalParams: []interface{}{true},
-			},
-			want: pubKeySlip10,
-		},
-		{
-			name: "GenerateAccountFromSeed:success-{ed25519}",
+			name: "GenerateAccountFromSeed:success-{defaultParams}",
 			args: args{
 				seed: seed,
 			},
-			want: pubKey,
+			want: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
 		},
 		{
-			name: "GenerateAccountFromSeed:fail-{ed25519-wrongOptionalParam}",
+			name: "GenerateAccountFromSeed:success-{withOptionalParams}",
 			args: args{
-				seed:           seed,
-				optionalParams: []interface{}{"invalidParam"},
+				seed: seed,
+				optionalParams: []interface{}{
+					model.PrivateKeyBytesLength_PrivateKey256Bits,
+					model.BitcoinPublicKeyFormat_PublicKeyFormatUncompressed,
+				},
+			},
+			want: "1FjUuYPZHz3D9kvEj21uiwE3JwYNemQqcv",
+		},
+		{
+			name: "GenerateAccountFromSeed:success-{invalidOptionalParams}",
+			args: args{
+				seed: seed,
+				optionalParams: []interface{}{
+					model.BitcoinPublicKeyFormat_PublicKeyFormatUncompressed,
+					model.PrivateKeyBytesLength_PrivateKey256Bits,
+				},
 			},
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -69,21 +71,20 @@ func TestZbcAccountType_GenerateAccountFromSeed(t *testing.T) {
 			}
 			if err := acc.GenerateAccountFromSeed(tt.args.seed, tt.args.optionalParams...); (err != nil) != tt.wantErr {
 				t.Errorf("GenerateAccountFromSeed() error = %v, wantErr %v", err, tt.wantErr)
-			} else if !bytes.Equal(acc.GetAccountPublicKey(), tt.want) {
-				t.Errorf("GenerateAccountFromSeed() error = %v, want %v", tt.want, acc.GetAccountPublicKey())
+			} else if acc.encodedAddress != tt.want {
+				t.Errorf("GenerateAccountFromSeed() error = %v, want %v", tt.want, acc.encodedAddress)
 			}
 		})
 	}
 }
 
-func TestZbcAccountType_GetAccountAddress(t *testing.T) {
+func TestBTCAccountType_GetAccountAddress(t *testing.T) {
 	var (
-		pubKey = []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77,
-			80, 80, 39, 254, 173, 28, 169}
-		fullAddr = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229,
-			184, 77, 80, 80, 39, 254, 173, 28, 169}
+		pubKey = []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73, 12, 5,
+			166, 141, 205, 177, 156, 77, 122}
+		fullAccountAddress = []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45,
+			42, 149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122}
 	)
-
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -98,16 +99,27 @@ func TestZbcAccountType_GetAccountAddress(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "GetAccountAddress:success",
+			name: "GetAccountAddress:success-{cached}",
+			fields: fields{
+				fullAddress: []byte{1, 2, 3},
+			},
+			want: []byte{1, 2, 3},
+		},
+		{
+			name:    "GetAccountAddress:fail-{emptyPublicKey}",
+			wantErr: true,
+		},
+		{
+			name: "GetAccountAddress:success-{calculated}",
 			fields: fields{
 				publicKey: pubKey,
 			},
-			want: fullAddr,
+			want: fullAccountAddress,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -126,7 +138,7 @@ func TestZbcAccountType_GetAccountAddress(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetAccountPrefix(t *testing.T) {
+func TestBTCAccountType_GetAccountPrefix(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -141,12 +153,12 @@ func TestZbcAccountType_GetAccountPrefix(t *testing.T) {
 	}{
 		{
 			name: "GetAccountPrefix:success",
-			want: constant.PrefixZoobcDefaultAccount,
+			want: "BTC",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -160,7 +172,7 @@ func TestZbcAccountType_GetAccountPrefix(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetAccountPrivateKey(t *testing.T) {
+func TestBTCAccountType_GetAccountPrivateKey(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -175,7 +187,7 @@ func TestZbcAccountType_GetAccountPrivateKey(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "GetAccountPrivateKey:fail-{accountNotGenerated}",
+			name:    "GetAccountPrivateKey:fail-{AccountNotGenerated}",
 			wantErr: true,
 		},
 		{
@@ -188,7 +200,7 @@ func TestZbcAccountType_GetAccountPrivateKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -207,7 +219,7 @@ func TestZbcAccountType_GetAccountPrivateKey(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetAccountPublicKey(t *testing.T) {
+func TestBTCAccountType_GetAccountPublicKey(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -221,7 +233,7 @@ func TestZbcAccountType_GetAccountPublicKey(t *testing.T) {
 		want   []byte
 	}{
 		{
-			name: "GetAccountPublicKey:success",
+			name: "GetAccountPublicKey",
 			fields: fields{
 				publicKey: []byte{1, 2, 3},
 			},
@@ -230,7 +242,7 @@ func TestZbcAccountType_GetAccountPublicKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -244,7 +256,11 @@ func TestZbcAccountType_GetAccountPublicKey(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetAccountPublicKeyLength(t *testing.T) {
+func TestBTCAccountType_GetAccountPublicKeyLength(t *testing.T) {
+	var (
+		pubKey = []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73, 12, 5,
+			166, 141, 205, 177, 156, 77, 122}
+	)
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -258,13 +274,20 @@ func TestZbcAccountType_GetAccountPublicKeyLength(t *testing.T) {
 		want   uint32
 	}{
 		{
-			name: "GetAccountPublicKeyLength:success",
-			want: 32,
+			name: "GetAccountPublicKeyLength:success-{calculated}",
+			fields: fields{
+				publicKey: pubKey,
+			},
+			want: uint32(len(pubKey)),
+		},
+		{
+			name: "GetAccountPublicKeyLength:success-{default}",
+			want: btcec.PubKeyBytesLenCompressed,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -278,11 +301,13 @@ func TestZbcAccountType_GetAccountPublicKeyLength(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetAccountPublicKeyString(t *testing.T) {
+func TestBTCAccountType_GetAccountPublicKeyString(t *testing.T) {
 	var (
-		pubKey = []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77,
-			80, 80, 39, 254, 173, 28, 169}
-		accountPubKeyStr = "ZNK_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUUXGSS"
+		pubKey = []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73, 12, 5,
+			166, 141, 205, 177, 156, 77, 122}
+		pubKeyUncompressed = []byte{4, 23, 242, 149, 86, 46, 8, 97, 27, 163, 27, 125, 99, 98, 54, 154, 151, 74, 39, 53, 43, 252, 34, 129,
+			236, 215, 63, 6, 199, 95, 12, 118, 142, 226, 203, 118, 61, 85, 225, 52, 154, 214, 231, 224, 25, 90, 120, 22, 132, 146, 6, 90,
+			51, 118, 24, 70, 45, 33, 170, 152, 86, 60, 15, 193, 164}
 	)
 	type fields struct {
 		privateKey      []byte
@@ -300,25 +325,40 @@ func TestZbcAccountType_GetAccountPublicKeyString(t *testing.T) {
 		{
 			name: "GetAccountPublicKeyString:success-{cached}",
 			fields: fields{
-				publicKeyString: "aaa",
+				publicKeyString: "testStr",
 			},
-			want: "aaa",
+			want: "testStr",
 		},
 		{
 			name:    "GetAccountPublicKeyString:fail-{EmptyAccountPublicKey}",
 			wantErr: true,
 		},
 		{
-			name: "GetAccountPublicKeyString:success",
+			name: "GetAccountPublicKeyString:success-{calculated}",
 			fields: fields{
 				publicKey: pubKey,
 			},
-			want: accountPubKeyStr,
+			want: "0352f7c0f324cf475a0367dc2f73400f0d3bbae72d2a95490c05a68dcdb19c4d7a",
+		},
+		{
+			name: "GetAccountPublicKeyString:success-{calculated-pubKeyUncompressed}",
+			fields: fields{
+				publicKey: pubKeyUncompressed,
+			},
+			want: "0417f295562e08611ba31b7d6362369a974a27352bfc2281ecd73f06c75" +
+				"f0c768ee2cb763d55e1349ad6e7e0195a78168492065a337618462d21aa98563c0fc1a4",
+		},
+		{
+			name: "GetAccountPublicKeyString:fail-{invalidPublicKey}",
+			fields: fields{
+				publicKey: append([]byte{10, 2, 3, 4}, pubKey...),
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -337,11 +377,10 @@ func TestZbcAccountType_GetAccountPublicKeyString(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetEncodedAddress(t *testing.T) {
+func TestBTCAccountType_GetEncodedAddress(t *testing.T) {
 	var (
-		pubKey = []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77,
-			80, 80, 39, 254, 173, 28, 169}
-		encodedAddr = "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7"
+		pubKey = []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73, 12, 5,
+			166, 141, 205, 177, 156, 77, 122}
 	)
 	type fields struct {
 		privateKey      []byte
@@ -365,12 +404,12 @@ func TestZbcAccountType_GetEncodedAddress(t *testing.T) {
 			fields: fields{
 				publicKey: pubKey,
 			},
-			want: encodedAddr,
+			want: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -389,7 +428,7 @@ func TestZbcAccountType_GetEncodedAddress(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetName(t *testing.T) {
+func TestBTCAccountType_GetName(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -403,13 +442,13 @@ func TestZbcAccountType_GetName(t *testing.T) {
 		want   string
 	}{
 		{
-			name: "GetName:success",
-			want: "ZooBC",
+			name: "GetName",
+			want: "BTCAccount",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -423,7 +462,7 @@ func TestZbcAccountType_GetName(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetSignatureLength(t *testing.T) {
+func TestBTCAccountType_GetSignatureLength(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -438,12 +477,12 @@ func TestZbcAccountType_GetSignatureLength(t *testing.T) {
 	}{
 		{
 			name: "GetSignatureLength:success",
-			want: constant.ZBCSignatureLength,
+			want: constant.BTCECDSASignatureLength,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -457,7 +496,7 @@ func TestZbcAccountType_GetSignatureLength(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetSignatureType(t *testing.T) {
+func TestBTCAccountType_GetSignatureType(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -472,12 +511,12 @@ func TestZbcAccountType_GetSignatureType(t *testing.T) {
 	}{
 		{
 			name: "GetSignatureType:success",
-			want: model.SignatureType_DefaultSignature,
+			want: model.SignatureType_BitcoinSignature,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -491,7 +530,7 @@ func TestZbcAccountType_GetSignatureType(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_GetTypeInt(t *testing.T) {
+func TestBTCAccountType_GetTypeInt(t *testing.T) {
 	type fields struct {
 		privateKey      []byte
 		publicKey       []byte
@@ -505,13 +544,13 @@ func TestZbcAccountType_GetTypeInt(t *testing.T) {
 		want   int32
 	}{
 		{
-			name: "GetTypeInt:success",
-			want: 0,
+			name: "GetTypeInt",
+			want: 1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -525,11 +564,11 @@ func TestZbcAccountType_GetTypeInt(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_IsEqual(t *testing.T) {
+func TestBTCAccountType_IsEqual(t *testing.T) {
 	var (
-		pubKey = []byte{4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77,
-			80, 80, 39, 254, 173, 28, 169}
-		accType = &ZbcAccountType{
+		pubKey = []byte{3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73, 12, 5,
+			166, 141, 205, 177, 156, 77, 122}
+		accType = &BTCAccountType{
 			publicKey: pubKey,
 		}
 	)
@@ -571,7 +610,7 @@ func TestZbcAccountType_IsEqual(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -585,13 +624,14 @@ func TestZbcAccountType_IsEqual(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_Sign(t *testing.T) {
+func TestBTCAccountType_Sign(t *testing.T) {
 	var (
 		seed      = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 		payload   = []byte{1, 2, 3}
-		signature = []byte{8, 55, 103, 141, 152, 224, 207, 186, 41, 134, 223, 127, 182, 49, 56, 186, 161, 2, 181, 82, 114, 5, 103, 167, 15,
-			213, 246, 183, 25, 175, 115, 235, 21, 103, 173, 111, 111, 117, 3, 114, 117, 241, 203, 205, 148, 114, 161, 39, 210, 124,
-			29, 86, 51, 154, 213, 34, 132, 76, 100, 186, 151, 31, 132, 15}
+		signature = []byte{33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73,
+			12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 69, 2, 33, 0, 184, 15, 123, 55, 191, 208, 195, 227, 186, 140, 100, 21, 170, 80,
+			65, 31, 156, 163, 120, 194, 142, 121, 103, 105, 146, 3, 242, 162, 86, 169, 141, 211, 2, 32, 16, 140, 220, 132, 123, 128, 89,
+			152, 29, 29, 91, 239, 70, 201, 42, 173, 210, 30, 218, 205, 224, 93, 135, 46, 221, 182, 148, 15, 252, 76, 119, 145}
 	)
 	type fields struct {
 		privateKey      []byte
@@ -623,7 +663,7 @@ func TestZbcAccountType_Sign(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
@@ -642,14 +682,15 @@ func TestZbcAccountType_Sign(t *testing.T) {
 	}
 }
 
-func TestZbcAccountType_VerifySignature(t *testing.T) {
+func TestBTCAccountType_VerifySignature(t *testing.T) {
 	var (
-		accountAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
-			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+		accountAddress = []byte{1, 0, 0, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42,
+			149, 73, 12, 5, 166, 141, 205, 177, 156, 77, 122}
 		payload   = []byte{1, 2, 3}
-		signature = []byte{8, 55, 103, 141, 152, 224, 207, 186, 41, 134, 223, 127, 182, 49, 56, 186, 161, 2, 181, 82, 114, 5, 103, 167, 15,
-			213, 246, 183, 25, 175, 115, 235, 21, 103, 173, 111, 111, 117, 3, 114, 117, 241, 203, 205, 148, 114, 161, 39, 210, 124,
-			29, 86, 51, 154, 213, 34, 132, 76, 100, 186, 151, 31, 132, 15}
+		signature = []byte{33, 0, 3, 82, 247, 192, 243, 36, 207, 71, 90, 3, 103, 220, 47, 115, 64, 15, 13, 59, 186, 231, 45, 42, 149, 73,
+			12, 5, 166, 141, 205, 177, 156, 77, 122, 48, 69, 2, 33, 0, 184, 15, 123, 55, 191, 208, 195, 227, 186, 140, 100, 21, 170, 80,
+			65, 31, 156, 163, 120, 194, 142, 121, 103, 105, 146, 3, 242, 162, 86, 169, 141, 211, 2, 32, 16, 140, 220, 132, 123, 128, 89,
+			152, 29, 29, 91, 239, 70, 201, 42, 173, 210, 30, 218, 205, 224, 93, 135, 46, 221, 182, 148, 15, 252, 76, 119, 145}
 	)
 	type fields struct {
 		privateKey      []byte
@@ -659,9 +700,9 @@ func TestZbcAccountType_VerifySignature(t *testing.T) {
 		encodedAddress  string
 	}
 	type args struct {
-		payload        []byte
-		signature      []byte
-		accountAddress []byte
+		payload            []byte
+		signature          []byte
+		fullAccountAddress []byte
 	}
 	tests := []struct {
 		name    string
@@ -672,31 +713,22 @@ func TestZbcAccountType_VerifySignature(t *testing.T) {
 		{
 			name: "VerifySignature:success",
 			args: args{
-				signature:      signature,
-				payload:        payload,
-				accountAddress: accountAddress,
+				fullAccountAddress: accountAddress,
+				payload:            payload,
+				signature:          signature,
 			},
-		},
-		{
-			name: "VerifySignature:fail",
-			args: args{
-				signature:      append(signature, []byte{1, 2, 3}...),
-				payload:        payload,
-				accountAddress: accountAddress,
-			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			acc := &ZbcAccountType{
+			acc := &BTCAccountType{
 				privateKey:      tt.fields.privateKey,
 				publicKey:       tt.fields.publicKey,
 				fullAddress:     tt.fields.fullAddress,
 				publicKeyString: tt.fields.publicKeyString,
 				encodedAddress:  tt.fields.encodedAddress,
 			}
-			if err := acc.VerifySignature(tt.args.payload, tt.args.signature, tt.args.accountAddress); (err != nil) != tt.wantErr {
+			if err := acc.VerifySignature(tt.args.payload, tt.args.signature, tt.args.fullAccountAddress); (err != nil) != tt.wantErr {
 				t.Errorf("VerifySignature() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
