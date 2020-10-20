@@ -9,21 +9,21 @@ import (
 )
 
 type (
-	ReceiptReminderStorage struct {
+	ProvedReceiptReminderStorage struct {
 		sync.RWMutex
 		// reminders map[receipt_key]
 		reminders map[string]chaintype.ChainType
 	}
 )
 
-func NewReceiptReminderStorage() *ReceiptReminderStorage {
-	return &ReceiptReminderStorage{
+func NewProvedReceiptReminderStorage() *ProvedReceiptReminderStorage {
+	return &ProvedReceiptReminderStorage{
 		reminders: make(map[string]chaintype.ChainType),
 	}
 }
 
 // SetItem add new item into storage
-func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
+func (rs *ProvedReceiptReminderStorage) SetItem(key, item interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
 
@@ -48,10 +48,10 @@ func (rs *ReceiptReminderStorage) SetItem(key, item interface{}) error {
 	return nil
 }
 
-func (rs *ReceiptReminderStorage) SetItems(_ interface{}) error {
+func (rs *ProvedReceiptReminderStorage) SetItems(_ interface{}) error {
 	return nil
 }
-func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
+func (rs *ProvedReceiptReminderStorage) GetItem(key, item interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
 
@@ -71,7 +71,7 @@ func (rs *ReceiptReminderStorage) GetItem(key, item interface{}) error {
 	return nil
 }
 
-func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
+func (rs *ProvedReceiptReminderStorage) GetAllItems(key interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
 
@@ -81,7 +81,7 @@ func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
-func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
+func (rs *ProvedReceiptReminderStorage) RemoveItem(key interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
 
@@ -91,7 +91,7 @@ func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
-func (rs *ReceiptReminderStorage) GetSize() int64 {
+func (rs *ProvedReceiptReminderStorage) GetSize() int64 {
 	rs.Lock()
 	defer rs.Unlock()
 
@@ -102,7 +102,7 @@ func (rs *ReceiptReminderStorage) GetSize() int64 {
 	return int64(size)
 }
 
-func (rs *ReceiptReminderStorage) ClearCache() error {
+func (rs *ProvedReceiptReminderStorage) ClearCache() error {
 	rs.Lock()
 	defer rs.Unlock()
 
