@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
@@ -45,9 +46,10 @@ func GenerateTxRegisterNode(
 ) *model.Transaction {
 
 	txBody := &model.NodeRegistrationTransactionBody{
-		NodePublicKey: nodePubKey,
-		LockedBalance: lockedBalance,
-		Poown:         proofOfOwnerShip,
+		AccountAddress: tx.SenderAccountAddress,
+		NodePublicKey:  nodePubKey,
+		LockedBalance:  lockedBalance,
+		Poown:          proofOfOwnerShip,
 	}
 	txBodyBytes, _ := (&transaction.NodeRegistration{
 		Body:                  txBody,
@@ -210,41 +212,56 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
+func getAccountTypeFromAccountHex(senderAccountAddressHex string) accounttype.AccountTypeInterface {
+	accountAddress, err := hex.DecodeString(senderAccountAddressHex)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeHexAddress",
+			err.Error(),
+		))
+	}
+	accountType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeAccountTypeFromAddress",
+			err.Error(),
+		))
+	}
+	return accountType
+}
+
 // GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
-	senderAddress, senderSeed string,
-	senderSignatureType int32,
+	senderAccountAddressHex, senderSeed string,
 	version uint32,
 	timestamp, fee int64,
-	recipientAccountAddressHex string,
+	recipientAccountAddressHex,
+	message string,
 ) *model.Transaction {
-	var (
-		senderAccountAddressHex string
-	)
-	if senderAddress != "" {
-		senderAccountAddressHex = senderAddress
-	} else if senderSeed != "" {
-		switch model.SignatureType(senderSignatureType) {
+	if senderAccountAddressHex == "" && senderSeed != "" {
+		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		// TODO: move this into AccountType interface
+		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
-			b, err := crypto.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
+			b, err := signaturetype.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
 			if err != nil {
 				panic(err.Error())
 			}
-			bb, err := crypto.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			bb, err := signaturetype.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddressHex, err = crypto.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
 			if err != nil {
 				panic(err.Error())
 			}
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
 					senderSeed,
-					crypto.DefaultBitcoinPublicKeyFormat(),
-					crypto.DefaultBitcoinPrivateKeyLength(),
+					signaturetype.DefaultBitcoinPublicKeyFormat(),
+					signaturetype.DefaultBitcoinPrivateKeyLength(),
 				)
 			)
 			if err != nil {
@@ -263,8 +280,6 @@ func GenerateBasicTransaction(
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
 		}
-	} else {
-		panic("Failed found or generate sender account address")
 	}
 
 	if timestamp <= 0 {
@@ -289,6 +304,7 @@ func GenerateBasicTransaction(
 			Commission:      0,
 			Timeout:         0,
 		},
+		Message: message,
 	}
 }
 
@@ -333,7 +349,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 func GenerateSignedTxBytes(
 	tx *model.Transaction,
 	senderSeed string,
-	signatureType int32,
+	accountTypeInt int32,
 	optionalSignParams ...interface{},
 ) []byte {
 	var (
@@ -358,7 +374,7 @@ func GenerateSignedTxBytes(
 	txBytesHash := sha3.Sum256(unsignedTxBytes)
 	tx.Signature, err = signature.Sign(
 		txBytesHash[:],
-		model.SignatureType(signatureType),
+		model.AccountType(accountTypeInt),
 		senderSeed,
 		optionalSignParams...,
 	)

@@ -5,10 +5,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -276,16 +278,37 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	blockHeight uint32,
 ) error {
 	var (
-		err error
+		err              error
+		multisigInfos    []*model.MultiSignatureInfo
+		multisigAccounts [][]byte
 	)
-	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddress(
+	q, args := msi.MultisignatureInfoQuery.GetMultisignatureInfoByAddressWithParticipants(
 		multisigAddress, blockHeight, constant.MinRollbackBlocks,
 	)
-	row, _ := msi.QueryExecutor.ExecuteSelectRow(q, false, args...)
-	err = msi.MultisignatureInfoQuery.Scan(multisigInfo, row)
+	rows, err := msi.QueryExecutor.ExecuteSelect(q, false, args...)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	defer rows.Close()
+	multisigInfos, err = msi.MultisignatureInfoQuery.BuildModelWithParticipant(multisigInfos, rows)
 	if err != nil {
 		return err
 	}
+
+	if len(multisigInfos) == 0 {
+		return blocker.NewBlocker(blocker.AppErr, "EmptyResultSet")
+	}
+	// make sure we have all data from db when returning
+	multisigInfo.Latest = multisigInfos[0].Latest
+	multisigInfo.BlockHeight = multisigInfos[0].BlockHeight
+	multisigInfo.MinimumSignatures = multisigInfos[0].MinimumSignatures
+	multisigInfo.Nonce = multisigInfos[0].Nonce
+	for _, msInfo := range multisigInfos {
+		if len(msInfo.Addresses[0]) > 0 {
+			multisigAccounts = append(multisigAccounts, msInfo.Addresses[0])
+		}
+	}
+	multisigInfo.Addresses = multisigAccounts
 	return nil
 }
 

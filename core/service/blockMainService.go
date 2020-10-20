@@ -6,16 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"reflect"
 	"sort"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -401,6 +403,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
+		start           = time.Now()
 		blocksmithIndex *int64
 		err             error
 		mempoolMap      storage.MempoolMap
@@ -786,6 +789,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
+	monitoring.SetBlockProcessTime(time.Since(start).Milliseconds())
 	return nil
 }
 
@@ -1030,6 +1034,19 @@ func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	return &lastBlock, nil
 }
 
+// GetLastBlockCacheFormat return the last pushed block in storage.BlockCacheObject format
+// block getting from Blocks Storage Cache
+func (bs *BlockService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	var (
+		lastBlock storage.BlockCacheObject
+		err       = bs.BlocksStorage.GetTop(&lastBlock)
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &lastBlock, nil
+}
+
 // GetBlockHash return block's hash (makes sure always include transactions)
 func (bs *BlockService) GetBlockHash(block *model.Block) ([]byte, error) {
 	transactions, err := bs.TransactionCoreService.GetTransactionsByBlockID(block.ID)
@@ -1191,7 +1208,7 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 	}
 	// filter only good receipt
 	for _, br := range block.GetPublishedReceipts() {
-		brBytes := bs.ReceiptUtil.GetSignedBatchReceiptBytes(br.BatchReceipt)
+		brBytes := bs.ReceiptUtil.GetSignedReceiptBytes(br.GetReceipt())
 		_, err = digest.Write(brBytes)
 		if err != nil {
 			return nil, 0, err
@@ -1216,7 +1233,7 @@ func (bs *BlockService) GenerateBlock(
 		publishedReceipts   []*model.PublishedReceipt
 		err                 error
 		digest              = sha3.New256()
-		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		blockSmithPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight      = previousBlock.Height + 1
 	)
 
@@ -1388,7 +1405,7 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 	peer *model.Peer,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	var err error
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
@@ -1443,7 +1460,7 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// generate receipt and return as response
-	batchReceipt, err := bs.ReceiptService.GenerateBatchReceiptWithReminder(
+	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
 		bs.Chaintype, block.GetBlockHash(),
 		lastBlock,
 		senderPublicKey,
@@ -1453,7 +1470,7 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return batchReceipt, nil
+	return receipt, nil
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {

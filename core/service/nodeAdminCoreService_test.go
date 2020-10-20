@@ -2,13 +2,13 @@ package service
 
 import (
 	"encoding/json"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"io/ioutil"
 	"os"
 	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )

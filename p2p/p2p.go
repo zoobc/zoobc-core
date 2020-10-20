@@ -316,7 +316,7 @@ func (s *Peer2PeerService) DownloadFilesFromPeer(
 	)
 	// Retry downloading from different peers until all chunks are downloaded or retry limit is reached
 	if len(resolvedPeers) < 1 {
-		return nil, blocker.NewBlocker(blocker.P2PPeerError, "no resolved peer can be found")
+		return nil, blocker.NewBlocker(blocker.P2PPeerErrorDownload, "no resolved peer can be found")
 	}
 	// convert the slice to a map to make it easier to find elements in it
 	fileChunkNamesMap := make(map[string]string)

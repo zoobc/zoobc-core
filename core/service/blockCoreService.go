@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	"github.com/zoobc/zoobc-core/observer"
 )
@@ -30,6 +31,7 @@ type (
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
+		GetLastBlockCacheFormat() (*storage.BlockCacheObject, error)
 		UpdateLastBlockCache(block *model.Block) error
 		InitializeBlocksCache() error
 		GetBlockHash(block *model.Block) ([]byte, error)
@@ -44,11 +46,10 @@ type (
 		ChainWriteUnlock(actionType int)
 		ReceiveBlock(
 			senderPublicKey []byte,
-			lastBlock,
-			block *model.Block,
+			lastBlock, block *model.Block,
 			nodeSecretPhrase string,
 			peer *model.Peer,
-		) (*model.BatchReceipt, error)
+		) (*model.Receipt, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener

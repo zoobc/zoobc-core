@@ -37,6 +37,7 @@ var (
 	ZeroParticipationScoreErr TypeBlocker = "ZeroParticipationScoreErr"
 	ChainValidationErr        TypeBlocker = "ChainValidationErr"
 	P2PPeerError              TypeBlocker = "P2PPeerError"
+	P2PPeerErrorDownload      TypeBlocker = "P2PPeerErrorDownload"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
 	SmithingPending           TypeBlocker = "SmithingPending"
 	InvalidBlockTimestamp     TypeBlocker = "InvalidBlockTimestamp"

@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -164,14 +165,14 @@ func initiateMainInstance() {
 		// TODO: move to crypto package in a function
 		switch accType.GetTypeInt() {
 		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
 			}
 		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
@@ -229,29 +230,17 @@ func initiateMainInstance() {
 
 	if config.OwnerAccountAddress == nil {
 		// todo: andy-shi88 refactor this
-		ed25519 := crypto.NewEd25519Signature()
-		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
+		signature := crypto.NewSignature()
+		_, _, _, config.OwnerEncodedAccountAddress, config.OwnerAccountAddress, err = signature.GenerateAccountFromSeed(
+			&accounttype.ZbcAccountType{},
 			config.NodeKey.Seed,
+			true,
 		)
 		if err != nil {
-			log.Error("Fail to generate account private key")
+			log.Error("error generating node owner account")
 			os.Exit(1)
 		}
-		publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
-		if err != nil {
-			log.Error("Fail to generate account public key")
-			os.Exit(1)
-		}
-		accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), publicKey)
-		if err != nil {
-			log.Error(err)
-			os.Exit(1)
-		}
-		config.OwnerAccountAddress, err = accType.GetAccountAddress()
-		if err != nil {
-			log.Error(err)
-			os.Exit(1)
-		}
+		config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
 			log.Error("Fail to save new configuration")
@@ -292,7 +281,7 @@ func initiateMainInstance() {
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
+	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
@@ -389,7 +378,7 @@ func initiateMainInstance() {
 	)
 
 	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -443,6 +432,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		mainchain,
+		crypto.NewRandomNumberGenerator(),
 	)
 	mainchainParticipationScoreService = service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
@@ -550,6 +540,7 @@ func initiateMainInstance() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewMultiSignatureParticipantQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
@@ -670,7 +661,7 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor, query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewBatchReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewMerkleTreeQuery(),
@@ -1018,13 +1009,7 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
+
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

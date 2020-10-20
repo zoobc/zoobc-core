@@ -70,7 +70,7 @@ func (psu *PublishedReceiptUtil) GetPublishedReceiptsByBlockHeightRange(fromBloc
 func (psu *PublishedReceiptUtil) GetPublishedReceiptByLinkedRMR(root []byte) (*model.PublishedReceipt, error) {
 	var (
 		publishedReceipt = &model.PublishedReceipt{
-			BatchReceipt:       &model.BatchReceipt{},
+			Receipt:            &model.Receipt{},
 			IntermediateHashes: nil,
 			BlockHeight:        0,
 			ReceiptIndex:       0,

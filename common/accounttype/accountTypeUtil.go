@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-// NewAccountType returns the appropriate AccountType object based on the account account type nul and account public key
-func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountType, error) {
+// NewAccountType returns the appropriate AccountTypeInterface object based on the account account type nul and account public key
+func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountTypeInterface, error) {
 	var (
-		acc AccountType
+		acc AccountTypeInterface
 	)
 	switch accTypeInt {
 	case int32(model.AccountType_ZbcAccountType):
@@ -27,17 +28,17 @@ func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountType, error) {
 	return acc, nil
 }
 
-// NewAccountTypeFromAccount returns the appropriate AccountType object based on the account full address (account type + account public key)
-func NewAccountTypeFromAccount(accountAddress []byte) (AccountType, error) {
+// NewAccountTypeFromAccount returns the appropriate AccountTypeInterface object based on the account full address (account type + account public key)
+func NewAccountTypeFromAccount(accountAddress []byte) (AccountTypeInterface, error) {
 	buff := bytes.NewBuffer(accountAddress)
 	return ParseBytesToAccountType(buff)
 }
 
-// ParseBytesToAccountType parse an AccountAddress from a bytes.Buffer and returns the appropriate AccountType object
-func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
+// ParseBytesToAccountType parse an AccountAddress from a bytes.Buffer and returns the appropriate AccountTypeInterface object
+func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountTypeInterface, error) {
 	var (
 		accPubKey []byte
-		acc       AccountType
+		acc       AccountTypeInterface
 	)
 	accTypeIntBytes := bufferBytes.Next(int(constant.AccountAddressTypeLength))
 	if len(accTypeIntBytes) < int(constant.AccountAddressTypeLength) {
@@ -63,20 +64,39 @@ func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountType, error) {
 	return acc, nil
 }
 
-// GetAccountTypes returns all AccountType (useful for loops)
-func GetAccountTypes() map[uint32]AccountType {
+// ParseEncodedAccountToAccountAddress parse an encoded account type into a full account address ([]byte)
+// Note: we must know the account type first to do it
+func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress string) ([]byte, error) {
+	var (
+		accPubKey []byte
+		err       error
+	)
+	switch accTypeInt {
+	case int32(model.AccountType_ZbcAccountType):
+		accPubKey = make([]byte, 32)
+		err = address.DecodeZbcID(encodedAccountAddress, accPubKey)
+		if err != nil {
+			return nil, err
+		}
+	case int32(model.AccountType_BTCAccountType):
+		// TODO: not implemented yet!
+		return nil, errors.New("parsing encoded BTC accounts is not implemented yet")
+	}
+	accType, err := NewAccountType(int32(model.AccountType_ZbcAccountType), accPubKey)
+	if err != nil {
+		return nil, err
+	}
+	return accType.GetAccountAddress()
+}
+
+// GetAccountTypes returns all AccountTypeInterface (useful for loops)
+func GetAccountTypes() map[uint32]AccountTypeInterface {
 	var (
 		zbcAccount   = &ZbcAccountType{}
 		dummyAccount = &BTCAccountType{}
 	)
-	return map[uint32]AccountType{
+	return map[uint32]AccountTypeInterface{
 		uint32(zbcAccount.GetTypeInt()):   zbcAccount,
 		uint32(dummyAccount.GetTypeInt()): dummyAccount,
 	}
-}
-
-// IsZbcAccount validates whether an account type is a default account (ZBC)
-func IsZbcAccount(at AccountType) bool {
-	_, ok := at.(*ZbcAccountType)
-	return ok
 }

@@ -3,9 +3,12 @@ package genesisblock
 import (
 	"bytes"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -22,7 +25,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -257,7 +259,7 @@ func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState 
 //       This is only useful to test multiple smithing-nodes, for instence in a network stress test of tens of nodes connected together
 func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 	var (
-		ed25519Signature = crypto.NewEd25519Signature()
+		ed25519Signature = signaturetype.NewEd25519Signature()
 	)
 	if accountAddress == "" {
 		var (
@@ -324,7 +326,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 		if err != nil {
 			return nil, err
 		}
-		ed25519 := crypto.NewEd25519Signature()
+		ed25519 := signaturetype.NewEd25519Signature()
 		encodedAccountAddress, err := ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 		if err != nil {
 			return nil, err
@@ -392,7 +394,7 @@ func validateGenesisFile(genesisEntries []genesisEntry) bool {
 		numberOfUnmatched = 0
 		errorLog          = []*parseErrorLog{}
 	)
-	ed25519 := crypto.NewEd25519Signature()
+	ed25519 := signaturetype.NewEd25519Signature()
 	for _, genesisEntry := range genesisEntries {
 		if genesisEntry.NodeSeed == "" {
 			continue
@@ -614,7 +616,7 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 			entry := clusterConfigEntry{
 				NodePublicKey:  genEntry.NodePublicKey,
 				NodeSeed:       genEntry.NodeSeed,
-				AccountAddress: genEntry.AccountAddress,
+				AccountAddress: convZBCAddressToHex(genEntry.AccountAddress),
 				Smithing:       genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
@@ -629,6 +631,25 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		log.Fatalf("create %s file: %s\n", newClusterConfigFilePath, err)
 	}
 	return clusterConfig
+}
+
+func convZBCAddressToHex(encodedAccountAddress string) string {
+	var (
+		defSignature = signaturetype.NewEd25519Signature()
+	)
+	pubKey, err := defSignature.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
+	if err != nil {
+		panic(err)
+	}
+	accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), pubKey)
+	if err != nil {
+		panic(err)
+	}
+	accountAddress, err := accType.GetAccountAddress()
+	if err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(accountAddress)
 }
 
 func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFilePath string) {

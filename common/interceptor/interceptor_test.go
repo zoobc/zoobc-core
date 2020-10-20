@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
@@ -47,7 +47,7 @@ func (*mockServerStreamSuccess) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)
@@ -79,7 +79,7 @@ func (*mockServerStreamInvalidAuth) Context() context.Context {
 	buffer.Write(util.ConvertUint64ToBytes(currentTime))
 	sig, _ := (crypto.NewSignature()).Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	buffer.Write(sig)

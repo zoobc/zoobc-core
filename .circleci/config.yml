@@ -74,6 +74,10 @@ jobs:
             - run:
                   name: GOLINT RUN
                   command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+            - run:
+                name: TEST MAKE GEN
+                command: |
+                    make generate-gen gen-target=develop
             - save_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                   paths:
@@ -89,12 +93,6 @@ jobs:
                   paths:
                       - ./dist
             - run:
-                  name: ↓ RSYNC
-                  command: |
-                      if [ ! -d rsync ]; then
-                          sudo apt-get update && sudo apt-get install rsync
-                      fi
-            - run:
                   name: GENERATING GENESIS
                   command: |
                     if [[ ${CIRCLE_BRANCH} == "develop" || ${CIRCLE_BRANCH} == "staging" || ${CIRCLE_BRANCH} == "experimental" ]]; then
@@ -104,7 +102,6 @@ jobs:
                   name: BUILD
                   command: |
                       go build -o ./dist/zoobc
-            #                       rsync -va --exclude='*.db' ./resource ./dist
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:

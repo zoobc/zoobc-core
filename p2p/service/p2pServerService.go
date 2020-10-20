@@ -443,7 +443,7 @@ func (ps *P2PServerService) SendBlock(
 				"failGetLastBlock",
 			)
 		}
-		batchReceipt, err := blockService.ReceiveBlock(
+		receipt, err := blockService.ReceiveBlock(
 			senderPublicKey,
 			lastBlock,
 			block,
@@ -454,7 +454,7 @@ func (ps *P2PServerService) SendBlock(
 			return nil, err
 		}
 		return &model.SendBlockResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipt,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -489,7 +489,7 @@ func (ps *P2PServerService) SendTransaction(
 				"mempoolServiceNotFoundByThisChainType",
 			)
 		}
-		batchReceipt, err := mempoolService.ReceivedTransaction(
+		receipt, err := mempoolService.ReceivedTransaction(
 			senderPublicKey,
 			transactionBytes,
 			lastBlock,
@@ -499,7 +499,7 @@ func (ps *P2PServerService) SendTransaction(
 			return nil, err
 		}
 		return &model.SendTransactionResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipt,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -544,7 +544,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 			return nil, err
 		}
 		return &model.SendBlockTransactionsResponse{
-			BatchReceipts: batchReceipts,
+			Receipts: batchReceipts,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
