@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -74,7 +75,7 @@ func init() {
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
 		int32(model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed),
-		"Defines the format of public key Bitcoin want to generate. 0 for compressed format & 1 for uncompressed format",
+		"Defines the format of public key Bitcoin want to generate. 0 for uncompressed format & 1 for compressed format",
 	)
 	// multisig
 	multiSigCmd.Flags().StringSliceVar(&multisigAddressesHex, "addresses", []string{},
@@ -113,13 +114,13 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 		)
 		switch accountTypeInt {
 		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			accPubKey, err = ed25519.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
 			if err != nil {
 				panic(err)
 			}
 		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
 			if err != nil {
 				panic(err)
@@ -231,7 +232,7 @@ func (gc *GeneratorCommands) GenerateBitcoinAccount() RunCommand {
 
 // PrintAccount print out the generated account
 func PrintAccount(
-	accountType accounttype.AccountType,
+	accountType accounttype.AccountTypeInterface,
 	seed, publicKeyString, encodedAddress string,
 	privateKey, publicKey, fullAccountAddress []byte,
 ) {

@@ -3,7 +3,6 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -29,15 +28,17 @@ func GetGenesisTransactions(
 	case *chaintype.MainChain:
 		for _, genesisEntry := range genesisEntries {
 			// pass to genesis the fullAddress (accountType + accountPublicKey) in bytes
-			ed25519 := crypto.NewEd25519Signature()
-			accPubKey, err := ed25519.GetPublicKeyFromEncodedAddress(genesisEntry.AccountAddress)
+			fullAccountAddress, err := accounttype.ParseEncodedAccountToAccountAddress(
+				int32(model.AccountType_ZbcAccountType),
+				genesisEntry.AccountAddress,
+			)
 			if err != nil {
 				return nil, err
 			}
-			// as of now we only support default account type for genesis registrations, so no need to check the account type
-			accType := &accounttype.ZbcAccountType{}
-			accType.SetEncodedAccountAddress(genesisEntry.AccountAddress)
-			accType.SetAccountPublicKey(accPubKey)
+			accType, err := accounttype.NewAccountTypeFromAccount(fullAccountAddress)
+			if err != nil {
+				return nil, err
+			}
 			accountFullAddress, err := accType.GetAccountAddress()
 			if err != nil {
 				return nil, err

@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"sort"
 	"strconv"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -37,13 +37,13 @@ type (
 			senderPublicKey, receivedTxBytes []byte,
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
-		) (*model.BatchReceipt, error)
+		) (*model.Receipt, error)
 		ReceivedBlockTransactions(
 			senderPublicKey []byte,
 			receivedTxBytes [][]byte,
 			lastBlock *model.Block,
 			nodeSecretPhrase string,
-		) ([]*model.BatchReceipt, error)
+		) ([]*model.Receipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error)
 		BackupMempools(commonBlock *model.Block) error
@@ -360,17 +360,16 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 }
 
 func (mps *MempoolService) ReceivedTransaction(
-	senderPublicKey,
-	receivedTxBytes []byte,
+	senderPublicKey, receivedTxBytes []byte,
 	lastBlock *model.Block,
 	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	var (
-		err          error
-		receivedTx   *model.Transaction
-		batchReceipt *model.BatchReceipt
+		err        error
+		receivedTx *model.Transaction
+		receipt    *model.Receipt
 	)
-	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(
+	receipt, receivedTx, err = mps.ProcessReceivedTransaction(
 		senderPublicKey,
 		receivedTxBytes,
 		lastBlock,
@@ -381,7 +380,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	// receivedTx == nil when it's a duplicate but we haven't send receipt to this peer for this particular data yet
 	if receivedTx == nil {
-		return batchReceipt, nil
+		return receipt, nil
 	}
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
@@ -417,21 +416,20 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mps.Observer.Notify(observer.TransactionAdded, receivedTxBytes, mps.Chaintype)
-	return batchReceipt, nil
+	return receipt, nil
 }
 
 // ProcessReceivedTransaction process the transaction received from peer
 // will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
-	senderPublicKey,
-	receivedTxBytes []byte,
+	senderPublicKey, receivedTxBytes []byte,
 	lastBlock *model.Block,
 	nodeSecretPhrase string,
-) (*model.BatchReceipt, *model.Transaction, error) {
+) (*model.Receipt, *model.Transaction, error) {
 	var (
-		batchReceipt *model.BatchReceipt
-		receivedTx   *model.Transaction
-		err          error
+		receipt    *model.Receipt
+		receivedTx *model.Transaction
+		err        error
 	)
 
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
@@ -448,7 +446,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	batchReceipt, err = mps.ReceiptService.GenerateBatchReceiptWithReminder(
+	receipt, err = mps.ReceiptService.GenerateReceiptWithReminder(
 		mps.Chaintype, receivedTxHash[:],
 		lastBlock, senderPublicKey,
 		nodeSecretPhrase,
@@ -464,10 +462,10 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		if specificErr.Type != blocker.DuplicateMempoolErr {
 			return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		return batchReceipt, nil, nil
+		return receipt, nil, nil
 	}
 
-	return batchReceipt, receivedTx, nil
+	return receipt, receivedTx, nil
 }
 
 // ReceivedBlockTransactions
@@ -476,9 +474,9 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 	receivedTxBytes [][]byte,
 	lastBlock *model.Block,
 	nodeSecretPhrase string,
-) ([]*model.BatchReceipt, error) {
+) ([]*model.Receipt, error) {
 	var (
-		batchReceiptArray    []*model.BatchReceipt
+		batchReceiptArray    []*model.Receipt
 		receivedTransactions []*model.Transaction
 	)
 	for _, txBytes := range receivedTxBytes {

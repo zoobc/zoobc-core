@@ -331,7 +331,7 @@ var (
 		IntermediateHashes: make([]byte, 32),
 		PublishedIndex:     100,
 		ReceiptIndex:       10,
-		BatchReceipt:       &model.BatchReceipt{},
+		Receipt:            &model.Receipt{},
 	}
 	escrowTx1 = &model.Escrow{
 		BlockHeight:      1,
@@ -358,8 +358,8 @@ var (
 		Height:    1440,
 		Timestamp: 15875392,
 	}
-	snapshotFullHash = []byte{221, 70, 62, 193, 204, 53, 42, 200, 197, 105, 125, 165, 143, 4, 170, 31, 176, 235, 11, 146, 10, 74, 112,
-		123, 104, 92, 49, 126, 240, 230, 62, 49}
+	snapshotFullHash = []byte{24, 221, 153, 30, 107, 6, 128, 163, 98, 204, 96, 191, 126, 13, 184, 12, 200, 188, 39, 15,
+		65, 111, 26, 6, 181, 130, 90, 175, 180, 57, 152, 169}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
 		188, 144, 9, 73, 75, 6, 1, 1, 1,

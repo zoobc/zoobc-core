@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -167,14 +168,14 @@ func initiateMainInstance() {
 		// TODO: move to crypto package in a function
 		switch accType.GetTypeInt() {
 		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
 			}
 		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
@@ -283,7 +284,7 @@ func initiateMainInstance() {
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
+	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
@@ -380,7 +381,7 @@ func initiateMainInstance() {
 	)
 
 	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -445,6 +446,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		mainchain,
+		crypto.NewRandomNumberGenerator(),
 	)
 	mainchainParticipationScoreService = service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
@@ -675,7 +677,7 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor, query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewBatchReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewMerkleTreeQuery(),
@@ -1025,13 +1027,7 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
+
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

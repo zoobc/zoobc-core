@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
@@ -14,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -65,8 +66,8 @@ var (
 		TotalCoinBase: 1,
 		Version:       0,
 	}
-	mockLinkedReceipt = &model.Receipt{
-		BatchReceipt: &model.BatchReceipt{
+	mockLinkedReceipt = &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey: []byte{
 				8, 8, 8, 8, 7, 7, 7, 7, 6, 6, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3, 2, 2, 2, 2, 1, 1, 1, 1,
 			},
@@ -83,8 +84,8 @@ var (
 		RMR:      make([]byte, 64),
 		RMRIndex: 0,
 	}
-	mockUnlinkedReceiptWithLinkedRMR = &model.Receipt{
-		BatchReceipt: &model.BatchReceipt{
+	mockUnlinkedReceiptWithLinkedRMR = &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey: make([]byte, 32),
 			RecipientPublicKey: []byte{
 				1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2,
@@ -99,8 +100,8 @@ var (
 		RMR:      make([]byte, 64),
 		RMRIndex: 0,
 	}
-	mockUnlinkedReceipt = &model.Receipt{
-		BatchReceipt: &model.BatchReceipt{
+	mockUnlinkedReceipt = &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey: make([]byte, 32),
 			RecipientPublicKey: []byte{
 				1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 2, 1,
@@ -125,7 +126,7 @@ var (
 	// node registry
 	mockNodeRegistrationData = model.NodeRegistration{
 		NodeID:             111,
-		NodePublicKey:      mockLinkedReceipt.BatchReceipt.SenderPublicKey,
+		NodePublicKey:      mockLinkedReceipt.Receipt.SenderPublicKey,
 		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
@@ -140,7 +141,7 @@ var (
 	}
 	mockNodeRegistrationDataB = model.NodeRegistration{
 		NodeID:             222,
-		NodePublicKey:      mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
+		NodePublicKey:      mockLinkedReceipt.Receipt.RecipientPublicKey,
 		AccountAddress:     nil,
 		RegistrationHeight: 0,
 		LockedBalance:      0,
@@ -160,27 +161,27 @@ func fixtureGenerateMerkle() {
 	signature := crypto.NewSignature()
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[hex.EncodeToString(mockLinkedReceipt.BatchReceipt.RecipientPublicKey)] =
+	mockLinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[hex.EncodeToString(mockLinkedReceipt.Receipt.RecipientPublicKey)] =
 		222
-	unsignedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
-	mockLinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
+	unsignedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockLinkedReceipt.Receipt)
+	mockLinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
-	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.BatchReceipt)
-	mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientSignature = signature.SignByNode(
+	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceiptWithLinkedRMR.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
+	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.Receipt)
+	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature = signature.SignByNode(
 		unsignedUnlinkedReceiptByte, mockSeed)
 	// sign no rmr linked
-	mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockUnlinkedReceipt.BatchReceipt.SenderPublicKey = mockLinkedReceipt.BatchReceipt.SenderPublicKey
-	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedBatchReceiptBytes(mockUnlinkedReceipt.BatchReceipt)
-	mockUnlinkedReceipt.BatchReceipt.RecipientSignature = signature.SignByNode(
+	mockUnlinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceipt.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
+	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceipt.Receipt)
+	mockUnlinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(
 		unsignedNoRMRReceiptByte, mockSeed,
 	)
-	mockNodeRegistrationDataB.NodePublicKey = mockLinkedReceipt.BatchReceipt.RecipientPublicKey
+	mockNodeRegistrationDataB.NodePublicKey = mockLinkedReceipt.Receipt.RecipientPublicKey
 	mockMerkle = &util.MerkleRoot{}
-	receiptBytes := receiptUtil.GetSignedBatchReceiptBytes(mockLinkedReceipt.BatchReceipt)
+	receiptBytes := receiptUtil.GetSignedReceiptBytes(mockLinkedReceipt.Receipt)
 	receiptHash := sha3.Sum256(receiptBytes)
 	mockMerkleHashes = append(mockMerkleHashes, bytes.NewBuffer(receiptHash[:]))
 	// generate random data for the hashes
@@ -272,14 +273,14 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			"rmr",
 			"rmr_index",
 		}).AddRow(
-			mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-			mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-			mockLinkedReceipt.BatchReceipt.DatumType,
-			mockLinkedReceipt.BatchReceipt.DatumHash,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHeight,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHash,
-			mockLinkedReceipt.BatchReceipt.RMRLinked,
-			mockLinkedReceipt.BatchReceipt.RecipientSignature,
+			mockLinkedReceipt.Receipt.SenderPublicKey,
+			mockLinkedReceipt.Receipt.RecipientPublicKey,
+			mockLinkedReceipt.Receipt.DatumType,
+			mockLinkedReceipt.Receipt.DatumHash,
+			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
+			mockLinkedReceipt.Receipt.ReferenceBlockHash,
+			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
 		))
@@ -299,14 +300,14 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			"rmr",
 			"rmr_index",
 		}).AddRow(
-			mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-			mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-			mockLinkedReceipt.BatchReceipt.DatumType,
-			mockLinkedReceipt.BatchReceipt.DatumHash,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHeight,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHash,
-			mockLinkedReceipt.BatchReceipt.RMRLinked,
-			mockLinkedReceipt.BatchReceipt.RecipientSignature,
+			mockLinkedReceipt.Receipt.SenderPublicKey,
+			mockLinkedReceipt.Receipt.RecipientPublicKey,
+			mockLinkedReceipt.Receipt.DatumType,
+			mockLinkedReceipt.Receipt.DatumHash,
+			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
+			mockLinkedReceipt.Receipt.ReferenceBlockHash,
+			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
 		))
@@ -489,14 +490,14 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			"rmr",
 			"rmr_index",
 		}).AddRow(
-			mockLinkedReceipt.BatchReceipt.SenderPublicKey,
-			mockLinkedReceipt.BatchReceipt.RecipientPublicKey,
-			mockLinkedReceipt.BatchReceipt.DatumType,
-			mockLinkedReceipt.BatchReceipt.DatumHash,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHeight,
-			mockLinkedReceipt.BatchReceipt.ReferenceBlockHash,
-			mockLinkedReceipt.BatchReceipt.RMRLinked,
-			mockLinkedReceipt.BatchReceipt.RecipientSignature,
+			mockLinkedReceipt.Receipt.SenderPublicKey,
+			mockLinkedReceipt.Receipt.RecipientPublicKey,
+			mockLinkedReceipt.Receipt.DatumType,
+			mockLinkedReceipt.Receipt.DatumHash,
+			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
+			mockLinkedReceipt.Receipt.ReferenceBlockHash,
+			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
 		))
@@ -517,25 +518,25 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			"rmr",
 			"rmr_index",
 		}).AddRow(
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.SenderPublicKey,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientPublicKey,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.DatumType,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.DatumHash,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.ReferenceBlockHeight,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.ReferenceBlockHash,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RMRLinked,
-			mockUnlinkedReceiptWithLinkedRMR.BatchReceipt.RecipientSignature,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.SenderPublicKey,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.DatumType,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.DatumHash,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.ReferenceBlockHeight,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.ReferenceBlockHash,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.RMRLinked,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature,
 			make([]byte, 32),
 			0,
 		).AddRow(
-			mockUnlinkedReceipt.BatchReceipt.SenderPublicKey,
-			mockUnlinkedReceipt.BatchReceipt.RecipientPublicKey,
-			mockUnlinkedReceipt.BatchReceipt.DatumType,
-			mockUnlinkedReceipt.BatchReceipt.DatumHash,
-			mockUnlinkedReceipt.BatchReceipt.ReferenceBlockHeight,
-			mockUnlinkedReceipt.BatchReceipt.ReferenceBlockHash,
-			mockUnlinkedReceipt.BatchReceipt.RMRLinked,
-			mockUnlinkedReceipt.BatchReceipt.RecipientSignature,
+			mockUnlinkedReceipt.Receipt.SenderPublicKey,
+			mockUnlinkedReceipt.Receipt.RecipientPublicKey,
+			mockUnlinkedReceipt.Receipt.DatumType,
+			mockUnlinkedReceipt.Receipt.DatumHash,
+			mockUnlinkedReceipt.Receipt.ReferenceBlockHeight,
+			mockUnlinkedReceipt.Receipt.ReferenceBlockHash,
+			mockUnlinkedReceipt.Receipt.RMRLinked,
+			mockUnlinkedReceipt.Receipt.RecipientSignature,
 			make([]byte, 32),
 			0,
 		))
@@ -623,8 +624,8 @@ var (
 			"555": &indexE,
 		},
 		NodePublicKeyToIDMap: map[string]int64{
-			hex.EncodeToString(mockLinkedReceipt.BatchReceipt.SenderPublicKey):    111,
-			hex.EncodeToString(mockLinkedReceipt.BatchReceipt.RecipientPublicKey): 222,
+			hex.EncodeToString(mockLinkedReceipt.Receipt.SenderPublicKey):    111,
+			hex.EncodeToString(mockLinkedReceipt.Receipt.RecipientPublicKey): 222,
 			"333": 333,
 			"444": 444,
 			"555": 555,
@@ -670,7 +671,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	fixtureGenerateMerkle()
 
 	type fields struct {
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		NodeReceiptQuery        query.BatchReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		QueryExecutor           query.ExecutorInterface
 		NodeRegistrationService NodeRegistrationServiceInterface
@@ -722,7 +723,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			name: "receiptService-selectReceipts-Fail:ExecuteSelect-Fail_Receipt",
 			fields: fields{
 				ScrambleNodeService: &mockScrambleNodeServiceSelectReceiptsSuccess{},
-				NodeReceiptQuery:    query.NewNodeReceiptQuery(),
+				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				QueryExecutor:       &mockQueryExecutorFailExecuteSelectReceipt{},
 			},
@@ -736,7 +737,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-success-one-linked",
 			fields: fields{
-				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
+				NodeReceiptQuery:        query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceipts{},
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
@@ -749,7 +750,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			},
 			want: []*model.PublishedReceipt{
 				{
-					BatchReceipt:       mockLinkedReceipt.BatchReceipt,
+					Receipt:            mockLinkedReceipt.Receipt,
 					IntermediateHashes: mockFlattenIntermediateHash,
 					BlockHeight:        0,
 					ReceiptIndex:       mockLinkedReceipt.RMRIndex,
@@ -761,7 +762,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 		{
 			name: "receiptService-selectReceipts-success-one-linked-more-rmr-linked-and-unlinked",
 			fields: fields{
-				NodeReceiptQuery:        query.NewNodeReceiptQuery(),
+				NodeReceiptQuery:        query.NewBatchReceiptQuery(),
 				MerkleTreeQuery:         query.NewMerkleTreeQuery(),
 				NodeRegistrationService: &mockNodeRegistrationSelectReceiptSuccess{},
 				QueryExecutor:           &mockQueryExecutorSuccessOneLinkedReceiptsAndMore{},
@@ -774,7 +775,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 			},
 			want: []*model.PublishedReceipt{
 				{
-					BatchReceipt:       mockLinkedReceipt.BatchReceipt,
+					Receipt:            mockLinkedReceipt.Receipt,
 					IntermediateHashes: mockFlattenIntermediateHash,
 					BlockHeight:        0,
 					ReceiptIndex:       mockLinkedReceipt.RMRIndex,
@@ -926,49 +927,6 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransaction
 	return errors.New("mockError:ExecuteTransactionsFail")
 }
 
-func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
-	type fields struct {
-		NodeReceiptQuery      query.NodeReceiptQueryInterface
-		MerkleTreeQuery       query.MerkleTreeQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		MainBlockStateStorage storage.CacheStorageInterface
-		BatchReceiptStorage   storage.CacheStorageInterface
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "wantSuccess",
-			fields: fields{
-				NodeReceiptQuery:      query.NewNodeReceiptQuery(),
-				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
-				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
-				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
-				BatchReceiptStorage:   storage.NewBatchReceiptCacheStorage(),
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rs := &ReceiptService{
-				NodeReceiptQuery:         tt.fields.NodeReceiptQuery,
-				MerkleTreeQuery:          tt.fields.MerkleTreeQuery,
-				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:            tt.fields.QueryExecutor,
-				ReceiptUtil:              &coreUtil.ReceiptUtil{},
-				MainBlockStateStorage:    tt.fields.MainBlockStateStorage,
-				BatchReceiptCacheStorage: tt.fields.BatchReceiptStorage,
-			}
-			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
-				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
 type (
 	mockExecutorPruningNodeReceiptsSuccess struct {
 		query.Executor
@@ -1026,14 +984,14 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 
 	mockRows := mock.NewRows(query.NewPublishedReceiptQuery().Fields)
 	mockRows.AddRow(
-		mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
-		mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-		mockPublishedReceipt[0].BatchReceipt.DatumType,
-		mockPublishedReceipt[0].BatchReceipt.DatumHash,
-		mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-		mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-		mockPublishedReceipt[0].BatchReceipt.RMRLinked,
-		mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+		mockPublishedReceipt[0].Receipt.SenderPublicKey,
+		mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+		mockPublishedReceipt[0].Receipt.DatumType,
+		mockPublishedReceipt[0].Receipt.DatumHash,
+		mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+		mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+		mockPublishedReceipt[0].Receipt.RMRLinked,
+		mockPublishedReceipt[0].Receipt.RecipientSignature,
 		mockPublishedReceipt[0].IntermediateHashes,
 		mockPublishedReceipt[0].BlockHeight,
 		mockPublishedReceipt[0].ReceiptIndex,
@@ -1044,7 +1002,7 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 }
 func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 	type fields struct {
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		NodeReceiptQuery        query.BatchReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
@@ -1114,7 +1072,7 @@ func (*mockReceiptReminderStorageDuplicated) GetItem(_, item interface{}) error 
 
 func TestReceiptService_IsDuplicated(t *testing.T) {
 	type fields struct {
-		NodeReceiptQuery        query.NodeReceiptQueryInterface
+		NodeReceiptQuery        query.BatchReceiptQueryInterface
 		MerkleTreeQuery         query.MerkleTreeQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface

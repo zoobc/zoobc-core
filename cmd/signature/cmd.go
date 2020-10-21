@@ -3,10 +3,9 @@ package signature
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"golang.org/x/crypto/sha3"
@@ -117,7 +116,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	}
 	signature, err = gc.Signature.Sign(
 		unsignedBytes,
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		seed,
 		ed25519UseSlip10,
 	)
