@@ -475,7 +475,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "message" TEXT
+				ADD COLUMN "message" BLOB
 			`,
 		}
 		return nil

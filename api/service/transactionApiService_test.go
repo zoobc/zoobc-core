@@ -596,7 +596,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				1,
 				1,
 				false,
-				"test message",
+				[]byte{1, 2, 3},
 			),
 		)
 	return db.Query("")
@@ -695,7 +695,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Version:                 1,
 						TransactionIndex:        1,
 						MultisigChild:           false,
-						Message:                 "test message",
+						Message:                 []byte{1, 2, 3},
 					},
 				},
 			},
@@ -853,6 +853,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Version:                 1,
 				TransactionIndex:        1,
 				MultisigChild:           false,
+				Message:                 []byte{},
 			},
 		},
 	}
