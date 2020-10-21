@@ -46,7 +46,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) 
 		linkedCount int
 		err         error
 	)
-	for index, rc := range block.GetPublishedReceipts() {
+	for index, rc := range block.GetFreeReceipts() {
 		// validate sender and recipient of receipt
 		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt())
 		if err != nil {

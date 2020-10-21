@@ -704,27 +704,7 @@ func TestBlockSpineService_NewGenesisBlock(t *testing.T) {
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				MainBlockService:          tt.fields.MainBlockService,
 			}
-			got, err := bs.NewGenesisBlock(
-				tt.args.version,
-				tt.args.previousBlockHash,
-				tt.args.blockSeed,
-				tt.args.blockSmithPublicKey,
-				tt.args.merkleRoot,
-				tt.args.merkleTree,
-				tt.args.previousBlockHeight,
-				tt.args.referenceBlockHeight,
-				tt.args.timestamp,
-				tt.args.totalAmount,
-				tt.args.totalFee,
-				tt.args.totalCoinBase,
-				tt.args.transactions,
-				tt.args.publishedReceipts,
-				tt.args.spinePublicKeys,
-				tt.args.payloadHash,
-				tt.args.payloadLength,
-				tt.args.cumulativeDifficulty,
-				tt.args.genesisSignature,
-			)
+			got, err := bs.NewGenesisBlock(tt.args.version, tt.args.previousBlockHash, tt.args.blockSeed, tt.args.blockSmithPublicKey, tt.args.merkleRoot, tt.args.merkleTree, tt.args.previousBlockHeight, tt.args.referenceBlockHeight, tt.args.timestamp, tt.args.totalAmount, tt.args.totalFee, tt.args.totalCoinBase, tt.args.transactions, tt.args.spinePublicKeys, tt.args.payloadHash, tt.args.payloadLength, tt.args.cumulativeDifficulty, tt.args.genesisSignature)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.NewGenesisBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1334,8 +1314,8 @@ func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight
 	return spineBlockManifests, err
 }
 
-func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(*model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
+	return []*model.PublishedReceipt{}, nil, nil
 }
 
 // mockSpineQueryExecutorMempoolSuccess
@@ -3158,7 +3138,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 	mockSpineGoodCommonBlock = &model.Block{
 		ID:                   1,
@@ -3177,7 +3156,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 	mockSpineBadCommonBlockHardFork = &model.Block{
 		ID:                   1,
@@ -3196,7 +3174,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 )
 

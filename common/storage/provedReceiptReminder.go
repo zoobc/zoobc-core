@@ -1,24 +1,25 @@
 package storage
 
 import (
-	"sync"
-
+	"bytes"
+	"encoding/gob"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
+	"sync"
 )
 
 type (
 	ProvedReceiptReminderStorage struct {
 		sync.RWMutex
 		// reminders map[receipt_key]
-		reminders map[string]chaintype.ChainType
+		reminders map[uint32]model.PublishedReceipt
 	}
 )
 
 func NewProvedReceiptReminderStorage() *ProvedReceiptReminderStorage {
 	return &ProvedReceiptReminderStorage{
-		reminders: make(map[string]chaintype.ChainType),
+		reminders: make(map[uint32]model.PublishedReceipt),
 	}
 }
 
@@ -28,23 +29,22 @@ func (rs *ProvedReceiptReminderStorage) SetItem(key, item interface{}) error {
 	defer rs.Unlock()
 
 	var (
-		reminder string
-		nItem    chaintype.ChainType
-		ok       bool
+		height           uint32
+		publishedReceipt model.PublishedReceipt
+		ok               bool
 	)
-	if reminder, ok = key.(string); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
+	if height, ok = key.(uint32); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
 	}
 
-	if nItem, ok = item.(chaintype.ChainType); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
-
+	if publishedReceipt, ok = item.(model.PublishedReceipt); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ValueMustBe:Model.PublishedReceipt")
 	}
 
 	if len(rs.reminders) >= constant.PriorityStrategyMaxPriorityPeers*int(constant.MinRollbackBlocks) {
-		rs.reminders = make(map[string]chaintype.ChainType)
+		rs.reminders = make(map[uint32]model.PublishedReceipt)
 	}
-	rs.reminders[reminder] = nItem
+	rs.reminders[height] = publishedReceipt
 	return nil
 }
 
@@ -52,60 +52,63 @@ func (rs *ProvedReceiptReminderStorage) SetItems(_ interface{}) error {
 	return nil
 }
 func (rs *ProvedReceiptReminderStorage) GetItem(key, item interface{}) error {
-	rs.Lock()
-	defer rs.Unlock()
+	rs.RLock()
+	defer rs.RUnlock()
 
 	var (
-		reminder string
-		nItem    *chaintype.ChainType
-		ok       bool
+		height           uint32
+		publishedReceipt *model.PublishedReceipt
+		ok               bool
 	)
+	if height, ok = key.(uint32); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
+	}
 
-	if reminder, ok = key.(string); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
+	if publishedReceipt, ok = item.(*model.PublishedReceipt); !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ValueMustBe:Model.PublishedReceipt")
 	}
-	if nItem, ok = item.(*chaintype.ChainType); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
-	}
-	*nItem = rs.reminders[reminder]
+
+	*publishedReceipt = rs.reminders[height]
 	return nil
 }
 
-func (rs *ProvedReceiptReminderStorage) GetAllItems(key interface{}) error {
-	rs.Lock()
-	defer rs.Unlock()
+func (rs *ProvedReceiptReminderStorage) GetAllItems(items interface{}) error {
+	rs.RLock()
+	defer rs.RUnlock()
 
-	if k, ok := key.(*map[string]chaintype.ChainType); ok {
+	if k, ok := items.(*map[uint32]model.PublishedReceipt); ok {
 		*k = rs.reminders
 		return nil
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
+	return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ItemsMustBe(*map[uint32]model.PublishedReceipt)")
 }
+
 func (rs *ProvedReceiptReminderStorage) RemoveItem(key interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
 
-	if k, ok := key.(string); ok {
+	if k, ok := key.(uint32); ok {
 		delete(rs.reminders, k)
 		return nil
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
+	return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
 }
-func (rs *ProvedReceiptReminderStorage) GetSize() int64 {
-	rs.Lock()
-	defer rs.Unlock()
 
-	var size int
-	for k, v := range rs.reminders {
-		size += len(k) + int(v.GetTypeInt())
-	}
-	return int64(size)
+func (rs *ProvedReceiptReminderStorage) GetSize() int64 {
+	rs.RLock()
+	defer rs.RUnlock()
+	var (
+		rsBytes bytes.Buffer
+		enc     = gob.NewEncoder(&rsBytes)
+	)
+	_ = enc.Encode(rs.reminders)
+	return int64(rsBytes.Len())
 }
 
 func (rs *ProvedReceiptReminderStorage) ClearCache() error {
 	rs.Lock()
 	defer rs.Unlock()
 
-	rs.reminders = make(map[string]chaintype.ChainType)
+	rs.reminders = make(map[uint32]model.PublishedReceipt)
 	return nil
 }

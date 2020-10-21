@@ -446,7 +446,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 		return nil, nil, status.Errorf(codes.Internal, err.Error())
 	}
 
-	receipt, err = mps.ReceiptService.GenerateReceiptWithReminder(
+	receipt, err = mps.ReceiptService.GenerateReceipt(
 		mps.Chaintype, receivedTxHash[:],
 		lastBlock, senderPublicKey,
 		nodeSecretPhrase,

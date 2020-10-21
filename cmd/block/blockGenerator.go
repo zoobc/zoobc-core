@@ -142,6 +142,7 @@ func initialize(
 		nil,
 		nil,
 		nil, storage.NewReceiptBatchStackStorage(),
+		crypto.NewRandomNumberGenerator(),
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,

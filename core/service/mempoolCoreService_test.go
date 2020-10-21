@@ -744,7 +744,7 @@ func (*mockReceiptUtilError) GetReceiptKey(
 	return nil, errors.New("")
 }
 
-func (*mockReceiptServiceSucces) GenerateReceiptWithReminder(
+func (*mockReceiptServiceSucces) GenerateReceipt(
 	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.Receipt, error) {
 	return &model.Receipt{}, nil

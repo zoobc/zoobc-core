@@ -170,7 +170,6 @@ func (bs *BlockSpineService) NewGenesisBlock(
 	previousBlockHeight, referenceBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
-	publishedReceipts []*model.PublishedReceipt,
 	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
@@ -190,7 +189,6 @@ func (bs *BlockSpineService) NewGenesisBlock(
 			TotalCoinBase:        totalCoinBase,
 			Transactions:         transactions,
 			SpinePublicKeys:      spinePublicKeys,
-			PublishedReceipts:    publishedReceipts,
 			PayloadLength:        payloadLength,
 			PayloadHash:          payloadHash,
 			CumulativeDifficulty: cumulativeDifficulty.String(),
@@ -743,27 +741,7 @@ func (bs *BlockSpineService) GenerateGenesisBlock(genesisEntries []constant.Gene
 	}
 	mRoot, mTree := merkleRoot.ToBytes()
 
-	block, err := bs.NewGenesisBlock(
-		1,
-		nil,
-		bs.Chaintype.GetGenesisBlockSeed(),
-		bs.Chaintype.GetGenesisNodePublicKey(),
-		mRoot,
-		mTree,
-		0,
-		0,
-		bs.Chaintype.GetGenesisBlockTimestamp(),
-		totalAmount,
-		totalFee,
-		totalCoinBase,
-		blockTransactions,
-		[]*model.PublishedReceipt{},
-		spineChainPublicKeys,
-		payloadHash,
-		payloadLength,
-		big.NewInt(0),
-		bs.Chaintype.GetGenesisBlockSignature(),
-	)
+	block, err := bs.NewGenesisBlock(1, nil, bs.Chaintype.GetGenesisBlockSeed(), bs.Chaintype.GetGenesisNodePublicKey(), mRoot, mTree, 0, 0, bs.Chaintype.GetGenesisBlockTimestamp(), totalAmount, totalFee, totalCoinBase, blockTransactions, spineChainPublicKeys, payloadHash, payloadLength, big.NewInt(0), bs.Chaintype.GetGenesisBlockSignature())
 	if err != nil {
 		return nil, err
 	}

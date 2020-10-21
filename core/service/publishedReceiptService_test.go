@@ -126,7 +126,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 			},
 			args: args{
 				block: &model.Block{
-					PublishedReceipts: make([]*model.PublishedReceipt, 0),
+					FreeReceipts: make([]*model.PublishedReceipt, 0),
 				},
 			},
 			want:    0,
@@ -143,7 +143,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 			},
 			args: args{
 				block: &model.Block{
-					PublishedReceipts: dummyPublishedReceipts,
+					FreeReceipts: dummyPublishedReceipts,
 				},
 			},
 			want:    0,
@@ -160,7 +160,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 			},
 			args: args{
 				block: &model.Block{
-					PublishedReceipts: dummyPublishedReceipts,
+					FreeReceipts: dummyPublishedReceipts,
 				},
 			},
 			want:    0,

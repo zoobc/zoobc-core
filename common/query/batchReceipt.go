@@ -14,9 +14,7 @@ type (
 		InsertReceipt(receipt *model.BatchReceipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
-		GetReceiptByRoot(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
-		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
-		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
+		GetReceiptByRoot(root []byte) (str string, args []interface{})
 		PruneData(blockHeight, limit uint32) (string, []interface{})
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
 		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error)
@@ -81,47 +79,17 @@ func (rq *BatchReceiptQuery) GetReceipts(paginate model.Pagination) string {
 	return query
 }
 
-// GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key
-// lowerBlockHeight and upperBlockHeight is passed as window limit of receipt reference_block_height to pick
-func (rq *BatchReceiptQuery) GetReceiptsWithUniqueRecipient(
-	limit, lowerBlockHeight, upperBlockHeight uint32) string {
-	var query string
-	if limit == 0 {
-		limit = 10
-	}
-	query = fmt.Sprintf("SELECT %s FROM %s AS rc WHERE "+
-		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) "+
-		"AND reference_block_height BETWEEN %d AND %d "+
-		"GROUP BY recipient_public_key ORDER BY reference_block_height ASC LIMIT %d",
-		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerBlockHeight, upperBlockHeight, limit)
-	return query
-}
-
 // GetReceiptByRoot return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
 // published_receipt table
-func (rq *BatchReceiptQuery) GetReceiptByRoot(
-	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
+func (rq *BatchReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND "+
-		"reference_block_height BETWEEN %d AND %d "+
+		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) "+
 		"GROUP BY recipient_public_key",
-		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight)
+		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, []interface{}{
 		root,
 	}
-}
-
-// SelectReceipt select list of receipt by some filter
-func (rq *BatchReceiptQuery) SelectReceipt(
-	lowerHeight, upperHeight, limit uint32,
-) (str string) {
-	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
-		"(SELECT rmr_linked FROM published_receipt AS pr WHERE nr.rmr = pr.rmr_linked AND "+
-		"block_height >= %d AND block_height <= %d ) LIMIT %d",
-		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight, limit)
-
-	return query
 }
 
 // InsertReceipt inserts a new pas into DB
@@ -191,7 +159,6 @@ func (*BatchReceiptQuery) ExtractModel(receipt *model.BatchReceipt) []interface{
 }
 
 func (*BatchReceiptQuery) BuildModel(batchReceipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error) {
-
 	for rows.Next() {
 		var (
 			receipt      model.Receipt
@@ -222,7 +189,6 @@ func (*BatchReceiptQuery) BuildModel(batchReceipts []*model.BatchReceipt, rows *
 }
 
 func (*BatchReceiptQuery) Scan(batchReceipt *model.BatchReceipt, row *sql.Row) error {
-
 	err := row.Scan(
 		&batchReceipt.Receipt.SenderPublicKey,
 		&batchReceipt.Receipt.RecipientPublicKey,

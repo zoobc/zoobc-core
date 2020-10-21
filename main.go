@@ -55,7 +55,7 @@ var (
 	dbInstance                                                             *database.SqliteDB
 	db                                                                     *sql.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
-	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage, provedReceiptReminderStorage storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
@@ -279,7 +279,7 @@ func initiateMainInstance() {
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
-	receiptReminderStorage = storage.NewReceiptReminderStorage()
+	provedReceiptReminderStorage = storage.NewProvedReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
@@ -389,11 +389,12 @@ func initiateMainInstance() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 		mainBlockStateStorage,
-		receiptReminderStorage,
+		provedReceiptReminderStorage,
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
 		receiptBatchStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(

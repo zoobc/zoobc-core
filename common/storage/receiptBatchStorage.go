@@ -26,6 +26,7 @@ type (
 		BlockHeight  uint32
 		BlockHash    []byte
 		MerkleRoot   []byte
+		MerkleTree   []byte
 		ReceiptBatch [][]model.Receipt
 	}
 )
@@ -33,7 +34,7 @@ type (
 func NewReceiptBatchStackStorage() *ReceiptBatchStorage {
 	// store 40 block worth of
 	return &ReceiptBatchStorage{
-		itemLimit: int(constant.MaxReceiptBatchCacheRound),
+		itemLimit: constant.MaxReceiptBatchCacheRound,
 		batches:   make([]ReceiptBatchObject, 0, constant.MaxReceiptBatchCacheRound),
 	}
 }

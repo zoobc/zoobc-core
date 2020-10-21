@@ -43,8 +43,10 @@ func NewPublishedReceiptQuery() *PublishedReceiptQuery {
 			"recipient_signature",
 			"intermediate_hashes",
 			"block_height",
+			"batch_reference_block_height",
 			"receipt_index",
 			"published_index",
+			"published_receipt_type",
 		},
 		TableName: "published_receipt",
 	}
@@ -151,8 +153,10 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 		&receipt.Receipt.RecipientSignature,
 		&receipt.IntermediateHashes,
 		&receipt.BlockHeight,
+		&receipt.BatchReferenceBlockHeight,
 		&receipt.ReceiptIndex,
 		&receipt.PublishedIndex,
+		&receipt.PublishedReceiptType,
 	)
 	return err
 
@@ -170,8 +174,10 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.Receipt.RecipientSignature,
 		&publishedReceipt.IntermediateHashes,
 		&publishedReceipt.BlockHeight,
+		&publishedReceipt.BatchReferenceBlockHeight,
 		&publishedReceipt.ReceiptIndex,
 		&publishedReceipt.PublishedIndex,
+		&publishedReceipt.PublishedReceiptType,
 	}
 }
 
@@ -193,6 +199,7 @@ func (prq *PublishedReceiptQuery) BuildModel(
 			&receipt.Receipt.RecipientSignature,
 			&receipt.IntermediateHashes,
 			&receipt.BlockHeight,
+			&receipt.BatchReferenceBlockHeight,
 			&receipt.ReceiptIndex,
 			&receipt.PublishedIndex,
 		)

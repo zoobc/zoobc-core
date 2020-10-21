@@ -35,15 +35,7 @@ import (
 type (
 	// BlockServiceMainInterface interface that contains methods specific of BlockService
 	BlockServiceMainInterface interface {
-		NewMainBlock(
-			version uint32,
-			previousBlockHash, blockSeed, blockSmithPublicKey []byte,
-			previousBlockHeight uint32,
-			timestamp, totalAmount, totalFee, totalCoinBase int64,
-			transactions []*model.Transaction,
-			blockReceipts []*model.PublishedReceipt,
-			secretPhrase string,
-		) (*model.Block, error)
+		NewMainBlock(version uint32, previousBlockHash, blockSeed, blockSmithPublicKey []byte, previousBlockHeight uint32, timestamp, totalAmount, totalFee, totalCoinBase int64, transactions []*model.Transaction, freeReceipts, provedReceipts []*model.PublishedReceipt, secretPhrase string) (*model.Block, error)
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
 		ScanBlockPool() error
@@ -176,15 +168,11 @@ func NewBlockMainService(
 // NewMainBlock generate new mainchain block
 func (bs *BlockService) NewMainBlock(
 	version uint32,
-	previousBlockHash,
-	blockSeed, blockSmithPublicKey []byte,
+	previousBlockHash, blockSeed, blockSmithPublicKey []byte,
 	previousBlockHeight uint32,
-	timestamp,
-	totalAmount,
-	totalFee,
-	totalCoinBase int64,
+	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
-	publishedReceipts []*model.PublishedReceipt,
+	freeReceipts, provedReceipts []*model.PublishedReceipt,
 	secretPhrase string,
 ) (*model.Block, error) {
 	var (
@@ -202,7 +190,8 @@ func (bs *BlockService) NewMainBlock(
 		TotalFee:            totalFee,
 		TotalCoinBase:       totalCoinBase,
 		Transactions:        transactions,
-		PublishedReceipts:   publishedReceipts,
+		FreeReceipts:        freeReceipts,
+		ProvedReceipts:      provedReceipts,
 	}
 
 	// compute block's payload hash and length and add it to block struct
@@ -253,7 +242,6 @@ func (bs *BlockService) NewGenesisBlock(
 	previousBlockHeight, referenceBlockHeight uint32,
 	timestamp, totalAmount, totalFee, totalCoinBase int64,
 	transactions []*model.Transaction,
-	publishedReceipts []*model.PublishedReceipt,
 	spinePublicKeys []*model.SpinePublicKey,
 	payloadHash []byte,
 	payloadLength uint32,
@@ -272,7 +260,6 @@ func (bs *BlockService) NewGenesisBlock(
 		TotalCoinBase:        totalCoinBase,
 		Transactions:         transactions,
 		SpinePublicKeys:      spinePublicKeys,
-		PublishedReceipts:    publishedReceipts,
 		PayloadLength:        payloadLength,
 		PayloadHash:          payloadHash,
 		CumulativeDifficulty: cumulativeDifficulty.String(),
@@ -572,7 +559,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// sort blocksmiths for current block
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
-			uint32(len(block.GetPublishedReceipts())-linkedCount),
+			uint32(len(block.GetFreeReceipts())-linkedCount),
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
 		)
 		if err != nil {
@@ -1148,7 +1135,7 @@ func (bs *BlockService) PopulateBlockData(block *model.Block) error {
 		return blocker.NewBlocker(blocker.BlockErr, "error getting block published receipts")
 	}
 	block.Transactions = txs
-	block.PublishedReceipts = prs
+	block.FreeReceipts = prs
 	return nil
 }
 
@@ -1234,7 +1221,15 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 		payloadLength += txTypeLength
 	}
 	// filter only good receipt
-	for _, br := range block.GetPublishedReceipts() {
+	for _, br := range block.GetFreeReceipts() {
+		brBytes := bs.ReceiptUtil.GetSignedReceiptBytes(br.GetReceipt())
+		_, err = digest.Write(brBytes)
+		if err != nil {
+			return nil, 0, err
+		}
+		payloadLength += uint32(len(brBytes))
+	}
+	for _, br := range block.GetProvedReceipts() {
 		brBytes := bs.ReceiptUtil.GetSignedReceiptBytes(br.GetReceipt())
 		_, err = digest.Write(brBytes)
 		if err != nil {
@@ -1256,12 +1251,12 @@ func (bs *BlockService) GenerateBlock(
 	var (
 		totalAmount, totalFee, totalCoinbase int64
 		// only for mainchain
-		sortedTransactions  []*model.Transaction
-		publishedReceipts   []*model.PublishedReceipt
-		err                 error
-		digest              = sha3.New256()
-		blockSmithPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
-		newBlockHeight      = previousBlock.Height + 1
+		sortedTransactions           []*model.Transaction
+		freeReceipts, provedReceipts []*model.PublishedReceipt
+		err                          error
+		digest                       = sha3.New256()
+		blockSmithPublicKey          = crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		newBlockHeight               = previousBlock.Height + 1
 	)
 
 	// calculate total coinbase to be added to the block
@@ -1283,11 +1278,8 @@ func (bs *BlockService) GenerateBlock(
 	}
 
 	// select published receipts to be added to the block
-	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
-			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
-		previousBlock.Height,
-	)
+	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock)
+	fmt.Printf("provedReceipts %v", provedReceipts)
 	if err != nil {
 		return nil, err
 	}
@@ -1316,7 +1308,8 @@ func (bs *BlockService) GenerateBlock(
 		totalFee,
 		totalCoinbase,
 		sortedTransactions,
-		publishedReceipts,
+		freeReceipts,
+		provedReceipts,
 		secretPhrase,
 	)
 	if err != nil {
@@ -1371,7 +1364,6 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		nil,
 		bs.Chaintype.GetGenesisBlockSeed(),
 		bs.Chaintype.GetGenesisNodePublicKey(),
-		// TODO: Generate merkle root genesis
 		nil,
 		nil,
 		0,
@@ -1381,7 +1373,6 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		totalFee,
 		totalCoinBase,
 		blockTransactions,
-		[]*model.PublishedReceipt{},
 		nil,
 		payloadHash,
 		payloadLength,
@@ -1480,14 +1471,8 @@ func (bs *BlockService) ReceiveBlock(
 		}
 	}
 
-	// check if already broadcast receipt to this node
-	err = bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash())
-	if err != nil {
-		return nil, err
-	}
-
 	// generate receipt and return as response
-	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
+	receipt, err := bs.ReceiptService.GenerateReceipt(
 		bs.Chaintype, block.GetBlockHash(),
 		lastBlock,
 		senderPublicKey,
@@ -1502,8 +1487,8 @@ func (bs *BlockService) ReceiveBlock(
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		publishedReceipts []*model.PublishedReceipt
-		err               error
+		// publishedReceipts []*model.PublishedReceipt
+		err error
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1524,29 +1509,29 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	var poppedBlocks []*model.Block
-	block := lastBlock
+	// block := lastBlock
 
 	// TODO:
 	// Need to refactor this codes with better solution in the future
 	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
-	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
-		poppedBlocks = append(poppedBlocks, block)
-		block, err = bs.GetBlockByHeight(block.Height - 1)
-		if err != nil {
-			return nil, err
-		}
-		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		block.PublishedReceipts = publishedReceipts
-	}
+	// publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	// if err != nil {
+	// 	return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	// }
+	// block.PublishedReceipts = publishedReceipts
+	//
+	// for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
+	// 	poppedBlocks = append(poppedBlocks, block)
+	// 	block, err = bs.GetBlockByHeight(block.Height - 1)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	// 	if err != nil {
+	// 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	// 	}
+	// 	block.PublishedReceipts = publishedReceipts
+	// }
 
 	// Backup existing transactions from mempool before rollback
 	// note: rollback process do inside Backup Mempools func

@@ -787,7 +787,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:       tt.fields.NodeReceiptQuery,
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				QueryExecutor:           tt.fields.QueryExecutor,
@@ -798,7 +798,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				ScrambleNodeService:     tt.fields.ScrambleNodeService,
 				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 			}
-			got, err := rs.SelectReceipts(tt.args.blockTimestamp, tt.args.numberOfReceipt, 1000)
+			got, _, err := rs.SelectReceipts(tt.args.blockTimestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1036,7 +1036,7 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
+				BatchReceiptQuery:       tt.fields.NodeReceiptQuery,
 				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
@@ -1059,7 +1059,7 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 
 type (
 	mockReceiptReminderStorageDuplicated struct {
-		storage.ReceiptReminderStorage
+		storage.ProvedReceiptReminderStorage
 	}
 )
 
@@ -1098,7 +1098,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			name: "WantErr:InvalidKeyItem",
 			fields: fields{
 				ReceiptUtil:            &coreUtil.ReceiptUtil{},
-				ReceiptReminderStorage: storage.NewReceiptReminderStorage(),
+				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(),
 			},
 			wantErr: true,
 		},
@@ -1116,7 +1116,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			name: "want:Success",
 			fields: fields{
 				ReceiptUtil:            &coreUtil.ReceiptUtil{},
-				ReceiptReminderStorage: storage.NewReceiptReminderStorage(),
+				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(),
 			},
 			args: args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
 		},
@@ -1124,17 +1124,17 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs := &ReceiptService{
-				NodeReceiptQuery:        tt.fields.NodeReceiptQuery,
-				MerkleTreeQuery:         tt.fields.MerkleTreeQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlockQuery:              tt.fields.BlockQuery,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				Signature:               tt.fields.Signature,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				ReceiptUtil:             tt.fields.ReceiptUtil,
-				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
-				ReceiptReminderStorage:  tt.fields.ReceiptReminderStorage,
+				BatchReceiptQuery:            tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:              tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				BlockQuery:                   tt.fields.BlockQuery,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				NodeRegistrationService:      tt.fields.NodeRegistrationService,
+				Signature:                    tt.fields.Signature,
+				PublishedReceiptQuery:        tt.fields.PublishedReceiptQuery,
+				ReceiptUtil:                  tt.fields.ReceiptUtil,
+				MainBlockStateStorage:        tt.fields.MainBlockStateStorage,
+				ProvedReceiptReminderStorage: tt.fields.ReceiptReminderStorage,
 			}
 			err := rs.CheckDuplication(tt.args.publicKey, tt.args.datumHash)
 			if (err != nil) != tt.wantErr {

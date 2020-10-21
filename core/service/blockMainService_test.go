@@ -682,7 +682,6 @@ func TestBlockService_NewBlock(t *testing.T) {
 			TotalFee:            0,
 			TotalCoinBase:       0,
 			Transactions:        []*model.Transaction{},
-			PublishedReceipts:   []*model.PublishedReceipt{},
 			PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128,
 				255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
 			PayloadLength:  0,
@@ -756,20 +755,7 @@ func TestBlockService_NewBlock(t *testing.T) {
 				Signature:          tt.fields.Signature,
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 			}
-			got, err := bs.NewMainBlock(
-				tt.args.version,
-				tt.args.previousBlockHash,
-				tt.args.blockSeed,
-				tt.args.blockSmithPublicKey,
-				tt.args.previousBlockHeight,
-				tt.args.timestamp,
-				tt.args.totalAmount,
-				tt.args.totalFee,
-				tt.args.totalCoinBase,
-				tt.args.transactions,
-				tt.args.publishedReceipts,
-				tt.args.secretPhrase,
-			)
+			got, err := bs.NewMainBlock(tt.args.version, tt.args.previousBlockHash, tt.args.blockSeed, tt.args.blockSmithPublicKey, tt.args.previousBlockHeight, tt.args.timestamp, tt.args.totalAmount, tt.args.totalFee, tt.args.totalCoinBase, tt.args.transactions, tt.args.publishedReceipts, nil, tt.args.secretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.NewBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -887,7 +873,6 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				TotalFee:             0,
 				TotalCoinBase:        0,
 				Transactions:         []*model.Transaction{},
-				PublishedReceipts:    []*model.PublishedReceipt{},
 				SpinePublicKeys:      []*model.SpinePublicKey{},
 				PayloadHash:          []byte{},
 				PayloadLength:        8,
@@ -938,27 +923,7 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				BlockchainStatusService:     tt.fields.BlockchainStatusService,
 				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
-			got, err := bs.NewGenesisBlock(
-				tt.args.version,
-				tt.args.previousBlockHash,
-				tt.args.blockSeed,
-				tt.args.blockSmithPublicKey,
-				tt.args.merkleRoot,
-				tt.args.merkleTree,
-				tt.args.previousBlockHeight,
-				tt.args.referenceBlockHeight,
-				tt.args.timestamp,
-				tt.args.totalAmount,
-				tt.args.totalFee,
-				tt.args.totalCoinBase,
-				tt.args.transactions,
-				tt.args.publishedReceipts,
-				tt.args.spinePublicKeys,
-				tt.args.payloadHash,
-				tt.args.payloadLength,
-				tt.args.cumulativeDifficulty,
-				tt.args.genesisSignature,
-			)
+			got, err := bs.NewGenesisBlock(tt.args.version, tt.args.previousBlockHash, tt.args.blockSeed, tt.args.blockSmithPublicKey, tt.args.merkleRoot, tt.args.merkleTree, tt.args.previousBlockHeight, tt.args.referenceBlockHeight, tt.args.timestamp, tt.args.totalAmount, tt.args.totalFee, tt.args.totalCoinBase, tt.args.transactions, tt.args.spinePublicKeys, tt.args.payloadHash, tt.args.payloadLength, tt.args.cumulativeDifficulty, tt.args.genesisSignature)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.NewGenesisBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1807,11 +1772,8 @@ type (
 	}
 )
 
-func (*mockReceiptServiceReturnEmpty) SelectReceipts(
-	blockTimestamp int64,
-	numberOfReceipt, lastBlockHeight uint32,
-) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+func (*mockReceiptServiceReturnEmpty) SelectReceipts(previousBlock *model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
+	return []*model.PublishedReceipt{}, nil, nil
 }
 
 // mockQueryExecutorMempoolSuccess
@@ -2965,7 +2927,7 @@ type (
 	}
 )
 
-func (*mockReceiptServiceSuccess) GenerateReceiptWithReminder(
+func (*mockReceiptServiceSuccess) GenerateReceipt(
 	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.Receipt, error) {
 	return nil, nil
@@ -4044,7 +4006,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 	mockGoodCommonBlock = &model.Block{
 		ID:                   1,
@@ -4063,7 +4024,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 	mockBadCommonBlockHardFork = &model.Block{
 		ID:                   1,
@@ -4082,7 +4042,6 @@ var (
 		PayloadLength:        0,
 		PayloadHash:          nil,
 		Transactions:         nil,
-		PublishedReceipts:    nil,
 	}
 )
 
@@ -4916,8 +4875,7 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			TransactionIDs: []int64{
 				mockTransaction.GetID(),
 			},
-			Transactions:      nil,
-			PublishedReceipts: nil,
+			Transactions: nil,
 		}
 		mockBlockHash, _    = util.GetBlockHash(&mockBlockWithTransactionIDs, &chaintype.MainChain{})
 		mockWaitingTxBlocks = make(map[int64]*BlockWithMetaData)
@@ -5290,9 +5248,6 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 				Transactions: []*model.Transaction{
 					mockTransaction,
 				},
-				PublishedReceipts: []*model.PublishedReceipt{
-					mockPublishedReceipt[0],
-				},
 			},
 		},
 	}
@@ -5351,7 +5306,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 		Transactions: []*model.Transaction{
 			mockTransaction,
 		},
-		PublishedReceipts: mockPublishedReceipt,
 	}
 	mockInvalidBlock := &model.Block{
 		PayloadHash: []byte{102, 253, 86, 32, 28, 24, 212, 55, 129, 77, 244, 149, 6, 198, 243, 4, 86, 251, 61, 45, 48, 99, 191,
@@ -5360,7 +5314,6 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 		Transactions: []*model.Transaction{
 			mockTransaction,
 		},
-		PublishedReceipts: mockPublishedReceipt,
 	}
 	type fields struct {
 		Chaintype                   chaintype.ChainType
