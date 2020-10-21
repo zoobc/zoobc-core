@@ -143,7 +143,7 @@ func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q 
 			mockedTX.GetSignature(),
 			mockedTX.GetVersion(),
 			mockedTX.GetTransactionIndex(),
-			mockedTX.GetMultisigChild(),
+			mockedTX.GetChildType(),
 			mockedTX.GetMessage(),
 		))
 	default:
@@ -443,7 +443,7 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ b
 		tx.GetSignature(),
 		tx.GetVersion(),
 		tx.GetTransactionIndex(),
-		tx.GetMultisigChild(),
+		tx.GetChildType(),
 		tx.GetMessage(),
 	)
 	mock.ExpectQuery(qStr).WillReturnRows(mockedRows)

@@ -12,6 +12,7 @@ import (
 type (
 	TransactionQueryInterface interface {
 		InsertTransaction(tx *model.Transaction) (str string, args []interface{})
+		InsertTransactions(txs []*model.Transaction) (str string, args []interface{})
 		GetTransaction(id int64) string
 		GetTransactionsByIds(txIds []int64) (str string, args []interface{})
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
@@ -45,7 +46,7 @@ func NewTransactionQuery(chaintype chaintype.ChainType) *TransactionQuery {
 			"signature",
 			"version",
 			"transaction_index",
-			"multisig_child",
+			"child_type",
 			"message",
 		},
 		TableName: "\"transaction\"",
@@ -76,8 +77,30 @@ func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string
 	return query, tq.ExtractModel(tx)
 }
 
+func (tq *TransactionQuery) InsertTransactions(txs []*model.Transaction) (str string, args []interface{}) {
+	if len(txs) > 0 {
+		str = fmt.Sprintf(
+			"INSERT INTO %s (%s) VALUES ",
+			tq.getTableName(),
+			strings.Join(tq.Fields, ", "),
+		)
+		for k, atomic := range txs {
+			str += fmt.Sprintf(
+				"(?%s)",
+				strings.Repeat(", ?", len(tq.Fields)-1),
+			)
+			if k < len(txs)-1 {
+				str += ","
+			}
+
+			args = append(args, tq.ExtractModel(atomic)...)
+		}
+	}
+	return str, args
+
+}
 func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND multisig_child = false "+
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND child_type = 0 "+
 		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
 }
@@ -88,7 +111,7 @@ func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, arg
 		args = append(args, id)
 	}
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE multisig_child = false AND id IN(?%s)",
+			"SELECT %s FROM %s WHERE child_type = 0 AND id IN(?%s)",
 			strings.Join(tq.Fields, ", "),
 			tq.getTableName(),
 			strings.Repeat(", ?", len(txIds)-1),
@@ -113,7 +136,7 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 		&tx.Signature,
 		&tx.Version,
 		&tx.TransactionIndex,
-		&tx.MultisigChild,
+		&tx.ChildType,
 		&tx.Message,
 	}
 }
@@ -139,7 +162,7 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) ([
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
-			&tx.MultisigChild,
+			&tx.ChildType,
 			&tx.Message,
 		)
 		if err != nil {
@@ -166,7 +189,7 @@ func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
 		&tx.Signature,
 		&tx.Version,
 		&tx.TransactionIndex,
-		&tx.MultisigChild,
+		&tx.ChildType,
 		&tx.Message,
 	)
 	return err

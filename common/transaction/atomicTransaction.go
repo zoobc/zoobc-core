@@ -20,25 +20,32 @@ import (
 type (
 	// AtomicTransaction field for AtomicTransactionInterface
 	AtomicTransaction struct {
-		ID                   int64
-		Fee                  int64
-		SenderAddress        []byte
-		Height               uint32
-		Body                 *model.AtomicTransactionBody
-		Escrow               *model.Escrow
-		EscrowQuery          query.EscrowTransactionQueryInterface
-		QueryExecutor        query.ExecutorInterface
-		TransactionQuery     query.TransactionQueryInterface
-		TypeActionSwitcher   TypeActionSwitcher
-		AccountBalanceHelper AccountBalanceHelperInterface
-		EscrowFee            fee.FeeModelInterface
-		NormalFee            fee.FeeModelInterface
-		TransactionUtil      UtilInterface
-		Signature            crypto.SignatureInterface
+		ID                     int64
+		Fee                    int64
+		SenderAddress          []byte
+		Height                 uint32
+		Body                   *model.AtomicTransactionBody
+		AtomicTransactionQuery query.AtomicTransactionQueryInterface
+		Escrow                 *model.Escrow
+		EscrowQuery            query.EscrowTransactionQueryInterface
+		QueryExecutor          query.ExecutorInterface
+		TransactionQuery       query.TransactionQueryInterface
+		TypeActionSwitcher     TypeActionSwitcher
+		AccountBalanceHelper   AccountBalanceHelperInterface
+		EscrowFee              fee.FeeModelInterface
+		NormalFee              fee.FeeModelInterface
+		TransactionUtil        UtilInterface
+		Signature              crypto.SignatureInterface
 	}
 )
 
 func (tx *AtomicTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
+
+	var (
+		atomics []*model.Atomic
+		txs     []*model.Transaction
+		queries [][]interface{}
+	)
 
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
@@ -52,7 +59,7 @@ func (tx *AtomicTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 		return err
 	}
 
-	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
+	for k, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
 			innerTX    *model.Transaction
 			typeAction TypeAction
@@ -70,6 +77,27 @@ func (tx *AtomicTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 		if err != nil {
 			return err
 		}
+
+		atomics = append(atomics, &model.Atomic{
+			ID:                  innerTX.GetID(),
+			TransactionID:       tx.ID,
+			SenderAddress:       innerTX.GetSenderAccountAddress(),
+			BlockHeight:         tx.Height,
+			UnsignedTransaction: unsignedTX,
+			Signature:           tx.Body.GetSignatures()[hex.EncodeToString(innerTX.GetSenderAccountAddress())],
+			AtomicIndex:         uint32(k),
+		})
+
+		innerTX.ChildType = model.TransactionChildType_AtomicChild
+		txs = append(txs, innerTX)
+	}
+	txQ, txArgs := tx.TransactionQuery.InsertTransactions(txs)
+	queries = append(queries, append([]interface{}{txQ}, txArgs...))
+	atomicQ, atomicArgs := tx.AtomicTransactionQuery.InsertAtomicTransactions(atomics)
+	queries = append(queries, append([]interface{}{atomicQ}, atomicArgs...))
+	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		return err
 	}
 	return nil
 }

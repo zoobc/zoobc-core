@@ -115,6 +115,21 @@ So the completed comment it will be:
 go run main.go transaction  multi-signature --sender-seed="execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --unsigned-transaction="01000000012ba5ba5e000000002c000000486c5a4c683356636e4e6c764279576f417a584f51326a416c77464f69794f395f6e6a49336f7135596768612c000000486c38393154655446784767574f57664f4f464b59725f586468584e784f384a4b38576e4d4a56366738614c41420f0000000000080000000600000000000000000000000000000000000000000000000000000000000000" --transaction-hash="21ddbdada9903da81bf17dba6569ff7e2665fec38760c7f6636419ee30da65b0" --address-signatures="HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha=00000000b4efe21822c9d63818d8d19f6c608d917b2237426d1157b4e6689b22ce6c256ccf8ec8e2c1016ab09dd4ef2b01191fe2df70b7a123fec7115d7afd5a938f9b0a"
 ```
 
+### Transaction Atomic
+Help:
+```bash
+Usage:
+  zoobc transaction atomic [flags]
+
+Flags:
+  -h, --help            help for atomic
+  -i, --inners uint32   inners 2, indicate want to have 2 inner transaction (default 1)
+```
+Example:
+```bash
+   go run main.go transaction atomic --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --recipient 000000006f5461d22d8b6ce3c9b76e2c1078bb1b475a9f5280d30b77353ff53514e5c073
+``` 
+
 ### Transaction Fee Vote Commitment Vote
 
 ```bash

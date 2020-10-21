@@ -2,8 +2,9 @@ package service
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -187,7 +188,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
-			&tx.MultisigChild,
+			&tx.ChildType,
 			&tx.Message,
 		)
 		if err != nil {
