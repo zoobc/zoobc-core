@@ -315,7 +315,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			"TxFeeZero",
 		)
 	}
-	if len([]byte(tx.Message)) > constant.MaxMessageLength {
+	if len(tx.Message) > constant.MaxMessageLength {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxMessageMaxLengthExceeded",
