@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 4976519645275415445
+	MainchainGenesisBlockID int64 = -8052505283446226463
 )
 
 type (
@@ -20,16 +20,16 @@ type (
 )
 
 var (
-	ApplicationCodeName            = "Zoobc-beta"
+	ApplicationCodeName            = "ZBC_main"
 	ApplicationVersion             = "1.0.0"
 	MainchainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	MainchainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1604307600)
-	// MainchainGenesisAccountAddress encoded "ZBC_ODR3YPWN_FQBDD6SV_OJ3YO3PK_E5UVSXW3_5DYQ3PTL_AXSJKNQ4_UDLNXYXC"
-	// MainchainGenesisAccountAddress hex "000000007daef1f5c0405ba20f712f185984e82742af76806b5bedb654c3b8107bdbd857"
+	MainchainGenesisBlockTimestamp = int64(1596708000)
+	// MainchainGenesisAccountAddress encoded "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
+	// MainchainGenesisAccountAddress hex "042643fd5c5f3b64bd6b38882f7727fdc5d6eee3c354f3ab9d7b8ff7c1840140"
 	MainchainGenesisAccountAddress = []byte{0, 0, 0, 0, 4, 38, 67, 253, 92, 95, 59, 100, 189, 107, 56, 136, 47, 119, 39, 253, 197, 214,
 		238, 227, 195, 84, 243, 171, 157, 123, 143, 247, 193, 132, 1, 64}
 	MainchainGenesisBlockSeed     = make([]byte, 64)
@@ -37,36 +37,33 @@ var (
 	GenesisConfig                 = []GenesisConfigEntry{
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_DX7ARNGN_RO3G4OJH_7TVQKXNA_L3M4LLIH_JLLR4MNK_Q7OPH7AE_QA7FF3RO",
+			AccountAddress:     "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML",
 			AccountBalance:     0,
-			// ZNK_QFL3DZAV_5AROEA7Z_O4G5CLNJ_VWRPWDJU_3W4S2Q4I_K73HF3NA_SHAZ7FP3
-			NodePublicKey: []byte{129, 87, 177, 228, 21, 232, 34, 226, 3, 249, 119, 13, 209, 45, 169, 173, 162, 251, 13,
-				52, 221, 185, 45, 67, 136, 87, 246, 114, 237, 160, 145, 193},
+			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
+				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-			Message:            "test1",
+			Message:            "Fifer",
 		},
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_63R6O42B_GJZYYQRA_NLB2BOSF_P6DI6XBW_POKULNMQ_DYCANBZI_U4IGQEA6",
+			AccountAddress:     "ZBC_EEX2EIIS_UFQI5SRU_4UGYMSXA_RDSKDNAF_P2A7M5PC_CXWCMZZX_SNPIQ2SW",
 			AccountBalance:     0,
-			// ZNK_VB5NHSD2_2UGPBHOV_NQH7NXDA_2IKQ72NO_GDJVULVS_2X6S5WO5_IZODOQZO
-			NodePublicKey: []byte{168, 122, 211, 200, 122, 213, 12, 240, 157, 213, 108, 15, 246, 220, 96, 210, 21, 15, 233,
-				174, 48, 211, 90, 46, 178, 213, 253, 46, 217, 221, 70, 92},
+			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
+				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-			Message:            "test2",
+			Message:            "Fiddler",
 		},
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_LD3NJCAD_DKYLU4XN_5IQWVHXF_XLL7JCFA_QKOV654B_LBZ4UWCD_237SNB4N",
+			AccountAddress:     "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU",
 			AccountBalance:     0,
-			// ZNK_F2IKOGWV_75XICUM7_OLGJNAYE_E7IRIHMN_K5ID6R3V_AJTLL7ZO_DSGB5QR6
-			NodePublicKey: []byte{46, 144, 167, 26, 213, 255, 110, 129, 81, 159, 114, 204, 150, 131, 4, 39, 209, 20, 29,
-				141, 87, 80, 63, 71, 117, 2, 102, 181, 255, 46, 28, 140},
+			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
+				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-			Message:            "test",
+			Message:            "Practical",
 		},
 	}
 )
