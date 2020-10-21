@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -107,4 +108,68 @@ func (a *AtomicTransactionQuery) Scan(atomic *model.Atomic, row *sql.Row) error 
 
 func (a *AtomicTransactionQuery) getTableName() string {
 	return a.TableName
+}
+
+func (a *AtomicTransactionQuery) Rollback(height uint32) (queries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE height > ?", a.getTableName()),
+			height,
+		},
+	}
+}
+
+func (a *AtomicTransactionQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(
+		"SELECT %s FROM %s WHERE (transaction_id, block_height) IN "+
+			"(SELECT tx.transaction_id, MAX(tx.block_height) FROM %s tx "+
+			"WHERE tx.block_height >= %d AND tx.block_height <= %d AND tx.block_height != 0 GROUP BY tx.transaction_id) "+
+			"ORDER BY block_height",
+		strings.Join(a.Fields, ", "),
+		a.getTableName(),
+		a.getTableName(),
+		fromHeight,
+		toHeight,
+	)
+}
+
+func (a *AtomicTransactionQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf(
+		"DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0",
+		a.getTableName(),
+		fromHeight,
+		toHeight,
+	)
+
+}
+
+func (a *AtomicTransactionQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+
+	atomicTXs, ok := payload.([]*model.Atomic)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+a.TableName)
+	}
+	if len(atomicTXs) > 0 {
+		var (
+			qry  string
+			args []interface{}
+		)
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(a.Fields), len(atomicTXs))
+		for i := 0; i < rounds; i++ {
+			qry, args = a.InsertAtomicTransactions(atomicTXs[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+		if remaining > 0 {
+			qry, args = a.InsertAtomicTransactions(atomicTXs[len(atomicTXs)-remaining:])
+			queries = append(queries, append([]interface{}{qry}, args...))
+		}
+	}
+	return queries, nil
+}
+
+func (a *AtomicTransactionQuery) RecalibrateVersionedTable() []string {
+	return []string{}
 }

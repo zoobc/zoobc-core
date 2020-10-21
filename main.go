@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -17,14 +16,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -35,6 +33,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -547,6 +546,7 @@ func initiateMainInstance() {
 		query.NewFeeVoteRevealVoteQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
 		query.NewNodeAdmissionTimestampQuery(),
+		query.NewAtomicTransactionQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),

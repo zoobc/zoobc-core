@@ -40,6 +40,7 @@ type (
 		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
 		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		AtomicTransactionQuery         query.AtomicTransactionQueryInterface
 		SnapshotQueries                map[string]query.SnapshotQuery
 		BlocksmithSafeQuery            map[string]bool
 		DerivedQueries                 []query.DerivedQuery
@@ -70,6 +71,7 @@ func NewSnapshotMainBlockService(
 	feeVoteRevealVoteQuery query.FeeVoteRevealVoteQueryInterface,
 	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
 	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
+	atomicTransaction query.AtomicTransactionQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
@@ -111,6 +113,7 @@ func NewSnapshotMainBlockService(
 		BlockMainService:               blockMainService,
 		NodeRegistrationService:        nodeRegistrationService,
 		ScrambleNodeService:            scrambleNodeService,
+		AtomicTransactionQuery:         atomicTransaction,
 	}
 }
 
@@ -209,6 +212,8 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.LiquidPayment, err = ss.LiquidPaymentTransactionQuery.BuildModels(rows)
 			case "nodeAdmissionTimestamp":
 				snapshotPayload.NodeAdmissionTimestamp, err = ss.NodeAdmissionTimestampQuery.BuildModel([]*model.NodeAdmissionTimestamp{}, rows)
+			case "atomicTransaction":
+				snapshotPayload.AtomicTransaction, err = ss.AtomicTransactionQuery.BuildModel([]*model.Atomic{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}
@@ -450,6 +455,14 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		case "nodeAdmissionTimestamp":
 			if len(payload.GetNodeAdmissionTimestamp()) > 0 {
 				q, err := snapshotQuery.ImportSnapshot(payload.GetNodeAdmissionTimestamp())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "atomicTransaction":
+			if len(payload.GetAtomicTransaction()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetAtomicTransaction())
 				if err != nil {
 					return err
 				}

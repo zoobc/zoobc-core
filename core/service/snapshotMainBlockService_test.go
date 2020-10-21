@@ -580,6 +580,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
 		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		AtomicTransaction              query.AtomicTransactionQueryInterface
 		BlockQuery                     query.BlockQueryInterface
 		SnapshotQueries                map[string]query.SnapshotQuery
 		BlocksmithSafeQuery            map[string]bool
@@ -628,6 +629,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				SnapshotQueries:                query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:            query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                 query.GetDerivedQuery(chaintype.GetChainType(0)),
+				AtomicTransaction:              query.NewAtomicTransactionQuery(),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -673,6 +675,7 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				LiquidPaymentTransactionQuery:  tt.fields.LiquidPaymentTransactionQuery,
 				NodeAdmissionTimestampQuery:    tt.fields.NodeAdmissionTimestampQuery,
 				DerivedQueries:                 tt.fields.DerivedQueries,
+				AtomicTransactionQuery:         tt.fields.AtomicTransaction,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -719,6 +722,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		BlockQuery                    query.BlockQueryInterface
 		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
+		AtomicTransactionQuery        query.AtomicTransactionQueryInterface
 		SnapshotQueries               map[string]query.SnapshotQuery
 		BlocksmithSafeQuery           map[string]bool
 		DerivedQueries                []query.DerivedQuery
@@ -768,6 +772,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				AtomicTransactionQuery:        query.NewAtomicTransactionQuery(),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -810,6 +815,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
 				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
 				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				AtomicTransactionQuery:        query.NewAtomicTransactionQuery(),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -844,6 +850,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
+				AtomicTransactionQuery:        tt.fields.AtomicTransactionQuery,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -926,6 +933,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
 		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		AtomicTransactionQuery         query.AtomicTransactionQueryInterface
 		BlockQuery                     query.BlockQueryInterface
 		SnapshotQueries                map[string]query.SnapshotQuery
 		BlocksmithSafeQuery            map[string]bool
@@ -981,6 +989,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				BlockMainService:        &mockBlockMainServiceSuccess{},
 				NodeRegistrationService: &mockImportSnapshotFileNodeRegistrationServiceSuccess{},
 				ScrambleNodeService:     &mockScrambleNodeServiceInitSuccess{},
+				AtomicTransactionQuery:  query.NewAtomicTransactionQuery(),
 			},
 		},
 	}
@@ -1017,6 +1026,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				BlockMainService:               tt.fields.BlockMainService,
 				NodeRegistrationService:        tt.fields.NodeRegistrationService,
 				ScrambleNodeService:            tt.fields.ScrambleNodeService,
+				AtomicTransactionQuery:         tt.fields.AtomicTransactionQuery,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

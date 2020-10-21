@@ -230,7 +230,7 @@ func (tx *AtomicTransaction) ParseBodyBytes(txBodyBytes []byte) (body model.Tran
 	)
 
 	innerTXCount := util.ConvertBytesToUint32(buff.Next(4))
-	if innerTXCount <= 0 {
+	if innerTXCount == 0 {
 		return body, errors.New("empty inner tx")
 	}
 
@@ -248,7 +248,7 @@ func (tx *AtomicTransaction) ParseBodyBytes(txBodyBytes []byte) (body model.Tran
 	}
 
 	signatureCount := util.ConvertBytesToUint32(buff.Next(4))
-	if signatureCount <= 0 {
+	if signatureCount == 0 {
 		return body, errors.New("empty signature")
 	}
 	for i := 0; i < int(signatureCount); i++ {
