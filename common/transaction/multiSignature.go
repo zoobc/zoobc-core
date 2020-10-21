@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"google.golang.org/grpc/codes"
@@ -527,7 +528,10 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	// check existing & balance account sender
 	err = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, tx.SenderAddress, dbTx)
 	if err != nil {
-		return err
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
 
 	if accountBalance.SpendableBalance < tx.Fee {

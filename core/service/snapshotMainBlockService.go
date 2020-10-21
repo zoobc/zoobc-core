@@ -455,6 +455,22 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 				}
 				queries = append(queries, q...)
 			}
+		case "blockchainObject":
+			if len(payload.GetBlockchainObjects()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetBlockchainObjects())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
+		case "blockchainObjectProperty":
+			if len(payload.GetBlockchainObjectProperties()) > 0 {
+				q, err := snapshotQuery.ImportSnapshot(payload.GetBlockchainObjectProperties())
+				if err != nil {
+					return err
+				}
+				queries = append(queries, q...)
+			}
 		default:
 			return blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 		}

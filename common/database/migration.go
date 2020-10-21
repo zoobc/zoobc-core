@@ -477,11 +477,28 @@ func (m *Migration) Init() error {
 			ALTER TABLE "transaction"
 				ADD COLUMN "message" TEXT
 			`,
+			`CREATE TABLE IF NOT EXISTS "blockchain_object" (
+				"id"						BLOB,				-- 4 bytes accountType + hash of transaction
+				"owner_account_address"		BLOB,				-- the owner adddress of blockchain object
+				"block_height"				INTEGER,			-- the height when blockchain object create  
+				PRIMARY KEY("id")								-- primary key
+			)
+			`,
+			`CREATE TABLE IF NOT EXISTS "blockchain_object_property" (
+				"blockchain_object_id"	BLOB,				-- id of blockchain object 
+				"key"					TEXT,				-- the key of immutable property blockchain object 
+				"value"					TEXT,				-- the value of immutable property blockchain object  
+				"block_height"			INTEGER,			-- the height when immutable property blockchain object create  
+				PRIMARY KEY("blockchain_object_id", "key")	-- primary key
+			)
+			`,
+			`
+			CREATE INDEX "blockchain_object_property_id_idx" ON "blockchain_object_property" ("blockchain_object_id")
+			`,
 		}
 		return nil
 	}
 	return fmt.Errorf("make sure have add query.Executor")
-
 }
 
 /*

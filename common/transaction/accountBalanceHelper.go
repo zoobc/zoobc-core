@@ -105,10 +105,7 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *mode
 
 	err = abh.AccountBalanceQuery.Scan(accountBalance, row)
 	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
+		return err
 	}
 	return nil
 }

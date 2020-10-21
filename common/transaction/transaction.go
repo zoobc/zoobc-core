@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -457,7 +458,37 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			}, nil
 		default:
-			return nil, nil
+			return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[1]))
+		}
+		// Blockchain Object
+	case 9:
+		switch buf[1] {
+		case 0:
+			transactionBody, err = new(FeeVoteCommitTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			if err != nil {
+				return nil, err
+			}
+			return &CreateBlockchainObjectTransaction{
+				ID:                            tx.GetID(),
+				Fee:                           tx.GetFee(),
+				SenderAddress:                 tx.GetSenderAccountAddress(),
+				Height:                        tx.GetHeight(),
+				TransactionHash:               tx.TransactionHash,
+				Escrow:                        tx.GetEscrow(),
+				Body:                          transactionBody.(*model.CreateBlockchainObjectTransactionBody),
+				QueryExecutor:                 ts.Executor,
+				AccountBalanceHelper:          accountBalanceHelper,
+				EscrowQuery:                   query.NewEscrowTransactionQuery(),
+				BlockchainObjectQuery:         query.NewBlockchainObjectQuery(),
+				BlockchainObjectPropertyQuery: query.NewBlockchainObjectPropertyQuery(),
+				AccountDatasetQuery:           query.NewAccountDatasetsQuery(),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+			}, nil
+		default:
+			return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[1]))
 		}
 	default:
 		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[0]))

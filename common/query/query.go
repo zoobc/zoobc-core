@@ -52,6 +52,8 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewNodeAdmissionTimestampQuery(),
 			NewMultiSignatureParticipantQuery(),
 			NewBatchReceiptQuery(),
+			NewBlockchainObjectQuery(),
+			NewBlockchainObjectPropertyQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -85,6 +87,8 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"feeVoteReveal":            NewFeeVoteRevealVoteQuery(),
 			"liquidPaymentTransaction": NewLiquidPaymentTransactionQuery(),
 			"nodeAdmissionTimestamp":   NewNodeAdmissionTimestampQuery(),
+			"blockchainObject":         NewBlockchainObjectQuery(),
+			"blockchainObjectProperty": NewBlockchainObjectPropertyQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}
