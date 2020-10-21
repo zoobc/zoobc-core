@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -460,7 +461,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			return nil, nil
 		}
 	case 8:
-		transactionBody, err = new(AtomicTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+		transactionBody, err = (&AtomicTransaction{
+			TransactionUtil: transactionUtil,
+		}).ParseBodyBytes(tx.GetTransactionBodyBytes())
 		if err != nil {
 			return nil, err
 		}
@@ -471,15 +474,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			Height:               tx.GetHeight(),
 			Body:                 transactionBody.(*model.AtomicTransactionBody),
 			Escrow:               tx.GetEscrow(),
+			EscrowQuery:          query.NewEscrowTransactionQuery(),
 			QueryExecutor:        ts.Executor,
 			TransactionQuery:     query.NewTransactionQuery(&chaintype.MainChain{}),
-			TypeActionSwitcher:   &TypeSwitcher{},
+			TypeActionSwitcher:   ts,
 			AccountBalanceHelper: accountBalanceHelper,
 			EscrowFee: fee.NewBlockLifeTimeFeeModel(
 				10, fee.SendMoneyFeeConstant,
 			),
 			NormalFee:       fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-			TransactionUtil: &Util{},
+			TransactionUtil: transactionUtil,
 			Signature:       crypto.NewSignature(),
 		}, nil
 	default:

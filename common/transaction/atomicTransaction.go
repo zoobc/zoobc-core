@@ -2,15 +2,19 @@ package transaction
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -22,6 +26,7 @@ type (
 		Height               uint32
 		Body                 *model.AtomicTransactionBody
 		Escrow               *model.Escrow
+		EscrowQuery          query.EscrowTransactionQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		TransactionQuery     query.TransactionQueryInterface
 		TypeActionSwitcher   TypeActionSwitcher
@@ -47,13 +52,13 @@ func (tx *AtomicTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 		return err
 	}
 
-	for _, atomicInnerTX := range tx.Body.GetAtomicInnerTransactions() {
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
 			innerTX    *model.Transaction
 			typeAction TypeAction
 		)
 
-		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(atomicInnerTX.GetAtomicInnerItem()[0], false)
+		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(unsignedTX, false)
 		if err != nil {
 			return err
 		}
@@ -71,12 +76,12 @@ func (tx *AtomicTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 
 func (tx *AtomicTransaction) ApplyUnconfirmed() error {
 
-	for _, atomicInnerTX := range tx.Body.GetAtomicInnerTransactions() {
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
 			innerTX    *model.Transaction
 			typeAction TypeAction
 		)
-		innerTX, err := tx.TransactionUtil.ParseTransactionBytes(atomicInnerTX.GetAtomicInnerItem()[0], false)
+		innerTX, err := tx.TransactionUtil.ParseTransactionBytes(unsignedTX, false)
 		if err != nil {
 			return err
 		}
@@ -94,13 +99,13 @@ func (tx *AtomicTransaction) ApplyUnconfirmed() error {
 
 func (tx *AtomicTransaction) UndoApplyUnconfirmed() (err error) {
 
-	for _, atomicInnerTX := range tx.Body.GetAtomicInnerTransactions() {
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
 			innerTX    *model.Transaction
 			typeAction TypeAction
 		)
 
-		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(atomicInnerTX.GetAtomicInnerItem()[0], false)
+		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(unsignedTX, false)
 		if err != nil {
 			return err
 		}
@@ -118,26 +123,20 @@ func (tx *AtomicTransaction) UndoApplyUnconfirmed() (err error) {
 
 func (tx *AtomicTransaction) Validate(dbTx bool) (err error) {
 
-	if len(tx.Body.GetAtomicInnerTransactions()) == 0 {
+	if len(tx.Body.GetUnsignedTransactionBytes()) == 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "EmptyAtomicInnerTransaction")
 	}
+	if len(tx.Body.GetSignatures()) == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "EmptySignatures")
+	}
 
-	for accountAddressHex, atomicInnerTX := range tx.Body.GetAtomicInnerTransactions() {
+	var unsignedHash []byte
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
-			innerTX        *model.Transaction
-			typeAction     TypeAction
-			accountAddress []byte
+			innerTX    *model.Transaction
+			typeAction TypeAction
 		)
-
-		accountAddress, err = hex.DecodeString(accountAddressHex)
-		if err != nil {
-			return err
-		}
-		err = tx.Signature.VerifySignature(atomicInnerTX.GetAtomicInnerItem()[0], atomicInnerTX.GetAtomicInnerItem()[1], accountAddress)
-		if err != nil {
-			return err
-		}
-		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(atomicInnerTX.GetAtomicInnerItem()[0], false)
+		innerTX, err = tx.TransactionUtil.ParseTransactionBytes(unsignedTX, false)
 		if err != nil {
 			return err
 		}
@@ -145,13 +144,25 @@ func (tx *AtomicTransaction) Validate(dbTx bool) (err error) {
 		if err != nil {
 			return err
 		}
-
 		err = typeAction.Validate(dbTx)
 		if err != nil {
 			return err
 		}
-
+		hashed := sha3.Sum256(unsignedTX)
+		unsignedHash = append(unsignedHash, hashed[:]...)
 	}
+	for accountAddressHex, signature := range tx.Body.GetSignatures() {
+		var accountAddress []byte
+		accountAddress, err = hex.DecodeString(accountAddressHex)
+		if err != nil {
+			return err
+		}
+		err = tx.Signature.VerifySignature(unsignedHash, signature, accountAddress)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -163,66 +174,105 @@ func (tx *AtomicTransaction) GetMinimumFee() (int64, error) {
 }
 
 func (tx *AtomicTransaction) GetAmount() int64 {
-	panic("implement me")
+	return 0
 }
 
 func (tx *AtomicTransaction) GetSize() (uint32, error) {
-	panic("implement me")
+	var size int
+
+	size += len(tx.Body.GetUnsignedTransactionBytes())
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
+		size += 4 // unsignedTX length
+		size += len(unsignedTX)
+	}
+
+	for addressHex, signature := range tx.Body.GetSignatures() {
+		size += len(addressHex)
+		size += len(signature)
+	}
+
+	return uint32(size), nil
 }
 
 func (tx *AtomicTransaction) ParseBodyBytes(txBodyBytes []byte) (body model.TransactionBodyInterface, err error) {
 	var (
 		buff        = bytes.NewBuffer(txBodyBytes)
-		atomicInner = make(map[string]*model.AtomicInnerTransaction)
+		unsignedTXs = make([][]byte, 0)
+		signatures  = make(map[string][]byte)
 	)
 
-	innerItemCount := util.ConvertBytesToUint32(buff.Next(4))
-	if innerItemCount <= 0 {
-		return nil, errors.New("empty inner tx")
+	innerTXCount := util.ConvertBytesToUint32(buff.Next(4))
+	if innerTXCount <= 0 {
+		return body, errors.New("empty inner tx")
 	}
 
-	for i := 0; i < int(innerItemCount); i++ {
+	for i := 0; i < int(innerTXCount); i++ {
 		var (
-			unsignedTX, signatureBytes []byte
+			unsignedTX []byte
 		)
+
 		unsignedTXLength := util.ConvertBytesToUint32(buff.Next(4))
 		unsignedTX, err = util.ReadTransactionBytes(buff, int(unsignedTXLength))
 		if err != nil {
-			return nil, err
+			return body, err
 		}
-		sigLength := util.ConvertBytesToUint32(buff.Next(4))
-		signatureBytes, err = util.ReadTransactionBytes(buff, int(sigLength))
-		if err != nil {
-			return nil, err
-		}
-
-		atomicInner[hex.EncodeToString(unsignedTX)] = &model.AtomicInnerTransaction{
-			AtomicInnerItem: [][]byte{
-				unsignedTX,
-				signatureBytes,
-			},
-		}
+		unsignedTXs = append(unsignedTXs, unsignedTX)
 	}
+
+	signatureCount := util.ConvertBytesToUint32(buff.Next(4))
+	if signatureCount <= 0 {
+		return body, errors.New("empty signature")
+	}
+	for i := 0; i < int(signatureCount); i++ {
+		var (
+			signature      []byte
+			accType        accounttype.AccountTypeInterface
+			accountAddress []byte
+		)
+		accType, err = accounttype.ParseBytesToAccountType(buff)
+		if err != nil {
+			return body, err
+		}
+		signature, err = util.ReadTransactionBytes(buff, int(accType.GetSignatureLength()))
+		if err != nil {
+			return body, err
+		}
+		accountAddress, err = accType.GetAccountAddress()
+		if err != nil {
+			return body, err
+		}
+		signatures[hex.EncodeToString(accountAddress)] = signature
+	}
+
 	body = &model.AtomicTransactionBody{
-		AtomicInnerTransactions: atomicInner,
+		UnsignedTransactionBytes: unsignedTXs,
+		Signatures:               signatures,
 	}
 	return body, nil
 }
 
-func (tx *AtomicTransaction) GetBodyBytes() ([]byte, error) {
-	var buff = bytes.NewBuffer([]byte{})
+func (tx *AtomicTransaction) GetBodyBytes() (bodyBytes []byte, err error) {
+	var (
+		buff = bytes.NewBuffer([]byte{})
+	)
 
-	if tx.Body.GetAtomicInnerTransactions() != nil {
-		buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetAtomicInnerTransactions()))))
-		for _, atomicInner := range tx.Body.GetAtomicInnerTransactions() {
-			buff.Write(util.ConvertUint32ToBytes(uint32(len(atomicInner.GetAtomicInnerItem()[0]))))
-			buff.Write(atomicInner.GetAtomicInnerItem()[0]) // unsigned bytes
-			buff.Write(util.ConvertUint32ToBytes(uint32(len(atomicInner.GetAtomicInnerItem()))))
-			buff.Write(atomicInner.GetAtomicInnerItem()[1]) // signature bytes
-		}
-		return buff.Bytes(), nil
+	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetUnsignedTransactionBytes())))) // total unsigned inner transactions
+	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
+		buff.Write(util.ConvertUint32ToBytes(uint32(len(unsignedTX))))
+		buff.Write(unsignedTX)
 	}
-	return nil, errors.New("damn")
+	buff.Write(util.ConvertUint32ToBytes(uint32(len(tx.Body.GetSignatures())))) // total signatures
+	for addressHex, signature := range tx.Body.GetSignatures() {
+		var addressBytes []byte
+		addressBytes, err = hex.DecodeString(addressHex)
+		if err != nil {
+			return bodyBytes, err
+		}
+		buff.Write(addressBytes)
+		buff.Write(signature)
+	}
+
+	return buff.Bytes(), nil
 }
 
 func (tx *AtomicTransaction) GetTransactionBody(transaction *model.Transaction) {
@@ -258,21 +308,134 @@ func (tx *AtomicTransaction) Escrowable() (EscrowTypeAction, bool) {
 }
 
 func (tx *AtomicTransaction) EscrowApplyConfirmed(blockTimestamp int64) error {
-	panic("implement me")
+	var (
+		err error
+	)
+
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
+	if err != nil {
+		return err
+	}
+	addEscrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(addEscrowQ)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (tx *AtomicTransaction) EscrowApplyUnconfirmed() error {
-	panic("implement me")
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee + tx.Escrow.GetCommission()))
 }
 
 func (tx *AtomicTransaction) EscrowUndoApplyUnconfirmed() error {
-	panic("implement me")
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
 }
 
 func (tx *AtomicTransaction) EscrowValidate(dbTx bool) error {
-	panic("implement me")
+	var (
+		err    error
+		enough bool
+	)
+	if tx.Escrow.GetCommission() <= 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
+	}
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetRecipientAddress() == nil || bytes.Equal(tx.Escrow.GetRecipientAddress(), []byte{}) {
+		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
+	}
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
+	}
+
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
+	return nil
 }
 
-func (tx *AtomicTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) error {
-	panic("implement me")
+func (tx *AtomicTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
+
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	case model.EscrowApproval_Reject:
+		tx.Escrow.Status = model.EscrowStatus_Rejected
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	default:
+		tx.Escrow.Status = model.EscrowStatus_Expired
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	addEscrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(addEscrowQ)
+	if err != nil {
+		return err
+	}
+	return nil
 }

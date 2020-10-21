@@ -2,8 +2,8 @@ package transaction
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"path"
 	"time"
@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -223,11 +224,10 @@ func init() {
 		liquidPaymentStopCmd
 	*/
 	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
-
 	/*
-		Atomic Transaction Cmd
+		atomicCmd
 	*/
-	atomicCmd.Flags().Uint32VarP(&inners, "inners", "i", 1, "inners = 2, inner transactions that want to have")
+	atomicCmd.Flags().Uint32VarP(&inners, "inners", "i", 1, "inners 2, indicate want to have 2 inner transaction")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -264,6 +264,7 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(liquidPaymentStopCmd)
 	atomicCmd.Run = txGeneratorCommandsInstance.AtomicProcess()
 	txCmd.AddCommand(atomicCmd)
+
 	return txCmd
 }
 
@@ -283,7 +284,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountTypeFromAccountHex(hex.EncodeToString(tx.GetSenderAccountAddress())).GetTypeInt()
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -711,13 +712,15 @@ func (*TXGeneratorCommands) AtomicProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
-			senderSignatureType,
 			version,
 			timestamp,
 			fee,
 			recipientAccountAddressHex,
+			message,
 		)
-		tx = GenerateTxAtomic(tx, inners)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
+
+		tx = GenerateAtomic(tx, inners)
+		senderAccountType := getAccountTypeFromAccountHex(hex.EncodeToString(tx.GetSenderAccountAddress())).GetTypeInt()
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }

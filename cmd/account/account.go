@@ -3,6 +3,7 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -105,7 +106,7 @@ func Commands() *cobra.Command {
 
 }
 
-// GenerateMultiSignatureAccount to generate address for multi signature transaction
+// ConvertEncodedAccountAddressToHex to generate address for multi signature transaction
 func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
 		var (

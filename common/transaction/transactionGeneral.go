@@ -6,9 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
@@ -155,12 +156,19 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	if err != nil {
 		return &transaction, err
 	}
-	err = u.MempoolCacheStorage.GetItem(txID, &mempoolObject)
-	if err != nil {
-		return nil, err
-	}
-	if mempoolObject.Tx.TransactionHash != nil {
-		return &mempoolObject.Tx, nil
+
+	/*
+		Need to check the MempoolCacheStorage is nil, it would nil when call from cmd.
+		That because no necessary to check from mempool cache
+	*/
+	if u.MempoolCacheStorage != nil {
+		err = u.MempoolCacheStorage.GetItem(txID, &mempoolObject)
+		if err != nil {
+			return nil, err
+		}
+		if mempoolObject.Tx.TransactionHash != nil {
+			return &mempoolObject.Tx, nil
+		}
 	}
 
 	buffer = bytes.NewBuffer(transactionBytes)
