@@ -158,6 +158,21 @@ func (tx *AtomicTransaction) Validate(dbTx bool) (err error) {
 		return blocker.NewBlocker(blocker.ValidationErr, "EmptySignatures")
 	}
 
+	enough, e := tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	if e != nil {
+		if e != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+
+	if !enough {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"UserBalanceNotEnough",
+		)
+	}
+
 	var unsignedHash []byte
 	for _, unsignedTX := range tx.Body.GetUnsignedTransactionBytes() {
 		var (
