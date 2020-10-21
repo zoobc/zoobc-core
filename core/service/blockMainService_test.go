@@ -57,7 +57,7 @@ var (
 	mockMerkleHashesMainBlock []*bytes.Buffer
 )
 
-func fixtureGenerateMerkleRootAndHash(mockTx []*model.Transaction) (root []byte, tree []byte) {
+func fixtureGenerateMerkleRootAndHash(mockTx []*model.Transaction) (root, tree []byte) {
 	mockMerkleMainBlock = &util.MerkleRoot{}
 	// Generate MerkleRoot
 	for i := 0; i < len(mockTx); i++ {
