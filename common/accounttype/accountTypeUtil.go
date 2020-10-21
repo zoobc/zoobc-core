@@ -35,28 +35,22 @@ func NewAccountTypeFromAccount(accountAddress []byte) (AccountTypeInterface, err
 }
 
 // ParseBytesToAccountType parse an AccountAddress from a bytes.Buffer and returns the appropriate AccountTypeInterface object
-func ParseBytesToAccountType(bufferBytes *bytes.Buffer) (AccountTypeInterface, error) {
+func ParseBytesToAccountType(buffer *bytes.Buffer) (AccountTypeInterface, error) {
 	var (
 		accPubKey []byte
 		acc       AccountTypeInterface
 	)
-	accTypeIntBytes := bufferBytes.Next(int(constant.AccountAddressTypeLength))
+	accTypeIntBytes := buffer.Next(int(constant.AccountAddressTypeLength))
 	if len(accTypeIntBytes) < int(constant.AccountAddressTypeLength) {
 		return nil, errors.New("InvalidAccountFormat")
 	}
 	accTypeInt := int32(binary.LittleEndian.Uint32(accTypeIntBytes))
-	switch accTypeInt {
-	case int32(model.AccountType_ZbcAccountType):
-		acc = &ZbcAccountType{}
-	case int32(model.AccountType_BTCAccountType):
-		acc = &BTCAccountType{}
-	case int32(model.AccountType_EmptyAccountType):
-		acc = &EmptyAccountType{}
-	default:
-		return nil, errors.New("InvalidAccountType")
+	acc, err := NewAccountType(accTypeInt, []byte{})
+	if err != nil {
+		return nil, err
 	}
 	accPubKeyLength := int(acc.GetAccountPublicKeyLength())
-	accPubKey = bufferBytes.Next(accPubKeyLength)
+	accPubKey = buffer.Next(accPubKeyLength)
 	if len(accPubKey) < accPubKeyLength {
 		return nil, errors.New("EndOfBufferReached")
 	}
@@ -81,6 +75,8 @@ func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress
 	case int32(model.AccountType_BTCAccountType):
 		// TODO: not implemented yet!
 		return nil, errors.New("parsing encoded BTC accounts is not implemented yet")
+	default:
+		return nil, errors.New("InvalidAccountType")
 	}
 	accType, err := NewAccountType(int32(model.AccountType_ZbcAccountType), accPubKey)
 	if err != nil {
@@ -94,9 +90,11 @@ func GetAccountTypes() map[uint32]AccountTypeInterface {
 	var (
 		zbcAccount   = &ZbcAccountType{}
 		dummyAccount = &BTCAccountType{}
+		emptyAccount = &EmptyAccountType{}
 	)
 	return map[uint32]AccountTypeInterface{
 		uint32(zbcAccount.GetTypeInt()):   zbcAccount,
 		uint32(dummyAccount.GetTypeInt()): dummyAccount,
+		uint32(emptyAccount.GetTypeInt()): dummyAccount,
 	}
 }
