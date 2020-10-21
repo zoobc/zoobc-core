@@ -100,6 +100,7 @@ func (acc *ZbcAccountType) GenerateAccountFromSeed(seed string, optionalParams .
 		if err != nil {
 			return err
 		}
+		acc.privateKey = append(acc.privateKey, acc.publicKey...)
 	} else {
 		acc.privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 		acc.publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(acc.privateKey)
