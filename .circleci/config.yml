@@ -2,7 +2,7 @@ version: 2
 defaults: &defaults
     working_directory: ~/zoobc
     docker:
-        - image: circleci/golang:1.14.0-stretch
+        - image: cimg/go:1.14
 reset_dbs: &reset_dbs
     name: RESET DBs
     command: |
@@ -59,9 +59,9 @@ jobs:
             - checkout
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
-            - run:
-                  name: ↓ GOLINT
-                  command: go get -u golang.org/x/lint/golint
+#            - run:
+#                  name: ↓ GOLINT
+#                  command: go get -u golang.org/x/lint/golint
             - run:
                   name: GO FMT
                   command: make go-fmt
@@ -70,10 +70,10 @@ jobs:
                   command: make golangci-lint
             - run:
                   name: GOTEST
-                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1
-            - run:
-                  name: GOLINT RUN
-                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1 -p=1
+#            - run:
+#                  name: GOLINT RUN
+#                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
             - run:
                 name: TEST MAKE GEN
                 command: |
