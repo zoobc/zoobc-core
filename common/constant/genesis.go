@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -4036654442665330260
+	MainchainGenesisBlockID int64 = -5490028683681567231
 )
 
 type (
@@ -37,23 +37,14 @@ var (
 	GenesisConfig                 = []GenesisConfigEntry{
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5",
+			AccountAddress:     "ZBC_4HTOUZJG_OEQYAEEJ_ASGDUHOY_MOXKD6VR_EOLXM56G_CJSYU5E2_RIA6ZCZ5",
 			AccountBalance:     0,
-			NodePublicKey: []byte{162, 140, 116, 1, 147, 34, 194, 215, 32, 185, 212, 23, 126, 183, 227, 33, 181, 74, 99,
-				111, 237, 82, 28, 19, 217, 76, 135, 78, 11, 226, 225, 121},
+			// ZNK_53EM2AO3_DPJ7KYJN_XJZA7WCT_MY4SUFZF_IHTDTLHY_32M4KC5K_OJIN5BSE
+			NodePublicKey: []byte{238, 200, 205, 1, 219, 27, 211, 245, 97, 45, 186, 114, 15, 216, 83, 102, 57, 42, 23,
+				37, 65, 230, 57, 172, 248, 222, 153, 197, 11, 170, 114, 80},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-			Message:            "Fifer",
-		},
-		{
-			AccountAddressType: 0,
-			AccountAddress:     "ZBC_QFVW5OWQ_3PQMBDOX_4XJXZ4PL_SH7FBFKN_LVUOVPSO_22BHUQTZ_EA2CF7LQ",
-			AccountBalance:     0,
-			NodePublicKey: []byte{225, 23, 225, 4, 199, 146, 240, 153, 34, 148, 233, 147, 6, 84, 173, 85, 66, 216, 240,
-				137, 237, 119, 144, 25, 168, 86, 66, 30, 151, 214, 121, 19},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "Fiddler",
+			Message:            "iltoga public node",
 		},
 		{
 			AccountAddressType: 0,
@@ -927,16 +918,6 @@ var (
 				13, 72, 239, 244, 239, 175, 73, 119, 28, 21, 76, 148, 215},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
-		},
-		{
-			AccountAddressType: 0,
-			AccountAddress:     "ZBC_HTTOWCSA_ZHTDOI22_DZ7MJO4M_QNENFTEE_B3IRGWL2_BDNK4F24_VCZGFWOH",
-			AccountBalance:     0,
-			NodePublicKey: []byte{223, 220, 178, 235, 247, 60, 89, 251, 53, 153, 251, 14, 39, 140, 142, 216, 132, 35, 189,
-				108, 132, 180, 128, 88, 26, 151, 170, 177, 26, 131, 219, 114},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "Practical",
 		},
 	}
 )
