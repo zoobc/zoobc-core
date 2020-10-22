@@ -27,8 +27,7 @@ reset_db: &reset_db
 github_cof: &github_conf
     name: GIT CONF
     command: |
-        git config --global url."https://github:607ce9de25dafc1029709aee756af723c107d31f@github.com".insteadOf "https://github.com"
-
+        git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
 jobs:
     prepare:
         <<: *defaults
