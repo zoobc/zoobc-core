@@ -2,7 +2,8 @@ version: 2
 defaults: &defaults
     working_directory: ~/zoobc
     docker:
-        - image: cimg/go:1.14
+        - image: circleci/golang:1.14.0-stretch
+#        - image: cimg/go:1.14
 reset_dbs: &reset_dbs
     name: RESET DBs
     command: |
@@ -27,7 +28,6 @@ github_cof: &github_conf
     name: GIT CONF
     command: |
         git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
-
 jobs:
     prepare:
         <<: *defaults
@@ -109,7 +109,7 @@ jobs:
             - run:
                   name: BUILD
                   command: |
-                      go build -o ./dist/zoobc
+                      GOOS=linux GOARCH=amd64 go build -o ./dist/zoobc
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
