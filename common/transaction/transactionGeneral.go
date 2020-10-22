@@ -125,10 +125,10 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, signed bool) ([
 	}
 
 	// transaction message
-	msgLength := len([]byte(transaction.GetMessage()))
+	msgLength := len(transaction.GetMessage())
 	buffer.Write(util.ConvertUint32ToBytes(uint32(msgLength)))
 	if msgLength > 0 {
-		buffer.Write([]byte(transaction.GetMessage()))
+		buffer.Write(transaction.GetMessage())
 	}
 
 	if signed {
@@ -268,12 +268,11 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 	}
 	messageLength := int(util.ConvertBytesToUint32(chunkedBytes))
 	if messageLength > 0 {
-		message, err := util.ReadTransactionBytes(buffer, messageLength)
+		messageBytes, err := util.ReadTransactionBytes(buffer, messageLength)
 		if err != nil {
 			return nil, err
 		}
-		// TODO: sanitize the string?
-		transaction.Message = string(message)
+		transaction.Message = messageBytes
 	}
 
 	if sign {
@@ -316,7 +315,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			"TxFeeZero",
 		)
 	}
-	if len([]byte(tx.Message)) > constant.MaxMessageLength {
+	if len(tx.Message) > constant.MaxMessageLength {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxMessageMaxLengthExceeded",

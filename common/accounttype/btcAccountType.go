@@ -57,6 +57,9 @@ func (acc *BTCAccountType) GetName() string {
 }
 
 func (acc *BTCAccountType) GetAccountPublicKeyLength() uint32 {
+	if len(acc.publicKey) > 0 {
+		return uint32(len(acc.publicKey))
+	}
 	return btcec.PubKeyBytesLenCompressed
 }
 
@@ -73,7 +76,7 @@ func (acc *BTCAccountType) GetSignatureLength() uint32 {
 }
 
 func (acc *BTCAccountType) GetEncodedAddress() (string, error) {
-	if acc.GetAccountPublicKey() == nil || bytes.Equal(acc.GetAccountPublicKey(), []byte{}) {
+	if len(acc.GetAccountPublicKey()) == 0 {
 		return "", errors.New("EmptyAccountPublicKey")
 	}
 	bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())

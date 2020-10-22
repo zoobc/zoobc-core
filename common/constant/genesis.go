@@ -15,6 +15,7 @@ type (
 		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
+		Message            string
 	}
 )
 
@@ -42,6 +43,7 @@ var (
 				111, 237, 82, 28, 19, 217, 76, 135, 78, 11, 226, 225, 121},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fifer",
 		},
 		{
 			AccountAddressType: 0,
@@ -51,6 +53,7 @@ var (
 				137, 237, 119, 144, 25, 168, 86, 66, 30, 151, 214, 121, 19},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fiddler",
 		},
 		{
 			AccountAddressType: 0,
@@ -933,6 +936,7 @@ var (
 				108, 132, 180, 128, 88, 26, 151, 170, 177, 26, 131, 219, 114},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Practical",
 		},
 	}
 )
