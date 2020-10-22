@@ -420,6 +420,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		queryExecutor,
