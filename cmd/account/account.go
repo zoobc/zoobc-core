@@ -76,7 +76,7 @@ func init() {
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
 		int32(model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed),
-		"Defines the format of public key Bitcoin want to generate. 0 for compressed format & 1 for uncompressed format",
+		"Defines the format of public key Bitcoin want to generate. 0 for uncompressed format & 1 for compressed format",
 	)
 	// multisig
 	multiSigCmd.Flags().StringSliceVar(&multisigAddressesHex, "addresses", []string{},

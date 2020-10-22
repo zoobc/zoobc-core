@@ -475,7 +475,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "message" TEXT
+				ADD COLUMN "message" BLOB
 			`,
 			`CREATE TABLE IF NOT EXISTS "atomic_transaction" (
 				"id"                    INTEGER,                    -- relative to transaction.id

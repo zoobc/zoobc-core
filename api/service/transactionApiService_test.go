@@ -597,7 +597,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				1,
 				1,
 				model.TransactionChildType_MultiSignatureChild,
-				"test message",
+				[]byte{1, 2, 3},
 			),
 		)
 	return db.Query("")
@@ -696,7 +696,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Version:                 1,
 						TransactionIndex:        1,
 						ChildType:               model.TransactionChildType_MultiSignatureChild,
-						Message:                 "test message",
+						Message:                 []byte{1, 2, 3},
 					},
 				},
 			},
@@ -854,6 +854,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Version:                 1,
 				TransactionIndex:        1,
 				ChildType:               model.TransactionChildType_MultiSignatureChild,
+				Message:                 []byte{},
 			},
 		},
 	}

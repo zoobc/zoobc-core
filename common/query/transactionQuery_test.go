@@ -33,7 +33,7 @@ var (
 		TransactionBodyBytes:  make([]byte, 88),
 		Signature:             make([]byte, 68),
 		TransactionIndex:      1,
-		Message:               "test message",
+		Message:               []byte{1, 2, 3},
 	}
 	// mockTransactionRow represent a transaction row for test purpose only
 	// copy just the values only,
@@ -301,7 +301,7 @@ func (*mockQueryExecutorBuildModel) ExecuteSelect(query string, tx bool, args ..
 			1,
 			1,
 			model.TransactionChildType_NoneChild,
-			"test message",
+			[]byte{1, 2, 3},
 		),
 	)
 	return db.Query("")
@@ -374,7 +374,7 @@ func (*mockRowTransactionQueryScan) ExecuteSelectRow(qStr string, args ...interf
 			1,
 			1,
 			model.TransactionChildType_MultiSignatureChild,
-			"",
+			[]byte{},
 		),
 	)
 	return db.QueryRow("")

@@ -311,7 +311,7 @@ func GenerateBasicTransaction(
 			Commission:      0,
 			Timeout:         0,
 		},
-		Message: message,
+		Message: []byte(message),
 	}
 }
 
