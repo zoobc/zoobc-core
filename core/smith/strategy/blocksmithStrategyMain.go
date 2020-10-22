@@ -99,21 +99,22 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, int
 			return 0, blocksmithIndex, err
 		}
 	}
-
 	if len(bss.candidates) > 0 {
 		lastCandidate = bss.candidates[len(bss.candidates)-1]
+		fmt.Printf("now - lastCandidate.StartTime: \n%v - %v = %v\n", now, lastCandidate.StartTime, now-lastCandidate.StartTime)
 		if now < lastCandidate.StartTime {
-			return 0, blocksmithIndex, errors.New("InvalidTime")
+			return 0, blocksmithIndex, errors.New("WillSmith:NowLessThanStartTime")
 		}
 		if bytes.Equal(lastCandidate.Blocksmith.NodePublicKey, bss.CurrentNodePublicKey) {
-			fmt.Printf("true-me\n")
 			bss.me = lastCandidate
 		}
 	}
-	if err = bss.AddCandidate(prevBlock); err != nil {
-		return 0, blocksmithIndex, err
-	} else {
-		lastCandidate = bss.candidates[len(bss.candidates)-1]
+	if now > lastCandidate.StartTime {
+		if err = bss.AddCandidate(prevBlock); err != nil {
+			return 0, blocksmithIndex, err
+		} else {
+			lastCandidate = bss.candidates[len(bss.candidates)-1]
+		}
 	}
 
 	if bss.me.StartTime != 0 && now < bss.me.ExpiryTime {
@@ -147,10 +148,11 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 	round := int64(1)
 	gap := now - prevBlock.Timestamp
 	if gap > 15 {
-		round += int64(math.Floor(float64(gap-15) / float64(10)))
+		round += int64(math.Floor(float64(gap-bss.Chaintype.GetSmithingPeriod()) / float64(bss.Chaintype.GetBlocksmithTimeGap())))
 	}
 	currCandidateCount := len(bss.candidates)
-	for i := int64(0); i < round-int64(currCandidateCount); i++ {
+	newCandidateCount := currCandidateCount
+	for i := int64(0); i <= round-int64(currCandidateCount); i++ {
 		var (
 			idx        int
 			randNumber int64
@@ -161,7 +163,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 			NodeID:        activeNodeRegistry[idx].Node.GetNodeID(),
 			NodePublicKey: activeNodeRegistry[idx].Node.GetNodePublicKey(),
 		}
-		startTime := prevBlock.Timestamp + bss.Chaintype.GetSmithingPeriod() + int64(len(bss.candidates))*bss.Chaintype.GetBlocksmithTimeGap()
+		startTime := prevBlock.Timestamp + bss.Chaintype.GetSmithingPeriod() + int64(newCandidateCount)*bss.Chaintype.GetBlocksmithTimeGap()
 		expiryTime := startTime + bss.Chaintype.GetBlocksmithNetworkTolerance() + bss.Chaintype.GetBlocksmithBlockCreationTime()
 		candidate = Candidate{
 			Blocksmith: &blockSmith,
@@ -169,6 +171,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 			ExpiryTime: expiryTime,
 		}
 		bss.candidates = append(bss.candidates, candidate)
+		newCandidateCount++
 	}
 	return nil
 }
