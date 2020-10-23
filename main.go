@@ -1110,7 +1110,7 @@ func start() {
 	mainchainSyncChannel := make(chan bool, 1)
 	mainchainSyncChannel <- true
 	startMainchain()
-	startSpinechain()
+	// startSpinechain()
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
