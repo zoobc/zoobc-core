@@ -322,7 +322,6 @@ DELETE FROM account_address;
 			log.Fatal("Failed to run CommitTx DB, err : ", err.Error())
 		}
 		log.Fatal("command succeeded: account_address table created and populated")
-		return
 	}
 }
 
