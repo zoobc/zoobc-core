@@ -3,9 +3,10 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/util"
 
@@ -104,6 +105,8 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewLiquidPaymentTransactionQuery(),
 			query.NewNodeAdmissionTimestampQuery(),
 			query.NewBlockQuery(mainChain),
+			query.NewBlockchainObjectQuery(),
+			query.NewBlockchainObjectPropertyQuery(),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),
 			query.GetDerivedQuery(mainChain),
@@ -339,6 +342,8 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewLiquidPaymentTransactionQuery(),
 			query.NewNodeAdmissionTimestampQuery(),
 			query.NewBlockQuery(mainChain),
+			query.NewBlockchainObjectQuery(),
+			query.NewBlockchainObjectPropertyQuery(),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),
 			query.GetDerivedQuery(mainChain),

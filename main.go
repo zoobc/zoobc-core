@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
@@ -548,6 +549,8 @@ func initiateMainInstance() {
 		query.NewLiquidPaymentTransactionQuery(),
 		query.NewNodeAdmissionTimestampQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewBlockchainObjectQuery(),
+		query.NewBlockchainObjectPropertyQuery(),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),
 		query.GetDerivedQuery(mainchain),
