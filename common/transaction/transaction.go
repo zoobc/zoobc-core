@@ -464,7 +464,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 9:
 		switch buf[1] {
 		case 0:
-			transactionBody, err = new(FeeVoteCommitTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
+			transactionBody, err = new(CreateBlockchainObjectTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
 			if err != nil {
 				return nil, err
 			}

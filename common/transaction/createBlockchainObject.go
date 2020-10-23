@@ -48,7 +48,8 @@ func (tx *CreateBlockchainObjectTransaction) ApplyConfirmed(blockTimestamp int64
 	}
 	// add new account address (blockchain Object ID) on account balance
 	var blockchainObjectID = make([]byte, constant.AccountAddressTypeLength+uint32(sha3.New256().Size()))
-	blockchainObjectID = append(tx.SenderAddress[:4], tx.TransactionHash...)
+	// TODO: change this with account type for blockchain object
+	blockchainObjectID = append([]byte{3, 0, 0, 0}, tx.TransactionHash...)
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		blockchainObjectID,
 		tx.Body.BlockchainObjectBalance,
@@ -65,9 +66,10 @@ func (tx *CreateBlockchainObjectTransaction) ApplyConfirmed(blockTimestamp int64
 		ID:                  blockchainObjectID,
 		OwnerAccountAddress: tx.SenderAddress,
 		BlockHeight:         tx.Height,
+		Latest:              true,
 	}
 	var qry, args = tx.BlockchainObjectQuery.InsertBlockcahinObject(blockchainObject)
-	err = tx.QueryExecutor.ExecuteTransaction(qry, args)
+	err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
 		return err
 	}
@@ -82,27 +84,27 @@ func (tx *CreateBlockchainObjectTransaction) ApplyConfirmed(blockTimestamp int64
 		})
 	}
 	qry, args = tx.BlockchainObjectPropertyQuery.InsertBlockcahinObjectProperties(boImmutableProperties)
-	err = tx.QueryExecutor.ExecuteTransaction(qry, args)
+	err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
 		return err
 	}
 	// insert mutable properties
 	if len(tx.Body.BlockchainObjectMutableProperties) > 0 {
 		var boMutableProperties []*model.AccountDataset
-		// SetterAccountAddress should be blockchainObjectID to make blockchain object can change it's property
+		// SetterAccountAddress should be blockchainObjectID to make blockchain object can change it's mutable property in future
 		for key := range tx.Body.BlockchainObjectMutableProperties {
 			boMutableProperties = append(boMutableProperties, &model.AccountDataset{
 				SetterAccountAddress:    blockchainObjectID,
 				RecipientAccountAddress: blockchainObjectID,
-				Property:                tx.Body.BlockchainObjectMutableProperties[key],
-				Value:                   key,
+				Property:                key,
+				Value:                   tx.Body.BlockchainObjectMutableProperties[key],
 				Height:                  tx.Height,
 				IsActive:                true,
 				Latest:                  true,
 			})
 		}
 		qry, args = tx.AccountDatasetQuery.InsertAccountDatasets(boMutableProperties)
-		err = tx.QueryExecutor.ExecuteTransaction(qry, args)
+		err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
 		if err != nil {
 			return err
 		}
@@ -149,14 +151,23 @@ func (tx *CreateBlockchainObjectTransaction) Validate(dbTx bool) error {
 	}
 	// check existing account
 	var (
-		accountBalance     model.AccountBalance
-		blockchainObjectID = append(tx.SenderAddress[:4], tx.TransactionHash...)
-		err                = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, blockchainObjectID, dbTx)
+		oldBO model.BlockchainObject
+		// TODO: change this with account type for blockchain object
+		blockchainObjectID = append([]byte{3, 0, 0, 0}, tx.TransactionHash...)
+		qry, args          = tx.BlockchainObjectQuery.GetBlockchainObjectByID(blockchainObjectID)
+		row, err           = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	)
+	if err != nil {
+		return err
+	}
+	err = tx.BlockchainObjectQuery.Scan(&oldBO, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
 		}
+	}
+	if len(oldBO.ID) > 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "BlockchainObjectAlreadyCreated")
 	}
 	return nil
 }

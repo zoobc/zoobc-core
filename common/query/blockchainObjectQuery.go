@@ -13,6 +13,7 @@ type (
 	BlockchainObjectQueryInterface interface {
 		InsertBlockcahinObject(blockchainObject *model.BlockchainObject) (str string, args []interface{})
 		InsertBlockcahinObjects(properties []*model.BlockchainObject) (str string, args []interface{})
+		GetBlockchainObjectByID(id []byte) (str string, args []interface{})
 		ExtractModel(blockchainObject *model.BlockchainObject) []interface{}
 		BuildModel(blockchainObject []*model.BlockchainObject, rows *sql.Rows) ([]*model.BlockchainObject, error)
 		Scan(blockchainObject *model.BlockchainObject, row *sql.Row) error
@@ -28,44 +29,51 @@ func NewBlockchainObjectQuery() *BlockchainObjectQuery {
 	return &BlockchainObjectQuery{
 		Fields: []string{
 			"id",
-			"owner",
+			"owner_account_address",
 			"block_height",
+			"latest",
 		},
 		TableName: "blockchain_object",
 	}
 }
 
-// InsertBlockcahinObjects represents query builder to insert single record
+// InsertBlockcahinObjects represents query builder to insert single record blockchain object
 func (boq *BlockchainObjectQuery) InsertBlockcahinObject(
 	blockchainObject *model.BlockchainObject,
 ) (str string, args []interface{}) {
 	var (
 		value = fmt.Sprintf("? %s", strings.Repeat(", ?", len(boq.Fields)-1))
-		query = fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)", boq.getTableName(), strings.Join(boq.Fields, ", "), value)
+		query = fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)", boq.getTableName(), strings.Join(boq.Fields, ", "), value)
 	)
 	return query, boq.ExtractModel(blockchainObject)
 }
 
 // InsertBlockcahinObjects represents query builder to insert multiple record in single query
 func (boq *BlockchainObjectQuery) InsertBlockcahinObjects(
-	properties []*model.BlockchainObject,
+	blockchainObjects []*model.BlockchainObject,
 ) (str string, args []interface{}) {
 	var (
 		values []interface{}
 		query  = fmt.Sprintf(
-			"INSERT INTO %s (%s) ",
+			"INSERT INTO %s (%s) VALUES ",
 			boq.getTableName(),
 			strings.Join(boq.Fields, ", "),
 		)
 	)
-	for k, property := range properties {
-		query += fmt.Sprintf("VALUES(?%s)", strings.Repeat(",? ", len(boq.Fields)-1))
-		if k < len(properties)-1 {
+	for k, blockchainObject := range blockchainObjects {
+		query += fmt.Sprintf("(?%s)", strings.Repeat(",? ", len(boq.Fields)-1))
+		if k < len(blockchainObjects)-1 {
 			query += ", "
 		}
-		values = append(values, boq.ExtractModel(property)...)
+		values = append(values, boq.ExtractModel(blockchainObject)...)
 	}
 	return query, values
+}
+
+// GetBlockchainObjectByID represents query builder to get latest version blockchain object besed on it's ID
+func (boq *BlockchainObjectQuery) GetBlockchainObjectByID(id []byte) (str string, args []interface{}) {
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE id = ? AND latest = 1 ORDER BY block_height DESC`,
+		strings.Join(boq.Fields, ","), boq.TableName), []interface{}{id}
 }
 
 func (boq *BlockchainObjectQuery) getTableName() string {
@@ -77,6 +85,7 @@ func (*BlockchainObjectQuery) ExtractModel(blockchainObject *model.BlockchainObj
 		blockchainObject.ID,
 		blockchainObject.OwnerAccountAddress,
 		blockchainObject.BlockHeight,
+		blockchainObject.Latest,
 	}
 }
 
@@ -92,6 +101,7 @@ func (*BlockchainObjectQuery) BuildModel(
 			&blockchainObject.ID,
 			&blockchainObject.OwnerAccountAddress,
 			&blockchainObject.BlockHeight,
+			&blockchainObject.Latest,
 		); err != nil {
 			return nil, err
 		}
@@ -105,6 +115,7 @@ func (*BlockchainObjectQuery) Scan(blockchainObject *model.BlockchainObject, row
 		&blockchainObject.ID,
 		&blockchainObject.OwnerAccountAddress,
 		&blockchainObject.BlockHeight,
+		&blockchainObject.Latest,
 	)
 	return err
 }
@@ -121,7 +132,14 @@ func (boq *BlockchainObjectQuery) Rollback(height uint32) (multiQueries [][]inte
 
 // RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
 func (boq *BlockchainObjectQuery) RecalibrateVersionedTable() []string {
-	return []string{} // only table with `latest` column need this
+	return []string{
+		fmt.Sprintf(
+			"UPDATE %s SET latest = false WHERE latest = true AND id NOT IN (SELECT MAX(t2.block_height) FROM %s t2",
+			boq.getTableName(), boq.getTableName()),
+		fmt.Sprintf(
+			"UPDATE %s SET latest = true WHERE latest = false AND id IN (SELECT MAX(t2.block_height) FROM %s t2",
+			boq.getTableName(), boq.getTableName()),
+	}
 }
 
 // ImportSnapshot takes payload from downloaded snapshot and insert them into database
@@ -149,12 +167,12 @@ func (boq *BlockchainObjectQuery) ImportSnapshot(payload interface{}) ([][]inter
 
 // SelectDataForSnapshot select only the block at snapshot height (fromHeight is unused)
 func (boq *BlockchainObjectQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(boq.Fields, ","), boq.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (boq *BlockchainObjectQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		boq.getTableName(), fromHeight, toHeight)
 }

@@ -41,13 +41,13 @@ func (bopq *BlockchainObjectPropertyQuery) InsertBlockcahinObjectProperties(
 	var (
 		values []interface{}
 		query  = fmt.Sprintf(
-			"INSERT INTO %s (%s) ",
+			"INSERT INTO %s (%s) VALUES ",
 			bopq.getTableName(),
 			strings.Join(bopq.Fields, ", "),
 		)
 	)
 	for k, property := range properties {
-		query += fmt.Sprintf("VALUES(?%s)", strings.Repeat(",? ", len(bopq.Fields)-1))
+		query += fmt.Sprintf("(?%s)", strings.Repeat(",? ", len(bopq.Fields)-1))
 		if k < len(properties)-1 {
 			query += ", "
 		}
@@ -129,12 +129,12 @@ func (bopq *BlockchainObjectPropertyQuery) ImportSnapshot(payload interface{}) (
 
 // SelectDataForSnapshot select only the block at snapshot height (fromHeight is unused)
 func (bopq *BlockchainObjectPropertyQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`SELECT %s FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
+	return fmt.Sprintf(`SELECT %s FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		strings.Join(bopq.Fields, ","), bopq.getTableName(), fromHeight, toHeight)
 }
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (bopq *BlockchainObjectPropertyQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE height >= %d AND height <= %d AND height != 0`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		bopq.getTableName(), fromHeight, toHeight)
 }

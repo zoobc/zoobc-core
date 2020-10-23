@@ -40,6 +40,8 @@ type (
 		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
 		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
 		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		BlockchainObjectQuery          query.BlockchainObjectQueryInterface
+		BlockchainObjectPropertyQuery  query.BlockchainObjectPropertyQueryInterface
 		SnapshotQueries                map[string]query.SnapshotQuery
 		BlocksmithSafeQuery            map[string]bool
 		DerivedQueries                 []query.DerivedQuery
@@ -71,6 +73,8 @@ func NewSnapshotMainBlockService(
 	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
 	nodeAdmissionTimestampQuery query.NodeAdmissionTimestampQueryInterface,
 	blockQuery query.BlockQueryInterface,
+	blockchainObjectQuery query.BlockchainObjectQueryInterface,
+	blockchainObjectPropertyQuery query.BlockchainObjectPropertyQueryInterface,
 	snapshotQueries map[string]query.SnapshotQuery,
 	blocksmithSafeQueries map[string]bool,
 	derivedQueries []query.DerivedQuery,
@@ -103,6 +107,8 @@ func NewSnapshotMainBlockService(
 		LiquidPaymentTransactionQuery:  liquidPaymentTransactionQuery,
 		NodeAdmissionTimestampQuery:    nodeAdmissionTimestampQuery,
 		BlockQuery:                     blockQuery,
+		BlockchainObjectQuery:          blockchainObjectQuery,
+		BlockchainObjectPropertyQuery:  blockchainObjectPropertyQuery,
 		SnapshotQueries:                snapshotQueries,
 		BlocksmithSafeQuery:            blocksmithSafeQueries,
 		DerivedQueries:                 derivedQueries,
@@ -209,6 +215,10 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 				snapshotPayload.LiquidPayment, err = ss.LiquidPaymentTransactionQuery.BuildModels(rows)
 			case "nodeAdmissionTimestamp":
 				snapshotPayload.NodeAdmissionTimestamp, err = ss.NodeAdmissionTimestampQuery.BuildModel([]*model.NodeAdmissionTimestamp{}, rows)
+			case "blockchainObject":
+				snapshotPayload.BlockchainObjects, err = ss.BlockchainObjectQuery.BuildModel([]*model.BlockchainObject{}, rows)
+			case "blockchainObjectProperty":
+				snapshotPayload.BlockchainObjectProperties, err = ss.BlockchainObjectPropertyQuery.BuildModel([]*model.BlockchainObjectProperty{}, rows)
 			default:
 				err = blocker.NewBlocker(blocker.ParserErr, fmt.Sprintf("Invalid Snapshot Query Repository: %s", qryRepoName))
 			}

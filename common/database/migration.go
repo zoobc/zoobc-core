@@ -480,7 +480,8 @@ func (m *Migration) Init() error {
 			`CREATE TABLE IF NOT EXISTS "blockchain_object" (
 				"id"						BLOB,				-- 4 bytes accountType + hash of transaction
 				"owner_account_address"		BLOB,				-- the owner adddress of blockchain object
-				"block_height"				INTEGER,			-- the height when blockchain object create  
+				"block_height"				INTEGER,			-- the height when blockchain object create
+				"latest"	INTEGER, 							-- latest version flag for blockchain_object
 				PRIMARY KEY("id")								-- primary key
 			)
 			`,
@@ -491,6 +492,12 @@ func (m *Migration) Init() error {
 				"block_height"			INTEGER,			-- the height when immutable property blockchain object create  
 				PRIMARY KEY("blockchain_object_id", "key")	-- primary key
 			)
+			`,
+			`
+			CREATE INDEX "blockchain_object_id_idx" ON "blockchain_object" ("id")
+			`,
+			`
+			CREATE INDEX "blockchain_object_owner_account_address_idx" ON "blockchain_object" ("owner_account_address")
 			`,
 			`
 			CREATE INDEX "blockchain_object_property_id_idx" ON "blockchain_object_property" ("blockchain_object_id")
