@@ -68,3 +68,55 @@ func TestAtomicTransactionQuery_InsertAtomicTransactions(t *testing.T) {
 		})
 	}
 }
+
+func TestAtomicTransactionQuery_ExtractModel(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		atomic *model.Atomic
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   []interface{}
+	}{
+		{
+			name:   "WantSuccess",
+			fields: fields(*NewAtomicTransactionQuery()),
+			args: args{
+				atomic: &model.Atomic{
+					ID:                  123456789,
+					TransactionID:       1234567890,
+					SenderAddress:       []byte{},
+					BlockHeight:         1,
+					UnsignedTransaction: []byte{},
+					Signature:           []byte{},
+					AtomicIndex:         0,
+				},
+			},
+			want: []interface{}{
+				int64(123456789),
+				int64(1234567890),
+				[]byte{},
+				uint32(1),
+				[]byte{},
+				[]byte{},
+				uint32(0),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := &AtomicTransactionQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := a.ExtractModel(tt.args.atomic); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExtractModel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
