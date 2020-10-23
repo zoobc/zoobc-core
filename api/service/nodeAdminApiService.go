@@ -11,13 +11,14 @@ import (
 )
 
 type (
-	// TransactionServiceInterface represents interface for TransactionService
+	// NodeAdminServiceInterface represents interface for TransactionService
 	NodeAdminServiceInterface interface {
 		GetProofOfOwnership() (*model.ProofOfOwnership, error)
 		GenerateNodeKey(seed string) ([]byte, error)
+		GetLastNodeKey() ([]byte, error)
 	}
 
-	// TransactionService represents struct of TransactionService
+	// NodeAdminService represents struct of TransactionService
 	NodeAdminService struct {
 		Query                query.ExecutorInterface
 		NodeAdminCoreService coreService.NodeAdminServiceInterface
@@ -27,7 +28,7 @@ type (
 
 var nodeAdminServiceInstance *NodeAdminService
 
-// NewBlockService create a singleton instance of BlockService
+// NewNodeAdminService create a singleton instance of BlockService
 func NewNodeAdminService(
 	queryExecutor query.ExecutorInterface,
 	blockService coreService.BlockServiceInterface,
@@ -64,4 +65,14 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return nodePublicKey, nil
+}
+
+// GetLastNodeKey handles request to get last node key
+func (nas *NodeAdminService) GetLastNodeKey() (nodeKey []byte, err error) {
+	var keys []*model.NodeKey
+	keys, err = nas.NodeAdminCoreService.ParseKeysFile()
+	if err != nil {
+		return
+	}
+	return nas.NodeAdminCoreService.GetLastNodeKey(keys).PublicKey, nil
 }

@@ -15,8 +15,7 @@ import (
 
 // NodeRegistryHandler handles requests related to node registry
 type NodeRegistryHandler struct {
-	Service       service.NodeRegistryServiceInterface
-	NodePublicKey []byte
+	Service service.NodeRegistryServiceInterface
 }
 
 func (nrh NodeRegistryHandler) GetNodeRegistrations(
@@ -62,15 +61,6 @@ func (nrh NodeRegistryHandler) GetNodeRegistration(
 		return nil, err
 	}
 	return response, nil
-}
-
-func (nrh NodeRegistryHandler) GetMyNodePublicKey(
-	ctx context.Context,
-	req *model.Empty,
-) (*model.GetMyNodePublicKeyResponse, error) {
-	return &model.GetMyNodePublicKeyResponse{
-		NodePublicKey: nrh.NodePublicKey,
-	}, nil
 }
 
 func (nrh NodeRegistryHandler) GetNodeRegistrationsByNodePublicKeys(

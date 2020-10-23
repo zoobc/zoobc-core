@@ -2,15 +2,15 @@ package service
 
 import (
 	"encoding/json"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -23,7 +23,7 @@ type (
 		GenerateNodeKey(seed string) ([]byte, error)
 	}
 
-	// NodeAdminServiceHelpersInterface mockable service methods
+	// NodeAdminService mockable service methods
 	NodeAdminService struct {
 		QueryExecutor query.ExecutorInterface
 		BlockQuery    query.BlockQueryInterface
@@ -48,7 +48,7 @@ func NewNodeAdminService(
 	}
 }
 
-// generate proof of ownership
+// GenerateProofOfOwnership generate proof of ownership
 func (nas *NodeAdminService) GenerateProofOfOwnership(
 	accountAddress []byte) (*model.ProofOfOwnership, error) {
 
@@ -93,7 +93,7 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	}, nil
 }
 
-// ParseNodeKeysFile read the node key file and parses it into an array of NodeKey struct
+// ParseKeysFile read the node key file and parses it into an array of NodeKey struct
 func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 	file, err := ioutil.ReadFile(nas.FilePath)
 	if err != nil && os.IsNotExist(err) {

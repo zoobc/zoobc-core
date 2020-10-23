@@ -47,6 +47,15 @@ func request_NodeAdminService_GenerateNodeKey_0(ctx context.Context, marshaler r
 
 }
 
+func request_NodeAdminService_GetLastNodeKey_0(ctx context.Context, marshaler runtime.Marshaler, client NodeAdminServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq model.Empty
+	var metadata runtime.ServerMetadata
+
+	msg, err := client.GetLastNodeKey(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
 // RegisterNodeAdminServiceHandlerFromEndpoint is same as RegisterNodeAdminServiceHandler but
 // automatically dials to "endpoint" and closes the connection when "ctx" gets done.
 func RegisterNodeAdminServiceHandlerFromEndpoint(ctx context.Context, mux *runtime.ServeMux, endpoint string, opts []grpc.DialOption) (err error) {
@@ -125,17 +134,41 @@ func RegisterNodeAdminServiceHandlerClient(ctx context.Context, mux *runtime.Ser
 
 	})
 
+	mux.Handle("GET", pattern_NodeAdminService_GetLastNodeKey_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_NodeAdminService_GetLastNodeKey_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_NodeAdminService_GetLastNodeKey_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	return nil
 }
 
 var (
-	pattern_NodeAdminService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_NodeAdminService_GetProofOfOwnership_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getProofOfOwnership"}, ""))
 
-	pattern_NodeAdminService_GenerateNodeKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "generateNodeKey"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_NodeAdminService_GenerateNodeKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "generateNodeKey"}, ""))
+
+	pattern_NodeAdminService_GetLastNodeKey_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "nodeadmin", "getLastNodeKey"}, ""))
 )
 
 var (
 	forward_NodeAdminService_GetProofOfOwnership_0 = runtime.ForwardResponseMessage
 
 	forward_NodeAdminService_GenerateNodeKey_0 = runtime.ForwardResponseMessage
+
+	forward_NodeAdminService_GetLastNodeKey_0 = runtime.ForwardResponseMessage
 )

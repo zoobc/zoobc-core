@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"html/template"
 	"net"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -48,7 +48,6 @@ func startGrpcServer(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
-	nodePublicKey []byte,
 ) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
@@ -127,8 +126,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for node registry request
 	rpcService.RegisterNodeRegistrationServiceServer(grpcServer, &handler.NodeRegistryHandler{
-		Service:       service.NewNodeRegistryService(queryExecutor),
-		NodePublicKey: nodePublicKey,
+		Service: service.NewNodeRegistryService(queryExecutor),
 	})
 	// Set GRPC handler for account ledger request
 	rpcService.RegisterAccountLedgerServiceServer(grpcServer, &handler.AccountLedgerHandler{
@@ -248,7 +246,6 @@ func Start(
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
-	nodePublicKey []byte,
 ) {
 	startGrpcServer(
 		queryExecutor,
@@ -261,13 +258,14 @@ func Start(
 		transactionUtil,
 		actionTypeSwitcher,
 		blockStateStorages,
-		grpcPort, httpPort,
+		grpcPort,
+		httpPort,
 		ownerAccountAddress,
 		nodefilePath,
 		logger,
 		isDebugMode,
-		apiCertFile, apiKeyFile,
+		apiCertFile,
+		apiKeyFile,
 		maxAPIRequestPerSecond,
-		nodePublicKey,
 	)
 }

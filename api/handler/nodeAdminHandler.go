@@ -8,12 +8,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
-// PoownHandler handles requests related to poown
+// NodeAdminHandler handles requests related to poown
 type NodeAdminHandler struct {
 	Service service.NodeAdminServiceInterface
 }
 
-// GetPoown handles request to get data of a proof of ownership
+// GetProofOfOwnership handles request to get data of a proof of ownership
 func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	req *model.GetProofOfOwnershipRequest) (*model.ProofOfOwnership, error) {
 	response, err := gp.Service.GetProofOfOwnership()
@@ -24,7 +24,7 @@ func (gp *NodeAdminHandler) GetProofOfOwnership(ctx context.Context,
 	return response, nil
 }
 
-// GetPoown handles request to get data of a proof of ownership
+// GenerateNodeKey handles request to get data of a proof of ownership
 func (gp *NodeAdminHandler) GenerateNodeKey(ctx context.Context,
 	req *model.GenerateNodeKeyRequest) (*model.GenerateNodeKeyResponse, error) {
 	nodePublicKey, err := gp.Service.GenerateNodeKey(util.GetSecureRandomSeed())
@@ -36,4 +36,16 @@ func (gp *NodeAdminHandler) GenerateNodeKey(ctx context.Context,
 	}
 
 	return response, nil
+}
+
+// GetLastNodeKey handles request to get last node key
+func (gp *NodeAdminHandler) GetLastNodeKey(context.Context, *model.Empty) (*model.GetLastNodeKeyResponse, error) {
+	var nodeKey, err = gp.Service.GetLastNodeKey()
+	if err != nil {
+		return &model.GetLastNodeKeyResponse{}, err
+	}
+
+	return &model.GetLastNodeKeyResponse{
+		NodePublicKey: nodeKey,
+	}, nil
 }
