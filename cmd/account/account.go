@@ -319,6 +319,7 @@ DELETE FROM account_address;
 			fmt.Println("Failed to run CommitTx DB, err : ", err.Error())
 			return
 		}
+		fmt.Println("command succeeded: account_address table created and populated")
 	}
 }
 
