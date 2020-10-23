@@ -48,7 +48,7 @@ private key both in bytes and hex representation + the secret phrase
 		Use:   "hexconv",
 		Short: "Convert a given (encoded/string) account address to hex format",
 	}
-	convHexAccuntToEncodedCmd = &cobra.Command{
+	convHexAccountToEncodedCmd = &cobra.Command{
 		Use:   "hexdecode",
 		Short: "Decode a given (hex string) full account address and return its 'encoded' string format",
 	}
@@ -82,7 +82,7 @@ func init() {
 	convAccuntToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
 		"formatted/encoded account address. eg. ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML")
 	convAccuntToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
-	convHexAccuntToEncodedCmd.Flags().StringVar(&hexAccountAddress, "hexAccountAddress", "",
+	convHexAccountToEncodedCmd.Flags().StringVar(&hexAccountAddress, "hexAccountAddress", "",
 		"full accound address in hex format: eg. 00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01")
 	generateAccountAddressTableCmd.Flags().StringVar(&dbPath, "dbPath", "../resource",
 		"folder path to zoobc.db, relative to cmd root path. if none provided, resource folder will be targeted")
@@ -114,8 +114,8 @@ func Commands() *cobra.Command {
 	accountCmd.AddCommand(bitcoinAccuntCmd)
 	convAccuntToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
 	accountCmd.AddCommand(convAccuntToHexCmd)
-	convHexAccuntToEncodedCmd.Run = accountGeneratorInstance.ConvertHexAccountToEncoded()
-	accountCmd.AddCommand(convHexAccuntToEncodedCmd)
+	convHexAccountToEncodedCmd.Run = accountGeneratorInstance.ConvertHexAccountToEncoded()
+	accountCmd.AddCommand(convHexAccountToEncodedCmd)
 	generateAccountAddressTableCmd.Run = accountGeneratorInstance.GenerateAccountAddressTable()
 	accountCmd.AddCommand(generateAccountAddressTableCmd)
 	multiSigCmd.Run = accountGeneratorInstance.GenerateMultiSignatureAccount()
