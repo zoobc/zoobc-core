@@ -282,16 +282,18 @@ DELETE FROM account_address;
 			if err != nil {
 				err = queryExecutor.RollbackTx()
 				if err != nil {
-					fmt.Println("Failed to run RollbackTX DB")
+					log.Fatal("Failed to run RollbackTX DB")
 				}
+				log.Fatal("Failed to encode account address")
 				return
 			}
 			fullAddress, err := accType.GetAccountAddress()
 			if err != nil {
 				err = queryExecutor.RollbackTx()
 				if err != nil {
-					fmt.Println("Failed to run RollbackTX DB")
+					log.Fatal("Failed to run RollbackTX DB")
 				}
+				log.Fatal("Failed to get account full address")
 				return
 			}
 			insertQueries = append(
@@ -310,16 +312,17 @@ DELETE FROM account_address;
 			fmt.Println("Failed execute insert queries, ", err.Error())
 			err = queryExecutor.RollbackTx()
 			if err != nil {
-				fmt.Println("Failed to run RollbackTX DB")
+				log.Fatal("Failed to run RollbackTX DB")
 			}
+			log.Fatal(err)
 			return
 		}
 		err = queryExecutor.CommitTx()
 		if err != nil {
-			fmt.Println("Failed to run CommitTx DB, err : ", err.Error())
-			return
+			log.Fatal("Failed to run CommitTx DB, err : ", err.Error())
 		}
-		fmt.Println("command succeeded: account_address table created and populated")
+		log.Fatal("command succeeded: account_address table created and populated")
+		return
 	}
 }
 
