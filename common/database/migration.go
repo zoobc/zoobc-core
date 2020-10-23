@@ -475,7 +475,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "message" TEXT
+				ADD COLUMN "message" BLOB
 			`,
 			`CREATE TABLE IF NOT EXISTS "blockchain_object" (
 				"id"						BLOB,				-- 4 bytes accountType + hash of transaction

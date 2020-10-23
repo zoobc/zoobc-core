@@ -100,6 +100,7 @@ func (acc *ZbcAccountType) GenerateAccountFromSeed(seed string, optionalParams .
 		if err != nil {
 			return err
 		}
+		acc.privateKey = append(acc.privateKey, acc.publicKey...)
 	} else {
 		acc.privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 		acc.publicKey, err = ed25519Signature.GetPublicKeyFromPrivateKey(acc.privateKey)
@@ -142,32 +143,18 @@ func (acc *ZbcAccountType) GetAccountPrivateKey() ([]byte, error) {
 func (acc *ZbcAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
 	var (
 		ed25519Signature  = signaturetype.NewEd25519Signature()
-		accountPrivateKey []byte
-		useSlip10, ok     bool
 		err               error
 		buffer            = bytes.NewBuffer([]byte{})
+		accountPrivateKey []byte
 	)
-	// optionalParams index 0 used for flag boolean slip10
-	if len(optionalParams) != 0 {
-		useSlip10, ok = optionalParams[0].(bool)
-		if !ok {
-			return nil, blocker.NewBlocker(blocker.AppErr, "failedAssertType")
-		}
+	err = acc.GenerateAccountFromSeed(seed, optionalParams...)
+	if err != nil {
+		return nil, err
 	}
-	if useSlip10 {
-		accountPrivateKey, err = ed25519Signature.GetPrivateKeyFromSeedUseSlip10(seed)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
-		}
-		publicKey, err := ed25519Signature.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.AppErr, err.Error())
-		}
-		accountPrivateKey = append(accountPrivateKey, publicKey...)
-	} else {
-		accountPrivateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
+	accountPrivateKey, err = acc.GetAccountPrivateKey()
+	if err != nil {
+		return nil, err
 	}
-
 	signature := ed25519Signature.Sign(accountPrivateKey, payload)
 	buffer.Write(signature)
 	return buffer.Bytes(), nil

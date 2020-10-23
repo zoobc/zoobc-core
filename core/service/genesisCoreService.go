@@ -61,6 +61,7 @@ func GetGenesisTransactions(
 					},
 					TransactionBodyBytes: util.ConvertUint64ToBytes(uint64(genesisEntry.AccountBalance)),
 					Signature:            constant.MainchainGenesisTransactionSignature,
+					Message:              []byte(genesisEntry.Message),
 				}
 
 				transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
@@ -78,7 +79,7 @@ func GetGenesisTransactions(
 
 			// register the node for the fund receiver, if relative element in GenesisConfig contains a NodePublicKey
 			if len(genesisEntry.NodePublicKey) > 0 {
-				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(accountFullAddress, genesisEntry.NodeAddress,
+				genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(accountFullAddress, genesisEntry.Message,
 					genesisEntry.LockedBalance, genesisEntry.NodePublicKey)
 				if err != nil {
 					return nil, err
@@ -101,7 +102,7 @@ func GetGenesisTransactions(
 // GetGenesisNodeRegistrationTx given a genesisEntry, returns a nodeRegistrationTransaction for genesis block
 func GetGenesisNodeRegistrationTx(
 	accountAddress []byte,
-	nodeAddress string,
+	message string,
 	lockedBalance int64,
 	nodePublicKey []byte,
 ) (*model.Transaction, error) {
@@ -150,6 +151,7 @@ func GetGenesisNodeRegistrationTx(
 		},
 		TransactionBodyBytes: nodeRegistrationTxBodyBytes,
 		Signature:            constant.MainchainGenesisTransactionSignature,
+		Message:              []byte(message),
 	}
 
 	transactionBytes, err := transactionUtil.GetTransactionBytes(genesisTx, true)
