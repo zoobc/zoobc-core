@@ -18,7 +18,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
-	"github.com/zoobc/zoobc-core/core/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
@@ -97,7 +96,7 @@ func (bss *BlocksmithStrategySpine) isMe(lastCandidate Candidate) bool {
 	return false
 }
 
-func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlockID, blocksmithIndex int64, err error) {
+func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (blocksmithIndex int64, err error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
 		lastCandidate      Candidate
@@ -109,7 +108,7 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 	// get node registry
 	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
-		return 0, 0, err
+		return 0, err
 	}
 
 	if prevBlock.BlockHash != nil {
@@ -127,10 +126,10 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 		lastCandidate = bss.candidates[len(bss.candidates)-1]
 		isMe := bss.isMe(lastCandidate)
 		if isMe && now < lastCandidate.ExpiryTime {
-			return 0, 0, nil
+			return 0, nil
 		}
 		if now < lastCandidate.StartTime+10 {
-			return 0, 0, errors.New("Failed")
+			return 0, errors.New("Failed")
 		}
 	}
 	idx := rand.Intn(len(activeNodeRegistry))
@@ -145,8 +144,7 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (lastBlock
 	}
 
 	bss.candidates = append(bss.candidates, candidate)
-	lastBlockID = util.GetBlockIDFromHash(bss.lastBlockHash)
-	return lastBlockID, int64(idx), nil
+	return int64(idx), nil
 }
 
 func (bss *BlocksmithStrategySpine) CalculateCumulativeDifficulty(prevBlock, block *model.Block) string {

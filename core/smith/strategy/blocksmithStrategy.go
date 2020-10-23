@@ -6,7 +6,7 @@ import (
 
 type (
 	BlocksmithStrategyInterface interface {
-		WillSmith(prevBlock *model.Block) (int64, int64, error)
+		WillSmith(prevBlock *model.Block) (int64, error)
 		IsBlockValid(prevBlock, block *model.Block) error
 		isMe(lastCandidate Candidate) bool
 		CalculateCumulativeDifficulty(prevBlock, block *model.Block) string

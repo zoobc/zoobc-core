@@ -31,6 +31,7 @@ type (
 		BlockService            service.BlockServiceInterface
 		BlockSmithStrategy      strategy.BlocksmithStrategyInterface
 		LastBlockID             int64
+		LastBlocksmithIndex     int64
 		Logger                  *log.Logger
 		smithError              error
 		BlockchainStatusService service.BlockchainStatusServiceInterface
@@ -60,6 +61,7 @@ func NewBlockchainProcessor(
 		BlockchainStatusService: blockchainStatusService,
 		NodeRegistrationService: nodeRegistrationService,
 		BlockSmithStrategy:      blockSmithStrategy,
+		LastBlocksmithIndex:     -1,
 	}
 }
 
@@ -164,19 +166,23 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
-	// todo: move this piece of code to service layer
-	// caching: only calculate smith time once per new block
-	bp.LastBlockID, blocksmithIndex, err = bp.BlockSmithStrategy.WillSmith(lastBlock)
+	blocksmithIndex, err = bp.BlockSmithStrategy.WillSmith(lastBlock)
 	if err != nil {
 		return err
 	}
+	if bp.LastBlockID == lastBlock.GetID() && bp.LastBlocksmithIndex == blocksmithIndex {
+		return nil
+	}
+	bp.LastBlockID = lastBlock.GetID()
+	bp.LastBlocksmithIndex = blocksmithIndex
 	timestamp := time.Now().Unix()
 	block, err := bp.BlockService.GenerateBlock(
 		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
-		blocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
+		bp.LastBlocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
 	)
+
 	if err != nil {
 		return err
 	}
@@ -195,6 +201,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 	}
 	// if validated push
 	err = bp.BlockService.PushBlock(lastBlock, block, true, false)
+
 	if err != nil {
 		blockerUsed := blocker.PushMainBlockErr
 		if chaintype.IsSpineChain(bp.ChainType) {
