@@ -576,7 +576,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 	// validate first
 	addressAlreadyUpdated, err = nru.ValidateNodeAddressInfo(nodeAddressInfo)
 	if err != nil || addressAlreadyUpdated {
-		return false, err
+		return addressAlreadyUpdated, err
 	}
 
 	nodeAddressInfo.Status = updatedStatus
