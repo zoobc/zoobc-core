@@ -162,6 +162,16 @@ go run main.go account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5
 go run main.go account hexconv --encodedAccountAddress="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --accountType=0
 ```
 
+### Account Decoding and hex-encoded full account address to its human readable encoded format
+```bash
+go run main.go account account hexdecode --hexAccountAddress="00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01"
+```
+
+### Account Generating account_address table by parsing account_balance table of a given zoobc.db (for debug purposes only)
+```bash
+go run main.go account generateaddresstable
+```
+
 ## Other Commands
 
 ### Wallet certificate decryption (aid to Genesis generation)
