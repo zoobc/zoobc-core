@@ -589,7 +589,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 	}
 	if len(nodeAddressesInfo) > 0 {
 		// check if new address info is more recent than previous
-		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
+		if nodeAddressInfo.GetBlockHeight() <= nodeAddressesInfo[0].GetBlockHeight() {
 			return false, nil
 		}
 		err = nru.UpdateAddrressInfo(nodeAddressInfo)
