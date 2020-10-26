@@ -14,17 +14,16 @@
 
 > Zoobc-core is the main node application to run the zoobc blockchain. This repository consist of the main node application and the `command line interface` tools to help with development, which is located in the `cmd/` directory.
 
-# Table of Contents:
-- [Table of Contents:](#table-of-contents)
-    - [Environments](#environments)
-    - [Development](#development)
-      - [Build](#build)
-      - [Run](#run)
-      - [Flags:](#flags)
-    - [Tests](#tests)
-    - [Installation script](#installation-script)
-    - [Swagger](#swagger)
-    - [Contributing](#contributing)
+__Table of Contents__:
+- [Environments](#environments)
+- [Development](#development)
+  - [Build](#build)
+  - [Run](#run)
+  - [Flags:](#flags)
+- [Tests](#tests)
+- [Installation script](#installation-script)
+- [Swagger](#swagger)
+- [Contributing](#contributing)
 
 ### Environments
 
@@ -57,7 +56,7 @@ To make use of the `Makefile` please rename `github.token.example` to `github.to
     -   common os (darwin, linux, windows) : `make VERSION=v1.10.1 core-common-os`
     > With genesis replacement, you can add argument `genesis=true` and what your target is {develop,staging,alhpa(default),local}, like:
     `make build genesis=true gen-target=develop gen-output=dist` for the local target you need create `local.preRegisteredNodes.json`.
-    
+
 -   ZOOBC CMD
 
     For:
