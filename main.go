@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
@@ -429,6 +430,7 @@ func initiateMainInstance() {
 		query.NewBlockQuery(&chaintype.SpineChain{}),
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -597,6 +599,7 @@ func initiateMainInstance() {
 		query.NewBlockQuery(spinechain),
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),

@@ -3,12 +3,13 @@ package strategy
 import (
 	"bytes"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 	"math/big"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -46,7 +47,6 @@ type (
 		candidates                             []Candidate
 		me                                     Candidate
 		lastBlockHash                          []byte
-		lastTimeAddCandidate                   int64
 		CurrentNodePublicKey                   []byte
 		rng                                    *crypto.RandomNumberGenerator
 	}
@@ -74,10 +74,6 @@ func NewBlocksmithStrategyMain(
 		ActiveNodeRegistryCacheStorage: activeNodeRegistryCacheStorage,
 		rng:                            rng,
 	}
-}
-
-func (bss *BlocksmithStrategyMain) isMe(lastCandidate Candidate) bool {
-	return false
 }
 
 func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, error) {
