@@ -124,6 +124,9 @@ func (n *NodeRegistryCacheStorage) GetItem(idx, item interface{}) error {
 	if !n.isInTransaction {
 		n.RLock()
 		defer n.RUnlock()
+	} else {
+		n.transactionalLock.RLock()
+		defer n.transactionalLock.RUnlock()
 	}
 	switch castedIdx := idx.(type) {
 	case nil:
@@ -151,6 +154,9 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 	if !n.isInTransaction {
 		n.RLock()
 		defer n.RUnlock()
+	} else {
+		n.transactionalLock.RLock()
+		defer n.transactionalLock.RUnlock()
 	}
 	*nodeRegistries = make([]NodeRegistry, len(n.nodeRegistries))
 	for i := 0; i < len(n.nodeRegistries); i++ {

@@ -50,8 +50,11 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address []byte, amou
 			"account_address": address,
 		},
 	)
-	return abh.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
-
+	err := abh.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	if err == nil {
+		abh.accountBalance = model.AccountBalance{}
+	}
+	return err
 }
 
 // AddAccountBalance add balance and spendable_balance field to the address provided at blockHeight, must be executed
@@ -87,7 +90,11 @@ func (abh *AccountBalanceHelper) AddAccountBalance(
 		Timestamp:      blockTimestamp,
 	})
 	queries = append(queries, append([]interface{}{accountLedgerQ}, accountLedgerArgs...))
-	return abh.QueryExecutor.ExecuteTransactions(queries)
+	err := abh.QueryExecutor.ExecuteTransactions(queries)
+	if err == nil {
+		abh.accountBalance = model.AccountBalance{}
+	}
+	return err
 }
 
 // GetBalanceByAccountAddress fetching the balance of an account from database
@@ -115,22 +122,22 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *mode
 
 // HasEnoughSpendableBalance check if account has enough has spendable balance and will save
 func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error) {
+	if bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
+		return abh.accountBalance.GetSpendableBalance() >= compareBalance, nil
+	}
 	var (
 		row            *sql.Row
 		accountBalance model.AccountBalance
 	)
-
-	if !bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
-		qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
-		row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
-		if err != nil {
-			return enough, err
-		}
-		err = abh.AccountBalanceQuery.Scan(&accountBalance, row)
-		if err != nil {
-			return enough, err
-		}
-		abh.accountBalance = accountBalance
+	qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
+	row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
+	if err != nil {
+		return enough, err
 	}
+	err = abh.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		return enough, err
+	}
+	abh.accountBalance = accountBalance
 	return accountBalance.GetSpendableBalance() >= compareBalance, nil
 }
