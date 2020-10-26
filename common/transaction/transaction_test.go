@@ -3,17 +3,24 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
+)
+
+type (
+	mockMainBlockStateStorageSuccess struct {
+		storage.CacheStorageInterface
+	}
 )
 
 func TestTypeSwitcher_GetTransactionType(t *testing.T) {
@@ -38,13 +45,30 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	}, "ZOOBC")
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
-
+	accountBalanceHelper := NewAccountBalanceHelper(&query.Executor{}, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
+	// cache mock
+	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
+		return cache.(storage.TransactionalCache)
+	}
+	txActiveNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
+	txPendingNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	type fields struct {
-		Executor query.ExecutorInterface
+		Executor                   query.ExecutorInterface
+		NodeAuthValidation         auth.NodeAuthValidationInterface
+		MempoolCacheStorage        storage.CacheStorageInterface
+		PendingNodeRegistryStorage storage.TransactionalCache
+		ActiveNodeRegistryStorage  storage.TransactionalCache
+		NodeAddressInfoStorage     storage.TransactionalCache
+		FeeScaleService            fee.FeeScaleServiceInterface
 	}
 	type args struct {
 		tx *model.Transaction
 	}
+
+	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
+		Body: feeVoteRevealBody,
+	}).GetBodyBytes()
+
 	tests := []struct {
 		name   string
 		fields fields
@@ -59,8 +83,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 							Amount: 10,
@@ -72,21 +96,19 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &SendMoney{
 				Height:           0,
-				SenderAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress: "",
+				SenderAddress:    senderAddress1,
+				RecipientAddress: nil,
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
-				QueryExecutor:       &query.Executor{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor: &query.Executor{},
+				EscrowQuery:   query.NewEscrowTransactionQuery(),
+				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 				EscrowFee: fee.NewBlockLifeTimeFeeModel(
 					10, constant.OneZBC/100,
 				),
-				NormalFee:           fee.NewConstantFeeModel(constant.OneZBC / 100),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
+				NormalFee:            fee.NewConstantFeeModel(constant.OneZBC / 100),
+				AccountBalanceHelper: accountBalanceHelper,
 			},
 		},
 		{
@@ -97,8 +119,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 							Amount: 10,
@@ -117,8 +139,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
 						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
 							Amount: 10,
@@ -132,13 +154,16 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		{
 			name: "wantNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
 						NodeRegistrationTransactionBody: nodeRegistrationBody,
 					},
@@ -148,27 +173,35 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &NodeRegistration{
 				Height:                  0,
-				SenderAddress:           "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress:           senderAddress1,
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:               &auth.NodeAuthValidation{},
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:    accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantUpdateNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
 						UpdateNodeRegistrationTransactionBody: updateNodeRegistrationBody,
 					},
@@ -179,25 +212,34 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &UpdateNodeRegistration{
 				Body:                  updateNodeRegistrationBody,
 				Height:                0,
-				SenderAddress:         "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				EscrowQuery:           query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:  accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
+				PendingNodeRegistrationCache: txPendingNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantRemoveNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_RemoveNodeRegistrationTransactionBody{
 						RemoveNodeRegistrationTransactionBody: removeNodeRegistrationBody,
 					},
@@ -207,26 +249,33 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			},
 			want: &RemoveNodeRegistration{
 				Body:                  removeNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountBalanceHelper:  accountBalanceHelper,
 				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				PendingNodeRegistryCache: txPendingNodeRegistryCache,
+				ActiveNodeRegistryCache:  txActiveNodeRegistryCache,
 			},
 		},
 		{
 			name: "wantClaimNodeRegistration",
 			fields: fields{
-				Executor: &query.Executor{},
+				Executor:                   &query.Executor{},
+				NodeAuthValidation:         &auth.NodeAuthValidation{},
+				PendingNodeRegistryStorage: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryStorage:  &mockNodeRegistryCacheSuccess{},
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  0,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
 						ClaimNodeRegistrationTransactionBody: claimNodeRegistrationBody,
 					},
@@ -237,14 +286,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &ClaimNodeRegistration{
 				Body:                  claimNodeRegistrationBody,
 				Height:                0,
-				SenderAddress:         "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:         senderAddress1,
 				QueryExecutor:         &query.Executor{},
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
-				AccountBalanceHelper:  NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
+				AccountBalanceHelper:  accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
+				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
 			},
 		},
 		{
@@ -255,8 +308,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress2,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
 						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
 					},
@@ -265,13 +318,17 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &SetupAccountDataset{
-				Body:                mockSetupAccountDatasetBody,
-				Height:              5,
-				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				QueryExecutor:       &query.Executor{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Body:                 mockSetupAccountDatasetBody,
+				Height:               5,
+				SenderAddress:        senderAddress2,
+				QueryExecutor:        &query.Executor{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				AccountBalanceHelper: accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -282,8 +339,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
 						RemoveAccountDatasetTransactionBody: mockRemoveAccountDatasetBody,
 					},
@@ -292,14 +349,18 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &RemoveAccountDataset{
-				Body:                mockRemoveAccountDatasetBody,
-				Height:              5,
-				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				RecipientAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				QueryExecutor:       &query.Executor{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Body:                 mockRemoveAccountDatasetBody,
+				Height:               5,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     nil,
+				QueryExecutor:        &query.Executor{},
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				AccountBalanceHelper: accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -310,8 +371,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_ApprovalEscrowTransactionBody{
 						ApprovalEscrowTransactionBody: approvalEscrowBody,
 					},
@@ -320,31 +381,39 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &ApprovalEscrowTransaction{
-				ID:                  0,
-				SenderAddress:       "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-				Body:                approvalEscrowBody,
-				Height:              5,
-				QueryExecutor:       &query.Executor{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				ID:               0,
+				SenderAddress:    senderAddress1,
+				Body:             approvalEscrowBody,
+				Height:           5,
+				QueryExecutor:    &query.Executor{},
+				EscrowQuery:      query.NewEscrowTransactionQuery(),
+				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},
+				AccountBalanceHelper: accountBalanceHelper,
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			},
 		},
 		{
 			name: "wantFeeVoteCommitTransaction",
 			fields: fields{
 				Executor: &query.Executor{},
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					&mockMainBlockStateStorageSuccess{},
+					&query.Executor{},
+				),
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_FeeVoteCommitTransactionBody{
 						FeeVoteCommitTransactionBody: feeVoteCommitTransactionBody,
 					},
@@ -355,46 +424,52 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 			want: &FeeVoteCommitTransaction{
 				Body:                       feeVoteCommitTransactionBody,
 				Height:                     5,
-				SenderAddress:              "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:              senderAddress1,
 				QueryExecutor:              &query.Executor{},
-				AccountBalanceHelper:       NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
-				AccountLedgerHelper:        NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				AccountBalanceHelper:       accountBalanceHelper,
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeScaleService: fee.NewFeeScaleService(
 					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(&chaintype.MainChain{}),
+					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
 			name: "wantFeeVoteRevealTransaction",
 			fields: fields{
 				Executor: &query.Executor{},
+				FeeScaleService: fee.NewFeeScaleService(
+					query.NewFeeScaleQuery(),
+					&mockMainBlockStateStorageSuccess{},
+					&query.Executor{},
+				),
 			},
 			args: args{
 				tx: &model.Transaction{
 					Height:                  5,
-					SenderAccountAddress:    "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
-					RecipientAccountAddress: "",
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
 					TransactionBody: &model.Transaction_FeeVoteRevealTransactionBody{
 						FeeVoteRevealTransactionBody: feeVoteRevealBody,
 					},
-					TransactionType: binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
-					TransactionBodyBytes: (&FeeVoteRevealTransaction{
-						Body: feeVoteRevealBody,
-					}).GetBodyBytes(),
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
+					TransactionBodyBytes: txBodyBytes1,
 				},
 			},
 			want: &FeeVoteRevealTransaction{
 				Body:                   feeVoteRevealBody,
 				Height:                 5,
-				SenderAddress:          "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:          senderAddress1,
 				QueryExecutor:          &query.Executor{},
-				AccountBalanceHelper:   NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
-				AccountLedgerHelper:    NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				AccountBalanceHelper:   accountBalanceHelper,
 				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				SignatureInterface:     crypto.NewSignature(),
@@ -402,9 +477,14 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				FeeScaleService: fee.NewFeeScaleService(
 					query.NewFeeScaleQuery(),
-					query.NewBlockQuery(&chaintype.MainChain{}),
+					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -429,10 +509,13 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                          liquidPaymentBody,
 				Height:                        5,
 				QueryExecutor:                 &query.Executor{},
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 		{
@@ -457,21 +540,30 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body:                          liquidPaymentStopBody,
 				Height:                        5,
 				QueryExecutor:                 &query.Executor{},
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &query.Executor{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &query.Executor{}),
+				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
-				NormalFee:                     fee.NewConstantFeeModel(constant.OneZBC / 100),
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery: query.NewEscrowTransactionQuery(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts := &TypeSwitcher{
-				Executor: tt.fields.Executor,
+				Executor:                   tt.fields.Executor,
+				MempoolCacheStorage:        tt.fields.MempoolCacheStorage,
+				NodeAuthValidation:         tt.fields.NodeAuthValidation,
+				PendingNodeRegistryStorage: tt.fields.PendingNodeRegistryStorage,
+				ActiveNodeRegistryStorage:  tt.fields.ActiveNodeRegistryStorage,
+				NodeAddressInfoStorage:     tt.fields.NodeAddressInfoStorage,
+				FeeScaleService:            tt.fields.FeeScaleService,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)

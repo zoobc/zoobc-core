@@ -11,7 +11,7 @@ import (
 
 type (
 	FeeVoteRevealVoteQueryInterface interface {
-		GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(accountAddress string, blockHeight uint32) (string, []interface{})
+		GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(accountAddress []byte, blockHeight uint32) (string, []interface{})
 		GetFeeVoteRevealsInPeriod(
 			lowerBlockHeight, upperBlockHeight uint32,
 		) (string, []interface{})
@@ -46,7 +46,7 @@ func (fvr *FeeVoteRevealVoteQuery) getTableName() string {
 
 // GetFeeVoteRevealByAccountAddressAndRecentBlockHeight represents getting fee_vote_reveal by account address
 func (fvr *FeeVoteRevealVoteQuery) GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
-	accountAddress string,
+	accountAddress []byte,
 	blockHeight uint32,
 ) (qry string, args []interface{}) {
 	return fmt.Sprintf(
@@ -142,7 +142,7 @@ func (*FeeVoteRevealVoteQuery) ExtractModel(revealVote *model.FeeVoteRevealVote)
 // Scan build model.FeeVoteRevealVote from sql.Row
 func (fvr *FeeVoteRevealVoteQuery) Scan(vote *model.FeeVoteRevealVote, row *sql.Row) error {
 	var (
-		voterAddress   string
+		voterAddress   []byte
 		blockHeight    uint32
 		voterSignature []byte
 		feeVoteInfo    model.FeeVoteInfo
@@ -170,7 +170,7 @@ func (fvr *FeeVoteRevealVoteQuery) BuildModel(
 			revealVote = model.FeeVoteRevealVote{
 				VoteInfo:       &model.FeeVoteInfo{},
 				VoterSignature: nil,
-				VoterAddress:   "",
+				VoterAddress:   nil,
 				BlockHeight:    0,
 			}
 			err error

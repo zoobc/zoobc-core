@@ -36,3 +36,6 @@ _*
 resource/templates/alpha*
 resource/templates/beta*
 resource/templates/certificates*
+
+*.db-shm
+*.db-wal

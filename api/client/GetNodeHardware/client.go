@@ -6,11 +6,11 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -51,7 +51,7 @@ func main() {
 	buffer.Write(util.ConvertUint32ToBytes(uint32(rpcModel.RequestType_GetNodeHardware)))
 	sig, err := signature.Sign(
 		buffer.Bytes(),
-		rpcModel.SignatureType_DefaultSignature,
+		rpcModel.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved",
 	)
 	if err != nil {

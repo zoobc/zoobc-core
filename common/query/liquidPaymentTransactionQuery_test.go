@@ -10,11 +10,18 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+var (
+	liquidPayTxAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	liquidPayTxAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+)
+
 func TestLiquidPaymentTransactionQuery_InsertLiquidPaymentTransaction(t *testing.T) {
 	liquidPayment := &model.LiquidPayment{
 		ID:               1,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
 		Amount:           123456,
 		AppliedTime:      1231413,
 		CompleteMinutes:  4343,
@@ -198,8 +205,8 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 			args: args{
 				liquidPayment: &model.LiquidPayment{
 					ID:               123,
-					SenderAddress:    "ABC",
-					RecipientAddress: "CBA",
+					SenderAddress:    liquidPayTxAddress1,
+					RecipientAddress: liquidPayTxAddress2,
 					Amount:           1234,
 					AppliedTime:      12345,
 					CompleteMinutes:  123456,
@@ -209,8 +216,8 @@ func TestLiquidPaymentTransactionQuery_ExtractModel(t *testing.T) {
 				},
 			},
 			want: []interface{}{123,
-				"ABC",
-				"CBA",
+				liquidPayTxAddress1,
+				liquidPayTxAddress2,
 				1234,
 				12345,
 				123456,
@@ -233,8 +240,8 @@ func TestLiquidPaymentTransactionQuery_BuildModels(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
 		ID:               123,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
 		Amount:           1234,
 		AppliedTime:      12345,
 		CompleteMinutes:  123456,
@@ -294,8 +301,8 @@ func TestLiquidPaymentTransactionQuery_Scan(t *testing.T) {
 	mockLiquidPaymentTransaction := NewLiquidPaymentTransactionQuery()
 	mockLiquidPayment := &model.LiquidPayment{
 		ID:               123,
-		SenderAddress:    "ABC",
-		RecipientAddress: "CBA",
+		SenderAddress:    liquidPayTxAddress1,
+		RecipientAddress: liquidPayTxAddress2,
 		Amount:           1234,
 		AppliedTime:      12345,
 		CompleteMinutes:  123456,

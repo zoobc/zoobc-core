@@ -2,20 +2,20 @@ package blockchainsync
 
 import (
 	"bytes"
+	"math/big"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"math/big"
 )
 
 type (
@@ -28,11 +28,11 @@ type (
 		QueryExecutor         query.ExecutorInterface
 		ActionTypeSwitcher    transaction.TypeActionSwitcher
 		MempoolService        service.MempoolServiceInterface
-		KVExecutor            kvdb.KVExecutorInterface
 		Logger                *log.Logger
 		PeerExplorer          strategy.PeerExplorerStrategyInterface
 		TransactionUtil       transaction.UtilInterface
 		TransactionCorService service.TransactionCoreServiceInterface
+		MempoolBackupStorage  storage.CacheStorageInterface
 	}
 )
 
@@ -102,7 +102,9 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 						blockerUsed = blocker.ValidateSpineBlockErr
 					}
 					fp.Logger.Warnf("[ProcessFork] failed to verify block %v from peer %v: %s\nwith previous: %v\ndownloadBlockchain validateBlock fail: %v\n",
-						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+						block.ID, p2pUtil.GetFullAddressPeer(feederPeer), err, lastBlock.ID,
+						blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()),
+					)
 					break
 				}
 				err = fp.BlockService.PushBlock(lastBlock, block, false, true)
@@ -116,7 +118,10 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					if chaintype.IsSpineChain(fp.ChainType) {
 						blockerUsed = blocker.PushSpineBlockErr
 					}
-					fp.Logger.Warnf("\n\n[ProcessFork] PushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+					fp.Logger.Warnf(
+						"\n\n[ProcessFork] PushBlock of fork blocks err %v\n\n",
+						blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()),
+					)
 					break
 				}
 
@@ -180,7 +185,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 					blockerUsed = blocker.ValidateSpineBlockErr
 				}
 				fp.Logger.Warnf("[pushing back own block] failed to verify block %v from peer: %s\n with previous: %v\nvalidateBlock fail: %v\n",
-					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+					block.ID, err.Error(), lastBlock.ID, blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 				return err
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 112)
@@ -192,7 +197,10 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 				if chaintype.IsSpineChain(fp.ChainType) {
 					blockerUsed = blocker.PushSpineBlockErr
 				}
-				fp.Logger.Warnf("\n\nPushBlock of fork blocks err %v\n\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+				fp.Logger.Warnf(
+					"\n\nPushBlock of fork blocks err %v\n\n",
+					blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()),
+				)
 				return blocker.NewBlocker(blocker.BlockErr, "Popped off block no longer acceptable")
 			}
 		}
@@ -206,7 +214,7 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(fp.ChainType, 117)
 	if fp.ChainType.HasTransactions() {
-		// start restoring mempool from badgerDB
+		// start restoring mempool
 		err = fp.restoreMempoolsBackup()
 		if err != nil {
 			fp.Logger.Errorf("RestoreBackupFail: %s", err.Error())
@@ -222,127 +230,111 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		txBytes []byte
 		txType  transaction.TypeAction
 	)
+	err = fp.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	for _, tx := range txs {
 		// Validate Tx
 		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:GetTransactionType - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:GetTransactionBytes - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 
 		err = fp.MempoolService.ValidateMempoolTransaction(tx)
 		if err != nil {
-			return err
+			fp.Logger.Warnf("ProcessLater:ValidateMempoolTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
-		// Apply Unconfirmed
-		err = fp.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
+
 		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
-				return errRollback
-			}
-			return err
+			fp.Logger.Warnf("ProcessLater:ApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
 		err = fp.MempoolService.AddMempoolTransaction(tx, txBytes)
 		if err != nil {
-			errRollback := fp.QueryExecutor.RollbackTx()
-			if errRollback != nil {
-				return err
-			}
-			return err
+			fp.Logger.Warnf("ProcessLater:AddMempoolFail - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
+			continue
 		}
-		err = fp.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
+
 	}
-	return nil
+	err = fp.QueryExecutor.CommitTx()
+	return err
 }
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 	// TODO: analyze if this mechanism is necessary
 }
 
-// restoreMempoolsBackup will restore transaction from badgerDB and try to re-ApplyUnconfirmed
+// restoreMempoolsBackup will restore transactions and try to re-ApplyUnconfirmed
 func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
-		mempoolsBackupBytes []byte
-		prev                uint32
-		err                 error
+		err      error
+		mempools map[int64][]byte
 	)
 
-	kvdbMempoolsBackupKey := commonUtil.GetKvDbMempoolDBKey(fp.ChainType)
-	mempoolsBackupBytes, err = fp.KVExecutor.Get(kvdbMempoolsBackupKey)
+	err = fp.MempoolBackupStorage.GetAllItems(&mempools)
 	if err != nil {
 		return err
 	}
-
-	for int(prev) < len(mempoolsBackupBytes) {
-		var (
-			transactionBytes []byte
-			txType           transaction.TypeAction
-			tx               *model.Transaction
-			size             uint32
-		)
-
-		prev += constant.TransactionBodyLength // initiate length of size
-		size = commonUtil.ConvertBytesToUint32(mempoolsBackupBytes[:prev])
-		transactionBytes = mempoolsBackupBytes[prev:][:size]
-		prev += size
-
-		tx, err = fp.TransactionUtil.ParseTransactionBytes(transactionBytes, true)
-		if err != nil {
-			return err
-		}
-		err = fp.MempoolService.ValidateMempoolTransaction(tx)
-		if err != nil {
-			// no need to break the process in this case
-			fp.Logger.Warnf("Invalid mempool want to restore with ID: %d", tx.GetID())
-		}
-
-		txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
-		if err != nil {
-			return err
-		}
-		// Apply Unconfirmed
-		err = fp.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
-		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
-			return err
-		}
-		err = fp.MempoolService.AddMempoolTransaction(tx, transactionBytes)
-		if err != nil {
-			rollbackErr := fp.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				fp.Logger.Warnf("error when executing database rollback: %v", rollbackErr)
-			}
-			return err
-		}
-		err = fp.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-		// remove restored mempools from badger
-		err = fp.KVExecutor.Delete(commonUtil.GetKvDbMempoolDBKey(fp.ChainType))
-		if err != nil {
-			return err
-		}
+	// Apply Unconfirmed // todo-fuck: finding #1
+	err = fp.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
 	}
-	return nil
+	for id := range mempools {
+		func(mempoolID int64) {
+			var (
+				tx     *model.Transaction
+				txType transaction.TypeAction
+			)
+
+			defer func() {
+				if removeErr := fp.MempoolBackupStorage.RemoveItem(mempoolID); removeErr != nil {
+					fp.Logger.Warnf("restoreMemmpoolBackup - mempool ID: %d; %s", tx.GetID(), removeErr.Error())
+				}
+			}()
+			tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
+			if err != nil {
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			err = fp.MempoolService.ValidateMempoolTransaction(tx)
+			if err != nil {
+				// no need to break the process in this case
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			txType, err = fp.ActionTypeSwitcher.GetTransactionType(tx)
+			if err != nil {
+				fp.Logger.Warnf(err.Error())
+				return
+			}
+
+			err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
+			if err != nil {
+				fp.Logger.Warnf("restoreMempoolsBackup:ApplyUnconfirmedTransaction: %v", err)
+				return
+			}
+			err = fp.MempoolService.AddMempoolTransaction(tx, mempools[mempoolID])
+			if err != nil {
+				fp.Logger.Warnf("error when AddMempoolTransaction: %v", err)
+				return
+			}
+		}(id)
+
+	}
+	err = fp.QueryExecutor.CommitTx()
+	return err
 }

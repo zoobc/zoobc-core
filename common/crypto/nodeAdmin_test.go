@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	mockOwnerAddress = "ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7"
-	mockOwnerSeed    = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
+	mockOwnerAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+		81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	mockOwnerSeed = "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved"
 	mockValidAuth,
 	mockInvalidTimestampAuth,
 	mockInvalidRequestTypeAuth,
@@ -35,11 +36,12 @@ func setupVerifyAuthAPI() {
 	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
 	validSignature, _ := (&Signature{}).Sign(
 		bufferValid.Bytes(),
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	bufferValid.Write(validSignature)
-	mockValidAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
+	validAuthBytes := bufferValid.Bytes()
+	mockValidAuth = base64.StdEncoding.EncodeToString(validAuthBytes)
 	bufferValid.Write([]byte{1, 2})
 	mockInvalidSignatureAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
 	mockInvalidTimestampAuth = base64.StdEncoding.EncodeToString(bufferInvalidTimestamp.Bytes())
@@ -49,7 +51,7 @@ func setupVerifyAuthAPI() {
 func TestVerifyAuthAPI(t *testing.T) {
 	setupVerifyAuthAPI()
 	type args struct {
-		ownerAddress string
+		ownerAddress []byte
 		auth         string
 		requestType  model.RequestType
 	}
@@ -61,7 +63,7 @@ func TestVerifyAuthAPI(t *testing.T) {
 		{
 			name: "VerifyAuthAPI:fail-invalid-auth",
 			args: args{
-				ownerAddress: "",
+				ownerAddress: nil,
 				auth:         "aaaaaaa",
 				requestType:  0,
 			},
@@ -70,7 +72,7 @@ func TestVerifyAuthAPI(t *testing.T) {
 		{
 			name: "VerifyAuthAPI:fail-invalid-requestType",
 			args: args{
-				ownerAddress: "",
+				ownerAddress: nil,
 				auth:         mockInvalidRequestTypeAuth,
 				requestType:  0,
 			},
@@ -79,7 +81,7 @@ func TestVerifyAuthAPI(t *testing.T) {
 		{
 			name: "VerifyAuthAPI:fail-invalid-timestamp",
 			args: args{
-				ownerAddress: "",
+				ownerAddress: nil,
 				auth:         mockInvalidTimestampAuth,
 				requestType:  0,
 			},

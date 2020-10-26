@@ -4,80 +4,47 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
-
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
-	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
-	getTxByIDQuery = "SELECT id, block_height, fee_per_byte, arrival_timestamp, transaction_bytes, sender_account_address, " +
-		"recipient_account_address FROM mempool WHERE id = :id"
 	mockMempoolQuery       = query.NewMempoolQuery(chaintype.GetChainType(0))
 	mockMempoolTransaction = &model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		ArrivalTimestamp:        1000,
-		FeePerByte:              10,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
+		ID:               1,
+		BlockHeight:      0,
+		ArrivalTimestamp: 1000,
+		FeePerByte:       10,
+		TransactionBytes: []byte{1, 2, 3, 4, 5},
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 	}
 )
 
 var _ = mockMempoolTransaction
 
-type mockMempoolQueryExecutorFail struct {
-	query.Executor
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	switch qe {
-	// before adding mempool transactions to db we check for duplicate transactions
-	case getTxByIDQuery:
-		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
-			query.NewMempoolQuery(chaintype.GetChainType(0)).Fields,
-		).AddRow(3, 0, 1, 1562893302, []byte{}, []byte{1}, []byte{2}))
-	default:
-		return nil, errors.New("MockedError")
-	}
-
-	rows, _ := db.Query(qe)
-	return rows, nil
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
-	return nil, errors.New("MockedError")
-}
-
-func (*mockMempoolQueryExecutorFail) ExecuteTransaction(qe string, args ...interface{}) error {
-	return errors.New("MockedError")
-}
-
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
 		ct                     chaintype.ChainType
-		kvExecutor             kvdb.KVExecutorInterface
 		queryExecutor          query.ExecutorInterface
 		mempoolQuery           query.MempoolQueryInterface
 		merkleTreeQuery        query.MerkleTreeQueryInterface
@@ -114,7 +81,6 @@ func TestNewMempoolService(t *testing.T) {
 	got := NewMempoolService(
 		test.args.transactionUtil,
 		test.args.ct,
-		test.args.kvExecutor,
 		test.args.queryExecutor,
 		test.args.mempoolQuery,
 		test.args.merkleTreeQuery,
@@ -129,6 +95,7 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.TransactionCoreService,
 		test.args.BlockStateStorage,
 		test.args.MempoolCacheStorage,
+		nil,
 	)
 
 	if !reflect.DeepEqual(got, test.want) {
@@ -138,6 +105,19 @@ func TestNewMempoolService(t *testing.T) {
 	}
 }
 
+var mempoolSenderAccountAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
+	139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+var mempoolRecipientAccountAddress1 = []byte{0, 0, 0, 0, 31, 61, 150, 75, 69, 179, 131, 81, 155, 32, 54, 19, 63, 225, 154, 35, 152, 215, 161,
+	242, 32, 28, 136, 189, 16, 27, 197, 211, 161, 252, 211, 195}
+var mempoolRecipientAccountAddress2 = []byte{0, 0, 0, 0, 99, 4, 26, 226, 105, 29, 218, 56, 18, 173, 152, 185, 58, 97, 189, 6, 16, 1, 126,
+	159, 75, 224, 91, 137, 93, 206, 174, 151, 229, 184, 214, 80}
+var mempoolRecipientAccountAddress3 = []byte{0, 0, 0, 0, 201, 123, 194, 252, 228, 24, 9, 99, 127, 53, 38, 126, 200, 49, 227, 202, 245, 49,
+	82, 41, 93, 168, 92, 182, 52, 79, 35, 103, 76, 244, 60, 127}
+var mempoolRecipientAccountAddress4 = []byte{0, 0, 0, 0, 1, 237, 22, 193, 217, 33, 254, 63, 28, 91, 184, 164, 172, 170, 248, 68, 130, 162,
+	185, 7, 36, 130, 151, 239, 148, 255, 206, 49, 26, 82, 17, 49}
+var mempoolRecipientAccountAddress5 = []byte{0, 0, 0, 0, 74, 132, 47, 111, 228, 161, 96, 163, 111, 165, 204, 196, 54, 89, 167, 156, 227,
+	191, 195, 212, 254, 211, 54, 195, 204, 23, 49, 22, 89, 135, 29, 243}
+
 var mockSuccessSelectMempool = []*model.MempoolTransaction{
 	{
 		ID:               1,
@@ -146,12 +126,12 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			1,
 			1562893305,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			mempoolSenderAccountAddress1,
+			mempoolRecipientAccountAddress1,
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    mempoolSenderAccountAddress1,
+		RecipientAccountAddress: mempoolRecipientAccountAddress1,
 	},
 	{
 		ID:               2,
@@ -160,12 +140,12 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			2,
 			1562893304,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			mempoolSenderAccountAddress1,
+			mempoolRecipientAccountAddress2,
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    mempoolSenderAccountAddress1,
+		RecipientAccountAddress: mempoolRecipientAccountAddress2,
 	},
 	{
 		ID:               3,
@@ -174,12 +154,12 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			3,
 			1562893302,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			mempoolSenderAccountAddress1,
+			mempoolRecipientAccountAddress3,
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    mempoolSenderAccountAddress1,
+		RecipientAccountAddress: mempoolRecipientAccountAddress3,
 	},
 	{
 		ID:               4,
@@ -188,12 +168,12 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			4,
 			1562893306,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			mempoolSenderAccountAddress1,
+			mempoolRecipientAccountAddress4,
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    mempoolSenderAccountAddress1,
+		RecipientAccountAddress: mempoolRecipientAccountAddress4,
 	},
 	{
 		ID:               5,
@@ -202,12 +182,12 @@ var mockSuccessSelectMempool = []*model.MempoolTransaction{
 		TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 			5,
 			1562893303,
-			"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			mempoolSenderAccountAddress1,
+			mempoolRecipientAccountAddress5,
 			false,
 		).TransactionBytes,
-		SenderAccountAddress:    "A",
-		RecipientAccountAddress: "B",
+		SenderAccountAddress:    mempoolSenderAccountAddress1,
+		RecipientAccountAddress: mempoolRecipientAccountAddress5,
 	},
 }
 
@@ -285,6 +265,57 @@ func (*mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache) InsertFeeSca
 	return nil
 }
 
+type (
+	mockAccountDatasetQueryMempoolCoreService struct {
+		query.AccountDatasetQuery
+		wantNoRow bool
+	}
+)
+
+func (*mockAccountDatasetQueryMempoolCoreService) GetAccountDatasetEscrowApproval([]byte) (qry string, args []interface{}) {
+	return
+}
+func (m *mockAccountDatasetQueryMempoolCoreService) Scan(dataset *model.AccountDataset, _ *sql.Row) error {
+	if m.wantNoRow {
+		return sql.ErrNoRows
+	}
+	*dataset = model.AccountDataset{
+		SetterAccountAddress: []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+
+		Property: "Admin",
+		Value:    "You're Welcome",
+		IsActive: true,
+		Latest:   true,
+		Height:   5,
+	}
+
+	return nil
+}
+
+type mockQueryExecutoMempoolCoreService struct {
+	query.Executor
+	wantErr     bool
+	wantErrType error
+}
+
+func (m *mockQueryExecutoMempoolCoreService) ExecuteSelectRow(qu string, tx bool, args ...interface{}) (*sql.Row, error) {
+	if m.wantErr {
+		if m.wantErrType == sql.ErrNoRows {
+			db, mock, _ := sqlmock.New()
+			mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnError(sql.ErrNoRows)
+			return db.QueryRow(qu), nil
+		}
+		return nil, m.wantErrType
+	}
+
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(qu)).WillReturnRows(sqlmock.NewRows([]string{"column"}))
+	return db.QueryRow(qu), nil
+}
+
 func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 	successTx1, _ := (&transaction.Util{
 		MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
@@ -336,7 +367,9 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				TransactionUtil: &transaction.Util{
-					FeeScaleService: &mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache{},
+					FeeScaleService:     &mockSelectTransactionFromMempoolFeeScaleServiceSuccessCache{},
+					AccountDatasetQuery: &mockAccountDatasetQueryMempoolCoreService{wantNoRow: true},
+					QueryExecutor:       &mockQueryExecutoMempoolCoreService{},
 				},
 				Chaintype:           tt.fields.Chaintype,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
@@ -345,11 +378,11 @@ func TestMempoolService_SelectTransactionsFromMempool(t *testing.T) {
 			}
 			got, err := mps.SelectTransactionsFromMempool(tt.args.blockTimestamp, 0)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("MempoolService.SelectTransactionsFromMempool() = %v, want %v", got, tt.want)
+				t.Errorf("MempoolService.SelectTransactionsFromMempool() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -412,8 +445,10 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteSelect(string, 
 	mTx := transaction.GetFixturesForSignedMempoolTransaction(
 		3,
 		1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		true,
 	)
 
@@ -451,8 +486,10 @@ func (*mockMempoolCacheStorageExpiryExist) GetAllItems(item interface{}) error {
 	}
 	mTx := transaction.GetFixturesForTransaction(
 		1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		true,
 	)
 	itemCopy[1111] = storage.MempoolCacheObject{
@@ -505,7 +542,6 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 					nil,
 					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
-					nil,
 					nil,
 					nil,
 				),
@@ -561,10 +597,42 @@ func (*mockGetMempoolTransactionsByBlockHeightExecutor) ExecuteSelect(qStr strin
 	return db.Query("")
 }
 
+type (
+	mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess struct {
+		storage.MempoolCacheStorage
+	}
+	mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired struct {
+		storage.MempoolCacheStorage
+	}
+)
+
+func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess) GetAllItems(item interface{}) error {
+	itemCopy := item.(storage.MempoolMap)
+	itemCopy[mockTransaction.ID] = storage.MempoolCacheObject{
+		Tx:                  *mockTransaction,
+		ArrivalTimestamp:    mockMempoolTransaction.ArrivalTimestamp,
+		FeePerByte:          mockMempoolTransaction.FeePerByte,
+		TransactionByteSize: uint32(len(mockMempoolTransaction.TransactionBytes)),
+		BlockHeight:         mockTransaction.Height,
+	}
+	return nil
+}
+
+func (*mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired) GetAllItems(item interface{}) error {
+	itemCopy := item.(storage.MempoolMap)
+	itemCopy[mockTransaction.ID] = storage.MempoolCacheObject{
+		Tx:                  *mockTransactionExpired,
+		ArrivalTimestamp:    mockMempoolTransaction.ArrivalTimestamp,
+		FeePerByte:          mockMempoolTransaction.FeePerByte,
+		TransactionByteSize: uint32(len(mockMempoolTransaction.TransactionBytes)),
+		BlockHeight:         mockTransactionExpired.Height,
+	}
+	return nil
+}
+
 func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -573,6 +641,7 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		Signature           crypto.SignatureInterface
 		TransactionQuery    query.TransactionQueryInterface
 		Observer            *observer.Observer
+		MempoolCacheStorage storage.CacheStorageInterface
 		Logger              *log.Logger
 	}
 	type args struct {
@@ -582,24 +651,32 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*model.MempoolTransaction
+		want    []*model.Transaction
 		wantErr bool
 	}{
 		{
-			name: "wantSuccess",
+			name: "wantSuccess - no expired",
 			fields: fields{
-				QueryExecutor: &mockGetMempoolTransactionsByBlockHeightExecutor{},
-				MempoolQuery:  query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolCacheStorage: &mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccess{},
 			},
 			args: args{height: 0},
-			want: []*model.MempoolTransaction{mockMempoolTransaction},
+			want: make([]*model.Transaction, 0),
+		},
+		{
+			name: "wantSuccess - with expired",
+			fields: fields{
+				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
+				MempoolCacheStorage: &mockMempoolCacheStorageGetMempoolTransactionsByBlockHeightSuccessReturnExpired{},
+			},
+			args: args{height: 0},
+			want: []*model.Transaction{mockTransactionExpired},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
@@ -609,6 +686,7 @@ func TestMempoolService_GetMempoolTransactionsByBlockHeight(t *testing.T) {
 				TransactionQuery:    tt.fields.TransactionQuery,
 				Observer:            tt.fields.Observer,
 				Logger:              tt.fields.Logger,
+				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
 			}
 			got, err := mps.GetMempoolTransactionsWantToBackup(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -641,22 +719,8 @@ type (
 
 	mockReceiptServiceSucces struct {
 		ReceiptServiceInterface
-	}
-
-	mockReceiptServiceError struct {
-		ReceiptServiceInterface
-	}
-
-	mockKvExecutorErrKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorErrNonKeyNotFound struct {
-		kvdb.KVExecutorInterface
-	}
-
-	mockKvExecutorFoundKey struct {
-		kvdb.KVExecutorInterface
+		WantErr        bool
+		WantDuplicated bool
 	}
 )
 
@@ -680,45 +744,27 @@ func (*mockReceiptUtilError) GetReceiptKey(
 	return nil, errors.New("")
 }
 
-func (*mockReceiptServiceSucces) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-) (*model.BatchReceipt, error) {
-	return &model.BatchReceipt{}, nil
+func (*mockReceiptServiceSucces) GenerateReceiptWithReminder(
+	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
+) (*model.Receipt, error) {
+	return &model.Receipt{}, nil
 }
 
-func (*mockReceiptServiceError) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-) (*model.BatchReceipt, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorErrKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockKvExecutorErrNonKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, errors.New("")
-}
-
-func (*mockKvExecutorFoundKey) Get(key string) ([]byte, error) {
-	return []byte{1}, nil
+func (mrs *mockReceiptServiceSucces) CheckDuplication(publicKey, datumHash []byte) error {
+	if mrs.WantErr {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"FailedGetReceiptKey",
+		)
+	}
+	if mrs.WantDuplicated {
+		return blocker.NewBlocker(blocker.DuplicateReceiptErr, "ReceiptExistsOnReminder")
+	}
+	return nil
 }
 
 type (
 	mockMempoolCacheStorageFailGetItem struct {
-		storage.MempoolCacheStorage
-	}
-	mockMempoolCacheStorageSuccessGetItem struct {
 		storage.MempoolCacheStorage
 	}
 )
@@ -727,52 +773,9 @@ func (*mockMempoolCacheStorageFailGetItem) GetItem(key, item interface{}) error 
 	return errors.New("mocked error")
 }
 
-func (*mockMempoolCacheStorageSuccessGetItem) GetItem(key, item interface{}) error {
-	txCopy, ok := item.(*storage.MempoolCacheObject)
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
-	}
-	mptx := model.MempoolTransaction{
-		ID:                      1,
-		BlockHeight:             0,
-		FeePerByte:              10,
-		ArrivalTimestamp:        1000,
-		TransactionBytes:        []byte{1, 2, 3, 4, 5},
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		Escrow:                  nil,
-	}
-	*txCopy = storage.MempoolCacheObject{
-		Tx: model.Transaction{
-			Version:                 0,
-			ID:                      1,
-			BlockID:                 0,
-			Height:                  0,
-			SenderAccountAddress:    "BCZ",
-			RecipientAccountAddress: "ZCB",
-			TransactionType:         0,
-			Fee:                     0,
-			Timestamp:               0,
-			TransactionHash:         nil,
-			TransactionBodyLength:   0,
-			TransactionBodyBytes:    nil,
-			TransactionIndex:        0,
-			MultisigChild:           false,
-			TransactionBody:         nil,
-			Signature:               nil,
-			Escrow:                  nil,
-		},
-		ArrivalTimestamp:    1000,
-		FeePerByte:          10,
-		TransactionByteSize: uint32(len(mptx.TransactionBytes)),
-	}
-	return nil
-}
-
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	type fields struct {
 		Chaintype           chaintype.ChainType
-		KVExecutor          kvdb.KVExecutorInterface
 		QueryExecutor       query.ExecutorInterface
 		MempoolQuery        query.MempoolQueryInterface
 		MerkleTreeQuery     query.MerkleTreeQueryInterface
@@ -793,7 +796,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		nodeSecretPhrase                 string
 	}
 	type want struct {
-		batchReceipt *model.BatchReceipt
+		batchReceipt *model.Receipt
 		transaction  *model.Transaction
 		err          bool
 	}
@@ -808,17 +811,6 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 			name: "Fail:ParseTransaction_error",
 			fields: fields{
 				TransactionUtil:     &mockTransactionUtilErrorParse{},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-			},
-			args:    args{},
-			want:    want{},
-			wantErr: true,
-		},
-		{
-			name: "Fail:GetReceiptKey_error",
-			fields: fields{
-				TransactionUtil:     &mockTransactionUtilSuccess{},
-				ReceiptUtil:         &mockReceiptUtilError{},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -846,8 +838,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorErrNonKeyNotFound{},
+				ReceiptService:      &mockReceiptServiceSucces{WantErr: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -861,8 +852,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
 				TransactionUtil:     &mockTransactionUtilSuccess{},
 				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				KVExecutor:          &mockKvExecutorFoundKey{},
+				ReceiptService:      &mockReceiptServiceSucces{WantDuplicated: true},
 				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
@@ -874,7 +864,6 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
 				Chaintype:           tt.fields.Chaintype,
-				KVExecutor:          tt.fields.KVExecutor,
 				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
@@ -900,6 +889,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 			}
 			if !reflect.DeepEqual(batchReceipt, tt.want.batchReceipt) {
 				t.Errorf("ProcessReceivedTransaction() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
+				return
 			}
 			if !reflect.DeepEqual(tx, tt.want.transaction) {
 				t.Errorf("ProcessReceivedTransaction() transaction = \n%v, want \n%v", tx, tt.want.transaction)
@@ -1033,8 +1023,10 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1088,6 +1080,7 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 			nil,
 			make([]byte, 64),
 			false,
+			"",
 		),
 	)
 	return db.QueryRow(qStr), nil
@@ -1162,14 +1155,21 @@ func (*mockValidateMempoolTransactionScaleServiceSuccessCache) InsertFeeScale(fe
 }
 
 func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
+	var (
+		senderAccountAddress = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+		recipientAccountAddress = []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	)
 	successTx := transaction.GetFixturesForTransaction(
 		1562893302,
-		"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		senderAccountAddress,
+		recipientAccountAddress,
 		false,
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
-	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytes, model.SignatureType_DefaultSignature,
+	txBytesHash := sha3.Sum256(txBytes)
+	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -1201,11 +1201,10 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: NewTransactionCoreService(
-					logrus.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+					log.New(), &mockExecutorValidateMempoolTransactionSuccessNoRow{},
 					nil,
 					nil,
 					query.NewTransactionQuery(&chaintype.MainChain{}),
-					nil,
 					nil,
 					nil,
 				),
@@ -1229,8 +1228,10 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1249,8 +1250,10 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
 					1562893302,
-					"ZBC_AQTEIGHG_65MNY534_GOKX7VSS_4BEO6OEL_75I6LOCN_KBICP7VN_DSUWBLM7",
-					"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					[]byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+						45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+					[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+						81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 					false,
 				),
 			},
@@ -1285,6 +1288,8 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					FeeScaleService:     &mockValidateMempoolTransactionScaleServiceSuccessCache{},
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+					QueryExecutor:       &mockQueryExecutoMempoolCoreService{},
+					AccountDatasetQuery: &mockAccountDatasetQueryMempoolCoreService{wantNoRow: true},
 				},
 				TransactionCoreService: tt.fields.TransactionCoreService,
 				MempoolCacheStorage:    tt.fields.MempoolCacheStorage,
@@ -1308,18 +1313,22 @@ type (
 func (*mockQueryExecutorGetMempoolTransactionsSuccess) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
+	sender := []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144,
+		246, 37, 144, 213, 135}
+	recipient := []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229,
+		184, 77, 80, 80, 39, 254, 173, 28, 169}
 
 	mockedRows := sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields)
 	mockedRows.AddRow(1, 0, 1, 1562893305, transaction.GetFixturesForSignedMempoolTransaction(1, 1562893305,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(2, 0, 10, 1562893304, transaction.GetFixturesForSignedMempoolTransaction(2, 1562893304,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(3, 0, 1, 1562893302, transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(4, 0, 100, 1562893306, transaction.GetFixturesForSignedMempoolTransaction(4, 1562893306,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mockedRows.AddRow(5, 0, 5, 1562893303, transaction.GetFixturesForSignedMempoolTransaction(5, 1562893303,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes, "A", "B")
+		sender, recipient, false).TransactionBytes, "A", "B")
 	mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(mockedRows)
 	rows, _ := db.Query(qe)
 	return rows, nil
@@ -1343,62 +1352,67 @@ func (*mockCacheStorageGetAllItemsError) GetAllItems(items interface{}) error {
 }
 
 var (
+	sender = []byte{0, 0, 0, 0, 4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118, 97, 219, 80, 242, 244, 100, 134, 144,
+		246, 37, 144, 213, 135}
+	recipient = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229,
+		184, 77, 80, 80, 39, 254, 173, 28, 169}
+
 	mockMempoolObjectsMap = storage.MempoolMap{
 		1: {
 			Tx: model.Transaction{
 				ID:                      1,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       1,
 			ArrivalTimestamp: 1562893305,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(1, 1562893305,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		2: {
 			Tx: model.Transaction{
 				ID: 2,
 
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       10,
 			ArrivalTimestamp: 1562893304,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(2, 1562893304,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		3: {
 			Tx: model.Transaction{
 				ID:                      3,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       1,
 			ArrivalTimestamp: 1562893302,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(3, 1562893302,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		4: {
 			Tx: model.Transaction{
 				ID:                      4,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       100,
 			ArrivalTimestamp: 1562893306,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(4, 1562893306,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 		5: {
 			Tx: model.Transaction{
 				ID:                      5,
-				SenderAccountAddress:    "A",
-				RecipientAccountAddress: "B",
+				SenderAccountAddress:    sender,
+				RecipientAccountAddress: recipient,
 			},
 			FeePerByte:       5,
 			ArrivalTimestamp: 1562893303,
 			TransactionByteSize: uint32(len(transaction.GetFixturesForSignedMempoolTransaction(5, 1562893303,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE", "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN", false).TransactionBytes)),
+				sender, recipient, false).TransactionBytes)),
 		},
 	}
 )

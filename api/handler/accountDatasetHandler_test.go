@@ -136,7 +136,7 @@ func TestAccountDatasetHandler_GetAccountDataset(t *testing.T) {
 			name: "GetAccountDataset:InvalidRequest",
 			args: args{
 				request: &model.GetAccountDatasetRequest{
-					RecipientAccountAddress: "",
+					RecipientAccountAddress: nil,
 					Property:                "",
 				},
 			},
@@ -150,7 +150,8 @@ func TestAccountDatasetHandler_GetAccountDataset(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountDatasetRequest{
-					RecipientAccountAddress: "H1ftvv3n6CF5NDzdjmZKLRrBg6yPKHXpmatVUhQ5NWYx",
+					RecipientAccountAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112,
+						113, 140, 183, 229, 116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 				},
 			},
 			want:    nil,
@@ -163,7 +164,8 @@ func TestAccountDatasetHandler_GetAccountDataset(t *testing.T) {
 			},
 			args: args{
 				request: &model.GetAccountDatasetRequest{
-					RecipientAccountAddress: "H1ftvv3n6CF5NDzdjmZKLRrBg6yPKHXpmatVUhQ5NWYx",
+					RecipientAccountAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112,
+						113, 140, 183, 229, 116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
 				},
 			},
 			want:    &model.AccountDataset{},

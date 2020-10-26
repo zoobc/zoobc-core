@@ -11,13 +11,18 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+var (
+	feeVoterAccountAddress1 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+)
+
 func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		accountAddress string
+		accountAddress []byte
 		blockHeight    uint32
 	}
 	tests := []struct {
@@ -31,12 +36,12 @@ func TestFeeVoteRevealVoteQuery_GetFeeVoteRevealByAccountAddressAndRecentBlockHe
 			name:   "WantSuccess",
 			fields: fields(*NewFeeVoteRevealVoteQuery()),
 			args: args{
-				accountAddress: "ABSCasjkdahsdasd",
+				accountAddress: feeVoterAccountAddress1,
 				blockHeight:    100,
 			},
 			want: "SELECT recent_block_hash, recent_block_height, fee_vote, voter_address, voter_signature, block_height " +
 				"FROM fee_vote_reveal_vote WHERE voter_address = ? AND recent_block_height = ? ORDER BY block_height DESC LIMIT 1",
-			want1: []interface{}{"ABSCasjkdahsdasd", uint32(100)},
+			want1: []interface{}{feeVoterAccountAddress1, uint32(100)},
 		},
 	}
 	for _, tt := range tests {
@@ -82,7 +87,7 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
-					VoterAddress:   "ABSCasjkdahsdasd",
+					VoterAddress:   feeVoterAccountAddress1,
 					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 					BlockHeight:    230,
 				},
@@ -93,7 +98,7 @@ func TestFeeVoteRevealVoteQuery_InsertRevealVote(t *testing.T) {
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				uint32(100),
 				int64(10),
-				"ABSCasjkdahsdasd",
+				feeVoterAccountAddress1,
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 				uint32(230),
 			},
@@ -125,7 +130,7 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 			100,
 			10,
 			[]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-			"ABSCasjkdahsdasd",
+			feeVoterAccountAddress1,
 			230,
 		))
 	type fields struct {
@@ -152,7 +157,7 @@ func TestFeeVoteRevealVoteQuery_Scan(t *testing.T) {
 						RecentBlockHeight: 100,
 						FeeVote:           10,
 					},
-					VoterAddress:   "ABSCasjkdahsdasd",
+					VoterAddress:   feeVoterAccountAddress1,
 					VoterSignature: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
 					BlockHeight:    230,
 				},
@@ -260,7 +265,7 @@ var (
 				FeeVote:           constant.OneZBC,
 			},
 			VoterSignature: make([]byte, 68),
-			VoterAddress:   "ABC",
+			VoterAddress:   feeVoterAccountAddress1,
 			BlockHeight:    120,
 		},
 		{
@@ -270,7 +275,7 @@ var (
 				FeeVote:           constant.OneZBC,
 			},
 			VoterSignature: make([]byte, 72),
-			VoterAddress:   "CBA",
+			VoterAddress:   feeVoterAccountAddress1,
 			BlockHeight:    130,
 		},
 	}

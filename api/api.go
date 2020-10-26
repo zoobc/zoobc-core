@@ -2,8 +2,7 @@ package api
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"html/template"
 	"net"
 	"net/http"
@@ -11,16 +10,12 @@ import (
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/zoobc/zoobc-core/api/handler"
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -29,6 +24,10 @@ import (
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 func startGrpcServer(
@@ -36,12 +35,15 @@ func startGrpcServer(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
 	rpcPort, httpPort int,
-	ownerAccountAddress, nodefilePath string,
+	ownerAccountAddress []byte,
+	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
@@ -83,7 +85,8 @@ func startGrpcServer(
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterTransactionServiceServer(grpcServer, &handler.TransactionHandler{
 		Service: service.NewTransactionService(
-			queryExecutor, crypto.NewSignature(),
+			queryExecutor,
+			crypto.NewSignature(),
 			actionTypeSwitcher,
 			mempoolService,
 			observer.NewObserver(),
@@ -92,7 +95,7 @@ func startGrpcServer(
 	})
 	// Set GRPC handler for Transactions requests
 	rpcService.RegisterHostServiceServer(grpcServer, &handler.HostHandler{
-		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, blockStateStorages),
+		Service: service.NewHostService(queryExecutor, p2pHostService, blockServices, nodeRegistrationService, scrambleNodeService, blockStateStorages),
 	})
 	// Set GRPC handler for account balance requests
 	rpcService.RegisterAccountBalanceServiceServer(grpcServer, &handler.AccountBalanceHandler{
@@ -119,7 +122,7 @@ func startGrpcServer(
 	// Set GRPC handler for node address info requests
 	rpcService.RegisterNodeAddressInfoServiceServer(grpcServer, &handler.NodeAddressInfoHandler{
 		Service: service.NewNodeAddressInfoAPIService(
-			nodeRegistrationService,
+			nodeAddressInfoService,
 		),
 	})
 	// Set GRPC handler for node registry request
@@ -232,11 +235,14 @@ func Start(
 	p2pHostService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	mempoolService coreService.MempoolServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
-	grpcPort, httpPort int, ownerAccountAddress,
+	grpcPort, httpPort int,
+	ownerAccountAddress []byte,
 	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
@@ -249,7 +255,9 @@ func Start(
 		p2pHostService,
 		blockServices,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		mempoolService,
+		scrambleNodeService,
 		transactionUtil,
 		actionTypeSwitcher,
 		blockStateStorages,

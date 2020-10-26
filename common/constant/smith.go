@@ -42,7 +42,8 @@ var (
 		Spinechain smithing
 	*/
 
-	SpineSmithingBlockCreationTime = int64(30)
-	SpineSmithingNetworkTolerance  = int64(15)
-	SpineSmithingBlocksmithTimeGap = int64(10)
+	SpineSmithingBlockCreationTime  = int64(30)
+	SpineSmithingNetworkTolerance   = int64(15)
+	SpineSmithingBlocksmithTimeGap  = int64(10)
+	SpineReferenceBlockHeightOffset = uint32(5)
 )

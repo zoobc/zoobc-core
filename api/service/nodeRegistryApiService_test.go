@@ -73,7 +73,8 @@ func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelect(qStr string, tx bool,
 			AddRow(
 				1,
 				[]byte{1, 2},
-				"AccountA",
+				[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+					28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 				1,
 				1,
 				uint32(model.NodeRegistrationState_NodeQueued),
@@ -124,9 +125,10 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 				Total: 1,
 				NodeRegistrations: []*model.NodeRegistration{
 					{
-						NodeID:             1,
-						NodePublicKey:      []byte{1, 2},
-						AccountAddress:     "AccountA",
+						NodeID:        1,
+						NodePublicKey: []byte{1, 2},
+						AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						RegistrationHeight: 1,
 						LockedBalance:      1,
 						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -188,7 +190,8 @@ func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, tx boo
 		).AddRow(
 			1,
 			[]byte{1, 1},
-			"AccountA",
+			[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+				28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 			1,
 			1,
 			uint32(model.NodeRegistrationState_NodeQueued),
@@ -219,16 +222,18 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 			},
 			args: args{
 				params: &model.GetNodeRegistrationRequest{
-					NodePublicKey:      []byte{1, 1},
-					AccountAddress:     "AccountA",
+					NodePublicKey: []byte{1, 1},
+					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+						28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 					RegistrationHeight: 1,
 				},
 			},
 			want: &model.GetNodeRegistrationResponse{
 				NodeRegistration: &model.NodeRegistration{
-					NodeID:             1,
-					NodePublicKey:      []byte{1, 1},
-					AccountAddress:     "AccountA",
+					NodeID:        1,
+					NodePublicKey: []byte{1, 1},
+					AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+						28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 					RegistrationHeight: 1,
 					LockedBalance:      1,
 					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -307,9 +312,10 @@ func TestNodeRegistryService_GetPendingNodeRegistrations(t *testing.T) {
 			want: &model.GetPendingNodeRegistrationsResponse{
 				NodeRegistrations: []*model.NodeRegistration{
 					{
-						NodeID:             1,
-						NodePublicKey:      []byte{1, 2},
-						AccountAddress:     "AccountA",
+						NodeID:        1,
+						NodePublicKey: []byte{1, 2},
+						AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						RegistrationHeight: 1,
 						LockedBalance:      1,
 						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -360,7 +366,8 @@ func (*mockQueryGetNodeRegistrationsByNodePublicKeysSuccess) ExecuteSelect(qStr 
 			AddRow(
 				1,
 				[]byte{1, 2},
-				"AccountA",
+				[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+					28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 				1,
 				1,
 				uint32(model.NodeRegistrationState_NodeQueued),
@@ -420,7 +427,8 @@ func TestNodeRegistryService_GetNodeRegistrationsByNodePublicKeys(t *testing.T) 
 						NodePublicKey: []byte{
 							1, 2,
 						},
-						AccountAddress:     "AccountA",
+						AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						RegistrationHeight: 1,
 						LockedBalance:      1,
 						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),

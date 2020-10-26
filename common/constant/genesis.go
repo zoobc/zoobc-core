@@ -8,12 +8,14 @@ const (
 
 type (
 	GenesisConfigEntry struct {
+		AccountAddressType int32
 		AccountAddress     string
 		AccountBalance     int64
 		NodePublicKey      []byte
 		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
+		Message            string
 	}
 )
 
@@ -637,6 +639,7 @@ var (
 				37, 54, 178, 226, 42, 248, 228, 38, 184, 0, 162, 117, 228},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fifer",
 		},
 		{
 			AccountAddress: "ZBC_V7HFZFHM_WP3GSVPW_DYWQ3WVG_ZIKV6RBM_VGDG3NU6_ATL2B7T6_BAJX7FJM",
@@ -645,6 +648,7 @@ var (
 				178, 178, 50, 68, 168, 60, 227, 225, 59, 123, 157, 230, 2},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fiddler",
 		},
 		{
 			AccountAddress: "ZBC_QGNFRGII_GMEVKBLE_SPZ4YXWP_7ZNYAIN2_KS2THEOC_I6WXHRQ2_HVHOYPNY",
@@ -653,6 +657,7 @@ var (
 				144, 29, 60, 57, 49, 22, 25, 138, 118, 68, 158, 162, 25},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Practical",
 		},
 	}
 )

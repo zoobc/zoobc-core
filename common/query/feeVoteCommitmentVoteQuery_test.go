@@ -13,9 +13,10 @@ import (
 var (
 	mockFeeVoteCommitmentVoteQuery = NewFeeVoteCommitmentVoteQuery()
 	mockFeeVoteCommitmentVote      = model.FeeVoteCommitmentVote{
-		VoteHash:     []byte{1, 2, 1},
-		VoterAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		BlockHeight:  1,
+		VoteHash: []byte{1, 2, 1},
+		VoterAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		BlockHeight: 1,
 	}
 )
 
@@ -90,7 +91,7 @@ func TestFeeVoteCommitmentVoteQuery_GetVoteCommitByAccountAddressAndHeight(t *te
 		TableName string
 	}
 	type args struct {
-		accountAddress string
+		accountAddress []byte
 		height         uint32
 	}
 	tests := []struct {
@@ -229,14 +230,16 @@ func TestFeeVoteCommitmentVoteQuery_Rollback(t *testing.T) {
 var (
 	mockFeeVoteCommitmentVoteQueryBuildModelRowResult = []*model.FeeVoteCommitmentVote{
 		{
-			VoteHash:     make([]byte, 32),
-			VoterAddress: "abc",
-			BlockHeight:  100,
+			VoteHash: make([]byte, 32),
+			VoterAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+				81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			BlockHeight: 100,
 		},
 		{
-			VoteHash:     make([]byte, 32),
-			VoterAddress: "cba",
-			BlockHeight:  120,
+			VoteHash: make([]byte, 32),
+			VoterAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188,
+				43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
+			BlockHeight: 120,
 		},
 	}
 )

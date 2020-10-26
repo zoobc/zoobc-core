@@ -4,18 +4,20 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc"
 )
 
@@ -38,18 +40,18 @@ others specific field for generate register node transaction
 */
 func GenerateTxRegisterNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,
 ) *model.Transaction {
 
 	txBody := &model.NodeRegistrationTransactionBody{
-		NodePublicKey: nodePubKey,
-		LockedBalance: lockedBalance,
-		Poown:         proofOfOwnerShip,
+		AccountAddress: tx.SenderAccountAddress,
+		NodePublicKey:  nodePubKey,
+		LockedBalance:  lockedBalance,
+		Poown:          proofOfOwnerShip,
 	}
-	txBodyBytes := (&transaction.NodeRegistration{
+	txBodyBytes, _ := (&transaction.NodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -70,7 +72,6 @@ others specific field for update register node transaction
 */
 func GenerateTxUpdateNode(
 	tx *model.Transaction,
-	nodeAddress string,
 	lockedBalance int64,
 	nodePubKey []byte,
 	proofOfOwnerShip *model.ProofOfOwnership,
@@ -80,7 +81,7 @@ func GenerateTxUpdateNode(
 		LockedBalance: lockedBalance,
 		Poown:         proofOfOwnerShip,
 	}
-	txBodyBytes := (&transaction.UpdateNodeRegistration{
+	txBodyBytes, _ := (&transaction.UpdateNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -102,7 +103,7 @@ func GenerateTxRemoveNode(tx *model.Transaction, nodePubKey []byte) *model.Trans
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
-	txBodyBytes := (&transaction.RemoveNodeRegistration{
+	txBodyBytes, _ := (&transaction.RemoveNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -130,7 +131,7 @@ func GenerateTxClaimNode(
 			NodePublicKey: nodePubKey,
 			Poown:         proofOfOwnerShip,
 		}
-		txBodyBytes = (&transaction.ClaimNodeRegistration{
+		txBodyBytes, _ = (&transaction.ClaimNodeRegistration{
 			Body: txBody,
 		}).GetBodyBytes()
 	)
@@ -173,7 +174,7 @@ func GenerateTxSetupAccountDataset(
 		Property: property,
 		Value:    value,
 	}
-	txBodyBytes := (&transaction.SetupAccountDataset{
+	txBodyBytes, _ := (&transaction.SetupAccountDataset{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -198,7 +199,7 @@ func GenerateTxRemoveAccountDataset(
 		Property: property,
 		Value:    value,
 	}
-	txBodyBytes := (&transaction.RemoveAccountDataset{
+	txBodyBytes, _ := (&transaction.RemoveAccountDataset{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -211,41 +212,56 @@ func GenerateTxRemoveAccountDataset(
 	return tx
 }
 
+func getAccountTypeFromAccountHex(senderAccountAddressHex string) accounttype.AccountTypeInterface {
+	accountAddress, err := hex.DecodeString(senderAccountAddressHex)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeHexAddress",
+			err.Error(),
+		))
+	}
+	accountType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeAccountTypeFromAddress",
+			err.Error(),
+		))
+	}
+	return accountType
+}
+
 // GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
-	senderAddress, senderSeed string,
-	senderSignatureType int32,
+	senderAccountAddressHex, senderSeed string,
 	version uint32,
 	timestamp, fee int64,
-	recipientAccountAddress string,
+	recipientAccountAddressHex,
+	message string,
 ) *model.Transaction {
-	var (
-		senderAccountAddress string
-	)
-	if senderAddress != "" {
-		senderAccountAddress = senderAddress
-	} else if senderSeed != "" {
-		switch model.SignatureType(senderSignatureType) {
+	if senderAccountAddressHex == "" && senderSeed != "" {
+		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		// TODO: move this into AccountType interface
+		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
-			b, err := crypto.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
+			b, err := signaturetype.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(senderSeed)
 			if err != nil {
 				panic(err.Error())
 			}
-			bb, err := crypto.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			bb, err := signaturetype.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddress, err = crypto.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
 			if err != nil {
 				panic(err.Error())
 			}
 		case model.SignatureType_BitcoinSignature:
 			var (
-				bitcoinSig  = crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 				pubKey, err = bitcoinSig.GetPublicKeyFromSeed(
 					senderSeed,
-					crypto.DefaultBitcoinPublicKeyFormat(),
-					crypto.DefaultBitcoinPrivateKeyLength(),
+					signaturetype.DefaultBitcoinPublicKeyFormat(),
+					signaturetype.DefaultBitcoinPrivateKeyLength(),
 				)
 			)
 			if err != nil {
@@ -254,7 +270,7 @@ func GenerateBasicTransaction(
 					err.Error(),
 				))
 			}
-			senderAccountAddress, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
+			senderAccountAddressHex, err = bitcoinSig.GetAddressFromPublicKey(pubKey)
 			if err != nil {
 				panic(fmt.Sprintln(
 					"GenerateBasicTransaction-BitcoinSignature-Failed GetPublicKey",
@@ -264,24 +280,31 @@ func GenerateBasicTransaction(
 		default:
 			panic("GenerateBasicTransaction-Invalid Signature Type")
 		}
-	} else {
-		panic("Failed found or generate sender account address")
 	}
 
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
+	decodedSenderAddress, err := hex.DecodeString(senderAccountAddressHex)
+	if err != nil {
+		panic(err)
+	}
+	decodedRecipientAddress, err := hex.DecodeString(recipientAccountAddressHex)
+	if err != nil {
+		panic(err)
+	}
 	return &model.Transaction{
 		Version:                 version,
 		Timestamp:               timestamp,
-		SenderAccountAddress:    senderAccountAddress,
-		RecipientAccountAddress: recipientAccountAddress,
+		SenderAccountAddress:    decodedSenderAddress,
+		RecipientAccountAddress: decodedRecipientAddress,
 		Fee:                     fee,
 		Escrow: &model.Escrow{
-			ApproverAddress: "",
+			ApproverAddress: nil,
 			Commission:      0,
 			Timeout:         0,
 		},
+		Message: []byte(message),
 	}
 }
 
@@ -326,7 +349,7 @@ func PrintTx(signedTxBytes []byte, outputType string) {
 func GenerateSignedTxBytes(
 	tx *model.Transaction,
 	senderSeed string,
-	signatureType int32,
+	accountTypeInt int32,
 	optionalSignParams ...interface{},
 ) []byte {
 	var (
@@ -348,9 +371,10 @@ func GenerateSignedTxBytes(
 	if senderSeed == "" {
 		return unsignedTxBytes
 	}
+	txBytesHash := sha3.Sum256(unsignedTxBytes)
 	tx.Signature, err = signature.Sign(
-		unsignedTxBytes,
-		model.SignatureType(signatureType),
+		txBytesHash[:],
+		model.AccountType(accountTypeInt),
 		senderSeed,
 		optionalSignParams...,
 	)
@@ -379,7 +403,7 @@ func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction
 		Approval:      chosen,
 		TransactionID: transactionID,
 	}
-	txBodyBytes := (&transaction.ApprovalEscrowTransaction{
+	txBodyBytes, _ := (&transaction.ApprovalEscrowTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 
@@ -393,7 +417,7 @@ func GenerateEscrowApprovalTransaction(tx *model.Transaction) *model.Transaction
 
 /*
 GenerateEscrowedTransaction inject escrow. Need:
-		1. esApproverAddress
+		1. esApproverAddressHex
 		2. Commission
 		3. Timeout
 Invalid escrow validation when those fields has not set
@@ -401,8 +425,12 @@ Invalid escrow validation when those fields has not set
 func GenerateEscrowedTransaction(
 	tx *model.Transaction,
 ) *model.Transaction {
+	decodedApproverAddress, err := hex.DecodeString(esApproverAddressHex)
+	if err != nil {
+		panic(err)
+	}
 	tx.Escrow = &model.Escrow{
-		ApproverAddress: esApproverAddress,
+		ApproverAddress: decodedApproverAddress,
 		Commission:      esCommission,
 		Timeout:         esTimeout,
 		Instruction:     esInstruction,
@@ -417,7 +445,7 @@ GeneratedMultiSignatureTransaction inject escrow. Need:
 		3. multisigInfo:
 			- minSignature
 			- nonce
-			- addresses
+			- addressesHex
 Invalid escrow validation when those fields has not set
 */
 func GeneratedMultiSignatureTransaction(
@@ -425,7 +453,7 @@ func GeneratedMultiSignatureTransaction(
 	minSignature uint32,
 	nonce int64,
 	unsignedTxHex, txHash string,
-	addressSignatures map[string]string, addresses []string,
+	addressSignatures map[string]string, addressesHex []string,
 ) *model.Transaction {
 	var (
 		signatures    = make(map[string][]byte)
@@ -433,12 +461,20 @@ func GeneratedMultiSignatureTransaction(
 		unsignedTx    []byte
 		multiSigInfo  *model.MultiSignatureInfo
 		err           error
+		fullAddresses [][]byte
 	)
-	if minSignature > 0 && len(addresses) > 0 {
+	for _, addrHex := range addressesHex {
+		decodedAddr, err := hex.DecodeString(addrHex)
+		if err != nil {
+			panic(err)
+		}
+		fullAddresses = append(fullAddresses, decodedAddr)
+	}
+	if minSignature > 0 && len(addressesHex) > 0 {
 		multiSigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignature,
 			Nonce:             nonce,
-			Addresses:         addresses,
+			Addresses:         fullAddresses,
 		}
 	}
 	if unsignedTxHex != "" {
@@ -476,9 +512,11 @@ func GeneratedMultiSignatureTransaction(
 		UnsignedTransactionBytes: unsignedTx,
 		SignatureInfo:            signatureInfo,
 	}
-	tx.TransactionBodyBytes = (&transaction.MultiSignatureTransaction{
+	if tx.TransactionBodyBytes, err = (&transaction.MultiSignatureTransaction{
 		Body: txBody,
-	}).GetBodyBytes()
+	}).GetBodyBytes(); err != nil {
+		panic(err)
+	}
 	fmt.Printf("length: %v\n", len(tx.TransactionBodyBytes))
 	tx.TransactionBodyLength = uint32(len(tx.TransactionBodyBytes))
 	return tx
@@ -488,7 +526,7 @@ func GenerateTxRemoveNodeHDwallet(tx *model.Transaction, nodePubKey []byte) *mod
 	txBody := &model.RemoveNodeRegistrationTransactionBody{
 		NodePublicKey: nodePubKey,
 	}
-	txBodyBytes := (&transaction.RemoveNodeRegistration{
+	txBodyBytes, _ := (&transaction.RemoveNodeRegistration{
 		Body:                  txBody,
 		NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 	}).GetBodyBytes()
@@ -514,7 +552,7 @@ func GenerateTxFeeVoteCommitment(
 		txBody = &model.FeeVoteCommitTransactionBody{
 			VoteHash: voteHash,
 		}
-		txBodyBytes = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
+		txBodyBytes, _ = (&transaction.FeeVoteCommitTransaction{Body: txBody}).GetBodyBytes()
 	)
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["feeVoteCommit"])
 	tx.TransactionBody = &model.Transaction_FeeVoteCommitTransactionBody{
@@ -532,7 +570,7 @@ func GenerateTxFeeVoteRevealPhase(tx *model.Transaction, voteInfo *model.FeeVote
 			FeeVoteInfo:    voteInfo,
 			VoterSignature: voteInfoSigned,
 		}
-		txBodyBytes = (&transaction.FeeVoteRevealTransaction{
+		txBodyBytes, _ = (&transaction.FeeVoteRevealTransaction{
 			Body: txBody,
 		}).GetBodyBytes()
 	)
@@ -555,7 +593,7 @@ func GenerateTxLiquidPayment(tx *model.Transaction, sendAmount int64, completeMi
 	tx.TransactionBody = &model.Transaction_LiquidPaymentTransactionBody{
 		LiquidPaymentTransactionBody: txBody,
 	}
-	txBodyBytes := (&transaction.LiquidPaymentTransaction{
+	txBodyBytes, _ := (&transaction.LiquidPaymentTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
@@ -572,7 +610,7 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	tx.TransactionBody = &model.Transaction_LiquidPaymentStopTransactionBody{
 		LiquidPaymentStopTransactionBody: txBody,
 	}
-	txBodyBytes := (&transaction.LiquidPaymentStopTransaction{
+	txBodyBytes, _ := (&transaction.LiquidPaymentStopTransaction{
 		Body: txBody,
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes

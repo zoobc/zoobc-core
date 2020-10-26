@@ -1,4 +1,3 @@
-badgerDbName = "zoobc_3_kv/"
 dbName = "zoobc_3.db"
 nodeKeyFile = "node_keys_3.json"
 resourcePath = "./resource"
@@ -17,7 +16,7 @@ apiReqTimeoutSec = 2
 cpuProfilingPort = 6063
 monitoringPort = 9093
 
-ownerAccountAddress = "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU"
+ownerAccountAddress = "00000000ddac32f25a466a6d1ce3ab9f2134cd13978ce9d967209cf1cbe73079aaa2d4df"
 
 proofOfOwnershipReqTimeoutSec = 1
 smithing = true
