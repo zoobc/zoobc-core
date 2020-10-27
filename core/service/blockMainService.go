@@ -779,7 +779,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
-	if broadcast && !persist && *blocksmithIndex == 0 {
+	if broadcast && !persist && (blocksmithIndex != nil && *blocksmithIndex == 0) {
 		// add transactionIDs and remove transaction before broadcast
 		block.TransactionIDs = transactionIDs
 		block.Transactions = []*model.Transaction{}
@@ -935,7 +935,7 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			break
 		}
 	}
-	if blocksmithIndex < 0 {
+	if blocksmithIndex < 0 || blocksmithNode == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInBlocksmithList")
 	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
