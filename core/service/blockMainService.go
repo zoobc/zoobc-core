@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"reflect"
 	"sort"
@@ -18,10 +16,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
@@ -1765,9 +1765,10 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 
 	if peer == nil {
 		bs.Logger.Errorf("Error peer is null, can not request block transactions from the Peer")
+	} else {
+		bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	}
 
-	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	return true, nil
 }
 
@@ -1779,8 +1780,8 @@ func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Li
 			if !ok {
 				bs.Logger.Fatalln("transactions casting failures in ReceivedValidatedBlockTransactionsListener")
 			}
-			for _, transaction := range transactions {
-				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
+			for _, tx := range transactions {
+				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(tx)
 				for _, block := range completedBlocks {
 					err := bs.ProcessCompletedBlock(block)
 					if err != nil {
