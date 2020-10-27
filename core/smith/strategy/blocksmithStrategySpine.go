@@ -87,7 +87,7 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (int64, er
 	}
 
 	if now >= lastCandidate.StartTime {
-		if err = bss.AddCandidate(prevBlock); err != nil {
+		if err := bss.AddCandidate(prevBlock); err != nil {
 			return blocksmithIndex, err
 		}
 	}
@@ -98,7 +98,7 @@ func (bss *BlocksmithStrategySpine) WillSmith(prevBlock *model.Block) (int64, er
 	return blocksmithIndex, errors.New("invalidExpiryTime")
 }
 
-func (bss *BlocksmithStrategySpine) convertRandomNumberToIndex(randNumber int64, activeNodeRegistryCount int64) int {
+func (bss *BlocksmithStrategySpine) convertRandomNumberToIndex(randNumber, activeNodeRegistryCount int64) int {
 	rd := randNumber / activeNodeRegistryCount
 	mult := rd * activeNodeRegistryCount
 	rem := randNumber - mult
@@ -210,7 +210,7 @@ func (bss *BlocksmithStrategySpine) CanPersistBlock(previousBlock, block *model.
 		return err
 	}
 
-	blocksmithIndex, err := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
+	blocksmithIndex, _ := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
 	if blocksmithIndex <= 1 {
 		return nil
 	}

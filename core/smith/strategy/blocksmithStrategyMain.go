@@ -3,6 +3,7 @@ package strategy
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
@@ -100,7 +101,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 	}
 
 	if now >= lastCandidate.StartTime {
-		if err = bss.AddCandidate(prevBlock); err != nil {
+		if err := bss.AddCandidate(prevBlock); err != nil {
 			return blocksmithIndex, err
 		}
 	}
@@ -111,7 +112,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 	return blocksmithIndex, errors.New("invalidExpiryTime")
 }
 
-func (bss *BlocksmithStrategyMain) convertRandomNumberToIndex(randNumber int64, activeNodeRegistryCount int64) int {
+func (bss *BlocksmithStrategyMain) convertRandomNumberToIndex(randNumber, activeNodeRegistryCount int64) int {
 	rd := randNumber / activeNodeRegistryCount
 	mult := rd * activeNodeRegistryCount
 	rem := randNumber - mult
@@ -223,7 +224,7 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 		return err
 	}
 
-	blocksmithIndex, err := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
+	blocksmithIndex, _ := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
 	if blocksmithIndex <= 1 {
 		return nil
 	}
@@ -299,6 +300,7 @@ func (bss *BlocksmithStrategyMain) GetSmithingRound(previousBlock, block *model.
 		round = 1 // round start from 1
 	)
 	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
+	fmt.Println("bss.Chaintype:: ", bss.Chaintype)
 	if timeGap < bss.Chaintype.GetSmithingPeriod()+bss.Chaintype.GetBlocksmithTimeGap() {
 		return round // first blocksmith
 	}

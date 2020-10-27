@@ -2,10 +2,11 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
@@ -192,9 +193,13 @@ func initialize(
 	)
 
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, nodeRegistrationService,
-		query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(),
-		log.New(), nil,
+		queryExecutor,
+		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
+		log.New(),
+		nil,
+		activeNodeRegistryCacheStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
