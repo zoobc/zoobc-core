@@ -3,7 +3,6 @@ package strategy
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
@@ -300,7 +299,6 @@ func (bss *BlocksmithStrategyMain) GetSmithingRound(previousBlock, block *model.
 		round = 1 // round start from 1
 	)
 	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
-	fmt.Println("bss.Chaintype:: ", bss.Chaintype)
 	if timeGap < bss.Chaintype.GetSmithingPeriod()+bss.Chaintype.GetBlocksmithTimeGap() {
 		return round // first blocksmith
 	}
