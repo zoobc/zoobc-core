@@ -1538,7 +1538,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-	// update cache next node admissiom timestamp after rollback
+	// update cache next node admission timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return nil, err
@@ -1554,8 +1554,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-	// clear block pool
+	/*
+		Need to clearing some cache storage that affected
+	*/
 	bs.BlockPoolService.ClearBlockPool()
+	bs.ReceiptService.ClearCache()
+
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()
 	if err != nil {
