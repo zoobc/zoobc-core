@@ -3,7 +3,6 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"path"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -93,11 +93,17 @@ var (
 		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
 		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
 	}
+
+	createBlockchainObjectCmd = &cobra.Command{
+		Use:   "create-blockchain-object",
+		Short: "transaction sub command used to generate 'create blockchain object' transaction",
+		Long:  "transaction sub command used to generate 'create blockchain object' transaction used to create a blockchain object",
+	}
 )
 
 func init() {
 	/*
-		TXCommandRoot
+	   TXCommandRoot
 	*/
 	txCmd.PersistentFlags().StringVar(&message, "message", "", "arbitrary message that can be added to any transaction")
 	txCmd.PersistentFlags().BoolVarP(&sign, "sign", "s", true, "defines transaction should be signed")
@@ -114,11 +120,17 @@ func init() {
 	txCmd.PersistentFlags().StringVar(&senderAddressHex, "sender-address", "", "transaction's sender address")
 	txCmd.PersistentFlags().StringVarP(&dbPath, "db-path", "p", "resource", "db-path is database path location")
 	txCmd.PersistentFlags().StringVarP(&dBName, "db-name", "n", "zoobc.db", "db-name is database name {name}.db")
+	txCmd.PersistentFlags().Int32Var(
+		&senderAccountTypeInt,
+		"sender-account-type",
+		int32(model.AccountType_ZbcAccountType),
+		"signature-type that provide type of signature want to use to generate the account",
+	)
 	/*
 		SendMoney Command
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
-	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
+	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
 	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
 	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
@@ -218,6 +230,35 @@ func init() {
 		liquidPaymentStopCmd
 	*/
 	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
+
+	/*
+		createBlockchainObjectCmd
+	*/
+	createBlockchainObjectCmd.Flags().Int64Var(&blockchainObjectBalace, "balance", 0, "balance of blockchain object wanted to be initialize")
+	createBlockchainObjectCmd.Flags().StringSliceVar(
+		&blockchainObjectImmutableKeys,
+		"immutable-property-keys",
+		nil,
+		"list of immutable properties keys of blockchain object",
+	)
+	createBlockchainObjectCmd.Flags().StringSliceVar(
+		&blockchainObjectImmutablevalues,
+		"immutable-property-values",
+		nil,
+		"list of immutable properties values of blockchain object",
+	)
+	createBlockchainObjectCmd.Flags().StringSliceVar(
+		&blockchainObjectMutableKeys,
+		"mutable-property-keys",
+		nil,
+		"list of mutable properties keys of blockchain object",
+	)
+	createBlockchainObjectCmd.Flags().StringSliceVar(
+		&blockchainObjectMutablevalues,
+		"mutable-property-values",
+		nil,
+		"list of mutable properties values of blockchain object",
+	)
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -252,6 +293,8 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(liquidPaymentCmd)
 	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
 	txCmd.AddCommand(liquidPaymentStopCmd)
+	createBlockchainObjectCmd.Run = txGeneratorCommandsInstance.CreateBlockchainObjectProcess()
+	txCmd.AddCommand(createBlockchainObjectCmd)
 	return txCmd
 }
 
@@ -261,6 +304,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -271,8 +315,8 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -283,6 +327,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 			tx = GenerateBasicTransaction(
 				senderAddressHex,
 				senderSeed,
+				senderAccountTypeInt,
 				version,
 				timestamp,
 				fee,
@@ -307,8 +352,8 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -319,6 +364,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 			tx = GenerateBasicTransaction(
 				senderAddressHex,
 				senderSeed,
+				senderAccountTypeInt,
 				version,
 				timestamp,
 				fee,
@@ -344,8 +390,8 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -355,6 +401,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -366,8 +413,8 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -378,6 +425,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 			tx = GenerateBasicTransaction(
 				senderAddressHex,
 				senderSeed,
+				senderAccountTypeInt,
 				version,
 				timestamp,
 				fee,
@@ -401,8 +449,8 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -412,6 +460,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -429,8 +478,8 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -440,6 +489,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -450,8 +500,8 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -461,6 +511,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -468,8 +519,8 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			message,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -479,6 +530,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -490,8 +542,8 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+			senderAccountType := getAccountTypeFromAccountByte(tx.SenderAccountAddress)
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 		}
 	}
 }
@@ -507,6 +559,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 			tx = GenerateBasicTransaction(
 				senderAddressHex,
 				senderSeed,
+				senderAccountTypeInt,
 				version,
 				timestamp,
 				fee,
@@ -567,8 +620,8 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+			senderAccountTypeInt := getAccountTypeFromAccountByte(tx.SenderAccountAddress).GetTypeInt()
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountTypeInt, sign), outputType)
 		}
 	}
 }
@@ -582,6 +635,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 			tx            = GenerateBasicTransaction(
 				senderAddressHex,
 				senderSeed,
+				senderAccountTypeInt,
 				version,
 				timestamp,
 				fee,
@@ -653,8 +707,8 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 		}
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
 
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -664,6 +718,7 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -671,8 +726,8 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }
 
@@ -682,6 +737,7 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
+			senderAccountTypeInt,
 			version,
 			timestamp,
 			fee,
@@ -689,7 +745,49 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
+	}
+}
+
+// CreateBlockchainObject for generate TX CreateBlockchainObject type
+func (*TXGeneratorCommands) CreateBlockchainObjectProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddressHex,
+			senderSeed,
+			senderAccountTypeInt,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddressHex,
+			message,
+		)
+
+		if len(blockchainObjectImmutableKeys) != len(blockchainObjectImmutablevalues) {
+			panic(fmt.Sprintf(
+				"Immuatble Number Keys & Values Must Same! Keys:%d, Values:%d",
+				len(blockchainObjectImmutableKeys),
+				len(blockchainObjectImmutablevalues),
+			))
+		}
+		if len(blockchainObjectMutableKeys) != len(blockchainObjectMutablevalues) {
+			panic(fmt.Sprintf(
+				"Muatble Number Keys & Values Must Same! Keys:%d, Values:%d",
+				len(blockchainObjectMutableKeys),
+				len(blockchainObjectMutablevalues),
+			))
+		}
+		var immutableProperties = make(map[string]string, len(blockchainObjectImmutableKeys))
+		var mutableProperties = make(map[string]string, len(blockchainObjectMutableKeys))
+		for i := 0; i < len(blockchainObjectImmutableKeys); i++ {
+			immutableProperties[blockchainObjectImmutableKeys[i]] = blockchainObjectImmutablevalues[i]
+		}
+		for i := 0; i < len(blockchainObjectMutableKeys); i++ {
+			mutableProperties[blockchainObjectMutableKeys[i]] = blockchainObjectMutablevalues[i]
+		}
+		tx = GenerateTxCreateBlockchainObject(tx, blockchainObjectBalace, immutableProperties, mutableProperties)
+		senderAccountType := getAccountTypeFromAccountByte(tx.GetSenderAccountAddress())
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType.GetTypeInt(), sign), outputType)
 	}
 }

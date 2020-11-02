@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"os"
-	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -17,23 +16,20 @@ import (
 func main() {
 
 	var (
-		apiRPCPort int
-		configPath = "./resource"
+		ip   string
+		conn *grpc.ClientConn
+		err  error
 	)
-	dir, _ := os.Getwd()
-	if strings.Contains(dir, "api") {
-		configPath = "../../../resource"
-	}
-	if err := util.LoadConfig(configPath, "config", "toml", ""); err != nil {
-		log.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
-		if apiRPCPort == 0 {
-			apiRPCPort = 8080
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
 		}
 	}
-
-	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
+	conn, err = grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}

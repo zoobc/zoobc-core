@@ -19,6 +19,7 @@ var (
 		"liquidPaymentStop":      {6, 1, 0, 0},
 		"feeVoteCommit":          {7, 0, 0, 0},
 		"feeVoteReveal":          {7, 1, 0, 0},
+		"createBlockchainObject": {9, 0, 0, 0},
 	}
 	signature = &crypto.Signature{}
 
@@ -33,6 +34,7 @@ var (
 	post                       bool
 	postHost                   string
 	senderAddressHex           string
+	senderAccountTypeInt       int32
 	sign                       bool
 
 	// Send money transaction
@@ -74,4 +76,11 @@ var (
 	dbPath, dBName    string
 	// liquidPayment
 	completeMinutes uint64
+
+	// create blockchain Object
+	blockchainObjectBalace int64
+	blockchainObjectImmutableKeys,
+	blockchainObjectImmutablevalues,
+	blockchainObjectMutableKeys,
+	blockchainObjectMutablevalues []string
 )
