@@ -428,7 +428,6 @@ func initiateMainInstance() {
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
-		activeNodeRegistryCacheStorage,
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,

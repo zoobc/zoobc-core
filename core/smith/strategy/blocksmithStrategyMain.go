@@ -45,7 +45,6 @@ func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
-	activeNodeRegistryCache storage.CacheStorageInterface,
 	logger *log.Logger,
 	currentNodePublicKey []byte,
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
