@@ -119,7 +119,7 @@ func (tx *CreateBlockchainObjectTransaction) ApplyUnconfirmed() error {
 	// update sender balance by reducing his spendable balance of the tx fee
 	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.BlockchainObjectBalance + tx.Fee))
 	if err != nil {
-		return err
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return nil
 }
