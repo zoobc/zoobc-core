@@ -67,7 +67,7 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	}
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.SenderAddress,
-		tx.Body.GetAmount(),
+		-(tx.Body.GetAmount() + tx.Fee),
 		model.EventType_EventSendMoneyTransaction,
 		tx.Height,
 		tx.ID,

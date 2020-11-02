@@ -428,6 +428,7 @@ func initiateMainInstance() {
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		activeNodeRegistryCacheStorage,
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
@@ -854,6 +855,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -1024,7 +1030,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-
+	// scheduler to generate receipt merkle root
+	if err := schedulerInstance.AddJob(
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

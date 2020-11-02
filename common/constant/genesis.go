@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -3764283638623667978
+	MainchainGenesisBlockID int64 = -8052505283446226463
 )
 
 type (
@@ -15,6 +15,7 @@ type (
 		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
+		Message            string
 	}
 )
 
@@ -42,6 +43,7 @@ var (
 				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fifer",
 		},
 		{
 			AccountAddressType: 0,
@@ -51,6 +53,7 @@ var (
 				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fiddler",
 		},
 		{
 			AccountAddressType: 0,
@@ -60,6 +63,7 @@ var (
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Practical",
 		},
 	}
 )

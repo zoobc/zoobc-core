@@ -3,6 +3,11 @@ package strategy
 import (
 	"bytes"
 	"errors"
+	"math"
+	"math/big"
+	"math/rand"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -11,10 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
-	"math"
-	"math/big"
-	"math/rand"
-	"time"
 )
 
 type (
@@ -44,6 +45,7 @@ func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	activeNodeRegistryCache storage.CacheStorageInterface,
 	logger *log.Logger,
 	currentNodePublicKey []byte,
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,

@@ -576,7 +576,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 	// validate first
 	addressAlreadyUpdated, err = nru.ValidateNodeAddressInfo(nodeAddressInfo)
 	if err != nil || addressAlreadyUpdated {
-		return false, err
+		return addressAlreadyUpdated, err
 	}
 
 	nodeAddressInfo.Status = updatedStatus
@@ -589,12 +589,13 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 	}
 	if len(nodeAddressesInfo) > 0 {
 		// check if new address info is more recent than previous
-		if nodeAddressInfo.GetBlockHeight() < nodeAddressesInfo[0].GetBlockHeight() {
+		if nodeAddressInfo.GetBlockHeight() <= nodeAddressesInfo[0].GetBlockHeight() {
 			return false, nil
 		}
 		err = nru.UpdateAddrressInfo(nodeAddressInfo)
 		if err != nil {
-			nru.Logger.Errorf("UpdateAddressInfoFail - %v", err)
+			nru.Logger.Errorf("UpdateAddressInfoFail - %v - nodeAddressInfo:%d-%s:%d\n",
+				err, nodeAddressInfo.NodeID, nodeAddressInfo.Address, nodeAddressInfo.Port)
 			return false, err
 		}
 		return true, nil

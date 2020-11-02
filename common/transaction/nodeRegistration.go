@@ -159,10 +159,11 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		insertParticipationScoreQ, insertParticipationScoreArg := tx.ParticipationScoreQuery.InsertParticipationScore(ps)
 		newQ := append([]interface{}{insertParticipationScoreQ}, insertParticipationScoreArg...)
 		queries = append(queries, newQ)
+	} else {
 		// update node registry cache (in transaction) and resort
 		err = tx.PendingNodeRegistryCache.TxSetItem(nil, storage.NodeRegistry{
 			Node:               *nodeRegistration,
-			ParticipationScore: ps.Score,
+			ParticipationScore: 0,
 		})
 		if err != nil {
 			return err
