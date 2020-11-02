@@ -298,6 +298,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery:             query.NewEscrowTransactionQuery(),
 				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 			},
 		},
 		{

@@ -687,6 +687,20 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "ApplyConfirmed:errorNotFound",
+			fields: fields{
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper:     &mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheNotFound{},
+			},
+			wantErr: true,
+		},
+		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
 				Body:                     txBody,
