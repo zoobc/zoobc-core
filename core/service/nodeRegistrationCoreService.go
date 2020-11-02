@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
 	"math"
 	"math/big"
 
@@ -101,7 +102,7 @@ func (nrs *NodeRegistrationService) InitializeCache() error {
 		return err
 	}
 	// pending
-	pendingQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeQueued) // limit = 0 get all records
+	pendingQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeQueued, false)
 	pendingNodeRegistryRows, err := nrs.QueryExecutor.ExecuteSelect(pendingQry, false)
 	if err != nil {
 		return err
@@ -113,7 +114,7 @@ func (nrs *NodeRegistrationService) InitializeCache() error {
 		return err
 	}
 	// active
-	activeQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeRegistered) // limit = 0 get all records
+	activeQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeRegistered, true)
 	activeNodeRegistrationRows, err := nrs.QueryExecutor.ExecuteSelect(activeQry, false)
 	if err != nil {
 		return err
@@ -488,7 +489,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 
 	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
 	if err != nil {
-		return 0, blocker.NewBlocker(blocker.AppErr, "FailGetNodeRegistryFromCache")
+		return 0, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("AddParticipationScoreErr:%v", err))
 	}
 	// don't update the score if already max allowed
 	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {
@@ -522,7 +523,10 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 	}
 	err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
 	if err != nil {
-		return newScore, err
+		if castedErr := err.(blocker.Blocker); castedErr.Type != blocker.NotFound {
+			// handle removed node
+			return newScore, err
+		}
 	}
 	// finally update the participation score
 	updateParticipationScoreQuery := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)
