@@ -422,15 +422,17 @@ func initiateMainInstance() {
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
 		crypto.NewRandomNumberGenerator(),
+		mainchain,
 	)
-	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
 		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
-		query.NewBlockQuery(&chaintype.SpineChain{}),
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
 		crypto.NewRandomNumberGenerator(),
+		spinechain,
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -592,15 +594,6 @@ func initiateMainInstance() {
 		loggerCoreService,
 	)
 
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-		config.NodeKey.PublicKey,
-		activeNodeRegistryCacheStorage,
-		crypto.NewRandomNumberGenerator(),
-	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
 		query.NewAccountLedgerQuery(),

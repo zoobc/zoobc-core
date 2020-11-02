@@ -1584,6 +1584,15 @@ func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMemp
 	}, nil
 }
 
+type (
+	mockNodeRegistrationServiceGenerateBlockSuccess struct {
+		NodeRegistrationServiceInterface
+	}
+)
+
+func (*mockNodeRegistrationServiceGenerateBlockSuccess) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	return make([]*model.NodeRegistration, 10), nil
+}
 func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 	blockTimesatamp, previousBlockTimesatamp int64,
 ) int64 {
@@ -1592,17 +1601,18 @@ func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 
 func TestBlockService_GenerateBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		MempoolService     MempoolServiceInterface
-		ReceiptService     ReceiptServiceInterface
-		BlocksmithStrategy strategy.BlocksmithStrategyInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		CoinbaseService    CoinbaseServiceInterface
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		CoinbaseService         CoinbaseServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
 	}
 	type args struct {
 		previousBlock            *model.Block
@@ -1662,10 +1672,11 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
-				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
-				ReceiptService:     &mockReceiptServiceReturnEmpty{},
-				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				CoinbaseService:    &mockGenerateBlockCoinbaseServiceSuccess{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
+				ReceiptService:          &mockReceiptServiceReturnEmpty{},
+				ActionTypeSwitcher:      &mockTypeActionSuccess{},
+				CoinbaseService:         &mockGenerateBlockCoinbaseServiceSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceGenerateBlockSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1692,18 +1703,19 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ReceiptService:     tt.fields.ReceiptService,
-				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				ReceiptUtil:        &coreUtil.ReceiptUtil{},
-				CoinbaseService:    tt.fields.CoinbaseService,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
+				CoinbaseService:         tt.fields.CoinbaseService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,

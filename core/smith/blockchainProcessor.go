@@ -96,10 +96,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			err = bp.BlockService.GetBlocksmithStrategy().CalculateScore(bp.Generator, 1)
-			if err != nil {
-				return err
-			}
+			// todo: renew fake smithing code - it's outdated due to several iteration on smithing alg
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
 		for timeNow < lastBlock.GetTimestamp()+ct.GetSmithingPeriod() {

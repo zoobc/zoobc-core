@@ -192,15 +192,7 @@ func initialize(
 		pendingNodeRegistryCacheStorage,
 	)
 
-	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
-		log.New(),
-		nil,
-		activeNodeRegistryCacheStorage,
-		crypto.NewRandomNumberGenerator(),
-	)
+	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(), nil, activeNodeRegistryCacheStorage, crypto.NewRandomNumberGenerator(), nil)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
 		queryExecutor,

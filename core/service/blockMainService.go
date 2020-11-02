@@ -513,10 +513,17 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
+
+		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
+		if err != nil {
+			bs.queryAndCacheRollbackProcess("")
+			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
+		}
+
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
 			uint32(len(block.GetPublishedReceipts())-linkedCount),
-			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
+			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
 		)
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
@@ -526,11 +533,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
 			return err
-		}
-
-		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
-		if err != nil {
-			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
 		}
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
@@ -896,9 +898,9 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 	if err != nil {
 		return err
 	}
-	blocksBlocksmithsLenght := len(blocksBlocksmiths)
+	blocksBlocksmithsLength := len(blocksBlocksmiths)
 	// punish the skipped (index earlier than current blocksmith) blocksmith
-	for i := 0; i < blocksBlocksmithsLenght-1; i++ {
+	for i := 0; i < blocksBlocksmithsLength-1; i++ {
 		skippedBlocksmith := &model.SkippedBlocksmith{
 			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
 			POPChange:           constant.ParticipationScorePunishAmount,
@@ -920,7 +922,7 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			return err
 		}
 	}
-	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[blocksBlocksmithsLenght-1].NodeID, popScore, block.Height, true)
+	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[blocksBlocksmithsLength-1].NodeID, popScore, block.Height, true)
 
 	return err
 }
@@ -1214,11 +1216,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 		}
 	}
+	activeRegistries, err := bs.NodeRegistrationService.GetActiveRegisteredNodes()
 
+	if err != nil {
+		return nil, err
+	}
 	// select published receipts to be added to the block
 	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
 		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
-			len(bs.BlocksmithStrategy.GetSortedBlocksmiths(previousBlock))),
+			len(activeRegistries)),
 		previousBlock.Height,
 	)
 	if err != nil {
