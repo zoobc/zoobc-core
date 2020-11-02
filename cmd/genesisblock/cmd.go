@@ -6,9 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -17,6 +14,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
@@ -269,7 +270,7 @@ func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 			privateKey = ed25519Signature.GetPrivateKeyFromSeed(seed)
 			publicKey  = privateKey[32:]
 		)
-		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, publicKey)
+		accountAddress, _ = ed25519Signature.GetAddressFromPublicKey(model.PrefixConstant_ZBC.String(), publicKey)
 	}
 	var (
 		nodeSeed       = util.GetSecureRandomSeed()

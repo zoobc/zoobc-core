@@ -67,6 +67,7 @@ var (
 	addressesHex      []string
 	nonce             int64
 	minSignature      uint32
+	participantSeeds  []string
 
 	// fee vote
 	recentBlockHeight uint32

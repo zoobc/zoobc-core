@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -238,8 +239,12 @@ func GenerateBasicTransaction(
 	recipientAccountAddressHex,
 	message string,
 ) *model.Transaction {
+	if senderAccountAddressHex == "" && senderSeed == "" {
+		log.Fatal("need to passing one of \"--sender-address\" or \"--sender-seed\"")
+	}
 	if senderAccountAddressHex == "" && senderSeed != "" {
-		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		// accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		accountType := &accounttype.ZbcAccountType{}
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
@@ -251,10 +256,20 @@ func GenerateBasicTransaction(
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
-			if err != nil {
-				panic(err.Error())
+			accType, e := accounttype.NewAccountType(accountType.GetTypeInt(), bb)
+			if e != nil {
+				panic(e)
 			}
+			senderBytes, e := accType.GetAccountAddress()
+			if e != nil {
+				panic(e)
+			}
+			senderAccountAddressHex = hex.EncodeToString(senderBytes)
+
+			// senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			// if err != nil {
+			// 	panic(err.Error())
+			// }
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
@@ -615,5 +630,72 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+// GenerateTXMultiSignature return multi signature transaction based on provided basic transaction
+func GenerateTXMultiSignature(
+	tx *model.Transaction,
+	multiSignatureInfo *model.MultiSignatureInfo,
+	onChain bool,
+) *model.Transaction {
+
+	var (
+		signatureInfo *model.SignatureInfo
+		senderHex     = hex.EncodeToString(tx.GetSenderAccountAddress())
+	)
+
+	innerTX := GenerateBasicTransaction(
+		senderHex,
+		senderSeed,
+		version,
+		timestamp,
+		fee,
+		recipientAccountAddressHex,
+		message,
+	)
+	innerTX = GenerateTxSendMoney(innerTX, 1)
+	senderAccountType := getAccountTypeFromAccountHex(senderHex).GetTypeInt()
+	unsignedTXBytes := GenerateSignedTxBytes(innerTX, senderSeed, senderAccountType, false)
+	unsignedTXBytesHash := sha3.Sum256(unsignedTXBytes)
+	signatureInfo = &model.SignatureInfo{
+		TransactionHash: unsignedTXBytesHash[:],
+	}
+
+	var signatures = make(map[string][]byte)
+	for k, participantAddress := range multiSignatureInfo.GetAddresses() {
+		var (
+			accType accounttype.AccountTypeInterface
+			e       error
+		)
+		accType, e = accounttype.NewAccountTypeFromAccount(participantAddress)
+		if e != nil {
+			log.Fatal(e)
+		}
+		sig, errSig := signature.Sign(
+			unsignedTXBytesHash[:],
+			model.AccountType(accType.GetTypeInt()),
+			participantSeeds[k],
+			true,
+		)
+		if errSig != nil {
+			return nil
+		}
+		signatures[hex.EncodeToString(participantAddress)] = sig
+	}
+	signatureInfo.Signatures = signatures
+
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo:       multiSignatureInfo,
+		UnsignedTransactionBytes: unsignedTXBytes,
+		SignatureInfo:            signatureInfo,
+	}
+
+	txBodyBytes, _ := (&transaction.MultiSignatureTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
 	return tx
 }

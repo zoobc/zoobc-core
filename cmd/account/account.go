@@ -3,6 +3,8 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/accounttype"
@@ -12,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"log"
 )
 
 type (
@@ -124,7 +125,7 @@ func Commands() *cobra.Command {
 
 }
 
-// GenerateMultiSignatureAccount to generate address for multi signature transaction
+// ConvertEncodedAccountAddressToHex to generate address for multi signature transaction
 func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
 		var (
@@ -329,6 +330,7 @@ DELETE FROM account_address;
 func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
 	var (
 		multisigFullAccountAddresses [][]byte
+		accType                      accounttype.AccountTypeInterface
 	)
 	for _, accAddrHex := range multisigAddressesHex {
 		decodedAddr, err := hex.DecodeString(accAddrHex)
@@ -345,10 +347,26 @@ func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
 		}
 		address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
 		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println(address)
+			log.Fatal(err)
 		}
+
+		accType, err = accounttype.NewAccountTypeFromAccount(address)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pubKeyString, e := accType.GetAccountPublicKeyString()
+		if e != nil {
+			log.Fatal(e)
+		}
+		PrintAccount(
+			accType,
+			"",
+			"",
+			pubKeyString,
+			[]byte{},
+			[]byte{},
+			address,
+		)
 	}
 }
 

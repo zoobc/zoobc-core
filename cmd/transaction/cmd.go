@@ -2,8 +2,9 @@ package transaction
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -11,11 +12,13 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -195,6 +198,7 @@ func init() {
 	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
 	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
 		"--address1='signature1' --address2='signature2'")
+	multiSigCmd.Flags().StringSliceVar(&participantSeeds, "participant-seeds", []string{}, "list of participants")
 
 	/*
 		Fee Vote Commitment Command
@@ -476,6 +480,10 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 // MultiSignatureProcess for generate TX MultiSignature type
 func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
+		if len(participantSeeds) <= 0 {
+			log.Fatal("require --participant-seeds")
+		}
+
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
 			senderSeed,
@@ -486,11 +494,47 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			message,
 		)
 
-		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
+		var participantAddresses = make([][]byte, 0)
+		for _, participantSeed := range participantSeeds {
+			var (
+				b       []byte
+				e       error
+				accType accounttype.AccountTypeInterface
+			)
+
+			b, e = signaturetype.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(participantSeed)
+			if e != nil {
+				log.Fatal(e)
+			}
+			b, e = signaturetype.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			if e != nil {
+				log.Fatal(e)
+			}
+			accType, e = accounttype.NewAccountType((&accounttype.ZbcAccountType{}).GetTypeInt(), b)
+			if e != nil {
+				log.Fatal(e)
+			}
+			account, errAccount := accType.GetAccountAddress()
+			if errAccount != nil {
+				log.Fatal(errAccount)
+			}
+			participantAddresses = append(participantAddresses, account)
+		}
+
+		tx = GenerateTXMultiSignature(
+			tx,
+			&model.MultiSignatureInfo{
+				MinimumSignatures: minSignature,
+				Nonce:             nonce,
+				Addresses:         participantAddresses,
+			},
+			false,
+		)
+		// tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountTypeFromAccountHex(hex.EncodeToString(tx.GetSenderAccountAddress())).GetTypeInt()
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}

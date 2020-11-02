@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -49,7 +50,7 @@ func (acc *ZbcAccountType) GetAccountPublicKey() []byte {
 }
 
 func (acc *ZbcAccountType) GetAccountPrefix() string {
-	return constant.PrefixZoobcDefaultAccount
+	return model.PrefixConstant_ZBC.String()
 }
 
 func (acc *ZbcAccountType) GetName() string {
@@ -112,7 +113,7 @@ func (acc *ZbcAccountType) GenerateAccountFromSeed(seed string, optionalParams .
 	if err != nil {
 		return err
 	}
-	acc.encodedAddress, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, acc.publicKey)
+	acc.encodedAddress, err = ed25519Signature.GetAddressFromPublicKey(model.PrefixConstant_ZBC.String(), acc.publicKey)
 	if err != nil {
 		return err
 	}
