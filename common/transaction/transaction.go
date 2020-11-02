@@ -209,6 +209,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
 				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 			}, nil
 		default:
 			return nil, nil
