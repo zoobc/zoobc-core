@@ -414,6 +414,7 @@ func initiateMainInstance() {
 		queryExecutor,
 		query.NewNodeRegistrationQuery(),
 		query.NewSkippedBlocksmithQuery(),
+		activeNodeRegistryCacheStorage,
 		loggerCoreService,
 	)
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -841,6 +842,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache

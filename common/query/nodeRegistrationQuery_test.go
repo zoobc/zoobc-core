@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -166,8 +167,9 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 
 		q := mockNodeRegistrationQuery.UpdateNodeRegistration(mockNodeRegistry)
 		wantQ0 := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
-		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height," +
-			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?)"
+		wantQ1 := fmt.Sprintf("INSERT INTO node_registry (id,node_public_key,account_address,registration_height,"+
+			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?) "+
+			"ON CONFLICT(id, height) DO UPDATE SET registration_status = %d, latest = 1", mockNodeRegistry.RegistrationStatus)
 		wantArg := []interface{}{
 			mockNodeRegistry.NodeID,
 			mockNodeRegistry.NodePublicKey,
