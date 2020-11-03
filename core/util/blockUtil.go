@@ -87,7 +87,7 @@ func IsBlockIDExist(blockIds []int64, expectedBlockID int64) bool {
 // CalculateNodeOrder calculate the Node order parameter, used to sort/select the group of blocksmith rewarded for a given block
 func CalculateNodeOrder(score *big.Int, blockSeed, nodeID int64) *big.Int {
 	prn := crypto.PseudoRandomGenerator(uint64(nodeID), uint64(blockSeed), crypto.PseudoRandomSha3256)
-	return new(big.Int).Div(new(big.Int).SetUint64(prn), new(big.Int).SetUint64(1))
+	return new(big.Int).SetUint64(prn)
 }
 
 func IsGenesis(previousBlockID int64, block *model.Block) bool {
