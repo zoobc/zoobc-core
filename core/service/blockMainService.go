@@ -890,7 +890,8 @@ func (bs *BlockService) expelNodes(block *model.Block) error {
 
 func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *model.Block) error {
 	var (
-		err error
+		err                error
+		skippedBlocksmiths = make([]*model.SkippedBlocksmith, 0)
 	)
 
 	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
@@ -906,23 +907,27 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			BlockHeight:         block.Height,
 			BlocksmithIndex:     int32(i),
 		}
-		// store to skipped_blocksmith table
-		qStr, args := bs.SkippedBlocksmithQuery.InsertSkippedBlocksmith(
-			skippedBlocksmith,
-		)
-		err = bs.QueryExecutor.ExecuteTransaction(qStr, args...)
-		if err != nil {
-			return err
-		}
 		// punish score
 		_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[i].NodeID,
 			constant.ParticipationScorePunishAmount, block.Height, true)
 		if err != nil {
 			return err
 		}
+		skippedBlocksmiths = append(skippedBlocksmiths, skippedBlocksmith)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		skippedBlocksmithSnapshotImportQuery := bs.SkippedBlocksmithQuery.(query.SnapshotQuery)
+		// use import snapshot to account for huge skipped blocksmith when blockchain resume from a long pause (several months)
+		q, err := skippedBlocksmithSnapshotImportQuery.ImportSnapshot(skippedBlocksmiths)
+		if err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.ExecuteTransactions(q)
+		if err != nil {
+			return err
+		}
 	}
 	_, err = bs.NodeRegistrationService.AddParticipationScore(blocksBlocksmiths[blocksBlocksmithsLength-1].NodeID, popScore, block.Height, true)
-
 	return err
 }
 
