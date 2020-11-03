@@ -12,7 +12,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 	"math"
 	"math/big"
-	"math/rand"
 	"time"
 )
 
@@ -173,7 +172,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 		validRandomNumbers []int64
 		idx                int
 	)
-	// check for n-previous round also if round > 1
+	// check for n-previous round also if round > 1, this will check if block come from valid blocksmith
 	gap := bss.Chaintype.GetBlocksmithNetworkTolerance() + bss.Chaintype.GetBlocksmithBlockCreationTime()
 	validNumberOfRounds := 1 + gap/bss.Chaintype.GetBlocksmithTimeGap()
 	for i := 0; i < round; i++ {
@@ -185,16 +184,45 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	for i := 0; i < len(validRandomNumbers); i++ {
 		idx = bss.convertRandomNumberToIndex(validRandomNumbers[i], int64(len(activeNodeRegistry)))
 		if bytes.Equal(activeNodeRegistry[idx].Node.NodePublicKey, block.BlocksmithPublicKey) {
-			return nil
+			startTime, endTime := bss.getValidBlockCreationTime(prevBlock, round-(len(validRandomNumbers)-i))
+			// validate block's timestamp within persistable timestamp
+			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
+				return nil
+			}
 		}
 	}
 	return errors.New("IsBlockValid:Failed-InvalidSmithingTime")
 }
 
+// getValidBlockPersistTime calculate the valid starting time (inclusive) and ending time (exclusive) for a block to be persisted
+// exception for first blocksmith (1 round) don't need to wait until previous smithing (which do not exist) to be expired
+// first
+func (bss *BlocksmithStrategyMain) getValidBlockPersistTime(previousBlock *model.Block, round int) (start, end int64) {
+	offset := bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	if round <= 1 {
+		startTime := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod()
+		return startTime, startTime + offset
+	}
+	firstRoundExpiry := bss.Chaintype.GetSmithingPeriod() + offset
+	gaps := int64(round-1) * bss.Chaintype.GetBlocksmithTimeGap()
+	startTime := previousBlock.GetTimestamp() + firstRoundExpiry + gaps
+	return startTime, startTime + bss.Chaintype.GetBlocksmithTimeGap()
+}
+
+// getValidBlockCreationTime return the valid time to create block given previousBlock and round
+func (bss *BlocksmithStrategyMain) getValidBlockCreationTime(previousBlock *model.Block, round int) (start, end int64) {
+	offset := bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	if round <= 1 {
+		startTime := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod()
+		return startTime, startTime + offset
+	}
+	gaps := int64(round-1) * bss.Chaintype.GetBlocksmithTimeGap()
+	startTime := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() + gaps
+	return startTime, startTime + offset
+}
+
 func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.Block, timestamp int64) error {
 	var (
-		firstBlocksmithExpiration = bss.Chaintype.GetSmithingPeriod() +
-			bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
 		activeNodeRegistry []storage.NodeRegistry
 		err                error
 	)
@@ -208,21 +236,16 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 	if err != nil {
 		return err
 	}
-	if blocksmithIndex <= 1 {
-		if timestamp > previousBlock.Timestamp+firstBlocksmithExpiration {
-			return blocker.NewBlocker(blocker.ValidationErr, "%s-BlockExpired")
-		}
-		return nil
-	}
-	previousExpiryTimestamp := previousBlock.GetTimestamp() + firstBlocksmithExpiration +
-		int64(blocksmithIndex-1)*bss.Chaintype.GetBlocksmithTimeGap()
-	currentExpiryTimestamp := previousExpiryTimestamp + bss.Chaintype.GetBlocksmithTimeGap()
-	if timestamp > previousExpiryTimestamp && timestamp < currentExpiryTimestamp {
+	startTime, endTime := bss.getValidBlockPersistTime(previousBlock, blocksmithIndex+1)
+	if timestamp >= startTime && timestamp < endTime {
 		return nil
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
 }
 
+// GetBlocksBlocksmiths fetch the blocksmiths candidate list up to block.BlocksmithPublicKey, if the block.BlocksmithPublicKey
+// is first blocksmith then it returns only a single model.Blocksmith, otherwise it returns n-1 number of skipped blocksmith
+// including (possibly) the block.BlocksmithPublicKey with the valid blocksmith at n-th index.
 func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *model.Block) ([]*model.Blocksmith, error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
@@ -236,15 +259,25 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 	}
 	// get round
 	round := bss.GetSmithingRound(previousBlock, block)
-	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
-	rand.Seed(blockSeedBigInt.Int64())
+	rng := crypto.NewRandomNumberGenerator()
+	err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, previousBlock.GetBlockSeed())
+	if err != nil {
+		return nil, err
+	}
 	for i := 0; i < round; i++ {
-		skippedNodeIdx := rand.Intn(len(activeNodeRegistry))
+		randomNumber := rng.Next()
+		skippedNodeIdx := bss.convertRandomNumberToIndex(randomNumber, int64(len(activeNodeRegistry)))
 		result = append(result, &model.Blocksmith{
 			NodeID:        activeNodeRegistry[skippedNodeIdx].Node.GetNodeID(),
 			NodePublicKey: activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(),
 			Score:         big.NewInt(activeNodeRegistry[skippedNodeIdx].ParticipationScore),
 		})
+		if bytes.Equal(activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey()) {
+			startTime, endTime := bss.getValidBlockPersistTime(previousBlock, i+1)
+			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
+				break
+			}
+		}
 	}
 	return result, nil
 }
