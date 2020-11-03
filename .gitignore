@@ -36,3 +36,4 @@ _*
 
 *.db-shm
 *.db-wal
+.run
