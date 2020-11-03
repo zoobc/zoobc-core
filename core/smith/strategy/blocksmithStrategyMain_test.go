@@ -195,9 +195,9 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 			},
 			want: []*model.Blocksmith{
 				{
-					NodeID:        mockNodeRegistries[4].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[4].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[4].ParticipationScore),
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 			},
 			wantErr: false,
@@ -225,24 +225,24 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 			},
 			want: []*model.Blocksmith{
 				{
-					NodeID:        mockNodeRegistries[4].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[4].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[4].ParticipationScore),
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 				{
-					NodeID:        mockNodeRegistries[1].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[1].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[1].ParticipationScore),
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 				{
-					NodeID:        mockNodeRegistries[1].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[1].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[1].ParticipationScore),
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 				{
-					NodeID:        mockNodeRegistries[4].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[4].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[4].ParticipationScore),
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 				{
 					NodeID:        mockNodeRegistries[1].Node.NodeID,
