@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 
 	"github.com/zoobc/lib/address"
-	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 // NodeKey
@@ -16,7 +15,7 @@ type NodeKeyFromFile struct {
 
 // MarshalJSON for NullString
 func (m NodeKey) MarshalJSON() ([]byte, error) {
-	publicKeyStr, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, m.PublicKey)
+	publicKeyStr, err := address.EncodeZbcID(PrefixConstant_ZNK.String(), m.PublicKey)
 	if err != nil {
 		return nil, err
 	}

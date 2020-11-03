@@ -92,15 +92,15 @@ func Handler() http.Handler {
 }
 
 func GetNodeStatus() model.GetNodeStatusResponse {
-	blockMainHashString, err := address.EncodeZbcID(constant.PrefixZoobcMainBlockHash, lastMainBlock.BlockHash)
+	blockMainHashString, err := address.EncodeZbcID(model.PrefixConstant_ZBL.String(), lastMainBlock.BlockHash)
 	if err != nil {
 		blockMainHashString = "-"
 	}
-	blockSpineHashString, err := address.EncodeZbcID(constant.PrefixZoobcSpineBlockHash, lastSpineBlock.BlockHash)
+	blockSpineHashString, err := address.EncodeZbcID(model.PrefixConstant_ZSP.String(), lastSpineBlock.BlockHash)
 	if err != nil {
 		blockSpineHashString = "-"
 	}
-	nodePublicKeyString, err := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, nodePublicKey)
+	nodePublicKeyString, err := address.EncodeZbcID(model.PrefixConstant_ZNK.String(), nodePublicKey)
 	if err != nil {
 		nodePublicKeyString = "-"
 	}

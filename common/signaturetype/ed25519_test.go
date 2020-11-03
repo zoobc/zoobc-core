@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/model"
-
-	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 var (
@@ -126,7 +124,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			got, err := es.GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, tt.args.publicKey)
+			got, err := es.GetAddressFromPublicKey(model.PrefixConstant_ZBC.String(), tt.args.publicKey)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Ed25519Signature.GetAddressFromPublicKey() error = %v, wantErr %v", err, tt.wantErr)
 				return

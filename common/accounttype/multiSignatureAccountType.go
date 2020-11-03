@@ -50,7 +50,7 @@ func (acc *MultiSignatureAccountType) GetAccountPublicKey() []byte {
 }
 
 func (acc *MultiSignatureAccountType) GetAccountPrefix() string {
-	return constant.PrefixZoobcMultiSignatureAccount
+	return model.PrefixConstant_ZMS.String()
 }
 
 func (acc *MultiSignatureAccountType) GetName() string {
@@ -78,7 +78,7 @@ func (acc *MultiSignatureAccountType) GetAccountPublicKeyString() (string, error
 	if len(acc.publicKey) == 0 {
 		return "", blocker.NewBlocker(blocker.AppErr, "EmptyAccountPublicKey")
 	}
-	acc.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcMultiSignatureAccount, acc.publicKey)
+	acc.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(model.PrefixConstant_ZMS.String(), acc.publicKey)
 	return acc.publicKeyString, err
 }
 

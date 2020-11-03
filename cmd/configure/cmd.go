@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 	"path"
@@ -15,12 +13,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
+
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/cmd/helper"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -213,7 +213,7 @@ func readCertFile(config *model.Config, fileName string) error {
 
 		// verifying NodeSeed
 		publicKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
-		compareNodeAddress, compareErr := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, publicKey)
+		compareNodeAddress, compareErr := address.EncodeZbcID(model.PrefixConstant_ZNK.String(), publicKey)
 		if compareErr != nil {
 			return compareErr
 		}

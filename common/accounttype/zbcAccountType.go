@@ -109,7 +109,7 @@ func (acc *ZbcAccountType) GenerateAccountFromSeed(seed string, optionalParams .
 			return err
 		}
 	}
-	acc.publicKeyString, err = ed25519Signature.GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, acc.publicKey)
+	acc.publicKeyString, err = ed25519Signature.GetAddressFromPublicKey(model.PrefixConstant_ZNK.String(), acc.publicKey)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (acc *ZbcAccountType) GetAccountPublicKeyString() (string, error) {
 	if len(acc.publicKey) == 0 {
 		return "", blocker.NewBlocker(blocker.AppErr, "EmptyAccountPublicKey")
 	}
-	acc.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, acc.publicKey)
+	acc.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(model.PrefixConstant_ZNK.String(), acc.publicKey)
 	return acc.publicKeyString, err
 }
 

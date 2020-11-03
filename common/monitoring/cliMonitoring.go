@@ -80,7 +80,7 @@ func (cm *CLIMonitoring) Start() {
 		mainChain                       = &chaintype.MainChain{}
 		spainChain                      = &chaintype.SpineChain{}
 		nodePublicKey, errNodePublicKey = address.EncodeZbcID(
-			constant.PrefixZoobcNodeAccount,
+			model.PrefixConstant_ZNK.String(),
 			cm.ConfigInfo.NodeKey.PublicKey,
 		)
 	)
