@@ -272,11 +272,15 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 			NodePublicKey: activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(),
 			Score:         big.NewInt(activeNodeRegistry[skippedNodeIdx].ParticipationScore),
 		})
-		if bytes.Equal(activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey()) {
+		isValidBlocksmith := bytes.Equal(activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey())
+		if isValidBlocksmith {
 			startTime, endTime := bss.getValidBlockPersistTime(previousBlock, i+1)
 			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
 				break
 			}
+		}
+		if i == round-1 && !isValidBlocksmith {
+			return nil, blocker.NewBlocker(blocker.ValidationErr, "GetBlocksBlocksmith:BlocksmithNotInCandidates")
 		}
 	}
 	return result, nil

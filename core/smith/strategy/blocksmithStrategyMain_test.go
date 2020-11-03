@@ -190,7 +190,8 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 					Timestamp: 0,
 				},
 				block: &model.Block{
-					Timestamp: mainchain.GetSmithingPeriod(),
+					Timestamp:           mainchain.GetSmithingPeriod(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(),
 				},
 			},
 			want: []*model.Blocksmith{
@@ -203,7 +204,7 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Success:FiveSmithingCandidate",
+			name: "Fail:FiveSmithingCandidate-BlocksmithNotInListCandidate",
 			fields: fields{
 				Chaintype:                      mainchain,
 				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
@@ -220,7 +221,33 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 					Timestamp: 0,
 				},
 				block: &model.Block{
-					Timestamp: mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+					Timestamp:           mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+					BlocksmithPublicKey: mockNodeRegistries[4].Node.GetNodePublicKey(),
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "Success:FiveSmithingCandidate - FirstOne",
+			fields: fields{
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
+			},
+			args: args{
+				previousBlock: &model.Block{
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+					Timestamp: 0,
+				},
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(),
 				},
 			},
 			want: []*model.Blocksmith{
@@ -228,26 +255,6 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
 					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
-				},
-				{
-					NodeID:        mockNodeRegistries[3].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
-				},
-				{
-					NodeID:        mockNodeRegistries[3].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
-				},
-				{
-					NodeID:        mockNodeRegistries[3].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
-				},
-				{
-					NodeID:        mockNodeRegistries[1].Node.NodeID,
-					NodePublicKey: mockNodeRegistries[1].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[1].ParticipationScore),
 				},
 			},
 			wantErr: false,
