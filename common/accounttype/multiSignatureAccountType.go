@@ -14,7 +14,7 @@ import (
 
 type MultiSignatureAccountType struct {
 	privateKey, publicKey, fullAddress []byte
-	publicKeyString, encodedAddress    string
+	publicKeyString                    string
 }
 
 func (acc *MultiSignatureAccountType) SetAccountPublicKey(accountPublicKey []byte) {
