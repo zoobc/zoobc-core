@@ -2,9 +2,10 @@ package accounttype
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestGetAccountTypes(t *testing.T) {
@@ -184,6 +185,9 @@ func TestParseEncodedAccountToAccountAddress(t *testing.T) {
 		encAddress1  = "ZBC_SUAW4BPA_S2CFKO6N_FWUGXD6R_262523IX_E5P7RE3S_LNZUWMY7_SRWCMI2J"
 		fullAddress1 = []byte{0, 0, 0, 0, 149, 1, 110, 5, 224, 150, 132, 85, 59, 205, 45, 168, 107, 143, 209, 215, 181, 221, 109, 23, 39,
 			95, 248, 147, 114, 91, 115, 75, 51, 31, 148, 108}
+		musigAddress      = "ZMS_ZGL7TDDQ_HFE5OPPK_DBK3Y2GX_27OIFWUW_ZJ236YW3_JMUZQPWQ_I52QKANZ"
+		musigAddressBytes = []byte{3, 0, 0, 0, 201, 151, 249, 140, 112, 57, 73, 215, 61, 234, 24, 85, 188, 104, 215, 215, 220, 130,
+			218, 150, 202, 117, 191, 98, 219, 75, 41, 152, 62, 208, 71, 117}
 	)
 	type args struct {
 		accTypeInt            int32
@@ -202,6 +206,14 @@ func TestParseEncodedAccountToAccountAddress(t *testing.T) {
 				accTypeInt:            int32(model.AccountType_ZbcAccountType),
 			},
 			want: fullAddress1,
+		},
+		{
+			name: "MusigAddress:success",
+			args: args{
+				encodedAccountAddress: musigAddress,
+				accTypeInt:            int32(model.AccountType_MultiSignatureAccountType),
+			},
+			want: musigAddressBytes,
 		},
 		{
 			name: "TestParseEncodedAccountToAccountAddress:fail-{BtcNotImplemented}",

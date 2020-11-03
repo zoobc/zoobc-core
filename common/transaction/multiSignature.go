@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"google.golang.org/grpc/codes"
@@ -299,6 +300,7 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 		return blocker.NewBlocker(blocker.AppErr, "EmptyResultSet")
 	}
 	// make sure we have all data from db when returning
+	multisigInfo.MultisigAddress = multisigInfos[0].GetMultisigAddress()
 	multisigInfo.Latest = multisigInfos[0].Latest
 	multisigInfo.BlockHeight = multisigInfos[0].BlockHeight
 	multisigInfo.MinimumSignatures = multisigInfos[0].MinimumSignatures
