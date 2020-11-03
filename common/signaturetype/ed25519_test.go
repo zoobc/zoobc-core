@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/model"
+
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
@@ -84,7 +86,7 @@ func TestEd25519Signature_GetAddressFromSeed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			if got := es.GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, tt.args.seed); got != tt.want {
+			if got := es.GetAddressFromSeed(model.PrefixConstant_ZBC.String(), tt.args.seed); got != tt.want {
 				t.Errorf("Ed25519Signature.GetAddressFromSeed() = %v, want %v", got, tt.want)
 			}
 		})

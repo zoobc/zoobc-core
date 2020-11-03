@@ -2,10 +2,11 @@ package accounttype
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestZbcAccountType_GenerateAccountFromSeed(t *testing.T) {
@@ -141,7 +142,7 @@ func TestZbcAccountType_GetAccountPrefix(t *testing.T) {
 	}{
 		{
 			name: "GetAccountPrefix:success",
-			want: constant.PrefixZoobcDefaultAccount,
+			want: model.PrefixConstant_ZBC.String(),
 		},
 	}
 	for _, tt := range tests {

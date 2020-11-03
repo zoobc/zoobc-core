@@ -66,7 +66,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddressWithParticipan
 	queryMultisigInfo := fmt.Sprintf(
 		"SELECT %s, t2.account_address FROM %s t1 "+
 			"LEFT JOIN %s t2 ON t1.multisig_address = t2.multisig_address "+
-			"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true "+
+			"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true "+
 			"ORDER BY t2.account_address_index DESC",
 		strings.Join(t1Fields, ", "),
 		msi.getTableName(),

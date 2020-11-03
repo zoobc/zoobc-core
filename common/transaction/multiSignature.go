@@ -301,10 +301,10 @@ func (msi *MultisignatureInfoHelper) GetMultisigInfoByAddress(
 	}
 	// make sure we have all data from db when returning
 	multisigInfo.MultisigAddress = multisigInfos[0].GetMultisigAddress()
-	multisigInfo.Latest = multisigInfos[0].Latest
-	multisigInfo.BlockHeight = multisigInfos[0].BlockHeight
-	multisigInfo.MinimumSignatures = multisigInfos[0].MinimumSignatures
-	multisigInfo.Nonce = multisigInfos[0].Nonce
+	multisigInfo.Latest = multisigInfos[0].GetLatest()
+	multisigInfo.BlockHeight = multisigInfos[0].GetBlockHeight()
+	multisigInfo.MinimumSignatures = multisigInfos[0].GetMinimumSignatures()
+	multisigInfo.Nonce = multisigInfos[0].GetNonce()
 	for _, msInfo := range multisigInfos {
 		if len(msInfo.Addresses[0]) > 0 {
 			multisigAccounts = append(multisigAccounts, msInfo.Addresses[0])
