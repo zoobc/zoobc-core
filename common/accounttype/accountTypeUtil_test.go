@@ -10,9 +10,10 @@ import (
 
 func TestGetAccountTypes(t *testing.T) {
 	var (
-		zbcAccount   = &ZbcAccountType{}
-		dummyAccount = &BTCAccountType{}
-		emptyAccount = &EmptyAccountType{}
+		zbcAccount            = &ZbcAccountType{}
+		dummyAccount          = &BTCAccountType{}
+		emptyAccount          = &EmptyAccountType{}
+		multiSignatureAccount = &MultiSignatureAccountType{}
 	)
 	tests := []struct {
 		name string
@@ -21,9 +22,10 @@ func TestGetAccountTypes(t *testing.T) {
 		{
 			name: "TestGetAccountTypes:success",
 			want: map[uint32]AccountTypeInterface{
-				uint32(zbcAccount.GetTypeInt()):   zbcAccount,
-				uint32(dummyAccount.GetTypeInt()): dummyAccount,
-				uint32(emptyAccount.GetTypeInt()): dummyAccount,
+				uint32(zbcAccount.GetTypeInt()):            zbcAccount,
+				uint32(dummyAccount.GetTypeInt()):          dummyAccount,
+				uint32(emptyAccount.GetTypeInt()):          dummyAccount,
+				uint32(multiSignatureAccount.GetTypeInt()): multiSignatureAccount,
 			},
 		},
 	}
