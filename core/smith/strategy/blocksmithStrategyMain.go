@@ -193,6 +193,8 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 
 func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.Block, timestamp int64) error {
 	var (
+		firstBlocksmithExpiration = bss.Chaintype.GetSmithingPeriod() +
+			bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
 		activeNodeRegistry []storage.NodeRegistry
 		err                error
 	)
@@ -202,12 +204,17 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 		return err
 	}
 
-	blocksmithIndex, _ := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
+	blocksmithIndex, err := bss.GetSmithingIndex(previousBlock, block, activeNodeRegistry)
+	if err != nil {
+		return err
+	}
 	if blocksmithIndex <= 1 {
+		if timestamp > previousBlock.Timestamp+firstBlocksmithExpiration {
+			return blocker.NewBlocker(blocker.ValidationErr, "%s-BlockExpired")
+		}
 		return nil
 	}
-	previousExpiryTimestamp := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() +
-		bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance() +
+	previousExpiryTimestamp := previousBlock.GetTimestamp() + firstBlocksmithExpiration +
 		int64(blocksmithIndex-1)*bss.Chaintype.GetBlocksmithTimeGap()
 	currentExpiryTimestamp := previousExpiryTimestamp + bss.Chaintype.GetBlocksmithTimeGap()
 	if timestamp > previousExpiryTimestamp && timestamp < currentExpiryTimestamp {
@@ -236,6 +243,7 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 		result = append(result, &model.Blocksmith{
 			NodeID:        activeNodeRegistry[skippedNodeIdx].Node.GetNodeID(),
 			NodePublicKey: activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(),
+			Score:         big.NewInt(activeNodeRegistry[skippedNodeIdx].ParticipationScore),
 		})
 	}
 	return result, nil
@@ -248,25 +256,35 @@ func (bss *BlocksmithStrategyMain) GetSmithingIndex(
 		round = 1 // round start from 1
 		err   error
 	)
-	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
-	if timeGap < bss.Chaintype.GetSmithingPeriod()+bss.Chaintype.GetBlocksmithTimeGap() {
-		return 0, nil // first blocksmith
-	}
-
-	afterFirstBlocksmith := math.Floor(float64(timeGap-bss.Chaintype.GetSmithingPeriod()) / float64(bss.Chaintype.GetBlocksmithTimeGap()))
-	round += int(afterFirstBlocksmith)
 	rng := crypto.NewRandomNumberGenerator()
 	err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, previousBlock.BlockSeed)
 	if err != nil {
 		return 0, err
 	}
 
+	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
+	if timeGap < bss.Chaintype.GetSmithingPeriod()+bss.Chaintype.GetBlocksmithTimeGap() {
+		// first blocksmith, validate if blocksmith public key is valid
+		randomNumber := rng.Next()
+		idx := bss.convertRandomNumberToIndex(randomNumber, int64(len(activeRegistries)))
+		if !bytes.Equal(activeRegistries[idx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey()) {
+			return 0, blocker.NewBlocker(blocker.ValidationErr, "GetSmithingIndex:InvalidBlocksmithTime")
+		}
+		return 0, nil // first blocksmith
+	}
+
+	afterFirstBlocksmith := math.Floor(float64(timeGap-bss.Chaintype.GetSmithingPeriod()) / float64(bss.Chaintype.GetBlocksmithTimeGap()))
+	round += int(afterFirstBlocksmith)
+	lastIndex := -1
 	for i := 0; i < round; i++ {
 		randomNumber := rng.Next()
 		idx := bss.convertRandomNumberToIndex(randomNumber, int64(len(activeRegistries)))
 		if bytes.Equal(activeRegistries[idx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey()) {
-			return i, nil
+			lastIndex = i
 		}
+	}
+	if lastIndex > -1 {
+		return lastIndex, nil
 	}
 	return 0, blocker.NewBlocker(blocker.ValidationErr, "GetSmithingIndex:BlocksmithNotFound")
 }
