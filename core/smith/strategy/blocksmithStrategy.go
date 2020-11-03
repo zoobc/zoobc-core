@@ -5,6 +5,7 @@ import (
 )
 
 type (
+	// BlocksmithStrategyInterface interface for finding the valid blocksmith (block creator)
 	BlocksmithStrategyInterface interface {
 		// WillSmith is used by node to check if it is its own time to create block yet
 		WillSmith(prevBlock *model.Block) (int64, error)

@@ -3,11 +3,6 @@ package strategy
 import (
 	"bytes"
 	"errors"
-	"math"
-	"math/big"
-	"math/rand"
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -15,6 +10,10 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/storage"
+	"math"
+	"math/big"
+	"math/rand"
+	"time"
 )
 
 type (
