@@ -415,9 +415,6 @@ func initiateMainInstance() {
 	)
 
 	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
@@ -425,9 +422,6 @@ func initiateMainInstance() {
 		mainchain,
 	)
 	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,

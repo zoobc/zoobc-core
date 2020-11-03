@@ -976,19 +976,16 @@ var (
 		{
 			NodePublicKey: bcsNodePubKey1,
 			NodeID:        2,
-			NodeOrder:     new(big.Int).SetInt64(1000),
 			Score:         new(big.Int).SetInt64(1000),
 		},
 		{
 			NodePublicKey: bcsNodePubKey2,
 			NodeID:        3,
-			NodeOrder:     new(big.Int).SetInt64(2000),
 			Score:         new(big.Int).SetInt64(2000),
 		},
 		{
 			NodePublicKey: mockBlockData.BlocksmithPublicKey,
 			NodeID:        4,
-			NodeOrder:     new(big.Int).SetInt64(3000),
 			Score:         new(big.Int).SetInt64(3000),
 		},
 	}
@@ -2731,33 +2728,6 @@ var (
 
 	mockBlockIDProcessQueueReceiveBlockAlreadyQueued int64 = 1
 )
-
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	return []*model.Blocksmith{
-		{
-			NodeID:        1,
-			NodeOrder:     new(big.Int).SetInt64(8000),
-			NodePublicKey: []byte{1, 3, 4, 5, 6},
-		},
-		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
-		},
-		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(5000),
-		},
-	}
-}
-
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	var a, b, c = int64(0), int64(1), int64(2)
-	return map[string]*int64{
-		string(mockBlocksmiths[0].NodePublicKey): &a,
-		string(mockBlocksmiths[1].NodePublicKey): &b,
-		string(mockBlocksmiths[2].NodePublicKey): &c,
-	}
-}
 
 func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
 	currentBlock *model.Block) error {

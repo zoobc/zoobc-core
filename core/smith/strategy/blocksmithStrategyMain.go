@@ -14,11 +14,11 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
+	// Candidate represent single blocksmith that may create the next block
 	Candidate struct {
 		Blocksmith *model.Blocksmith
 		StartTime  int64
@@ -27,12 +27,9 @@ type (
 	}
 
 	BlocksmithStrategyMain struct {
-		QueryExecutor                  query.ExecutorInterface
-		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
-		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
-		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
-		Logger                         *log.Logger
 		Chaintype                      chaintype.ChainType
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
 		me                             Candidate
@@ -42,9 +39,6 @@ type (
 )
 
 func NewBlocksmithStrategyMain(
-	queryExecutor query.ExecutorInterface,
-	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
-	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	logger *log.Logger,
 	currentNodePublicKey []byte,
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
@@ -52,16 +46,13 @@ func NewBlocksmithStrategyMain(
 	chaintype chaintype.ChainType,
 ) *BlocksmithStrategyMain {
 	return &BlocksmithStrategyMain{
-		QueryExecutor:                  queryExecutor,
-		NodeRegistrationQuery:          nodeRegistrationQuery,
-		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
 		Logger:                         logger,
 		Chaintype:                      chaintype,
-		candidates:                     make([]Candidate, 0),
 		CurrentNodePublicKey:           currentNodePublicKey,
 		ActiveNodeRegistryCacheStorage: activeNodeRegistryCacheStorage,
-		rng:                            rng,
 		me:                             Candidate{},
+		candidates:                     make([]Candidate, 0),
+		rng:                            rng,
 	}
 }
 
