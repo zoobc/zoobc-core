@@ -321,7 +321,7 @@ func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRe
 	}
 	if active {
 		qry = fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
-			"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 AND ps.score > 0 ORDER BY nr.locked_balance DESC",
+			"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
 			strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
 	} else {
 		qry = fmt.Sprintf("SELECT %s, 0 FROM %s nr "+

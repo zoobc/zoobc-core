@@ -521,11 +521,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 		return newScore,
 			blocker.NewBlocker(blocker.AppErr, "FailToCastActiveNodeRegistryAsTransactionalCacheInterface")
 	}
-	if newScore <= 0 {
-		err = txActiveCache.TxRemoveItem(nodeID)
-	} else {
-		err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
-	}
+	err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
 	if err != nil {
 		if castedErr := err.(blocker.Blocker); castedErr.Type != blocker.NotFound {
 			// handle removed node
