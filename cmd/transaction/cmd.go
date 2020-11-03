@@ -480,7 +480,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 // MultiSignatureProcess for generate TX MultiSignature type
 func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		if len(participantSeeds) <= 0 {
+		if len(participantSeeds) == 0 {
 			log.Fatal("require --participant-seeds")
 		}
 
@@ -530,7 +530,6 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			},
 			false,
 		)
-		// tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {

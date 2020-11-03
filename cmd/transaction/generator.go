@@ -243,7 +243,6 @@ func GenerateBasicTransaction(
 		log.Fatal("need to passing one of \"--sender-address\" or \"--sender-seed\"")
 	}
 	if senderAccountAddressHex == "" && senderSeed != "" {
-		// accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
 		accountType := &accounttype.ZbcAccountType{}
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
@@ -266,10 +265,6 @@ func GenerateBasicTransaction(
 			}
 			senderAccountAddressHex = hex.EncodeToString(senderBytes)
 
-			// senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
-			// if err != nil {
-			// 	panic(err.Error())
-			// }
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
