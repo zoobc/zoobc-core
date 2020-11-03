@@ -236,7 +236,7 @@ func TestCalculateNodeOrder(t *testing.T) {
 				blockSeed: 1000,
 				nodeID:    int64(1000),
 			},
-			want: "7357219233906154",
+			want: "7357219233906154824",
 		},
 		{
 			name: "CalculateNodeOrder:success2",
@@ -245,7 +245,7 @@ func TestCalculateNodeOrder(t *testing.T) {
 				blockSeed: 3000,
 				nodeID:    int64(10),
 			},
-			want: "2461325401382821",
+			want: "4922650802765643438",
 		},
 	}
 	for _, tt := range tests {
