@@ -1,14 +1,15 @@
 package strategy
 
 import (
+	"math/big"
+	"reflect"
+	"testing"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
-	"math/big"
-	"reflect"
-	"testing"
 
 	log "github.com/sirupsen/logrus"
 )
