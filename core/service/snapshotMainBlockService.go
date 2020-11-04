@@ -286,15 +286,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		}
 	}
 	// update or clear all cache storage
-	err = ss.BlockMainService.UpdateLastBlockCache(nil)
-	if err != nil {
-		return err
-	}
-	highestBlock, err := ss.BlockMainService.GetLastBlock()
-	if err != nil {
-		return err
-	}
-	err = ss.ScrambleNodeService.InitializeScrambleCache(highestBlock.GetHeight())
+	err = ss.ScrambleNodeService.InitializeScrambleCache(currentBlock.GetHeight())
 	if err != nil {
 		return err
 	}
@@ -303,10 +295,6 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 		return err
 	}
 	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
-	if err != nil {
-		return err
-	}
-	err = ss.BlockMainService.InitializeBlocksCache()
 	if err != nil {
 		return err
 	}
