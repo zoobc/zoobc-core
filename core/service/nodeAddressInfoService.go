@@ -111,9 +111,10 @@ func (nru *NodeAddressInfoService) GenerateNodeAddressInfo(
 	port uint32,
 	nodeSecretPhrase string) (*model.NodeAddressInfo, error) {
 	var (
-		safeBlockHeight      uint32
-		safeBlock, lastBlock model.Block
-		err                  = nru.MainBlockStateStorage.GetItem(nil, &lastBlock)
+		safeBlockHeight uint32
+		safeBlock       *storage.BlockCacheObject
+		lastBlock       model.Block
+		err             = nru.MainBlockStateStorage.GetItem(nil, &lastBlock)
 	)
 	if err != nil {
 		return nil, err
@@ -125,21 +126,21 @@ func (nru *NodeAddressInfoService) GenerateNodeAddressInfo(
 	} else {
 		safeBlockHeight = lastBlock.GetHeight() - constant.MinRollbackBlocks
 	}
-	rows, err := nru.QueryExecutor.ExecuteSelectRow(nru.BlockQuery.GetBlockByHeight(safeBlockHeight), false)
+	safeBlock, err = util.GetBlockByHeightUseBlocksCache(
+		safeBlockHeight,
+		nru.QueryExecutor,
+		nru.BlockQuery,
+		nru.MainBlocksStorage,
+	)
 	if err != nil {
 		return nil, err
 	}
-	err = nru.BlockQuery.Scan(&safeBlock, rows)
-	if err != nil {
-		return nil, err
-	}
-
 	nodeAddressInfo := &model.NodeAddressInfo{
 		NodeID:      nodeID,
 		Address:     nodeAddress,
 		Port:        port,
-		BlockHeight: safeBlock.GetHeight(),
-		BlockHash:   safeBlock.GetBlockHash(),
+		BlockHeight: safeBlock.Height,
+		BlockHash:   safeBlock.BlockHash,
 	}
 	nodeAddressInfoBytes := nru.GetUnsignedNodeAddressInfoBytes(nodeAddressInfo)
 	nodeAddressInfo.Signature = nru.Signature.SignByNode(nodeAddressInfoBytes, nodeSecretPhrase)
