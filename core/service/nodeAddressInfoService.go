@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"fmt"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -11,8 +13,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
-
-	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -59,8 +59,9 @@ type (
 		BlockQuery              query.BlockQueryInterface
 		Signature               crypto.SignatureInterface
 		NodeAddressInfoStorage  storage.CacheStorageInterface
-		MainBlockStateStorage   storage.CacheStorageInterface
 		ActiveNodeRegistryCache storage.CacheStorageInterface
+		MainBlockStateStorage   storage.CacheStorageInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 		Logger                  *log.Logger
 	}
 )
@@ -623,9 +624,7 @@ func (nru *NodeAddressInfoService) UpdateOrInsertAddressInfo(
 // Validation also fails if there is already a nodeAddressInfo record in db with same nodeID, address, port
 func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) (found bool, err error) {
 	var (
-		block        model.Block
-		nodeRegistry storage.NodeRegistry
-
+		nodeRegistry      storage.NodeRegistry
 		nodeAddressesInfo []*model.NodeAddressInfo
 	)
 	err = nru.ActiveNodeRegistryCache.GetItem(nodeAddressInfo.GetNodeID(), &nodeRegistry)
@@ -655,20 +654,19 @@ func (nru *NodeAddressInfoService) ValidateNodeAddressInfo(nodeAddressInfo *mode
 			return
 		}
 	}
-
-	// validate block height - note: possible performance issue when node registry grow larger,
-	// should update this when we plan to cache multiple block height in memory in the future.
-	blockRow, _ := nru.QueryExecutor.ExecuteSelectRow(
-		nru.BlockQuery.GetBlockByHeight(nodeAddressInfo.GetBlockHeight()),
-		false,
+	var block *storage.BlockCacheObject
+	block, err = util.GetBlockByHeightUseBlocksCache(
+		nodeAddressInfo.GetBlockHeight(),
+		nru.QueryExecutor,
+		nru.BlockQuery,
+		nru.MainBlocksStorage,
 	)
-	err = nru.BlockQuery.Scan(&block, blockRow)
 	if err != nil {
-		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight")
+		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHeight: "+err.Error())
 		return
 	}
 	// validate block hash
-	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.GetBlockHash()) {
+	if !bytes.Equal(nodeAddressInfo.GetBlockHash(), block.BlockHash) {
 		err = blocker.NewBlocker(blocker.ValidationErr, "InvalidBlockHash")
 		return
 	}
