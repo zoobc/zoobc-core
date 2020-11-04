@@ -2,21 +2,20 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"strings"
 	"time"
-
-	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -170,6 +169,7 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		nil,
 		nodeAddressInfoStorage,
+		nil,
 		nil,
 		nil,
 		log.New(),

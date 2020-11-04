@@ -73,6 +73,7 @@ func NewNodeAddressInfoService(
 	blockQuery query.BlockQueryInterface,
 	signature crypto.SignatureInterface,
 	nodeAddressesInfoStorage, mainBlockStateStorage, activeNodeRegistryCache storage.CacheStorageInterface,
+	mainBlocksStorage storage.CacheStackStorageInterface,
 	logger *log.Logger,
 ) *NodeAddressInfoService {
 	return &NodeAddressInfoService{
@@ -84,6 +85,7 @@ func NewNodeAddressInfoService(
 		NodeAddressInfoStorage:  nodeAddressesInfoStorage,
 		MainBlockStateStorage:   mainBlockStateStorage,
 		ActiveNodeRegistryCache: activeNodeRegistryCache,
+		MainBlocksStorage:       mainBlocksStorage,
 		Logger:                  logger,
 	}
 }
