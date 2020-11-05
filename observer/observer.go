@@ -44,7 +44,11 @@ func (o *Observer) Remove(event Event) {
 
 // Notify send data & arg to registered listener based on event
 func (o *Observer) Notify(event Event, data interface{}, args ...interface{}) {
-	for _, listener := range o.Listeners[event] {
+	listeners, ok := o.Listeners[event]
+	if !ok {
+		return
+	}
+	for _, listener := range listeners {
 		listener.OnNotify(data, args...)
 	}
 }

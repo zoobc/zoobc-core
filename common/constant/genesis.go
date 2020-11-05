@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 1070983609761144356
+	MainchainGenesisBlockID int64 = 1816473218754423087
 )
 
 type (
@@ -18,43 +18,41 @@ type (
 )
 
 var (
+	ApplicationCodeName            = "ZBC_main"
+	ApplicationVersion             = "1.0.0"
 	MainchainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	MainchainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1562117271)
-	MainchainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+	MainchainGenesisBlockTimestamp = int64(1596708000)
+	MainchainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)
-	// GenesisConfig one configuration for all block types (mainchain, spinechain), since they might share some fields
-	GenesisConfig = []GenesisConfigEntry{
+	GenesisConfig                  = []GenesisConfigEntry{
 		{
-			AccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+			AccountAddress: "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML",
 			AccountBalance: 0,
 			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
 				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			NodeAddress:        "172.104.34.10:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
-			AccountAddress: "OnEYzI-EMV6UTfoUEzpQUjkSlnqB82-SyRN7469lJTWH",
+			AccountAddress: "ZBC_EEX2EIIS_UFQI5SRU_4UGYMSXA_RDSKDNAF_P2A7M5PC_CXWCMZZX_SNPIQ2SW",
 			AccountBalance: 0,
 			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
 				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-			NodeAddress:        "45.79.39.58:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 		{
-			AccountAddress: "iSJt3H8wFOzlWKsy_UoEWF_OjF6oymHMqthyUMDKSyxb",
-			AccountBalance: 100000000000,
+			AccountAddress: "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU",
+			AccountBalance: 0,
 			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
-			NodeAddress:        "85.90.246.90:8080",
 			LockedBalance:      0,
-			ParticipationScore: DefaultParticipationScore,
+			ParticipationScore: GenesisParticipationScore,
 		},
 	}
 )

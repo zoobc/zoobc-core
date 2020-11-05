@@ -14,7 +14,7 @@ import (
 
 func main() {
 	var apiRPCPort int
-	if err := util.LoadConfig("../../../resource", "config", "toml"); err != nil {
+	if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
 		log.Fatal(err)
 	} else {
 		apiRPCPort = viper.GetInt("apiRPCPort")
@@ -32,6 +32,7 @@ func main() {
 		&rpcModel.GetNodeRegistrationsRequest{
 			MinRegistrationHeight: 0,
 			MaxRegistrationHeight: 1,
+			RegistrationStatuses:  []uint32{1, 2},
 		})
 
 	if err != nil {

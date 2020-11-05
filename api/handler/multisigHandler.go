@@ -39,6 +39,29 @@ func (msh *MultisigHandler) GetPendingTransactions(
 	return msh.MultisigService.GetPendingTransactions(req)
 }
 
+func (msh *MultisigHandler) GetPendingTransactionsByHeight(
+	ctx context.Context,
+	req *model.GetPendingTransactionsByHeightRequest,
+) (*model.GetPendingTransactionsByHeightResponse, error) {
+
+	if req.GetToHeight() < 1 {
+		return nil, status.Error(codes.InvalidArgument, "ToHeightMustBeGreaterThanZero")
+	}
+	if req.GetFromHeight() >= req.GetToHeight() {
+		return nil, status.Error(codes.InvalidArgument, "FromHeightMustBeLowerThanToHeight")
+	}
+	if req.GetToHeight()-req.GetFromHeight() > constant.MaxAPILimitPerPage {
+		return nil, status.Error(codes.InvalidArgument, "HeightRangeMustBeLessThanOrEqualTo500")
+	}
+	pendingTxs, err := msh.MultisigService.GetPendingTransactionsByHeight(req.GetFromHeight(), req.GetToHeight())
+	if err != nil {
+		return nil, err
+	}
+	return &model.GetPendingTransactionsByHeightResponse{
+		PendingTransactions: pendingTxs,
+	}, nil
+}
+
 func (msh *MultisigHandler) GetPendingTransactionDetailByTransactionHash(
 	_ context.Context,
 	req *model.GetPendingTransactionDetailByTransactionHashRequest,
@@ -73,28 +96,63 @@ func (msh *MultisigHandler) GetMultisignatureInfo(
 	return result, err
 }
 
-func (msh *MultisigHandler) GetMultisigAddressByParticipantAddresses(
+func (msh *MultisigHandler) GetMultisigAddressByParticipantAddress(
 	_ context.Context,
-	req *model.GetMultisigAddressByParticipantAddressesRequest,
-) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
+	req *model.GetMultisigAddressByParticipantAddressRequest,
+) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
 	if req.Pagination == nil {
 		req.Pagination = &model.Pagination{
 			OrderField: "block_height",
 			OrderBy:    model.OrderBy_DESC,
-			Page:       1,
-			Limit:      constant.MaxAPILimitPerPage,
 		}
-	}
-	if req.GetPagination().GetPage() < 1 {
-		return nil, status.Error(codes.InvalidArgument, "PageCannotBeLessThanOne")
 	}
 	if req.GetPagination().GetOrderField() == "" {
 		req.Pagination.OrderField = "block_height"
 		req.Pagination.OrderBy = model.OrderBy_DESC
 	}
-	if req.GetPagination().GetPage() > 30 {
-		return nil, status.Error(codes.InvalidArgument, "LimitCannotBeMoreThan30")
+	result, err := msh.MultisigService.GetMultisigAddressByParticipantAddress(req)
+	return result, err
+}
+
+func (msh *MultisigHandler) GetMultisigAddressesByBlockHeightRange(
+	_ context.Context,
+	req *model.GetMultisigAddressesByBlockHeightRangeRequest,
+) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
+	if req.Pagination == nil {
+		req.Pagination = &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+		}
 	}
-	result, err := msh.MultisigService.GetMultisigAddressByParticipantAddresses(req)
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
+	result, err := msh.MultisigService.GetMultisigAddressesByBlockHeightRange(req)
+	return result, err
+}
+
+func (msh *MultisigHandler) GetParticipantsByMultisigAddresses(
+	_ context.Context,
+	req *model.GetParticipantsByMultisigAddressesRequest,
+) (*model.GetParticipantsByMultisigAddressesResponse, error) {
+
+	if req.Pagination == nil {
+		req.Pagination = &model.Pagination{
+			OrderField: "block_height",
+			OrderBy:    model.OrderBy_DESC,
+		}
+	}
+
+	if req.GetPagination().GetOrderField() == "" {
+		req.Pagination.OrderField = "block_height"
+		req.Pagination.OrderBy = model.OrderBy_DESC
+	}
+
+	if len(req.MultisigAddresses) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "At least 1 address is required")
+	}
+
+	result, err := msh.MultisigService.GetParticipantsByMultisigAddresses(req)
 	return result, err
 }

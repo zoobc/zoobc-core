@@ -73,7 +73,7 @@ func TestBlockQuery_getTableName(t *testing.T) {
 func TestBlockQuery_GetBlocks(t *testing.T) {
 	t.Run("GetBlocks:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlocks(0, 10)
-		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 			"total_fee, total_coinbase, version FROM main_block WHERE height >= 0 ORDER BY height ASC LIMIT 10"
 		if q != wantQ {
@@ -85,9 +85,9 @@ func TestBlockQuery_GetBlocks(t *testing.T) {
 func TestBlockQuery_GetLastBlock(t *testing.T) {
 	t.Run("GetLastBlock:success", func(t *testing.T) {
 		q := mockBlockQuery.GetLastBlock()
-		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		wantQ := "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase, version FROM main_block ORDER BY height DESC LIMIT 1"
+			"total_fee, total_coinbase, version FROM main_block"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
@@ -97,9 +97,9 @@ func TestBlockQuery_GetLastBlock(t *testing.T) {
 func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 	t.Run("GetGenesisBlock:success", func(t *testing.T) {
 		q := mockBlockQuery.GetGenesisBlock()
-		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase, version FROM main_block WHERE height = 0 LIMIT 1"
+			"total_fee, total_coinbase, version FROM main_block WHERE height = 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
@@ -109,7 +109,7 @@ func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 func TestBlockQuery_InsertBlock(t *testing.T) {
 	t.Run("InsertBlock:success", func(t *testing.T) {
 		q, args := mockBlockQuery.InsertBlock(mockBlock)
-		wantQ := "INSERT INTO main_block (id, block_hash, previous_block_hash, height, timestamp, block_seed, " +
+		wantQ := "INSERT INTO main_block (height, id, block_hash, previous_block_hash, timestamp, block_seed, " +
 			"block_signature, cumulative_difficulty, payload_length, payload_hash, " +
 			"blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
 			"version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -127,7 +127,7 @@ func TestBlockQuery_InsertBlock(t *testing.T) {
 func TestBlockQuery_GetBlockByID(t *testing.T) {
 	t.Run("GetBlockByID:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByID(1)
-		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, " +
 			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1"
 		if q != wantQ {
@@ -139,7 +139,7 @@ func TestBlockQuery_GetBlockByID(t *testing.T) {
 func TestBlockQuery_GetBlockByHeight(t *testing.T) {
 	t.Run("GetBlockByHeight:success", func(t *testing.T) {
 		q := mockBlockQuery.GetBlockByHeight(0)
-		wantQ := "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, " +
 			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0"
 		if q != wantQ {
@@ -152,10 +152,10 @@ func TestBlockQuery_ExtractModel(t *testing.T) {
 	t.Run("BlockQuery-ExtractModel:success", func(t *testing.T) {
 		res := mockBlockQuery.ExtractModel(mockBlock)
 		want := []interface{}{
+			mockBlock.Height,
 			mockBlock.ID,
 			mockBlock.BlockHash,
 			mockBlock.PreviousBlockHash,
-			mockBlock.Height,
 			mockBlock.Timestamp,
 			mockBlock.BlockSeed,
 			mockBlock.BlockSignature,
@@ -180,10 +180,11 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 		defer db.Close()
 		mock.ExpectQuery("foo").WillReturnRows(
 			sqlmock.NewRows(mockBlockQuery.Fields).
-				AddRow(mockBlock.ID,
+				AddRow(
+					mockBlock.Height,
+					mockBlock.ID,
 					mockBlock.BlockHash,
 					mockBlock.PreviousBlockHash,
-					mockBlock.Height,
 					mockBlock.Timestamp,
 					mockBlock.BlockSeed,
 					mockBlock.BlockSignature,
@@ -271,7 +272,7 @@ func TestBlockQuery_GetBlockFromHeight(t *testing.T) {
 				limit:       1,
 				startHeight: 1,
 			},
-			want: "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+			want: "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
 				"total_coinbase, version FROM main_block WHERE height >= 1 ORDER BY height LIMIT 1",
 		},
@@ -313,7 +314,7 @@ func TestBlockQuery_GetBlockFromTimestamp(t *testing.T) {
 				limit:          1,
 				startTimestamp: 15875392,
 			},
-			want: "SELECT id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, " +
+			want: "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
 				"total_coinbase, version FROM main_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1",
 		},
@@ -355,9 +356,9 @@ func TestBlockQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "SELECT id,block_hash,previous_block_hash,height,timestamp,block_seed,block_signature," +
+			want: "SELECT height,id,block_hash,previous_block_hash,timestamp,block_seed,block_signature," +
 				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount,total_fee,total_coinbase," +
-				"version FROM main_block WHERE height >= 0 AND height <= 10",
+				"version FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -397,7 +398,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10 AND height != 0",
 		},
 		{
 			name:   "TrimDataBeforeSnapshot:success-{startFromGenesis}",
@@ -406,7 +407,7 @@ func TestBlockQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 0,
 				toHeight:   10,
 			},
-			want: "DELETE FROM main_block WHERE height >= 1 AND height <= 10",
+			want: "DELETE FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -448,7 +449,7 @@ func TestBlockQuery_InsertBlocks(t *testing.T) {
 				},
 			},
 			wantStr: "INSERT INTO main_block " +
-				"(id, block_hash, previous_block_hash, height, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+				"(height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 				"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			wantArgs: NewBlockQuery(&chaintype.MainChain{}).ExtractModel(mockBlock),

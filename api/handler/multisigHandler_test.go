@@ -277,3 +277,78 @@ func TestMultisigHandler_GetMultisignatureInfo(t *testing.T) {
 		})
 	}
 }
+
+type (
+	mockGetMultisigAddressByParticipantAddressError struct {
+		service.MultisigServiceInterface
+	}
+	mockGetMultisigAddressByParticipantAddressSuccess struct {
+		service.MultisigServiceInterface
+	}
+)
+
+func (*mockGetMultisigAddressByParticipantAddressError,
+) GetMultisigAddressByParticipantAddress(param *model.GetMultisigAddressByParticipantAddressRequest,
+) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
+	return nil, errors.New("Error GetMultisigAddressByParticipantAddress")
+}
+func (*mockGetMultisigAddressByParticipantAddressSuccess,
+) GetMultisigAddressByParticipantAddress(param *model.GetMultisigAddressByParticipantAddressRequest,
+) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
+	return &model.GetMultisigAddressByParticipantAddressResponse{}, nil
+}
+
+func TestMultisigHandler_GetMultisigAddressByParticipantAddress(t *testing.T) {
+	type fields struct {
+		MultisigService service.MultisigServiceInterface
+	}
+	type args struct {
+		in0 context.Context
+		req *model.GetMultisigAddressByParticipantAddressRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetMultisigAddressByParticipantAddressResponse
+		wantErr bool
+	}{
+		{
+			name: "GetMultisigAddressByParticipantAddress:Error",
+			fields: fields{
+				MultisigService: &mockGetMultisigAddressByParticipantAddressError{},
+			},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressRequest{},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "GetMultisigAddressByParticipantAddress:Success",
+			fields: fields{
+				MultisigService: &mockGetMultisigAddressByParticipantAddressSuccess{},
+			},
+			args: args{
+				req: &model.GetMultisigAddressByParticipantAddressRequest{},
+			},
+			want:    &model.GetMultisigAddressByParticipantAddressResponse{},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msh := &MultisigHandler{
+				MultisigService: tt.fields.MultisigService,
+			}
+			got, err := msh.GetMultisigAddressByParticipantAddress(tt.args.in0, tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("MultisigHandler.GetMultisigAddressByParticipantAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("MultisigHandler.GetMultisigAddressByParticipantAddress() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

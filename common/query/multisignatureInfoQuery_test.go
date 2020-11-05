@@ -199,7 +199,7 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 			},
 			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, " +
 				"(SELECT GROUP_CONCAT(account_address, ',') FROM " +
-				"multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height " +
+				"multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height " +
 				"ORDER BY account_address_index DESC) as addresses " +
 				"FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{"A", "A", uint32(0)},
@@ -519,8 +519,8 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				") as addresses FROM multisignature_info " +
 				"WHERE (multisig_address, block_height) IN (" +
 				"SELECT t2.multisig_address, MAX(t2.block_height) " +
-				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 GROUP BY t2.multisig_address" +
-				") ORDER BY block_height",
+				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+				"GROUP BY t2.multisig_address) ORDER BY block_height",
 		},
 	}
 	for _, tt := range tests {
@@ -561,7 +561,7 @@ func TestMultisignatureInfoQuery_TrimDataBeforeSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "DELETE FROM multisignature_info WHERE block_height >= 1 AND block_height <= 10",
+			want: "DELETE FROM multisignature_info WHERE block_height >= 1 AND block_height <= 10 AND block_height != 0",
 		},
 	}
 	for _, tt := range tests {

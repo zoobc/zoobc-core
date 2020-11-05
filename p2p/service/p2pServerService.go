@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/base64"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -19,6 +20,9 @@ import (
 type (
 	// P2PServerServiceInterface interface that contains registered methods of P2P Server Service
 	P2PServerServiceInterface interface {
+		GetNodeAddressesInfo(ctx context.Context, req *model.GetNodeAddressesInfoRequest) (*model.GetNodeAddressesInfoResponse, error)
+		SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error)
+		GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error)
 		GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error)
 		SendPeers(ctx context.Context, peers []*model.Node) (*model.Empty, error)
@@ -68,25 +72,28 @@ type (
 			blockID int64,
 			transactionsIDs []int64,
 		) (*model.Empty, error)
-		RequestDownloadFile(
-			ctx context.Context,
-			fileChunkNames []string,
-		) (*model.FileDownloadResponse, error)
+		RequestDownloadFile(ctx context.Context, snapshotHash []byte, fileChunkNames []string) (*model.FileDownloadResponse, error)
 	}
 	// P2PServerService represent of P2P server service
 	P2PServerService struct {
-		FileService      coreService.FileServiceInterface
-		PeerExplorer     strategy.PeerExplorerStrategyInterface
-		BlockServices    map[int32]coreService.BlockServiceInterface
-		MempoolServices  map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase string
-		Observer         *observer.Observer
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		FileService              coreService.FileServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
+		PeerExplorer             strategy.PeerExplorerStrategyInterface
+		BlockServices            map[int32]coreService.BlockServiceInterface
+		MempoolServices          map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase         string
+		Observer                 *observer.Observer
 	}
 )
 
 // NewP2PServerService return new instance of P2P server service
 func NewP2PServerService(
+	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	fileService coreService.FileServiceInterface,
+	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	nodeAddressInfoServiceInterface coreService.NodeAddressInfoServiceInterface,
 	peerExplorer strategy.PeerExplorerStrategyInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
@@ -94,13 +101,80 @@ func NewP2PServerService(
 	observer *observer.Observer,
 ) *P2PServerService {
 	return &P2PServerService{
-		FileService:      fileService,
-		PeerExplorer:     peerExplorer,
-		BlockServices:    blockServices,
-		MempoolServices:  mempoolServices,
-		NodeSecretPhrase: nodeSecretPhrase,
-		Observer:         observer,
+		NodeRegistrationService:  nodeRegistrationService,
+		FileService:              fileService,
+		NodeConfigurationService: nodeConfigurationService,
+		NodeAddressInfoService:   nodeAddressInfoServiceInterface,
+		PeerExplorer:             peerExplorer,
+		BlockServices:            blockServices,
+		MempoolServices:          mempoolServices,
+		NodeSecretPhrase:         nodeSecretPhrase,
+		Observer:                 observer,
 	}
+}
+
+// GetNodeAddressesInfo responds to the request of peers a (pending) node address info
+// note: since we can return one address per nodeID and node addresses can have more than one state,
+// 'confirmed' addresses will be preferred over 'pending' when a node has both versions, when retrieving addresses from a peer
+func (ps *P2PServerService) GetNodeAddressesInfo(
+	ctx context.Context,
+	req *model.GetNodeAddressesInfoRequest,
+) (*model.GetNodeAddressesInfoResponse, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		if nodeAddressesInfo, err := ps.NodeAddressInfoService.GetAddressInfoTableWithConsolidatedAddresses(
+			model.NodeAddressStatus_NodeAddressConfirmed,
+		); err == nil {
+			return &model.GetNodeAddressesInfoResponse{
+				NodeAddressesInfo: nodeAddressesInfo,
+			}, nil
+		}
+		return nil, status.Error(codes.Internal, "Internal Server Error")
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+// SendNodeAddressesInfo receives a node address info from a peer
+func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
+	var (
+		nodeAddressInfo = req.NodeAddressInfoMessage
+	)
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		// if node receives own address don't do anything
+		myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
+		myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
+		if errAddr == nil && errPort == nil && myAddress == nodeAddressInfo.GetAddress() && myPort == nodeAddressInfo.GetPort() {
+			return &model.Empty{}, nil
+		}
+		// validate node address info message and signature
+		if alreadyUpdated, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
+			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
+			//  or address is already in db or peer sent an old, but valid addressinfo)
+			// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
+			// errorMsg := err.Error()
+			// errCasted, ok := err.(blocker.Blocker)
+			// if ok {
+			// 	errorMsg = errCasted.Message
+			// }
+			// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
+			// 	// blacklist peer!
+			// }
+		} else if !alreadyUpdated {
+			if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+		}
+		return &model.Empty{}, nil
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+// GetNodeProofOfOrigin generate a proof of origin to be returned to the peer that requested it
+func (ps *P2PServerService) GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error) {
+	if ps.PeerExplorer.ValidateRequest(ctx) {
+		return ps.PeerExplorer.GenerateProofOfOrigin(req.ChallengeMessage, req.Timestamp, ps.NodeSecretPhrase), nil
+
+	}
+	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
 // GetPeerInfo responds to the request of peers a node info
@@ -133,7 +207,13 @@ func (ps *P2PServerService) SendPeers(
 ) (*model.Empty, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// TODO: only accept nodes that are already registered in the node registration
-		err := ps.PeerExplorer.AddToUnresolvedPeers(peers, true)
+		var compatiblePeers []*model.Node
+		for _, peer := range peers {
+			if err := p2pUtil.CheckPeerCompatibility(ps.PeerExplorer.GetHostInfo(), peer); err == nil {
+				compatiblePeers = append(compatiblePeers, peer)
+			}
+		}
+		err := ps.PeerExplorer.AddToUnresolvedPeers(compatiblePeers, true)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -500,6 +580,7 @@ func (ps *P2PServerService) RequestBlockTransactions(
 
 func (ps *P2PServerService) RequestDownloadFile(
 	ctx context.Context,
+	snapshotHash []byte,
 	fileChunkNames []string,
 ) (*model.FileDownloadResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
@@ -508,11 +589,11 @@ func (ps *P2PServerService) RequestDownloadFile(
 			failed     []string
 		)
 		for _, fileName := range fileChunkNames {
-			chunkBytes, err := ps.FileService.ReadFileByName(ps.FileService.GetDownloadPath(), fileName)
+			chunk, err := ps.FileService.ReadFileFromDir(base64.URLEncoding.EncodeToString(snapshotHash), fileName)
 			if err != nil {
 				failed = append(failed, fileName)
 			} else {
-				fileChunks = append(fileChunks, chunkBytes)
+				fileChunks = append(fileChunks, chunk)
 			}
 		}
 		res := &model.FileDownloadResponse{

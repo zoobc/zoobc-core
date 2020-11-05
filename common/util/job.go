@@ -4,19 +4,23 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type (
 	Scheduler struct {
 		Done         chan bool
 		NumberOfJobs int
+		Logger       *logrus.Logger
 	}
 )
 
 // NewScheduler return new scheduler instance
-func NewScheduler() *Scheduler {
+func NewScheduler(logger *logrus.Logger) *Scheduler {
 	return &Scheduler{
-		Done: make(chan bool),
+		Done:   make(chan bool),
+		Logger: logger,
 	}
 }
 
@@ -35,14 +39,20 @@ func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interfa
 	for k, arg := range args {
 		jobParams[k] = reflect.ValueOf(arg)
 	}
-
 	go func() {
 		for {
 			select {
 			case <-s.Done:
 				return
 			case <-time.NewTicker(period).C:
-				jobFunction.Call(jobParams)
+				// Execute method and log the error value
+				values := jobFunction.Call(jobParams)
+				if len(values) > 0 && !values[0].IsNil() {
+					rf := reflect.ValueOf(values[0]).Interface()
+					func() {
+						s.Logger.Error(rf)
+					}()
+				}
 			}
 		}
 	}()

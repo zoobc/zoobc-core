@@ -75,7 +75,6 @@ func (*mockQueryGetNodeRegistrationsSuccess) ExecuteSelect(qStr string, tx bool,
 				[]byte{1, 2},
 				"AccountA",
 				1,
-				"127.0.0.1",
 				1,
 				uint32(model.NodeRegistrationState_NodeQueued),
 				true,
@@ -129,9 +128,6 @@ func TestNodeRegistryService_GetNodeRegistrations(t *testing.T) {
 						NodePublicKey:      []byte{1, 2},
 						AccountAddress:     "AccountA",
 						RegistrationHeight: 1,
-						NodeAddress: &model.NodeAddress{
-							Address: "127.0.0.1",
-						},
 						LockedBalance:      1,
 						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 						Latest:             true,
@@ -194,7 +190,6 @@ func (*mockQueryGetNodeRegistrationSuccess) ExecuteSelectRow(qStr string, tx boo
 			[]byte{1, 1},
 			"AccountA",
 			1,
-			"127.0.0.1",
 			1,
 			uint32(model.NodeRegistrationState_NodeQueued),
 			true,
@@ -224,11 +219,8 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 			},
 			args: args{
 				params: &model.GetNodeRegistrationRequest{
-					NodePublicKey:  []byte{1, 1},
-					AccountAddress: "AccountA",
-					NodeAddress: &model.NodeAddress{
-						Address: "127.0.0.1",
-					},
+					NodePublicKey:      []byte{1, 1},
+					AccountAddress:     "AccountA",
 					RegistrationHeight: 1,
 				},
 			},
@@ -238,9 +230,6 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 					NodePublicKey:      []byte{1, 1},
 					AccountAddress:     "AccountA",
 					RegistrationHeight: 1,
-					NodeAddress: &model.NodeAddress{
-						Address: "127.0.0.1",
-					},
 					LockedBalance:      1,
 					RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
 					Latest:             true,
@@ -273,6 +262,188 @@ func TestNodeRegistryService_GetNodeRegistration(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NodeRegistryService.GetNodeRegistration() = \n%v, want \n%v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestNodeRegistryService_GetPendingNodeRegistrations(t *testing.T) {
+	type fields struct {
+		Query                 query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	}
+	type args struct {
+		req *model.GetPendingNodeRegistrationsRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetPendingNodeRegistrationsResponse
+		wantErr bool
+	}{
+		{
+			name: "wantError",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsFail{},
+			},
+			args: args{
+				req: &model.GetPendingNodeRegistrationsRequest{
+					Limit: 1,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsSuccess{},
+			},
+			args: args{
+				req: &model.GetPendingNodeRegistrationsRequest{
+					Limit: 1,
+				},
+			},
+			want: &model.GetPendingNodeRegistrationsResponse{
+				NodeRegistrations: []*model.NodeRegistration{
+					{
+						NodeID:             1,
+						NodePublicKey:      []byte{1, 2},
+						AccountAddress:     "AccountA",
+						RegistrationHeight: 1,
+						LockedBalance:      1,
+						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
+						Latest:             true,
+						Height:             1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := NodeRegistryService{
+				Query:                 tt.fields.Query,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+			}
+			got, err := ns.GetPendingNodeRegistrations(tt.args.req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistryService.GetPendingNodeRegistrations() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistryService.GetPendingNodeRegistrations() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+type (
+	mockQueryGetNodeRegistrationsByNodePublicKeysFail struct {
+		query.Executor
+	}
+	mockQueryGetNodeRegistrationsByNodePublicKeysSuccess struct {
+		query.Executor
+	}
+)
+
+func (*mockQueryGetNodeRegistrationsByNodePublicKeysFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("want error")
+}
+
+func (*mockQueryGetNodeRegistrationsByNodePublicKeysSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mock.ExpectQuery("").
+		WillReturnRows(sqlmock.NewRows(query.NewNodeRegistrationQuery().Fields).
+			AddRow(
+				1,
+				[]byte{1, 2},
+				"AccountA",
+				1,
+				1,
+				uint32(model.NodeRegistrationState_NodeQueued),
+				true,
+				1,
+			),
+		)
+	return db.Query("")
+}
+
+func TestNodeRegistryService_GetNodeRegistrationsByNodePublicKeys(t *testing.T) {
+	type fields struct {
+		Query                 query.ExecutorInterface
+		NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	}
+	type args struct {
+		params *model.GetNodeRegistrationsByNodePublicKeysRequest
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    *model.GetNodeRegistrationsByNodePublicKeysResponse
+		wantErr bool
+	}{
+		{
+			name: "wantError",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsByNodePublicKeysFail{},
+			},
+			args: args{
+				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 2, 3},
+						{3, 2, 1},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				Query: &mockQueryGetNodeRegistrationsByNodePublicKeysSuccess{},
+			},
+			args: args{
+				params: &model.GetNodeRegistrationsByNodePublicKeysRequest{
+					NodePublicKeys: [][]byte{
+						{1, 2},
+					},
+				},
+			},
+			want: &model.GetNodeRegistrationsByNodePublicKeysResponse{
+				NodeRegistrations: []*model.NodeRegistration{
+					{
+						NodeID: 1,
+						NodePublicKey: []byte{
+							1, 2,
+						},
+						AccountAddress:     "AccountA",
+						RegistrationHeight: 1,
+						LockedBalance:      1,
+						RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
+						Latest:             true,
+						Height:             1,
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ns := NodeRegistryService{
+				Query:                 tt.fields.Query,
+				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
+			}
+			got, err := ns.GetNodeRegistrationsByNodePublicKeys(tt.args.params)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NodeRegistryService.GetNodeRegistrationsByNodePublicKeys() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("NodeRegistryService.GetNodeRegistrationsByNodePublicKeys() = %v, want %v", got, tt.want)
 			}
 		})
 	}

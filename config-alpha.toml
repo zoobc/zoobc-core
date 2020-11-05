@@ -1,0 +1,35 @@
+dbPath = "./resource/"
+dbName = "zoobc.db"
+badgerDbPath="./resource"
+resourcePath = "./resource"
+nodeKeyFile = "node_keys_alpha.json"
+snapshotPath = "./resource/snapshots"
+
+# Peer
+peerPort=8001
+myAddress="127.0.0.1"
+wellknownPeers=["n0.alpha.proofofparticipation.network:8001"]
+
+apiRPCPort=7000
+# comment out or set to 0 to disable http proxy, only enable in dev mode
+apiHTTPPort=3031
+monitoringPort=9090
+apiReqTimeoutSec=2
+
+ownerAccountAddress = "5Zup5YFOgVUZHRtoz4E9-8Ki2fN0U8DTHCM6WxbvgGg_"
+
+smithing=true
+proofOfOwnershipReqTimeoutSec = 2
+# Log Levels
+# Available log level: info, warn, error, fatal, panic
+logLevels=["fatal", "error", "panic"]
+
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli= false
+# to show usefull information on terminal/cli. The logOnCli must be false
+cliMonitoring=false
+
+walletCertFileName= "wallet-alpha.zbc"
+
+apiCertFile="./resource/network.crt"
+apiKeyFile="./resource/network.key"

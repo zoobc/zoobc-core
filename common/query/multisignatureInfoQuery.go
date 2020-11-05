@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -59,7 +60,7 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
 		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') "+
-			"FROM multisignature_participant WHERE multisig_address = ? GROUP BY multisig_address, block_height "+
+			"FROM multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index DESC) as addresses",
 		msi.getTableName(),
 	)
@@ -147,6 +148,43 @@ func (msi *MultisignatureInfoQuery) InsertMultiSignatureInfos(multiSignatureInfo
 	return queries
 }
 
+// ImportSnapshot takes payload from downloaded snapshot and insert them into database
+func (msi *MultisignatureInfoQuery) ImportSnapshot(payload interface{}) ([][]interface{}, error) {
+	var (
+		queries [][]interface{}
+	)
+	musigInfos, ok := payload.([]*model.MultiSignatureInfo)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.DBErr, "ImportSnapshotCannotCastTo"+msi.TableName)
+	}
+	if len(musigInfos) > 0 {
+		recordsPerPeriod, rounds, remaining := CalculateBulkSize(len(msi.Fields), len(musigInfos))
+		for i := 0; i < rounds; i++ {
+			qry := msi.InsertMultiSignatureInfos(musigInfos[i*recordsPerPeriod : (i*recordsPerPeriod)+recordsPerPeriod])
+			queries = append(queries, qry...)
+		}
+		if remaining > 0 {
+			qry := msi.InsertMultiSignatureInfos(musigInfos[len(musigInfos)-remaining:])
+			queries = append(queries, qry...)
+		}
+	}
+	return queries, nil
+}
+
+// RecalibrateVersionedTable recalibrate table to clean up multiple latest rows due to import function
+func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
+	return []string{
+		fmt.Sprintf(
+			"update %s set latest = false where latest = true AND (multisig_address, block_height) NOT IN "+
+				"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
+			msi.getTableName(), msi.getTableName()),
+		fmt.Sprintf(
+			"update %s set latest = true where latest = false AND (multisig_address, block_height) IN "+
+				"(select t2.multisig_address, max(t2.block_height) from %s t2 group by t2.multisig_address)",
+			msi.getTableName(), msi.getTableName()),
+	}
+}
+
 // Scan will build model from *sql.Row that expect has addresses column
 // which is result from sub query of multisignature_participant
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
@@ -222,10 +260,10 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) IN ("+
-			"SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
-			"WHERE t2.block_height >= %d AND t2.block_height <= %d GROUP BY t2.multisig_address"+
-			") ORDER BY block_height",
+		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
+			"IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
+			"GROUP BY t2.multisig_address) ORDER BY block_height",
 		strings.Join(msi.Fields, ", "),
 		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
 			"ORDER BY account_address_index ASC) as addresses",
@@ -238,6 +276,6 @@ func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight u
 
 // TrimDataBeforeSnapshot delete entries to assure there are no duplicates before applying a snapshot
 func (msi *MultisignatureInfoQuery) TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string {
-	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d`,
+	return fmt.Sprintf(`DELETE FROM %s WHERE block_height >= %d AND block_height <= %d AND block_height != 0`,
 		msi.getTableName(), fromHeight, toHeight)
 }

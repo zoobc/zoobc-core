@@ -29,30 +29,36 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 func init() { proto.RegisterFile("service/multiSignature.proto", fileDescriptor_c7c370ee2b80617f) }
 
 var fileDescriptor_c7c370ee2b80617f = []byte{
-	// 356 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x93, 0xbd, 0x4a, 0x3b, 0x41,
-	0x14, 0xc5, 0xd9, 0x7f, 0x91, 0x3f, 0x6c, 0x23, 0x0c, 0x68, 0xb1, 0xa4, 0xca, 0x07, 0x48, 0x8c,
-	0x3b, 0xa8, 0x68, 0xd0, 0x60, 0x91, 0x20, 0x44, 0x0b, 0x21, 0x18, 0x2b, 0xbb, 0xc9, 0xee, 0x75,
-	0x32, 0xb0, 0x3b, 0x77, 0x9d, 0x99, 0x0d, 0xc4, 0x4e, 0x1f, 0xc0, 0x42, 0x1f, 0xcd, 0xce, 0xda,
-	0xca, 0xa7, 0x10, 0xf7, 0x03, 0x83, 0xd9, 0xdd, 0xa0, 0xcd, 0x14, 0x73, 0xee, 0x99, 0xf3, 0x3b,
-	0x0c, 0xd7, 0xae, 0x6b, 0x50, 0x73, 0xe1, 0x01, 0x0d, 0xe3, 0xc0, 0x88, 0x89, 0xe0, 0x92, 0x99,
-	0x58, 0x81, 0x1b, 0x29, 0x34, 0x48, 0xfe, 0x67, 0xaa, 0xe3, 0x84, 0xe8, 0x43, 0x50, 0x38, 0xe4,
-	0xd4, 0x39, 0x22, 0x0f, 0x80, 0xb2, 0x48, 0x50, 0x26, 0x25, 0x1a, 0x66, 0x04, 0x4a, 0x9d, 0xaa,
-	0xfb, 0x0f, 0x35, 0x7b, 0xe3, 0xf2, 0xcb, 0xa6, 0x05, 0x9f, 0xa4, 0xaf, 0x91, 0x67, 0xcb, 0xde,
-	0x1a, 0x81, 0x19, 0x83, 0xf4, 0x85, 0xe4, 0xd7, 0x8a, 0x49, 0xcd, 0xbc, 0xc4, 0x44, 0x5a, 0x6e,
-	0x92, 0xe4, 0x16, 0xcb, 0x57, 0x70, 0x17, 0x83, 0x36, 0x4e, 0x7b, 0xcd, 0x94, 0x8e, 0x50, 0x6a,
-	0x68, 0xec, 0x3c, 0xbe, 0xbe, 0xbf, 0xfc, 0x6b, 0x93, 0x26, 0x9d, 0xef, 0xa5, 0xec, 0x5a, 0x70,
-	0x5a, 0x92, 0xfc, 0x61, 0xd9, 0xdd, 0x42, 0xe9, 0x0c, 0x0c, 0x13, 0xc1, 0x70, 0xb1, 0x74, 0x75,
-	0xce, 0xf4, 0x8c, 0x9c, 0x54, 0x41, 0x94, 0x98, 0xf2, 0x02, 0xfd, 0x3f, 0x79, 0xb3, 0x5a, 0x83,
-	0xa4, 0x56, 0x9f, 0x1c, 0xaf, 0xaf, 0x55, 0xc6, 0xfe, 0x64, 0xd9, 0x9b, 0x23, 0x30, 0xf9, 0xc7,
-	0xa4, 0xff, 0x79, 0x21, 0x6f, 0x91, 0x34, 0xbf, 0xc9, 0x56, 0xd5, 0x1c, 0xbf, 0x55, 0x3d, 0x94,
-	0x71, 0x76, 0x12, 0xce, 0x16, 0x69, 0xfc, 0xe4, 0x2c, 0x88, 0x7d, 0xb3, 0xec, 0xed, 0x25, 0x65,
-	0xe0, 0xfb, 0x0a, 0xb4, 0x1e, 0x2e, 0xc6, 0x4c, 0x19, 0xe1, 0x89, 0x88, 0x49, 0x93, 0xdd, 0x81,
-	0x26, 0x47, 0xab, 0xf1, 0x95, 0x86, 0x1c, 0xbb, 0xf7, 0x6b, 0x5f, 0xd6, 0xe4, 0x34, 0x69, 0xd2,
-	0x23, 0x87, 0x65, 0x4d, 0x2a, 0x9f, 0x19, 0x76, 0x6f, 0x3a, 0x5c, 0x98, 0x59, 0x3c, 0x75, 0x3d,
-	0x0c, 0xe9, 0x3d, 0xe2, 0xd4, 0x4b, 0xcf, 0x5d, 0x0f, 0x15, 0x50, 0x0f, 0xc3, 0x10, 0x25, 0xcd,
-	0x76, 0x6d, 0x5a, 0x4b, 0x16, 0xe7, 0xe0, 0x33, 0x00, 0x00, 0xff, 0xff, 0x9b, 0x5e, 0xff, 0xbe,
-	0x9b, 0x03, 0x00, 0x00,
+	// 459 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x94, 0xb1, 0x6e, 0x13, 0x31,
+	0x18, 0xc7, 0x75, 0x0c, 0x20, 0x79, 0x41, 0xb2, 0x04, 0x43, 0x54, 0x31, 0xa4, 0x29, 0x43, 0x9b,
+	0xc4, 0x84, 0x50, 0x21, 0xc8, 0xd4, 0x13, 0x52, 0xcb, 0x80, 0x54, 0x51, 0x26, 0x36, 0xc7, 0xf9,
+	0x70, 0x2c, 0xee, 0xfc, 0x85, 0xb3, 0xaf, 0xd2, 0x31, 0xf2, 0x00, 0x0c, 0xf0, 0x26, 0x3c, 0x02,
+	0x13, 0x33, 0xbc, 0x02, 0x13, 0x4f, 0x81, 0xea, 0xf3, 0xd1, 0x88, 0xf3, 0x39, 0x49, 0x97, 0x0c,
+	0xf7, 0xfd, 0xff, 0xfe, 0x7e, 0xff, 0xfc, 0x2d, 0x93, 0x3d, 0x03, 0xc5, 0xa5, 0x12, 0xc0, 0xf2,
+	0x32, 0xb3, 0xea, 0x42, 0x49, 0xcd, 0x6d, 0x59, 0xc0, 0x78, 0x55, 0xa0, 0x45, 0x7a, 0xc7, 0x4f,
+	0x7b, 0xbd, 0x1c, 0x17, 0x90, 0x05, 0x45, 0xbd, 0x3d, 0x89, 0x28, 0x33, 0x60, 0x7c, 0xa5, 0x18,
+	0xd7, 0x1a, 0x2d, 0xb7, 0x0a, 0xb5, 0xa9, 0xa7, 0x8f, 0x7f, 0x10, 0x72, 0xf7, 0xd5, 0x95, 0xcd,
+	0x28, 0x79, 0x51, 0x9f, 0x46, 0xbf, 0x24, 0xe4, 0xfe, 0x29, 0xd8, 0x73, 0xd0, 0x0b, 0xa5, 0xe5,
+	0x9b, 0x82, 0x6b, 0xc3, 0x85, 0x33, 0xd1, 0xc1, 0xd8, 0x6d, 0x1a, 0x87, 0xc7, 0xaf, 0xe1, 0x43,
+	0x09, 0xc6, 0xf6, 0x0e, 0x36, 0xa8, 0xcc, 0x0a, 0xb5, 0x81, 0xfe, 0xd1, 0xa7, 0x5f, 0xbf, 0xbf,
+	0xde, 0x3a, 0xa0, 0xfb, 0xec, 0x72, 0x52, 0xb3, 0x1b, 0x25, 0x59, 0xc7, 0xe6, 0x3f, 0x09, 0x19,
+	0x06, 0x47, 0x2f, 0xc0, 0x72, 0x95, 0xa5, 0xd5, 0xda, 0xa7, 0x33, 0x6e, 0x96, 0xf4, 0x79, 0x0c,
+	0xa2, 0xc3, 0xd4, 0x04, 0x98, 0xdd, 0xc8, 0xeb, 0x63, 0x9d, 0xb8, 0x58, 0x33, 0xfa, 0x6c, 0x73,
+	0xac, 0x2e, 0xf6, 0xcf, 0x09, 0xb9, 0x77, 0x0a, 0xb6, 0x29, 0xa6, 0xee, 0xf3, 0xa5, 0x7e, 0x87,
+	0x74, 0xff, 0x9a, 0xac, 0x3d, 0x6d, 0xf0, 0x07, 0x71, 0x91, 0xe7, 0x3c, 0x74, 0x9c, 0x03, 0xda,
+	0xff, 0x9f, 0x33, 0xb0, 0xf6, 0x67, 0x42, 0x1e, 0xae, 0x4d, 0x4e, 0x16, 0x8b, 0x02, 0x8c, 0x49,
+	0xab, 0x73, 0x5e, 0x58, 0x25, 0xd4, 0x8a, 0x6b, 0xeb, 0xbf, 0xd1, 0x27, 0xed, 0xe5, 0x11, 0x79,
+	0x83, 0x7c, 0xbc, 0xa3, 0xcb, 0x67, 0x98, 0xb9, 0x0c, 0xc7, 0x74, 0xda, 0x95, 0x21, 0x46, 0xfa,
+	0x2d, 0x21, 0x0f, 0xc2, 0xb7, 0x2d, 0xad, 0xce, 0x40, 0xc9, 0xa5, 0xa5, 0xc3, 0xe8, 0x4d, 0x6e,
+	0x64, 0x4d, 0x88, 0xd1, 0x96, 0x6a, 0x0f, 0x3f, 0x75, 0xf0, 0x23, 0x7a, 0xb4, 0xc5, 0xfd, 0xff,
+	0x47, 0x14, 0x6e, 0x02, 0x4c, 0x5a, 0xa5, 0x19, 0x8a, 0xf7, 0x7e, 0x05, 0xd7, 0x12, 0x22, 0x4d,
+	0x84, 0xe4, 0x9b, 0x9b, 0x08, 0xbb, 0x76, 0x6c, 0x22, 0x48, 0xfa, 0x3d, 0x21, 0xfd, 0xab, 0xdc,
+	0xd7, 0x1d, 0x99, 0xb4, 0x6a, 0x19, 0xe9, 0xa3, 0xb5, 0xff, 0x37, 0x2e, 0x6d, 0xc2, 0x4c, 0x76,
+	0x70, 0xf8, 0x20, 0x4f, 0x5d, 0x90, 0x09, 0x65, 0xad, 0x56, 0xe2, 0x07, 0xa4, 0xc3, 0xb7, 0x87,
+	0x52, 0xd9, 0x65, 0x39, 0x1f, 0x0b, 0xcc, 0xd9, 0x47, 0xc4, 0xb9, 0xa8, 0x7f, 0x47, 0x02, 0x0b,
+	0x60, 0x02, 0xf3, 0x1c, 0x35, 0xf3, 0x4f, 0xf6, 0xfc, 0xb6, 0x7b, 0x7f, 0xa7, 0x7f, 0x03, 0x00,
+	0x00, 0xff, 0xff, 0x28, 0xb2, 0xcf, 0x55, 0xe2, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -70,7 +76,11 @@ type MultisigServiceClient interface {
 	GetPendingTransactions(ctx context.Context, in *model.GetPendingTransactionsRequest, opts ...grpc.CallOption) (*model.GetPendingTransactionsResponse, error)
 	GetPendingTransactionDetailByTransactionHash(ctx context.Context, in *model.GetPendingTransactionDetailByTransactionHashRequest, opts ...grpc.CallOption) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
 	GetMultisignatureInfo(ctx context.Context, in *model.GetMultisignatureInfoRequest, opts ...grpc.CallOption) (*model.GetMultisignatureInfoResponse, error)
-	GetMultisigAddressByParticipantAddresses(ctx context.Context, in *model.GetMultisigAddressByParticipantAddressesRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressByParticipantAddressesResponse, error)
+	GetMultisigAddressByParticipantAddress(ctx context.Context, in *model.GetMultisigAddressByParticipantAddressRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressByParticipantAddressResponse, error)
+	// GetPendingTransactionsByHeight fetch list of pending transactions (latest = 1 and latest = 0) within `fromHeight` and `toHeight`
+	GetPendingTransactionsByHeight(ctx context.Context, in *model.GetPendingTransactionsByHeightRequest, opts ...grpc.CallOption) (*model.GetPendingTransactionsByHeightResponse, error)
+	GetMultisigAddressesByBlockHeightRange(ctx context.Context, in *model.GetMultisigAddressesByBlockHeightRangeRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error)
+	GetParticipantsByMultisigAddresses(ctx context.Context, in *model.GetParticipantsByMultisigAddressesRequest, opts ...grpc.CallOption) (*model.GetParticipantsByMultisigAddressesResponse, error)
 }
 
 type multisigServiceClient struct {
@@ -108,9 +118,36 @@ func (c *multisigServiceClient) GetMultisignatureInfo(ctx context.Context, in *m
 	return out, nil
 }
 
-func (c *multisigServiceClient) GetMultisigAddressByParticipantAddresses(ctx context.Context, in *model.GetMultisigAddressByParticipantAddressesRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
-	out := new(model.GetMultisigAddressByParticipantAddressesResponse)
-	err := c.cc.Invoke(ctx, "/service.MultisigService/GetMultisigAddressByParticipantAddresses", in, out, opts...)
+func (c *multisigServiceClient) GetMultisigAddressByParticipantAddress(ctx context.Context, in *model.GetMultisigAddressByParticipantAddressRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
+	out := new(model.GetMultisigAddressByParticipantAddressResponse)
+	err := c.cc.Invoke(ctx, "/service.MultisigService/GetMultisigAddressByParticipantAddress", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *multisigServiceClient) GetPendingTransactionsByHeight(ctx context.Context, in *model.GetPendingTransactionsByHeightRequest, opts ...grpc.CallOption) (*model.GetPendingTransactionsByHeightResponse, error) {
+	out := new(model.GetPendingTransactionsByHeightResponse)
+	err := c.cc.Invoke(ctx, "/service.MultisigService/GetPendingTransactionsByHeight", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *multisigServiceClient) GetMultisigAddressesByBlockHeightRange(ctx context.Context, in *model.GetMultisigAddressesByBlockHeightRangeRequest, opts ...grpc.CallOption) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
+	out := new(model.GetMultisigAddressesByBlockHeightRangeResponse)
+	err := c.cc.Invoke(ctx, "/service.MultisigService/GetMultisigAddressesByBlockHeightRange", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *multisigServiceClient) GetParticipantsByMultisigAddresses(ctx context.Context, in *model.GetParticipantsByMultisigAddressesRequest, opts ...grpc.CallOption) (*model.GetParticipantsByMultisigAddressesResponse, error) {
+	out := new(model.GetParticipantsByMultisigAddressesResponse)
+	err := c.cc.Invoke(ctx, "/service.MultisigService/GetParticipantsByMultisigAddresses", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +159,11 @@ type MultisigServiceServer interface {
 	GetPendingTransactions(context.Context, *model.GetPendingTransactionsRequest) (*model.GetPendingTransactionsResponse, error)
 	GetPendingTransactionDetailByTransactionHash(context.Context, *model.GetPendingTransactionDetailByTransactionHashRequest) (*model.GetPendingTransactionDetailByTransactionHashResponse, error)
 	GetMultisignatureInfo(context.Context, *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error)
-	GetMultisigAddressByParticipantAddresses(context.Context, *model.GetMultisigAddressByParticipantAddressesRequest) (*model.GetMultisigAddressByParticipantAddressesResponse, error)
+	GetMultisigAddressByParticipantAddress(context.Context, *model.GetMultisigAddressByParticipantAddressRequest) (*model.GetMultisigAddressByParticipantAddressResponse, error)
+	// GetPendingTransactionsByHeight fetch list of pending transactions (latest = 1 and latest = 0) within `fromHeight` and `toHeight`
+	GetPendingTransactionsByHeight(context.Context, *model.GetPendingTransactionsByHeightRequest) (*model.GetPendingTransactionsByHeightResponse, error)
+	GetMultisigAddressesByBlockHeightRange(context.Context, *model.GetMultisigAddressesByBlockHeightRangeRequest) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error)
+	GetParticipantsByMultisigAddresses(context.Context, *model.GetParticipantsByMultisigAddressesRequest) (*model.GetParticipantsByMultisigAddressesResponse, error)
 }
 
 // UnimplementedMultisigServiceServer can be embedded to have forward compatible implementations.
@@ -138,8 +179,17 @@ func (*UnimplementedMultisigServiceServer) GetPendingTransactionDetailByTransact
 func (*UnimplementedMultisigServiceServer) GetMultisignatureInfo(ctx context.Context, req *model.GetMultisignatureInfoRequest) (*model.GetMultisignatureInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMultisignatureInfo not implemented")
 }
-func (*UnimplementedMultisigServiceServer) GetMultisigAddressByParticipantAddresses(ctx context.Context, req *model.GetMultisigAddressByParticipantAddressesRequest) (*model.GetMultisigAddressByParticipantAddressesResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMultisigAddressByParticipantAddresses not implemented")
+func (*UnimplementedMultisigServiceServer) GetMultisigAddressByParticipantAddress(ctx context.Context, req *model.GetMultisigAddressByParticipantAddressRequest) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMultisigAddressByParticipantAddress not implemented")
+}
+func (*UnimplementedMultisigServiceServer) GetPendingTransactionsByHeight(ctx context.Context, req *model.GetPendingTransactionsByHeightRequest) (*model.GetPendingTransactionsByHeightResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPendingTransactionsByHeight not implemented")
+}
+func (*UnimplementedMultisigServiceServer) GetMultisigAddressesByBlockHeightRange(ctx context.Context, req *model.GetMultisigAddressesByBlockHeightRangeRequest) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetMultisigAddressesByBlockHeightRange not implemented")
+}
+func (*UnimplementedMultisigServiceServer) GetParticipantsByMultisigAddresses(ctx context.Context, req *model.GetParticipantsByMultisigAddressesRequest) (*model.GetParticipantsByMultisigAddressesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetParticipantsByMultisigAddresses not implemented")
 }
 
 func RegisterMultisigServiceServer(s *grpc.Server, srv MultisigServiceServer) {
@@ -200,20 +250,74 @@ func _MultisigService_GetMultisignatureInfo_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MultisigService_GetMultisigAddressByParticipantAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(model.GetMultisigAddressByParticipantAddressesRequest)
+func _MultisigService_GetMultisigAddressByParticipantAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetMultisigAddressByParticipantAddressRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(MultisigServiceServer).GetMultisigAddressByParticipantAddresses(ctx, in)
+		return srv.(MultisigServiceServer).GetMultisigAddressByParticipantAddress(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/service.MultisigService/GetMultisigAddressByParticipantAddresses",
+		FullMethod: "/service.MultisigService/GetMultisigAddressByParticipantAddress",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MultisigServiceServer).GetMultisigAddressByParticipantAddresses(ctx, req.(*model.GetMultisigAddressByParticipantAddressesRequest))
+		return srv.(MultisigServiceServer).GetMultisigAddressByParticipantAddress(ctx, req.(*model.GetMultisigAddressByParticipantAddressRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MultisigService_GetPendingTransactionsByHeight_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetPendingTransactionsByHeightRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MultisigServiceServer).GetPendingTransactionsByHeight(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.MultisigService/GetPendingTransactionsByHeight",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MultisigServiceServer).GetPendingTransactionsByHeight(ctx, req.(*model.GetPendingTransactionsByHeightRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MultisigService_GetMultisigAddressesByBlockHeightRange_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetMultisigAddressesByBlockHeightRangeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MultisigServiceServer).GetMultisigAddressesByBlockHeightRange(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.MultisigService/GetMultisigAddressesByBlockHeightRange",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MultisigServiceServer).GetMultisigAddressesByBlockHeightRange(ctx, req.(*model.GetMultisigAddressesByBlockHeightRangeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MultisigService_GetParticipantsByMultisigAddresses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(model.GetParticipantsByMultisigAddressesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MultisigServiceServer).GetParticipantsByMultisigAddresses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/service.MultisigService/GetParticipantsByMultisigAddresses",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MultisigServiceServer).GetParticipantsByMultisigAddresses(ctx, req.(*model.GetParticipantsByMultisigAddressesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -235,8 +339,20 @@ var _MultisigService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _MultisigService_GetMultisignatureInfo_Handler,
 		},
 		{
-			MethodName: "GetMultisigAddressByParticipantAddresses",
-			Handler:    _MultisigService_GetMultisigAddressByParticipantAddresses_Handler,
+			MethodName: "GetMultisigAddressByParticipantAddress",
+			Handler:    _MultisigService_GetMultisigAddressByParticipantAddress_Handler,
+		},
+		{
+			MethodName: "GetPendingTransactionsByHeight",
+			Handler:    _MultisigService_GetPendingTransactionsByHeight_Handler,
+		},
+		{
+			MethodName: "GetMultisigAddressesByBlockHeightRange",
+			Handler:    _MultisigService_GetMultisigAddressesByBlockHeightRange_Handler,
+		},
+		{
+			MethodName: "GetParticipantsByMultisigAddresses",
+			Handler:    _MultisigService_GetParticipantsByMultisigAddresses_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

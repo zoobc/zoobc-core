@@ -1,6 +1,7 @@
 package smith
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -31,6 +32,7 @@ type (
 		Logger                  *log.Logger
 		smithError              error
 		BlockchainStatusService service.BlockchainStatusServiceInterface
+		NodeRegistrationService service.NodeRegistrationServiceInterface
 	}
 )
 
@@ -45,6 +47,7 @@ func NewBlockchainProcessor(
 	blockService service.BlockServiceInterface,
 	logger *log.Logger,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
+	nodeRegistrationService service.NodeRegistrationServiceInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
 		ChainType:               ct,
@@ -52,6 +55,7 @@ func NewBlockchainProcessor(
 		BlockService:            blockService,
 		Logger:                  logger,
 		BlockchainStatusService: blockchainStatusService,
+		NodeRegistrationService: nodeRegistrationService,
 	}
 }
 
@@ -63,6 +67,10 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 	var (
 		timeNow int64
 	)
+	err := bp.BlockService.UpdateLastBlockCache(nil)
+	if err != nil {
+		return err
+	}
 	// creating a virtual time
 	if !fromGenesis {
 		lastBlock, err := bp.BlockService.GetLastBlock()
@@ -130,13 +138,24 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 
 // StartSmithing start smithing loop
 func (bp *BlockchainProcessor) StartSmithing() error {
+	if bp.Generator.NodeID == 0 {
+		node, err := bp.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(bp.Generator.NodePublicKey)
+		if err != nil {
+			return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail-GetNodeRegistrationByNodePublicKey: %v", err))
+		} else if node == nil {
+			return blocker.NewBlocker(blocker.ValidationErr, "BlocksmithNotInRegistry")
+		}
+		bp.Generator.NodeID = node.NodeID
+	}
 	// Securing smithing process
 	// will pause another process that used block service lock until this process done
 	bp.BlockService.ChainWriteLock(constant.BlockchainStatusGeneratingBlock)
 	defer bp.BlockService.ChainWriteUnlock(constant.BlockchainStatusGeneratingBlock)
 
-	var blocksmithIndex int64
-	lastBlock, err := bp.BlockService.GetLastBlock()
+	var (
+		blocksmithIndex int64
+		lastBlock, err  = bp.BlockService.GetLastBlock()
+	)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")

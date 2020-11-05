@@ -83,24 +83,163 @@ func (m *ParticipationScore) GetHeight() uint32 {
 	return 0
 }
 
-func init() {
-	proto.RegisterType((*ParticipationScore)(nil), "model.ParticipationScore")
+type GetParticipationScoresRequest struct {
+	FromHeight           uint32   `protobuf:"varint,1,opt,name=FromHeight,proto3" json:"FromHeight,omitempty"`
+	ToHeight             uint32   `protobuf:"varint,2,opt,name=ToHeight,proto3" json:"ToHeight,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func init() { proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193) }
+func (m *GetParticipationScoresRequest) Reset()         { *m = GetParticipationScoresRequest{} }
+func (m *GetParticipationScoresRequest) String() string { return proto.CompactTextString(m) }
+func (*GetParticipationScoresRequest) ProtoMessage()    {}
+func (*GetParticipationScoresRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4eacd5198105d193, []int{1}
+}
+
+func (m *GetParticipationScoresRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetParticipationScoresRequest.Unmarshal(m, b)
+}
+func (m *GetParticipationScoresRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetParticipationScoresRequest.Marshal(b, m, deterministic)
+}
+func (m *GetParticipationScoresRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetParticipationScoresRequest.Merge(m, src)
+}
+func (m *GetParticipationScoresRequest) XXX_Size() int {
+	return xxx_messageInfo_GetParticipationScoresRequest.Size(m)
+}
+func (m *GetParticipationScoresRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetParticipationScoresRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetParticipationScoresRequest proto.InternalMessageInfo
+
+func (m *GetParticipationScoresRequest) GetFromHeight() uint32 {
+	if m != nil {
+		return m.FromHeight
+	}
+	return 0
+}
+
+func (m *GetParticipationScoresRequest) GetToHeight() uint32 {
+	if m != nil {
+		return m.ToHeight
+	}
+	return 0
+}
+
+type GetParticipationScoresResponse struct {
+	ParticipationScores  []*ParticipationScore `protobuf:"bytes,1,rep,name=ParticipationScores,proto3" json:"ParticipationScores,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *GetParticipationScoresResponse) Reset()         { *m = GetParticipationScoresResponse{} }
+func (m *GetParticipationScoresResponse) String() string { return proto.CompactTextString(m) }
+func (*GetParticipationScoresResponse) ProtoMessage()    {}
+func (*GetParticipationScoresResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4eacd5198105d193, []int{2}
+}
+
+func (m *GetParticipationScoresResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetParticipationScoresResponse.Unmarshal(m, b)
+}
+func (m *GetParticipationScoresResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetParticipationScoresResponse.Marshal(b, m, deterministic)
+}
+func (m *GetParticipationScoresResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetParticipationScoresResponse.Merge(m, src)
+}
+func (m *GetParticipationScoresResponse) XXX_Size() int {
+	return xxx_messageInfo_GetParticipationScoresResponse.Size(m)
+}
+func (m *GetParticipationScoresResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetParticipationScoresResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetParticipationScoresResponse proto.InternalMessageInfo
+
+func (m *GetParticipationScoresResponse) GetParticipationScores() []*ParticipationScore {
+	if m != nil {
+		return m.ParticipationScores
+	}
+	return nil
+}
+
+type GetLatestParticipationScoreByNodeIDRequest struct {
+	NodeID               int64    `protobuf:"varint,1,opt,name=NodeID,proto3" json:"NodeID,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GetLatestParticipationScoreByNodeIDRequest) Reset() {
+	*m = GetLatestParticipationScoreByNodeIDRequest{}
+}
+func (m *GetLatestParticipationScoreByNodeIDRequest) String() string {
+	return proto.CompactTextString(m)
+}
+func (*GetLatestParticipationScoreByNodeIDRequest) ProtoMessage() {}
+func (*GetLatestParticipationScoreByNodeIDRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_4eacd5198105d193, []int{3}
+}
+
+func (m *GetLatestParticipationScoreByNodeIDRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest.Unmarshal(m, b)
+}
+func (m *GetLatestParticipationScoreByNodeIDRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest.Marshal(b, m, deterministic)
+}
+func (m *GetLatestParticipationScoreByNodeIDRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest.Merge(m, src)
+}
+func (m *GetLatestParticipationScoreByNodeIDRequest) XXX_Size() int {
+	return xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest.Size(m)
+}
+func (m *GetLatestParticipationScoreByNodeIDRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GetLatestParticipationScoreByNodeIDRequest proto.InternalMessageInfo
+
+func (m *GetLatestParticipationScoreByNodeIDRequest) GetNodeID() int64 {
+	if m != nil {
+		return m.NodeID
+	}
+	return 0
+}
+
+func init() {
+	proto.RegisterType((*ParticipationScore)(nil), "model.ParticipationScore")
+	proto.RegisterType((*GetParticipationScoresRequest)(nil), "model.GetParticipationScoresRequest")
+	proto.RegisterType((*GetParticipationScoresResponse)(nil), "model.GetParticipationScoresResponse")
+	proto.RegisterType((*GetLatestParticipationScoreByNodeIDRequest)(nil), "model.GetLatestParticipationScoreByNodeIDRequest")
+}
+
+func init() {
+	proto.RegisterFile("model/participationScore.proto", fileDescriptor_4eacd5198105d193)
+}
 
 var fileDescriptor_4eacd5198105d193 = []byte{
-	// 177 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x92, 0xcb, 0xcd, 0x4f, 0x49,
-	0xcd, 0xd1, 0x2f, 0x48, 0x2c, 0x2a, 0xc9, 0x4c, 0xce, 0x2c, 0x48, 0x2c, 0xc9, 0xcc, 0xcf, 0x0b,
-	0x4e, 0xce, 0x2f, 0x4a, 0xd5, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x05, 0xcb, 0x2b, 0x55,
-	0x71, 0x09, 0x05, 0x60, 0x28, 0x11, 0x92, 0xe2, 0x62, 0xf3, 0xcb, 0x4f, 0x49, 0xf5, 0x74, 0x91,
-	0x60, 0x54, 0x60, 0xd4, 0x60, 0x76, 0x62, 0x32, 0x60, 0x0c, 0x82, 0x8a, 0x08, 0x49, 0x70, 0xb1,
-	0x82, 0x15, 0x49, 0x30, 0xc1, 0xa5, 0x20, 0x02, 0x42, 0x62, 0x5c, 0x6c, 0x3e, 0x89, 0x25, 0xa9,
-	0xc5, 0x25, 0x12, 0xcc, 0x0a, 0x8c, 0x1a, 0x1c, 0x41, 0x50, 0x1e, 0x48, 0xdc, 0x23, 0x35, 0x33,
-	0x3d, 0xa3, 0x44, 0x82, 0x45, 0x81, 0x51, 0x83, 0x37, 0x08, 0xca, 0x73, 0xd2, 0x8a, 0xd2, 0x48,
-	0xcf, 0x2c, 0xc9, 0x28, 0x4d, 0xd2, 0x4b, 0xce, 0xcf, 0xd5, 0xaf, 0xca, 0xcf, 0x4f, 0x4a, 0x86,
-	0x90, 0xba, 0x20, 0xe3, 0xf4, 0x93, 0xf3, 0x73, 0x73, 0xf3, 0xf3, 0xf4, 0xc1, 0xee, 0x4c, 0x62,
-	0x03, 0xbb, 0xda, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x14, 0x36, 0xd2, 0xd5, 0xd7, 0x00, 0x00,
-	0x00,
+	// 270 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x91, 0xc1, 0x4b, 0xc3, 0x30,
+	0x14, 0xc6, 0x49, 0xeb, 0xca, 0x78, 0xe2, 0x25, 0x82, 0xc4, 0x81, 0xa5, 0xf4, 0x14, 0x06, 0xb6,
+	0xa2, 0xff, 0x41, 0x11, 0x37, 0x51, 0x44, 0xa2, 0x27, 0x3d, 0xb5, 0x59, 0xd8, 0x02, 0xa6, 0xaf,
+	0xb6, 0xd9, 0xc1, 0xfd, 0xf5, 0xd2, 0x34, 0x0e, 0xa1, 0xd3, 0x4b, 0xe0, 0x7d, 0xbf, 0xf7, 0xbd,
+	0xe4, 0x7d, 0x81, 0xd8, 0xe0, 0x4a, 0x7d, 0xe4, 0x4d, 0xd9, 0x5a, 0x2d, 0x75, 0x53, 0x5a, 0x8d,
+	0xf5, 0x8b, 0xc4, 0x56, 0x65, 0x4d, 0x8b, 0x16, 0xe9, 0xc4, 0xf1, 0x74, 0x07, 0xf4, 0x79, 0xd4,
+	0x42, 0x67, 0x10, 0x3d, 0xe1, 0x4a, 0xdd, 0xdf, 0x32, 0x92, 0x10, 0x1e, 0x16, 0xc1, 0x15, 0x11,
+	0x5e, 0xa1, 0x0c, 0x26, 0xae, 0x89, 0x05, 0x7b, 0x34, 0x08, 0xf4, 0x0c, 0xa2, 0xc7, 0xd2, 0xaa,
+	0xce, 0xb2, 0x30, 0x21, 0x7c, 0x2a, 0x7c, 0xd5, 0xeb, 0x4b, 0xa5, 0xd7, 0x1b, 0xcb, 0x8e, 0x12,
+	0xc2, 0x4f, 0x84, 0xaf, 0xd2, 0x77, 0xb8, 0x58, 0x28, 0x3b, 0xbe, 0xbe, 0x13, 0xea, 0x73, 0xdb,
+	0x1b, 0x63, 0x80, 0xbb, 0x16, 0x8d, 0x37, 0x13, 0x67, 0xfe, 0xa5, 0xd0, 0x19, 0x4c, 0x5f, 0xd1,
+	0xd3, 0xc0, 0xd1, 0x7d, 0x9d, 0x1a, 0x88, 0xff, 0x1a, 0xde, 0x35, 0x58, 0x77, 0x8a, 0x3e, 0xc0,
+	0xe9, 0x01, 0xcc, 0x48, 0x12, 0xf2, 0xe3, 0xeb, 0xf3, 0xcc, 0xe5, 0x93, 0x8d, 0x3b, 0xc4, 0x21,
+	0x57, 0xba, 0x84, 0xf9, 0x42, 0xd9, 0x61, 0xe1, 0x31, 0x2f, 0xbe, 0x86, 0xf0, 0x7e, 0x16, 0xfb,
+	0x27, 0xdf, 0x62, 0xfe, 0xc6, 0xd7, 0xda, 0x6e, 0xb6, 0x55, 0x26, 0xd1, 0xe4, 0x3b, 0xc4, 0x4a,
+	0x0e, 0xe7, 0x65, 0x3f, 0x29, 0x97, 0x68, 0x0c, 0xd6, 0xb9, 0x7b, 0x5d, 0x15, 0xb9, 0xbf, 0xbc,
+	0xf9, 0x0e, 0x00, 0x00, 0xff, 0xff, 0x66, 0x65, 0x73, 0x6e, 0xed, 0x01, 0x00, 0x00,
 }

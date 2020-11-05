@@ -1,9 +1,10 @@
 package smith
 
 import (
-	"github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	log "github.com/sirupsen/logrus"
 
@@ -19,6 +20,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 		blockService            service.BlockServiceInterface
 		logger                  *log.Logger
 		blockchainStatusService service.BlockchainStatusServiceInterface
+		nodeRegistrationService service.NodeRegistrationServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -32,12 +34,14 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				blocksmith:              &model.Blocksmith{},
 				blockService:            &service.BlockService{},
 				blockchainStatusService: &service.BlockchainStatusService{},
+				nodeRegistrationService: &service.NodeRegistrationService{},
 			},
 			want: &BlockchainProcessor{
 				ChainType:               &chaintype.MainChain{},
 				Generator:               &model.Blocksmith{},
 				BlockService:            &service.BlockService{},
 				BlockchainStatusService: &service.BlockchainStatusService{},
+				NodeRegistrationService: &service.NodeRegistrationService{},
 			},
 		},
 	}
@@ -49,6 +53,7 @@ func TestNewBlockchainProcessor(t *testing.T) {
 				tt.args.blockService,
 				tt.args.logger,
 				tt.args.blockchainStatusService,
+				tt.args.nodeRegistrationService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlockchainProcessor() = %v, want %v", got, tt.want)
 			}

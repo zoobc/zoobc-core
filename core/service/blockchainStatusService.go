@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"sync"
 )
 
 type (
@@ -20,6 +21,8 @@ type (
 		IsDownloadingSnapshot(ct chaintype.ChainType) bool
 		SetIsBlocksmith(isBlocksmith bool)
 		IsBlocksmith() bool
+		SetLastBlock(block *model.Block, ct chaintype.ChainType)
+		GetLastBlock(ct chaintype.ChainType) *model.Block
 	}
 )
 
@@ -34,8 +37,10 @@ var (
 	isDownloading           = model.NewMapIntBool()
 	isDownloadingSnapshot   = model.NewMapIntBool()
 	isSmithing              = model.NewMapIntBool()
+	lastBlock               = make(map[int32]*model.Block)
 	isSmithingLocked        bool
 	isBlocksmith            bool
+	lastBlockMux            sync.RWMutex
 )
 
 func NewBlockchainStatusService(
@@ -48,6 +53,23 @@ func NewBlockchainStatusService(
 	}
 	btss.SetIsSmithingLocked(lockSmithing)
 	return btss
+}
+
+// SetLastBlock set 'cached' last block (updated every time a block is pushed)
+func (btss *BlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {
+	lastBlockMux.Lock()
+	lastBlock[ct.GetTypeInt()] = block
+	lastBlockMux.Unlock()
+}
+
+// GetLastBlock get 'cached' last block (updated every time a block is pushed)
+func (btss *BlockchainStatusService) GetLastBlock(ct chaintype.ChainType) *model.Block {
+	lastBlockMux.Lock()
+	defer lastBlockMux.Unlock()
+	if bl, ok := lastBlock[ct.GetTypeInt()]; ok {
+		return bl
+	}
+	return nil
 }
 
 func (btss *BlockchainStatusService) SetFirstDownloadFinished(ct chaintype.ChainType, finished bool) {

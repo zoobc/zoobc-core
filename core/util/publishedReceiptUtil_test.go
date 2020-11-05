@@ -374,3 +374,121 @@ func TestPublishedReceiptUtil_InsertPublishedReceipt(t *testing.T) {
 		})
 	}
 }
+
+var (
+	mockBatchReceipt = &model.BatchReceipt{
+		SenderPublicKey:      make([]byte, 32),
+		RecipientPublicKey:   make([]byte, 32),
+		DatumType:            1,
+		DatumHash:            make([]byte, 32),
+		ReferenceBlockHeight: 1,
+		ReferenceBlockHash:   make([]byte, 32),
+		RMRLinked:            make([]byte, 32),
+		RecipientSignature:   make([]byte, 64),
+	}
+	mockPublishedReceipt = &model.PublishedReceipt{
+		BatchReceipt:       mockBatchReceipt,
+		IntermediateHashes: make([]byte, 3*32),
+		BlockHeight:        2,
+		ReceiptIndex:       1,
+		PublishedIndex:     1,
+	}
+	mockPublishedReceiptUtilGetPublishedReceiptsByBlockHeightRange = []*model.PublishedReceipt{
+		mockPublishedReceipt,
+	}
+)
+
+type (
+	mockPublishedReceiptUtilExecutorSuccess struct {
+		query.Executor
+	}
+	mockPublishedReceiptUtilExecutorFail struct {
+		query.Executor
+	}
+)
+
+func (*mockPublishedReceiptUtilExecutorSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	dbMocked, mock, _ := sqlmock.New()
+	mockedRows := mock.NewRows(query.NewPublishedReceiptQuery().Fields)
+	mockedRows.AddRow(
+		mockBatchReceipt.SenderPublicKey,
+		mockBatchReceipt.RecipientPublicKey,
+		mockBatchReceipt.DatumType,
+		mockBatchReceipt.DatumHash,
+		mockBatchReceipt.ReferenceBlockHeight,
+		mockBatchReceipt.ReferenceBlockHash,
+		mockBatchReceipt.RMRLinked,
+		mockBatchReceipt.RecipientSignature,
+		mockPublishedReceipt.IntermediateHashes,
+		mockPublishedReceipt.BlockHeight,
+		mockPublishedReceipt.ReceiptIndex,
+		mockPublishedReceipt.PublishedIndex,
+	)
+	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
+	return dbMocked.Query(qStr)
+}
+
+func (*mockPublishedReceiptUtilExecutorFail) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	return nil, errors.New("mockedError")
+}
+
+func TestPublishedReceiptUtil_GetPublishedReceiptsByBlockHeightRange(t *testing.T) {
+	type fields struct {
+		PublishedReceiptQuery query.PublishedReceiptQueryInterface
+		QueryExecutor         query.ExecutorInterface
+	}
+	type args struct {
+		fromBlockHeight uint32
+		toBlockHeight   uint32
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.PublishedReceipt
+		wantErr bool
+	}{
+		{
+			name: "Success",
+			fields: fields{
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				QueryExecutor:         &mockPublishedReceiptUtilExecutorSuccess{},
+			},
+			args: args{
+				fromBlockHeight: 0,
+				toBlockHeight:   100,
+			},
+			want:    mockPublishedReceiptUtilGetPublishedReceiptsByBlockHeightRange,
+			wantErr: false,
+		},
+		{
+			name: "ExecuteSelectFail",
+			fields: fields{
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				QueryExecutor:         &mockPublishedReceiptUtilExecutorFail{},
+			},
+			args: args{
+				fromBlockHeight: 0,
+				toBlockHeight:   100,
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			psu := &PublishedReceiptUtil{
+				PublishedReceiptQuery: tt.fields.PublishedReceiptQuery,
+				QueryExecutor:         tt.fields.QueryExecutor,
+			}
+			got, err := psu.GetPublishedReceiptsByBlockHeightRange(tt.args.fromBlockHeight, tt.args.toBlockHeight)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetPublishedReceiptsByBlockHeightRange() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetPublishedReceiptsByBlockHeightRange() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

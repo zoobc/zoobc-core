@@ -1,12 +1,24 @@
 package transaction
 
 import (
+	"database/sql"
 	"fmt"
+	"os"
+	"path"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/transaction"
+	commonUtil "github.com/zoobc/zoobc-core/common/util"
+	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -61,12 +73,33 @@ var (
 		Long: "transaction sub command used to generate 'multi signature' transaction that require multiple account to submit their signature " +
 			"before it is valid to be executed",
 	}
+	feeVoteCommitmentCmd = &cobra.Command{
+		Use:   "fee-vote-commit",
+		Short: "transaction sub command used to generate 'fee vote commitment vote' transaction",
+		Long:  "transaction sub command used to generate 'fee vote commitment vote' transaction that require the hash of vote object ",
+	}
+	feeVoteRevealCmd = &cobra.Command{
+		Use:   "fee-vote-reveal",
+		Short: "transaction sub command used to generate 'fee vote reveal phase' transaction",
+		Long:  "transaction sub command used to generate 'fee vote reveal phase' transaction. part of fee vote do this after commitment vote",
+	}
+	liquidPaymentCmd = &cobra.Command{
+		Use:   "liquid-payment",
+		Short: "transaction sub command used to generate 'liquid payment' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment' transaction whose payment is based on at what time the payment is stopped",
+	}
+	liquidPaymentStopCmd = &cobra.Command{
+		Use:   "liquid-payment-stop",
+		Short: "transaction sub command used to generate 'liquid payment stop' transaction",
+		Long:  "transaction sub command used to generate 'liquid payment stop' transaction used to stop a particular liquid payment",
+	}
 )
 
 func init() {
 	/*
 		TXCommandRoot
 	*/
+	txCmd.PersistentFlags().BoolVarP(&sign, "sign", "s", true, "defines transaction should be signed")
 	txCmd.PersistentFlags().StringVar(&outputType, "output", "bytes", "defines the type of the output to be generated [\"bytes\", \"hex\"]")
 	txCmd.PersistentFlags().Uint32Var(&version, "version", 1, "defines version of the transaction")
 	txCmd.PersistentFlags().Int64Var(&timestamp, "timestamp", time.Now().Unix(), "defines timestamp of the transaction")
@@ -84,7 +117,8 @@ func init() {
 		int32(model.SignatureType_DefaultSignature),
 		"signature-type that provide type of signature want to use to generate the account",
 	)
-
+	txCmd.PersistentFlags().StringVarP(&dbPath, "db-path", "p", "resource", "db-path is database path location")
+	txCmd.PersistentFlags().StringVarP(&dBName, "db-name", "n", "zoobc.db", "db-name is database name {name}.db")
 	/*
 		SendMoney Command
 	*/
@@ -168,6 +202,29 @@ func init() {
 	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
 	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
 		"--address1='signature1' --address2='signature2'")
+
+	/*
+		Fee Vote Commitment Command
+	*/
+	feeVoteCommitmentCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
+
+	/*
+		Fee Vote Reveal Command
+	*/
+	feeVoteRevealCmd.Flags().Uint32VarP(&recentBlockHeight, "recent-block-height", "b", 0,
+		"recent-block-height which is the recent block hash reference")
+	feeVoteRevealCmd.Flags().Int64VarP(&feeVote, "fee-vote", "f", 0, "fee-vote which is how much fee wanna be")
+
+	/*
+		liquidPaymentCmd
+	*/
+	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send with liquid payment")
+	liquidPaymentCmd.Flags().Uint64Var(&completeMinutes, "complete-minutes", 0, "In how long the span we want to send the liquid payment (in minutes)")
+
+	/*
+		liquidPaymentStopCmd
+	*/
+	liquidPaymentStopCmd.Flags().Int64Var(&transactionID, "transaction-id", 0, "liquid payment stop transaction body field which is int64")
 }
 
 // Commands set TXGeneratorCommandsInstance that will used by whole commands
@@ -194,6 +251,14 @@ func Commands() *cobra.Command {
 	txCmd.AddCommand(escrowApprovalCmd)
 	multiSigCmd.Run = txGeneratorCommandsInstance.MultiSignatureProcess()
 	txCmd.AddCommand(multiSigCmd)
+	feeVoteCommitmentCmd.Run = txGeneratorCommandsInstance.feeVoteCommitmentProcess()
+	txCmd.AddCommand(feeVoteCommitmentCmd)
+	feeVoteRevealCmd.Run = txGeneratorCommandsInstance.feeVoteRevealProcess()
+	txCmd.AddCommand(feeVoteRevealCmd)
+	liquidPaymentCmd.Run = txGeneratorCommandsInstance.LiquidPaymentProcess()
+	txCmd.AddCommand(liquidPaymentCmd)
+	liquidPaymentStopCmd.Run = txGeneratorCommandsInstance.LiquidPaymentStopProcess()
+	txCmd.AddCommand(liquidPaymentStopCmd)
 	return txCmd
 }
 
@@ -213,7 +278,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -249,7 +314,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -286,7 +351,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -307,7 +372,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -341,14 +406,13 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
 // SetupAccountDatasetProcess for generate TX SetupAccountDataset type
 func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,
@@ -365,18 +429,17 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 			println("--recipient is required while property as AccountDatasetEscrowApproval")
 			return
 		}
-		tx = GenerateTxSetupAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+		tx = GenerateTxSetupAccountDataset(tx, property, value)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
 // RemoveAccountDatasetProcess for generate TX RemoveAccountDataset type
 func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
-		senderAccountAddress := crypto.NewEd25519Signature().GetAddressFromSeed(senderSeed)
 		tx := GenerateBasicTransaction(
 			senderAddress,
 			senderSeed,
@@ -386,11 +449,11 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 			fee,
 			recipientAccountAddress,
 		)
-		tx = GenerateTxRemoveAccountDataset(tx, senderAccountAddress, recipientAccountAddress, property, value)
+		tx = GenerateTxRemoveAccountDataset(tx, property, value)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -407,7 +470,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			recipientAccountAddress,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }
 
@@ -427,7 +490,200 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType), outputType)
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 		}
+	}
+}
+
+// feeVoteCommitmentProcess for generate TX  commitment vote of fee vote
+func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		var (
+			err         error
+			feeVoteInfo model.FeeVoteInfo
+			sqliteDB    *sql.DB
+			// voteHash    []byte
+			tx = GenerateBasicTransaction(
+				senderAddress,
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress)
+		)
+
+		dbInstance := database.NewSqliteDB()
+		dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
+		err = dbInstance.InitializeDB(dbPath, dBName)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		sqliteDB, err = dbInstance.OpenDB(
+			dbPath,
+			dBName,
+			constant.SQLMaxOpenConnetion,
+			constant.SQLMaxIdleConnections,
+			constant.SQLMaxConnectionLifetime,
+		)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
+		}
+
+		lastBlock, err := commonUtil.GetLastBlock(
+			query.NewQueryExecutor(sqliteDB),
+			query.NewBlockQuery(&chaintype.MainChain{}),
+		)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("Getting last block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		feeVoteInfo = model.FeeVoteInfo{
+			RecentBlockHeight: lastBlock.GetHeight(),
+			RecentBlockHash:   lastBlock.GetBlockHash(),
+			FeeVote:           feeVote,
+		}
+		fb := (&transaction.FeeVoteRevealTransaction{
+			Body: &model.FeeVoteRevealTransactionBody{
+				FeeVoteInfo: &feeVoteInfo,
+			},
+		}).GetFeeVoteInfoBytes()
+
+		digest := sha3.New256()
+		_, err = digest.Write(fb)
+		if err != nil {
+			_ = feeVoteCommitmentCmd.Help()
+			logrus.Errorf("GetLast block failed: %s", err.Error())
+			os.Exit(1)
+		}
+		tx = GenerateTxFeeVoteCommitment(tx, digest.Sum([]byte{}))
+		if tx == nil {
+			fmt.Printf("fail to generate transaction, please check the provided parameter")
+		} else {
+			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
+		}
+	}
+}
+
+func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		var (
+			feeVoteInfo   model.FeeVoteInfo
+			feeVoteSigned []byte
+			err           error
+			tx            = GenerateBasicTransaction(
+				senderAddress,
+				senderSeed,
+				senderSignatureType,
+				version,
+				timestamp,
+				fee,
+				recipientAccountAddress)
+		)
+
+		if recentBlockHeight != 0 {
+			var (
+				dbInstance = database.NewSqliteDB()
+				sqliteDB   *sql.DB
+				row        *sql.Row
+				block      model.Block
+				blockQuery = query.NewBlockQuery(&chaintype.MainChain{})
+			)
+			dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
+			err = dbInstance.InitializeDB(dbPath, dBName)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				os.Exit(1)
+			}
+			sqliteDB, err = dbInstance.OpenDB(
+				dbPath,
+				dBName,
+				constant.SQLMaxOpenConnetion,
+				constant.SQLMaxIdleConnections,
+				constant.SQLMaxConnectionLifetime,
+			)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				os.Exit(1)
+			}
+			row, err = query.NewQueryExecutor(sqliteDB).ExecuteSelectRow(
+				blockQuery.GetBlockByHeight(recentBlockHeight),
+				false,
+			)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				return
+			}
+			err = blockQuery.Scan(&block, row)
+			if err != nil {
+				_ = feeVoteRevealCmd.Help()
+				logrus.Errorf("Getting last block failed: %s", err.Error())
+				return
+			}
+			feeVoteInfo.RecentBlockHash = block.GetBlockHash()
+			feeVoteInfo.RecentBlockHeight = recentBlockHeight
+		}
+
+		feeVoteInfo.FeeVote = feeVote
+		fb := (&transaction.FeeVoteRevealTransaction{
+			Body: &model.FeeVoteRevealTransactionBody{
+				FeeVoteInfo: &feeVoteInfo,
+			},
+		}).GetFeeVoteInfoBytes()
+		feeVoteSigned, err = signature.Sign(
+			fb,
+			model.SignatureType_DefaultSignature,
+			senderSeed,
+		)
+		if err != nil {
+			_ = feeVoteRevealCmd.Help()
+			logrus.Error("Failed to sign fee vote info, check seed")
+			return
+		}
+		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
+
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
+	}
+}
+
+// LiquidPaymentProcess for generate TX LiquidPayment type
+func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
+	}
+}
+
+// LiquidPaymentStopProcess for generate TX LiquidPaymentStop type
+func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
+	return func(ccmd *cobra.Command, args []string) {
+		tx := GenerateBasicTransaction(
+			senderAddress,
+			senderSeed,
+			senderSignatureType,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddress,
+		)
+		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
+		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderSignatureType, sign), outputType)
 	}
 }

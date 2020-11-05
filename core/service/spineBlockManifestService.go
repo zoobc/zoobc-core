@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"database/sql"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -27,6 +28,7 @@ type (
 		GetSpineBlockManifestsFromSpineBlockHeight(spineBlockHeight uint32) (
 			[]*model.SpineBlockManifest, error,
 		)
+		GetSpineBlockManifestsByManifestReferenceHeightRange(fromHeight, toHeight uint32) (manifests []*model.SpineBlockManifest, err error)
 	}
 
 	SpineBlockManifestService struct {
@@ -243,4 +245,26 @@ func (ss *SpineBlockManifestService) GetSpineBlockManifestID(spineBlockManifest 
 	megablockHash := digest.Sum([]byte{})
 	return int64(util.ConvertBytesToUint64(megablockHash)), nil
 
+}
+
+func (ss *SpineBlockManifestService) GetSpineBlockManifestsByManifestReferenceHeightRange(
+	fromHeight, toHeight uint32,
+) (manifests []*model.SpineBlockManifest, err error) {
+	var (
+		rows      *sql.Rows
+		qry, args = ss.SpineBlockManifestQuery.GetManifestsFromManifestReferenceHeightRange(fromHeight, toHeight)
+	)
+
+	rows, err = ss.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	manifests, err = ss.SpineBlockManifestQuery.BuildModel(manifests, rows)
+	if err != nil {
+		return nil, err
+	}
+
+	return manifests, nil
 }

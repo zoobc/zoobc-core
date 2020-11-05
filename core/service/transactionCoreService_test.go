@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -763,6 +764,239 @@ func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
 			}
 			if err := tg.ValidateTransaction(tt.args.txAction, tt.args.useTX); (err != nil) != tt.wantErr {
 				t.Errorf("TransactionCoreService.ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+type (
+	mockCompletePassedLiquidPaymentExecutor struct {
+		isExecuteSelectError    bool
+		isExecuteSelectRowError bool
+		query.ExecutorInterface
+	}
+
+	mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery struct {
+		isBuildModelsError bool
+		returnModels       []*model.LiquidPayment
+		query.LiquidPaymentTransactionQuery
+	}
+
+	mockCompletePassedLiquidPaymentTransactionQuery struct {
+		isScanError bool
+		query.TransactionQuery
+	}
+
+	mockTypeActionSwitcher struct {
+		isError  bool
+		returnTx transaction.TypeAction
+		transaction.TypeActionSwitcher
+	}
+
+	mockLiquidPaymentTransaction struct {
+		isError bool
+		transaction.LiquidPaymentTransaction
+	}
+)
+
+func (m *mockCompletePassedLiquidPaymentExecutor) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	if m.isExecuteSelectError {
+		return nil, errors.New("mockError ExecuteSelect")
+	}
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+
+	mockRows := mock.NewRows(query.NewLiquidPaymentTransactionQuery().Fields)
+	mock.ExpectQuery("").WillReturnRows(mockRows)
+
+	return db.Query("")
+}
+
+func (m *mockCompletePassedLiquidPaymentExecutor) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
+	if m.isExecuteSelectRowError {
+		return nil, errors.New("mockError ExecuteSelectRow")
+	}
+	return nil, nil
+}
+
+func (m *mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery) BuildModels(*sql.Rows) ([]*model.LiquidPayment, error) {
+	if m.isBuildModelsError {
+		return nil, errors.New("mockError BuildModels")
+	}
+	return m.returnModels, nil
+}
+
+func (m *mockCompletePassedLiquidPaymentTransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
+	if m.isScanError {
+		return errors.New("mockError Scan")
+	}
+	return nil
+}
+
+func (m *mockTypeActionSwitcher) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
+	if m.isError {
+		return nil, errors.New("mock error GetTransactionType")
+	}
+	return m.returnTx, nil
+}
+
+func (m *mockLiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTimestamp, firstAppliedTimestamp int64) error {
+	if m.isError {
+		return errors.New("mock error CompletePayment")
+	}
+	return nil
+}
+
+func TestTransactionCoreService_CompletePassedLiquidPayment(t *testing.T) {
+	type fields struct {
+		Log                           *logrus.Logger
+		QueryExecutor                 query.ExecutorInterface
+		TypeActionSwitcher            transaction.TypeActionSwitcher
+		TransactionUtil               transaction.UtilInterface
+		TransactionQuery              query.TransactionQueryInterface
+		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
+		PendingTransactionQuery       query.PendingTransactionQueryInterface
+		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "wantErr:ExecuteSelect_error",
+			fields: fields{
+				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{
+					isExecuteSelectError: true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:BuildModels_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					isBuildModelsError: true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:ExecuteSelectRow_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{
+					isExecuteSelectRowError: true,
+				},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: query.NewTransactionQuery(&chaintype.MainChain{}),
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:TransactionQuery.Scan_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: &mockCompletePassedLiquidPaymentTransactionQuery{
+					isScanError: true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:TypeActionSwitcher.GetTransactionType_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: &mockCompletePassedLiquidPaymentTransactionQuery{},
+				TypeActionSwitcher: &mockTypeActionSwitcher{
+					isError: true,
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:LiquidPaymentTransaction_casting_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: &mockCompletePassedLiquidPaymentTransactionQuery{},
+				TypeActionSwitcher: &mockTypeActionSwitcher{
+					returnTx: &transaction.TXEmpty{},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantErr:CompletePayment_error",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: &mockCompletePassedLiquidPaymentTransactionQuery{},
+				TypeActionSwitcher: &mockTypeActionSwitcher{
+					returnTx: &mockLiquidPaymentTransaction{
+						isError: true,
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				QueryExecutor: &mockCompletePassedLiquidPaymentExecutor{},
+				LiquidPaymentTransactionQuery: &mockCompletePassedLiquidPaymentLiquidPaymentTransactionQuery{
+					returnModels: []*model.LiquidPayment{
+						{},
+					},
+				},
+				TransactionQuery: &mockCompletePassedLiquidPaymentTransactionQuery{},
+				TypeActionSwitcher: &mockTypeActionSwitcher{
+					returnTx: &mockLiquidPaymentTransaction{},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tg := &TransactionCoreService{
+				Log:                           tt.fields.Log,
+				QueryExecutor:                 tt.fields.QueryExecutor,
+				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
+				TransactionUtil:               tt.fields.TransactionUtil,
+				TransactionQuery:              tt.fields.TransactionQuery,
+				EscrowTransactionQuery:        tt.fields.EscrowTransactionQuery,
+				PendingTransactionQuery:       tt.fields.PendingTransactionQuery,
+				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
+			}
+			if err := tg.CompletePassedLiquidPayment(tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("TransactionCoreService.CompletePassedLiquidPayment() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

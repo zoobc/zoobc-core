@@ -1,6 +1,10 @@
 package query
 
-import "github.com/zoobc/zoobc-core/common/chaintype"
+import (
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"math"
+)
 
 type (
 	// DerivedQuery represent query that can be rolled back
@@ -11,6 +15,12 @@ type (
 	SnapshotQuery interface {
 		SelectDataForSnapshot(fromHeight, toHeight uint32) string
 		TrimDataBeforeSnapshot(fromHeight, toHeight uint32) string
+		ImportSnapshot(interface{}) ([][]interface{}, error)
+		RecalibrateVersionedTable() []string
+	}
+	// PruneQuery represent query to delete the prunable data from manage table
+	PruneQuery interface {
+		PruneData(blockHeight, limit uint32) (qStr string, args []interface{})
 	}
 )
 
@@ -35,6 +45,10 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewPendingTransactionQuery(),
 			NewPendingSignatureQuery(),
 			NewMultisignatureInfoQuery(),
+			NewFeeScaleQuery(),
+			NewFeeVoteCommitmentVoteQuery(),
+			NewFeeVoteRevealVoteQuery(),
+			NewNodeAdmissionTimestampQuery(),
 			NewMultiSignatureParticipantQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
@@ -53,17 +67,22 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 	switch ct.(type) {
 	case *chaintype.MainChain:
 		snapshotQuery = map[string]SnapshotQuery{
-			"block":              NewBlockQuery(ct),
-			"accountBalance":     NewAccountBalanceQuery(),
-			"nodeRegistration":   NewNodeRegistrationQuery(),
-			"accountDataset":     NewAccountDatasetsQuery(),
-			"participationScore": NewParticipationScoreQuery(),
-			"publishedReceipt":   NewPublishedReceiptQuery(),
-			"escrowTransaction":  NewEscrowTransactionQuery(),
-			"pendingTransaction": NewPendingTransactionQuery(),
-			"pendingSignature":   NewPendingSignatureQuery(),
-			"multisignatureInfo": NewMultisignatureInfoQuery(),
-			"skippedBlocksmith":  NewSkippedBlocksmithQuery(),
+			"block":                    NewBlockQuery(ct),
+			"accountBalance":           NewAccountBalanceQuery(),
+			"nodeRegistration":         NewNodeRegistrationQuery(),
+			"accountDataset":           NewAccountDatasetsQuery(),
+			"participationScore":       NewParticipationScoreQuery(),
+			"publishedReceipt":         NewPublishedReceiptQuery(),
+			"escrowTransaction":        NewEscrowTransactionQuery(),
+			"pendingTransaction":       NewPendingTransactionQuery(),
+			"pendingSignature":         NewPendingSignatureQuery(),
+			"multisignatureInfo":       NewMultisignatureInfoQuery(),
+			"skippedBlocksmith":        NewSkippedBlocksmithQuery(),
+			"feeScale":                 NewFeeScaleQuery(),
+			"feeVoteCommit":            NewFeeVoteCommitmentVoteQuery(),
+			"feeVoteReveal":            NewFeeVoteRevealVoteQuery(),
+			"liquidPaymentTransaction": NewLiquidPaymentTransactionQuery(),
+			"nodeAdmissionTimestamp":   NewNodeAdmissionTimestampQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}
@@ -85,4 +104,31 @@ func GetBlocksmithSafeQuery(ct chaintype.ChainType) (snapshotQuery map[string]bo
 		snapshotQuery = map[string]bool{}
 	}
 	return snapshotQuery
+}
+
+// GetPruneQuery func to get all query that have PruneData method. Query to delete prunable data
+func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
+	switch ct.(type) {
+	case *chaintype.MainChain:
+		pruneQuery = []PruneQuery{
+			NewNodeReceiptQuery(),
+			NewMerkleTreeQuery(),
+		}
+	default:
+		pruneQuery = []PruneQuery{}
+	}
+	return pruneQuery
+}
+
+// CalculateBulkSize calculating max records might allowed in single sqlite transaction, since sqlite3 has maximum
+// variables in single transactions called SQLITE_LIMIT_VARIABLE_NUMBER in sqlite3-binding.c which is 999
+func CalculateBulkSize(totalFields, totalRecords int) (recordsPerPeriod, rounds, remaining int) {
+	perPeriod := math.Floor(float64(constant.SQLiteLimitVariableNumber) / float64(totalFields))
+	rounds = int(math.Floor(float64(totalRecords) / perPeriod))
+
+	if perPeriod == 0 || rounds == 0 {
+		return totalRecords, 1, 0
+	}
+	remaining = totalRecords % (rounds * int(perPeriod))
+	return int(perPeriod), rounds, remaining
 }

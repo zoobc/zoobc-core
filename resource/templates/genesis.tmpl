@@ -18,21 +18,22 @@ type (
 )
 
 var (
+	ApplicationCodeName            = "{{.ApplicationCodeName}}"
+	ApplicationVersion             = "{{.ApplicationVersion}}"
 	MainchainGenesisBlocksmithID   = []byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
 	MainchainGenesisBlockSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	MainchainGenesisBlockTimestamp = int64(1562117271)
-	MainchainGenesisAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+	MainchainGenesisBlockTimestamp = int64({{.GenesisTimestamp}})
+	MainchainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
 	MainchainGenesisBlockSeed      = make([]byte, 64)
 	MainchainGenesisNodePublicKey  = make([]byte, 32)
 	GenesisConfig         = []GenesisConfigEntry{
 {{range $key, $value := .MainchainGenesisConfig}}		{
 			AccountAddress: "{{$value.AccountAddress}}",
 			AccountBalance: {{$value.AccountBalance}},{{if $value.HasNodePublicKey}}
-			NodePublicKey:  {{$value.FormatPubKeyByteString}},
-			NodeAddress:    {{if $value.HasNodeAddress}}"{{$value.NodeAddress}}"{{else}}"127.0.0.1"{{end}},
+			NodePublicKey:  {{$value.NodePublicKeyString}},
 			LockedBalance:  {{$value.LockedBalance}},
 			ParticipationScore: {{if $value.HasParticipationScore}}{{$value.ParticipationScore}}{{else}} GenesisParticipationScore{{end}},{{end}}
 		},

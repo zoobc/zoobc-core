@@ -4,8 +4,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
@@ -22,8 +23,9 @@ type (
 
 var (
 	// Flag Command
-	wantedBlockHeight                 uint32
-	dBPath, dBName, senderFullAddress string
+	wantedBlockHeight uint32
+	dBPath, dBName    string
+	senderPeerID      int64
 
 	// subcommand, getScrambledNodes blockchain
 	getScrambledNodesCmd = &cobra.Command{
@@ -47,7 +49,7 @@ func init() {
 	getPriorityPeersCmd.Flags().Uint32Var(&wantedBlockHeight, "height", 0, "Block height at which the scrambled nodes is positioned")
 	getPriorityPeersCmd.Flags().StringVar(&dBPath, "db-path", "../resource", "path of DB blockchain wanted to rollback")
 	getPriorityPeersCmd.Flags().StringVar(&dBName, "db-name", "zoobc.db", "name of DB blockchain wanted to rollback")
-	getPriorityPeersCmd.Flags().StringVar(&senderFullAddress, "sender-full-address", "127.0.0.1:8001", "the full address of the sender")
+	getPriorityPeersCmd.Flags().Int64Var(&senderPeerID, "sender-peer-id", 0, "the full id of the sender")
 }
 
 // Commands return Instance of rollback command
@@ -72,8 +74,8 @@ func Commands() map[string]*cobra.Command {
 
 func getPriorityPeers() map[string]*model.Peer {
 	scrambledNodes := getScrambledNodesAtHeight()
-	peers, err := p2pUtil.GetPriorityPeersByNodeFullAddress(
-		senderFullAddress,
+	peers, err := p2pUtil.GetPriorityPeersByNodeID(
+		senderPeerID,
 		scrambledNodes,
 	)
 	if err != nil {
@@ -93,14 +95,26 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 	}
 
 	var (
-		queryExecutor = query.NewQueryExecutor(dB)
+		queryExecutor          = query.NewQueryExecutor(dB)
+		nodeAddressInfoService = service.NewNodeAddressInfoService(
+			queryExecutor,
+			query.NewNodeRegistrationQuery(),
+			query.NewNodeAddressInfoQuery(),
+			logrus.New(),
+			)
 
 		nodeRegistrationService = service.NewNodeRegistrationService(
 			queryExecutor,
+			query.NewNodeAddressInfoQuery(),
 			query.NewAccountBalanceQuery(),
 			query.NewNodeRegistrationQuery(),
 			query.NewParticipationScoreQuery(),
 			query.NewBlockQuery(&chaintype.MainChain{}),
+			query.NewNodeAdmissionTimestampQuery(),
+			nil,
+			nil,
+			nil,
+			nodeAddressInfoService,
 			nil,
 			nil,
 		)

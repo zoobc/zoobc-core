@@ -1,0 +1,37 @@
+resourcePath = "./resource"
+dbName = "zoobc_5.db"
+badgerDbName="zoobc_5_kv/"
+nodeKeyFile = "node_keys_5.json"
+snapshotPath = "./resource/snapshots_5"
+
+# Peer
+peerPort=8005
+myAddress="127.0.0.1"
+wellknownPeers=["127.0.0.1:8002"]
+
+apiRPCPort=3005
+apiHTTPPort=7005
+maxAPIRequestPerSecond=10
+# comment out or set to 0 to disable http proxy, only enable in dev mode
+monitoringPort=9095
+cpuProfilingPort=6065
+apiReqTimeoutSec=2
+
+ownerAccountAddress = "ZBC_6U4T7CVD_DEITASZG_RXZT4M73_A3EFPAMX_IKQ2A5GE_ITZJOSKM_DNAASSHP"
+
+smithing=true
+proofOfOwnershipReqTimeoutSec = 2
+# Log Levels
+# Available log level: info, warn, error, fatal, panic
+#logLevels=["fatal", "error", "panic"]
+logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
+
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli= false
+# to show usefull information on terminal/cli. The logOnCli must be false
+cliMonitoring=true
+
+walletCertFileName= "wallet5.zbc"
+
+#apiCertFile="./resource/network.crt"
+#apiKeyFile="./resource/network.key"

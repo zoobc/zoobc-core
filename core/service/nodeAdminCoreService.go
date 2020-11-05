@@ -92,12 +92,13 @@ func (nas *NodeAdminService) GenerateProofOfOwnership(
 	}, nil
 }
 
-// ParseNodeKeysFile read the node key file and parses it into an array of NodeKey stuct
+// ParseNodeKeysFile read the node key file and parses it into an array of NodeKey struct
 func (nas *NodeAdminService) ParseKeysFile() ([]*model.NodeKey, error) {
 	file, err := ioutil.ReadFile(nas.FilePath)
 	if err != nil && os.IsNotExist(err) {
 		return nil, blocker.NewBlocker(blocker.AppErr, "NodeKeysFileNotExist")
 	}
+
 	data := make([]*model.NodeKey, 0)
 	err = json.Unmarshal(file, &data)
 	if err != nil {
@@ -127,7 +128,6 @@ func (nas *NodeAdminService) GenerateNodeKey(seed string) ([]byte, error) {
 		Seed:      seed,
 		PublicKey: publicKey,
 	}
-
 	nodeKeys := make([]*model.NodeKey, 0)
 
 	_, err := os.Stat(nas.FilePath)

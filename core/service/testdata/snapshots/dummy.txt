@@ -1,1 +1,0 @@
-keep this folder, since it is used by some integration tests

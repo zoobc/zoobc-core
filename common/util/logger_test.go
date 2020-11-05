@@ -12,6 +12,7 @@ func TestInitLogger(t *testing.T) {
 		path     string
 		filename string
 		levels   []string
+		logOnCLI bool
 	}
 	tests := []struct {
 		name    string
@@ -32,7 +33,9 @@ func TestInitLogger(t *testing.T) {
 				path:     "./testdata/",
 				filename: "test.log",
 				levels:   []string{"info", "warn", "error", "fatal", "panic"},
+				logOnCLI: true,
 			},
+
 			wantErr: false,
 		},
 		{
@@ -46,7 +49,7 @@ func TestInitLogger(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, _ := InitLogger(tt.args.path, tt.args.filename, tt.args.levels); (got == nil) != tt.wantErr {
+			if got, _ := InitLogger(tt.args.path, tt.args.filename, tt.args.levels, tt.args.logOnCLI); (got == nil) != tt.wantErr {
 				t.Errorf("InitLogger() = %v, wantError %v", tt.name, tt.wantErr)
 			}
 		})

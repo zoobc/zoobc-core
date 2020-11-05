@@ -7,6 +7,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p"
 )
@@ -51,17 +52,22 @@ func (m *MockP2pService) GetPriorityPeers() map[string]*model.Peer {
 }
 
 func TestHostService_GetHostInfo(t *testing.T) {
-	mockBlockService := make(map[int32]coreService.BlockServiceInterface)
+	var (
+		mockBlockService       = make(map[int32]coreService.BlockServiceInterface)
+		mockBlockStateStorages = make(map[int32]storage.CacheStorageInterface)
+		hostToReturn           = &model.Host{}
+		priorityPeersToReturn  = make(map[string]*model.Peer)
+	)
 	mockBlockService[int32(0)] = &MockBlockService{}
-
-	hostToReturn := &model.Host{}
-	priorityPeersToReturn := make(map[string]*model.Peer)
+	mockBlockStateStorages[int32(0)] = storage.NewBlockStateStorage()
+	_ = mockBlockStateStorages[int32(0)].SetItem(nil, model.Block{BlockHash: []byte{1}})
 
 	type fields struct {
 		Query                   query.ExecutorInterface
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		BlockStateStorages      map[int32]storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -69,11 +75,11 @@ func TestHostService_GetHostInfo(t *testing.T) {
 		want    *model.HostInfo
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "GetHostInfo:error-lastBlockIsNil",
 			fields: fields{
-				BlockServices: make(map[int32]coreService.BlockServiceInterface),
+				BlockServices:      make(map[int32]coreService.BlockServiceInterface),
+				BlockStateStorages: mockBlockStateStorages,
 			},
 			wantErr: true,
 		},
@@ -82,6 +88,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 			fields: fields{
 				BlockServices:           mockBlockService,
 				NodeRegistrationService: &MockNodeRegistrationServiceError{},
+				BlockStateStorages:      mockBlockStateStorages,
 			},
 			wantErr: true,
 		},
@@ -94,6 +101,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 					HostToReturn:          hostToReturn,
 					PriorityPeersToReturn: priorityPeersToReturn,
 				},
+				BlockStateStorages: mockBlockStateStorages,
 			},
 			want: &model.HostInfo{
 				Host: hostToReturn,
@@ -102,7 +110,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 						ChainType: int32(0),
 						Height:    0,
 						LastBlock: &model.Block{
-							Height: 0,
+							BlockHash: []byte{1},
 						},
 					},
 				},
@@ -120,6 +128,7 @@ func TestHostService_GetHostInfo(t *testing.T) {
 				P2pService:              tt.fields.P2pService,
 				BlockServices:           tt.fields.BlockServices,
 				NodeRegistrationService: tt.fields.NodeRegistrationService,
+				BlockStateStorages:      tt.fields.BlockStateStorages,
 			}
 			got, err := hs.GetHostInfo()
 			if (err != nil) != tt.wantErr {

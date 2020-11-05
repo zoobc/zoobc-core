@@ -5,6 +5,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
@@ -107,23 +108,23 @@ func (*mockTxTypeSuccess) ApplyUnconfirmed() error {
 	return nil
 }
 
-func (*mockMempoolServiceFailAdd) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailAdd) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return errors.New("mockError:addTxFail")
 }
 
-func (*mockMempoolServiceFailAdd) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailAdd) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
 
-func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return errors.New("mockedError")
 }
 
-func (*mockMempoolServiceSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceSuccess) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return nil
 }
 
-func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServiceSuccess) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
 
@@ -247,15 +248,28 @@ func (*mockQueryExecutorPostApprovalEscrowTX) ExecuteTransaction(query string, a
 	return nil
 }
 
-func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTX) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return errors.New("test")
 }
-func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) ValidateMempoolTransaction(mpTx *model.Transaction) error {
 	return nil
 }
-func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(mpTx *model.MempoolTransaction) error {
+func (*mockMempoolServicePostApprovalEscrowTXSuccess) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	return nil
 }
+
+type (
+	mockCacheStorageAlwaysSuccess struct {
+		storage.CacheStorageInterface
+	}
+)
+
+func (*mockCacheStorageAlwaysSuccess) SetItem(key, item interface{}) error { return nil }
+func (*mockCacheStorageAlwaysSuccess) GetItem(key, item interface{}) error { return nil }
+func (*mockCacheStorageAlwaysSuccess) GetAllItems(item interface{}) error  { return nil }
+func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { return nil }
+func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
+func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
 
 func TestTransactionService_PostTransaction(t *testing.T) {
 
@@ -294,6 +308,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		MempoolService     service.MempoolServiceInterface
 		Log                *logrus.Logger
 		Observer           *observer.Observer
+		TransactionUtil    transaction.UtilInterface
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -310,6 +325,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			name: "PostTransaction:txBytesInvalid",
 			fields: fields{
 				Query: nil,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -334,6 +352,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherValidateFail{},
 				MempoolService:     &mockMempoolServiceFailValidate{},
 				Log:                mockLog,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -358,6 +379,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
 				Log:                mockLog,
 				MempoolService:     &mockMempoolServiceSuccess{},
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -382,6 +406,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
 				Log:                mockLog,
 				MempoolService:     &mockMempoolServiceSuccess{},
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -406,6 +433,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
 				Log:                mockLog,
 				MempoolService:     &mockMempoolServiceSuccess{},
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -430,6 +460,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceFailAdd{},
 				Log:                mockLog,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -454,6 +487,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceFailAdd{},
 				Log:                mockLog,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -478,6 +514,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
 				MempoolService:     &mockMempoolServiceSuccess{},
 				Log:                mockLog,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -503,6 +542,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				MempoolService:     &mockMempoolServiceSuccess{},
 				Observer:           observer.NewObserver(),
 				Log:                mockLog,
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -523,6 +565,9 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				},
 				MempoolService: &mockMempoolServicePostApprovalEscrowTXSuccess{},
 				Observer:       observer.NewObserver(),
+				TransactionUtil: &transaction.Util{
+					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -541,7 +586,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
 				MempoolService:     tt.fields.MempoolService,
 				Observer:           tt.fields.Observer,
-				TransactionUtil:    &transaction.Util{},
+				TransactionUtil:    tt.fields.TransactionUtil,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {

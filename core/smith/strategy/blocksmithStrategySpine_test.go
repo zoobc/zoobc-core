@@ -80,12 +80,13 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, main_block_height, latest, height " +
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height " +
 		"FROM spine_public_key WHERE height >= 0 AND height <= 1 AND " +
 		"public_key_action=0 AND latest=1 ORDER BY height":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",
+				"node_id",
 				"public_key_action",
 				"main_block_height",
 				"latest",
@@ -93,6 +94,7 @@ func (*mockQueryGetBlocksmithsSpineSuccessWithBlocksmith) ExecuteSelect(
 			},
 		).AddRow(
 			bssMockBlocksmiths[0].NodePublicKey,
+			bssMockBlocksmiths[0].NodeID,
 			uint32(model.SpinePublicKeyAction_AddKey),
 			1,
 			true,
@@ -114,11 +116,12 @@ func (*mockQuerySortBlocksmithSpineSuccessWithBlocksmiths) ExecuteSelect(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qStr {
-	case "SELECT node_public_key, public_key_action, latest, height FROM spine_public_key " +
+	case "SELECT node_public_key, node_id, public_key_action, latest, height FROM spine_public_key " +
 		"WHERE height <= 1 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows(
 			[]string{
 				"node_public_key",
+				"node_id",
 				"public_key_action",
 				"latest",
 				"height",
@@ -173,6 +176,7 @@ func (*mockQueryGetBlocksmithsSpineSuccessNoBlocksmith) ExecuteSelect(
 	mock.ExpectQuery("A").WillReturnRows(sqlmock.NewRows(
 		[]string{
 			"node_public_key",
+			"node_id",
 			"public_key_action",
 			"latest",
 			"height",
@@ -239,7 +243,7 @@ func TestBlocksmithStrategySpine_GetBlocksmiths(t *testing.T) {
 			wantErr: false,
 			want: []*model.Blocksmith{
 				{
-					NodeID:        0,
+					NodeID:        bssMockBlocksmiths[0].NodeID,
 					BlockSeed:     -1965565459747201754,
 					NodeOrder:     new(big.Int).SetInt64(28),
 					Score:         big.NewInt(constant.DefaultParticipationScore),
@@ -800,7 +804,7 @@ func TestBlocksmithStrategySpine_IsValidSmithTime(t *testing.T) {
 				previousBlock: &model.Block{
 					ID: 1,
 					Timestamp: time.Now().Unix() - spine.GetSmithingPeriod() -
-						spine.GetBlocksmithTimeGap() + 1,
+						spine.GetBlocksmithTimeGap() - 1,
 				},
 			},
 			wantErr: false,

@@ -6,9 +6,8 @@ import (
 
 type (
 	SnapshotChunkStrategyInterface interface {
-		GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload, filePath string) (fullHash []byte,
-			fileChunkHashes [][]byte, err error)
-		BuildSnapshotFromChunks(fullHash []byte, fileChunkHashes [][]byte, filePath string) (*model.SnapshotPayload, error)
-		DeleteFileByChunkHashes(concatenatedFileChunks []byte, filePath string) error
+		GenerateSnapshotChunks(snapshotPayload *model.SnapshotPayload) (fullHash []byte, fileChunkHashes [][]byte, err error)
+		BuildSnapshotFromChunks(snapshotHash []byte, fileChunkHashes [][]byte) (*model.SnapshotPayload, error)
+		DeleteFileByChunkHashes(concatenatedFileChunks []byte) error
 	}
 )

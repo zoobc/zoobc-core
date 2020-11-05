@@ -79,7 +79,7 @@ func (msq *MultiSignatureParticipantQuery) InsertMultisignatureParticipants(
 ) (queries [][]interface{}) {
 	var (
 		qStr = fmt.Sprintf(
-			"INSERT INTO %s (%s) VALUES ",
+			"INSERT OR REPLACE INTO %s (%s) VALUES ",
 			msq.getTableName(),
 			strings.Join(msq.Fields, ", "),
 		)

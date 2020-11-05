@@ -127,3 +127,75 @@ func TestGetNextStep(t *testing.T) {
 		})
 	}
 }
+
+func TestMinInt64(t *testing.T) {
+	type args struct {
+		x int64
+		y int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want int64
+	}{
+		{
+			name: "want-x-smaller",
+			args: args{
+				x: 1,
+				y: 2,
+			},
+			want: 1,
+		},
+		{
+			name: "want-y-smaller",
+			args: args{
+				x: 2,
+				y: 1,
+			},
+			want: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MinInt64(tt.args.x, tt.args.y); got != tt.want {
+				t.Errorf("MinInt64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMaxInt64(t *testing.T) {
+	type args struct {
+		x int64
+		y int64
+	}
+	tests := []struct {
+		name string
+		args args
+		want int64
+	}{
+		{
+			name: "want-x-larger",
+			args: args{
+				x: 2,
+				y: 1,
+			},
+			want: 2,
+		},
+		{
+			name: "want-y-larger",
+			args: args{
+				x: 1,
+				y: 2,
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := MaxInt64(tt.args.x, tt.args.y); got != tt.want {
+				t.Errorf("MaxInt64() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

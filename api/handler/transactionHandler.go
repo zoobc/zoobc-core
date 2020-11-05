@@ -71,7 +71,7 @@ func (th *TransactionHandler) PostTransaction(
 	ctx context.Context,
 	req *model.PostTransactionRequest,
 ) (*model.PostTransactionResponse, error) {
-	chainType := chaintype.GetChainType(0)
+	chainType := &chaintype.MainChain{}
 	transaction, err := th.Service.PostTransaction(chainType, req)
 	if err != nil {
 		return nil, err

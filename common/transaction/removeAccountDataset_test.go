@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -44,6 +45,7 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -60,7 +62,8 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor: &executorRemoveAccountDatasetApplyConfirmedSuccess{
@@ -77,7 +80,8 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                &model.RemoveAccountDatasetTransactionBody{},
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				Height:              3,
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -95,7 +99,8 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				Body:                &model.RemoveAccountDatasetTransactionBody{},
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				Height:              0,
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
@@ -115,6 +120,7 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -179,6 +185,7 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -194,7 +201,8 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetApplyUnconfirmedSuccess{
@@ -210,7 +218,8 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetApplyUnconfirmedFail{
@@ -228,6 +237,7 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -261,6 +271,7 @@ func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -310,6 +321,7 @@ func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -382,6 +394,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -397,7 +410,8 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorRemoveAccountDatasetValidateSuccess{},
@@ -409,7 +423,8 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 60,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorRemoveAccountDatasetValidateSuccess{},
@@ -421,7 +436,8 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorRemoveAccountDatasetValidateFail{},
@@ -435,6 +451,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -452,6 +469,7 @@ func TestRemoveAccountDataset_GetAmount(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -482,6 +500,7 @@ func TestRemoveAccountDataset_GetAmount(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -501,6 +520,7 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -516,13 +536,14 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 			fields: fields{
 				Body:                mockRemoveAccountDatasetTransactionBody,
 				Fee:                 1,
-				SenderAddress:       mockRemoveAccountDatasetTransactionBody.GetSetterAccountAddress(),
+				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
 				Height:              5,
 				AccountBalanceQuery: nil,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
-			want: 117,
+			want: 21,
 		},
 	}
 	for _, tt := range tests {
@@ -531,6 +552,7 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
@@ -549,6 +571,7 @@ func TestRemoveAccountDataset_GetTransactionBody(t *testing.T) {
 		Body                *model.RemoveAccountDatasetTransactionBody
 		Fee                 int64
 		SenderAddress       string
+		RecipientAddress    string
 		Height              uint32
 		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
@@ -578,6 +601,7 @@ func TestRemoveAccountDataset_GetTransactionBody(t *testing.T) {
 				Body:                tt.fields.Body,
 				Fee:                 tt.fields.Fee,
 				SenderAddress:       tt.fields.SenderAddress,
+				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,

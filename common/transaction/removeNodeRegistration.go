@@ -21,14 +21,19 @@ type RemoveNodeRegistration struct {
 	Escrow                *model.Escrow
 	AccountBalanceQuery   query.AccountBalanceQueryInterface
 	NodeRegistrationQuery query.NodeRegistrationQueryInterface
+	NodeAddressInfoQuery  query.NodeAddressInfoQueryInterface
 	QueryExecutor         query.ExecutorInterface
 	AccountLedgerQuery    query.AccountLedgerQueryInterface
-	EscrowQuery           query.EscrowTransactionQueryInterface
+	AccountBalanceHelper  AccountBalanceHelperInterface
 }
 
 // SkipMempoolTransaction filter out of the mempool a node registration tx if there are other node registration tx in mempool
 // to make sure only one node registration tx at the time (the one with highest fee paid) makes it to the same block
-func (tx *RemoveNodeRegistration) SkipMempoolTransaction(selectedTransactions []*model.Transaction) (bool, error) {
+func (tx *RemoveNodeRegistration) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
 	authorizedType := map[model.TransactionType]bool{
 		model.TransactionType_ClaimNodeRegistrationTransaction:  true,
 		model.TransactionType_UpdateNodeRegistrationTransaction: true,
@@ -77,7 +82,6 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		NodeID:             nodeReg.GetNodeID(),
 		LockedBalance:      0,
 		Height:             tx.Height,
-		NodeAddress:        nil,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
 		NodePublicKey:      tx.Body.GetNodePublicKey(),
 		Latest:             true,
@@ -87,7 +91,17 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		AccountAddress: nodeReg.GetAccountAddress(),
 	})
 	queries = append(queries, nodeQueries...)
-
+	// remove the node_address_info
+	removeNodeAddressInfoQ, removeNodeAddressInfoArgs := tx.NodeAddressInfoQuery.DeleteNodeAddressInfoByNodeID(
+		nodeReg.NodeID,
+		[]model.NodeAddressStatus{
+			model.NodeAddressStatus_NodeAddressPending,
+			model.NodeAddressStatus_NodeAddressConfirmed,
+			model.NodeAddressStatus_Unset,
+		},
+	)
+	removeNodeAddressInfoQueries := append([]interface{}{removeNodeAddressInfoQ}, removeNodeAddressInfoArgs...)
+	queries = append(queries, removeNodeAddressInfoQueries)
 	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
 		AccountAddress: tx.SenderAddress,
 		BalanceChange:  nodeReg.GetLockedBalance() - tx.Fee,
@@ -150,9 +164,10 @@ func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
 // Validate validate node registration transaction and tx body
 func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	var (
-		nodeReg model.NodeRegistration
-		err     error
-		row     *sql.Row
+		nodeReg        model.NodeRegistration
+		err            error
+		row            *sql.Row
+		accountBalance model.AccountBalance
 	)
 
 	// check for duplication
@@ -174,6 +189,14 @@ func (tx *RemoveNodeRegistration) Validate(dbTx bool) error {
 	}
 	if nodeReg.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeDeleted) {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeAlreadyDeleted")
+	}
+	// check existing & balance account sender
+	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	if err != nil {
+		return err
+	}
+	if accountBalance.GetSpendableBalance() < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough")
 	}
 	return nil
 }

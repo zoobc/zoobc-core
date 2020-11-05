@@ -3,7 +3,7 @@ package constant
 import "time"
 
 var (
-	MaxNumberOfTransactionsInBlock       = 255
+	MaxNumberOfTransactionsInBlock       = 330
 	MinTransactionSizeInBlock            = 176
 	MaxPayloadLengthInBlock              = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
 	TransactionExpirationOffset    int64 = 3600 // 3600 seconds
@@ -12,4 +12,5 @@ var (
 	OneFeePerByteTransaction int64 = 10000
 	// TransactionTimeOffset use to put time offset for transaction timestamp when validate transaction
 	TransactionTimeOffset = 10 * time.Second
+	CompleteMinutesUnit   = 60 // 60 seconds
 )

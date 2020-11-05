@@ -41,8 +41,19 @@ type (
 	}
 )
 
-// SkipMempoolTransaction this tx type has no mempool filter
-func (*ApprovalEscrowTransaction) SkipMempoolTransaction([]*model.Transaction) (bool, error) {
+// SkipMempoolTransaction to filter out current Approval escrow transaction when
+// this tx already expired based on new block height
+func (tx *ApprovalEscrowTransaction) SkipMempoolTransaction(
+	selectedTransactions []*model.Transaction,
+	newBlockTimestamp int64,
+	newBlockHeight uint32,
+) (bool, error) {
+	var (
+		err = tx.checkEscrowValidity(false, newBlockHeight)
+	)
+	if err != nil {
+		return true, err
+	}
 	return false, nil
 }
 
@@ -112,12 +123,40 @@ That specs:
 func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 	var (
 		accountBalance model.AccountBalance
-		latestEscrow   model.Escrow
 		row            *sql.Row
 		err            error
 	)
+	err = tx.checkEscrowValidity(dbTx, tx.Height)
+	if err != nil {
+		return err
+	}
+	// check existing account & balance
+	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
+	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
+	}
+	if accountBalance.SpendableBalance < tx.Fee {
+		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
+	}
 
-	escrowQ, escrowArgs := tx.EscrowQuery.GetLatestEscrowTransactionByID(tx.Body.GetTransactionID())
+	return nil
+}
+
+func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight uint32) error {
+	var (
+		latestEscrow        model.Escrow
+		row                 *sql.Row
+		err                 error
+		escrowQ, escrowArgs = tx.EscrowQuery.GetLatestEscrowTransactionByID(tx.Body.GetTransactionID())
+	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(escrowQ, dbTx, escrowArgs...)
 	if err != nil {
 		return err
@@ -130,6 +169,9 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 			return err
 		}
 		return blocker.NewBlocker(blocker.ValidationErr, "EscrowNotExists")
+	}
+	if blockHeight >= latestEscrow.GetBlockHeight()+uint32(latestEscrow.Timeout) {
+		return blocker.NewBlocker(blocker.ValidationErr, "EscrowTimeout")
 	}
 
 	// Check escrow status still pending before allow to apply
@@ -146,24 +188,6 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 	if latestEscrow.GetID() != tx.Body.GetTransactionID() {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidTransactionID")
 	}
-
-	// check balance
-	qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return err
-		}
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidAccountSender")
-	}
-	if accountBalance.SpendableBalance < tx.Fee {
-		return blocker.NewBlocker(blocker.ValidationErr, "UserBalanceNotEnough")
-	}
-
 	return nil
 }
 

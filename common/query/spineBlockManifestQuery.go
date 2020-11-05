@@ -17,6 +17,7 @@ type (
 		GetManifestBySpineBlockHeight(spineBlockHeight uint32) string
 		GetManifestsFromSpineBlockHeight(spineBlockHeight uint32) string
 		GetLastSpineBlockManifest(ct chaintype.ChainType, mbType model.SpineBlockManifestType) string
+		GetManifestsFromManifestReferenceHeightRange(fromHeight, toHeight uint32) (qry string, args []interface{})
 		ExtractModel(mb *model.SpineBlockManifest) []interface{}
 		BuildModel(spineBlockManifests []*model.SpineBlockManifest, rows *sql.Rows) ([]*model.SpineBlockManifest, error)
 		Scan(mb *model.SpineBlockManifest, row *sql.Row) error
@@ -92,6 +93,18 @@ func (mbl *SpineBlockManifestQuery) GetManifestsFromSpineBlockHeight(spineBlockH
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE manifest_spine_block_height > %d ",
 		strings.Join(mbl.Fields, ", "), mbl.getTableName(), spineBlockHeight)
 	return query
+}
+
+func (mbl *SpineBlockManifestQuery) GetManifestsFromManifestReferenceHeightRange(fromHeight, toHeight uint32) (qry string, args []interface{}) {
+	return fmt.Sprintf(
+			"SELECT %s FROM %s WHERE manifest_reference_height >= ? AND manifest_reference_height <= ? ORDER BY manifest_reference_height",
+			strings.Join(mbl.Fields, ", "),
+			mbl.getTableName(),
+		),
+		[]interface{}{
+			fromHeight,
+			toHeight,
+		}
 }
 
 // ExtractModel extract the model struct fields to the order of SpineBlockManifestQuery.Fields
