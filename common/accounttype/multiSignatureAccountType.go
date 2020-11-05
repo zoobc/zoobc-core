@@ -10,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
+	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type MultiSignatureAccountType struct {
@@ -83,10 +84,7 @@ func (acc *MultiSignatureAccountType) GetAccountPublicKeyString() (string, error
 }
 
 func (acc *MultiSignatureAccountType) GetAccountPrivateKey() ([]byte, error) {
-	if len(acc.privateKey) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "AccountNotGenerated")
-	}
-	return acc.privateKey, nil
+	return nil, blocker.NewBlocker(blocker.AppErr, "AccountNotGenerated")
 }
 
 func (acc *MultiSignatureAccountType) IsEqual(accType AccountTypeInterface) bool {
@@ -102,42 +100,35 @@ func (acc *MultiSignatureAccountType) GetSignatureLength() uint32 {
 	return constant.ZBCSignatureLength
 }
 
-func (acc *MultiSignatureAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
-	var (
-		ed25519Signature  = signaturetype.NewEd25519Signature()
-		err               error
-		buffer            = bytes.NewBuffer([]byte{})
-		accountPrivateKey []byte
-	)
-	err = acc.GenerateAccountFromSeed(seed, optionalParams...)
-	if err != nil {
-		return nil, err
-	}
-	accountPrivateKey, err = acc.GetAccountPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-	signature := ed25519Signature.Sign(accountPrivateKey, payload)
-	buffer.Write(signature)
-	return buffer.Bytes(), nil
+func (acc *MultiSignatureAccountType) Sign([]byte, string, ...interface{}) ([]byte, error) {
+	return nil, blocker.NewBlocker(blocker.AppErr, "NotAllowedSigning")
 }
 
-func (acc *MultiSignatureAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
-	accType, err := NewAccountTypeFromAccount(accountAddress)
-	if err != nil {
-		return err
-	}
-	ed25519Signature := signaturetype.NewEd25519Signature()
-	accPubKey := accType.GetAccountPublicKey()
-	if !ed25519Signature.Verify(accPubKey, payload, signature) {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"InvalidSignature",
-		)
+// VerifySignature especially for MultisignatureAccountType, the accountAddress passed variable is:
+// [[count][accountAddresses]]
+func (acc *MultiSignatureAccountType) VerifySignature(payload, signature, accountAddresses []byte) error {
+
+	var (
+		buff = bytes.NewBuffer(accountAddresses)
+		b    []byte
+		err  error
+	)
+	b = buff.Next(4)
+
+	for i := 0; i <= int(util.ConvertBytesToUint32(b)); i++ {
+		var accType AccountTypeInterface
+		accType, err = ParseBytesToAccountType(buff)
+		if err != nil {
+			return err
+		}
+		err = accType.VerifySignature(payload, signature, accType.GetAccountPublicKey())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (acc *MultiSignatureAccountType) GenerateAccountFromSeed(seed string, optionalParams ...interface{}) error {
+func (acc *MultiSignatureAccountType) GenerateAccountFromSeed(string, ...interface{}) error {
 	return blocker.NewBlocker(blocker.AppErr, "NotAllowedGenerateFromSeed")
 }
