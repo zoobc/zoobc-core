@@ -164,8 +164,9 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 		return nil, err
 	}
 	for _, registry := range activeNodeRegistry {
+		regNodeCopy := registry.Node
 		if registry.ParticipationScore <= 0 {
-			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &registry.Node)
+			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &regNodeCopy)
 		}
 	}
 	return zeroScoreNodeRegistry, nil
