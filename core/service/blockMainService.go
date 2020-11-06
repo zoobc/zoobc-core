@@ -566,15 +566,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
-	// building scrambled node registry
-	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
-		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
-		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
-		}
-	}
-
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
 	if !persist { // block content are validated
 		// handle if is first index
@@ -741,6 +732,15 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		bs.Logger.Warnf("FailedNextNodeAdmissionCache-%v", err)
 		_ = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
+	}
+	// building scrambled node registry, this should be executed after database commit and cache commit,
+	// since it needs the node registry to be in latest state.
+	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess("")
+			return err
+		}
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// clear the block pool

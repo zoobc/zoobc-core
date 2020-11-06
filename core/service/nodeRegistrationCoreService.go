@@ -164,8 +164,9 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 		return nil, err
 	}
 	for _, registry := range activeNodeRegistry {
+		regNodeCopy := registry.Node
 		if registry.ParticipationScore <= 0 {
-			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &registry.Node)
+			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &regNodeCopy)
 		}
 	}
 	return zeroScoreNodeRegistry, nil
@@ -388,29 +389,19 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	dbTx bool,
 ) (*model.NodeAdmissionTimestamp, error) {
 	var (
-		rows              *sql.Rows
-		err               error
-		delayAdmission    int64
-		nextNodeAdmission *model.NodeAdmissionTimestamp
-		activeBlocksmiths []*model.Blocksmith
-		insertQueries     [][]interface{}
+		err                  error
+		delayAdmission       int64
+		nextNodeAdmission    *model.NodeAdmissionTimestamp
+		activeRegisteredNode []*model.NodeRegistration
+		insertQueries        [][]interface{}
 	)
-
 	// get all registered nodes
-	rows, err = nrs.QueryExecutor.ExecuteSelect(
-		nrs.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(blockHeight),
-		dbTx,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	activeRegisteredNode, err = nrs.GetActiveRegisteredNodes()
 	if err != nil {
 		return nil, err
 	}
 	// calculate next delay node admission timestamp
-	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
+	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeRegisteredNode))
 	delayAdmission = commonUtils.MinInt64(
 		commonUtils.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
 		constant.NodeAdmissionMaxDelay,
