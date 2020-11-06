@@ -3,13 +3,13 @@ package strategy
 import (
 	"context"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -2133,6 +2133,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 					successGetNodeAddressesInfoFromDb:         true,
 				},
 				NodeAddressesInfoService: &mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess{},
+				PeerServiceClient:        &p2pMockPeerServiceClient{},
 				Logger:                   log.New(),
 			},
 		},

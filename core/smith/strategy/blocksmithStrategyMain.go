@@ -83,8 +83,8 @@ func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.
 }
 
 func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	bss.SortedBlocksmithsLock.RLock()
-	defer bss.SortedBlocksmithsLock.RUnlock()
+	bss.SortedBlocksmithsLock.Lock()
+	defer bss.SortedBlocksmithsLock.Unlock()
 	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block, false)
 	}
@@ -98,8 +98,8 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) m
 	var (
 		result = make(map[string]*int64)
 	)
-	bss.SortedBlocksmithsLock.RLock()
-	defer bss.SortedBlocksmithsLock.RUnlock()
+	bss.SortedBlocksmithsLock.Lock()
+	defer bss.SortedBlocksmithsLock.Unlock()
 	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block, false)
 	}
