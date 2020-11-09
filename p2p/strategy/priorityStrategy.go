@@ -122,10 +122,10 @@ func (ps *PriorityStrategy) GetPriorityPeersByFullAddress(priorityPeers map[stri
 
 func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	var (
+		err                          error
 		i                            int
 		unresolvedPriorityPeersCount int
 		resolvedPriorityPeersCount   int
-		blacklistedPeers             = ps.GetBlacklistedPeers()
 		exceedMaxUnresolvedPeers     = ps.GetExceedMaxUnresolvedPeers() - 1
 		priorityPeers                = ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 		hostModelPeer                = &model.Peer{
@@ -139,9 +139,17 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			break
 		}
 		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
+		// remove from blacklisted peers if in black listed peers
+		if ps.GetBlacklistedPeerByAddressPort(priorityNodeAddress) != nil {
+			err = ps.RemoveBlacklistedPeer(peer)
+			if err != nil {
+				ps.Logger.Errorf("FailedRemovePriorityBlacklistedPeer")
+				continue
+			}
+		}
+		// adding priority peer into unresolved peer list
 		if ps.GetUnresolvedPeerByAddressPort(priorityNodeAddress) == nil &&
 			ps.GetResolvedPeerByAddressPort(priorityNodeAddress) == nil &&
-			blacklistedPeers[priorityNodeAddress] == nil &&
 			hostAddress != priorityNodeAddress {
 			var (
 				newPeer         = *peer
@@ -165,7 +173,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			}
 
 			// add the priority peers to unresolvedPeers
-			err := ps.AddToUnresolvedPeer(&newPeer)
+			err = ps.AddToUnresolvedPeer(&newPeer)
 			if err != nil {
 				ps.Logger.Error(err)
 			}
