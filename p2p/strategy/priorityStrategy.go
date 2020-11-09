@@ -1262,18 +1262,19 @@ func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
 
 // PeerBlacklist process adding peer into blacklist
 func (ps *PriorityStrategy) PeerBlacklist(peer *model.Peer, cause string) error {
-	if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
-		ps.Logger.Warn(err.Error())
-		return err
-	}
-	if err := ps.RemoveUnresolvedPeer(peer); err != nil {
-		ps.Logger.Warn(err.Error())
-		return err
-	}
-	if err := ps.RemoveResolvedPeer(peer); err != nil {
-		ps.Logger.Warn(err.Error())
-		return err
-	}
+	// FIXME: remove commented block below when finished testing fork processing when spamming network with transactions
+	// if err := ps.AddToBlacklistedPeer(peer, cause); err != nil {
+	// 	ps.Logger.Warn(err.Error())
+	// 	return err
+	// }
+	// if err := ps.RemoveUnresolvedPeer(peer); err != nil {
+	// 	ps.Logger.Warn(err.Error())
+	// 	return err
+	// }
+	// if err := ps.RemoveResolvedPeer(peer); err != nil {
+	// 	ps.Logger.Warn(err.Error())
+	// 	return err
+	// }
 
 	return nil
 }
