@@ -329,11 +329,13 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				var (
 					fullAddress         = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
 					nodeRequester       = p2pUtil.GetNodeInfo(fullAddress)
-					blacklistedPeers    = ps.GetBlacklistedPeers()
 					isAddedToUnresolved = false
 				)
 
-				if ps.GetUnresolvedPeerByAddressPort(fullAddress) == nil && blacklistedPeers[fullAddress] == nil {
+				if ps.GetResolvedPeerByAddressPort(fullAddress) == nil &&
+					ps.GetUnresolvedPeerByAddressPort(fullAddress) == nil &&
+					ps.GetBlacklistedPeerByAddressPort(fullAddress) == nil {
+
 					if ps.GetTotalUnresolvedPeers() < constant.MaxUnresolvedPeers {
 						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 							ps.Logger.Error(err.Error())
@@ -341,22 +343,19 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 							isAddedToUnresolved = true
 						}
 					} else {
-						for _, peer := range ps.GetUnresolvedPeers() {
-							// add peer requester into unresolved and remove the old one in unresolved peers
-							// removing one of unresolved peers will do when already stayed more than max stayed
-							// and not priority peers
-							if (time.Now().Unix()-peer.UnresolvingTime) >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
-								!ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), peer.GetInfo()) {
-								if err = ps.RemoveUnresolvedPeer(peer); err == nil {
-									if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-										ps.Logger.Error(err.Error())
-										break
-									}
-									isAddedToUnresolved = true
-									break
+						// add peer requester into unresolved and remove the old one in unresolved peers
+						// removing one of unresolved peers will do when already stayed more than max stayed
+						// and not priority peers
+						peer := ps.GetReplaceableUnresolvedPeer(scrambledNodes)
+						if peer != nil {
+							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
+								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+									ps.Logger.Error(err.Error())
 								}
+								isAddedToUnresolved = true
 							}
 						}
+
 					}
 				}
 
@@ -365,11 +364,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				// Or requester is in resolved peers of host
 				// Or requester is in unresolved peers of host And not in blacklisted peer
 				// Or requester added into unresolved peers
-				return ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, host.GetInfo()) ||
-					ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), nodeRequester) ||
+				return isAddedToUnresolved ||
 					(ps.GetResolvedPeerByAddressPort(fullAddress) != nil) ||
 					(ps.GetUnresolvedPeerByAddressPort(fullAddress) != nil) ||
-					isAddedToUnresolved
+					ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, host.GetInfo()) ||
+					ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), nodeRequester)
+
 			}
 			return true
 		}
@@ -1056,6 +1056,20 @@ func (ps *PriorityStrategy) GetAnyUnresolvedPeer() *model.Peer {
 			return peer
 		}
 		idx++
+	}
+	return nil
+}
+
+func (ps *PriorityStrategy) GetReplaceableUnresolvedPeer(scrambledNodes *model.ScrambledNodes) *model.Peer {
+	ps.UnresolvedPeersLock.RLock()
+	defer ps.UnresolvedPeersLock.RUnlock()
+	host := ps.NodeConfigurationService.GetHost()
+
+	for _, peer := range ps.NodeConfigurationService.GetHost().UnresolvedPeers {
+		if (time.Now().Unix()-peer.UnresolvingTime) >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
+			!ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), peer.GetInfo()) {
+			return peer
+		}
 	}
 	return nil
 }

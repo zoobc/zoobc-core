@@ -483,7 +483,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-		mainBlockStateStorage,
+		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
 	)
