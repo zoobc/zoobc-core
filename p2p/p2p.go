@@ -195,7 +195,8 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 }
 
 var (
-	txPool = make([][]byte, 0)
+	txPool      = make([][]byte, 0)
+	txPoolTimer = time.NewTimer(5 * time.Second)
 )
 
 // SendTransactionListener setup listener for transaction to the list peer
@@ -217,17 +218,24 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				s.Logger.Fatalln("chainType casting failures in SendTransactionListener")
 			}
 			peers := s.PeerExplorer.GetResolvedPeers()
-			if len(txPool) > 10 {
+			if len(txPool) > 20 {
+				txPoolTimer.Stop()
 				for _, peer := range peers {
-					go func(p *model.Peer) {
+					go func(p *model.Peer, txPool [][]byte) {
 						_ = s.PeerServiceClient.SendBlockTransactions(p, txPool, chainType)
 						// STEF FIXME: for testing purposes only!
 						// _ = s.PeerServiceClient.SendTransaction(p, t, chainType)
-					}(peer)
+					}(peer, txPool)
 				}
 				txPool = make([][]byte, 0)
+				txPoolTimer = time.NewTimer(5 * time.Second)
 			} else {
 				txPool = append(txPool, t)
+				go func() {
+					<-txPoolTimer.C
+					_ = s.PeerServiceClient.SendBlockTransactions(p, txPool, chainType)
+					txPool = make([][]byte, 0)
+				}()
 			}
 		},
 	}
