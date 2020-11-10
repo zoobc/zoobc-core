@@ -125,10 +125,10 @@ func (bos *BlockchainOrchestratorService) Start() error {
 	var err error
 	// downloading spinechain and wait until the first download is complete
 	// wait downloading snapshot and main blocks until node has finished downloading spine blocks
-	// err = bos.StartSyncChain(bos.SpinechainSyncService, constant.BlockchainsyncSpineTimeout)
-	// if err != nil {
-	// 	return err
-	// }
+	err = bos.StartSyncChain(bos.SpinechainSyncService, constant.BlockchainsyncSpineTimeout)
+	if err != nil {
+		return err
+	}
 
 	lastMainBlock, err := bos.MainchainSyncService.GetBlockService().GetLastBlock()
 	if err != nil {

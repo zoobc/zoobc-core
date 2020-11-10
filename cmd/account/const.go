@@ -1,9 +1,11 @@
 package account
 
 var (
-	encodedAccountAddress string
-	accountTypeInt        int32
-	seed                  string
+	encodedAccountAddress,
+	hexAccountAddress,
+	dbPath string
+	accountTypeInt int32
+	seed           string
 	// ed25519
 	ed25519UseSlip10 bool
 	// bitcoin

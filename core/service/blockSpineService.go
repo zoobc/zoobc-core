@@ -1059,7 +1059,7 @@ func (bs *BlockSpineService) getGenesisSpinePublicKeys(
 		}
 		genesisNodeRegistrationTx, err := GetGenesisNodeRegistrationTx(
 			accountFullAddress,
-			mainchainGenesisEntry.NodeAddress,
+			mainchainGenesisEntry.Message,
 			mainchainGenesisEntry.LockedBalance,
 			mainchainGenesisEntry.NodePublicKey,
 		)

@@ -976,19 +976,16 @@ var (
 		{
 			NodePublicKey: bcsNodePubKey1,
 			NodeID:        2,
-			NodeOrder:     new(big.Int).SetInt64(1000),
 			Score:         new(big.Int).SetInt64(1000),
 		},
 		{
 			NodePublicKey: bcsNodePubKey2,
 			NodeID:        3,
-			NodeOrder:     new(big.Int).SetInt64(2000),
 			Score:         new(big.Int).SetInt64(2000),
 		},
 		{
 			NodePublicKey: mockBlockData.BlocksmithPublicKey,
 			NodeID:        4,
-			NodeOrder:     new(big.Int).SetInt64(3000),
 			Score:         new(big.Int).SetInt64(3000),
 		},
 	}
@@ -1584,6 +1581,15 @@ func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMemp
 	}, nil
 }
 
+type (
+	mockNodeRegistrationServiceGenerateBlockSuccess struct {
+		NodeRegistrationServiceInterface
+	}
+)
+
+func (*mockNodeRegistrationServiceGenerateBlockSuccess) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	return make([]*model.NodeRegistration, 10), nil
+}
 func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 	blockTimesatamp, previousBlockTimesatamp int64,
 ) int64 {
@@ -1592,17 +1598,18 @@ func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 
 func TestBlockService_GenerateBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		MempoolService     MempoolServiceInterface
-		ReceiptService     ReceiptServiceInterface
-		BlocksmithStrategy strategy.BlocksmithStrategyInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		CoinbaseService    CoinbaseServiceInterface
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		CoinbaseService         CoinbaseServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
 	}
 	type args struct {
 		previousBlock            *model.Block
@@ -1662,10 +1669,11 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
-				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
-				ReceiptService:     &mockReceiptServiceReturnEmpty{},
-				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				CoinbaseService:    &mockGenerateBlockCoinbaseServiceSuccess{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
+				ReceiptService:          &mockReceiptServiceReturnEmpty{},
+				ActionTypeSwitcher:      &mockTypeActionSuccess{},
+				CoinbaseService:         &mockGenerateBlockCoinbaseServiceSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceGenerateBlockSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1692,18 +1700,19 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ReceiptService:     tt.fields.ReceiptService,
-				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				ReceiptUtil:        &coreUtil.ReceiptUtil{},
-				CoinbaseService:    tt.fields.CoinbaseService,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
+				CoinbaseService:         tt.fields.CoinbaseService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -2720,33 +2729,6 @@ var (
 	mockBlockIDProcessQueueReceiveBlockAlreadyQueued int64 = 1
 )
 
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	return []*model.Blocksmith{
-		{
-			NodeID:        1,
-			NodeOrder:     new(big.Int).SetInt64(8000),
-			NodePublicKey: []byte{1, 3, 4, 5, 6},
-		},
-		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
-		},
-		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(5000),
-		},
-	}
-}
-
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	var a, b, c = int64(0), int64(1), int64(2)
-	return map[string]*int64{
-		string(mockBlocksmiths[0].NodePublicKey): &a,
-		string(mockBlocksmiths[1].NodePublicKey): &b,
-		string(mockBlocksmiths[2].NodePublicKey): &c,
-	}
-}
-
 func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
 	currentBlock *model.Block) error {
 	return nil
@@ -3359,7 +3341,9 @@ func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
 }
+func (*mockReceiptSuccess) ClearCache() {
 
+}
 func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return nil, errors.New("mockError")
 }

@@ -80,6 +80,9 @@ func (nas *NodeAddressInfoStorage) GetItem(key, item interface{}) error {
 	if !nas.isInTransaction {
 		nas.RLock()
 		defer nas.RUnlock()
+	} else {
+		nas.transactionalLock.RLock()
+		defer nas.transactionalLock.RUnlock()
 	}
 	storageKey, ok := key.(NodeAddressInfoStorageKey)
 	if !ok {
@@ -125,6 +128,9 @@ func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
 	if !nas.isInTransaction {
 		nas.RLock()
 		defer nas.RUnlock()
+	} else {
+		nas.transactionalLock.RLock()
+		defer nas.transactionalLock.RUnlock()
 	}
 	nodeAddresses, ok := item.(*[]*model.NodeAddressInfo)
 	if !ok {

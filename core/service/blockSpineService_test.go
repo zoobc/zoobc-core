@@ -741,19 +741,16 @@ var (
 		{
 			NodePublicKey: bcsNodePubKey1,
 			NodeID:        2,
-			NodeOrder:     new(big.Int).SetInt64(1000),
 			Score:         new(big.Int).SetInt64(1000),
 		},
 		{
 			NodePublicKey: bcsNodePubKey2,
 			NodeID:        3,
-			NodeOrder:     new(big.Int).SetInt64(2000),
 			Score:         new(big.Int).SetInt64(2000),
 		},
 		{
 			NodePublicKey: mockSpineBlockData.BlocksmithPublicKey,
 			NodeID:        4,
-			NodeOrder:     new(big.Int).SetInt64(3000),
 			Score:         new(big.Int).SetInt64(3000),
 		},
 	}
@@ -765,19 +762,6 @@ type (
 	}
 )
 
-func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmiths(*model.Block) []*model.Blocksmith {
-	return mockSpineBlocksmiths
-}
-func (*mockSpineBlocksmithServicePushBlock) GetSortedBlocksmithsMap(*model.Block) map[string]*int64 {
-	var result = make(map[string]*int64)
-	for index, mockSpine := range mockSpineBlocksmiths {
-		mockSpineIndex := int64(index)
-		result[string(mockSpine.NodePublicKey)] = &mockSpineIndex
-	}
-	return result
-}
-func (*mockSpineBlocksmithServicePushBlock) SortBlocksmiths(block *model.Block, withLock bool) {
-}
 func (*mockSpineBlocksmithServicePushBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
 	currentBlock *model.Block) error {
 	return nil
@@ -2169,16 +2153,13 @@ func (*mockSpineBlocksmithService) GetSortedBlocksmiths(block *model.Block) []*m
 	return []*model.Blocksmith{
 		{
 			NodeID:        1,
-			NodeOrder:     new(big.Int).SetInt64(8000),
 			NodePublicKey: []byte{1, 3, 4, 5, 6},
 		},
 		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
+			NodeID: 2,
 		},
 		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(5000),
+			NodeID: 3,
 		},
 	}
 }

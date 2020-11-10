@@ -6,26 +6,13 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
-
-	"github.com/zoobc/zoobc-core/common/signaturetype"
-
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -36,6 +23,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -51,6 +39,15 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
 )
 
 var (
@@ -358,6 +355,7 @@ func initiateMainInstance() {
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
 		activeNodeRegistryCacheStorage,
+		mainBlocksStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -415,22 +413,18 @@ func initiateMainInstance() {
 	)
 
 	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
 		crypto.NewRandomNumberGenerator(),
+		mainchain,
 	)
-	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
 		loggerCoreService,
-		query.NewBlockQuery(&chaintype.SpineChain{}),
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
 		crypto.NewRandomNumberGenerator(),
+		spinechain,
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -592,15 +586,6 @@ func initiateMainInstance() {
 		loggerCoreService,
 	)
 
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-		config.NodeKey.PublicKey,
-		activeNodeRegistryCacheStorage,
-		crypto.NewRandomNumberGenerator(),
-	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
 		query.NewAccountLedgerQuery(),
@@ -861,6 +846,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -1031,7 +1021,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-
+	// scheduler to generate receipt merkle root
+	if err := schedulerInstance.AddJob(
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

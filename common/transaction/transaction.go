@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -121,7 +122,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AuthPoown:               &auth.NodeAuthValidation{},
+				AuthPoown:               ts.NodeAuthValidation,
 				QueryExecutor:           ts.Executor,
 				Escrow:                  tx.GetEscrow(),
 				EscrowQuery:             query.NewEscrowTransactionQuery(),
@@ -147,7 +148,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
+				AuthPoown:             ts.NodeAuthValidation,
 				QueryExecutor:         ts.Executor,
 				Escrow:                tx.GetEscrow(),
 				EscrowQuery:           query.NewEscrowTransactionQuery(),
@@ -197,7 +198,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Height:                tx.GetHeight(),
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             &auth.NodeAuthValidation{},
+				AuthPoown:             ts.NodeAuthValidation,
 				QueryExecutor:         ts.Executor,
 				AccountBalanceHelper:  accountBalanceHelper,
 				Escrow:                tx.GetEscrow(),
@@ -208,6 +209,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
 				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 			}, nil
 		default:
 			return nil, nil
