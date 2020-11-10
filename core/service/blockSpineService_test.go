@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 	"reflect"
 	"regexp"
@@ -15,6 +14,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -2345,12 +2345,12 @@ type (
 	}
 )
 
-func (*mockReceiveBlockMainBlockServiceSuccess) GetBlockByHeight(uint32) (*model.Block, error) {
-	return &model.Block{}, nil
+func (*mockReceiveBlockMainBlockServiceSuccess) GetBlockByHeightCacheFormat(uint32) (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{}, nil
 }
 
-func (*mockReceiveBlockMainBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &model.Block{}, nil
+func (*mockReceiveBlockMainBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{}, nil
 }
 
 func TestBlockSpineService_ReceiveBlock(t *testing.T) {
@@ -2886,12 +2886,12 @@ type (
 	}
 )
 
-func (*mockValidateBlockMainBlockServiceSuccess) GetBlockByHeight(uint32) (*model.Block, error) {
-	return &model.Block{}, nil
+func (*mockValidateBlockMainBlockServiceSuccess) GetBlockByHeightCacheFormat(uint32) (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{}, nil
 }
 
-func (*mockValidateBlockMainBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &model.Block{}, nil
+func (*mockValidateBlockMainBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{}, nil
 }
 
 func (*mockSpineBlocksmithServiceValidateBlockSuccess) GetSortedBlocksmithsMap(*model.Block) map[string]*int64 {

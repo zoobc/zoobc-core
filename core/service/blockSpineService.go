@@ -4,21 +4,20 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"sort"
 	"sync"
 
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -487,6 +486,10 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 	return block, nil
 }
 
+func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
+	return nil, blocker.NewBlocker(blocker.AppErr, "GetBlockByHeightCacheFormat-NotImplementedYet")
+}
+
 // GetGenesisBlock return the genesis block
 func (bs *BlockSpineService) GetGenesisBlock() (*model.Block, error) {
 	var (
@@ -918,7 +921,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
-	var mainLastBlock, err = bs.MainBlockService.GetLastBlock()
+	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()
 	if err != nil {
 		return err
 	}
@@ -928,7 +931,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	}
 	var referenceBlock = mainLastBlock
 	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
-		referenceBlock, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+		referenceBlock, err = bs.MainBlockService.GetBlockByHeightCacheFormat(incomingBlock.ReferenceBlockHeight)
 		if err != nil {
 			return err
 		}

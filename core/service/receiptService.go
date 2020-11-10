@@ -39,7 +39,7 @@ type (
 		GenerateReceiptWithReminder(
 			ct chaintype.ChainType,
 			receivedDatumHash []byte,
-			lastBlock *model.Block,
+			lastBlock *storage.BlockCacheObject,
 			senderPublicKey []byte,
 			nodeSecretPhrase string,
 			datumType uint32,
@@ -496,7 +496,7 @@ func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*m
 func (rs *ReceiptService) GenerateReceiptWithReminder(
 	ct chaintype.ChainType,
 	receivedDatumHash []byte,
-	lastBlock *model.Block,
+	lastBlock *storage.BlockCacheObject,
 	senderPublicKey []byte,
 	nodeSecretPhrase string,
 	datumType uint32,

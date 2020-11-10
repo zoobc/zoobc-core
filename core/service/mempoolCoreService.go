@@ -2,7 +2,6 @@ package service
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"sort"
 	"strconv"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -35,7 +35,7 @@ type (
 		ValidateMempoolTransaction(mpTx *model.Transaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
-			lastBlock *model.Block,
+			lastBlock *storage.BlockCacheObject,
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		ReceivedBlockTransactions(
@@ -361,7 +361,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 
 func (mps *MempoolService) ReceivedTransaction(
 	senderPublicKey, receivedTxBytes []byte,
-	lastBlock *model.Block,
+	lastBlock *storage.BlockCacheObject,
 	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	var (
@@ -423,7 +423,7 @@ func (mps *MempoolService) ReceivedTransaction(
 // will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
 	senderPublicKey, receivedTxBytes []byte,
-	lastBlock *model.Block,
+	lastBlock *storage.BlockCacheObject,
 	nodeSecretPhrase string,
 ) (*model.Receipt, *model.Transaction, error) {
 	var (
@@ -479,8 +479,13 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		batchReceiptArray    []*model.Receipt
 		receivedTransactions []*model.Transaction
 	)
+	lastBlockCache := &storage.BlockCacheObject{
+		ID:        lastBlock.GetID(),
+		Height:    lastBlock.GetHeight(),
+		BlockHash: lastBlock.GetBlockHash(),
+	}
 	for _, txBytes := range receivedTxBytes {
-		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlock, nodeSecretPhrase)
+		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlockCache, nodeSecretPhrase)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

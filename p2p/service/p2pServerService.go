@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -475,11 +476,11 @@ func (ps *P2PServerService) SendTransaction(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]

@@ -2967,7 +2967,7 @@ type (
 )
 
 func (*mockReceiptServiceSuccess) GenerateReceiptWithReminder(
-	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
+	chaintype.ChainType, []byte, *storage.BlockCacheObject, []byte, string, uint32,
 ) (*model.Receipt, error) {
 	return nil, nil
 }
