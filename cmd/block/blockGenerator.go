@@ -5,11 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
-
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/auth"
