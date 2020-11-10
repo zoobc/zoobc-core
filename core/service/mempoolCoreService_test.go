@@ -4,11 +4,12 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
@@ -58,7 +59,7 @@ func TestNewMempoolService(t *testing.T) {
 		receiptUtil            coreUtil.ReceiptUtilInterface
 		receiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockStateStorage      storage.CacheStorageInterface
+		BlockStateStorage      storage.CacheStackStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
 	}
 
@@ -982,6 +983,9 @@ type (
 	mockCacheStorageAlwaysSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockAddMempoolTransactionBlockStateStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 )
 
 func (*mockCacheStorageAlwaysSuccess) SetItem(key, item interface{}) error { return nil }
@@ -991,13 +995,20 @@ func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { ret
 func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
 func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
 
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Pop() error               { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Push(interface{}) error   { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) PopTo(uint32) error       { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) GetAll(interface{}) error { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) GetTop(interface{}) error { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Clear() error             { return nil }
+
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	type fields struct {
 		QueryExecutor      query.ExecutorInterface
 		MempoolQuery       query.MempoolQueryInterface
 		BlockQuery         query.BlockQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
-		BlockStateStorage  storage.CacheStorageInterface
+		BlockStateStorage  storage.CacheStackStorageInterface
 		MempoolStorage     storage.CacheStorageInterface
 		Observer           *observer.Observer
 	}
@@ -1017,7 +1028,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				BlockQuery:         query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-				BlockStateStorage:  &mockCacheStorageAlwaysSuccess{},
+				BlockStateStorage:  &mockAddMempoolTransactionBlockStateStorageSuccess{},
 				MempoolStorage:     &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
@@ -1039,7 +1050,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				BlockStateStorage:   tt.fields.BlockStateStorage,
+				BlocksStorage:       tt.fields.BlockStateStorage,
 				MempoolCacheStorage: tt.fields.MempoolStorage,
 			}
 			if err := mps.AddMempoolTransaction(tt.args.mpTx, nil); (err != nil) != tt.wantErr {
