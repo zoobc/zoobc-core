@@ -1433,8 +1433,12 @@ var (
 	}
 )
 
-func (*mockSpineGenerateblockMainBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockGenerateBlockMainBlock, nil
+func (*mockSpineGenerateblockMainBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockGenerateBlockMainBlock.ID,
+		Height:    mockGenerateBlockMainBlock.Height,
+		BlockHash: mockGenerateBlockMainBlock.BlockHash,
+	}, nil
 }
 
 func (*mockSpineGenerateblockMainBlockServiceSuccess) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {

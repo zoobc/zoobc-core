@@ -618,7 +618,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		newReferenceBlockHeight     uint32
 	)
 	// select main block to be include in spine block
-	lastMainBlock, err := bs.MainBlockService.GetLastBlock()
+	lastMainBlock, err := bs.MainBlockService.GetLastBlockCacheFormat()
 	if err != nil {
 		return nil, err
 	}
