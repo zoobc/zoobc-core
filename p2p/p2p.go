@@ -231,9 +231,16 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				txPoolTimer = time.NewTimer(5 * time.Second)
 			} else {
 				txPool = append(txPool, t)
+
 				go func() {
 					<-txPoolTimer.C
-					_ = s.PeerServiceClient.SendBlockTransactions(p, txPool, chainType)
+					for _, peer := range peers {
+						go func(p *model.Peer, txPool [][]byte) {
+							_ = s.PeerServiceClient.SendBlockTransactions(p, txPool, chainType)
+							// STEF FIXME: for testing purposes only!
+							// _ = s.PeerServiceClient.SendTransaction(p, t, chainType)
+						}(peer, txPool)
+					}
 					txPool = make([][]byte, 0)
 				}()
 			}
