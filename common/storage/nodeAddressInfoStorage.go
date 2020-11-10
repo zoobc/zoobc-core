@@ -144,6 +144,14 @@ func (nas *NodeAddressInfoStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (nas *NodeAddressInfoStorage) GetTotalItems() int {
+	var totalItems int
+	for _, nodeIDs := range nas.nodeAddressInfoMapByAddressPort {
+		totalItems += len(nodeIDs)
+	}
+	return totalItems
+}
+
 func (nas *NodeAddressInfoStorage) RemoveItem(key interface{}) error {
 	nas.Lock()
 	defer nas.Unlock()

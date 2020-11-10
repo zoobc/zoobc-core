@@ -89,6 +89,10 @@ func (brs *ReceiptPoolCacheStorage) GetAllItems(items interface{}) error {
 	return nil
 }
 
+func (brs *ReceiptPoolCacheStorage) GetTotalItems() int {
+	return len(brs.receipts)
+}
+
 func (brs *ReceiptPoolCacheStorage) RemoveItem(_ interface{}) error {
 	return nil
 }

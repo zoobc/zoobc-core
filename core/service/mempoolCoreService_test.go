@@ -989,6 +989,7 @@ func (*mockCacheStorageAlwaysSuccess) GetItem(key, item interface{}) error { ret
 func (*mockCacheStorageAlwaysSuccess) GetAllItems(item interface{}) error  { return nil }
 func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { return nil }
 func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
+func (*mockCacheStorageAlwaysSuccess) GetTotalItems() int                  { return 0 }
 func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {

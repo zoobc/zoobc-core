@@ -172,15 +172,7 @@ func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Trans
 }
 
 func (mps *MempoolService) GetTotalMempoolTransactions() (int, error) {
-	var (
-		err      error
-		mempools = make(storage.MempoolMap)
-	)
-	err = mps.MempoolCacheStorage.GetAllItems(mempools)
-	if err != nil {
-		return 0, err
-	}
-	return len(mempools), nil
+	return mps.MempoolCacheStorage.GetTotalItems(), nil
 }
 
 // GetMempoolTransactions fetch transactions from mempool

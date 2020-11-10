@@ -67,6 +67,10 @@ func (ns *NodeAdmissionTimestampStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (ns *NodeAdmissionTimestampStorage) GetTotalItems() int {
+	return 1
+}
+
 func (ns *NodeAdmissionTimestampStorage) RemoveItem(key interface{}) error {
 	return nil
 }

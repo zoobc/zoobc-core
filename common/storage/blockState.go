@@ -75,6 +75,10 @@ func (bs *BlockStateStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (bs *BlockStateStorage) GetTotalItems() int {
+	return 1
+}
+
 func (bs *BlockStateStorage) RemoveItem(key interface{}) error {
 	return nil
 }

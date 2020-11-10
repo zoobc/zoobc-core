@@ -84,6 +84,10 @@ func (m *MempoolCacheStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (m *MempoolCacheStorage) GetTotalItems() int {
+	return len(m.mempoolMap)
+}
+
 func (m *MempoolCacheStorage) RemoveItem(keys interface{}) error {
 	m.Lock()
 	defer m.Unlock()

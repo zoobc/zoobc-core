@@ -10,6 +10,8 @@ type (
 		GetItem(key, item interface{}) error
 		// GetAllItems fetch all cached items
 		GetAllItems(item interface{}) error
+		// GetTotalItems fetch the number of total cached items
+		GetTotalItems() int
 		// RemoveItem remove item by providing the key(s)
 		RemoveItem(key interface{}) error
 		// GetSize return the size of storage in number of `byte`
