@@ -196,7 +196,7 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 
 var (
 	txPool      = make([][]byte, 0)
-	txPoolTimer = time.NewTimer(5 * time.Second)
+	txPoolTimer = time.NewTimer(10 * time.Second)
 )
 
 // SendTransactionListener setup listener for transaction to the list peer
@@ -228,7 +228,7 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 					}(peer, txPool)
 				}
 				txPool = make([][]byte, 0)
-				txPoolTimer = time.NewTimer(5 * time.Second)
+				txPoolTimer = time.NewTimer(10 * time.Second)
 			} else {
 				txPool = append(txPool, t)
 
