@@ -9,13 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -746,7 +745,7 @@ func (*mockReceiptUtilError) GetReceiptKey(
 }
 
 func (*mockReceiptServiceSucces) GenerateReceiptWithReminder(
-	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
+	chaintype.ChainType, []byte, *storage.BlockCacheObject, []byte, string, uint32,
 ) (*model.Receipt, error) {
 	return &model.Receipt{}, nil
 }
@@ -793,7 +792,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	}
 	type args struct {
 		senderPublicKey, receivedTxBytes []byte
-		lastBlock                        *model.Block
+		lastBlock                        *storage.BlockCacheObject
 		nodeSecretPhrase                 string
 	}
 	type want struct {
@@ -993,6 +992,7 @@ func (*mockCacheStorageAlwaysSuccess) GetItem(key, item interface{}) error { ret
 func (*mockCacheStorageAlwaysSuccess) GetAllItems(item interface{}) error  { return nil }
 func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { return nil }
 func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
+func (*mockCacheStorageAlwaysSuccess) GetTotalItems() int                  { return 0 }
 func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
 
 func (*mockAddMempoolTransactionBlockStateStorageSuccess) Pop() error               { return nil }
