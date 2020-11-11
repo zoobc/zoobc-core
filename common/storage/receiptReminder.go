@@ -83,7 +83,10 @@ func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
 }
 
 func (rs *ReceiptReminderStorage) GetTotalItems() int {
-	return len(rs.reminders)
+	rs.Lock()
+	var totalItems = len(rs.reminders)
+	rs.Unlock()
+	return totalItems
 }
 
 func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
