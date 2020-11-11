@@ -47,7 +47,7 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
-// GetMultisignatureInfoByAddressWithParticipants
+// GetMultisignatureInfoByAddressWithParticipants get multi signature info and participants
 func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddressWithParticipants(
 	multisigAddress []byte,
 	currentHeight, limit uint32,
@@ -72,7 +72,6 @@ func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddressWithParticipan
 		msParticipant.getTableName(),
 	)
 	return queryMultisigInfo, []interface{}{
-		multisigAddress,
 		multisigAddress,
 		blockHeight,
 	}
