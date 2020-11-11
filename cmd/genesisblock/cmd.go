@@ -136,6 +136,7 @@ func generateGenesisFiles(withDbLastState bool, dbPath string, extraNodesCount i
 			if prevBcStateEntry, ok := bcStateMap[key]; ok {
 				preRegisteredNode.NodePublicKey = prevBcStateEntry.NodePublicKey
 				preRegisteredNode.NodePublicKeyBytes = prevBcStateEntry.NodePublicKeyBytes
+				preRegisteredNode.Message = prevBcStateEntry.Message
 			} else {
 				entry := parseErrorLog{
 					AccountAddress: preRegisteredNode.AccountAddress,
@@ -234,6 +235,7 @@ func buildPreregisteredNodes(preRegisteredNodes []genesisEntry, withDbLastState 
 			if err != nil {
 				log.Fatal(err)
 			}
+			bcState[i].NodePublicKey = prNode.NodePublicKey
 			bcState[i].NodePublicKeyBytes = pubKey
 			preRegisteredMap[prNode.AccountAddress] = bcState[i]
 			found = true
@@ -533,6 +535,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 			LockedBalance:      entry.LockedBalance,
 			NodePublicKey:      entry.NodePublicKeyBytes,
 			ParticipationScore: entry.ParticipationScore,
+			Message:            entry.Message,
 		}
 		genesisConfig = append(genesisConfig, cfgEntry)
 	}

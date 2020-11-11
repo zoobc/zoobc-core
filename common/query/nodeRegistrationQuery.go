@@ -22,7 +22,7 @@ type (
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string
 		GetNodeRegistrationsByBlockHeightInterval(fromHeight, toHeight uint32) string
-		GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string
+		GetAllNodeRegistryByStatus(status model.NodeRegistrationState, active bool) string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetActiveNodeRegistrationsWithNodeAddress() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
@@ -163,10 +163,12 @@ func (nrq *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model
 	)
 	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nrq.getTableName())
 	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		// todo: this is a simple fix for update node conflict handling, need better treatment in future
+		"INSERT INTO %s (%s) VALUES(%s) ON CONFLICT(id, height) DO UPDATE SET registration_status = %d, latest = 1",
 		nrq.getTableName(),
 		strings.Join(nrq.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nrq.Fields)-1)),
+		nodeRegistration.RegistrationStatus,
 	)
 
 	queries = append(queries,
@@ -307,14 +309,26 @@ func (nrq *NodeRegistrationQuery) GetPendingNodeRegistrations(limit uint32) stri
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), model.NodeRegistrationState_NodeQueued, limit)
 }
 
-func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string {
-	var aliasedFields []string
+// GetAllNodeRegistryByStatus fetch node registries with latest = 1 joined with participation_score table
+// active will strictly require data to have participation score, if set to false, it means node can be pending registry
+func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRegistrationState, active bool) string {
+	var (
+		qry           string
+		aliasedFields []string
+	)
 	for _, field := range nrq.Fields {
 		aliasedFields = append(aliasedFields, fmt.Sprintf("nr.%s", field))
 	}
-	return fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
-		"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
-		strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	if active {
+		qry = fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
+			"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
+			strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	} else {
+		qry = fmt.Sprintf("SELECT %s, 0 FROM %s nr "+
+			"WHERE nr.registration_status=%d AND nr.latest=1 ORDER BY nr.locked_balance DESC",
+			strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	}
+	return qry
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields

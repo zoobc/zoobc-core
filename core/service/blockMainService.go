@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"reflect"
 	"sort"
@@ -18,10 +16,12 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
@@ -595,14 +595,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
-	// building scrambled node registry
-	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
-		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
-		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
-		}
-	}
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
 	if !persist { // block content are validated
 		// get blocksmith index
@@ -773,13 +765,22 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.Logger.Warnf("FailedNextNodeAdmissionCache-%v", err)
 		_ = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	}
+	// building scrambled node registry, this should be executed after database commit and cache commit,
+	// since it needs the node registry to be in latest state.
+	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
+		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess("")
+			return err
+		}
+	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// sort blocksmiths for next block
 	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
 	// broadcast block
-	if broadcast && !persist && *blocksmithIndex == 0 {
+	if broadcast && !persist && (blocksmithIndex != nil && *blocksmithIndex == 0) {
 		// add transactionIDs and remove transaction before broadcast
 		block.TransactionIDs = transactionIDs
 		block.Transactions = []*model.Transaction{}
@@ -935,7 +936,7 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 			break
 		}
 	}
-	if blocksmithIndex < 0 {
+	if blocksmithIndex < 0 || blocksmithNode == nil {
 		return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInBlocksmithList")
 	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
@@ -1073,6 +1074,15 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 		return nil, err
 	}
 	return block, nil
+}
+
+func (bs *BlockService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
+	return commonUtils.GetBlockByHeightUseBlocksCache(
+		height,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		bs.BlocksStorage,
+	)
 }
 
 // GetGenesisBlock return the last pushed block
@@ -1458,11 +1468,15 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-
+	lastBlockCacheFormat := &storage.BlockCacheObject{
+		ID:        lastBlock.ID,
+		Height:    lastBlock.Height,
+		BlockHash: lastBlock.BlockHash,
+	}
 	// generate receipt and return as response
 	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
 		bs.Chaintype, block.GetBlockHash(),
-		lastBlock,
+		lastBlockCacheFormat,
 		senderPublicKey,
 		nodeSecretPhrase,
 		constant.ReceiptDatumTypeBlock,
@@ -1538,7 +1552,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-	// update cache next node admissiom timestamp after rollback
+	// update cache next node admission timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return nil, err
@@ -1554,8 +1568,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
-	// clear block pool
+	/*
+		Need to clearing some cache storage that affected
+	*/
 	bs.BlockPoolService.ClearBlockPool()
+	bs.ReceiptService.ClearCache()
+
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()
 	if err != nil {
@@ -1765,9 +1783,10 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 
 	if peer == nil {
 		bs.Logger.Errorf("Error peer is null, can not request block transactions from the Peer")
+	} else {
+		bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	}
 
-	bs.BlockIncompleteQueueService.RequestBlockTransactions(txIds, block.GetID(), peer)
 	return true, nil
 }
 
@@ -1779,8 +1798,8 @@ func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Li
 			if !ok {
 				bs.Logger.Fatalln("transactions casting failures in ReceivedValidatedBlockTransactionsListener")
 			}
-			for _, transaction := range transactions {
-				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(transaction)
+			for _, tx := range transactions {
+				var completedBlocks = bs.BlockIncompleteQueueService.AddTransaction(tx)
 				for _, block := range completedBlocks {
 					err := bs.ProcessCompletedBlock(block)
 					if err != nil {

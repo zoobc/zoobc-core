@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/big"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 
@@ -2966,7 +2967,7 @@ type (
 )
 
 func (*mockReceiptServiceSuccess) GenerateReceiptWithReminder(
-	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
+	chaintype.ChainType, []byte, *storage.BlockCacheObject, []byte, string, uint32,
 ) (*model.Receipt, error) {
 	return nil, nil
 }
@@ -4253,7 +4254,9 @@ func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
 }
+func (*mockReceiptSuccess) ClearCache() {
 
+}
 func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return nil, errors.New("mockError")
 }

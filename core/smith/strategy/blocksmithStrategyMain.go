@@ -1,23 +1,20 @@
 package strategy
 
 import (
+	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
+	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"math"
 	"math/big"
 	"sort"
 	"sync"
 	"time"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	log "github.com/sirupsen/logrus"
-
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-	"github.com/zoobc/zoobc-core/common/query"
-	coreUtil "github.com/zoobc/zoobc-core/core/util"
 )
 
 type (
@@ -26,6 +23,7 @@ type (
 		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
 		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
 		Logger                                 *log.Logger
+		ActiveNodeRegistryCache                storage.CacheStorageInterface
 		SortedBlocksmiths                      []*model.Blocksmith
 		LastSortedBlockID                      int64
 		LastEstimatedBlockPersistedTimestamp   int64
@@ -39,50 +37,54 @@ func NewBlocksmithStrategyMain(
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
+	activeNodeRegistryCache storage.CacheStorageInterface,
 	logger *log.Logger,
 ) *BlocksmithStrategyMain {
 	return &BlocksmithStrategyMain{
-		QueryExecutor:          queryExecutor,
-		NodeRegistrationQuery:  nodeRegistrationQuery,
-		SkippedBlocksmithQuery: skippedBlocksmithQuery,
-		Logger:                 logger,
-		SortedBlocksmithsMap:   make(map[string]*int64),
+		QueryExecutor:           queryExecutor,
+		NodeRegistrationQuery:   nodeRegistrationQuery,
+		SkippedBlocksmithQuery:  skippedBlocksmithQuery,
+		ActiveNodeRegistryCache: activeNodeRegistryCache,
+		Logger:                  logger,
+		SortedBlocksmithsMap:    make(map[string]*int64),
 	}
 }
 
 // GetBlocksmiths select the blocksmiths for a given block and calculate the SmithOrder (for smithing) and NodeOrder (for block rewards)
 func (bss *BlocksmithStrategyMain) GetBlocksmiths(block *model.Block) ([]*model.Blocksmith, error) {
 	var (
-		activeBlocksmiths, blocksmiths []*model.Blocksmith
+		activeRegistries []storage.NodeRegistry
+		blocksmiths      []*model.Blocksmith
 	)
-	// get all registered nodes with participation score > 0
-	rows, err := bss.QueryExecutor.ExecuteSelect(bss.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(
-		block.Height), false)
+	err := bss.ActiveNodeRegistryCache.GetAllItems(&activeRegistries)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	activeBlocksmiths, err = bss.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
-	if err != nil {
-		return nil, err
-	}
-	monitoring.SetNodeScore(activeBlocksmiths)
-	monitoring.SetActiveRegisteredNodesCount(len(activeBlocksmiths))
-	// add smithorder and nodeorder to be used to select blocksmith and coinbase rewards
-	for _, blocksmith := range activeBlocksmiths {
-		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(blocksmith.NodeID, block)
+	monitoring.SetActiveRegisteredNodesCount(len(activeRegistries))
+	// add smithorder and nodeorder to be used to select nodereg and coinbase rewards
+	for _, nodereg := range activeRegistries {
+		var blocksmith = &model.Blocksmith{
+			NodeID:        nodereg.Node.GetNodeID(),
+			NodePublicKey: nodereg.Node.GetNodePublicKey(),
+			Score:         big.NewInt(nodereg.ParticipationScore),
+		}
+		blocksmith.BlockSeed, err = coreUtil.GetBlockSeed(nodereg.Node.GetNodeID(), block)
 		if err != nil {
 			return nil, err
 		}
-		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(blocksmith.Score, blocksmith.BlockSeed, blocksmith.NodeID)
+		blocksmith.NodeOrder = coreUtil.CalculateNodeOrder(
+			blocksmith.Score, blocksmith.BlockSeed, nodereg.Node.GetNodeID(),
+		)
 		blocksmiths = append(blocksmiths, blocksmith)
 	}
+	monitoring.SetNodeScore(blocksmiths)
+
 	return blocksmiths, nil
 }
 
 func (bss *BlocksmithStrategyMain) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	bss.SortedBlocksmithsLock.RLock()
-	defer bss.SortedBlocksmithsLock.RUnlock()
+	bss.SortedBlocksmithsLock.Lock()
+	defer bss.SortedBlocksmithsLock.Unlock()
 	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block, false)
 	}
@@ -96,8 +98,8 @@ func (bss *BlocksmithStrategyMain) GetSortedBlocksmithsMap(block *model.Block) m
 	var (
 		result = make(map[string]*int64)
 	)
-	bss.SortedBlocksmithsLock.RLock()
-	defer bss.SortedBlocksmithsLock.RUnlock()
+	bss.SortedBlocksmithsLock.Lock()
+	defer bss.SortedBlocksmithsLock.Unlock()
 	if block.ID != bss.LastSortedBlockID || block.ID == constant.MainchainGenesisBlockID {
 		bss.SortBlocksmiths(block, false)
 	}

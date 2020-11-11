@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -109,6 +108,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 			storage.NewNodeAddressInfoStorage(),
 			nil,
 			activeNodeRegistryCacheStorage,
+			nil,
 			logrus.New(),
 		)
 
