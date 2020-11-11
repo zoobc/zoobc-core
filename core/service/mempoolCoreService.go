@@ -65,7 +65,7 @@ type (
 		ReceiptUtil            coreUtil.ReceiptUtilInterface
 		ReceiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockStateStorage      storage.CacheStorageInterface
+		BlocksStorage          storage.CacheStackStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
 		MempoolBackupStorage   storage.CacheStorageInterface
 	}
@@ -87,7 +87,8 @@ func NewMempoolService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
 	transactionCoreService TransactionCoreServiceInterface,
-	blockStateStorage, mempoolCacheStorage, mempoolBackupStorage storage.CacheStorageInterface,
+	blocksStorage storage.CacheStackStorageInterface,
+	mempoolCacheStorage, mempoolBackupStorage storage.CacheStorageInterface,
 ) *MempoolService {
 	return &MempoolService{
 		TransactionUtil:        transactionUtil,
@@ -104,7 +105,7 @@ func NewMempoolService(
 		ReceiptUtil:            receiptUtil,
 		ReceiptService:         receiptService,
 		TransactionCoreService: transactionCoreService,
-		BlockStateStorage:      blockStateStorage,
+		BlocksStorage:          blocksStorage,
 		MempoolCacheStorage:    mempoolCacheStorage,
 		MempoolBackupStorage:   mempoolBackupStorage,
 	}
@@ -211,12 +212,12 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 	}
 
 	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	var lastBlock model.Block
-	err := mps.BlockStateStorage.GetItem(nil, &lastBlock)
+	var lastBlock storage.BlockCacheObject
+	err := mps.BlocksStorage.GetTop(&lastBlock)
 	if err != nil {
 		return err
 	}
-	mpTx.BlockHeight = lastBlock.GetHeight()
+	mpTx.BlockHeight = lastBlock.Height
 	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
 	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 	if err != nil {
