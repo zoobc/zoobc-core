@@ -68,6 +68,7 @@ func (ns *NodeAdmissionTimestampStorage) GetAllItems(item interface{}) error {
 }
 
 func (ns *NodeAdmissionTimestampStorage) GetTotalItems() int {
+	// this storage only have 1 item
 	return 1
 }
 

@@ -35,13 +35,13 @@ type (
 		ValidateMempoolTransaction(mpTx *model.Transaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
-			lastBlock *storage.BlockCacheObject,
+			lastBlockCacheFromat *storage.BlockCacheObject,
 			nodeSecretPhrase string,
 		) (*model.Receipt, error)
 		ReceivedBlockTransactions(
 			senderPublicKey []byte,
 			receivedTxBytes [][]byte,
-			lastBlock *storage.BlockCacheObject,
+			lastBlockCacheFromat *storage.BlockCacheObject,
 			nodeSecretPhrase string,
 		) ([]*model.Receipt, error)
 		DeleteExpiredMempoolTransactions() error
@@ -415,7 +415,7 @@ func (mps *MempoolService) ReceivedTransaction(
 // will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
 	senderPublicKey, receivedTxBytes []byte,
-	lastBlock *storage.BlockCacheObject,
+	lastBlockCacheFromat *storage.BlockCacheObject,
 	nodeSecretPhrase string,
 ) (*model.Receipt, *model.Transaction, error) {
 	var (
@@ -440,7 +440,8 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 
 	receipt, err = mps.ReceiptService.GenerateReceiptWithReminder(
 		mps.Chaintype, receivedTxHash[:],
-		lastBlock, senderPublicKey,
+		lastBlockCacheFromat,
+		senderPublicKey,
 		nodeSecretPhrase,
 		constant.ReceiptDatumTypeTransaction,
 	)
@@ -464,7 +465,7 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 func (mps *MempoolService) ReceivedBlockTransactions(
 	senderPublicKey []byte,
 	receivedTxBytes [][]byte,
-	lastBlock *storage.BlockCacheObject,
+	lastBlockCacheFromat *storage.BlockCacheObject,
 	nodeSecretPhrase string,
 ) ([]*model.Receipt, error) {
 	var (
@@ -472,7 +473,12 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		receivedTransactions []*model.Transaction
 	)
 	for _, txBytes := range receivedTxBytes {
-		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlock, nodeSecretPhrase)
+		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(
+			senderPublicKey,
+			txBytes,
+			lastBlockCacheFromat,
+			nodeSecretPhrase,
+		)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
