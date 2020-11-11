@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -475,11 +476,11 @@ func (ps *P2PServerService) SendTransaction(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -492,7 +493,7 @@ func (ps *P2PServerService) SendTransaction(
 		receipt, err := mempoolService.ReceivedTransaction(
 			senderPublicKey,
 			transactionBytes,
-			lastBlock,
+			lastBlockCacheFormat,
 			ps.NodeSecretPhrase,
 		)
 		if err != nil {
@@ -520,11 +521,11 @@ func (ps *P2PServerService) SendBlockTransactions(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -537,7 +538,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 		batchReceipts, err := mempoolService.ReceivedBlockTransactions(
 			senderPublicKey,
 			transactionsBytes,
-			lastBlock,
+			lastBlockCacheFormat,
 			ps.NodeSecretPhrase,
 		)
 		if err != nil {
