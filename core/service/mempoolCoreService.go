@@ -41,7 +41,7 @@ type (
 		ReceivedBlockTransactions(
 			senderPublicKey []byte,
 			receivedTxBytes [][]byte,
-			lastBlock *model.Block,
+			lastBlock *storage.BlockCacheObject,
 			nodeSecretPhrase string,
 		) ([]*model.Receipt, error)
 		DeleteExpiredMempoolTransactions() error
@@ -464,20 +464,15 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 func (mps *MempoolService) ReceivedBlockTransactions(
 	senderPublicKey []byte,
 	receivedTxBytes [][]byte,
-	lastBlock *model.Block,
+	lastBlock *storage.BlockCacheObject,
 	nodeSecretPhrase string,
 ) ([]*model.Receipt, error) {
 	var (
 		batchReceiptArray    []*model.Receipt
 		receivedTransactions []*model.Transaction
 	)
-	lastBlockCache := &storage.BlockCacheObject{
-		ID:        lastBlock.GetID(),
-		Height:    lastBlock.GetHeight(),
-		BlockHash: lastBlock.GetBlockHash(),
-	}
 	for _, txBytes := range receivedTxBytes {
-		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlockCache, nodeSecretPhrase)
+		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlock, nodeSecretPhrase)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

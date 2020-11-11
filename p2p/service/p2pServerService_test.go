@@ -1476,19 +1476,23 @@ type (
 	}
 )
 
-func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, error) {
+func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockSendTransactionsBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(
-	[]byte, [][]byte, *model.Block, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
 ) ([]*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
-	[]byte, [][]byte, *model.Block, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
 ) ([]*model.Receipt, error) {
 	return []*model.Receipt{{
 		SenderPublicKey: []byte{1},

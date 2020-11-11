@@ -521,7 +521,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
