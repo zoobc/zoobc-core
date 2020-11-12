@@ -20,6 +20,8 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 		logger                  *log.Logger
 		activeNodeRegistryCache storage.CacheStorageInterface
 		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		blockQuery              query.BlockQueryInterface
+		blockStorage            storage.CacheStackStorageInterface
 		queryExecutor           query.ExecutorInterface
 		chaintype               chaintype.ChainType
 		rng                     *crypto.RandomNumberGenerator
@@ -35,7 +37,7 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 				logger: nil,
 			},
 			want: NewBlocksmithStrategyMain(
-				nil, nil, nil, nil, nil, nil, nil,
+				nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			),
 		},
 	}
@@ -43,7 +45,8 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithStrategyMain(
 				tt.args.logger, nil, tt.args.activeNodeRegistryCache, tt.args.skippedBlocksmithQuery,
-				tt.args.queryExecutor, tt.args.rng, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
+				tt.args.blockQuery, tt.args.blockStorage, tt.args.queryExecutor,
+				tt.args.rng, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
 		})

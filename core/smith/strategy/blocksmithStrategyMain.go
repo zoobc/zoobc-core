@@ -109,8 +109,6 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 			return blocksmithIndex, err
 		}
 	}
-	// 1613611248
-	// 1605159628
 	if len(bss.candidates) > 0 {
 		lastCandidate = bss.candidates[len(bss.candidates)-1]
 		if now < lastCandidate.StartTime {
@@ -136,7 +134,8 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(previousLast
 		result                    int64
 		err                       error
 	)
-	if previousLastBlock == nil { // block height == 1
+	if previousLastBlock == nil || bss.Chaintype.GetTypeInt() == (&chaintype.SpineChain{}).GetTypeInt() {
+		// block height == 1 or spinechain don't need to consider skipped blocksmith
 		return lastBlock.GetTimestamp(), nil
 	}
 	firstBlocksmithExpiryTime := previousLastBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() +

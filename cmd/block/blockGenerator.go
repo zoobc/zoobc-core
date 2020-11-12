@@ -196,6 +196,8 @@ func initialize(
 		nil,
 		activeNodeRegistryCacheStorage,
 		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		nil,
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		nil,
