@@ -416,6 +416,8 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		mainchain,
 	)
@@ -423,6 +425,8 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		spinechain,
 	)

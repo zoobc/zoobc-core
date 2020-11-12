@@ -2,14 +2,6 @@ package block
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
-
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -28,6 +20,8 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"strings"
+	"time"
 )
 
 type (
@@ -200,6 +194,8 @@ func initialize(
 		log.New(),
 		nil,
 		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		nil,
 	)

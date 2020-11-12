@@ -1,6 +1,7 @@
 package strategy
 
 import (
+	"github.com/zoobc/zoobc-core/common/query"
 	"math/big"
 	"reflect"
 	"testing"
@@ -18,6 +19,8 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 	type args struct {
 		logger                  *log.Logger
 		activeNodeRegistryCache storage.CacheStorageInterface
+		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		queryExecutor           query.ExecutorInterface
 		chaintype               chaintype.ChainType
 		rng                     *crypto.RandomNumberGenerator
 	}
@@ -32,15 +35,15 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 				logger: nil,
 			},
 			want: NewBlocksmithStrategyMain(
-				nil, nil, nil, nil, nil,
+				nil, nil, nil, nil, nil, nil, nil,
 			),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithStrategyMain(
-				tt.args.logger, nil, tt.args.activeNodeRegistryCache, tt.args.rng,
-				tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
+				tt.args.logger, nil, tt.args.activeNodeRegistryCache, tt.args.skippedBlocksmithQuery,
+				tt.args.queryExecutor, tt.args.rng, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
 		})
