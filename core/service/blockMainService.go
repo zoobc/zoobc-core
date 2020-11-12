@@ -719,6 +719,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 	// cache last block into blocks cache storage
 	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
+		Timestamp: block.GetTimestamp(),
 		Height:    block.Height,
 		BlockHash: block.BlockHash,
 		ID:        block.ID,
@@ -1143,6 +1144,7 @@ func (bs *BlockService) InitializeBlocksCache() error {
 	}
 	for i := 0; i < len(blocks); i++ {
 		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
+			Timestamp: blocks[i].GetTimestamp(),
 			Height:    blocks[i].Height,
 			BlockHash: blocks[i].BlockHash,
 			ID:        blocks[i].ID,
