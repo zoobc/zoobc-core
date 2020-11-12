@@ -6,9 +6,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
@@ -60,6 +61,12 @@ type (
 		ValidateSignatureInfo(
 			signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 		) error
+		ParseSignatureInfoBytesAsCandidates(
+			txHash, key, value []byte,
+			txHeight uint32,
+			multiSignaturesInfo *[]*model.MultiSignatureInfo,
+			pendingSignatures *[]*model.PendingSignature,
+		) (err error)
 	}
 	MultisigTransactionUtil struct {
 	}
@@ -775,4 +782,115 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 
 	}
 	return nil, nil
+}
+
+func (mtu *MultisigTransactionUtil) ParseSignatureInfoBytesAsCandidates(
+	txHash, key, value []byte,
+	txHeight uint32,
+	multiSignaturesInfo *[]*model.MultiSignatureInfo,
+	pendingSignatures *[]*model.PendingSignature,
+) (err error) {
+
+	var (
+		asMultiSigInfo, prev, valuePrev uint32
+		accType                         accounttype.AccountTypeInterface
+	)
+
+	asMultiSigInfo = util.ConvertBytesToUint32(key[prev:][:constant.AccountAddressTypeLength])
+	if model.AccountType(asMultiSigInfo) == model.AccountType_MultiSignatureAccountType {
+		prev += constant.AccountAddressTypeLength
+		var (
+			multiSignatureInfo model.MultiSignatureInfo
+		)
+		multiSigInfoLength := util.ConvertBytesToUint32(key[prev:][:constant.MultiSigInfoSize])
+		prev += constant.MultiSigInfoSize
+
+		err = mtu.ParseMultiSignatureInfoBytes(key[prev:][:multiSigInfoLength], txHeight, &multiSignatureInfo)
+		if err != nil {
+			return err
+		}
+		prev += multiSigInfoLength
+		m := multiSignatureInfo
+		*multiSignaturesInfo = append(*multiSignaturesInfo, &m)
+		for _, participant := range multiSignatureInfo.GetAddresses() {
+			nextValue := util.ConvertBytesToUint32(value[valuePrev:][:constant.MultiSignatureOffchainSignatureLength])
+			err = mtu.ParseSignatureInfoBytesAsCandidates(
+				txHash,
+				participant,
+				value[valuePrev:][:nextValue],
+				txHeight,
+				multiSignaturesInfo,
+				pendingSignatures,
+			)
+			if err != nil {
+				return err
+			}
+			valuePrev += constant.MultiSignatureOffchainSignatureLength + nextValue
+		}
+	} else {
+		// TODO: MultiSignature Can be has an empty signature
+		accType, err = accounttype.NewAccountType(int32(asMultiSigInfo), []byte{})
+		if err != nil {
+			return err
+		}
+
+		*pendingSignatures = append(*pendingSignatures, &model.PendingSignature{
+			AccountAddress:  key[prev:][:accType.GetAccountPublicKeyLength()],
+			Signature:       value[valuePrev:][:accType.GetSignatureLength()],
+			TransactionHash: txHash,
+			BlockHeight:     txHeight,
+			Latest:          true,
+		})
+		prev += accType.GetAccountPublicKeyLength()
+		valuePrev += accType.GetSignatureLength()
+	}
+	return nil
+}
+
+func (mtu *MultisigTransactionUtil) ParseMultiSignatureInfoBytes(
+	multiSignatureInfoBytes []byte,
+	txHeight uint32,
+	multiSignatureInfo *model.MultiSignatureInfo,
+) (err error) {
+	var (
+		buff      = bytes.NewBuffer(multiSignatureInfoBytes)
+		addresses [][]byte
+	)
+
+	multisigInfoPresent := util.ConvertBytesToUint32(buff.Next(int(constant.MultisigFieldLength)))
+	if multisigInfoPresent == constant.MultiSigFieldPresent {
+		minSignatures := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigInfoMinSignature)))
+		nonce := util.ConvertBytesToUint64(buff.Next(int(constant.MultiSigInfoNonce)))
+		addressesLength := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigNumberOfAddress)))
+		for i := 0; i < int(addressesLength); i++ {
+			var (
+				accType     accounttype.AccountTypeInterface
+				address     []byte
+				accTypeUint uint32
+			)
+			accTypeUint = util.ConvertBytesToUint32(buff.Next(int(constant.AccountAddressTypeLength)))
+			if model.AccountType(accTypeUint) == model.AccountType_MultiSignatureAccountType {
+				lenUint := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigAddressLength)))
+				address = buff.Next(int(lenUint))
+			} else {
+				accType, err = accounttype.ParseBytesToAccountType(buff)
+				if err != nil {
+					return err
+				}
+				address, err = accType.GetAccountAddress()
+				if err != nil {
+					return err
+				}
+			}
+			addresses = append(addresses, address)
+		}
+
+		multiSignatureInfo = &model.MultiSignatureInfo{
+			MinimumSignatures: minSignatures,
+			Nonce:             int64(nonce),
+			Addresses:         addresses,
+			BlockHeight:       txHeight,
+		}
+	}
+	return errors.New("MultiSignatureInfoDoesNotPresent")
 }
