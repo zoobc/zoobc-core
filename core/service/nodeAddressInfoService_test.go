@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -71,6 +73,12 @@ type (
 	}
 	mockMainBlockStateStorageFail struct {
 		storage.CacheStorageInterface
+	}
+	mockMainBlockStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
+	mockMainBlockStorageFail struct {
+		storage.CacheStackStorageInterface
 	}
 	mockNaiSignature struct {
 		crypto.Signature
@@ -181,6 +189,19 @@ func (*mockMainBlockStateStorageSuccess) GetItem(_, item interface{}) error {
 	return nil
 }
 func (*mockMainBlockStateStorageFail) GetItem(interface{}, interface{}) error {
+	return errors.New("error")
+}
+func (*mockMainBlockStorageSuccess) GetAtIndex(i uint32, item interface{}) error {
+	blockCacheObjCopy, ok := item.(*storage.BlockCacheObject)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "mockedErr")
+	}
+	blockCacheObjCopy.BlockHash = make([]byte, 32)
+	blockCacheObjCopy.Height = 10
+	blockCacheObjCopy.ID = 1
+	return nil
+}
+func (*mockMainBlockStorageFail) GetAtIndex(i uint32, item interface{}) error {
 	return errors.New("error")
 }
 
@@ -329,47 +350,79 @@ func (*mockNaiQueryExecutorSuccess) ExecuteSelect(query string, tx bool, args ..
 func (*mockNaiQueryExecutorSuccess) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	var blockFields = []string{
-		"height",
-		"id",
-		"block_hash",
-		"previous_block_hash",
-		"timestamp",
-		"block_seed",
-		"block_signature",
-		"cumulative_difficulty",
-		"payload_length",
-		"payload_hash",
-		"blocksmith_public_key",
-		"total_amount",
-		"total_fee",
-		"total_coinbase",
-		"version",
-		"merkle_root",
-		"merkle_tree",
-		"reference_block_height",
+	switch query {
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
+		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
+		"total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block " +
+		"WHERE height = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(query)).
+			WillReturnRows(sqlmock.NewRows([]string{
+				"height",
+				"id",
+				"block_hash",
+				"previous_block_hash",
+				"timestamp",
+				"block_seed",
+				"block_signature",
+				"cumulative_difficulty",
+				"payload_length",
+				"payload_hash",
+				"blocksmith_public_key",
+				"total_amount",
+				"total_fee",
+				"total_coinbase",
+				"version",
+				"merkle_root",
+				"merkle_tree",
+				"reference_block_height",
+			}).AddRow(
+				10,
+				1,
+				make([]byte, 32),
+				mockBlockData.PreviousBlockHash,
+				mockBlockData.Timestamp,
+				mockBlockData.BlockSeed,
+				make([]byte, 64),
+				mockBlockData.CumulativeDifficulty,
+				mockBlockData.PayloadLength,
+				mockBlockData.PayloadHash,
+				mockBlockData.BlocksmithPublicKey,
+				mockBlockData.TotalAmount,
+				mockBlockData.TotalFee,
+				mockBlockData.TotalCoinBase,
+				mockBlockData.Version,
+				mockBlockData.MerkleRoot,
+				mockBlockData.MerkleTree,
+				mockBlockData.ReferenceBlockHeight,
+			))
+	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
+		"latest, height, t2.address AS node_address, t2.port AS node_address_port, t2.status AS node_address_status " +
+		"FROM node_registry INNER JOIN node_address_info AS t2 ON id = t2.node_id WHERE registration_status = 0 " +
+		"ORDER BY height DESC":
+		mock.ExpectQuery(regexp.QuoteMeta(query)).
+			WillReturnRows(sqlmock.NewRows([]string{
+				"NodeId",
+				"NodePublicKey",
+				"AccountAddress",
+				"RegistrationHeight",
+				"LockedBalance",
+				"RegistrationStatus",
+				"Latest",
+				"Height",
+			}).AddRow(
+				1,
+				[]byte{1},
+				[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+					202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+				1,
+				10000,
+				uint32(model.NodeRegistrationState_NodeQueued),
+				true,
+				0,
+			))
+	default:
+		return nil, errors.New("MockErr")
 	}
-	mock.ExpectQuery(regexp.QuoteMeta(query)).
-		WillReturnRows(sqlmock.NewRows(blockFields).AddRow(
-			10,
-			1,
-			mockBlockData.BlockHash,
-			mockBlockData.PreviousBlockHash,
-			mockBlockData.Timestamp,
-			mockBlockData.BlockSeed,
-			mockBlockData.BlockSignature,
-			mockBlockData.CumulativeDifficulty,
-			mockBlockData.PayloadLength,
-			mockBlockData.PayloadHash,
-			mockBlockData.BlocksmithPublicKey,
-			mockBlockData.TotalAmount,
-			mockBlockData.TotalFee,
-			mockBlockData.TotalCoinBase,
-			mockBlockData.Version,
-			mockBlockData.MerkleRoot,
-			mockBlockData.MerkleTree,
-			mockBlockData.ReferenceBlockHeight,
-		))
 	return db.QueryRow(query), nil
 }
 
@@ -640,6 +693,7 @@ func TestNewNodeAddressInfoService(t *testing.T) {
 		nodeAddressesInfoStorage storage.CacheStorageInterface
 		mainBlockStateStorage    storage.CacheStorageInterface
 		activeNodeRegistryCache  storage.CacheStorageInterface
+		mainBlocksStorage        storage.CacheStackStorageInterface
 		logger                   *log.Logger
 	}
 	tests := []struct {
@@ -658,6 +712,7 @@ func TestNewNodeAddressInfoService(t *testing.T) {
 				nodeAddressesInfoStorage: nil,
 				mainBlockStateStorage:    nil,
 				activeNodeRegistryCache:  nil,
+				mainBlocksStorage:        nil,
 				logger:                   nil,
 			},
 			want: &NodeAddressInfoService{
@@ -668,16 +723,19 @@ func TestNewNodeAddressInfoService(t *testing.T) {
 				Signature:               nil,
 				NodeAddressInfoStorage:  nil,
 				MainBlockStateStorage:   nil,
+				MainBlocksStorage:       nil,
 				ActiveNodeRegistryCache: nil,
 				Logger:                  nil,
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewNodeAddressInfoService(tt.args.executor, tt.args.nodeAddressInfoQuery, tt.args.nodeRegistrationQuery,
-				tt.args.blockQuery, tt.args.signature, tt.args.nodeAddressesInfoStorage, tt.args.mainBlockStateStorage,
-				tt.args.activeNodeRegistryCache, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewNodeAddressInfoService(tt.args.executor, tt.args.nodeAddressInfoQuery,
+				tt.args.nodeRegistrationQuery, tt.args.blockQuery, tt.args.signature, tt.args.nodeAddressesInfoStorage,
+				tt.args.mainBlockStateStorage, tt.args.activeNodeRegistryCache, tt.args.mainBlocksStorage,
+				tt.args.logger); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewNodeAddressInfoService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1052,6 +1110,37 @@ func TestNodeAddressInfoService_CountNodesAddressByStatus(t *testing.T) {
 	}
 }
 
+type (
+	mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoSuccess struct {
+		query.Executor
+	}
+	mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFail struct {
+		query.Executor
+	}
+	mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFailScan struct {
+		query.Executor
+	}
+)
+
+func (*mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoSuccess) ExecuteSelectRow(query string,
+	tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	return db.QueryRow(""), nil
+}
+func (*mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFail) ExecuteSelectRow(query string,
+	tx bool, args ...interface{}) (*sql.Row, error) {
+	return nil, errors.New("error")
+}
+func (*mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFailScan) ExecuteSelectRow(query string,
+	tx bool, args ...interface{}) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	mock.ExpectQuery(regexp.QuoteMeta(query)).
+		WillReturnRows(sqlmock.NewRows([]string{"foo", "bar"}).AddRow(1, 2))
+	return db.QueryRow(query), nil
+}
 func TestNodeAddressInfoService_CountRegisteredNodeAddressWithAddressInfo(t *testing.T) {
 	type fields struct {
 		QueryExecutor           query.ExecutorInterface
@@ -1073,13 +1162,35 @@ func TestNodeAddressInfoService_CountRegisteredNodeAddressWithAddressInfo(t *tes
 		{
 			name: "CountRegisteredNodeAddressWithAddressInfo:Success",
 			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorSuccess{},
+				QueryExecutor:          &mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoSuccess{},
+				NodeAddressInfoStorage: &mockNaiStorageSuccess{},
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
+			},
+			want:    1,
+			wantErr: false,
+		},
+		{
+			name: "CountRegisteredNodeAddressWithAddressInfo:FailExecuteSelectRow",
+			fields: fields{
+				QueryExecutor:          &mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFail{},
 				NodeAddressInfoStorage: &mockNaiStorageSuccess{},
 				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
 				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
 			},
 			want:    0,
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "CountRegisteredNodeAddressWithAddressInfo:FailScan",
+			fields: fields{
+				QueryExecutor:          &mockNaiQueryExecuteSelectRowCountRegisteredNodeAddressWithAddressInfoFailScan{},
+				NodeAddressInfoStorage: &mockNaiStorageSuccess{},
+				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
+			},
+			want:    0,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -1285,8 +1396,9 @@ func TestNodeAddressInfoService_GenerateNodeAddressInfo(t *testing.T) {
 		BlockQuery              query.BlockQueryInterface
 		Signature               crypto.SignatureInterface
 		NodeAddressInfoStorage  storage.CacheStorageInterface
-		MainBlockStateStorage   storage.CacheStorageInterface
 		ActiveNodeRegistryCache storage.CacheStorageInterface
+		MainBlockStateStorage   storage.CacheStorageInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 		Logger                  *log.Logger
 	}
 	type args struct {
@@ -1309,10 +1421,11 @@ func TestNodeAddressInfoService_GenerateNodeAddressInfo(t *testing.T) {
 				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeAddressInfoStorage:  &mockNaiStorageSuccess{},
-				MainBlockStateStorage:   &mockMainBlockStateStorageSuccess{},
-				ActiveNodeRegistryCache: &mockActiveNaiStorageSuccess{},
 				Signature:               &mockNaiSignature{success: true},
+				NodeAddressInfoStorage:  &mockNaiStorageSuccess{},
+				ActiveNodeRegistryCache: &mockActiveNaiStorageSuccess{},
+				MainBlockStateStorage:   &mockMainBlockStateStorageSuccess{},
+				MainBlocksStorage:       &mockMainBlockStorageSuccess{},
 				Logger:                  log.New(),
 			},
 			args: args{
@@ -1349,27 +1462,12 @@ func TestNodeAddressInfoService_GenerateNodeAddressInfo(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "GenerateNodeAddressInfo:FailExecuteSelectRow",
+			name: "GenerateNodeAddressInfo:FailGetBlockByHeightUseBlocksCache",
 			fields: fields{
 				QueryExecutor:         &mockNaiQueryExecutorFailExecuteSelectRow{},
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				MainBlockStateStorage: &mockMainBlockStateStorageSuccess{},
-			},
-			args: args{
-				nodeID:           111,
-				nodeAddress:      "127.0.0.1",
-				port:             3000,
-				nodeSecretPhrase: "test",
-			},
-			want:    nil,
-			wantErr: true,
-		},
-		{
-			name: "GenerateNodeAddressInfo:FailScan",
-			fields: fields{
-				QueryExecutor:         &mockNaiQueryExecutorFailScan{},
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				MainBlockStateStorage: &mockMainBlockStateStorageSuccess{},
+				MainBlocksStorage:     &mockMainBlockStorageFail{},
 			},
 			args: args{
 				nodeID:           111,
@@ -1390,8 +1488,9 @@ func TestNodeAddressInfoService_GenerateNodeAddressInfo(t *testing.T) {
 				BlockQuery:              tt.fields.BlockQuery,
 				Signature:               tt.fields.Signature,
 				NodeAddressInfoStorage:  tt.fields.NodeAddressInfoStorage,
-				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
 				ActiveNodeRegistryCache: tt.fields.ActiveNodeRegistryCache,
+				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
+				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 				Logger:                  tt.fields.Logger,
 			}
 			got, err := nru.GenerateNodeAddressInfo(tt.args.nodeID, tt.args.nodeAddress, tt.args.port, tt.args.nodeSecretPhrase)
@@ -2228,7 +2327,25 @@ func TestNodeAddressInfoService_UpdateOrInsertAddressInfo(t *testing.T) {
 				nodeAddressInfo: naiNode2,
 				updatedStatus:   2,
 			},
-			wantUpdated: false,
+			wantUpdated: true,
+			wantErr:     false,
+		},
+		{
+			name: "UpdateOrInsertAddressInfo:NotFoundError",
+			fields: fields{
+				QueryExecutor:           &mockNaiQueryExecutorSuccess{},
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				NodeAddressInfoStorage:  &mockNaiStorageSuccess{},
+				ActiveNodeRegistryCache: &mockActiveNaiStorageSuccess{},
+				MainBlockStateStorage:   &mockMainBlockStateStorageSuccess{},
+				Logger:                  log.New(),
+			},
+			args: args{
+				nodeAddressInfo: naiNode2,
+				updatedStatus:   2,
+			},
+			wantUpdated: true,
 			wantErr:     false,
 		},
 	}
@@ -2266,6 +2383,7 @@ func TestNodeAddressInfoService_ValidateNodeAddressInfo(t *testing.T) {
 		Signature               crypto.SignatureInterface
 		NodeAddressInfoStorage  storage.CacheStorageInterface
 		MainBlockStateStorage   storage.CacheStorageInterface
+		MainBlocksStorage       storage.CacheStackStorageInterface
 		ActiveNodeRegistryCache storage.CacheStorageInterface
 		Logger                  *log.Logger
 	}
@@ -2316,6 +2434,7 @@ func TestNodeAddressInfoService_ValidateNodeAddressInfo(t *testing.T) {
 				Signature:               tt.fields.Signature,
 				NodeAddressInfoStorage:  tt.fields.NodeAddressInfoStorage,
 				MainBlockStateStorage:   tt.fields.MainBlockStateStorage,
+				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 				ActiveNodeRegistryCache: tt.fields.ActiveNodeRegistryCache,
 				Logger:                  tt.fields.Logger,
 			}
