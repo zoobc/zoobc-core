@@ -109,6 +109,7 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	antiSpamFilter                                                         service.FeedbackStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -246,9 +247,20 @@ func initiateMainInstance() {
 			os.Exit(1)
 		}
 	}
+
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
+
+	if config.AntiSpamFilter {
+		antiSpamFilter = service.NewAntiSpamStrategy(
+			loggerCoreService,
+		)
+	} else {
+		// turn antispam filter off
+		antiSpamFilter = &service.DummyFeedbackStrategy{}
+	}
+
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -1107,6 +1119,7 @@ func start() {
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
+	go antiSpamFilter.StartSampling(constant.FeedbackSamplingInterval)
 
 	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
