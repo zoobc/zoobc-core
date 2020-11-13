@@ -502,6 +502,43 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
+	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
+	if !persist { // block content are validated
+		// handle if is first index
+		if round > 1 {
+			// check if current block is in pushable window
+			err = bs.BlocksmithStrategy.CanPersistBlock(previousBlock, block, time.Now().Unix())
+			if err != nil {
+				// insert into block pool
+				bs.BlockPoolService.InsertBlock(block, round)
+				bs.queryAndCacheRollbackProcess("")
+				if broadcast {
+					// create copy of the block to avoid reference update on block pool
+					var (
+						blockBytes       []byte
+						blockToBroadcast model.Block
+					)
+					blockBytes, err = json.Marshal(*block)
+
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
+					}
+					err = json.Unmarshal(blockBytes, &blockToBroadcast)
+					if err != nil {
+						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
+					}
+					// add transactionIDs and remove transaction before broadcast
+					blockToBroadcast.TransactionIDs = transactionIDs
+					blockToBroadcast.Transactions = []*model.Transaction{}
+					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
+				}
+				return nil
+			}
+			// if canPersistBlock return true ignore the passed `persist` flag
+		}
+		// block is in first place continue to persist block to database ignoring the `persist` flag
+	}
+
 	// Mainchain specific:
 	// - Compute and update popscore
 	// - Block reward
@@ -564,43 +601,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		bs.queryAndCacheRollbackProcess("")
 		return err
-	}
-
-	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
-	if !persist { // block content are validated
-		// handle if is first index
-		if round > 1 {
-			// check if current block is in pushable window
-			err = bs.BlocksmithStrategy.CanPersistBlock(previousBlock, block, time.Now().Unix())
-			if err != nil {
-				// insert into block pool
-				bs.BlockPoolService.InsertBlock(block, round)
-				bs.queryAndCacheRollbackProcess("")
-				if broadcast {
-					// create copy of the block to avoid reference update on block pool
-					var (
-						blockBytes       []byte
-						blockToBroadcast model.Block
-					)
-					blockBytes, err = json.Marshal(*block)
-
-					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
-					}
-					err = json.Unmarshal(blockBytes, &blockToBroadcast)
-					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
-					}
-					// add transactionIDs and remove transaction before broadcast
-					blockToBroadcast.TransactionIDs = transactionIDs
-					blockToBroadcast.Transactions = []*model.Transaction{}
-					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
-				}
-				return nil
-			}
-			// if canPersistBlock return true ignore the passed `persist` flag
-		}
-		// block is in first place continue to persist block to database ignoring the `persist` flag
 	}
 
 	// if genesis
