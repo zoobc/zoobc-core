@@ -102,7 +102,7 @@ func (m *MultiSignatureAccountType) Sign(payload []byte, seed string, optionalPa
 }
 
 func (m *MultiSignatureAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
-	panic("implement me")
+	return blocker.NewBlocker(blocker.AppErr, "NotAllowedVerifying")
 }
 
 func (m *MultiSignatureAccountType) GenerateAccountFromSeed(string, ...interface{}) error {
