@@ -93,7 +93,7 @@ func (ut *MempoolTransactionService) GetMempoolTransactions(
 	}
 
 	address := params.GetAddress()
-	if address != "" {
+	if address != nil {
 		caseQuery.And(caseQuery.Equal("sender_account_address", address)).
 			Or(caseQuery.Equal("recipient_account_address", address))
 

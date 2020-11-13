@@ -119,7 +119,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.ValidateSpineBlockErr
 			}
-			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
+			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), previousBlock.GetID()))
 			return err
 		}
 		// if validated push
@@ -129,7 +129,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.PushSpineBlockErr
 			}
-			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
+			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), previousBlock.GetID()))
 			return err
 		}
 	}
@@ -187,7 +187,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.ValidateSpineBlockErr
 			}
-			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		}
 		return err
 	}
@@ -198,7 +198,7 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		if chaintype.IsSpineChain(bp.ChainType) {
 			blockerUsed = blocker.PushSpineBlockErr
 		}
-		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		return err
 	}
 	return nil

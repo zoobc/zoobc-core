@@ -8,7 +8,7 @@ import (
 )
 
 type (
-	// NodeAdmissionTimesatmpStorage store next node admission timestamp
+	// NodeAdmissionTimestampStorage store next node admission timestamp
 	NodeAdmissionTimestampStorage struct {
 		sync.RWMutex
 		nextNodeAdmissionTimestamp model.NodeAdmissionTimestamp
@@ -40,6 +40,10 @@ func (ns *NodeAdmissionTimestampStorage) SetItem(lastChange, item interface{}) e
 	return nil
 }
 
+func (ns *NodeAdmissionTimestampStorage) SetItems(_ interface{}) error {
+	return nil
+}
+
 // GetItem getter of NodeAdmissionTimestampStorage
 func (ns *NodeAdmissionTimestampStorage) GetItem(lastChange, item interface{}) error {
 	ns.Lock()
@@ -61,6 +65,11 @@ func (ns *NodeAdmissionTimestampStorage) GetItem(lastChange, item interface{}) e
 
 func (ns *NodeAdmissionTimestampStorage) GetAllItems(item interface{}) error {
 	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) GetTotalItems() int {
+	// this storage only have 1 item
+	return 1
 }
 
 func (ns *NodeAdmissionTimestampStorage) RemoveItem(key interface{}) error {

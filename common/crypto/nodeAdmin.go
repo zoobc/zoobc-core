@@ -3,7 +3,6 @@ package crypto
 import (
 	"bytes"
 	"encoding/base64"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -16,7 +15,7 @@ var LastRequestTimestamp uint64
 // request type checking, and the validity of the signature to the owner address
 // return nil if valid, and Blocker object otherwise
 func VerifyAuthAPI(
-	ownerAddress,
+	ownerAddress []byte,
 	auth string,
 	requestType model.RequestType,
 ) error {

@@ -11,6 +11,15 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+var (
+	escrowTxSenderAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	escrowTxRecipientAddress1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	escrowTxApproverAddress1 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+		213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
+)
+
 type (
 	mockQueryExecutorGetEscrowTransactionsError struct {
 		query.ExecutorInterface
@@ -32,9 +41,9 @@ func (*mockQueryExecutorGetEscrowTransactionsSuccess) ExecuteSelect(qStr string,
 	mockedRows := mock.NewRows(query.NewEscrowTransactionQuery().Fields)
 	mockedRows.AddRow(
 		int64(1),
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		escrowTxSenderAddress1,
+		escrowTxRecipientAddress1,
+		escrowTxApproverAddress1,
 		int64(10),
 		int64(1),
 		uint64(120),
@@ -86,7 +95,7 @@ func TestEscrowTransactionService_GetEscrowTransactions(t *testing.T) {
 			},
 			args: args{
 				params: &model.GetEscrowTransactionsRequest{
-					ApproverAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+					ApproverAddress: escrowTxApproverAddress1,
 				},
 			},
 			want: &model.GetEscrowTransactionsResponse{
@@ -94,9 +103,9 @@ func TestEscrowTransactionService_GetEscrowTransactions(t *testing.T) {
 				Escrows: []*model.Escrow{
 					{
 						ID:               1,
-						SenderAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-						RecipientAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-						ApproverAddress:  "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+						SenderAddress:    escrowTxSenderAddress1,
+						RecipientAddress: escrowTxRecipientAddress1,
+						ApproverAddress:  escrowTxApproverAddress1,
 						Amount:           10,
 						Commission:       1,
 						Timeout:          120,
@@ -135,9 +144,9 @@ func (*mockExecutorGetEscrow) ExecuteSelectRow(string, bool, ...interface{}) (*s
 	mockedRow := mock.NewRows(query.NewEscrowTransactionQuery().Fields)
 	mockedRow.AddRow(
 		int64(1),
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		escrowTxSenderAddress1,
+		escrowTxRecipientAddress1,
+		escrowTxApproverAddress1,
 		int64(10),
 		int64(1),
 		uint64(120),
@@ -177,9 +186,9 @@ func Test_escrowTransactionService_GetEscrowTransaction(t *testing.T) {
 			},
 			want: &model.Escrow{
 				ID:               1,
-				SenderAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				RecipientAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-				ApproverAddress:  "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				SenderAddress:    escrowTxSenderAddress1,
+				RecipientAddress: escrowTxRecipientAddress1,
+				ApproverAddress:  escrowTxApproverAddress1,
 				Amount:           10,
 				Commission:       1,
 				Timeout:          120,

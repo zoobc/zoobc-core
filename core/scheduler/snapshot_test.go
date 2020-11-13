@@ -53,7 +53,7 @@ func (*mockNodeConfigurationCheckSnapshotIntegrityFilled) GetHost() *model.Host 
 	}
 }
 
-func (*mockSnapshotChunkUtilCheckSnapshotIntegrityFilled) GetShardAssigment([]byte, int, []int64, bool) (storage.ShardMap, error) {
+func (*mockSnapshotChunkUtilCheckSnapshotIntegrityFilled) GetShardAssignment([]byte, int, []int64, bool) (storage.ShardMap, error) {
 	return storage.ShardMap{
 		NodeShards: map[int64][]uint64{
 			1234567890: {1, 3},
@@ -217,7 +217,7 @@ func (*mockBlockStateStorageFilled) GetItem(_, item interface{}) error {
 	return nil
 }
 
-func (*mockSnapshotChunkUtilSuccess) GetShardAssigment([]byte, int, []int64, bool) (storage.ShardMap, error) {
+func (*mockSnapshotChunkUtilSuccess) GetShardAssignment([]byte, int, []int64, bool) (storage.ShardMap, error) {
 	return storage.ShardMap{
 		NodeShards: map[int64][]uint64{
 			1234567890: {1, 3},

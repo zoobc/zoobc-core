@@ -2,10 +2,10 @@ package service
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -134,7 +134,7 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	accountAddress := params.GetAccountAddress()
-	if accountAddress != "" {
+	if accountAddress != nil {
 		caseQuery.AndOr(
 			caseQuery.Equal("sender_account_address", accountAddress),
 			caseQuery.Equal("recipient_account_address", accountAddress),
@@ -188,6 +188,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Version,
 			&tx.TransactionIndex,
 			&tx.MultisigChild,
+			&tx.Message,
 		)
 		if err != nil {
 			if err != sql.ErrNoRows {

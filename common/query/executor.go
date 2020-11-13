@@ -19,6 +19,8 @@ type (
 		ExecuteStatement(query string, args ...interface{}) (sql.Result, error)
 		ExecuteTransaction(query string, args ...interface{}) error
 		ExecuteTransactions(queries [][]interface{}) error
+		// CommitTx commit on every transaction stacked in Executor.Tx
+		// note: rollback is called in this function if commit fail, to avoid locking complication
 		CommitTx() error
 		RollbackTx() error
 	}
@@ -73,12 +75,13 @@ func (qe *Executor) Execute(query string) (sql.Result, error) {
 }
 
 /*
-Execute execute a single query string
+ExecuteStatement execute a single query string
 return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
 	qe.Lock()
+	defer qe.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	stmt, err := qe.Db.Prepare(query)
 
@@ -86,7 +89,6 @@ func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Res
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
-	defer qe.Unlock()
 	result, err := stmt.Exec(args...)
 
 	if err != nil {
@@ -186,15 +188,15 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 		monitoring.SetDatabaseStats(qe.Db.Stats())
 		_, err = stmt.Exec(query[1:]...)
 		if err != nil {
-			stmt.Close()
+			_ = stmt.Close()
 			return blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
-		stmt.Close()
+		_ = stmt.Close()
 	}
 	return nil
 }
 
-// ExecuteTransactionCommit commit on every transaction stacked in Executor.Tx
+// CommitTx commit on every transaction stacked in Executor.Tx
 // note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx() error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())

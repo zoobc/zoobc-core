@@ -121,7 +121,9 @@ func init() {
 	proto.RegisterType((*FileDownloadRequest)(nil), "model.FileDownloadRequest")
 }
 
-func init() { proto.RegisterFile("model/fileDownload.proto", fileDescriptor_e7c4a80c0792f337) }
+func init() {
+	proto.RegisterFile("model/fileDownload.proto", fileDescriptor_e7c4a80c0792f337)
+}
 
 var fileDescriptor_e7c4a80c0792f337 = []byte{
 	// 202 bytes of a gzipped FileDescriptorProto

@@ -5,6 +5,43 @@
 # make sure you have exported the following env variables before running the script (below values are an example):
 # export CONSUL_HTTP_ADDR=http://127.0.0.1:8500
 # export CONSUL_HTTP_TOKEN=2453454e-02a6-ff83-cedd-39f401c4d6bb
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-0/config/ownerAccountAddress
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "00000000d5c4b1da0c5293b4b421100dba631e179bc6237c897a14b9f2bc0a175bc27230" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-0/config/ownerAccountAddress"
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-0/config/smithing
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "false" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-0/config/smithing"
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-0/config/nodeSeed
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "romance practice door exhibit reduce wedding exhaust chronic produce olympic hungry hand glad survey title insane fog month tomato rib cover caution pluck flee" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-0/config/nodeSeed"
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-0/config/ownerAccountAddress
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "0000000053e815db5904c97f576ca2e0281b235604340be6b24e8eb3786b96a3e1433370" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-1/config/ownerAccountAddress"
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-0/config/smithing
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "false" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-1/config/smithing"
+
+# Update Consul KV {{.nomadJobName}}/explorer-node-1/config/nodeSeed
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "romance practice door exhibit reduce wedding exhaust chronic produce olympic hungry hand glad survey title insane fog month tomato rib cover caution pluck flee" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/explorer-node-1/config/nodeSeed"
+
 #
 # DEFAULT CONFIG (all nodes)
 #

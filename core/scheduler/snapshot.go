@@ -84,15 +84,14 @@ func (ss *SnapshotScheduler) CheckChunksIntegrity() error {
 			snapshotFileInfo *model.SnapshotFileInfo
 		)
 
-		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestReferenceHeight())
+		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestSpineBlockHeight())
 		if err != nil {
 			return err
 		}
 		for _, spinePublicKey := range spinePublicKeys {
 			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
-
 		}
-		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
+		shards, err = ss.SnapshotChunkUtil.GetShardAssignment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 		if err != nil {
 			return err
 		}
@@ -162,7 +161,7 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks() (err error) {
 			nodeIDs         []int64
 			shards          storage.ShardMap
 		)
-		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestReferenceHeight())
+		spinePublicKeys, err = ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifest.GetManifestSpineBlockHeight())
 		if err != nil {
 			return err
 		}
@@ -170,7 +169,7 @@ func (ss *SnapshotScheduler) DeleteUnmaintainedChunks() (err error) {
 			nodeIDs = append(nodeIDs, spinePublicKey.GetNodeID())
 		}
 
-		shards, err = ss.SnapshotChunkUtil.GetShardAssigment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
+		shards, err = ss.SnapshotChunkUtil.GetShardAssignment(manifest.GetFileChunkHashes(), sha256.Size, nodeIDs, false)
 		if err != nil {
 			return err
 		}

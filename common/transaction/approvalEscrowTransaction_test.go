@@ -11,20 +11,27 @@ import (
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
+var (
+	approvalEscrowAccountAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+		239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	approvalEscrowAccountAddress2 = []byte{0, 0, 0, 0, 33, 130, 42, 143, 177, 97, 43, 208, 76, 119, 240, 91, 41, 170, 240, 161, 55, 224,
+		8, 205, 139, 227, 189, 146, 86, 211, 52, 194, 131, 126, 233, 100}
+	approvalEscrowAccountAddress3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+)
+
 func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                 int64
+		Fee                int64
+		SenderAddress      []byte
+		Height             uint32
+		Body               *model.ApprovalEscrowTransactionBody
+		Escrow             *model.Escrow
+		QueryExecutor      query.ExecutorInterface
+		EscrowQuery        query.EscrowTransactionQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		TypeActionSwitcher TypeActionSwitcher
 	}
 	tests := []struct {
 		name   string
@@ -36,7 +43,7 @@ func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
@@ -49,20 +56,18 @@ func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                 tt.fields.ID,
+				Fee:                tt.fields.Fee,
+				SenderAddress:      tt.fields.SenderAddress,
+				Height:             tt.fields.Height,
+				Body:               tt.fields.Body,
+				Escrow:             tt.fields.Escrow,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				EscrowQuery:        tt.fields.EscrowQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				TypeActionSwitcher: tt.fields.TypeActionSwitcher,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -71,18 +76,16 @@ func TestApprovalEscrowTransaction_GetBodyBytes(t *testing.T) {
 
 func TestApprovalEscrowTransaction_ParseBodyBytes(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                 int64
+		Fee                int64
+		SenderAddress      []byte
+		Height             uint32
+		Body               *model.ApprovalEscrowTransactionBody
+		Escrow             *model.Escrow
+		QueryExecutor      query.ExecutorInterface
+		EscrowQuery        query.EscrowTransactionQueryInterface
+		TransactionQuery   query.TransactionQueryInterface
+		TypeActionSwitcher TypeActionSwitcher
 	}
 	type args struct {
 		bodyBytes []byte
@@ -99,7 +102,7 @@ func TestApprovalEscrowTransaction_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
@@ -116,18 +119,16 @@ func TestApprovalEscrowTransaction_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                 tt.fields.ID,
+				Fee:                tt.fields.Fee,
+				SenderAddress:      tt.fields.SenderAddress,
+				Height:             tt.fields.Height,
+				Body:               tt.fields.Body,
+				Escrow:             tt.fields.Escrow,
+				QueryExecutor:      tt.fields.QueryExecutor,
+				EscrowQuery:        tt.fields.EscrowQuery,
+				TransactionQuery:   tt.fields.TransactionQuery,
+				TypeActionSwitcher: tt.fields.TypeActionSwitcher,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.bodyBytes)
 			if (err != nil) != tt.wantErr {
@@ -161,9 +162,9 @@ func (*mockQueryExecutorValidate) ExecuteSelectRow(qStr string, tx bool, args ..
 	mockRow := mock.NewRows(query.NewEscrowTransactionQuery().Fields)
 	mockRow.AddRow(
 		120978123123,
-		"ABC",
-		"DEF",
-		"GHI",
+		approvalEscrowAccountAddress1,
+		approvalEscrowAccountAddress2,
+		approvalEscrowAccountAddress3,
 		1,
 		10,
 		100,
@@ -194,26 +195,47 @@ func (*mockAccountBalanceQueryValidateFound) GetAccountBalanceByAccountAddress(s
 	return "", []interface{}{}
 }
 func (*mockAccountBalanceQueryValidateFound) Scan(accountBalance *model.AccountBalance, row *sql.Row) error {
-	accountBalance.AccountAddress = "GHI"
+	accountBalance.AccountAddress = approvalEscrowAccountAddress1
 	accountBalance.Balance = 1000
 	accountBalance.Latest = true
 
 	return nil
 }
+
+type (
+	mockAccountApprovalEscrowTransactionAccountBalanceHelperAccountBalanceNotFound struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceApprovalEscrowTransactionAccountBalanceHelperWantSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountApprovalEscrowTransactionAccountBalanceHelperAccountBalanceNotFound) HasEnoughSpendableBalance(
+	dbTX bool,
+	address []byte,
+	compareBalance int64) (enough bool, err error) {
+	return false, sql.ErrNoRows
+}
+func (*mockAccountBalanceApprovalEscrowTransactionAccountBalanceHelperWantSuccess) HasEnoughSpendableBalance(
+	dbTX bool,
+	address []byte,
+	compareBalance int64) (enough bool, err error) {
+	return true, nil
+}
 func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                   int64
+		Fee                  int64
+		SenderAddress        []byte
+		Height               uint32
+		Body                 *model.ApprovalEscrowTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		TransactionQuery     query.TransactionQueryInterface
+		TypeActionSwitcher   TypeActionSwitcher
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	type args struct {
 		dbTx bool
@@ -229,7 +251,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "GHI",
+				SenderAddress: approvalEscrowAccountAddress1,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
@@ -246,17 +268,15 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "GHI",
+				SenderAddress: approvalEscrowAccountAddress1,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 0,
 				},
-				AccountBalanceQuery: nil,
-				QueryExecutor:       &mockQueryExecutorValidate{},
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
-				TransactionQuery:    nil,
+				QueryExecutor:    &mockQueryExecutorValidate{},
+				EscrowQuery:      query.NewEscrowTransactionQuery(),
+				TransactionQuery: nil,
 			},
 			args:    args{dbTx: false},
 			wantErr: true,
@@ -266,15 +286,15 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "GHI",
+				SenderAddress: approvalEscrowAccountAddress2,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 120978123123,
 				},
-				AccountBalanceQuery: &mockAccountBalanceQueryValidateNotFound{},
-				QueryExecutor:       &mockQueryExecutorValidate{},
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				QueryExecutor:        &mockQueryExecutorValidate{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper: &mockAccountApprovalEscrowTransactionAccountBalanceHelperAccountBalanceNotFound{},
 			},
 			args:    args{dbTx: false},
 			wantErr: true,
@@ -284,15 +304,15 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 			fields: fields{
 				ID:            0,
 				Fee:           0,
-				SenderAddress: "GHI",
+				SenderAddress: approvalEscrowAccountAddress3,
 				Height:        0,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 120978123123,
 				},
-				AccountBalanceQuery: &mockAccountBalanceQueryValidateFound{},
-				QueryExecutor:       &mockQueryExecutorValidate{},
-				EscrowQuery:         query.NewEscrowTransactionQuery(),
+				QueryExecutor:        &mockQueryExecutorValidate{},
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper: &mockAccountBalanceApprovalEscrowTransactionAccountBalanceHelperWantSuccess{},
 			},
 			args: args{dbTx: false},
 		},
@@ -300,18 +320,17 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				TransactionQuery:     tt.fields.TransactionQuery,
+				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -329,20 +348,29 @@ type (
 func (*mockQueryExecutorUnconfirmed) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
+
+type (
+	mockAccountBalanceHelperApprovalEscrowTransactionApplyUnconfirmed struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperApprovalEscrowTransactionApplyUnconfirmed) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
 func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                   int64
+		Fee                  int64
+		SenderAddress        []byte
+		Height               uint32
+		Body                 *model.ApprovalEscrowTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		TransactionQuery     query.TransactionQueryInterface
+		TypeActionSwitcher   TypeActionSwitcher
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -352,35 +380,33 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:                  0,
-				Fee:                 1,
-				SenderAddress:       "",
-				Height:              0,
-				Body:                nil,
-				Escrow:              nil,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       &mockQueryExecutorUnconfirmed{},
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         nil,
-				TransactionQuery:    nil,
+				ID:                   0,
+				Fee:                  1,
+				SenderAddress:        nil,
+				Height:               0,
+				Body:                 nil,
+				Escrow:               nil,
+				QueryExecutor:        &mockQueryExecutorUnconfirmed{},
+				EscrowQuery:          nil,
+				TransactionQuery:     nil,
+				AccountBalanceHelper: &mockAccountBalanceHelperApprovalEscrowTransactionApplyUnconfirmed{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				TransactionQuery:     tt.fields.TransactionQuery,
+				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -389,20 +415,29 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 	}
 }
 
+type (
+	mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+
 func TestApprovalEscrowTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                   int64
+		Fee                  int64
+		SenderAddress        []byte
+		Height               uint32
+		Body                 *model.ApprovalEscrowTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		TransactionQuery     query.TransactionQueryInterface
+		TypeActionSwitcher   TypeActionSwitcher
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -412,35 +447,33 @@ func TestApprovalEscrowTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:                  0,
-				Fee:                 1,
-				SenderAddress:       "",
-				Height:              0,
-				Body:                nil,
-				Escrow:              nil,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				QueryExecutor:       &mockQueryExecutorUnconfirmed{},
-				AccountLedgerQuery:  nil,
-				EscrowQuery:         nil,
-				TransactionQuery:    nil,
+				ID:                   0,
+				Fee:                  1,
+				SenderAddress:        nil,
+				Height:               0,
+				Body:                 nil,
+				Escrow:               nil,
+				QueryExecutor:        &mockQueryExecutorUnconfirmed{},
+				EscrowQuery:          nil,
+				TransactionQuery:     nil,
+				AccountBalanceHelper: &mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				TransactionQuery:     tt.fields.TransactionQuery,
+				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -461,9 +494,6 @@ type (
 	}
 )
 
-// func (*mockTypeActionSwitcherApplyConfirmedOK) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
-// 	return
-// }
 func (*mockEscrowQueryExecutorApplyConfirmedOK) ExecuteSelectRow(string, bool, ...interface{}) (*sql.Row, error) {
 	return &sql.Row{}, nil
 }
@@ -481,8 +511,8 @@ func (*mockTransactionQueryApplyConfirmedOK) Scan(tx *model.Transaction, row *sq
 	tx.BlockID = -123123123123
 	tx.Version = 1
 	tx.Height = 1
-	tx.SenderAccountAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	tx.RecipientAccountAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
+	tx.SenderAccountAddress = approvalEscrowAccountAddress1
+	tx.RecipientAccountAddress = approvalEscrowAccountAddress2
 	tx.TransactionType = binary.LittleEndian.Uint32([]byte{4, 0, 0, 0})
 	tx.Fee = 1
 	tx.Timestamp = 10000
@@ -496,9 +526,9 @@ func (*mockTransactionQueryApplyConfirmedOK) Scan(tx *model.Transaction, row *sq
 }
 func (*mockEscrowQueryApplyConfirmedOK) Scan(escrow *model.Escrow, _ *sql.Row) error {
 	escrow.ID = 1
-	escrow.SenderAddress = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	escrow.RecipientAddress = "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7"
-	escrow.ApproverAddress = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
+	escrow.SenderAddress = approvalEscrowAccountAddress1
+	escrow.RecipientAddress = approvalEscrowAccountAddress2
+	escrow.ApproverAddress = approvalEscrowAccountAddress3
 	escrow.Amount = 10
 	escrow.Commission = 1
 	escrow.Timeout = 120
@@ -508,20 +538,31 @@ func (*mockEscrowQueryApplyConfirmedOK) Scan(escrow *model.Escrow, _ *sql.Row) e
 	return nil
 }
 
+type (
+	mockAccountBalanceHelperApprovalEscrowTransactionApplyConfirmedSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperApprovalEscrowTransactionApplyConfirmedSuccess) AddAccountBalance(
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return nil
+}
+
 func TestApprovalEscrowTransaction_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		Height              uint32
-		Body                *model.ApprovalEscrowTransactionBody
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		TransactionQuery    query.TransactionQueryInterface
-		TypeActionSwitcher  TypeActionSwitcher
+		ID                   int64
+		Fee                  int64
+		SenderAddress        []byte
+		Height               uint32
+		Body                 *model.ApprovalEscrowTransactionBody
+		Escrow               *model.Escrow
+		QueryExecutor        query.ExecutorInterface
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		TransactionQuery     query.TransactionQueryInterface
+		TypeActionSwitcher   TypeActionSwitcher
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	type args struct {
 		blockTimestamp int64
@@ -537,38 +578,36 @@ func TestApprovalEscrowTransaction_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				ID:            1234567890,
 				Fee:           1,
-				SenderAddress: "ABC",
+				SenderAddress: approvalEscrowAccountAddress3,
 				Height:        1,
 				Body: &model.ApprovalEscrowTransactionBody{
 					Approval:      1,
 					TransactionID: 1234567890,
 				},
-				EscrowQuery:         &mockEscrowQueryApplyConfirmedOK{},
-				QueryExecutor:       &mockEscrowQueryExecutorApplyConfirmedOK{},
-				TransactionQuery:    &mockTransactionQueryApplyConfirmedOK{},
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				EscrowQuery:      &mockEscrowQueryApplyConfirmedOK{},
+				QueryExecutor:    &mockEscrowQueryExecutorApplyConfirmedOK{},
+				TransactionQuery: &mockTransactionQueryApplyConfirmedOK{},
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &mockEscrowQueryExecutorApplyConfirmedOK{},
 				},
+				AccountBalanceHelper: &mockAccountBalanceHelperApprovalEscrowTransactionApplyConfirmedSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &ApprovalEscrowTransaction{
-				ID:                  tt.fields.ID,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				Height:              tt.fields.Height,
-				Body:                tt.fields.Body,
-				Escrow:              tt.fields.Escrow,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				EscrowQuery:         tt.fields.EscrowQuery,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				TypeActionSwitcher:  tt.fields.TypeActionSwitcher,
+				ID:                   tt.fields.ID,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				Height:               tt.fields.Height,
+				Body:                 tt.fields.Body,
+				Escrow:               tt.fields.Escrow,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				EscrowQuery:          tt.fields.EscrowQuery,
+				TransactionQuery:     tt.fields.TransactionQuery,
+				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
