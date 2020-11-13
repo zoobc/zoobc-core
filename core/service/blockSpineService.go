@@ -311,7 +311,10 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		block.CumulativeDifficulty = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("CalculateCumulativeDifficulty:%v", err))
+		}
 	}
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()

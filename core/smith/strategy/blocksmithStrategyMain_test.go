@@ -371,7 +371,7 @@ func TestBlocksmithStrategyMain_GetSmithingRound(t *testing.T) {
 				lastBlockHash:                  tt.fields.lastBlockHash,
 				rng:                            tt.fields.rng,
 			}
-			if got := bss.GetSmithingRound(tt.args.previousBlock, tt.args.block); got != tt.want {
+			if got, _ := bss.GetSmithingRound(tt.args.previousBlock, tt.args.block); got != tt.want {
 				t.Errorf("GetSmithingRound() = %v, want %v", got, tt.want)
 			}
 		})

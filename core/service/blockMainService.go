@@ -388,8 +388,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
 
-		round = int64(bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block))
-
+		roundInt, err := bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block)
+		if err != nil {
+			return err
+		}
+		round = int64(roundInt)
 		// check for duplicate in block pool
 		blockPool := bs.BlockPoolService.GetBlock(round)
 		if blockPool != nil && !persist {
@@ -398,7 +401,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			)
 		}
 
-		block.CumulativeDifficulty = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+			)
+		}
 	}
 
 	// start db transaction here
@@ -900,6 +909,12 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 		return err
 	}
 	blocksBlocksmithsLength := len(blocksBlocksmiths)
+	if blocksBlocksmithsLength < 1 {
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf(
+			"updatePopScore- chaintype: %s -BlocksmithStrategy-NoBlocksmithFound",
+			bs.Chaintype.GetName(),
+		))
+	}
 	// punish the skipped (index earlier than current blocksmith) blocksmith
 	for i := 0; i < blocksBlocksmithsLength-1; i++ {
 		skippedBlocksmith := &model.SkippedBlocksmith{
