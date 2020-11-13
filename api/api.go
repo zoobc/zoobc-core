@@ -49,6 +49,7 @@ func startGrpcServer(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
+	feedbackStrategy coreService.FeedbackStrategyInterface,
 ) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
@@ -91,6 +92,7 @@ func startGrpcServer(
 			mempoolService,
 			observer.NewObserver(),
 			transactionUtil,
+			feedbackStrategy,
 		),
 	})
 	// Set GRPC handler for Transactions requests
@@ -249,6 +251,7 @@ func Start(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
+	feedbackStrategy coreService.FeedbackStrategyInterface,
 ) {
 	startGrpcServer(
 		queryExecutor,
@@ -269,5 +272,6 @@ func Start(
 		apiCertFile, apiKeyFile,
 		maxAPIRequestPerSecond,
 		nodePublicKey,
+		feedbackStrategy,
 	)
 }

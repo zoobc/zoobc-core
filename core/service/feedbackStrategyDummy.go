@@ -30,3 +30,11 @@ func (dfs *DummyFeedbackStrategy) IsCpuLimitReached(numSamples int) (bool, const
 func (dfs *DummyFeedbackStrategy) IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	return false, constant.FeedbackLimitNone
 }
+
+func (dfs *DummyFeedbackStrategy) SetFeedbackVar(k string, v interface{}) {
+	return
+}
+
+func (dfs *DummyFeedbackStrategy) GetFeedbackVar(k string) interface{} {
+	return nil
+}

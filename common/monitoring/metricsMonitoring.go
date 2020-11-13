@@ -31,6 +31,10 @@ var (
 	resolvedPriorityPeersCounter       prometheus.Gauge
 	activeRegisteredNodesGauge         prometheus.Gauge
 	nodeScore                          prometheus.Gauge
+	tpsReceived                        prometheus.Gauge
+	tpsProcessed                       prometheus.Gauge
+	txReceived                         prometheus.Gauge
+	txProcessed                        prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
@@ -215,6 +219,30 @@ func SetMonitoringActive(isActive bool) {
 		Help: "The score of the node (divided by 100 to fit the max float64)",
 	})
 	prometheus.MustRegister(nodeScore)
+
+	tpsReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_received",
+		Help: "Transactions per second received",
+	})
+	prometheus.MustRegister(tpsReceived)
+
+	txReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_received",
+		Help: "Transactions received since node last start",
+	})
+	prometheus.MustRegister(txReceived)
+
+	tpsProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_processed",
+		Help: "Transactions per second processed",
+	})
+	prometheus.MustRegister(tpsProcessed)
+
+	txProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_processed",
+		Help: "Transactions processed since node last start",
+	})
+	prometheus.MustRegister(txProcessed)
 
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
@@ -456,6 +484,34 @@ func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
 	}
 
 	nodeScore.Set(float64(scoreInt64))
+}
+
+func SetTpsReceived(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsReceived.Set(float64(tps))
+}
+
+func SetTpsProcessed(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsProcessed.Set(float64(tps))
+}
+
+func SetTxReceived(n int) {
+	if !isMonitoringActive {
+		return
+	}
+	txReceived.Set(float64(n))
+}
+
+func SetTxProcessed(n int) {
+	if !isMonitoringActive {
+		return
+	}
+	txProcessed.Set(float64(n))
 }
 
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {

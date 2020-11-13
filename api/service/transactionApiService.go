@@ -2,17 +2,17 @@ package service
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"math"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math"
 )
 
 type (
@@ -34,6 +34,7 @@ type (
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
+		FeedbackStrategy   service.FeedbackStrategyInterface
 	}
 )
 
@@ -47,6 +48,7 @@ func NewTransactionService(
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
 	transactionUtil transaction.UtilInterface,
+	feedbackStrategy service.FeedbackStrategyInterface,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -56,6 +58,7 @@ func NewTransactionService(
 			MempoolService:     mempoolService,
 			Observer:           observer,
 			TransactionUtil:    transactionUtil,
+			FeedbackStrategy:   feedbackStrategy,
 		}
 	}
 	return transactionServiceInstance
@@ -216,11 +219,30 @@ func (ts *TransactionService) PostTransaction(
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		txBytes = req.GetTransactionBytes()
-		txType  transaction.TypeAction
-		tx      *model.Transaction
-		err     error
+		txBytes      = req.GetTransactionBytes()
+		txType       transaction.TypeAction
+		tx           *model.Transaction
+		err          error
+		tpsProcessed = 1
+		tpsReceived  = 1
+		txProcessed  = 1
+		txReceived   = 1
 	)
+
+	// Set tpsReceived (transactions per seconds to be processed received by clients)
+	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("tpsReceived"); feedbackVar != nil {
+		tpsReceived = feedbackVar.(int) + 1
+	}
+	ts.FeedbackStrategy.SetFeedbackVar("tpsReceived", tpsReceived)
+	monitoring.SetTpsReceived(tpsReceived)
+
+	// Set txReceived (transactions to be processed received by clients since last node run)
+	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("txReceived"); feedbackVar != nil {
+		txReceived = feedbackVar.(int) + 1
+	}
+	ts.FeedbackStrategy.SetFeedbackVar("txReceived", txReceived)
+	monitoring.SetTxReceived(txReceived)
+
 	// get unsigned bytes
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
@@ -268,6 +290,21 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// Set tpsProcessed (transactions per seconds already processed received by clients).
+	// Note: these are the ones that produce network traffic because they must be broadcast to peers
+	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("tpsProcessed"); feedbackVar != nil {
+		tpsProcessed = feedbackVar.(int) + 1
+	}
+	ts.FeedbackStrategy.SetFeedbackVar("tpsProcessed", tpsProcessed)
+	monitoring.SetTpsProcessed(tpsProcessed)
+
+	// Set txProcessed (transactions already processed received by clients since last node run).
+	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("txProcessed"); feedbackVar != nil {
+		txProcessed = feedbackVar.(int) + 1
+	}
+	ts.FeedbackStrategy.SetFeedbackVar("txProcessed", txProcessed)
+	monitoring.SetTxProcessed(txProcessed)
 
 	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction
