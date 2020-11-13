@@ -273,7 +273,9 @@ func init() {
 	proto.RegisterType((*SnapshotPayload)(nil), "model.SnapshotPayload")
 }
 
-func init() { proto.RegisterFile("model/snapshot.proto", fileDescriptor_5d9d8140a8c06fc6) }
+func init() {
+	proto.RegisterFile("model/snapshot.proto", fileDescriptor_5d9d8140a8c06fc6)
+}
 
 var fileDescriptor_5d9d8140a8c06fc6 = []byte{
 	// 731 bytes of a gzipped FileDescriptorProto

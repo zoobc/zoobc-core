@@ -12,12 +12,13 @@ import (
 var (
 	mockAccountLedgerQuery = NewAccountLedgerQuery()
 	mockAccountLedger      = &model.AccountLedger{
-		AccountAddress: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		BalanceChange:  10000,
-		BlockHeight:    1,
-		TransactionID:  -123123123123,
-		EventType:      model.EventType_EventNodeRegistrationTransaction,
-		Timestamp:      1562117271,
+		AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		BalanceChange: 10000,
+		BlockHeight:   1,
+		TransactionID: -123123123123,
+		EventType:     model.EventType_EventNodeRegistrationTransaction,
+		Timestamp:     1562117271,
 	}
 )
 

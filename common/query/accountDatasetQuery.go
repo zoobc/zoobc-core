@@ -18,10 +18,10 @@ type (
 
 	// AccountDatasetQueryInterface methods must have
 	AccountDatasetQueryInterface interface {
-		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress, property string) (str string, args []interface{})
+		GetLatestAccountDataset(setterAccountAddress, recipientAccountAddress []byte, property string) (str string, args []interface{})
 		InsertAccountDatasets(datasets []*model.AccountDataset) (str string, args []interface{})
 		InsertAccountDataset(dataset *model.AccountDataset) [][]interface{}
-		GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{})
+		GetAccountDatasetEscrowApproval(accountAddress []byte) (qStr string, args []interface{})
 		ExtractModel(dataset *model.AccountDataset) []interface{}
 		BuildModel(datasets []*model.AccountDataset, rows *sql.Rows) ([]*model.AccountDataset, error)
 		Scan(dataset *model.AccountDataset, row *sql.Row) error
@@ -107,7 +107,7 @@ func (adq *AccountDatasetQuery) RecalibrateVersionedTable() []string {
 
 // GetLatestAccountDataset represents query builder to get the latest record of account_dataset
 func (adq *AccountDatasetQuery) GetLatestAccountDataset(
-	setterAccountAddress, recipientAccountAddress, property string,
+	setterAccountAddress, recipientAccountAddress []byte, property string,
 ) (str string, args []interface{}) {
 	return fmt.Sprintf(
 			"SELECT %s FROM %s WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
@@ -164,7 +164,7 @@ func (adq *AccountDatasetQuery) InsertAccountDataset(dataset *model.AccountDatas
 
 // GetAccountDatasetEscrowApproval represents query for get account dataset for AccountDatasetEscrowApproval property
 // SetterAccountAddress and RecipientAccountAddress must be the same person
-func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(accountAddress string) (qStr string, args []interface{}) {
+func (adq *AccountDatasetQuery) GetAccountDatasetEscrowApproval(accountAddress []byte) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"SELECT %s FROM %s WHERE setter_account_address = ? AND recipient_account_address = ? AND property = ? AND latest = ?",
 			strings.Join(adq.Fields, ", "),

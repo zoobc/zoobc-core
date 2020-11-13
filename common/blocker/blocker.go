@@ -22,6 +22,7 @@ var (
 
 	DBErr                     TypeBlocker = "DBErr"
 	DBRowNotFound             TypeBlocker = "DBRowNotFound"
+	NotFound                  TypeBlocker = "NotFound"
 	BlockErr                  TypeBlocker = "BlockErr"
 	BlockNotFoundErr          TypeBlocker = "BlockNotFoundErr"
 	RequestParameterErr       TypeBlocker = "RequestParameterErr"
@@ -29,13 +30,14 @@ var (
 	AuthErr                   TypeBlocker = "AuthErr"
 	ValidationErr             TypeBlocker = "ValidationErr"
 	DuplicateMempoolErr       TypeBlocker = "DuplicateMempoolErr"
-	DuplicateTransactionErr   TypeBlocker = "DuplicateTransactionErr"
+	DuplicateReceiptErr       TypeBlocker = "DuplicateReceiptErr"
 	ParserErr                 TypeBlocker = "ParserErr"
 	ServerError               TypeBlocker = "ServerError"
 	SmithingErr               TypeBlocker = "SmithingErr"
 	ZeroParticipationScoreErr TypeBlocker = "ZeroParticipationScoreErr"
 	ChainValidationErr        TypeBlocker = "ChainValidationErr"
 	P2PPeerError              TypeBlocker = "P2PPeerError"
+	P2PPeerErrorDownload      TypeBlocker = "P2PPeerErrorDownload"
 	P2PNetworkConnectionErr   TypeBlocker = "P2PNetworkConnectionErr"
 	SmithingPending           TypeBlocker = "SmithingPending"
 	InvalidBlockTimestamp     TypeBlocker = "InvalidBlockTimestamp"
@@ -45,6 +47,7 @@ var (
 	PushSpineBlockErr         TypeBlocker = "PushSpineBlockErr"
 	ValidateSpineBlockErr     TypeBlocker = "ValidateSpineBlockErr"
 	SchedulerError            TypeBlocker = "SchedulerError"
+	CacheEmpty                TypeBlocker = "CacheEmpty"
 )
 
 func SetIsDebugMode(val bool) {

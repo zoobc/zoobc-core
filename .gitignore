@@ -33,3 +33,6 @@ dist/
 local.preRegisteredNodes.json
 core/service/testdata/snapshots/
 _*
+
+*.db-shm
+*.db-wal

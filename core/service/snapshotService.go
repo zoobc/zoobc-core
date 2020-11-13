@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/observer"
 )
 
@@ -22,10 +24,12 @@ type (
 	}
 
 	SnapshotService struct {
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlockchainStatusService   BlockchainStatusServiceInterface
-		SnapshotBlockServices     map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
-		Logger                    *log.Logger
+		SpineBlockManifestService  SpineBlockManifestServiceInterface
+		BlockSpinePublicKeyService BlockSpinePublicKeyServiceInterface
+		SnapshotChunkUtil          util.ChunkUtilInterface
+		BlockchainStatusService    BlockchainStatusServiceInterface
+		SnapshotBlockServices      map[int32]SnapshotBlockServiceInterface // map key = chaintype number (eg. mainchain = 0)
+		Logger                     *log.Logger
 	}
 )
 
@@ -38,15 +42,19 @@ var (
 
 func NewSnapshotService(
 	spineBlockManifestService SpineBlockManifestServiceInterface,
+	blockSpinePublicKeyService BlockSpinePublicKeyServiceInterface,
 	blockchainStatusService BlockchainStatusServiceInterface,
 	snapshotBlockServices map[int32]SnapshotBlockServiceInterface,
+	snapshotChunkUtil util.ChunkUtilInterface,
 	logger *log.Logger,
 ) *SnapshotService {
 	return &SnapshotService{
-		SpineBlockManifestService: spineBlockManifestService,
-		BlockchainStatusService:   blockchainStatusService,
-		SnapshotBlockServices:     snapshotBlockServices,
-		Logger:                    logger,
+		SpineBlockManifestService:  spineBlockManifestService,
+		BlockSpinePublicKeyService: blockSpinePublicKeyService,
+		BlockchainStatusService:    blockchainStatusService,
+		SnapshotBlockServices:      snapshotBlockServices,
+		SnapshotChunkUtil:          snapshotChunkUtil,
+		Logger:                     logger,
 	}
 }
 
@@ -93,7 +101,7 @@ func (*SnapshotService) IsSnapshotProcessing(ct chaintype.ChainType) bool {
 
 // StartSnapshotListener setup listener for snapshots generation
 // TODO: allow only active blocksmiths (registered nodes at this block height) to generate snapshots
-// 	 one way to do this is to inject the actual node public key and noderegistration service into this service
+// 	 one way to do this is to inject the actual node public key and nodeRegistration service into this service
 func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(blockI interface{}, args ...interface{}) {
@@ -112,7 +120,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 					go func() {
 						// if spine and main blocks are still downloading, after the node has started,
 						// do not generate (or download from other peers) snapshots
-						if !ss.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
+						if !ss.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
 							ss.Logger.Infof("Snapshot at block "+
 								"height %d not generated because blockchain is still downloading",
 								block.Height)
@@ -130,7 +138,7 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 								"height %d terminated with errors %s", block.Height, err)
 							return
 						}
-						_, err = ss.SpineBlockManifestService.CreateSpineBlockManifest(
+						manifestRes, err := ss.SpineBlockManifestService.CreateSpineBlockManifest(
 							snapshotInfo.SnapshotFileHash,
 							snapshotInfo.Height,
 							snapshotInfo.ProcessExpirationTimestamp,
@@ -142,8 +150,25 @@ func (ss *SnapshotService) StartSnapshotListener() observer.Listener {
 							ss.Logger.Errorf("Cannot create spineBlockManifest at block "+
 								"height %d. Error %s", block.Height, err)
 						}
+						spinePublicKeys, err :=
+							ss.BlockSpinePublicKeyService.GetSpinePublicKeysByBlockHeight(manifestRes.GetManifestSpineBlockHeight())
+						if err != nil {
+							ss.Logger.Errorf("Fail to get spinePublicKey at "+
+								"spineBlock height %d. Error %s", manifestRes.GetManifestSpineBlockHeight(), err)
+						}
+						var nodeIDs = make([]int64, len(spinePublicKeys))
+						for i, key := range spinePublicKeys {
+							nodeIDs[i] = key.NodeID
+						}
+
+						_, err = ss.SnapshotChunkUtil.GetShardAssignment(manifestRes.GetFileChunkHashes(), sha256.Size, nodeIDs, true)
+						if err != nil {
+							ss.Logger.Errorf("Fail calculating snapshot shard assignment at "+
+								"spineBlock height %d. Error %s", manifestRes.GetManifestSpineBlockHeight(), err)
+						}
+
 						ss.Logger.Infof("Generated Snapshot at main block "+
-							"height %d", block.Height)
+							"height %d - spineBlock - %d", block.Height, manifestRes.GetManifestSpineBlockHeight())
 					}()
 				}
 			}

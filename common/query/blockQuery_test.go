@@ -75,7 +75,8 @@ func TestBlockQuery_GetBlocks(t *testing.T) {
 		q := mockBlockQuery.GetBlocks(0, 10)
 		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase, version FROM main_block WHERE height >= 0 ORDER BY height ASC LIMIT 10"
+			"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+			"FROM main_block WHERE height >= 0 ORDER BY height ASC LIMIT 10"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%s\nwant: \n%s", q, wantQ)
 		}
@@ -87,7 +88,7 @@ func TestBlockQuery_GetLastBlock(t *testing.T) {
 		q := mockBlockQuery.GetLastBlock()
 		wantQ := "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase, version FROM main_block"
+			"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
@@ -99,7 +100,7 @@ func TestBlockQuery_GetGenesisBlock(t *testing.T) {
 		q := mockBlockQuery.GetGenesisBlock()
 		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-			"total_fee, total_coinbase, version FROM main_block WHERE height = 0"
+			"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height = 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
@@ -112,14 +113,14 @@ func TestBlockQuery_InsertBlock(t *testing.T) {
 		wantQ := "INSERT INTO main_block (height, id, block_hash, previous_block_hash, timestamp, block_seed, " +
 			"block_signature, cumulative_difficulty, payload_length, payload_hash, " +
 			"blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-			"version) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+			"version, merkle_root, merkle_tree, reference_block_height) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 		wantArg := mockBlockQuery.ExtractModel(mockBlock)
 
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: \n%swant: \n%s", q, wantQ)
 		}
 		if !reflect.DeepEqual(args, wantArg) {
-			t.Errorf("arguments returned wrong: get: %v\nwant: %v", args, wantArg)
+			t.Errorf("arguments returned wrong: get: \n%v\nwant: \n%v", args, wantArg)
 		}
 	})
 }
@@ -129,7 +130,8 @@ func TestBlockQuery_GetBlockByID(t *testing.T) {
 		q := mockBlockQuery.GetBlockByID(1)
 		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, " +
-			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE id = 1"
+			"total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+			"FROM main_block WHERE id = 1"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -141,7 +143,8 @@ func TestBlockQuery_GetBlockByHeight(t *testing.T) {
 		q := mockBlockQuery.GetBlockByHeight(0)
 		wantQ := "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 			"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, " +
-			"total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0"
+			"total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+			"FROM main_block WHERE height = 0"
 		if q != wantQ {
 			t.Errorf("query returned wrong: get: %s\nwant: %s", q, wantQ)
 		}
@@ -167,6 +170,9 @@ func TestBlockQuery_ExtractModel(t *testing.T) {
 			mockBlock.TotalFee,
 			mockBlock.TotalCoinBase,
 			mockBlock.Version,
+			mockBlock.MerkleRoot,
+			mockBlock.MerkleTree,
+			mockBlock.ReferenceBlockHeight,
 		}
 		if !reflect.DeepEqual(res, want) {
 			t.Errorf("arguments returned wrong: get: %v\nwant: %v", res, want)
@@ -195,7 +201,10 @@ func TestBlockQuery_BuildModel(t *testing.T) {
 					mockBlock.TotalAmount,
 					mockBlock.TotalFee,
 					mockBlock.TotalCoinBase,
-					mockBlock.Version))
+					mockBlock.Version,
+					mockBlock.MerkleRoot,
+					mockBlock.MerkleTree,
+					mockBlock.ReferenceBlockHeight))
 
 		rows, _ := db.Query("foo")
 		var tempBlock []*model.Block
@@ -274,7 +283,7 @@ func TestBlockQuery_GetBlockFromHeight(t *testing.T) {
 			},
 			want: "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
-				"total_coinbase, version FROM main_block WHERE height >= 1 ORDER BY height LIMIT 1",
+				"total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height >= 1 ORDER BY height LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -316,7 +325,8 @@ func TestBlockQuery_GetBlockFromTimestamp(t *testing.T) {
 			},
 			want: "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 				"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, " +
-				"total_coinbase, version FROM main_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1",
+				"total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+				"FROM main_block WHERE timestamp >= 15875392 ORDER BY timestamp LIMIT 1",
 		},
 	}
 	for _, tt := range tests {
@@ -357,8 +367,9 @@ func TestBlockQuery_SelectDataForSnapshot(t *testing.T) {
 				toHeight:   10,
 			},
 			want: "SELECT height,id,block_hash,previous_block_hash,timestamp,block_seed,block_signature," +
-				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount,total_fee,total_coinbase," +
-				"version FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
+				"cumulative_difficulty,payload_length,payload_hash,blocksmith_public_key,total_amount," +
+				"total_fee,total_coinbase,version,merkle_root,merkle_tree,reference_block_height " +
+				"FROM main_block WHERE height >= 0 AND height <= 10 AND height != 0",
 		},
 	}
 	for _, tt := range tests {
@@ -450,8 +461,9 @@ func TestBlockQuery_InsertBlocks(t *testing.T) {
 			},
 			wantStr: "INSERT INTO main_block " +
 				"(height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-				"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version) " +
-				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, " +
+				"merkle_root, merkle_tree, reference_block_height) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			wantArgs: NewBlockQuery(&chaintype.MainChain{}).ExtractModel(mockBlock),
 		},
 	}
@@ -464,11 +476,11 @@ func TestBlockQuery_InsertBlocks(t *testing.T) {
 			}
 			gotStr, gotArgs := bq.InsertBlocks(tt.args.blocks)
 			if gotStr != tt.wantStr {
-				t.Errorf("InsertBlocks() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("InsertBlocks() gotStr = \n%v want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("InsertBlocks() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("InsertBlocks() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

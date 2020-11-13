@@ -14,6 +14,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -40,22 +41,22 @@ type (
 	}
 )
 
-func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailExecuteSelectFailRU) ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error) {
 	return nil, errors.New("mockError:selectFail")
 }
 
-func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailAccountNotNodeOwnerRU) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{}))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	return nil, nil
 }
 
-func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeDeleted) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
@@ -79,7 +80,7 @@ func (*mockExecutorValidateFailNodeDeleted) ExecuteSelect(qe string, tx bool, ar
 			true,
 			uint32(1),
 		))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	return nil, nil
 }
@@ -91,11 +92,10 @@ func (*mockExecutorValidateFailNodeNotFoundRU) ExecuteSelectRow(qe string, _ boo
 	return db.QueryRow(qe), nil
 }
 
-func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
-		" registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
+	if strings.Contains(qe, "WHERE account_address = ? AND latest=1") {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -115,10 +115,7 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			true,
 			uint32(1),
 		))
-		return db.Query("")
-	}
-	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
-		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
+	} else {
 		mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"node_public_key",
@@ -138,12 +135,11 @@ func (*mockExecutorValidateFailNodeAlreadyRegisteredRU) ExecuteSelect(qe string,
 			true,
 			uint32(1),
 		))
-		return db.Query("")
 	}
-	return nil, nil
+	return db.QueryRow(qe), nil
 }
 
-func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelectRow(qe string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
@@ -167,7 +163,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 			true,
 			uint32(1),
 		))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	if qe == "SELECT id, node_public_key, account_address, registration_height, locked_balance,"+
 		" registration_status, latest, height FROM node_registry WHERE node_public_key = ? AND latest=1 ORDER BY height DESC LIMIT 1" {
@@ -181,7 +177,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 			"latest",
 			"height",
 		}))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	if qe == "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest FROM"+
 		" account_balance WHERE account_address = ? AND latest = 1" {
@@ -200,12 +196,12 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qe string
 			int64(100000000),
 			true,
 		))
-		return db.Query("")
+		return db.QueryRow(""), nil
 	}
 	return nil, errors.New("mocked select failed, query  not found")
 }
 
-func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -223,7 +219,7 @@ func (*mockExecutorValidateSuccessUpdateNodePublicKeyRU) ExecuteSelectRow(qStr s
 			int64(100000000),
 			true,
 		))
-	return db.QueryRow(qStr), nil
+	return db.Query(qStr)
 }
 
 func (*mockExecutorValidateSuccessRU) ExecuteSelect(qe string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -330,6 +326,25 @@ func (*mockExecutorValidateSuccessRU) ExecuteTransactions(queries [][]interface{
 	return nil
 }
 
+type (
+	mockAccountBalanceHelperUpdateNRValidateSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperUpdateNRValidateFail struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperUpdateNRValidateSuccess) HasEnoughSpendableBalance(
+	dbTX bool, address []byte, compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
+}
+func (*mockAccountBalanceHelperUpdateNRValidateFail) HasEnoughSpendableBalance(
+	dbTX bool, address []byte, compareBalance int64,
+) (enough bool, err error) {
+	return false, sql.ErrNoRows
+}
 func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	_, poown, _, _ := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	txBodyInvalidPoown := &model.UpdateNodeRegistrationTransactionBody{
@@ -364,13 +379,13 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -411,7 +426,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailNodeDeleted{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
@@ -424,7 +438,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailAccountNotNodeOwnerRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
@@ -437,7 +450,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailNodeAlreadyRegisteredRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
@@ -450,9 +462,9 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccessUpdateNodePublicKeyRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateSuccess{},
 			},
 			wantErr: false,
 		},
@@ -463,7 +475,6 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
@@ -476,9 +487,9 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateFail{},
 			},
 			wantErr: true,
 		},
@@ -489,9 +500,9 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateSuccess{},
 			},
 			wantErr: false,
 		},
@@ -503,17 +514,27 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+type (
+	mockAccountBalanceHelperUpdateNRApplyUnconfirmedSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperUpdateNRApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
 }
 
 func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
@@ -523,13 +544,13 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -543,8 +564,8 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRApplyUnconfirmedSuccess{},
 			},
 			wantErr: false,
 		},
@@ -555,7 +576,6 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorValidateFailNodeNotFoundRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 			},
 			wantErr: true,
@@ -568,11 +588,11 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -620,21 +640,33 @@ func (*mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess) ExecuteTransactions(
 	return nil
 }
 
+type (
+	mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess) AddAccountBalance(
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return nil
+}
 func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		LockedBalance: int64(10000000000),
 	}
 	type fields struct {
-		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         string
-		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		BlockQuery            query.BlockQueryInterface
-		QueryExecutor         query.ExecutorInterface
-		AuthPoown             auth.NodeAuthValidationInterface
-		AccountLedgerQuery    query.AccountLedgerQueryInterface
+		Body                     *model.UpdateNodeRegistrationTransactionBody
+		Fee                      int64
+		SenderAddress            []byte
+		Height                   uint32
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		AuthPoown                auth.NodeAuthValidationInterface
+		AccountBalanceHelper     AccountBalanceHelperInterface
+		PendingNodeRegistryCache storage.TransactionalCache
+		ActiveNodeRegistryCache  storage.TransactionalCache
 	}
 	tests := []struct {
 		name    string
@@ -644,25 +676,41 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:fail-{PreviousNodeRecordNotFound}",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ApplyConfirmed:errorNotFound",
+			fields: fields{
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper:     &mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheNotFound{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
-				QueryExecutor:         &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountLedgerQuery:    query.NewAccountLedgerQuery(),
+				Body:                     txBody,
+				SenderAddress:            senderAddress1,
+				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				AccountBalanceHelper:     &mockAccountBalanceHelperUpdateNRApplyConfirmedSuccess{},
+				PendingNodeRegistryCache: &mockNodeRegistryCacheSuccess{},
+				ActiveNodeRegistryCache:  &mockNodeRegistryCacheSuccess{},
 			},
 			wantErr: false,
 		},
@@ -670,22 +718,39 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
-				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				BlockQuery:            tt.fields.BlockQuery,
-				QueryExecutor:         tt.fields.QueryExecutor,
-				AuthPoown:             tt.fields.AuthPoown,
-				AccountLedgerQuery:    tt.fields.AccountLedgerQuery,
+				Body:                         tt.fields.Body,
+				Fee:                          tt.fields.Fee,
+				SenderAddress:                tt.fields.SenderAddress,
+				Height:                       tt.fields.Height,
+				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
+				BlockQuery:                   tt.fields.BlockQuery,
+				QueryExecutor:                tt.fields.QueryExecutor,
+				AuthPoown:                    tt.fields.AuthPoown,
+				AccountBalanceHelper:         tt.fields.AccountBalanceHelper,
+				PendingNodeRegistrationCache: tt.fields.PendingNodeRegistryCache,
+				ActiveNodeRegistrationCache:  tt.fields.ActiveNodeRegistryCache,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+type (
+	mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return sql.ErrNoRows
 }
 
 func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
@@ -695,13 +760,13 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AuthPoown             auth.NodeAuthValidationInterface
+		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -714,9 +779,9 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				Fee:                   1,
 				Body:                  txBody,
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail{},
 			},
 			wantErr: true,
 		},
@@ -726,10 +791,10 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				SenderAddress:         senderAddress1,
 				QueryExecutor:         &mockExecutorUndoUnconfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				AccountBalanceQuery:   query.NewAccountBalanceQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				Fee:                   1,
 				Body:                  txBody,
+				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess{},
 			},
 			wantErr: false,
 		},
@@ -741,11 +806,11 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
+				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -761,9 +826,8 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -779,7 +843,6 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 			fields: fields{
 				Body: txBody,
 			},
-			want: txBody.LockedBalance,
 		},
 	}
 	for _, tt := range tests {
@@ -789,7 +852,6 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -807,9 +869,8 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -825,8 +886,9 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body:                  txBody,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
+				SenderAddress:         senderAddress1,
 			},
-			want: 206,
+			want: 176,
 		},
 	}
 	for _, tt := range tests {
@@ -836,13 +898,16 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			got, err := tx.GetSize()
+			if err != nil {
+				t.Errorf("UpdateNodeRegistration.GetSize() = err %s", err)
+			}
+			if got != tt.want {
 				t.Errorf("UpdateNodeRegistration.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -855,9 +920,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -878,9 +942,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -893,9 +956,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -908,9 +970,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -923,9 +984,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -940,9 +1000,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
@@ -957,9 +1016,8 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                  nil,
 				Fee:                   0,
-				SenderAddress:         "",
+				SenderAddress:         nil,
 				Height:                0,
-				AccountBalanceQuery:   nil,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
@@ -988,7 +1046,6 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -1011,9 +1068,8 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1040,13 +1096,12 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AuthPoown:             tt.fields.AuthPoown,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("UpdateNodeRegistration.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1058,9 +1113,8 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
-		SenderAddress         string
+		SenderAddress         []byte
 		Height                uint32
-		AccountBalanceQuery   query.AccountBalanceQueryInterface
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1091,7 +1145,6 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 				Fee:                   tt.fields.Fee,
 				SenderAddress:         tt.fields.SenderAddress,
 				Height:                tt.fields.Height,
-				AccountBalanceQuery:   tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -1107,9 +1160,8 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
 		Fee                     int64
-		SenderAddress           string
+		SenderAddress           []byte
 		Height                  uint32
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -1131,20 +1183,20 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress1,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -1154,20 +1206,20 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_NodeRegistrationTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tAAAA",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_ClaimNodeRegistrationTransaction),
 					},
 				},
@@ -1176,20 +1228,20 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
-				SenderAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+				SenderAddress: senderAddress1,
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress2,
 						TransactionType:      uint32(model.TransactionType_SetupAccountDatasetTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress3,
 						TransactionType:      uint32(model.TransactionType_EmptyTransaction),
 					},
 					{
-						SenderAccountAddress: "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
+						SenderAccountAddress: senderAddress4,
 						TransactionType:      uint32(model.TransactionType_SendMoneyTransaction),
 					},
 				},
@@ -1204,7 +1256,6 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 				Fee:                     tt.fields.Fee,
 				SenderAddress:           tt.fields.SenderAddress,
 				Height:                  tt.fields.Height,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,

@@ -14,20 +14,22 @@ import (
 var (
 	mockTransactionQuery = query.NewTransactionQuery(chaintype.GetChainType(0))
 	mockTransaction      = &model.Transaction{
-		ID:                      -1273123123,
-		BlockID:                 -123123123123,
-		Version:                 1,
-		Height:                  1,
-		SenderAccountAddress:    "senderAccountAddress",
-		RecipientAccountAddress: "recipientAccountAddress",
-		TransactionType:         binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
-		Fee:                     1,
-		Timestamp:               10000,
-		TransactionHash:         make([]byte, 200),
-		TransactionBodyLength:   88,
-		TransactionBodyBytes:    make([]byte, 88),
-		Signature:               make([]byte, 68),
-		TransactionIndex:        1,
+		ID:      -1273123123,
+		BlockID: -123123123123,
+		Version: 1,
+		Height:  1,
+		SenderAccountAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		TransactionType:       binary.LittleEndian.Uint32([]byte{0, 1, 0, 0}),
+		Fee:                   1,
+		Timestamp:             10000,
+		TransactionHash:       make([]byte, 200),
+		TransactionBodyLength: 88,
+		TransactionBodyBytes:  make([]byte, 88),
+		Signature:             make([]byte, 68),
+		TransactionIndex:      1,
 	}
 )
 

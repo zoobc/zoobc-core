@@ -1,4 +1,4 @@
-package crypto
+package signaturetype
 
 import (
 	"reflect"
@@ -138,7 +138,7 @@ func TestEd25519Signature_GetAddressFromPublicKey(t *testing.T) {
 
 func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 	type args struct {
-		address string
+		encodedAddress string
 	}
 	tests := []struct {
 		name    string
@@ -150,23 +150,23 @@ func TestEd25519Signature_GetPublicKeyFromAddress(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				address: "ZBC_AQTGOSP2_VE7ZW2QV_BFGE3CID_PAKUKWTW_6JKK53ZO_XZHEIWST_RYFXR672",
+				encodedAddress: "ZBC_D2EDT53U_5VSQXGQD_COZMETMY_FUVV23NQ_UPLXTR7F_6LKVWNNF_J2SPLUDQ",
 			},
-			want: []byte{4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242,
-				84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11},
+			want: []byte{30, 136, 57, 247, 116, 237, 101, 11, 154, 3, 19, 178, 194, 77, 152, 45, 43, 93, 109, 176, 163, 215,
+				121, 199, 229, 242, 213, 91, 53, 165, 78, 164},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			es := &Ed25519Signature{}
-			got, err := es.GetPublicKeyFromAddress(tt.args.address)
+			got, err := es.GetPublicKeyFromEncodedAddress(tt.args.encodedAddress)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Ed25519Signature.GetPublicKeyFromAddress() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Ed25519Signature.GetPublicKeyFromEncodedAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Ed25519Signature.GetPublicKeyFromAddress() = %v, want %v", got, tt.want)
+				t.Errorf("Ed25519Signature.GetPublicKeyFromEncodedAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -17,21 +16,19 @@ import (
 type (
 	// SendMoney is Transaction Type that implemented TypeAction
 	SendMoney struct {
-		ID                  int64
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		Body                *model.SendMoneyTransactionBody
-		QueryExecutor       query.ExecutorInterface
-		Escrow              *model.Escrow
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		EscrowQuery         query.EscrowTransactionQueryInterface
-		BlockQuery          query.BlockQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		NormalFee           fee.FeeModelInterface
-		EscrowFee           fee.FeeModelInterface
+		ID                   int64
+		Fee                  int64
+		SenderAddress        []byte
+		RecipientAddress     []byte
+		Height               uint32
+		Body                 *model.SendMoneyTransactionBody
+		QueryExecutor        query.ExecutorInterface
+		Escrow               *model.Escrow
+		EscrowQuery          query.EscrowTransactionQueryInterface
+		BlockQuery           query.BlockQueryInterface
+		NormalFee            fee.FeeModelInterface
+		EscrowFee            fee.FeeModelInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 )
 
@@ -54,58 +51,32 @@ If Not Genesis:
 */
 func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 	var (
-		queries [][]interface{}
-		err     error
+		err error
 	)
 
-	// insert / update recipient
-	accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
-		tx.Body.Amount,
-		map[string]interface{}{
-			"account_address": tx.RecipientAddress,
-			"block_height":    tx.Height,
-		},
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.RecipientAddress,
+		tx.Body.GetAmount(),
+		model.EventType_EventSendMoneyTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
 	)
-	queries = append(queries, accountBalanceRecipientQ...)
-	// recipient Ledger Log
-	recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.RecipientAddress,
-		BalanceChange:  tx.GetAmount(),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventSendMoneyTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
-	queries = append(queries, recipientAccountLedgerArgs)
-
-	// update sender
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Body.Amount + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
-	)
-	queries = append(queries, accountBalanceSenderQ...)
-
-	// sender ledger
-	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -(tx.GetAmount() + tx.Fee),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventSendMoneyTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
-
-	err = tx.QueryExecutor.ExecuteTransactions(queries)
-
 	if err != nil {
 		return err
 	}
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Body.GetAmount() + tx.Fee),
+		model.EventType_EventSendMoneyTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -115,22 +86,10 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SendMoney
 */
 func (tx *SendMoney) ApplyUnconfirmed() error {
 
-	var (
-		err error
-	)
-
-	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-(tx.Body.Amount + tx.Fee),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetAmount() + tx.Fee))
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -139,22 +98,10 @@ UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SendMoney) UndoApplyUnconfirmed() error {
-	var (
-		err error
-	)
-
-	// update sender
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.Amount+tx.Fee,
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-	err = tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -166,55 +113,30 @@ That specs:
 */
 func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
-		accountBalance model.AccountBalance
-		accountDataset model.AccountDataset
-		accDatasetArgs []interface{}
-		accDatasetQ    string
-		row            *sql.Row
-		err            error
+		err error
 	)
-
 	if tx.Body.GetAmount() <= 0 {
 		return errors.New("transaction must have an amount more than 0")
 	}
-	if tx.RecipientAddress == "" {
+	if tx.RecipientAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
 	}
-	// checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
-	// yes would be error
-	// TODO: Move this part to `transactionCoreService` when all transaction types need this part
-	accDatasetQ, accDatasetArgs = tx.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAddress)
-	row, err = tx.QueryExecutor.ExecuteSelectRow(accDatasetQ, dbTx, accDatasetArgs...)
-	if err != nil {
-		return err
-	}
-	err = tx.AccountDatasetQuery.Scan(&accountDataset, row)
-	if err != nil && err != sql.ErrNoRows {
-		return err
-	}
-	// false if err in above is sql.ErrNoRows || nil
-	if accountDataset.GetIsActive() {
-		return fmt.Errorf("RecipientRequireEscrow")
-	}
+
 	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
 	// validation needed
-	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
-		if tx.SenderAddress == "" {
+	if !bytes.Equal(tx.SenderAddress, constant.MainchainGenesisAccountAddress) {
+		if tx.SenderAddress == nil {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-		if err != nil {
-			return blocker.NewBlocker(blocker.DBErr, err.Error())
+		enough, e := tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
+		if e != nil {
+			if e != sql.ErrNoRows {
+				return err
+			}
+			return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 		}
-
-		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-		if err != nil {
-			return err
-		}
-
-		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee) {
+		if !enough {
 			return blocker.NewBlocker(
 				blocker.ValidationErr,
 				"UserBalanceNotEnough",
@@ -230,22 +152,26 @@ func (tx *SendMoney) GetAmount() int64 {
 }
 
 func (tx *SendMoney) GetMinimumFee() (int64, error) {
-	if tx.Escrow.ApproverAddress != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 // GetSize send money Amount should be 8
-func (*SendMoney) GetSize() uint32 {
+func (*SendMoney) GetSize() (uint32, error) {
 	// only amount
-	return constant.Balance
+	return constant.Balance, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}
@@ -258,10 +184,10 @@ func (tx *SendMoney) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyIn
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *SendMoney) GetBodyBytes() []byte {
+func (tx *SendMoney) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.Amount)))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 // GetTransactionBody append isTransaction_TransactionBody oneOf
@@ -276,7 +202,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:               tx.ID,
 			SenderAddress:    tx.SenderAddress,
@@ -296,65 +222,41 @@ func (tx *SendMoney) Escrowable() (EscrowTypeAction, bool) {
 	return nil, false
 }
 
-/**
-Escrow Part
-1. ApplyUnconfirmed
-2. UndoApplyUnconfirmed
-3. ApplyConfirmed
-4. Validate
-*/
-
 // EscrowValidate special validation for escrow's transaction
 func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	var (
-		accountBalance model.AccountBalance
-		err            error
-		row            *sql.Row
+		err    error
+		enough bool
 	)
 
-	if tx.Body.GetAmount() <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "AmountNotEnough")
-	}
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
 	}
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.Escrow.GetRecipientAddress() == "" {
+	if tx.Escrow.GetRecipientAddress() == nil || bytes.Equal(tx.Escrow.GetRecipientAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
-	// todo: this is temporary solution, later we should depend on coinbase, so no genesis transaction exclusion in
-	// validation needed
-	if tx.SenderAddress != constant.MainchainGenesisAccountAddress {
-		if tx.SenderAddress == "" {
-			return blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
-		}
 
-		qry, args := tx.AccountBalanceQuery.GetAccountBalanceByAccountAddress(tx.SenderAddress)
-		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
-		if err != nil {
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetAmount()+tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
 			return err
 		}
-
-		err = tx.AccountBalanceQuery.Scan(&accountBalance, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				return err
-			}
-			return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
-		}
-
-		if accountBalance.SpendableBalance < (tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()) {
-			return blocker.NewBlocker(
-				blocker.ValidationErr,
-				"UserBalanceNotEnough",
-			)
-		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
+
 	return nil
 
 }
@@ -365,18 +267,12 @@ similar with ApplyUnconfirmed and Escrow.Commission
 */
 func (tx *SendMoney) EscrowApplyUnconfirmed() error {
 
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		-(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()))
 	if err != nil {
 		return err
 	}
 	return nil
+
 }
 
 /*
@@ -385,14 +281,7 @@ this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SendMoney) EscrowUndoApplyUnconfirmed() error {
 
-	accountBalanceSenderQ, accountBalanceSenderQArgs := tx.AccountBalanceQuery.AddAccountSpendableBalance(
-		tx.Body.Amount+tx.Fee+tx.Escrow.GetCommission(),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-		},
-	)
-
-	err := tx.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetAmount()+tx.Escrow.GetCommission()+tx.Fee)
 	if err != nil {
 		return err
 	}
@@ -405,36 +294,23 @@ account ledger, and escrow
 */
 func (tx *SendMoney) EscrowApplyConfirmed(blockTimestamp int64) error {
 	var (
-		queries [][]interface{}
-		err     error
+		err error
 	)
 
-	// update sender balance
-	accountBalanceSenderQ := tx.AccountBalanceQuery.AddAccountBalance(
-		-(tx.Body.Amount + tx.Fee + tx.Escrow.GetCommission()),
-		map[string]interface{}{
-			"account_address": tx.SenderAddress,
-			"block_height":    tx.Height,
-		},
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
 	)
-	queries = append(queries, accountBalanceSenderQ...)
+	if err != nil {
+		return err
+	}
 
-	// sender ledger
-	senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventSendMoneyTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
-	senderAccountLedgerArgs = append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...)
-	queries = append(queries, senderAccountLedgerArgs)
-
-	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
-	queries = append(queries, escrowArgs...)
-
-	err = tx.QueryExecutor.ExecuteTransactions(queries)
+	addEscrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(addEscrowQ)
 	if err != nil {
 		return err
 	}
@@ -450,127 +326,82 @@ func (tx *SendMoney) EscrowApproval(
 	txBody *model.ApprovalEscrowTransactionBody,
 ) error {
 	var (
-		queries [][]interface{}
-		err     error
+		err error
 	)
 
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
 		tx.Escrow.Status = model.EscrowStatus_Approved
-		// insert / update recipient balance
-		accountBalanceRecipientQ := tx.AccountBalanceQuery.AddAccountBalance(
-			tx.Body.Amount,
-			map[string]interface{}{
-				"account_address": tx.Escrow.GetRecipientAddress(),
-				"block_height":    tx.Height,
-			},
+		// Bring back the fee that was decreased on EscrowApplyConfirmed before do ApplyConfirmed
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Body.GetAmount()+tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
 		)
-		queries = append(queries, accountBalanceRecipientQ...)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
 
-		// recipient Account Ledger Log
-		recipientAccountLedgerQ, recipientAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetRecipientAddress(),
-			BalanceChange:  tx.Body.GetAmount(),
-			TransactionID:  tx.ID,
-			BlockHeight:    tx.Height,
-			EventType:      model.EventType_EventSendMoneyTransaction,
-			Timestamp:      uint64(blockTimestamp),
-		})
-		recipientAccountLedgerArgs = append([]interface{}{recipientAccountLedgerQ}, recipientAccountLedgerArgs...)
-		queries = append(queries, recipientAccountLedgerArgs)
-
-		// approver balance
-		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
 			tx.Escrow.GetCommission(),
-			map[string]interface{}{
-				"account_address": tx.Escrow.GetApproverAddress(),
-				"block_height":    tx.Height,
-			},
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
 		)
-		queries = append(queries, approverBalanceQ...)
-		// approver ledger
-		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetApproverAddress(),
-			BalanceChange:  tx.Escrow.GetCommission(),
-			BlockHeight:    tx.Height,
-			TransactionID:  tx.ID,
-			Timestamp:      uint64(blockTimestamp),
-			EventType:      model.EventType_EventApprovalEscrowTransaction,
-		})
-		approverAccountLedgerArgs = append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...)
-		queries = append(queries, approverAccountLedgerArgs)
+		if err != nil {
+			return err
+		}
 	case model.EscrowApproval_Reject:
 		tx.Escrow.Status = model.EscrowStatus_Rejected
-		// Give back sender balance
-		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-			tx.Escrow.GetAmount(),
-			map[string]interface{}{
-				"account_address": tx.Escrow.GetSenderAddress(),
-				"block_height":    tx.Height,
-			},
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Body.Amount,
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
 		)
-		queries = append(queries, senderBalanceQ...)
+		if err != nil {
+			return err
+		}
 
-		// sender ledger
-		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetSenderAddress(),
-			BalanceChange:  tx.Escrow.GetAmount(),
-			BlockHeight:    tx.Height,
-			TransactionID:  tx.ID,
-			Timestamp:      uint64(blockTimestamp),
-			EventType:      model.EventType_EventApprovalEscrowTransaction,
-		})
-		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
-
-		// approver balance
-		approverBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
 			tx.Escrow.GetCommission(),
-			map[string]interface{}{
-				"account_address": tx.Escrow.GetApproverAddress(),
-				"block_height":    tx.Height,
-			},
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
 		)
-		queries = append(queries, approverBalanceQ...)
-		// approver ledger
-		approverAccountLedgerQ, approverAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetApproverAddress(),
-			BalanceChange:  tx.Escrow.GetCommission(),
-			BlockHeight:    tx.Height,
-			TransactionID:  tx.ID,
-			Timestamp:      uint64(blockTimestamp),
-			EventType:      model.EventType_EventApprovalEscrowTransaction,
-		})
-		queries = append(queries, append([]interface{}{approverAccountLedgerQ}, approverAccountLedgerArgs...))
-
+		if err != nil {
+			return err
+		}
 	default:
 		tx.Escrow.Status = model.EscrowStatus_Expired
-		// sender balance
-		senderBalanceQ := tx.AccountBalanceQuery.AddAccountBalance(
-			tx.Escrow.GetCommission()+tx.Escrow.GetAmount(),
-			map[string]interface{}{
-				"account_address": tx.Escrow.GetSenderAddress(),
-				"block_height":    tx.Height,
-			},
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Escrow.GetCommission()+tx.Body.Amount,
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
 		)
-		queries = append(queries, senderBalanceQ...)
-
-		// sender ledger
-		senderAccountLedgerQ, senderAccountLedgerArgs := tx.AccountLedgerQuery.InsertAccountLedger(&model.AccountLedger{
-			AccountAddress: tx.Escrow.GetSenderAddress(),
-			BalanceChange:  tx.Escrow.GetCommission() + tx.Escrow.GetAmount(),
-			BlockHeight:    tx.Height,
-			TransactionID:  tx.ID,
-			Timestamp:      uint64(blockTimestamp),
-			EventType:      model.EventType_EventApprovalEscrowTransaction,
-		})
-		queries = append(queries, append([]interface{}{senderAccountLedgerQ}, senderAccountLedgerArgs...))
+		if err != nil {
+			return err
+		}
 	}
 
-	// Insert Escrow
-	escrowArgs := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
-	queries = append(queries, escrowArgs...)
-	err = tx.QueryExecutor.ExecuteTransactions(queries)
-
+	addEscrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(addEscrowQ)
 	if err != nil {
 		return err
 	}
