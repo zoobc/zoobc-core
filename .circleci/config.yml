@@ -132,20 +132,25 @@ jobs:
                       - ./dist
             - run:
                   name: ADD HOSTS
-                  command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+                  command: |
+#                        for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+                      ssh-keyscan $ln4 >> ~/.ssh/known_hosts
             - run:
                   name: DOWN SERVICES
                   command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+#                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+                      ssh root@$ln4 'sudo systemctl stop zoobc.service'
             - run: *reset_dbs
             - run:
                   name: DEPLOY
                   command: |
-                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+#                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+                      rsync -vae ssh ./dist/ root@$ln4:/root/zoobc --exclude='*.db' --exclude='generated'
             - run:
                   name: UP SERVICES
                   command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+#                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+                      ssh root@$ln4 'sudo systemctl start zoobc.service'
     deploy-staging:
         <<: *defaults
         steps:
