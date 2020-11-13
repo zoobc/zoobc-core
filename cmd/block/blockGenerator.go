@@ -127,6 +127,7 @@ func initialize(
 		MempoolCacheStorage: mempoolStorage,
 	}
 	blockStorage := storage.NewBlockStateStorage()
+	blocksStorage := storage.NewBlocksStorage()
 	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
@@ -159,7 +160,7 @@ func initialize(
 		receiptUtil,
 		receiptService,
 		nil,
-		blockStorage,
+		blocksStorage,
 		mempoolStorage,
 		nil,
 	)

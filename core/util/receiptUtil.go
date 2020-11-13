@@ -6,6 +6,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
 )
@@ -15,7 +16,7 @@ type (
 		GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32
 		GenerateReceipt(
 			ct chaintype.ChainType,
-			referenceBlock *model.Block,
+			referenceBlock *storage.BlockCacheObject,
 			senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 			datumType uint32,
 		) (*model.Receipt, error)
@@ -45,21 +46,18 @@ func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uin
 // generated receipt will not be signed yet (RecipientSignature = nil), will need to be signed using SignReceipt method.
 func (ru *ReceiptUtil) GenerateReceipt(
 	ct chaintype.ChainType,
-	referenceBlock *model.Block,
+	referenceBlock *storage.BlockCacheObject,
 	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
 	datumType uint32,
 ) (*model.Receipt, error) {
-	refBlockHash, err := util.GetBlockHash(referenceBlock, ct)
-	if err != nil {
-		return nil, err
-	}
+
 	return &model.Receipt{
 		SenderPublicKey:      senderPublicKey,
 		RecipientPublicKey:   recipientPublicKey,
 		DatumType:            datumType,
 		DatumHash:            datumHash,
 		ReferenceBlockHeight: referenceBlock.Height,
-		ReferenceBlockHash:   refBlockHash,
+		ReferenceBlockHash:   referenceBlock.BlockHash,
 		RMRLinked:            rmrLinked,
 	}, nil
 }

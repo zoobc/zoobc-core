@@ -1057,6 +1057,15 @@ func (bs *BlockService) GetBlockByHeight(height uint32) (*model.Block, error) {
 	return block, nil
 }
 
+func (bs *BlockService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
+	return commonUtils.GetBlockByHeightUseBlocksCache(
+		height,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		bs.BlocksStorage,
+	)
+}
+
 // GetGenesisBlock return the last pushed block
 func (bs *BlockService) GetGenesisBlock() (*model.Block, error) {
 	var (
@@ -1445,11 +1454,15 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-
+	lastBlockCacheFormat := &storage.BlockCacheObject{
+		ID:        lastBlock.ID,
+		Height:    lastBlock.Height,
+		BlockHash: lastBlock.BlockHash,
+	}
 	// generate receipt and return as response
 	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
 		bs.Chaintype, block.GetBlockHash(),
-		lastBlock,
+		lastBlockCacheFormat,
 		senderPublicKey,
 		nodeSecretPhrase,
 		constant.ReceiptDatumTypeBlock,

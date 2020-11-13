@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -1300,20 +1301,24 @@ type (
 	}
 )
 
-func (*mockSendTransactionBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, error) {
+func (*mockSendTransactionBlockServiceGetLastBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockSendTransactionBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(
-	[]byte, []byte, *model.Block, string,
+	[]byte, []byte, *storage.BlockCacheObject, string,
 ) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
 func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
-	[]byte, []byte, *model.Block, string,
+	[]byte, []byte, *storage.BlockCacheObject, string,
 ) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},
@@ -1471,19 +1476,23 @@ type (
 	}
 )
 
-func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, error) {
+func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockSendTransactionsBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(
-	[]byte, [][]byte, *model.Block, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
 ) ([]*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
-	[]byte, [][]byte, *model.Block, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
 ) ([]*model.Receipt, error) {
 	return []*model.Receipt{{
 		SenderPublicKey: []byte{1},

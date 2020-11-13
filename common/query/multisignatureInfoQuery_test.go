@@ -2,9 +2,10 @@ package query
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -294,7 +295,7 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddressWithParticipants(
 				"FROM multisignature_info t1 LEFT JOIN multisignature_participant t2 ON t1.multisig_address = t2.multisig_address " +
 				"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true " +
 				"ORDER BY t2.account_address_index DESC",
-			wantArgs: []interface{}{multisigAddr, multisigAddr, uint32(0)},
+			wantArgs: []interface{}{multisigAddr, uint32(0)},
 		},
 	}
 	for _, tt := range tests {
