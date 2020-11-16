@@ -2,8 +2,6 @@ package block
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,6 +21,8 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"strings"
+	"time"
 )
 
 type (
@@ -37,6 +37,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
+	blockSmithStrategy      strategy.BlocksmithStrategyInterface
 	blocksmithStrategy      strategy.BlocksmithStrategyInterface
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
@@ -192,7 +193,15 @@ func initialize(
 	)
 
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), activeNodeRegistryCacheStorage, log.New(),
+		log.New(),
+		nil,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		nil,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		nil,
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
@@ -254,6 +263,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		log.New(),
 		&mockBlockchainStatusService{},
 		nodeRegistrationService,
+		blockSmithStrategy,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

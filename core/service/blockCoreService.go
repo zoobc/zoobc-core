@@ -55,9 +55,5 @@ type (
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
-		WillSmith(
-			blocksmith *model.Blocksmith,
-			blockchainProcessorLastBlockID int64,
-		) (lastBlockID, blocksmithIndex int64, err error)
 	}
 )
