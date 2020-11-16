@@ -7,11 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-<<<<<<< HEAD
 	"math/rand"
-	"reflect"
-=======
->>>>>>> 25f48ab3bb981502b0770335984aab4d7c4a7b44
 	"sort"
 	"sync"
 	"time"
@@ -313,21 +309,7 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	if err := bs.ValidatePayloadHash(block); err != nil {
 		return err
 	}
-<<<<<<< HEAD
-	// verify Merkle Root
-	if err := bs.validateMerkleRoot(block); err != nil {
-		return err
-	}
-	// check if blocksmith can smith at the time
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
-	if blocksmithIndex == nil {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
-	}
-	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
-=======
 	err := bs.BlocksmithStrategy.IsBlockValid(previousLastBlock, block)
->>>>>>> 25f48ab3bb981502b0770335984aab4d7c4a7b44
 	if err != nil {
 		return err
 	}
@@ -357,6 +339,10 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	}
 	// if the same block height is already in the database compare cummulative difficulty.
 	if err := bs.validateBlockHeight(block); err != nil {
+		return err
+	}
+	// verify Merkle Root
+	if err := bs.validateMerkleRoot(block); err != nil {
 		return err
 	}
 	return nil
