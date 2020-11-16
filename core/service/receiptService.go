@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"sort"
 	"time"
 
@@ -451,7 +452,18 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	// get recipient address at height
 	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetRecipientPublicKey())]
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
+		return blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
+			"ReceiptRecipientNotInScrambleList: recipient: %s\treceipt.ReferenceBlockHeight: %d\treferenceHash: %v\n"+
+				"data: %v - %v\n"+
+				"\nscramble.Address.Count:scramble.Map.Count %d:%d\n",
+			hex.EncodeToString(receipt.GetRecipientPublicKey()),
+			receipt.GetReferenceBlockHash(),
+			receipt.GetReferenceBlockHeight(),
+			receipt.DatumType,
+			receipt.DatumHash,
+			len(scrambledNode.AddressNodes),
+			len(scrambledNode.NodePublicKeyToIDMap),
+		))
 	}
 	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
 		senderNodeID,
