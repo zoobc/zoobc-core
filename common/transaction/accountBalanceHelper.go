@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -14,6 +15,7 @@ type (
 	// It better to use with QueryExecutor.BeginTX()
 	AccountBalanceHelperInterface interface {
 		AddAccountSpendableBalance(address []byte, amount int64) error
+		AddAccountSpendableBalanceInCache(address []byte, amount int64) error
 		AddAccountBalance(address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64,
 			blockTimestamp uint64) error
 		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
@@ -22,10 +24,11 @@ type (
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
 		// accountBalance cache when get from db, use this for validation only.
-		accountBalance      model.AccountBalance
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		accountBalance          model.AccountBalance
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		SpendableBalanceStorage storage.CacheStorageInterface
 	}
 )
 
@@ -51,10 +54,29 @@ func (abh *AccountBalanceHelper) AddAccountSpendableBalance(address []byte, amou
 		},
 	)
 	err := abh.QueryExecutor.ExecuteTransaction(accountBalanceSenderQ, accountBalanceSenderQArgs...)
-	if err == nil {
-		abh.accountBalance = model.AccountBalance{}
-	}
 	return err
+}
+
+func (abh *AccountBalanceHelper) AddAccountSpendableBalanceInCache(address []byte, amount int64) error {
+	var (
+		currentSpendAbleBalance int64
+		err                     = abh.SpendableBalanceStorage.GetItem(address, &currentSpendAbleBalance)
+		newSpendableBalance     = currentSpendAbleBalance + amount
+	)
+	if err != nil {
+		errCasted := err.(blocker.Blocker)
+		if errCasted.Type != blocker.NotFound {
+			return err
+		}
+		// get spendable balace from DB
+		var accountBalance model.AccountBalance
+		err = abh.GetBalanceByAccountAddress(&accountBalance, address, false)
+		if err != nil {
+			return err
+		}
+		newSpendableBalance = accountBalance.SpendableBalance + amount
+	}
+	return abh.SpendableBalanceStorage.SetItem(address, newSpendableBalance)
 }
 
 // AddAccountBalance add balance and spendable_balance field to the address provided at blockHeight, must be executed
@@ -126,15 +148,9 @@ func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address []
 		return abh.accountBalance.GetSpendableBalance() >= compareBalance, nil
 	}
 	var (
-		row            *sql.Row
 		accountBalance model.AccountBalance
 	)
-	qry, args := abh.AccountBalanceQuery.GetAccountBalanceByAccountAddress(address)
-	row, err = abh.QueryExecutor.ExecuteSelectRow(qry, dbTX, args...)
-	if err != nil {
-		return enough, err
-	}
-	err = abh.AccountBalanceQuery.Scan(&accountBalance, row)
+	err = abh.GetBalanceByAccountAddress(&accountBalance, address, dbTX)
 	if err != nil {
 		return enough, err
 	}

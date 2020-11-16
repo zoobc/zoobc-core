@@ -877,22 +877,22 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
 			}
-			batchReceipt, tx, err := mps.ProcessReceivedTransaction(
+			batchReceipt, tx, err := mps.processeReceiptAndValidateTransactionP2P(
 				tt.args.senderPublicKey,
 				tt.args.receivedTxBytes,
 				tt.args.lastBlock,
 				tt.args.nodeSecretPhrase,
 			)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("ProcessReceivedTransaction() error = %v, wantErr %v", err, tt.want.err)
+				t.Errorf("processeReceiptAndValidateTransactionP2P() error = %v, wantErr %v", err, tt.want.err)
 				return
 			}
 			if !reflect.DeepEqual(batchReceipt, tt.want.batchReceipt) {
-				t.Errorf("ProcessReceivedTransaction() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
+				t.Errorf("processeReceiptAndValidateTransactionP2P() batchReceipt = \n%v, want \n%v", batchReceipt, tt.want.batchReceipt)
 				return
 			}
 			if !reflect.DeepEqual(tx, tt.want.transaction) {
-				t.Errorf("ProcessReceivedTransaction() transaction = \n%v, want \n%v", tx, tt.want.transaction)
+				t.Errorf("processeReceiptAndValidateTransactionP2P() transaction = \n%v, want \n%v", tx, tt.want.transaction)
 			}
 		})
 	}
