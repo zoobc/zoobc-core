@@ -9,6 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -1122,12 +1123,8 @@ func (*mockSendBlockBlockServiceReceiveBlockFail) GetLastBlock() (*model.Block, 
 	return &mockBlock, nil
 }
 func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(
-	senderPublicKey []byte,
-	lastBlock,
-	block *model.Block,
-	nodeSecretPhrase string,
-	peer *model.Peer,
-) (*model.BatchReceipt, error) {
+	[]byte, *model.Block, *model.Block, string, *model.Peer,
+) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
@@ -1135,13 +1132,9 @@ func (*mockSendBlockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
 func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(
-	senderPublicKey []byte,
-	lastBlock,
-	block *model.Block,
-	nodeSecretPhrase string,
-	peer *model.Peer,
-) (*model.BatchReceipt, error) {
-	return &model.BatchReceipt{
+	[]byte, *model.Block, *model.Block, string, *model.Peer,
+) (*model.Receipt, error) {
+	return &model.Receipt{
 		SenderPublicKey: []byte{1},
 	}, nil
 }
@@ -1266,7 +1259,7 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				chainType: &mockChainType,
 			},
 			want: &model.SendBlockResponse{
-				BatchReceipt: &model.BatchReceipt{SenderPublicKey: []byte{1}},
+				Receipt: &model.Receipt{SenderPublicKey: []byte{1}},
 			},
 			wantErr: false,
 		},
@@ -1308,26 +1301,26 @@ type (
 	}
 )
 
-func (*mockSendTransactionBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, error) {
+func (*mockSendTransactionBlockServiceGetLastBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockSendTransactionBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(
-	senderPublicKey, receivedTxBytes []byte,
-	lastBlock *model.Block,
-	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
+	[]byte, []byte, *storage.BlockCacheObject, string,
+) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
 func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
-	senderPublicKey, receivedTxBytes []byte,
-	lastBlock *model.Block,
-	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
-	return &model.BatchReceipt{
+	[]byte, []byte, *storage.BlockCacheObject, string,
+) (*model.Receipt, error) {
+	return &model.Receipt{
 		SenderPublicKey: []byte{1},
 	}, nil
 }
@@ -1441,7 +1434,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				chainType: &mockChainType,
 			},
 			want: &model.SendTransactionResponse{
-				BatchReceipt: &model.BatchReceipt{SenderPublicKey: []byte{1}},
+				Receipt: &model.Receipt{SenderPublicKey: []byte{1}},
 			},
 			wantErr: false,
 		},
@@ -1483,27 +1476,25 @@ type (
 	}
 )
 
-func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, error) {
+func (*mockSendTransactionsBlockServiceGetLastBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
-func (*mockSendTransactionsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockSendTransactionsBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(
-	senderPublicKey []byte,
-	receivedTxBytes [][]byte,
-	lastBlock *model.Block,
-	nodeSecretPhrase string,
-) ([]*model.BatchReceipt, error) {
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
+) ([]*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
-	senderPublicKey []byte,
-	receivedTxBytes [][]byte,
-	lastBlock *model.Block,
-	nodeSecretPhrase string,
-) ([]*model.BatchReceipt, error) {
-	return []*model.BatchReceipt{{
+	[]byte, [][]byte, *storage.BlockCacheObject, string,
+) ([]*model.Receipt, error) {
+	return []*model.Receipt{{
 		SenderPublicKey: []byte{1},
 	}}, nil
 }
@@ -1616,7 +1607,7 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 				chainType: &mockChainType,
 			},
 			want: &model.SendBlockTransactionsResponse{
-				BatchReceipts: []*model.BatchReceipt{{
+				Receipts: []*model.Receipt{{
 					SenderPublicKey: []byte{1},
 				}},
 			},

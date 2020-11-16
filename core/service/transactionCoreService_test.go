@@ -80,6 +80,13 @@ var (
 		},
 	}
 	mockGetTransactionByBlockIDEscrowTransactionResultEmpty = make([]*model.Escrow, 0)
+
+	address1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	address2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	address3 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188, 43,
+		59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
 )
 
 func (*mockGetTransactionsByIdsExecutorFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -114,7 +121,11 @@ func (*mockGetTransactionsByIdsTransactionQueryBuildSuccess) BuildModel(
 func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q string, _ bool, _ ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mockedTX := transaction.GetFixturesForTransaction(12345678, "A", "B", true)
+	mockedTX := transaction.GetFixturesForTransaction(
+		12345678,
+		address1,
+		address2,
+		true)
 	switch {
 	case strings.Contains(q, "FROM \"transaction\""):
 		mock.ExpectQuery(regexp.QuoteMeta(q)).WillReturnRows(mock.NewRows(query.NewTransactionQuery(chaintype.GetChainType(0)).Fields).AddRow(
@@ -133,6 +144,7 @@ func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q 
 			mockedTX.GetVersion(),
 			mockedTX.GetTransactionIndex(),
 			mockedTX.GetMultisigChild(),
+			mockedTX.GetMessage(),
 		))
 	default:
 		mockedEscrow := mockedTX.GetEscrow()
@@ -239,7 +251,11 @@ func TestTransactionCoreService_GetTransactionsByIds(t *testing.T) {
 				transactionIds: []int64{1},
 			},
 			want: []*model.Transaction{
-				transaction.GetFixturesForTransaction(12345678, "A", "B", true),
+				transaction.GetFixturesForTransaction(
+					12345678,
+					address1,
+					address2,
+					true),
 			},
 		},
 		{
@@ -381,9 +397,9 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx boo
 	mockRows := sqlmock.NewRows(query.NewEscrowTransactionQuery().Fields)
 	mockRows.AddRow(
 		int64(1),
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		address1,
+		address2,
+		address3,
 		int64(10),
 		int64(1),
 		uint64(120),
@@ -402,8 +418,8 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ b
 	tx, _ := transaction.GetFixtureForSpecificTransaction(
 		1234567890,
 		12345678901,
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+		address1,
+		address2,
 		8,
 		model.TransactionType_SendMoneyTransaction,
 		&model.SendMoneyTransactionBody{
@@ -428,6 +444,7 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ b
 		tx.GetVersion(),
 		tx.GetTransactionIndex(),
 		tx.GetMultisigChild(),
+		tx.GetMessage(),
 	)
 	mock.ExpectQuery(qStr).WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil

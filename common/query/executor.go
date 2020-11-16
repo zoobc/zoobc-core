@@ -75,12 +75,13 @@ func (qe *Executor) Execute(query string) (sql.Result, error) {
 }
 
 /*
-Execute execute a single query string
+ExecuteStatement execute a single query string
 return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
 	qe.Lock()
+	defer qe.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	stmt, err := qe.Db.Prepare(query)
 
@@ -88,7 +89,6 @@ func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Res
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	defer stmt.Close()
-	defer qe.Unlock()
 	result, err := stmt.Exec(args...)
 
 	if err != nil {

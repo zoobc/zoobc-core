@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -387,20 +388,20 @@ func (ps *P2PServerService) GetNextBlocks(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		block, err := blockService.GetBlockByID(blockID, false)
+		commonBlock, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
+		blocks, err := blockService.GetBlocksFromHeight(commonBlock.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 
-		for idx := range blocks {
+		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
 			}
-			blocksMessage = append(blocksMessage, blocks[idx])
+			blocksMessage = append(blocksMessage, block)
 		}
 		return &model.BlocksData{NextBlocks: blocksMessage}, nil
 	}
@@ -443,7 +444,7 @@ func (ps *P2PServerService) SendBlock(
 				"failGetLastBlock",
 			)
 		}
-		batchReceipt, err := blockService.ReceiveBlock(
+		receipt, err := blockService.ReceiveBlock(
 			senderPublicKey,
 			lastBlock,
 			block,
@@ -454,7 +455,7 @@ func (ps *P2PServerService) SendBlock(
 			return nil, err
 		}
 		return &model.SendBlockResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipt,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -475,11 +476,11 @@ func (ps *P2PServerService) SendTransaction(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -489,17 +490,17 @@ func (ps *P2PServerService) SendTransaction(
 				"mempoolServiceNotFoundByThisChainType",
 			)
 		}
-		batchReceipt, err := mempoolService.ReceivedTransaction(
+		receipt, err := mempoolService.ReceivedTransaction(
 			senderPublicKey,
 			transactionBytes,
-			lastBlock,
+			lastBlockCacheFormat,
 			ps.NodeSecretPhrase,
 		)
 		if err != nil {
 			return nil, err
 		}
 		return &model.SendTransactionResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipt,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -520,11 +521,11 @@ func (ps *P2PServerService) SendBlockTransactions(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -537,14 +538,14 @@ func (ps *P2PServerService) SendBlockTransactions(
 		batchReceipts, err := mempoolService.ReceivedBlockTransactions(
 			senderPublicKey,
 			transactionsBytes,
-			lastBlock,
+			lastBlockCacheFormat,
 			ps.NodeSecretPhrase,
 		)
 		if err != nil {
 			return nil, err
 		}
 		return &model.SendBlockTransactionsResponse{
-			BatchReceipts: batchReceipts,
+			Receipts: batchReceipts,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")

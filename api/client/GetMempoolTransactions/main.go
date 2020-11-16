@@ -29,7 +29,8 @@ func main() {
 
 	c := rpcService.NewMempoolServiceClient(conn)
 	response, err := c.GetMempoolTransactions(context.Background(), &rpcModel.GetMempoolTransactionsRequest{
-		Address: "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		Address: []byte{0, 0, 0, 0, 98, 118, 38, 51, 199, 143, 112, 175, 220, 74, 221, 170, 56, 103, 159, 209, 242, 132, 219,
+			155, 169, 123, 104, 77, 139, 18, 224, 166, 162, 83, 125, 96},
 	})
 
 	if err != nil {

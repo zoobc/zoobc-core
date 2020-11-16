@@ -1,13 +1,11 @@
 package rollback
 
 import (
-	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -66,7 +64,7 @@ func rollbackBlockChain() RunCommand {
 		var (
 			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
 			blockQuery      = query.NewBlockQuery(chaintypeRollback)
-			dB, err         = getSqliteDB(dBPath, dBName)
+			dB, err         = helper.GetSqliteDB(dBPath, dBName)
 			queryExecutor   = query.NewQueryExecutor(dB)
 			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
 			lastBlock       model.Block
@@ -114,23 +112,4 @@ func rollbackBlockChain() RunCommand {
 		}
 		fmt.Printf("Rollback blockchain successfully! \nNow blockchain state in HEIGHT %d\n\n", wantedBlockHeight)
 	}
-}
-
-// getSqliteDB to get sql.Db of sqlite based on DB path & name
-func getSqliteDB(dbPath, dbName string) (*sql.DB, error) {
-	var sqliteDbInstance = database.NewSqliteDB()
-	if err := sqliteDbInstance.InitializeDB(dbPath, dbName); err != nil {
-		return nil, err
-	}
-	sqliteDB, err := sqliteDbInstance.OpenDB(
-		dbPath,
-		dbName,
-		constant.SQLMaxOpenConnetion,
-		constant.SQLMaxIdleConnections,
-		constant.SQLMaxConnectionLifetime,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return sqliteDB, nil
 }

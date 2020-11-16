@@ -9,31 +9,31 @@ import (
 )
 
 type (
-	BatchReceiptCacheStorage struct {
+	ReceiptPoolCacheStorage struct {
 		sync.RWMutex
-		receipts []model.BatchReceipt
+		receipts []model.Receipt
 	}
 )
 
-func NewBatchReceiptCacheStorage() *BatchReceiptCacheStorage {
-	return &BatchReceiptCacheStorage{
-		receipts: make([]model.BatchReceipt, 0),
+func NewReceiptPoolCacheStorage() *ReceiptPoolCacheStorage {
+	return &ReceiptPoolCacheStorage{
+		receipts: make([]model.Receipt, 0),
 	}
 }
 
-// SetItem set new value to BatchReceiptCacheStorage
+// SetItem set new value to ReceiptPoolCacheStorage
 //      - key: nil
 //      - item: BatchReceiptCache
-func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
+func (brs *ReceiptPoolCacheStorage) SetItem(_, item interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
 		ok    bool
-		nItem model.BatchReceipt
+		nItem model.Receipt
 	)
 
-	if nItem, ok = item.(model.BatchReceipt); !ok {
+	if nItem, ok = item.(model.Receipt); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 
@@ -46,15 +46,15 @@ func (brs *BatchReceiptCacheStorage) SetItem(_, item interface{}) error {
 
 // SetItems store and replace the old items.
 //      - items: []model.BatchReceipt
-func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
+func (brs *ReceiptPoolCacheStorage) SetItems(items interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
-		nItems []model.BatchReceipt
+		nItems []model.Receipt
 		ok     bool
 	)
-	nItems, ok = items.([]model.BatchReceipt)
+	nItems, ok = items.([]model.Receipt)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
@@ -65,35 +65,42 @@ func (brs *BatchReceiptCacheStorage) SetItems(items interface{}) error {
 	return nil
 }
 
-// GetItem getting single item of BatchReceiptCacheStorage refill the reference item
+// GetItem getting single item of ReceiptPoolCacheStorage refill the reference item
 //      - key: receiptKey which is a string
 //      - item: BatchReceiptCache
-func (brs *BatchReceiptCacheStorage) GetItem(key, item interface{}) error {
+func (brs *ReceiptPoolCacheStorage) GetItem(_, _ interface{}) error {
 	return nil
 }
 
-// GetAllItems get all items of BatchReceiptCacheStorage
+// GetAllItems get all items of ReceiptPoolCacheStorage
 //      - items: *map[string]BatchReceipt
-func (brs *BatchReceiptCacheStorage) GetAllItems(items interface{}) error {
+func (brs *ReceiptPoolCacheStorage) GetAllItems(items interface{}) error {
 	brs.Lock()
 	defer brs.Unlock()
 
 	var (
-		nItem *[]model.BatchReceipt
+		nItem *[]model.Receipt
 		ok    bool
 	)
-	if nItem, ok = items.(*[]model.BatchReceipt); !ok {
+	if nItem, ok = items.(*[]model.Receipt); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "invalid batch receipt item")
 	}
 	*nItem = brs.receipts
 	return nil
 }
 
-func (brs *BatchReceiptCacheStorage) RemoveItem(_ interface{}) error {
+func (brs *ReceiptPoolCacheStorage) GetTotalItems() int {
+	brs.Lock()
+	var totalItems = len(brs.receipts)
+	brs.Unlock()
+	return totalItems
+}
+
+func (brs *ReceiptPoolCacheStorage) RemoveItem(_ interface{}) error {
 	return nil
 }
 
-func (brs *BatchReceiptCacheStorage) size() int64 {
+func (brs *ReceiptPoolCacheStorage) size() int64 {
 	var size int64
 	for _, cache := range brs.receipts {
 		var s int
@@ -102,24 +109,25 @@ func (brs *BatchReceiptCacheStorage) size() int64 {
 		s += 4 // this is cache.GetDatumType()
 		s += len(cache.GetDatumHash())
 		s += 4 // this is cache.GetReferenceBlockHeight()
+		s += len(cache.GetRMRLinked())
 		s += len(cache.GetReferenceBlockHash())
 		s += len(cache.GetRecipientSignature())
 		size += int64(s)
 	}
 	return size
 }
-func (brs *BatchReceiptCacheStorage) GetSize() int64 {
+func (brs *ReceiptPoolCacheStorage) GetSize() int64 {
 	brs.RLock()
 	defer brs.RUnlock()
 
 	return brs.size()
 }
 
-func (brs *BatchReceiptCacheStorage) ClearCache() error {
+func (brs *ReceiptPoolCacheStorage) ClearCache() error {
 	brs.Lock()
 	defer brs.Unlock()
 
-	brs.receipts = make([]model.BatchReceipt, 0)
+	brs.receipts = make([]model.Receipt, 0)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
 	}

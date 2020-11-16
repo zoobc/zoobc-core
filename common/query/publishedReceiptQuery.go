@@ -3,9 +3,9 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -141,14 +141,14 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeightRange(
 
 func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row) error {
 	err := row.Scan(
-		&receipt.BatchReceipt.SenderPublicKey,
-		&receipt.BatchReceipt.RecipientPublicKey,
-		&receipt.BatchReceipt.DatumType,
-		&receipt.BatchReceipt.DatumHash,
-		&receipt.BatchReceipt.ReferenceBlockHeight,
-		&receipt.BatchReceipt.ReferenceBlockHash,
-		&receipt.BatchReceipt.RMRLinked,
-		&receipt.BatchReceipt.RecipientSignature,
+		&receipt.Receipt.SenderPublicKey,
+		&receipt.Receipt.RecipientPublicKey,
+		&receipt.Receipt.DatumType,
+		&receipt.Receipt.DatumHash,
+		&receipt.Receipt.ReferenceBlockHeight,
+		&receipt.Receipt.ReferenceBlockHash,
+		&receipt.Receipt.RMRLinked,
+		&receipt.Receipt.RecipientSignature,
 		&receipt.IntermediateHashes,
 		&receipt.BlockHeight,
 		&receipt.ReceiptIndex,
@@ -160,14 +160,14 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 
 func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedReceipt) []interface{} {
 	return []interface{}{
-		&publishedReceipt.BatchReceipt.SenderPublicKey,
-		&publishedReceipt.BatchReceipt.RecipientPublicKey,
-		&publishedReceipt.BatchReceipt.DatumType,
-		&publishedReceipt.BatchReceipt.DatumHash,
-		&publishedReceipt.BatchReceipt.ReferenceBlockHeight,
-		&publishedReceipt.BatchReceipt.ReferenceBlockHash,
-		&publishedReceipt.BatchReceipt.RMRLinked,
-		&publishedReceipt.BatchReceipt.RecipientSignature,
+		&publishedReceipt.Receipt.SenderPublicKey,
+		&publishedReceipt.Receipt.RecipientPublicKey,
+		&publishedReceipt.Receipt.DatumType,
+		&publishedReceipt.Receipt.DatumHash,
+		&publishedReceipt.Receipt.ReferenceBlockHeight,
+		&publishedReceipt.Receipt.ReferenceBlockHash,
+		&publishedReceipt.Receipt.RMRLinked,
+		&publishedReceipt.Receipt.RecipientSignature,
 		&publishedReceipt.IntermediateHashes,
 		&publishedReceipt.BlockHeight,
 		&publishedReceipt.ReceiptIndex,
@@ -180,17 +180,17 @@ func (prq *PublishedReceiptQuery) BuildModel(
 ) ([]*model.PublishedReceipt, error) {
 	for rows.Next() {
 		var receipt = model.PublishedReceipt{
-			BatchReceipt: &model.BatchReceipt{},
+			Receipt: &model.Receipt{},
 		}
 		err := rows.Scan(
-			&receipt.BatchReceipt.SenderPublicKey,
-			&receipt.BatchReceipt.RecipientPublicKey,
-			&receipt.BatchReceipt.DatumType,
-			&receipt.BatchReceipt.DatumHash,
-			&receipt.BatchReceipt.ReferenceBlockHeight,
-			&receipt.BatchReceipt.ReferenceBlockHash,
-			&receipt.BatchReceipt.RMRLinked,
-			&receipt.BatchReceipt.RecipientSignature,
+			&receipt.Receipt.SenderPublicKey,
+			&receipt.Receipt.RecipientPublicKey,
+			&receipt.Receipt.DatumType,
+			&receipt.Receipt.DatumHash,
+			&receipt.Receipt.ReferenceBlockHeight,
+			&receipt.Receipt.ReferenceBlockHash,
+			&receipt.Receipt.RMRLinked,
+			&receipt.Receipt.RecipientSignature,
 			&receipt.IntermediateHashes,
 			&receipt.BlockHeight,
 			&receipt.ReceiptIndex,

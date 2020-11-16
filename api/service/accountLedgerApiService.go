@@ -49,7 +49,7 @@ func (al *AccountLedgerService) GetAccountLedgers(
 	}
 
 	caseQuery.Select(ledgerQuery.TableName, ledgerQuery.Fields...)
-	if request.GetAccountAddress() != "" {
+	if request.GetAccountAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("account_address", request.GetAccountAddress()))
 	}
 

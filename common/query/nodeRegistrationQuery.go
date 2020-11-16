@@ -21,14 +21,15 @@ type (
 		ClearDeletedNodeRegistration(nodeRegistration *model.NodeRegistration) [][]interface{}
 		GetNodeRegistrations(registrationHeight, size uint32) (str string)
 		GetNodeRegistrationsByBlockTimestampInterval(fromTimestamp, toTimestamp int64) string
-		GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string
+		GetNodeRegistrationsByBlockHeightInterval(fromHeight, toHeight uint32) string
+		GetAllNodeRegistryByStatus(status model.NodeRegistrationState, active bool) string
 		GetActiveNodeRegistrationsByHeight(height uint32) string
 		GetActiveNodeRegistrationsWithNodeAddress() string
 		GetNodeRegistrationByID(id int64) (str string, args []interface{})
 		GetNodeRegistrationByNodePublicKey() string
 		GetLastVersionedNodeRegistrationByPublicKey(nodePublicKey []byte, height uint32) (str string, args []interface{})
 		GetLastVersionedNodeRegistrationByPublicKeyWithNodeAddress(nodePublicKey []byte, height uint32) (str string, args []interface{})
-		GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetNodeRegistrationByAccountAddress(accountAddress []byte) (str string, args []interface{})
 		GetNodeRegistrationsByHighestLockedBalance(limit uint32, registrationStatus model.NodeRegistrationState) string
 		GetNodeRegistryAtHeight(height uint32) string
 		GetNodeRegistryAtHeightWithNodeAddress(height uint32) string
@@ -162,10 +163,12 @@ func (nrq *NodeRegistrationQuery) UpdateNodeRegistration(nodeRegistration *model
 	)
 	qryUpdate := fmt.Sprintf("UPDATE %s SET latest = 0 WHERE ID = ?", nrq.getTableName())
 	qryInsert := fmt.Sprintf(
-		"INSERT INTO %s (%s) VALUES(%s)",
+		// todo: this is a simple fix for update node conflict handling, need better treatment in future
+		"INSERT INTO %s (%s) VALUES(%s) ON CONFLICT(id, height) DO UPDATE SET registration_status = %d, latest = 1",
 		nrq.getTableName(),
 		strings.Join(nrq.Fields, ","),
 		fmt.Sprintf("? %s", strings.Repeat(", ?", len(nrq.Fields)-1)),
+		nodeRegistration.RegistrationStatus,
 	)
 
 	queries = append(queries,
@@ -205,6 +208,14 @@ func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByBlockTimestampInterval(f
 		"height <= (SELECT MAX(height) FROM main_block AS mb2 WHERE mb2.timestamp < %d) AND "+
 		"registration_status != %d AND latest=1 ORDER BY height",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromTimestamp, toTimestamp, uint32(model.NodeRegistrationState_NodeQueued))
+}
+
+// GetNodeRegistrationsByBlockTimestampInterval returns query string to get multiple node registrations
+// Note: toHeight (limit) is excluded from selection to avoid selecting duplicates
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationsByBlockHeightInterval(fromHeight, toHeight uint32) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE height >= %d AND height <= %d AND "+
+		"registration_status != %d AND latest=1 ORDER BY height",
+		strings.Join(nrq.Fields, ", "), nrq.getTableName(), fromHeight, toHeight, uint32(model.NodeRegistrationState_NodeQueued))
 }
 
 func (nrq *NodeRegistrationQuery) GetActiveNodeRegistrationsByHeight(height uint32) string {
@@ -248,7 +259,7 @@ func (nrq *NodeRegistrationQuery) GetLastVersionedNodeRegistrationByPublicKeyWit
 }
 
 // GetNodeRegistrationByAccountAddress returns query string to get Node Registration by account public key
-func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (nrq *NodeRegistrationQuery) GetNodeRegistrationByAccountAddress(accountAddress []byte) (str string, args []interface{}) {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1",
 		strings.Join(nrq.Fields, ", "), nrq.getTableName()), []interface{}{accountAddress}
 }
@@ -298,14 +309,26 @@ func (nrq *NodeRegistrationQuery) GetPendingNodeRegistrations(limit uint32) stri
 		strings.Join(nrq.Fields, ", "), nrq.getTableName(), model.NodeRegistrationState_NodeQueued, limit)
 }
 
-func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRegistrationState) string {
-	var aliasedFields []string
+// GetAllNodeRegistryByStatus fetch node registries with latest = 1 joined with participation_score table
+// active will strictly require data to have participation score, if set to false, it means node can be pending registry
+func (nrq *NodeRegistrationQuery) GetAllNodeRegistryByStatus(status model.NodeRegistrationState, active bool) string {
+	var (
+		qry           string
+		aliasedFields []string
+	)
 	for _, field := range nrq.Fields {
 		aliasedFields = append(aliasedFields, fmt.Sprintf("nr.%s", field))
 	}
-	return fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
-		"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
-		strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	if active {
+		qry = fmt.Sprintf("SELECT %s, ps.score FROM %s nr INNER JOIN participation_score ps ON "+
+			"nr.id = ps.node_id WHERE nr.registration_status=%d AND nr.latest=1 AND ps.latest=1 ORDER BY nr.locked_balance DESC",
+			strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	} else {
+		qry = fmt.Sprintf("SELECT %s, 0 FROM %s nr "+
+			"WHERE nr.registration_status=%d AND nr.latest=1 ORDER BY nr.locked_balance DESC",
+			strings.Join(aliasedFields, ", "), nrq.getTableName(), status)
+	}
+	return qry
 }
 
 // ExtractModel extract the model struct fields to the order of NodeRegistrationQuery.Fields

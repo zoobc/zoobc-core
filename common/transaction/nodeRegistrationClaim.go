@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -18,7 +19,7 @@ import (
 type ClaimNodeRegistration struct {
 	ID                      int64
 	Fee                     int64
-	SenderAddress           string
+	SenderAddress           []byte
 	Height                  uint32
 	Body                    *model.ClaimNodeRegistrationTransactionBody
 	Escrow                  *model.Escrow
@@ -49,7 +50,8 @@ func (tx *ClaimNodeRegistration) SkipMempoolTransaction(
 	}
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
-		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok && tx.SenderAddress == sel.SenderAccountAddress {
+		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
+			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -209,28 +211,42 @@ func (tx *ClaimNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *ClaimNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
-func (*ClaimNodeRegistration) GetSize() uint32 {
+func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
-	poown := util.GetProofOfOwnershipSize(true)
-	return constant.AccountAddress + constant.NodePublicKey + poown
+	if tx.SenderAddress == nil {
+		return 0, blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
+	}
+	senderAccType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	if err != nil {
+		return 0, err
+	}
+	poownSize := util.GetProofOfOwnershipSize(senderAccType, true)
+	accountAddressSize := constant.AccountAddressTypeLength + senderAccType.GetAccountPublicKeyLength()
+	return accountAddressSize + constant.NodePublicKey + poownSize, nil
 }
 
 // ParseBodyBytes read and translate body bytes to body implementation fields
 func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
-	// read body bytes todo: add accountAddressLength to body
 	buffer := bytes.NewBuffer(txBodyBytes)
 	nodePublicKey, err := util.ReadTransactionBytes(buffer, int(constant.NodePublicKey))
 	if err != nil {
 		return nil, err
 	}
-	// parse ProofOfOwnership (message + signature) bytes
-	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(true))))
+	// get the poown account type by parsing proof of ownership bytes
+	var tmpPoownBytes = make([]byte, buffer.Len())
+	copy(tmpPoownBytes, buffer.Bytes())
+	tmpBuffer := bytes.NewBuffer(tmpPoownBytes)
+	poownAccType, err := accounttype.ParseBytesToAccountType(tmpBuffer)
+	if err != nil {
+		return nil, err
+	}
+	poown, err := util.ParseProofOfOwnershipBytes(buffer.Next(int(util.GetProofOfOwnershipSize(poownAccType, true))))
 	if err != nil {
 		return nil, err
 	}
@@ -241,12 +257,12 @@ func (tx *ClaimNodeRegistration) ParseBodyBytes(txBodyBytes []byte) (model.Trans
 }
 
 // GetBodyBytes translate tx body to bytes representation
-func (tx *ClaimNodeRegistration) GetBodyBytes() []byte {
+func (tx *ClaimNodeRegistration) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(tx.Body.NodePublicKey)
 	// convert ProofOfOwnership (message + signature) to bytes
 	buffer.Write(util.GetProofOfOwnershipBytes(tx.Body.Poown))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *ClaimNodeRegistration) GetTransactionBody(transaction *model.Transaction) {
@@ -260,7 +276,7 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ClaimNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != "" {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		tx.Escrow = &model.Escrow{
 			ID:              tx.ID,
 			SenderAddress:   tx.SenderAddress,
@@ -285,7 +301,7 @@ func (tx *ClaimNodeRegistration) EscrowValidate(dbTX bool) error {
 		enough bool
 	)
 
-	if tx.Escrow.GetApproverAddress() == "" {
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
 	if tx.Escrow.GetCommission() <= 0 {

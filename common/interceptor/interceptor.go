@@ -102,7 +102,7 @@ With `recover()` function can handle re-run the app while got panic or error
 */
 func NewServerInterceptor(
 	logger *logrus.Logger,
-	ownerAddress string,
+	ownerAddress []byte,
 	ignoredErrCodes map[codes.Code]string,
 ) grpc.UnaryServerInterceptor {
 	return func(
@@ -228,7 +228,7 @@ func NewClientInterceptor(logger *logrus.Logger, ignoredErrors map[codes.Code]st
 /*
 NewStreamInterceptor validate request against the destination service and the signature with the node owner
 */
-func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
+func NewStreamInterceptor(ownerAddress []byte) grpc.StreamServerInterceptor {
 	return func(
 		srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 	) error {
@@ -246,7 +246,7 @@ func NewStreamInterceptor(ownerAddress string) grpc.StreamServerInterceptor {
 }
 
 // authRequest shared logic to authorize an off-chain api requests
-func authRequest(ctx context.Context, method, ownerAddress string) error {
+func authRequest(ctx context.Context, method string, ownerAddress []byte) error {
 	var (
 		requestType model.RequestType
 	)

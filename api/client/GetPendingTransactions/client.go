@@ -35,8 +35,9 @@ func main() {
 
 	response, err := c.GetPendingTransactions(context.Background(),
 		&rpc_model.GetPendingTransactionsRequest{
-			SenderAddress: "E6u7lDnLgyiPuklLd6rXNQJI3_kGA1Q7e1BEXdJVB1hy",
-			Status:        rpc_model.PendingTransactionStatus_PendingTransactionPending,
+			SenderAddress: []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+				116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+			Status: rpc_model.PendingTransactionStatus_PendingTransactionPending,
 			Pagination: &rpc_model.Pagination{
 				OrderField: "block_height",
 				OrderBy:    rpc_model.OrderBy_DESC,

@@ -2,9 +2,12 @@ package configure
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 	"path"
@@ -41,10 +44,11 @@ func Commands() *cobra.Command {
 }
 func generateConfigFileCommand(*cobra.Command, []string) {
 	var (
-		err        error
-		configFile = "config.toml"
-		shell      = ishell.New()
-		config     model.Config
+		err                   error
+		configFile            = "config.toml"
+		shell                 = ishell.New()
+		config                model.Config
+		encodedAccountAddress string
 	)
 
 	_, err = os.Stat(configFile)
@@ -67,6 +71,38 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 			}
 			shell.Close()
 			config.LoadConfigurations()
+			// decode owner account address
+			if config.OwnerAccountAddressHex != "" {
+				config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+				if err != nil {
+					panic(err)
+				}
+				// double check that the decoded account address is valid
+				accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
+				if err != nil {
+					panic(err)
+				}
+				// TODO: move to crypto package in a function
+				switch accType.GetTypeInt() {
+				case 0:
+					ed25519 := signaturetype.NewEd25519Signature()
+					encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
+					if err != nil {
+						panic(err)
+					}
+				case 1:
+					bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
+					encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+					if err != nil {
+						panic(err)
+					}
+				default:
+					panic("Invalid Owner Account Type")
+				}
+				config.OwnerEncodedAccountAddress = encodedAccountAddress
+				config.OwnerAccountAddressTypeInt = accType.GetTypeInt()
+			}
+
 			err = generateConfig(config)
 			if err != nil {
 				color.Red(err.Error())
@@ -139,7 +175,17 @@ func readCertFile(config *model.Config, fileName string) error {
 			return fmt.Errorf("failed to assert certificate, %s", err.Error())
 		}
 		if ownerAccountAddress, ok := certMap["ownerAccount"]; ok {
-			config.OwnerAccountAddress = fmt.Sprintf("%s", ownerAccountAddress)
+			// TODO: if in future we accept any account type in genesis, certificate must contain a full account address in hex format.
+			//  As of now we have to parse an encoded address into its full hex format to be put in config.toml
+			config.OwnerAccountAddress, err = accounttype.ParseEncodedAccountToAccountAddress(
+				int32(model.AccountType_ZbcAccountType),
+				fmt.Sprintf("%s", ownerAccountAddress),
+			)
+			if err != nil {
+				color.Cyan("Invalid Owner Account Address: It must be a valid ZBC account")
+				return err
+			}
+			config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		} else {
 			return fmt.Errorf("invalid certificate format, ownerAccount not found")
 		}
@@ -166,7 +212,7 @@ func readCertFile(config *model.Config, fileName string) error {
 		}
 
 		// verifying NodeSeed
-		publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		publicKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 		compareNodeAddress, compareErr := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, publicKey)
 		if compareErr != nil {
 			return compareErr
@@ -274,10 +320,21 @@ func generateConfig(config model.Config) error {
 			color.Cyan("! Create one on zoobc.one")
 			color.White("OWNER ACCOUNT ADDRESS: ")
 			inputStr = shell.ReadLine()
-			if strings.TrimSpace(inputStr) != "" {
-				config.OwnerAccountAddress = inputStr
+			inputStr = strings.TrimSpace(inputStr)
+			if inputStr != "" {
+				// TODO: if in future we accept any account type in genesis, certificate must contain a full account address in hex format.
+				//  As of now we have to parse an encoded address into its full hex format to be put in config.toml
+				config.OwnerAccountAddress, err = accounttype.ParseEncodedAccountToAccountAddress(
+					int32(model.AccountType_ZbcAccountType),
+					inputStr,
+				)
+				if err != nil {
+					color.Cyan("Invalid Owner Account Address: It must be a valid ZBC account")
+					return err
+				}
+				config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 			} else {
-				if config.OwnerAccountAddress != "" {
+				if config.OwnerAccountAddressHex != "" {
 					color.Cyan("previous ownerAccountAddress won't be replaced")
 				} else {
 					color.Yellow("! Node won't running when owner account address is empty.")

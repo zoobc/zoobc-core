@@ -124,6 +124,9 @@ func (n *NodeRegistryCacheStorage) GetItem(idx, item interface{}) error {
 	if !n.isInTransaction {
 		n.RLock()
 		defer n.RUnlock()
+	} else {
+		n.transactionalLock.RLock()
+		defer n.transactionalLock.RUnlock()
 	}
 	switch castedIdx := idx.(type) {
 	case nil:
@@ -151,12 +154,22 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 	if !n.isInTransaction {
 		n.RLock()
 		defer n.RUnlock()
+	} else {
+		n.transactionalLock.RLock()
+		defer n.transactionalLock.RUnlock()
 	}
 	*nodeRegistries = make([]NodeRegistry, len(n.nodeRegistries))
 	for i := 0; i < len(n.nodeRegistries); i++ {
 		(*nodeRegistries)[i] = n.copy(n.nodeRegistries[i])
 	}
 	return nil
+}
+
+func (n *NodeRegistryCacheStorage) GetTotalItems() int {
+	n.RLock()
+	var totalItems = len(n.transactionalNodeRegistries)
+	n.RUnlock()
+	return totalItems
 }
 
 func (n *NodeRegistryCacheStorage) RemoveItem(idx interface{}) error {
@@ -296,7 +309,10 @@ func (n *NodeRegistryCacheStorage) TxSetItem(idx, item interface{}) error {
 		n.transactionalNodeRegistries[castedIdx] = n.copy(nodeRegistry)
 	case int64:
 		// update by nodeID
-		idxInt := n.transactionalNodeIDIndexes[castedIdx]
+		idxInt, ok := n.transactionalNodeIDIndexes[castedIdx]
+		if !ok {
+			return blocker.NewBlocker(blocker.NotFound, "NodeRegistryCacheStorage:TxSetItem-NotFound")
+		}
 		tempPreviousCopy = n.transactionalNodeRegistries[idxInt]
 		n.transactionalNodeRegistries[idxInt] = n.copy(nodeRegistry)
 	}
@@ -341,7 +357,6 @@ func (n *NodeRegistryCacheStorage) TxSetItems(items interface{}) error {
 func (n *NodeRegistryCacheStorage) TxRemoveItem(idx interface{}) error {
 	var (
 		idxToRemove int
-		idToRemove  int64
 	)
 	n.transactionalLock.Lock()
 	defer n.transactionalLock.Unlock()
@@ -350,9 +365,7 @@ func (n *NodeRegistryCacheStorage) TxRemoveItem(idx interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "TxRemoveItem:IdxCannotBeNil")
 	case int64:
 		idxToRemove = n.transactionalNodeIDIndexes[castedIdx]
-		idToRemove = castedIdx
 	case int:
-		idToRemove = n.transactionalNodeRegistries[castedIdx].Node.GetNodeID()
 		idxToRemove = castedIdx
 
 	default:
@@ -364,7 +377,10 @@ func (n *NodeRegistryCacheStorage) TxRemoveItem(idx interface{}) error {
 	tempLeft := n.transactionalNodeRegistries[:idxToRemove]
 	tempRight := n.transactionalNodeRegistries[idxToRemove+1:]
 	n.transactionalNodeRegistries = append(tempLeft, tempRight...)
-	delete(n.transactionalNodeIDIndexes, idToRemove)
+	n.transactionalNodeIDIndexes = make(map[int64]int)
+	for i := 0; i < len(n.transactionalNodeRegistries); i++ {
+		n.transactionalNodeIDIndexes[n.transactionalNodeRegistries[i].Node.GetNodeID()] = i
+	}
 	return nil
 }
 

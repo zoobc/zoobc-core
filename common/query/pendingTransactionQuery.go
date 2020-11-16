@@ -19,7 +19,7 @@ type (
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		GetPendingTransactionsBySenderAddress(
-			multisigAddress string,
+			multisigAddress []byte,
 			status model.PendingTransactionStatus,
 			currentHeight, limit uint32,
 		) (
@@ -88,7 +88,7 @@ func (ptq *PendingTransactionQuery) GetPendingTransactionByHash(
 }
 
 func (ptq *PendingTransactionQuery) GetPendingTransactionsBySenderAddress(
-	multisigAddress string,
+	multisigAddress []byte,
 	status model.PendingTransactionStatus,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {

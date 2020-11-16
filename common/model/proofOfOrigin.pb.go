@@ -131,7 +131,9 @@ func init() {
 	proto.RegisterType((*GetNodeProofOfOriginRequest)(nil), "model.GetNodeProofOfOriginRequest")
 }
 
-func init() { proto.RegisterFile("model/proofOfOrigin.proto", fileDescriptor_81a15e476172cb17) }
+func init() {
+	proto.RegisterFile("model/proofOfOrigin.proto", fileDescriptor_81a15e476172cb17)
+}
 
 var fileDescriptor_81a15e476172cb17 = []byte{
 	// 216 bytes of a gzipped FileDescriptorProto

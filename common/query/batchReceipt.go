@@ -10,28 +10,28 @@ import (
 )
 
 type (
-	NodeReceiptQueryInterface interface {
-		InsertReceipt(receipt *model.Receipt) (str string, args []interface{})
-		InsertReceipts(receipts []*model.Receipt) (str string, args []interface{})
+	BatchReceiptQueryInterface interface {
+		InsertReceipt(receipt *model.BatchReceipt) (str string, args []interface{})
+		InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
 		GetReceiptByRoot(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		PruneData(blockHeight, limit uint32) (string, []interface{})
-		ExtractModel(receipt *model.Receipt) []interface{}
-		BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error)
-		Scan(receipt *model.Receipt, row *sql.Row) error
+		ExtractModel(receipt *model.BatchReceipt) []interface{}
+		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error)
+		Scan(receipt *model.BatchReceipt, row *sql.Row) error
 	}
 
-	NodeReceiptQuery struct {
+	BatchReceiptQuery struct {
 		Fields    []string
 		TableName string
 	}
 )
 
-// NewNodeReceiptQuery returns NodeReceiptQuery instance
-func NewNodeReceiptQuery() *NodeReceiptQuery {
-	return &NodeReceiptQuery{
+// NewBatchReceiptQuery returns BatchReceiptQuery instance
+func NewBatchReceiptQuery() *BatchReceiptQuery {
+	return &BatchReceiptQuery{
 		Fields: []string{
 			"sender_public_key",
 			"recipient_public_key",
@@ -48,12 +48,12 @@ func NewNodeReceiptQuery() *NodeReceiptQuery {
 	}
 }
 
-func (rq *NodeReceiptQuery) getTableName() string {
+func (rq *BatchReceiptQuery) getTableName() string {
 	return rq.TableName
 }
 
 // GetReceipts get a set of receipts that satisfies the params from DB
-func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
+func (rq *BatchReceiptQuery) GetReceipts(paginate model.Pagination) string {
 
 	query := fmt.Sprintf(
 		"SELECT %s FROM %s ",
@@ -83,7 +83,7 @@ func (rq *NodeReceiptQuery) GetReceipts(paginate model.Pagination) string {
 
 // GetReceiptsWithUniqueRecipient get receipt with unique recipient_public_key
 // lowerBlockHeight and upperBlockHeight is passed as window limit of receipt reference_block_height to pick
-func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(
+func (rq *BatchReceiptQuery) GetReceiptsWithUniqueRecipient(
 	limit, lowerBlockHeight, upperBlockHeight uint32) string {
 	var query string
 	if limit == 0 {
@@ -99,7 +99,7 @@ func (rq *NodeReceiptQuery) GetReceiptsWithUniqueRecipient(
 
 // GetReceiptByRoot return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
 // published_receipt table
-func (rq *NodeReceiptQuery) GetReceiptByRoot(
+func (rq *BatchReceiptQuery) GetReceiptByRoot(
 	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
@@ -113,7 +113,7 @@ func (rq *NodeReceiptQuery) GetReceiptByRoot(
 }
 
 // SelectReceipt select list of receipt by some filter
-func (rq *NodeReceiptQuery) SelectReceipt(
+func (rq *BatchReceiptQuery) SelectReceipt(
 	lowerHeight, upperHeight, limit uint32,
 ) (str string) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
@@ -124,8 +124,8 @@ func (rq *NodeReceiptQuery) SelectReceipt(
 	return query
 }
 
-// InsertReceipts inserts a new pas into DB
-func (rq *NodeReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, args []interface{}) {
+// InsertReceipt inserts a new pas into DB
+func (rq *BatchReceiptQuery) InsertReceipt(receipt *model.BatchReceipt) (str string, args []interface{}) {
 
 	return fmt.Sprintf(
 		"INSERT INTO %s (%s) VALUES(%s)",
@@ -136,7 +136,7 @@ func (rq *NodeReceiptQuery) InsertReceipt(receipt *model.Receipt) (str string, a
 }
 
 // InsertReceipts build query for bulk store pas
-func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr string, args []interface{}) {
+func (rq *BatchReceiptQuery) InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{}) {
 
 	var (
 		query  string
@@ -160,7 +160,7 @@ func (rq *NodeReceiptQuery) InsertReceipts(receipts []*model.Receipt) (qStr stri
 }
 
 // PruneData handle query for remove by reference_block_height with limit
-func (rq *NodeReceiptQuery) PruneData(blockHeight, limit uint32) (qStr string, args []interface{}) {
+func (rq *BatchReceiptQuery) PruneData(blockHeight, limit uint32) (qStr string, args []interface{}) {
 	return fmt.Sprintf(
 			"DELETE FROM %s WHERE reference_block_height IN("+
 				"SELECT reference_block_height FROM %s "+
@@ -174,23 +174,23 @@ func (rq *NodeReceiptQuery) PruneData(blockHeight, limit uint32) (qStr string, a
 		}
 }
 
-// ExtractModel extract the model struct fields to the order of NodeReceiptQuery.Fields
-func (*NodeReceiptQuery) ExtractModel(receipt *model.Receipt) []interface{} {
+// ExtractModel extract the model struct fields to the order of BatchReceiptQuery.Fields
+func (*BatchReceiptQuery) ExtractModel(receipt *model.BatchReceipt) []interface{} {
 	return []interface{}{
-		&receipt.BatchReceipt.SenderPublicKey,
-		&receipt.BatchReceipt.RecipientPublicKey,
-		&receipt.BatchReceipt.DatumType,
-		&receipt.BatchReceipt.DatumHash,
-		&receipt.BatchReceipt.ReferenceBlockHeight,
-		&receipt.BatchReceipt.ReferenceBlockHash,
-		&receipt.BatchReceipt.RMRLinked,
-		&receipt.BatchReceipt.RecipientSignature,
+		&receipt.GetReceipt().SenderPublicKey,
+		&receipt.GetReceipt().RecipientPublicKey,
+		&receipt.GetReceipt().DatumType,
+		&receipt.GetReceipt().DatumHash,
+		&receipt.GetReceipt().ReferenceBlockHeight,
+		&receipt.GetReceipt().ReferenceBlockHash,
+		&receipt.GetReceipt().RMRLinked,
+		&receipt.GetReceipt().RecipientSignature,
 		&receipt.RMR,
 		&receipt.RMRIndex,
 	}
 }
 
-func (*NodeReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) ([]*model.Receipt, error) {
+func (*BatchReceiptQuery) BuildModel(batchReceipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error) {
 
 	for rows.Next() {
 		var (
@@ -200,41 +200,50 @@ func (*NodeReceiptQuery) BuildModel(receipts []*model.Receipt, rows *sql.Rows) (
 		)
 
 		err = rows.Scan(
-			&batchReceipt.SenderPublicKey,
-			&batchReceipt.RecipientPublicKey,
-			&batchReceipt.DatumType,
-			&batchReceipt.DatumHash,
-			&batchReceipt.ReferenceBlockHeight,
-			&batchReceipt.ReferenceBlockHash,
-			&batchReceipt.RMRLinked,
-			&batchReceipt.RecipientSignature,
-			&receipt.RMR,
-			&receipt.RMRIndex,
+			&receipt.SenderPublicKey,
+			&receipt.RecipientPublicKey,
+			&receipt.DatumType,
+			&receipt.DatumHash,
+			&receipt.ReferenceBlockHeight,
+			&receipt.ReferenceBlockHash,
+			&receipt.RMRLinked,
+			&receipt.RecipientSignature,
+			&batchReceipt.RMR,
+			&batchReceipt.RMRIndex,
 		)
 		if err != nil {
 			return nil, err
 		}
-		receipt.BatchReceipt = &batchReceipt
-		receipts = append(receipts, &receipt)
+		batchReceipt.Receipt = &receipt
+		batchReceipts = append(batchReceipts, &batchReceipt)
 	}
 
-	return receipts, nil
+	return batchReceipts, nil
 }
 
-func (*NodeReceiptQuery) Scan(receipt *model.Receipt, row *sql.Row) error {
+func (*BatchReceiptQuery) Scan(batchReceipt *model.BatchReceipt, row *sql.Row) error {
 
 	err := row.Scan(
-		&receipt.BatchReceipt.SenderPublicKey,
-		&receipt.BatchReceipt.RecipientPublicKey,
-		&receipt.BatchReceipt.DatumType,
-		&receipt.BatchReceipt.DatumHash,
-		&receipt.BatchReceipt.ReferenceBlockHeight,
-		&receipt.BatchReceipt.ReferenceBlockHash,
-		&receipt.BatchReceipt.RMRLinked,
-		&receipt.BatchReceipt.RecipientSignature,
-		&receipt.RMR,
-		&receipt.RMRIndex,
+		&batchReceipt.Receipt.SenderPublicKey,
+		&batchReceipt.Receipt.RecipientPublicKey,
+		&batchReceipt.Receipt.DatumType,
+		&batchReceipt.Receipt.DatumHash,
+		&batchReceipt.Receipt.ReferenceBlockHeight,
+		&batchReceipt.Receipt.ReferenceBlockHash,
+		&batchReceipt.Receipt.RMRLinked,
+		&batchReceipt.Receipt.RecipientSignature,
+		&batchReceipt.RMR,
+		&batchReceipt.RMRIndex,
 	)
 	return err
 
+}
+
+func (rq *BatchReceiptQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE reference_block_height > ?", rq.getTableName()),
+			height,
+		},
+	}
 }

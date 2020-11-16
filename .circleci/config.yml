@@ -3,6 +3,7 @@ defaults: &defaults
     working_directory: ~/zoobc
     docker:
         - image: circleci/golang:1.14.0-stretch
+#        - image: cimg/go:1.14
 reset_dbs: &reset_dbs
     name: RESET DBs
     command: |
@@ -23,14 +24,19 @@ reset_db: &reset_db
         else
          echo "All good without reset db"
         fi
+github_cof: &github_conf
+    name: GIT CONF
+    command: |
+        git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
 jobs:
     prepare:
         <<: *defaults
         steps:
-            - run:
-                  name: GIT CONF
-                  command: |
-                      git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
+#            - run:
+#                  name: GIT CONF
+#                  command: |
+#                      git config --global url."https://github:$github_token@github.com".insteadOf "https://github.com"
+            - run: *github_conf
             - checkout
             - add_ssh_keys
             - run:
@@ -56,12 +62,13 @@ jobs:
             GOMAXPROCS: 2
 #           https://support.circleci.com/hc/en-us/articles/360034684273-Common-GoLang-memory-issues:
         steps:
+            - run: *github_conf
             - checkout
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
-            - run:
-                  name: ↓ GOLINT
-                  command: go get -u golang.org/x/lint/golint
+#            - run:
+#                  name: ↓ GOLINT
+#                  command: go get -u golang.org/x/lint/golint
             - run:
                   name: GO FMT
                   command: make go-fmt
@@ -70,10 +77,14 @@ jobs:
                   command: make golangci-lint
             - run:
                   name: GOTEST
-                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1
+                  command: go test `go list ./... | egrep -v 'common/model|common/service'` --short -count=1 -p=1
+#            - run:
+#                  name: GOLINT RUN
+#                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
             - run:
-                  name: GOLINT RUN
-                  command: golint `go list ./... | egrep -v 'vendor|common/model|common/service'`
+                name: TEST MAKE GEN
+                command: |
+                    make generate-gen gen-target=develop
             - save_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
                   paths:
@@ -81,6 +92,7 @@ jobs:
     build:
         <<: *defaults
         steps:
+            - run: *github_conf
             - checkout
             - restore_cache:
                   key: gopkg-{{ .Branch }}-{{ checksum "go.sum" }}
@@ -88,12 +100,6 @@ jobs:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_PREVIOUS_BUILD_NUM }}
                   paths:
                       - ./dist
-            - run:
-                  name: ↓ RSYNC
-                  command: |
-                      if [ ! -d rsync ]; then
-                          sudo apt-get update && sudo apt-get install rsync
-                      fi
             - run:
                   name: GENERATING GENESIS
                   command: |
@@ -103,8 +109,7 @@ jobs:
             - run:
                   name: BUILD
                   command: |
-                      go build -o ./dist/zoobc
-            #                       rsync -va --exclude='*.db' ./resource ./dist
+                      GOOS=linux GOARCH=amd64 go build -o ./dist/zoobc
             - save_cache:
                   key: build-cache-{{ .Branch }}-{{ .Environment.CIRCLE_SHA1 }}
                   paths:
@@ -112,6 +117,7 @@ jobs:
     deploy-develop:
         <<: *defaults
         steps:
+            - run: *github_conf
             - checkout
             - add_ssh_keys
             - run:
@@ -125,24 +131,30 @@ jobs:
                   paths:
                       - ./dist
             - run:
-                  name: ADD HOSTS
-                  command: for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+                name: ADD HOSTS
+                command: |
+                  for host in $x1 $x2 $x3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
+          #                        for host in $ln1 $ln2 $ln3; do ssh-keyscan $host >> ~/.ssh/known_hosts; done
             - run:
-                  name: DOWN SERVICES
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+                name: DOWN SERVICES
+                command: |
+                  for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
+          #                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl stop zoobc.service'; done
             - run: *reset_dbs
             - run:
-                  name: DEPLOY
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+                name: DEPLOY
+                command: |
+                  for host in $x1 $x2 $x3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
+          #                      for host in $ln1 $ln2 $ln3; do rsync -vae ssh ./dist/ root@$host:/root/zoobc --exclude='*.db' --exclude='generated'; done
             - run:
-                  name: UP SERVICES
-                  command: |
-                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+                name: UP SERVICES
+                command: |
+                  for host in $x1 $x2 $x3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
+  #                      for host in $ln1 $ln2 $ln3; do ssh root@$host 'sudo systemctl start zoobc.service'; done
     deploy-staging:
         <<: *defaults
         steps:
+            - run: *github_conf
             - checkout
             - add_ssh_keys
             - run:
@@ -175,6 +187,7 @@ jobs:
     deploy-experimental:
         <<: *defaults
         steps:
+            - run: *github_conf
             - checkout
             - add_ssh_keys
             - run:

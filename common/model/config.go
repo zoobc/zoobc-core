@@ -15,7 +15,10 @@ type (
 		Smithing, IsNodeAddressDynamic, LogOnCli, CliMonitoring   bool
 		WellknownPeers                                            []string
 		NodeKey                                                   *NodeKey
-		MyAddress, OwnerAccountAddress, NodeSeed                  string
+		MyAddress, OwnerAccountAddressHex, NodeSeed               string
+		OwnerAccountAddress                                       []byte
+		OwnerEncodedAccountAddress                                string
+		OwnerAccountAddressTypeInt                                int32
 		APICertFile, APIKeyFile                                   string
 		DatabaseFileName, ResourcePath,
 		NodeKeyFileName, SnapshotPath string
@@ -47,7 +50,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.HTTPAPIPort = viper.GetInt("apiHTTPPort")
 	cfg.MaxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	cfg.CPUProfilingPort = viper.GetInt("cpuProfilingPort")
-	cfg.OwnerAccountAddress = viper.GetString("ownerAccountAddress")
+	cfg.OwnerAccountAddressHex = viper.GetString("ownerAccountAddress")
 	cfg.WellknownPeers = viper.GetStringSlice("wellknownPeers")
 	cfg.Smithing = viper.GetBool("smithing")
 	cfg.DatabaseFileName = viper.GetString("dbName")
@@ -64,7 +67,7 @@ func (cfg *Config) LoadConfigurations() {
 func (cfg *Config) SaveConfig(filePath string) error {
 	var err error
 	viper.Set("smithing", cfg.Smithing)
-	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddress)
+	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddressHex)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
 	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)

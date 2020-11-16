@@ -1,11 +1,9 @@
 package service
 
 import (
-	"math"
-	"math/big"
-	"math/rand"
-
 	"github.com/montanaflynn/stats"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"math"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -20,16 +18,16 @@ type (
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
 			activeNodeRegistries []storage.NodeRegistry,
-			scoreSum float64,
-			blockTimestamp int64,
+			scoreSum, blockTimestamp int64,
 			previousBlock *model.Block,
-		) ([]string, error)
+		) ([][]byte, error)
 	}
 
 	CoinbaseService struct {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		Chaintype             chaintype.ChainType
+		Rng                   *crypto.RandomNumberGenerator
 	}
 )
 
@@ -37,11 +35,13 @@ func NewCoinbaseService(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	queryExecutor query.ExecutorInterface,
 	chaintype chaintype.ChainType,
+	rng *crypto.RandomNumberGenerator,
 ) *CoinbaseService {
 	return &CoinbaseService{
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		QueryExecutor:         queryExecutor,
 		Chaintype:             chaintype,
+		Rng:                   rng,
 	}
 }
 
@@ -73,29 +73,42 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // CoinbaseLotteryWinners get the current list of blocksmiths, duplicate it (to not change the original one)
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
-func (cbs *CoinbaseService) CoinbaseLotteryWinners(activeRegistries []storage.NodeRegistry, scoreSum float64, blockTimestamp int64,
-	previousBlock *model.Block) ([]string, error) {
+func (cbs *CoinbaseService) CoinbaseLotteryWinners(
+	activeRegistries []storage.NodeRegistry,
+	scoreSum, blockTimestamp int64,
+	previousBlock *model.Block,
+) ([][]byte, error) {
 
 	var (
-		selectedAccounts []string
+		selectedAccounts [][]byte
 		numRewards       int64
 	)
-	blockSeedBigInt := new(big.Int).SetBytes(previousBlock.BlockSeed)
-	rand.Seed(blockSeedBigInt.Int64())
+	err := cbs.Rng.Reset(constant.CoinbaseSelectionSeedPrefix, previousBlock.GetBlockSeed())
+	if err != nil {
+		return nil, err
+	}
+	activeRegistryLength := len(activeRegistries)
 
 	// get number of rewards recipients
 	numRewards = (blockTimestamp - previousBlock.Timestamp) * constant.CoinbaseNumberRewardsPerSecond
 	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
-	numRewards = util.MinInt64(numRewards, int64(len(activeRegistries)))
-
+	numRewards = util.MinInt64(numRewards, int64(activeRegistryLength))
 	for i := 0; i < int(numRewards); i++ {
-		winnerScore := rand.Float64()
-		tempPreviousSum := float64(0)
+		var (
+			tempPreviousSum int64
+			rawRandomNumber = cbs.Rng.Next()
+			// scale down random number to [0-scoreSum]
+			rounds             = rawRandomNumber / scoreSum
+			roundWithRemainder = rounds * scoreSum
+			winnerScore        = rawRandomNumber - roundWithRemainder
+		)
 
-		for j := 0; j < len(activeRegistries); j++ {
-			participationScore := float64(activeRegistries[j].ParticipationScore) / float64(constant.OneZBC) / scoreSum
-			if winnerScore > tempPreviousSum && winnerScore <= tempPreviousSum+participationScore {
+		for j := 0; j < activeRegistryLength; j++ {
+			participationScore := int64(
+				math.Floor(float64(activeRegistries[j].ParticipationScore) / float64(activeRegistryLength)))
+			if winnerScore >= tempPreviousSum && winnerScore < tempPreviousSum+participationScore {
 				selectedAccounts = append(selectedAccounts, activeRegistries[j].Node.AccountAddress)
+				break
 			}
 			tempPreviousSum += participationScore
 		}

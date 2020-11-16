@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"html/template"
 	"net"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -42,7 +42,8 @@ func startGrpcServer(
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
 	rpcPort, httpPort int,
-	ownerAccountAddress, nodefilePath string,
+	ownerAccountAddress []byte,
+	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,
 	apiCertFile, apiKeyFile string,
@@ -240,7 +241,8 @@ func Start(
 	transactionUtil transaction.UtilInterface,
 	actionTypeSwitcher transaction.TypeActionSwitcher,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
-	grpcPort, httpPort int, ownerAccountAddress,
+	grpcPort, httpPort int,
+	ownerAccountAddress []byte,
 	nodefilePath string,
 	logger *log.Logger,
 	isDebugMode bool,

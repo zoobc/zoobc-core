@@ -35,15 +35,15 @@ type (
 		ValidateMempoolTransaction(mpTx *model.Transaction) error
 		ReceivedTransaction(
 			senderPublicKey, receivedTxBytes []byte,
-			lastBlock *model.Block,
+			lastBlockCacheFromat *storage.BlockCacheObject,
 			nodeSecretPhrase string,
-		) (*model.BatchReceipt, error)
+		) (*model.Receipt, error)
 		ReceivedBlockTransactions(
 			senderPublicKey []byte,
 			receivedTxBytes [][]byte,
-			lastBlock *model.Block,
+			lastBlockCacheFromat *storage.BlockCacheObject,
 			nodeSecretPhrase string,
-		) ([]*model.BatchReceipt, error)
+		) ([]*model.Receipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error)
 		BackupMempools(commonBlock *model.Block) error
@@ -65,7 +65,7 @@ type (
 		ReceiptUtil            coreUtil.ReceiptUtilInterface
 		ReceiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockStateStorage      storage.CacheStorageInterface
+		BlocksStorage          storage.CacheStackStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
 		MempoolBackupStorage   storage.CacheStorageInterface
 	}
@@ -87,7 +87,8 @@ func NewMempoolService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
 	transactionCoreService TransactionCoreServiceInterface,
-	blockStateStorage, mempoolCacheStorage, mempoolBackupStorage storage.CacheStorageInterface,
+	blocksStorage storage.CacheStackStorageInterface,
+	mempoolCacheStorage, mempoolBackupStorage storage.CacheStorageInterface,
 ) *MempoolService {
 	return &MempoolService{
 		TransactionUtil:        transactionUtil,
@@ -104,7 +105,7 @@ func NewMempoolService(
 		ReceiptUtil:            receiptUtil,
 		ReceiptService:         receiptService,
 		TransactionCoreService: transactionCoreService,
-		BlockStateStorage:      blockStateStorage,
+		BlocksStorage:          blocksStorage,
 		MempoolCacheStorage:    mempoolCacheStorage,
 		MempoolBackupStorage:   mempoolBackupStorage,
 	}
@@ -172,15 +173,7 @@ func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Trans
 }
 
 func (mps *MempoolService) GetTotalMempoolTransactions() (int, error) {
-	var (
-		err      error
-		mempools = make(storage.MempoolMap)
-	)
-	err = mps.MempoolCacheStorage.GetAllItems(mempools)
-	if err != nil {
-		return 0, err
-	}
-	return len(mempools), nil
+	return mps.MempoolCacheStorage.GetTotalItems(), nil
 }
 
 // GetMempoolTransactions fetch transactions from mempool
@@ -219,12 +212,12 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 	}
 
 	// NOTE: this select is always inside a db transaction because AddMempoolTransaction is always called within a db tx
-	var lastBlock model.Block
-	err := mps.BlockStateStorage.GetItem(nil, &lastBlock)
+	var lastBlock storage.BlockCacheObject
+	err := mps.BlocksStorage.GetTop(&lastBlock)
 	if err != nil {
 		return err
 	}
-	mpTx.BlockHeight = lastBlock.GetHeight()
+	mpTx.BlockHeight = lastBlock.Height
 	insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(mpTx)
 	err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 	if err != nil {
@@ -360,17 +353,16 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 }
 
 func (mps *MempoolService) ReceivedTransaction(
-	senderPublicKey,
-	receivedTxBytes []byte,
-	lastBlock *model.Block,
+	senderPublicKey, receivedTxBytes []byte,
+	lastBlock *storage.BlockCacheObject,
 	nodeSecretPhrase string,
-) (*model.BatchReceipt, error) {
+) (*model.Receipt, error) {
 	var (
-		err          error
-		receivedTx   *model.Transaction
-		batchReceipt *model.BatchReceipt
+		err        error
+		receivedTx *model.Transaction
+		receipt    *model.Receipt
 	)
-	batchReceipt, receivedTx, err = mps.ProcessReceivedTransaction(
+	receipt, receivedTx, err = mps.ProcessReceivedTransaction(
 		senderPublicKey,
 		receivedTxBytes,
 		lastBlock,
@@ -381,7 +373,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	}
 	// receivedTx == nil when it's a duplicate but we haven't send receipt to this peer for this particular data yet
 	if receivedTx == nil {
-		return batchReceipt, nil
+		return receipt, nil
 	}
 	err = mps.QueryExecutor.BeginTx()
 	if err != nil {
@@ -417,74 +409,77 @@ func (mps *MempoolService) ReceivedTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	mps.Observer.Notify(observer.TransactionAdded, receivedTxBytes, mps.Chaintype)
-	return batchReceipt, nil
+	return receipt, nil
 }
 
 // ProcessReceivedTransaction process the transaction received from peer
 // will return batchReceipt, `nil`, `nil` if duplicate transaction found
 func (mps *MempoolService) ProcessReceivedTransaction(
-	senderPublicKey,
-	receivedTxBytes []byte,
-	lastBlock *model.Block,
+	senderPublicKey, receivedTxBytes []byte,
+	lastBlockCacheFromat *storage.BlockCacheObject,
 	nodeSecretPhrase string,
-) (*model.BatchReceipt, *model.Transaction, error) {
+) (*model.Receipt, *model.Transaction, error) {
 	var (
-		err         error
-		receivedTx  *model.Transaction
-		duplicateTx bool
+		receipt    *model.Receipt
+		receivedTx *model.Transaction
+		err        error
 	)
+
 	receivedTx, err = mps.TransactionUtil.ParseTransactionBytes(receivedTxBytes, true)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+
 	receivedTxHash := sha3.Sum256(receivedTxBytes)
+	err = mps.ReceiptService.CheckDuplication(senderPublicKey, receivedTxHash[:])
+	if err != nil {
+		if b := err.(blocker.Blocker); b.Type == blocker.DuplicateReceiptErr {
+			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
+		}
+		return nil, nil, status.Errorf(codes.Internal, err.Error())
+	}
+
+	receipt, err = mps.ReceiptService.GenerateReceiptWithReminder(
+		mps.Chaintype, receivedTxHash[:],
+		lastBlockCacheFromat,
+		senderPublicKey,
+		nodeSecretPhrase,
+		constant.ReceiptDatumTypeTransaction,
+	)
+	if err != nil {
+		return nil, nil, status.Error(codes.Internal, err.Error())
+	}
+
 	// Validate received transaction
 	if err = mps.ValidateMempoolTransaction(receivedTx); err != nil {
 		specificErr := err.(blocker.Blocker)
 		if specificErr.Type != blocker.DuplicateMempoolErr {
 			return nil, nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-
-		// already exist in mempool, check if already generated a receipt for this sender
-		duplicated, duplicatedErr := mps.ReceiptService.IsDuplicated(senderPublicKey, receivedTxHash[:])
-		if duplicatedErr != nil {
-			return nil, nil, status.Errorf(codes.Internal, err.Error())
-		}
-		if duplicated {
-			return nil, nil, status.Errorf(codes.Aborted, "ReceiptAlreadyExists")
-		}
-		duplicateTx = true
+		return receipt, nil, nil
 	}
 
-	batchReceipt, err := mps.ReceiptService.GenerateBatchReceiptWithReminder(
-		mps.Chaintype, receivedTxHash[:],
-		lastBlock, senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeTransaction,
-	)
-
-	if err != nil {
-		return nil, nil, status.Error(codes.Internal, err.Error())
-	}
-	if duplicateTx {
-		return batchReceipt, nil, nil
-	}
-	return batchReceipt, receivedTx, nil
+	return receipt, receivedTx, nil
 }
 
 // ReceivedBlockTransactions
 func (mps *MempoolService) ReceivedBlockTransactions(
 	senderPublicKey []byte,
 	receivedTxBytes [][]byte,
-	lastBlock *model.Block,
+	lastBlockCacheFromat *storage.BlockCacheObject,
 	nodeSecretPhrase string,
-) ([]*model.BatchReceipt, error) {
+) ([]*model.Receipt, error) {
 	var (
-		batchReceiptArray    []*model.BatchReceipt
+		batchReceiptArray    []*model.Receipt
 		receivedTransactions []*model.Transaction
 	)
 	for _, txBytes := range receivedTxBytes {
-		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlock, nodeSecretPhrase)
+		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(
+			senderPublicKey,
+			txBytes,
+			lastBlockCacheFromat,
+			nodeSecretPhrase,
+		)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}

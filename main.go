@@ -6,23 +6,13 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
-	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -33,6 +23,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -40,6 +31,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -47,6 +39,15 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
 )
 
 var (
@@ -58,7 +59,7 @@ var (
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
-	scrambleNodeStorage                                                    storage.CacheStackStorageInterface
+	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -108,6 +109,8 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -133,7 +136,8 @@ type goDaemon struct {
 // initiateMainInstance initiation all instance that must be needed and exists before running the node
 func initiateMainInstance() {
 	var (
-		err error
+		err                   error
+		encodedAccountAddress string
 	)
 
 	// load config for default value to be feed to viper
@@ -146,6 +150,42 @@ func initiateMainInstance() {
 	}
 	// assign read configuration to config object
 	config.LoadConfigurations()
+	// decode owner account address
+	if config.OwnerAccountAddressHex != "" {
+		config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
+		if err != nil {
+			log.Errorf("Invalid OwnerAccountAddress in config. It must be in hex format: %s", err)
+			os.Exit(1)
+		}
+		// double check that the decoded account address is valid
+		accType, err := accounttype.NewAccountTypeFromAccount(config.OwnerAccountAddress)
+		if err != nil {
+			log.Error(err)
+			os.Exit(1)
+		}
+		// TODO: move to crypto package in a function
+		switch accType.GetTypeInt() {
+		case 0:
+			ed25519 := signaturetype.NewEd25519Signature()
+			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
+		case 1:
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
+			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
+		default:
+			log.Error("Invalid Owner Account Type")
+			os.Exit(1)
+		}
+		config.OwnerEncodedAccountAddress = encodedAccountAddress
+		config.OwnerAccountAddressTypeInt = accType.GetTypeInt()
+	}
 
 	// early init configuration service
 	nodeConfigurationService = service.NewNodeConfigurationService(loggerCoreService)
@@ -153,60 +193,59 @@ func initiateMainInstance() {
 	// check and validate configurations
 	err = util.NewSetupNode(config).CheckConfig()
 	if err != nil {
-		log.Fatalf("Unknown error occurred - error: %s", err.Error())
-
-		return
+		log.Errorf("Unknown error occurred - error: %s", err.Error())
+		os.Exit(1)
 	}
 	nodeAdminKeysService := service.NewNodeAdminService(nil, nil, nil, nil,
 		filepath.Join(config.ResourcePath, config.NodeKeyFileName))
 	if len(config.NodeKey.Seed) > 0 {
 		config.NodeKey.PublicKey, err = nodeAdminKeysService.GenerateNodeKey(config.NodeKey.Seed)
 		if err != nil {
-			log.Fatal("Fail to generate node key")
+			log.Error("Fail to generate node key")
+			os.Exit(1)
 		}
 	} else {
 		// setup wizard don't set node key, meaning ./resource/node_keys.json exist
 		nodeKeys, err := nodeAdminKeysService.ParseKeysFile()
 		if err != nil {
-			log.Fatal("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			log.Error("existing node keys has wrong format, please fix it or delete it, then re-run the application")
+			os.Exit(1)
 		}
 		config.NodeKey = nodeAdminKeysService.GetLastNodeKey(nodeKeys)
 	}
 
 	knownPeersResult, err := p2pUtil.ParseKnownPeers(config.WellknownPeers)
 	if err != nil {
-		log.Fatalf("ParseKnownPeers Err: %s", err.Error())
+		log.Errorf("ParseKnownPeers Err: %s", err.Error())
+		os.Exit(1)
 	}
 
 	nodeConfigurationService.SetHost(p2pUtil.NewHost(config.MyAddress, config.PeerPort, knownPeersResult,
 		constant.ApplicationVersion, constant.ApplicationCodeName))
 	nodeConfigurationService.SetIsMyAddressDynamic(config.IsNodeAddressDynamic)
 	if config.NodeKey.Seed == "" {
-		log.Fatal("node seed is empty")
+		log.Error("node seed is empty")
+		os.Exit(1)
 	}
 	nodeConfigurationService.SetNodeSeed(config.NodeKey.Seed)
 
-	if config.OwnerAccountAddress == "" {
+	if config.OwnerAccountAddress == nil {
 		// todo: andy-shi88 refactor this
-		ed25519 := crypto.NewEd25519Signature()
-		accountPrivateKey, err := ed25519.GetPrivateKeyFromSeedUseSlip10(
+		signature := crypto.NewSignature()
+		_, _, _, config.OwnerEncodedAccountAddress, config.OwnerAccountAddress, err = signature.GenerateAccountFromSeed(
+			&accounttype.ZbcAccountType{},
 			config.NodeKey.Seed,
+			true,
 		)
 		if err != nil {
-			log.Fatal("Fail to generate account private key")
+			log.Error("error generating node owner account")
+			os.Exit(1)
 		}
-		publicKey, err := ed25519.GetPublicKeyFromPrivateKeyUseSlip10(accountPrivateKey)
-		if err != nil {
-			log.Fatal("Fail to generate account public key")
-		}
-		id, err := address.EncodeZbcID(constant.PrefixZoobcDefaultAccount, publicKey)
-		if err != nil {
-			log.Fatal("Fail generating address from node's seed")
-		}
-		config.OwnerAccountAddress = id
+		config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
 		err = config.SaveConfig(flagConfigPath)
 		if err != nil {
-			log.Fatal("Fail to save new configuration")
+			log.Error("Fail to save new configuration")
+			os.Exit(1)
 		}
 	}
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
@@ -243,8 +282,10 @@ func initiateMainInstance() {
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	batchReceiptCacheStorage = storage.NewBatchReceiptCacheStorage()
+	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
+	mainBlocksStorage = storage.NewBlocksStorage()
+	spineBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -282,15 +323,18 @@ func initiateMainInstance() {
 	)
 	txNodeAddressInfoStorage, ok := nodeAddressInfoStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastNodeAddressInfoStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 	txActiveNodeRegistryStorage, ok := activeNodeRegistryCacheStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastActiveNodeRegistryStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 	txPendingNodeRegistryStorage, ok := pendingNodeRegistryCacheStorage.(storage.TransactionalCache)
 	if !ok {
-		log.Fatal("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+		log.Error("FailToCastPendingNodeRegistryStorageAsTransactionalCacheInterface")
+		os.Exit(1)
 	}
 
 	actionSwitcher = &transaction.TypeSwitcher{
@@ -312,6 +356,7 @@ func initiateMainInstance() {
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
 		activeNodeRegistryCacheStorage,
+		mainBlocksStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -336,7 +381,7 @@ func initiateMainInstance() {
 	)
 
 	receiptService = service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
@@ -349,6 +394,7 @@ func initiateMainInstance() {
 		receiptReminderStorage,
 		batchReceiptCacheStorage,
 		scrambleNodeService,
+		mainBlocksStorage,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -367,12 +413,29 @@ func initiateMainInstance() {
 		fileService,
 	)
 
-	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
+	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(mainchain),
+		mainBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		mainchain,
 	)
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(spinechain),
+		spineBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		spinechain,
+	)
+
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
@@ -389,6 +452,7 @@ func initiateMainInstance() {
 		query.NewNodeRegistrationQuery(),
 		queryExecutor,
 		mainchain,
+		crypto.NewRandomNumberGenerator(),
 	)
 	mainchainParticipationScoreService = service.NewParticipationScoreService(
 		query.NewParticipationScoreQuery(),
@@ -438,7 +502,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-		mainBlockStateStorage,
+		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
 	)
@@ -477,6 +541,7 @@ func initiateMainInstance() {
 		feeScaleService,
 		query.GetPruneQuery(mainchain),
 		mainBlockStateStorage,
+		mainBlocksStorage,
 		blockchainStatusService,
 		scrambleNodeService,
 	)
@@ -495,6 +560,7 @@ func initiateMainInstance() {
 		query.NewPendingTransactionQuery(),
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
+		query.NewMultiSignatureParticipantQuery(),
 		query.NewSkippedBlocksmithQuery(),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
@@ -529,12 +595,6 @@ func initiateMainInstance() {
 		loggerCoreService,
 	)
 
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
 		query.NewAccountLedgerQuery(),
@@ -615,7 +675,7 @@ func initLogInstance(logPath string) {
 func initP2pInstance() {
 	// initialize peer client service
 	peerServiceClient = client.NewPeerServiceClient(
-		queryExecutor, query.NewNodeReceiptQuery(),
+		queryExecutor, query.NewBatchReceiptQuery(),
 		config.NodeKey.PublicKey,
 		nodeRegistrationService,
 		query.NewMerkleTreeQuery(),
@@ -773,12 +833,11 @@ func startMainchain() {
 		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
-	err = mempoolService.InitMempoolTransaction()
+	err = mainchainBlockService.InitializeBlocksCache()
 	if err != nil {
-		loggerCoreService.Fatalf("fail to load mempool data - error: %v", err)
+		loggerCoreService.Fatal(err)
 		os.Exit(1)
 	}
-
 	err = nodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
@@ -796,6 +855,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -821,9 +885,6 @@ func startMainchain() {
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
 		node, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(config.NodeKey.PublicKey)
 		if err != nil {
-			loggerCoreService.Fatal(err)
-			os.Exit(1)
-		} else if node == nil {
 			// no nodes registered with current node public key, only warn the user but we keep running smithing goroutine
 			// so it immediately start when register+admitted to the registry
 			loggerCoreService.Error(
@@ -841,6 +902,7 @@ func startMainchain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategyMain,
 		)
 		mainchainProcessor.Start(sleepPeriod)
 	}
@@ -884,21 +946,30 @@ func startSpinechain() {
 
 	exist, errGenesis := spinechainBlockService.CheckGenesis()
 	if errGenesis != nil {
-		log.Fatal(errGenesis)
+		log.Error(errGenesis)
+		os.Exit(1)
 	}
 	if !exist { // Add genesis if not exist
 		if err = spinechainBlockService.AddGenesis(); err != nil {
-			log.Fatal(err)
+			log.Error(err)
+			os.Exit(1)
 		}
 	}
 	// update cache last spine block  block
 	err = spinechainBlockService.UpdateLastBlockCache(nil)
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
+	err = spinechainBlockService.InitializeBlocksCache()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	lastBlockAtStart, err = spinechainBlockService.GetLastBlock()
 	if err != nil {
 		loggerCoreService.Fatal(err)
+		os.Exit(1)
 	}
 	monitoring.SetLastBlock(spinechain, lastBlockAtStart)
 
@@ -914,6 +985,7 @@ func startSpinechain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategySpine,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
@@ -1023,7 +1095,8 @@ func start() {
 	if flagProfiling {
 		go func() {
 			if err := http.ListenAndServe(fmt.Sprintf(":%d", config.CPUProfilingPort), nil); err != nil {
-				log.Fatalf(fmt.Sprintf("failed to start profiling http server: %s", err))
+				log.Errorf(fmt.Sprintf("failed to start profiling http server: %s", err))
+				os.Exit(1)
 			}
 		}()
 	}
@@ -1122,7 +1195,8 @@ func main() {
 			god = goDaemon{srvDaemon}
 			if runtime.GOOS == "darwin" {
 				if dErr := god.SetTemplate(constant.PropertyList); dErr != nil {
-					log.Fatal(dErr)
+					log.Error(dErr)
+					os.Exit(1)
 				}
 			}
 

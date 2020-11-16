@@ -41,7 +41,7 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address string
+		address []byte
 		amount  int64
 	}
 	tests := []struct {
@@ -89,7 +89,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address     string
+		address     []byte
 		amount      int64
 		blockHeight uint32
 	}
@@ -143,29 +143,29 @@ type (
 	}
 )
 
-func (*mockAccountBalanceHelperSuccess) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
 func (*mockAccountBalanceHelperSuccess) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return true, nil
 }
-func (*mockAccountBalanceHelperFail) AddAccountSpendableBalance(address string, amount int64) error {
+func (*mockAccountBalanceHelperFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return sql.ErrTxDone
 }
 func (*mockAccountBalanceHelperFail) HasEnoughSpendableBalance(
-	dbTX bool, address string, compareBalance int64,
+	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
 	return false, nil
 }
 func (*mockAccountBalanceHelperSuccess) AddAccountBalance(
-	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return nil
 }
 func (*mockAccountBalanceHelperFail) AddAccountBalance(
-	address string, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return sql.ErrTxDone
 }

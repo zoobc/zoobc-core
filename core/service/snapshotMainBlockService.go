@@ -16,35 +16,36 @@ import (
 
 type (
 	SnapshotMainBlockService struct {
-		SnapshotPath                  string
-		chainType                     chaintype.ChainType
-		TransactionUtil               transaction.UtilInterface
-		TypeActionSwitcher            transaction.TypeActionSwitcher
-		Logger                        *log.Logger
-		SnapshotBasicChunkStrategy    SnapshotChunkStrategyInterface
-		QueryExecutor                 query.ExecutorInterface
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		NodeRegistrationQuery         query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery       query.ParticipationScoreQueryInterface
-		AccountDatasetQuery           query.AccountDatasetQueryInterface
-		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery         query.PublishedReceiptQueryInterface
-		PendingTransactionQuery       query.PendingTransactionQueryInterface
-		PendingSignatureQuery         query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
-		BlockQuery                    query.BlockQueryInterface
-		FeeScaleQuery                 query.FeeScaleQueryInterface
-		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
-		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
-		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
-		SnapshotQueries               map[string]query.SnapshotQuery
-		BlocksmithSafeQuery           map[string]bool
-		DerivedQueries                []query.DerivedQuery
-		BlockMainService              BlockServiceInterface
-		NodeRegistrationService       NodeRegistrationServiceInterface
-		ScrambleNodeService           ScrambleNodeServiceInterface
+		SnapshotPath                   string
+		chainType                      chaintype.ChainType
+		TransactionUtil                transaction.UtilInterface
+		TypeActionSwitcher             transaction.TypeActionSwitcher
+		Logger                         *log.Logger
+		SnapshotBasicChunkStrategy     SnapshotChunkStrategyInterface
+		QueryExecutor                  query.ExecutorInterface
+		AccountBalanceQuery            query.AccountBalanceQueryInterface
+		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery        query.ParticipationScoreQueryInterface
+		AccountDatasetQuery            query.AccountDatasetQueryInterface
+		EscrowTransactionQuery         query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery          query.PublishedReceiptQueryInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultisignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
+		BlockQuery                     query.BlockQueryInterface
+		FeeScaleQuery                  query.FeeScaleQueryInterface
+		FeeVoteCommitmentVoteQuery     query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
+		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		SnapshotQueries                map[string]query.SnapshotQuery
+		BlocksmithSafeQuery            map[string]bool
+		DerivedQueries                 []query.DerivedQuery
+		BlockMainService               BlockServiceInterface
+		NodeRegistrationService        NodeRegistrationServiceInterface
+		ScrambleNodeService            ScrambleNodeServiceInterface
 	}
 )
 
@@ -62,6 +63,7 @@ func NewSnapshotMainBlockService(
 	pendingTransactionQuery query.PendingTransactionQueryInterface,
 	pendingSignatureQuery query.PendingSignatureQueryInterface,
 	multisignatureInfoQuery query.MultisignatureInfoQueryInterface,
+	multisignatureParticipantQuery query.MultiSignatureParticipantQueryInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	feeScaleQuery query.FeeScaleQueryInterface,
 	feeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface,
@@ -79,35 +81,36 @@ func NewSnapshotMainBlockService(
 	scrambleNodeService ScrambleNodeServiceInterface,
 ) *SnapshotMainBlockService {
 	return &SnapshotMainBlockService{
-		SnapshotPath:                  snapshotPath,
-		chainType:                     &chaintype.MainChain{},
-		Logger:                        logger,
-		SnapshotBasicChunkStrategy:    snapshotChunkStrategy,
-		QueryExecutor:                 queryExecutor,
-		AccountBalanceQuery:           accountBalanceQuery,
-		NodeRegistrationQuery:         nodeRegistrationQuery,
-		AccountDatasetQuery:           accountDatasetQuery,
-		ParticipationScoreQuery:       participationScoreQuery,
-		EscrowTransactionQuery:        escrowTransactionQuery,
-		PublishedReceiptQuery:         publishedReceiptQuery,
-		PendingTransactionQuery:       pendingTransactionQuery,
-		PendingSignatureQuery:         pendingSignatureQuery,
-		MultisignatureInfoQuery:       multisignatureInfoQuery,
-		SkippedBlocksmithQuery:        skippedBlocksmithQuery,
-		FeeScaleQuery:                 feeScaleQuery,
-		FeeVoteCommitmentVoteQuery:    feeVoteCommitmentVoteQuery,
-		FeeVoteRevealVoteQuery:        feeVoteRevealVoteQuery,
-		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
-		NodeAdmissionTimestampQuery:   nodeAdmissionTimestampQuery,
-		BlockQuery:                    blockQuery,
-		SnapshotQueries:               snapshotQueries,
-		BlocksmithSafeQuery:           blocksmithSafeQueries,
-		DerivedQueries:                derivedQueries,
-		TransactionUtil:               transactionUtil,
-		TypeActionSwitcher:            typeSwitcher,
-		BlockMainService:              blockMainService,
-		NodeRegistrationService:       nodeRegistrationService,
-		ScrambleNodeService:           scrambleNodeService,
+		SnapshotPath:                   snapshotPath,
+		chainType:                      &chaintype.MainChain{},
+		Logger:                         logger,
+		SnapshotBasicChunkStrategy:     snapshotChunkStrategy,
+		QueryExecutor:                  queryExecutor,
+		AccountBalanceQuery:            accountBalanceQuery,
+		NodeRegistrationQuery:          nodeRegistrationQuery,
+		AccountDatasetQuery:            accountDatasetQuery,
+		ParticipationScoreQuery:        participationScoreQuery,
+		EscrowTransactionQuery:         escrowTransactionQuery,
+		PublishedReceiptQuery:          publishedReceiptQuery,
+		PendingTransactionQuery:        pendingTransactionQuery,
+		PendingSignatureQuery:          pendingSignatureQuery,
+		MultisignatureInfoQuery:        multisignatureInfoQuery,
+		MultisignatureParticipantQuery: multisignatureParticipantQuery,
+		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
+		FeeScaleQuery:                  feeScaleQuery,
+		FeeVoteCommitmentVoteQuery:     feeVoteCommitmentVoteQuery,
+		FeeVoteRevealVoteQuery:         feeVoteRevealVoteQuery,
+		LiquidPaymentTransactionQuery:  liquidPaymentTransactionQuery,
+		NodeAdmissionTimestampQuery:    nodeAdmissionTimestampQuery,
+		BlockQuery:                     blockQuery,
+		SnapshotQueries:                snapshotQueries,
+		BlocksmithSafeQuery:            blocksmithSafeQueries,
+		DerivedQueries:                 derivedQueries,
+		TransactionUtil:                transactionUtil,
+		TypeActionSwitcher:             typeSwitcher,
+		BlockMainService:               blockMainService,
+		NodeRegistrationService:        nodeRegistrationService,
+		ScrambleNodeService:            scrambleNodeService,
 	}
 }
 
@@ -131,8 +134,9 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		func() {
 			var (
-				fromHeight uint32
-				rows       *sql.Rows
+				fromHeight    uint32
+				rows          *sql.Rows
+				multisigInfos []*model.MultiSignatureInfo
 			)
 			if ss.BlocksmithSafeQuery[qryRepoName] && snapshotPayloadHeight > constant.MinRollbackBlocks {
 				fromHeight = snapshotPayloadHeight - constant.MinRollbackBlocks
@@ -166,7 +170,33 @@ func (ss *SnapshotMainBlockService) NewSnapshotFile(block *model.Block) (snapsho
 			case "pendingSignature":
 				snapshotPayload.PendingSignatures, err = ss.PendingSignatureQuery.BuildModel([]*model.PendingSignature{}, rows)
 			case "multisignatureInfo":
-				snapshotPayload.MultiSignatureInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
+				multisigInfos, err = ss.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, rows)
+				for idx, multisigInfo := range multisigInfos {
+					err = func(idx int, multisigInfos []*model.MultiSignatureInfo) error {
+						qry, args := ss.MultisignatureParticipantQuery.GetMultiSignatureParticipantsByMultisigAddressAndHeightRange(
+							multisigInfo.GetMultisigAddress(),
+							fromHeight,
+							snapshotPayloadHeight,
+						)
+						rows2, err := ss.QueryExecutor.ExecuteSelect(qry, false, args...)
+						if err != nil {
+							return err
+						}
+						defer rows2.Close()
+						participants, err := ss.MultisignatureParticipantQuery.BuildModel(rows2)
+						if err != nil {
+							return err
+						}
+						for _, participant := range participants {
+							multisigInfos[idx].Addresses = append(multisigInfos[idx].Addresses, participant.GetAccountAddress())
+						}
+						return nil
+					}(idx, multisigInfos)
+					if err != nil {
+						return
+					}
+				}
+				snapshotPayload.MultiSignatureInfos = multisigInfos
 			case "skippedBlocksmith":
 				snapshotPayload.SkippedBlocksmiths, err = ss.SkippedBlocksmithQuery.BuildModel([]*model.SkippedBlocksmith{}, rows)
 			case "feeScale":
@@ -255,11 +285,16 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 			}
 		}
 	}
+	// update or clear all cache storage
 	err = ss.ScrambleNodeService.InitializeScrambleCache(currentBlock.GetHeight())
 	if err != nil {
 		return err
 	}
 	err = ss.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return err
+	}
+	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return err
 	}
@@ -282,11 +317,6 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		queries      [][]interface{}
 		highestBlock *model.Block
 	)
-
-	err := ss.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 
 	for qryRepoName, snapshotQuery := range ss.SnapshotQueries {
 		var (
@@ -441,7 +471,10 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		}
 	}
-
+	err := ss.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 	err = ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		rollbackErr := ss.QueryExecutor.RollbackTx()
@@ -466,6 +499,22 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 
+	err = ss.BlockMainService.InitializeBlocksCache()
+	if err != nil {
+		return err
+	}
+	highestBlock, err = ss.BlockMainService.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	err = ss.ScrambleNodeService.InitializeScrambleCache(highestBlock.GetHeight())
+	if err != nil {
+		return err
+	}
+	err = ss.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return err
+	}
 	monitoring.SetLastBlock(ss.chainType, highestBlock)
 	return nil
 }

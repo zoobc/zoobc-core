@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"database/sql"
+	"fmt"
+	"math"
 	"math/big"
 
 	log "github.com/sirupsen/logrus"
@@ -20,7 +22,7 @@ type (
 		SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error)
 		SelectNodesToBeExpelled() ([]*model.NodeRegistration, error)
 		GetActiveRegisteredNodes() ([]*model.NodeRegistration, error)
-		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error)
+		GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error)
 		GetNodeRegistrationByNodePublicKey(nodePublicKey []byte) (*model.NodeRegistration, error)
 		GetNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
 		GetActiveNodeRegistrationByNodeID(nodeID int64) (*model.NodeRegistration, error)
@@ -100,7 +102,7 @@ func (nrs *NodeRegistrationService) InitializeCache() error {
 		return err
 	}
 	// pending
-	pendingQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeQueued) // limit = 0 get all records
+	pendingQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeQueued, false)
 	pendingNodeRegistryRows, err := nrs.QueryExecutor.ExecuteSelect(pendingQry, false)
 	if err != nil {
 		return err
@@ -112,7 +114,7 @@ func (nrs *NodeRegistrationService) InitializeCache() error {
 		return err
 	}
 	// active
-	activeQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeRegistered) // limit = 0 get all records
+	activeQry = nrs.NodeRegistrationQuery.GetAllNodeRegistryByStatus(model.NodeRegistrationState_NodeRegistered, true)
 	activeNodeRegistrationRows, err := nrs.QueryExecutor.ExecuteSelect(activeQry, false)
 	if err != nil {
 		return err
@@ -162,8 +164,9 @@ func (nrs *NodeRegistrationService) SelectNodesToBeExpelled() ([]*model.NodeRegi
 		return nil, err
 	}
 	for _, registry := range activeNodeRegistry {
+		regNodeCopy := registry.Node
 		if registry.ParticipationScore <= 0 {
-			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &registry.Node)
+			zeroScoreNodeRegistry = append(zeroScoreNodeRegistry, &regNodeCopy)
 		}
 	}
 	return zeroScoreNodeRegistry, nil
@@ -185,19 +188,19 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 	return nodeRegistries, nil
 }
 
-func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, float64, error) {
+func (nrs *NodeRegistrationService) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error) {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
 		err                error
+		scoreSum           int64
 	)
 	err = nrs.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	scoreSum := float64(0)
+	activeRegistryLength := len(activeNodeRegistry)
 	for _, registry := range activeNodeRegistry {
-		scoreSum += float64(registry.ParticipationScore) / float64(constant.OneZBC)
+		scoreSum += int64(math.Floor(float64(registry.ParticipationScore) / float64(activeRegistryLength)))
 	}
 	return activeNodeRegistry, scoreSum, nil
 }
@@ -386,29 +389,19 @@ func (nrs *NodeRegistrationService) InsertNextNodeAdmissionTimestamp(
 	dbTx bool,
 ) (*model.NodeAdmissionTimestamp, error) {
 	var (
-		rows              *sql.Rows
-		err               error
-		delayAdmission    int64
-		nextNodeAdmission *model.NodeAdmissionTimestamp
-		activeBlocksmiths []*model.Blocksmith
-		insertQueries     [][]interface{}
+		err                  error
+		delayAdmission       int64
+		nextNodeAdmission    *model.NodeAdmissionTimestamp
+		activeRegisteredNode []*model.NodeRegistration
+		insertQueries        [][]interface{}
 	)
-
 	// get all registered nodes
-	rows, err = nrs.QueryExecutor.ExecuteSelect(
-		nrs.NodeRegistrationQuery.GetActiveNodeRegistrationsByHeight(blockHeight),
-		dbTx,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	activeBlocksmiths, err = nrs.NodeRegistrationQuery.BuildBlocksmith(activeBlocksmiths, rows)
+	activeRegisteredNode, err = nrs.GetActiveRegisteredNodes()
 	if err != nil {
 		return nil, err
 	}
 	// calculate next delay node admission timestamp
-	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeBlocksmiths))
+	delayAdmission = constant.NodeAdmissionBaseDelay / int64(len(activeRegisteredNode))
 	delayAdmission = commonUtils.MinInt64(
 		commonUtils.MaxInt64(delayAdmission, constant.NodeAdmissionMinDelay),
 		constant.NodeAdmissionMaxDelay,
@@ -487,7 +480,7 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 
 	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
 	if err != nil {
-		return 0, blocker.NewBlocker(blocker.AppErr, "FailGetNodeRegistryFromCache")
+		return 0, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("AddParticipationScoreErr:%v", err))
 	}
 	// don't update the score if already max allowed
 	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {
@@ -521,7 +514,10 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 	}
 	err = txActiveCache.TxSetItem(nodeID, nodeRegistry)
 	if err != nil {
-		return newScore, err
+		if castedErr := err.(blocker.Blocker); castedErr.Type != blocker.NotFound {
+			// handle removed node
+			return newScore, err
+		}
 	}
 	// finally update the participation score
 	updateParticipationScoreQuery := nrs.ParticipationScoreQuery.UpdateParticipationScore(nodeID, newScore, height)

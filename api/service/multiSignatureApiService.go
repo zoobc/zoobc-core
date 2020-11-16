@@ -80,7 +80,7 @@ func (ms *MultisigService) GetPendingTransactions(
 		args         []interface{}
 	)
 	caseQuery.Select(musigQuery.TableName, musigQuery.Fields...)
-	if param.GetSenderAddress() != "" {
+	if param.GetSenderAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("sender_address", param.GetSenderAddress()))
 	}
 	caseQuery.Where(caseQuery.Equal("status", param.GetStatus()))
@@ -185,33 +185,30 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 		return nil, status.Error(codes.Internal, "server error")
 	}
 	// get multisig info if exist
-	// sub query for getting addresses from multisignature_participant
-	subQ := query.NewCaseQuery()
-	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
-	subQ.Where(subQ.Equal("multisig_address", pendingTx.SenderAddress))
-	subQ.GroupBy("multisig_address", "block_height")
-	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
-	subQ.As("addresses")
-	subStr, subArgs := subQ.SubBuild()
-
 	caseQuery = query.NewCaseQuery()
-	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
-	caseQuery.Args = append(caseQuery.Args, subArgs...)
-
+	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", true))
-
+	caseQuery.Where(caseQuery.Equal("multisig_address", pendingTx.SenderAddress))
 	if pendingTx.Status == model.PendingTransactionStatus_PendingTransactionPending {
 		caseQuery.Where(caseQuery.GreaterEqual("block_height", validStartHeight))
 	}
 	selectMultisigInfoQuery, args := caseQuery.Build()
 	multisigInfoRow, _ := ms.Executor.ExecuteSelectRow(selectMultisigInfoQuery, false, args...)
 	err = ms.MultisignatureInfoQuery.Scan(multisigInfo, multisigInfoRow)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			ms.Logger.Error(err)
-			return nil, status.Error(codes.Internal, "server error")
+	if err != nil && err != sql.ErrNoRows {
+		ms.Logger.Error(err)
+		return nil, status.Error(codes.Internal, "server error")
+	}
+	if err != sql.ErrNoRows {
+		multisigInfo.Addresses, err = ms.getMultisigAddressParticipants(pendingTx.SenderAddress)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				ms.Logger.Error(err)
+				return nil, status.Error(codes.Internal, "server error")
+			}
 		}
 	}
+
 	return &model.GetPendingTransactionDetailByTransactionHashResponse{
 		PendingTransaction: pendingTx,
 		PendingSignatures:  pendingSigs,
@@ -219,36 +216,56 @@ func (ms *MultisigService) GetPendingTransactionDetailByTransactionHash(
 	}, nil
 }
 
+// getMultisigAddressParticipants returns multisignature participants addresses for a given multisig address and (
+// optional) a start block height (for transaction in 'pending' status)
+func (ms *MultisigService) getMultisigAddressParticipants(
+	multisigAddress []byte,
+) (multisigParticipants [][]byte, err error) {
+	var (
+		caseQuery                = query.NewCaseQuery()
+		multisigParticipantQuery = query.NewMultiSignatureParticipantQuery()
+	)
+	caseQuery.Select(multisigParticipantQuery.TableName, multisigParticipantQuery.Fields...)
+	// TODO: multisig participants should not have latest field
+	caseQuery.Where(caseQuery.Equal("latest", true))
+	caseQuery.Where(caseQuery.Equal("multisig_address", multisigAddress))
+	caseQuery.OrderBy("account_address_index", model.OrderBy_DESC)
+	selectMultisigParticipantsQuery, args := caseQuery.Build()
+	multisigParticipantRows, err := ms.Executor.ExecuteSelect(selectMultisigParticipantsQuery, false, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer multisigParticipantRows.Close()
+	participants, err := ms.MultiSignatureParticipantQuery.BuildModel(multisigParticipantRows)
+	if err != nil {
+		return nil, err
+	}
+	for _, participant := range participants {
+		multisigParticipants = append(multisigParticipants, participant.GetAccountAddress())
+	}
+	return multisigParticipants, nil
+
+}
+
 func (ms *MultisigService) GetMultisignatureInfo(
 	param *model.GetMultisignatureInfoRequest,
 ) (*model.GetMultisignatureInfoResponse, error) {
 	var (
-		result            []*model.MultiSignatureInfo
-		caseQuery         = query.NewCaseQuery()
-		multisigInfoQuery = query.NewMultisignatureInfoQuery()
-		selectQuery       string
-		args              []interface{}
-		totalRecords      uint32
-		err               error
+		multiSignatureInfos []*model.MultiSignatureInfo
+		caseQuery           = query.NewCaseQuery()
+		multisigInfoQuery   = query.NewMultisignatureInfoQuery()
+		selectQuery         string
+		args                []interface{}
+		totalRecords        uint32
+		err                 error
 	)
-	// sub query for getting addresses from multisignature_participant
-	subQ := query.NewCaseQuery()
-	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
-	subQ.GroupBy("multisig_address", "block_height")
-	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
-	subQ.As("addresses")
-	subStr, subArgs := subQ.SubBuild()
-
-	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
-	caseQuery.Args = append(caseQuery.Args, subArgs...)
-	if param.GetMultisigAddress() != "" {
+	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
+	if param.GetMultisigAddress() != nil {
 		caseQuery.Where(caseQuery.Equal("multisig_address", param.GetMultisigAddress()))
 	}
 	caseQuery.Where(caseQuery.Equal("latest", true))
 	selectQuery, args = caseQuery.Build()
-
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-
 	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
 	err = countRow.Scan(
 		&totalRecords,
@@ -270,14 +287,23 @@ func (ms *MultisigService) GetMultisignatureInfo(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer multisigInfoRows.Close()
-	result, err = ms.MultisignatureInfoQuery.BuildModel(result, multisigInfoRows)
+	multiSignatureInfos, err = ms.MultisignatureInfoQuery.BuildModel([]*model.MultiSignatureInfo{}, multisigInfoRows)
 	if err != nil {
 		return nil, err
+	}
+	for idx, multisigInfo := range multiSignatureInfos {
+		multiSignatureInfos[idx].Addresses, err = ms.getMultisigAddressParticipants(multisigInfo.GetMultisigAddress())
+		if err != nil {
+			if err != sql.ErrNoRows {
+				ms.Logger.Error(err)
+				return nil, status.Error(codes.Internal, "server error")
+			}
+		}
 	}
 	return &model.GetMultisignatureInfoResponse{
 		Count:              totalRecords,
 		Page:               param.GetPagination().GetPage(),
-		MultisignatureInfo: result,
+		MultisignatureInfo: multiSignatureInfos,
 	}, err
 }
 
@@ -285,7 +311,7 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 	param *model.GetMultisigAddressByParticipantAddressRequest,
 ) (*model.GetMultisigAddressByParticipantAddressResponse, error) {
 	var (
-		multiSignatureAddresses        = []string{}
+		multisigAddresses              = [][]byte{}
 		caseQuery                      = query.NewCaseQuery()
 		multisignatureParticipantQuery = query.NewMultiSignatureParticipantQuery()
 		selectQuery                    string
@@ -322,7 +348,7 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 	defer multiSignatureAddressesRows.Close()
 
 	for multiSignatureAddressesRows.Next() {
-		var multisigAddress string
+		var multisigAddress []byte
 		err = multiSignatureAddressesRows.Scan(
 			&multisigAddress,
 		)
@@ -332,12 +358,12 @@ func (ms *MultisigService) GetMultisigAddressByParticipantAddress(
 			}
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		multiSignatureAddresses = append(multiSignatureAddresses, multisigAddress)
+		multisigAddresses = append(multisigAddresses, multisigAddress)
 	}
 
 	return &model.GetMultisigAddressByParticipantAddressResponse{
-		Total:              totalRecords,
-		MultiSignAddresses: multiSignatureAddresses,
+		Total:             totalRecords,
+		MultisigAddresses: multisigAddresses,
 	}, err
 }
 
@@ -374,32 +400,19 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 	param *model.GetMultisigAddressesByBlockHeightRangeRequest,
 ) (*model.GetMultisigAddressesByBlockHeightRangeResponse, error) {
 	var (
-		result            []*model.MultiSignatureInfo
-		subQ              = query.NewCaseQuery()
-		caseQuery         = query.NewCaseQuery()
-		multisigInfoQuery = query.NewMultisignatureInfoQuery()
-		selectQuery       string
-		args              []interface{}
-		totalRecords      uint32
-		err               error
+		multiSignatureInfos []*model.MultiSignatureInfo
+		caseQuery           = query.NewCaseQuery()
+		multisigInfoQuery   = query.NewMultisignatureInfoQuery()
+		selectQuery         string
+		args                []interface{}
+		totalRecords        uint32
+		err                 error
 	)
-	// sub query for getting addresses from multisignature_participant
-	subQ.Select("multisignature_participant", "GROUP_CONCAT(account_address, ',')")
-	subQ.Where("multisig_address = " + multisigInfoQuery.TableName + ".multisig_address")
-	subQ.GroupBy("multisig_address", "block_height")
-	subQ.OrderBy("account_address_index", model.OrderBy_DESC)
-	subQ.As("addresses")
-	subStr, subArgs := subQ.SubBuild()
-
-	caseQuery.Select(multisigInfoQuery.TableName, append(multisigInfoQuery.Fields, subStr)...)
-	caseQuery.Args = append(caseQuery.Args, subArgs...)
-
+	caseQuery.Select(multisigInfoQuery.TableName, multisigInfoQuery.Fields...)
 	caseQuery.Where(caseQuery.Equal("latest", true))
 	caseQuery.And(caseQuery.Between("block_height", param.FromBlockHeight, param.ToBlockHeight))
-
 	selectQuery, args = caseQuery.Build()
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
-
 	countRow, _ := ms.Executor.ExecuteSelectRow(countQuery, false, args...)
 	err = countRow.Scan(
 		&totalRecords,
@@ -421,14 +434,23 @@ func (ms *MultisigService) GetMultisigAddressesByBlockHeightRange(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	defer multisigInfoRows.Close()
-	result, err = ms.MultisignatureInfoQuery.BuildModel(result, multisigInfoRows)
+	multiSignatureInfos, err = ms.MultisignatureInfoQuery.BuildModel(multiSignatureInfos, multisigInfoRows)
 	if err != nil {
 		return nil, err
+	}
+	for idx, multisigInfo := range multiSignatureInfos {
+		multiSignatureInfos[idx].Addresses, err = ms.getMultisigAddressParticipants(multisigInfo.GetMultisigAddress())
+		if err != nil {
+			if err != sql.ErrNoRows {
+				ms.Logger.Error(err)
+				return nil, status.Error(codes.Internal, "server error")
+			}
+		}
 	}
 	return &model.GetMultisigAddressesByBlockHeightRangeResponse{
 		Count:              totalRecords,
 		Page:               param.GetPagination().GetPage(),
-		MultisignatureInfo: result,
+		MultisignatureInfo: multiSignatureInfos,
 	}, err
 }
 
@@ -483,13 +505,14 @@ func (ms *MultisigService) GetParticipantsByMultisigAddresses(
 		return nil, err
 	}
 
+	participantMultiSignatureAddressHex := hex.EncodeToString(multiSignatureParticipant.MultiSignatureAddress)
 	for _, msParticipant := range result {
-		if multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] == nil {
-			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress] = &model.MultiSignatureParticipants{}
+		if multiSignatureParticipants[participantMultiSignatureAddressHex] == nil {
+			multiSignatureParticipants[participantMultiSignatureAddressHex] = &model.MultiSignatureParticipants{}
 		}
 
-		multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants = append(
-			multiSignatureParticipants[multiSignatureParticipant.MultiSignatureAddress].MultiSignatureParticipants,
+		multiSignatureParticipants[participantMultiSignatureAddressHex].MultiSignatureParticipants = append(
+			multiSignatureParticipants[participantMultiSignatureAddressHex].MultiSignatureParticipants,
 			msParticipant)
 	}
 

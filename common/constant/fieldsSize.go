@@ -1,12 +1,7 @@
 package constant
 
-import "github.com/zoobc/lib/address"
-
 var (
-	AccountAddressLength       uint32 = 4
-	NodeAddressLength          uint32 = 4
-	AccountAddress             uint32 = address.ZbcIDLength
-	AccountAddressEmptyLength  uint32
+	AccountAddressTypeLength   uint32 = 4
 	TransactionSignatureLength uint32 = 4
 	// NodePublicKey TODO: this is valid for pub keys generated using Ed25519. in future we might have more implementations
 	NodePublicKey uint32 = 32
@@ -28,6 +23,8 @@ var (
 	DatasetPropertyLength uint32 = 4
 	// DatasetValueLength is max length of string property value in dataset
 	DatasetValueLength uint32 = 4
+
+	TxMessageBytesLength uint32 = 4
 
 	EscrowApproverAddressLength uint32 = 4
 	EscrowCommissionLength      uint32 = 8
