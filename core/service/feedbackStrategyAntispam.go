@@ -15,7 +15,7 @@ type (
 	FeedbackStrategyInterface interface {
 		StartSampling(samplingInterval time.Duration)
 		IsGoroutineLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		IsCpuLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
+		IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		GetSuggestedActions() map[constant.FeedbackAction]bool
 		SetFeedbackVar(k string, v interface{})
@@ -25,7 +25,7 @@ type (
 	// AntiSpamStrategy implements an anti spam filter and it is used to reduce or inhibit number of api requests when the app
 	// reaches some hard limits on concurrent processes, memory and/or cpu
 	AntiSpamStrategy struct {
-		CpuPercentageSamples []float64
+		CPUPercentageSamples []float64
 		MemUsageSamples      []float64
 		GoRoutineSamples     []int
 		// FeedbackVars variables relative to feedback system that can be used by the service where AntiSpamStrategy is injected into and/or
@@ -44,7 +44,7 @@ func NewAntiSpamStrategy(
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
 		Logger:               logger,
-		CpuPercentageSamples: make([]float64, 0, constant.FeedbackTotalSamples),
+		CPUPercentageSamples: make([]float64, 0, constant.FeedbackTotalSamples),
 		MemUsageSamples:      make([]float64, 0, constant.FeedbackTotalSamples),
 		GoRoutineSamples:     make([]int, 0, constant.FeedbackTotalSamples),
 		FeedbackVars: map[string]interface{}{
@@ -74,10 +74,10 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 				ass.FeedbackSamplingLock.RLock()
 				defer ass.FeedbackSamplingLock.RUnlock()
 				cpuPercentage, vm, _ := util.GetHwStats(samplingInterval)
-				if len(ass.CpuPercentageSamples) > 99 {
-					ass.CpuPercentageSamples = append(ass.CpuPercentageSamples[1:], cpuPercentage)
+				if len(ass.CPUPercentageSamples) > 99 {
+					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples[1:], cpuPercentage)
 				} else {
-					ass.CpuPercentageSamples = append(ass.CpuPercentageSamples, cpuPercentage)
+					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples, cpuPercentage)
 				}
 				if len(ass.MemUsageSamples) > 99 {
 					ass.MemUsageSamples = append(ass.MemUsageSamples[1:], vm.UsedPercent)
@@ -150,8 +150,8 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	return limitReached, limitLevel
 }
 
-// IsCpuLimitReached to be implemented
-func (ass *AntiSpamStrategy) IsCpuLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
+// IsCPULimitReached to be implemented
+func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	panic("implement me")
 }
 
@@ -169,9 +169,9 @@ func (ass *AntiSpamStrategy) SetFeedbackVar(k string, v interface{}) {
 
 // GetFeedbackVar get one of the variables useful to determine internal system state. if not set, return nil
 func (ass *AntiSpamStrategy) GetFeedbackVar(k string) interface{} {
-	if v, ok := ass.FeedbackVars[k]; !ok {
+	v, ok := ass.FeedbackVars[k]
+	if !ok {
 		return nil
-	} else {
-		return v
 	}
+	return v
 }

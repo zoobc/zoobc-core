@@ -12,7 +12,6 @@ type (
 )
 
 func (dfs *DummyFeedbackStrategy) StartSampling(samplingInterval time.Duration) {
-	return
 }
 
 func (dfs *DummyFeedbackStrategy) GetSuggestedActions() map[constant.FeedbackAction]bool {
@@ -23,7 +22,7 @@ func (dfs *DummyFeedbackStrategy) IsGoroutineLimitReached(numSamples int) (bool,
 	return false, constant.FeedbackLimitNone
 }
 
-func (dfs *DummyFeedbackStrategy) IsCpuLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
+func (dfs *DummyFeedbackStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	return false, constant.FeedbackLimitNone
 }
 
@@ -32,7 +31,6 @@ func (dfs *DummyFeedbackStrategy) IsMemoryLimitReached(numSamples int) (bool, co
 }
 
 func (dfs *DummyFeedbackStrategy) SetFeedbackVar(k string, v interface{}) {
-	return
 }
 
 func (dfs *DummyFeedbackStrategy) GetFeedbackVar(k string) interface{} {

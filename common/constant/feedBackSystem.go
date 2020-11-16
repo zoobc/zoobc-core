@@ -37,8 +37,8 @@ const (
 	FeedbackLimitCritical
 
 	FeedbackActionAllowAll FeedbackAction = iota
-	FeedbackActionLimitApiRequests
-	FeedbackActionInhibitApiRequests
+	FeedbackActionLimitAPIRequests
+	FeedbackActionInhibitAPIRequests
 	FeedbackActionLimitP2PRequests
 	FeedbackActionInhibitP2PRequests
 	FeedbackActionLimitGoroutines
