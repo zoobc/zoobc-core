@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -227,10 +228,30 @@ func (ts *TransactionService) PostTransaction(
 		tpsReceived  = 1
 		txProcessed  = 1
 		txReceived   = 1
+		feedbackVar  interface{}
 	)
 
+	// TODO: this is an example to prove that, by limiting number of tx per second
+	//  when the node is too busy due to high number of goroutines,
+	//  the network can regulate itself without leading to blockchain splits or hard forks
+	feedbackVar = ts.FeedbackStrategy.GetFeedbackVar("tpsReceived")
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		switch limitLevel {
+		case constant.FeedbackLimitCritical:
+			return nil, status.Error(codes.Internal, "TooManyTps")
+		case constant.FeedbackLimitHigh:
+			if feedbackVar != nil && feedbackVar.(int) > 2 {
+				return nil, status.Error(codes.Internal, "TooManyTps")
+			}
+		case constant.FeedbackLimitMedium:
+			if feedbackVar != nil && feedbackVar.(int) > 5 {
+				return nil, status.Error(codes.Internal, "TooManyTps")
+			}
+		}
+	}
+
 	// Set tpsReceived (transactions per seconds to be processed received by clients)
-	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("tpsReceived"); feedbackVar != nil {
+	if feedbackVar != nil {
 		tpsReceived = feedbackVar.(int) + 1
 	}
 	ts.FeedbackStrategy.SetFeedbackVar("tpsReceived", tpsReceived)

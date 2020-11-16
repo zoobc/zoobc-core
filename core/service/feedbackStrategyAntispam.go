@@ -38,6 +38,7 @@ type (
 	}
 )
 
+// NewAntiSpamStrategy initialize system internal variables
 func NewAntiSpamStrategy(
 	logger *log.Logger,
 ) *AntiSpamStrategy {
@@ -55,10 +56,12 @@ func NewAntiSpamStrategy(
 	}
 }
 
+// GetSuggestedActions given some internal state, return a list of actions that the node should undertake
 func (ass *AntiSpamStrategy) GetSuggestedActions() map[constant.FeedbackAction]bool {
 	panic("implement me")
 }
 
+// StartSampling main feedback service loop to collect system stats
 func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 	ticker := time.NewTicker(constant.FeedbackThreadInterval)
 	tickerResetPerSecondVars := time.NewTicker(time.Second)
@@ -103,6 +106,7 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 	}
 }
 
+// IsGoroutineLimitReached return true if one of the limits has been reached, together with the feedback limit level (from none to critical)
 func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
 	var (
 		counter          int
@@ -146,20 +150,24 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	return limitReached, limitLevel
 }
 
+// IsCpuLimitReached to be implemented
 func (ass *AntiSpamStrategy) IsCpuLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	panic("implement me")
 }
 
+// IsMemoryLimitReached to be implemented
 func (ass *AntiSpamStrategy) IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	panic("implement me")
 }
 
+// SetFeedbackVar set one of the variables useful to determine internal system state
 func (ass *AntiSpamStrategy) SetFeedbackVar(k string, v interface{}) {
 	ass.FeedbackVarsLock.Lock()
 	defer ass.FeedbackVarsLock.Unlock()
 	ass.FeedbackVars[k] = v
 }
 
+// GetFeedbackVar get one of the variables useful to determine internal system state. if not set, return nil
 func (ass *AntiSpamStrategy) GetFeedbackVar(k string) interface{} {
 	if v, ok := ass.FeedbackVars[k]; !ok {
 		return nil
