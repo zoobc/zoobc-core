@@ -22,6 +22,7 @@ type (
 	BlockCacheObject struct {
 		ID        int64
 		Height    uint32
+		Timestamp int64
 		BlockHash []byte
 	}
 )
