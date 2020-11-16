@@ -1552,6 +1552,11 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
+	tmpBlock, err := bs.GetLastBlockCacheFormat()
+	if err != nil {
+		return nil, err
+	}
+	bs.Logger.Errorf("PopOffToBlock-BlocksStorage-LastBlock-height: %d", tmpBlock.Height)
 	// update cache next node admission timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
@@ -1568,6 +1573,11 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	if err != nil {
 		return nil, err
 	}
+	bs.Logger.Errorf(
+		"PopOffToBlock-GetBlockHeightToBuildScrambleNodes-height: %d",
+		bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(commonBlock.Height),
+	)
+
 	/*
 		Need to clearing some cache storage that affected
 	*/
