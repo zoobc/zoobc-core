@@ -327,7 +327,7 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			}
 			scrambledNodes, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlock.Height)
 			if err != nil {
-				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
+				ps.Logger.Errorf("FailGetScrambleNodesByHeight: at height: %d\terror: %v", lastBlock.Height, err)
 				return false
 			}
 
