@@ -43,7 +43,7 @@ type (
 		) (*model.Receipt, error)
 		// CheckDuplication to check duplication of *model.BatchReceipt when get response from send block and send transaction
 		CheckDuplication(publicKey []byte, datumHash []byte) (err error)
-		StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error
+		StoreReceipt(receipt *model.Receipt, chaintype chaintype.ChainType) error
 		ClearCache()
 		SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error
 		GetReceiptFromPool(hash []byte) ([]model.Receipt, error)
@@ -508,17 +508,14 @@ func (rs *ReceiptService) GenerateReceipt(
 	return receipt, err
 }
 
-func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error {
+func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, chaintype chaintype.ChainType) error {
 	b := *receipt
 	err := rs.ReceiptPoolCacheStorage.SetItem(hex.EncodeToString(receipt.DatumHash), b)
 	if err != nil {
 		return err
 	}
 	err = rs.ProvedReceiptReminderStorage.SetItem(hex.EncodeToString(receipt.DatumHash), chaintype)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (rs *ReceiptService) ClearCache() {
