@@ -15,7 +15,7 @@ const (
 	// FeedbackLimitLowPerc percentage of hard limit to be considered medium level
 	FeedbackLimitMediumPerc = 60
 	// FeedbackLimitLowPerc percentage of hard limit to be considered high level
-	FeedbackLimitHighPerc = 90
+	FeedbackLimitHighPerc = 80
 	// FeedbackLimitLowPerc percentage of hard limit to be considered critical level
 	FeedbackLimitCriticalPerc = 100
 
@@ -28,7 +28,7 @@ const (
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 100
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 10000
+	GoRoutineHardLimit = 4000
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
