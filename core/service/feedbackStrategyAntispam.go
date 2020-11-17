@@ -157,6 +157,7 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 		limitLevel = constant.FeedbackLimitNone
 	}
 	// STEF to test only!
+	ass.Logger.Errorf("goroutines (last sample): %d", ass.GoRoutineSamples[len(ass.GoRoutineSamples)-1])
 	ass.Logger.Errorf("goroutines (avg for %d samples): %d", counter, avg)
 	ass.Logger.Errorf("limit level: %v", limitLevel)
 	return limitReached, limitLevel
