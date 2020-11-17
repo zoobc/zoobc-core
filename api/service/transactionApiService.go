@@ -255,7 +255,6 @@ func (ts *TransactionService) PostTransaction(
 		tpsReceived = feedbackVar.(int) + 1
 	}
 	ts.FeedbackStrategy.SetFeedbackVar("tpsReceived", tpsReceived)
-	monitoring.SetTpsReceived(tpsReceived)
 
 	// Set txReceived (transactions to be processed received by clients since last node run)
 	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("txReceived"); feedbackVar != nil {
