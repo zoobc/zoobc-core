@@ -35,7 +35,7 @@ Command line interface to as a utility tools to develop the zoobc system.
 - `--fee` to provide fee transaction, Example `--fee 1`
 - `--post` to define automate post transaction or not. Example: `-post true`
 - `--post-host` to provide where the transaction will post. Example: `--post-host "127.0.0.1:7000"`
-- `--sender-signature-type` to provide type of transaction signature and effected to the type of the sender account. Example: `--sender-signature-type 1`
+- `--message` include an arbitrary message in the transaction (max 256 bytes). Example: `--message "test message"`
 
 ### Transaction Send Money
 
@@ -160,6 +160,16 @@ go run main.go account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5
 ### Account Converting from encoded to hex
 ```bash
 go run main.go account hexconv --encodedAccountAddress="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --accountType=0
+```
+
+### Account Decoding and hex-encoded full account address to its human readable encoded format
+```bash
+go run main.go account account hexdecode --hexAccountAddress="00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01"
+```
+
+### Account Generating account_address table by parsing account_balance table of a given zoobc.db (for debug purposes only)
+```bash
+go run main.go account generateaddresstable
 ```
 
 ## Other Commands

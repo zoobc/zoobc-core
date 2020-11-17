@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 	"path"
@@ -84,13 +85,13 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 				// TODO: move to crypto package in a function
 				switch accType.GetTypeInt() {
 				case 0:
-					ed25519 := crypto.NewEd25519Signature()
+					ed25519 := signaturetype.NewEd25519Signature()
 					encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 					if err != nil {
 						panic(err)
 					}
 				case 1:
-					bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+					bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 					encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
 					if err != nil {
 						panic(err)
@@ -211,7 +212,7 @@ func readCertFile(config *model.Config, fileName string) error {
 		}
 
 		// verifying NodeSeed
-		publicKey := crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
+		publicKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSeed)
 		compareNodeAddress, compareErr := address.EncodeZbcID(constant.PrefixZoobcNodeAccount, publicKey)
 		if compareErr != nil {
 			return compareErr

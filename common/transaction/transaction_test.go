@@ -3,13 +3,13 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -298,6 +298,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery:             query.NewEscrowTransactionQuery(),
 				ActiveNodeRegistryCache: txActiveNodeRegistryCache,
+				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
 			},
 		},
 		{

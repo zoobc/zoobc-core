@@ -26,6 +26,7 @@ type (
 		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
+		GetBlockByHeightCacheFormat(uint32) (*storage.BlockCacheObject, error)
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
 		GetLastBlock() (*model.Block, error)
 		GetLastBlockCacheFormat() (*storage.BlockCacheObject, error)
@@ -51,9 +52,5 @@ type (
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface
 		ReceivedValidatedBlockTransactionsListener() observer.Listener
 		BlockTransactionsRequestedListener() observer.Listener
-		WillSmith(
-			blocksmith *model.Blocksmith,
-			blockchainProcessorLastBlockID int64,
-		) (lastBlockID, blocksmithIndex int64, err error)
 	}
 )

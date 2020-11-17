@@ -6,24 +6,13 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
-
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/takama/daemon"
 	"github.com/ugorji/go/codec"
 	"github.com/zoobc/zoobc-core/api"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -34,6 +23,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -41,6 +31,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -48,6 +39,15 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
 )
 
 var (
@@ -59,7 +59,7 @@ var (
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
-	scrambleNodeStorage, mainBlocksStorage                                 storage.CacheStackStorageInterface
+	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
 	receiptBatchStorage                                                    storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -110,6 +110,8 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -165,14 +167,14 @@ func initiateMainInstance() {
 		// TODO: move to crypto package in a function
 		switch accType.GetTypeInt() {
 		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+			ed25519 := signaturetype.NewEd25519Signature()
 			encodedAccountAddress, err = ed25519.GetAddressFromPublicKey(accType.GetAccountPrefix(), accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
 			}
 		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
 			if err != nil {
 				log.Error(err)
@@ -285,6 +287,7 @@ func initiateMainInstance() {
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	receiptBatchStorage = storage.NewReceiptBatchStackStorage()
+	spineBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -355,6 +358,7 @@ func initiateMainInstance() {
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
 		activeNodeRegistryCacheStorage,
+		mainBlocksStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -413,12 +417,29 @@ func initiateMainInstance() {
 		fileService,
 	)
 
-	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
+	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(mainchain),
+		mainBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		mainchain,
 	)
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(spinechain),
+		spineBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		spinechain,
+	)
+
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
@@ -485,7 +506,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-		mainBlockStateStorage,
+		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
 	)
@@ -578,12 +599,6 @@ func initiateMainInstance() {
 		loggerCoreService,
 	)
 
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
 		query.NewAccountLedgerQuery(),
@@ -844,6 +859,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -886,6 +906,7 @@ func startMainchain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategyMain,
 		)
 		mainchainProcessor.Start(sleepPeriod)
 	}
@@ -968,6 +989,7 @@ func startSpinechain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategySpine,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}
@@ -1012,7 +1034,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-
+	// scheduler to generate receipt merkle root
+	if err := schedulerInstance.AddJob(
+		constant.ReceiptGenerateMarkleRootPeriod,
+		receiptService.GenerateReceiptsMerkleRoot,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err : ", err.Error())
+	}
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

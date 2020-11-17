@@ -36,11 +36,12 @@ func setupVerifyAuthAPI() {
 	bufferInvalidTimestamp.Write(util.ConvertUint32ToBytes(0))
 	validSignature, _ := (&Signature{}).Sign(
 		bufferValid.Bytes(),
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		mockOwnerSeed,
 	)
 	bufferValid.Write(validSignature)
-	mockValidAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
+	validAuthBytes := bufferValid.Bytes()
+	mockValidAuth = base64.StdEncoding.EncodeToString(validAuthBytes)
 	bufferValid.Write([]byte{1, 2})
 	mockInvalidSignatureAuth = base64.StdEncoding.EncodeToString(bufferValid.Bytes())
 	mockInvalidTimestampAuth = base64.StdEncoding.EncodeToString(bufferInvalidTimestamp.Bytes())

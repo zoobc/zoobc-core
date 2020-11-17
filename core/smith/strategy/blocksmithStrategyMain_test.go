@@ -1,378 +1,30 @@
 package strategy
 
 import (
-	"database/sql"
-	"errors"
+	"github.com/zoobc/zoobc-core/common/query"
 	"math/big"
 	"reflect"
-	"sync"
 	"testing"
-	"time"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-
-	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
 
 	log "github.com/sirupsen/logrus"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
 )
 
-var (
-	mockBlock = &model.Block{
-		BlockSeed: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
-		Height:    1,
-	}
-	bssNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	bssNodePubKey2 = []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	bssMockBlocksmiths = []*model.Blocksmith{
-		{
-			NodePublicKey: bssNodePubKey1,
-			NodeID:        2,
-			NodeOrder:     new(big.Int).SetInt64(1000),
-			Score:         new(big.Int).SetInt64(1000),
-		},
-		{
-			NodePublicKey: bssNodePubKey2,
-			NodeID:        3,
-			NodeOrder:     new(big.Int).SetInt64(2000),
-			Score:         new(big.Int).SetInt64(2000),
-		},
-		{
-			NodePublicKey: bssMockBlockData.BlocksmithPublicKey,
-			NodeID:        4,
-			NodeOrder:     new(big.Int).SetInt64(3000),
-			Score:         new(big.Int).SetInt64(3000),
-		},
-	}
-	bssMockBlockData = model.Block{
-		ID:        constant.MainchainGenesisBlockID,
-		BlockHash: make([]byte, 32),
-		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
-			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-		Height:    1,
-		Timestamp: 1,
-		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
-		CumulativeDifficulty: "1000",
-		PayloadLength:        1,
-		PayloadHash:          []byte{},
-		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		TotalAmount:   1000,
-		TotalFee:      0,
-		TotalCoinBase: 1,
-		Version:       0,
-	}
-)
-
-type (
-	mockQueryGetBlocksmithsMainSuccessNoBlocksmith struct {
-		query.Executor
-	}
-	mockQueryGetBlocksmithsMainSuccessWithBlocksmith struct {
-		query.Executor
-	}
-
-	mockQuerySortBlocksmithMainSuccessWithBlocksmiths struct {
-		query.Executor
-	}
-	mockQueryGetBlocksmithsMainFail struct {
-		query.Executor
-	}
-)
-
-func (*mockQueryGetBlocksmithsMainFail) ExecuteSelect(
-	qStr string, tx bool, args ...interface{},
-) (*sql.Rows, error) {
-	return nil, errors.New("mockError")
-}
-
-func (*mockQueryGetBlocksmithsMainSuccessNoBlocksmith) ExecuteSelect(
-	qStr string, tx bool, args ...interface{},
-) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mockNodeRegistrationQuery := query.NewNodeRegistrationQuery()
-	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(mockNodeRegistrationQuery.Fields))
-	rows, _ := db.Query("foo")
-	return rows, nil
-}
-
-func (*mockQuerySortBlocksmithMainSuccessWithBlocksmiths) ExecuteSelect(
-	qStr string, tx bool, args ...interface{},
-) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
-		[]string{"NodeID", "PublicKey", "Score", "maxHeight"},
-	).AddRow(
-		bssMockBlocksmiths[0].NodeID,
-		bssMockBlocksmiths[0].NodePublicKey,
-		bssMockBlocksmiths[0].Score.String(),
-		uint32(1),
-	).AddRow(
-		bssMockBlocksmiths[1].NodeID,
-		bssMockBlocksmiths[1].NodePublicKey,
-		bssMockBlocksmiths[1].Score.String(),
-		uint32(1),
-	))
-	rows, _ := db.Query("foo")
-	return rows, nil
-}
-
-func (*mockQueryGetBlocksmithsMainSuccessWithBlocksmith) ExecuteSelect(
-	qStr string, tx bool, args ...interface{},
-) (*sql.Rows, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery("foo").WillReturnRows(sqlmock.NewRows(
-		[]string{"NodeID", "PublicKey", "Score", "maxHeight"},
-	).AddRow(
-		bssMockBlocksmiths[0].NodeID,
-		bssMockBlocksmiths[0].NodePublicKey,
-		bssMockBlocksmiths[0].Score.String(),
-		uint32(1),
-	))
-	rows, _ := db.Query("foo")
-	return rows, nil
-}
-func TestBlocksmithService_GetBlocksmiths(t *testing.T) {
-	type fields struct {
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		Logger                   *log.Logger
-		SortedBlocksmiths        []*model.Blocksmith
-		SortedBlocksmithsMap     map[string]*int64
-		SortedBlocksmithsMapLock sync.RWMutex
-	}
+func TestNewBlocksmithStrategy(t *testing.T) {
 	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    []*model.Blocksmith
-		wantErr bool
-	}{
-		{
-			name: "fail - ExecuteSelect Fail",
-			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsMainFail{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-			},
-			args:    args{&model.Block{}},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "success - no blocksmiths",
-			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsMainSuccessNoBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-			},
-			args:    args{&model.Block{}},
-			wantErr: false,
-			want:    nil,
-		},
-		{
-			name: "success - with blocksmiths",
-			fields: fields{
-				QueryExecutor:         &mockQueryGetBlocksmithsMainSuccessWithBlocksmith{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-			},
-			args:    args{mockBlock},
-			wantErr: false,
-			want: []*model.Blocksmith{
-				{
-					NodeID:        bssMockBlocksmiths[0].NodeID,
-					BlockSeed:     -7765827254621503546,
-					NodeOrder:     new(big.Int).SetInt64(13195850646937615),
-					Score:         bssMockBlocksmiths[0].Score,
-					NodePublicKey: bssMockBlocksmiths[0].NodePublicKey,
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategyMain{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
-			}
-			got, err := bss.GetBlocksmiths(tt.args.block)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetBlocksmiths() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetBlocksmiths() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBlocksmithService_GetSortedBlocksmiths(t *testing.T) {
-	type fields struct {
-		QueryExecutor            query.ExecutorInterface
-		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
-		Logger                   *log.Logger
-		SortedBlocksmiths        []*model.Blocksmith
-		SortedBlocksmithsMap     map[string]*int64
-		SortedBlocksmithsMapLock sync.RWMutex
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   []*model.Blocksmith
-	}{
-		{
-			name: "success : last sorted block id = incoming block id",
-			fields: fields{
-				QueryExecutor:            nil,
-				NodeRegistrationQuery:    nil,
-				Logger:                   nil,
-				SortedBlocksmiths:        bssMockBlocksmiths,
-				SortedBlocksmithsMap:     nil,
-				SortedBlocksmithsMapLock: sync.RWMutex{},
-			},
-			want: bssMockBlocksmiths,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategyMain{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     1,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
-				SortedBlocksmithsLock: tt.fields.SortedBlocksmithsMapLock,
-			}
-			if got := bss.GetSortedBlocksmiths(&model.Block{ID: 1}); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetSortedBlocksmiths() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBlocksmithService_GetSortedBlocksmithsMap(t *testing.T) {
-	var mockBlocksmithMap = make(map[string]*int64)
-	for index, mockBlocksmith := range bssMockBlocksmiths {
-		mockIndex := int64(index)
-		mockBlocksmithMap[string(mockBlocksmith.NodePublicKey)] = &mockIndex
-	}
-	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		SortedBlocksmithsMap  map[string]*int64
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   map[string]*int64
-	}{
-		{
-			name: "success",
-			fields: fields{
-				QueryExecutor:         nil,
-				NodeRegistrationQuery: nil,
-				Logger:                nil,
-				SortedBlocksmiths:     bssMockBlocksmiths,
-				SortedBlocksmithsMap:  mockBlocksmithMap,
-			},
-			want: mockBlocksmithMap,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategyMain{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:     1,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
-			}
-			if got := bss.GetSortedBlocksmithsMap(&model.Block{ID: 1}); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetSortedBlocksmithsMap() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestBlocksmithService_SortBlocksmiths(t *testing.T) {
-	type fields struct {
-		QueryExecutor         query.ExecutorInterface
-		NodeRegistrationQuery query.NodeRegistrationQueryInterface
-		Logger                *log.Logger
-		SortedBlocksmiths     []*model.Blocksmith
-		SortedBlocksmithsMap  map[string]*int64
-		LastSortedBlockID     int64
-	}
-	type args struct {
-		block *model.Block
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		{
-			name: "Success",
-			fields: fields{
-				QueryExecutor:         &mockQuerySortBlocksmithMainSuccessWithBlocksmiths{},
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Logger:                log.New(),
-				SortedBlocksmiths:     nil,
-				SortedBlocksmithsMap:  make(map[string]*int64),
-				LastSortedBlockID:     1,
-			},
-			args: args{
-				block: mockBlock,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategyMain{
-				QueryExecutor:         tt.fields.QueryExecutor,
-				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
-				Logger:                tt.fields.Logger,
-				SortedBlocksmiths:     tt.fields.SortedBlocksmiths,
-				SortedBlocksmithsMap:  tt.fields.SortedBlocksmithsMap,
-				LastSortedBlockID:     tt.fields.LastSortedBlockID,
-			}
-			bss.SortBlocksmiths(tt.args.block, true)
-			if bss.SortedBlocksmiths[0].NodeID != bssMockBlocksmiths[0].NodeID &&
-				bss.SortedBlocksmiths[1].NodeID != bssMockBlocksmiths[1].NodeID {
-				t.Errorf("sorting fail")
-			}
-		})
-	}
-}
-
-func TestNewBlocksmithService(t *testing.T) {
-	type args struct {
-		queryExecutor          query.ExecutorInterface
-		nodeRegistrationQuery  query.NodeRegistrationQueryInterface
-		skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
-		logger                 *log.Logger
+		logger                  *log.Logger
+		activeNodeRegistryCache storage.CacheStorageInterface
+		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
+		blockQuery              query.BlockQueryInterface
+		blockStorage            storage.CacheStackStorageInterface
+		queryExecutor           query.ExecutorInterface
+		chaintype               chaintype.ChainType
+		rng                     *crypto.RandomNumberGenerator
 	}
 	tests := []struct {
 		name string
@@ -384,120 +36,231 @@ func TestNewBlocksmithService(t *testing.T) {
 			args: args{
 				logger: nil,
 			},
-			want: NewBlocksmithStrategyMain(nil, nil, nil, nil),
+			want: NewBlocksmithStrategyMain(
+				nil, nil, nil, nil, nil, nil, nil, nil, nil,
+			),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlocksmithStrategyMain(tt.args.queryExecutor, tt.args.nodeRegistrationQuery,
-				tt.args.skippedBlocksmithQuery, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlocksmithStrategyMain(
+				tt.args.logger, nil, tt.args.activeNodeRegistryCache, tt.args.skippedBlocksmithQuery,
+				tt.args.blockQuery, tt.args.blockStorage, tt.args.queryExecutor,
+				tt.args.rng, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
+func TestBlocksmithStrategyMain_convertRandomNumberToIndex(t *testing.T) {
 	type fields struct {
-		QueryExecutor                          query.ExecutorInterface
-		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
-		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
-		Logger                                 *log.Logger
-		SortedBlocksmiths                      []*model.Blocksmith
-		LastSortedBlockID                      int64
-		LastEstimatedBlockPersistedTimestamp   int64
-		LastEstimatedPersistedTimestampBlockID int64
-		SortedBlocksmithsLock                  sync.RWMutex
-		SortedBlocksmithsMap                   map[string]*int64
+		Chaintype                      chaintype.ChainType
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
+		CurrentNodePublicKey           []byte
+		candidates                     []Candidate
+		me                             Candidate
+		lastBlockHash                  []byte
+		rng                            *crypto.RandomNumberGenerator
 	}
 	type args struct {
-		blocksmithIndex     int64
-		numberOfBlocksmiths int64
-		previousBlock       *model.Block
-		currentBlock        *model.Block
+		randNumber              int64
+		activeNodeRegistryCount int64
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   int
+	}{
+		{
+			name:   "convertRandomNumberToIndex:Success",
+			fields: fields{},
+			args: args{
+				randNumber:              1002,
+				activeNodeRegistryCount: 100,
+			},
+			want: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategyMain{
+				Chaintype:                      tt.fields.Chaintype,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
+				Logger:                         tt.fields.Logger,
+				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
+				candidates:                     tt.fields.candidates,
+				me:                             tt.fields.me,
+				lastBlockHash:                  tt.fields.lastBlockHash,
+				rng:                            tt.fields.rng,
+			}
+			if got := bss.convertRandomNumberToIndex(tt.args.randNumber, tt.args.activeNodeRegistryCount); got != tt.want {
+				t.Errorf("convertRandomNumberToIndex() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+var (
+	mockNodeRegistries = []storage.NodeRegistry{
+		{
+			Node: model.NodeRegistration{
+				NodeID:        1,
+				NodePublicKey: append([]byte{1}, make([]byte, 31)...),
+			},
+			ParticipationScore: 100,
+		},
+		{
+			Node: model.NodeRegistration{
+				NodeID:        2,
+				NodePublicKey: append([]byte{2}, make([]byte, 31)...),
+			},
+			ParticipationScore: 200,
+		},
+		{
+			Node: model.NodeRegistration{
+				NodeID:        3,
+				NodePublicKey: append([]byte{3}, make([]byte, 31)...),
+			},
+			ParticipationScore: 300,
+		},
+		{
+			Node: model.NodeRegistration{
+				NodeID:        4,
+				NodePublicKey: append([]byte{4}, make([]byte, 31)...),
+			},
+			ParticipationScore: 400,
+		},
+		{
+			Node: model.NodeRegistration{
+				NodeID:        5,
+				NodePublicKey: append([]byte{5}, make([]byte, 31)...),
+			},
+			ParticipationScore: 500,
+		},
+	}
+)
+
+type (
+	mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (*mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates) GetAllItems(items interface{}) error {
+	copyItems, _ := items.(*[]storage.NodeRegistry)
+	*copyItems = mockNodeRegistries
+	return nil
+}
+
+func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
+	type fields struct {
+		Chaintype                      chaintype.ChainType
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
+		CurrentNodePublicKey           []byte
+		candidates                     []Candidate
+		me                             Candidate
+		lastBlockHash                  []byte
+		rng                            *crypto.RandomNumberGenerator
+	}
+	type args struct {
+		previousBlock *model.Block
+		block         *model.Block
 	}
 	mainchain := &chaintype.MainChain{}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
+		want    []*model.Blocksmith
 		wantErr bool
 	}{
 		{
-			name: "blocksmithIndex=0 && timeSinceLast > 15",
+			name: "Success:OneSmithingCandidate",
 			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   0,
-				LastEstimatedPersistedTimestampBlockID: 1,
-				SortedBlocksmithsLock:                  sync.RWMutex{},
-				SortedBlocksmithsMap:                   nil,
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 10,
 				previousBlock: &model.Block{
-					ID: int64(1),
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+					Timestamp: 0,
 				},
-				currentBlock: &model.Block{
-					Timestamp: 16,
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(),
+				},
+			},
+			want: []*model.Blocksmith{
+				{
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "blocksmithIndex=1 && blocksmith expired",
+			name: "Fail:FiveSmithingCandidate-BlocksmithNotInListCandidate",
 			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   0,
-				LastEstimatedPersistedTimestampBlockID: 1,
-				SortedBlocksmithsLock:                  sync.RWMutex{},
-				SortedBlocksmithsMap:                   nil,
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 10,
 				previousBlock: &model.Block{
-					ID: int64(1),
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+					Timestamp: 0,
 				},
-				currentBlock: &model.Block{
-					Timestamp: 26 + mainchain.GetBlocksmithTimeGap() + mainchain.GetBlocksmithNetworkTolerance() +
-						mainchain.GetBlocksmithBlockCreationTime(),
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+					BlocksmithPublicKey: mockNodeRegistries[4].Node.GetNodePublicKey(),
 				},
 			},
+			want:    nil,
 			wantErr: true,
 		},
 		{
-			name: "blocksmithIndex=1 && blocksmith pending",
+			name: "Success:FiveSmithingCandidate - FirstOne",
 			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   0,
-				LastEstimatedPersistedTimestampBlockID: 1,
-				SortedBlocksmithsLock:                  sync.RWMutex{},
-				SortedBlocksmithsMap:                   nil,
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 10,
 				previousBlock: &model.Block{
-					ID: int64(1),
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+					Timestamp: 0,
 				},
-				currentBlock: &model.Block{
-					Timestamp: 1,
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(),
 				},
 			},
-			wantErr: true,
-		},
-		{
-			name: "blocksmithIndex=1 && blocksmith valid time",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   0,
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     1,
-				numberOfBlocksmiths: 10,
-				previousBlock: &model.Block{
-					ID: int64(1),
-				},
-				currentBlock: &model.Block{
-					Timestamp: 26,
+			want: []*model.Blocksmith{
+				{
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
 			},
 			wantErr: false,
@@ -506,20 +269,110 @@ func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategyMain{
-				QueryExecutor:                          tt.fields.QueryExecutor,
-				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
-				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
-				Logger:                                 log.New(),
-				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
-				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
-				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
-				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
-				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
+				Chaintype:                      tt.fields.Chaintype,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
+				Logger:                         tt.fields.Logger,
+				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
+				candidates:                     tt.fields.candidates,
+				me:                             tt.fields.me,
+				lastBlockHash:                  tt.fields.lastBlockHash,
+				rng:                            tt.fields.rng,
 			}
-			if err := bss.IsBlockTimestampValid(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock,
-				tt.args.currentBlock); (err != nil) != tt.wantErr {
-				t.Errorf("IsBlockTimestampValid() error = %v, wantErr %v", err, tt.wantErr)
+			got, err := bss.GetBlocksBlocksmiths(tt.args.previousBlock, tt.args.block)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetBlocksBlocksmiths() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("GetBlocksBlocksmiths() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlocksmithStrategyMain_GetSmithingRound(t *testing.T) {
+	type fields struct {
+		Chaintype                      chaintype.ChainType
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
+		CurrentNodePublicKey           []byte
+		candidates                     []Candidate
+		me                             Candidate
+		lastBlockHash                  []byte
+		rng                            *crypto.RandomNumberGenerator
+	}
+	type args struct {
+		previousBlock *model.Block
+		block         *model.Block
+	}
+	mainchain := &chaintype.MainChain{}
+	spinechain := &chaintype.SpineChain{}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   int
+	}{
+		{
+			name: "OneRound",
+			fields: fields{
+				Chaintype: mainchain,
+			},
+			args: args{
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				block: &model.Block{
+					Timestamp: mainchain.GetSmithingPeriod(),
+				},
+			},
+			want: 1,
+		},
+		{
+			name: "MultipleRound",
+			fields: fields{
+				Chaintype: mainchain,
+			},
+			args: args{
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				block: &model.Block{
+					Timestamp: mainchain.GetSmithingPeriod() + 4*mainchain.GetBlocksmithTimeGap(),
+				},
+			},
+			want: 5,
+		},
+		{
+			name: "MultipleRound-Spinechain",
+			fields: fields{
+				Chaintype: spinechain,
+			},
+			args: args{
+				previousBlock: &model.Block{
+					Timestamp: 0,
+				},
+				block: &model.Block{
+					Timestamp: spinechain.GetSmithingPeriod() + 4*spinechain.GetBlocksmithTimeGap(),
+				},
+			},
+			want: 5,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bss := &BlocksmithStrategyMain{
+				Chaintype:                      tt.fields.Chaintype,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
+				Logger:                         tt.fields.Logger,
+				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
+				candidates:                     tt.fields.candidates,
+				me:                             tt.fields.me,
+				lastBlockHash:                  tt.fields.lastBlockHash,
+				rng:                            tt.fields.rng,
+			}
+			if got, _ := bss.GetSmithingRound(tt.args.previousBlock, tt.args.block); got != tt.want {
+				t.Errorf("GetSmithingRound() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -527,146 +380,21 @@ func TestBlocksmithStrategyMain_IsBlockTimestampValid(t *testing.T) {
 
 func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 	type fields struct {
-		QueryExecutor                          query.ExecutorInterface
-		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
-		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
-		Logger                                 *log.Logger
-		SortedBlocksmiths                      []*model.Blocksmith
-		LastSortedBlockID                      int64
-		LastEstimatedBlockPersistedTimestamp   int64
-		LastEstimatedPersistedTimestampBlockID int64
-		SortedBlocksmithsLock                  sync.RWMutex
-		SortedBlocksmithsMap                   map[string]*int64
-	}
-	type args struct {
-		blocksmithIndex     int64
-		numberOfBlocksmiths int64
-		previousBlock       *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name:   "previousBlock-genesis",
-			fields: fields{},
-			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 0,
-				previousBlock: &model.Block{
-					Height: 0,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "timeSinceLastBlock < smithing period",
-			fields: fields{
-				LastSortedBlockID:                      0,
-				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix(),
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 0,
-				previousBlock: &model.Block{
-					Height: 1,
-					ID:     1,
-				},
-			},
-			wantErr: true,
-		},
-		{
-			name: "can persist block-first round",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 65,
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     1,
-				numberOfBlocksmiths: 3,
-				previousBlock: &model.Block{
-					Height: 1,
-					ID:     1,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "can persist block-multiple round",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 95,
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     1,
-				numberOfBlocksmiths: 3,
-				previousBlock: &model.Block{
-					Height: 1,
-					ID:     1,
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "canPersist",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - 1000,
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 10,
-				previousBlock: &model.Block{
-					Height: 1,
-					ID:     1,
-				},
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bss := &BlocksmithStrategyMain{
-				QueryExecutor:                          tt.fields.QueryExecutor,
-				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
-				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
-				Logger:                                 tt.fields.Logger,
-				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
-				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
-				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
-				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
-				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
-			}
-			if err := bss.CanPersistBlock(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
-				t.Errorf("CanPersistBlock() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestBlocksmithStrategyMain_IsValidSmithTime(t *testing.T) {
-	type fields struct {
-		QueryExecutor                          query.ExecutorInterface
-		NodeRegistrationQuery                  query.NodeRegistrationQueryInterface
-		SkippedBlocksmithQuery                 query.SkippedBlocksmithQueryInterface
-		Logger                                 *log.Logger
-		SortedBlocksmiths                      []*model.Blocksmith
-		LastSortedBlockID                      int64
-		LastEstimatedBlockPersistedTimestamp   int64
-		LastEstimatedPersistedTimestampBlockID int64
-		SortedBlocksmithsLock                  sync.RWMutex
-		SortedBlocksmithsMap                   map[string]*int64
-	}
-	type args struct {
-		blocksmithIndex     int64
-		numberOfBlocksmiths int64
-		previousBlock       *model.Block
+		Chaintype                      chaintype.ChainType
+		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		Logger                         *log.Logger
+		CurrentNodePublicKey           []byte
+		candidates                     []Candidate
+		me                             Candidate
+		lastBlockHash                  []byte
+		rng                            *crypto.RandomNumberGenerator
 	}
 	mainchain := &chaintype.MainChain{}
+	type args struct {
+		previousBlock *model.Block
+		block         *model.Block
+		timestamp     int64
+	}
 	tests := []struct {
 		name    string
 		fields  fields
@@ -674,77 +402,121 @@ func TestBlocksmithStrategyMain_IsValidSmithTime(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "TimeSinceLastBlock < SmithPeriod",
+			name: "CanPersistBlock:True - FirstBlocksmith",
 			fields: fields{
-				LastEstimatedBlockPersistedTimestamp:   time.Now().Unix() - (mainchain.GetSmithingPeriod() - 1),
-				LastEstimatedPersistedTimestampBlockID: 1,
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 3,
-				previousBlock:       &model.Block{ID: 1},
-			},
-			wantErr: true,
-		},
-		{
-			name: "SmithingPending",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
-					(mainchain.GetBlocksmithBlockCreationTime() + mainchain.GetBlocksmithNetworkTolerance() + 1),
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     0,
-				numberOfBlocksmiths: 6,
-				previousBlock:       &model.Block{ID: 1},
-			},
-			wantErr: true,
-		},
-		{
-			name: "allowedBegin-one round",
-			fields: fields{
-				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
-					mainchain.GetBlocksmithTimeGap() - 1,
-				LastEstimatedPersistedTimestampBlockID: 1,
-			},
-			args: args{
-				blocksmithIndex:     1,
-				numberOfBlocksmiths: 6,
-				previousBlock:       &model.Block{ID: 1},
+				previousBlock: &model.Block{
+					Timestamp: 0,
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+				},
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(),
+				},
+				timestamp: 25,
 			},
 			wantErr: false,
 		},
 		{
-			name: "allowedBegin-multiple round",
+			name: "CanPersistBlock:CanPersistWithinBlockCreationTime - FirstBlocksmith",
 			fields: fields{
-				LastEstimatedBlockPersistedTimestamp: time.Now().Unix() - mainchain.GetSmithingPeriod() -
-					(11 * mainchain.GetBlocksmithTimeGap()) - 1,
-				LastEstimatedPersistedTimestampBlockID: 1,
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
-				blocksmithIndex:     1,
-				numberOfBlocksmiths: 6,
-				previousBlock:       &model.Block{ID: 1},
+				previousBlock: &model.Block{
+					Timestamp: 0,
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+				},
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(), // first blocksmith with provided blockseed
+				},
+				timestamp: mainchain.GetSmithingPeriod() + mainchain.GetBlocksmithBlockCreationTime(),
 			},
 			wantErr: false,
+		},
+		{
+			name: "CanPersistBlock:Expired - Fourth Blocksmith",
+			fields: fields{
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
+			},
+			args: args{
+				previousBlock: &model.Block{
+					Timestamp: 0,
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+				},
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod() + mainchain.GetBlocksmithBlockCreationTime() + mainchain.GetBlocksmithNetworkTolerance(),
+					BlocksmithPublicKey: mockNodeRegistries[3].Node.GetNodePublicKey(), // first blocksmith with provided blockseed
+				},
+				timestamp: mainchain.GetSmithingPeriod() + (4 * mainchain.GetBlocksmithTimeGap()) + mainchain.GetBlocksmithBlockCreationTime() +
+					mainchain.GetBlocksmithNetworkTolerance() + 1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "CanPersistBlock:CanPersist - SecondBlocksmith",
+			fields: fields{
+				Chaintype:                      mainchain,
+				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
+				Logger:                         nil,
+				CurrentNodePublicKey:           nil,
+				candidates:                     nil,
+				me:                             Candidate{},
+				lastBlockHash:                  nil,
+				rng:                            crypto.NewRandomNumberGenerator(),
+			},
+			args: args{
+				previousBlock: &model.Block{
+					Timestamp: 0,
+					BlockSeed: util.ConvertUint64ToBytes(12345),
+				},
+				block: &model.Block{
+					Timestamp:           mainchain.GetSmithingPeriod() + mainchain.GetBlocksmithBlockCreationTime() + mainchain.GetBlocksmithNetworkTolerance(),
+					BlocksmithPublicKey: mockNodeRegistries[4].Node.GetNodePublicKey(), // first blocksmith with provided blockseed
+				},
+				timestamp: mainchain.GetSmithingPeriod() + mainchain.GetBlocksmithBlockCreationTime() + mainchain.GetBlocksmithNetworkTolerance() + 1,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategyMain{
-				QueryExecutor:                          tt.fields.QueryExecutor,
-				NodeRegistrationQuery:                  tt.fields.NodeRegistrationQuery,
-				SkippedBlocksmithQuery:                 tt.fields.SkippedBlocksmithQuery,
-				Logger:                                 tt.fields.Logger,
-				SortedBlocksmiths:                      tt.fields.SortedBlocksmiths,
-				LastSortedBlockID:                      tt.fields.LastSortedBlockID,
-				LastEstimatedBlockPersistedTimestamp:   tt.fields.LastEstimatedBlockPersistedTimestamp,
-				LastEstimatedPersistedTimestampBlockID: tt.fields.LastEstimatedPersistedTimestampBlockID,
-				SortedBlocksmithsLock:                  tt.fields.SortedBlocksmithsLock,
-				SortedBlocksmithsMap:                   tt.fields.SortedBlocksmithsMap,
+				Chaintype:                      tt.fields.Chaintype,
+				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
+				Logger:                         tt.fields.Logger,
+				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
+				candidates:                     tt.fields.candidates,
+				me:                             tt.fields.me,
+				lastBlockHash:                  tt.fields.lastBlockHash,
+				rng:                            tt.fields.rng,
 			}
-			if err := bss.IsValidSmithTime(tt.args.blocksmithIndex, tt.args.numberOfBlocksmiths, tt.args.previousBlock); (err != nil) != tt.wantErr {
-				t.Errorf("IsValidSmithTime() error = %v, wantErr %v", err, tt.wantErr)
+			if err := bss.CanPersistBlock(tt.args.previousBlock, tt.args.block, tt.args.timestamp); (err != nil) != tt.wantErr {
+				t.Errorf("CanPersistBlock() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

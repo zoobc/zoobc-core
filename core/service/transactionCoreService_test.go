@@ -144,6 +144,7 @@ func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q 
 			mockedTX.GetVersion(),
 			mockedTX.GetTransactionIndex(),
 			mockedTX.GetMultisigChild(),
+			mockedTX.GetMessage(),
 		))
 	default:
 		mockedEscrow := mockedTX.GetEscrow()
@@ -443,6 +444,7 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ b
 		tx.GetVersion(),
 		tx.GetTransactionIndex(),
 		tx.GetMultisigChild(),
+		tx.GetMessage(),
 	)
 	mock.ExpectQuery(qStr).WillReturnRows(mockedRows)
 	return db.QueryRow(qStr), nil

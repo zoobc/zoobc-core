@@ -58,7 +58,7 @@ func TestNewMempoolService(t *testing.T) {
 		receiptUtil            coreUtil.ReceiptUtilInterface
 		receiptService         ReceiptServiceInterface
 		TransactionCoreService TransactionCoreServiceInterface
-		BlockStateStorage      storage.CacheStorageInterface
+		BlockStateStorage      storage.CacheStackStorageInterface
 		MempoolCacheStorage    storage.CacheStorageInterface
 	}
 
@@ -792,7 +792,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	}
 	type args struct {
 		senderPublicKey, receivedTxBytes []byte
-		lastBlock                        *model.Block
+		lastBlock                        *storage.BlockCacheObject
 		nodeSecretPhrase                 string
 	}
 	type want struct {
@@ -982,6 +982,9 @@ type (
 	mockCacheStorageAlwaysSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockAddMempoolTransactionBlockStateStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 )
 
 func (*mockCacheStorageAlwaysSuccess) SetItem(key, item interface{}) error { return nil }
@@ -989,7 +992,15 @@ func (*mockCacheStorageAlwaysSuccess) GetItem(key, item interface{}) error { ret
 func (*mockCacheStorageAlwaysSuccess) GetAllItems(item interface{}) error  { return nil }
 func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { return nil }
 func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
+func (*mockCacheStorageAlwaysSuccess) GetTotalItems() int                  { return 0 }
 func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
+
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Pop() error               { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Push(interface{}) error   { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) PopTo(uint32) error       { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) GetAll(interface{}) error { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) GetTop(interface{}) error { return nil }
+func (*mockAddMempoolTransactionBlockStateStorageSuccess) Clear() error             { return nil }
 
 func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 	type fields struct {
@@ -997,7 +1008,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 		MempoolQuery       query.MempoolQueryInterface
 		BlockQuery         query.BlockQueryInterface
 		ActionTypeSwitcher transaction.TypeActionSwitcher
-		BlockStateStorage  storage.CacheStorageInterface
+		BlockStateStorage  storage.CacheStackStorageInterface
 		MempoolStorage     storage.CacheStorageInterface
 		Observer           *observer.Observer
 	}
@@ -1017,7 +1028,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				BlockQuery:         query.NewBlockQuery(chaintype.GetChainType(0)),
 				QueryExecutor:      &mockMempoolQueryExecutorSuccess{},
 				ActionTypeSwitcher: &transaction.TypeSwitcher{},
-				BlockStateStorage:  &mockCacheStorageAlwaysSuccess{},
+				BlockStateStorage:  &mockAddMempoolTransactionBlockStateStorageSuccess{},
 				MempoolStorage:     &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
@@ -1039,7 +1050,7 @@ func TestMempoolService_AddMempoolTransaction(t *testing.T) {
 				QueryExecutor:       tt.fields.QueryExecutor,
 				MempoolQuery:        tt.fields.MempoolQuery,
 				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				BlockStateStorage:   tt.fields.BlockStateStorage,
+				BlocksStorage:       tt.fields.BlockStateStorage,
 				MempoolCacheStorage: tt.fields.MempoolStorage,
 			}
 			if err := mps.AddMempoolTransaction(tt.args.mpTx, nil); (err != nil) != tt.wantErr {
@@ -1080,6 +1091,7 @@ func (*mockExecutorValidateMempoolTransactionSuccess) ExecuteSelectRow(qStr stri
 			nil,
 			make([]byte, 64),
 			false,
+			"",
 		),
 	)
 	return db.QueryRow(qStr), nil
@@ -1168,7 +1180,7 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	)
 	txBytes, _ := transactionUtil.GetTransactionBytes(successTx, false)
 	txBytesHash := sha3.Sum256(txBytes)
-	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
 		Chaintype              chaintype.ChainType

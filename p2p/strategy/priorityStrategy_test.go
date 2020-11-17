@@ -2133,6 +2133,7 @@ func TestPriorityStrategy_UpdateOwnNodeAddressInfo(t *testing.T) {
 					successGetNodeAddressesInfoFromDb:         true,
 				},
 				NodeAddressesInfoService: &mockUpdateOwnNodeAddressInfoNodeAddressesInfoServiceSuccess{},
+				PeerServiceClient:        &p2pMockPeerServiceClient{},
 				Logger:                   log.New(),
 			},
 		},

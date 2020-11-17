@@ -126,9 +126,25 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	// update cache by replace
 	switch model.NodeRegistrationState(nodeReg.GetRegistrationStatus()) {
 	case model.NodeRegistrationState_NodeQueued:
-		err = tx.PendingNodeRegistrationCache.TxSetItem(nodeReg.NodeID, nodeReg)
+		err = tx.PendingNodeRegistrationCache.TxSetItem(nodeReg.NodeID, storage.NodeRegistry{
+			Node:               nodeReg,
+			ParticipationScore: 0, // pending node registry doesn't have participation score yet
+		})
 	case model.NodeRegistrationState_NodeRegistered:
-		err = tx.ActiveNodeRegistrationCache.TxSetItem(nodeReg.NodeID, nodeReg)
+		var (
+			nodeRegFromCache storage.NodeRegistry
+		)
+		// fetch previous state data to get the participation score
+		if activeNonTxCache, ok := tx.ActiveNodeRegistrationCache.(storage.CacheStorageInterface); ok {
+			err := activeNonTxCache.GetItem(nodeReg.GetNodeID(), &nodeRegFromCache)
+			if err != nil {
+				return err
+			}
+		}
+		err = tx.ActiveNodeRegistrationCache.TxSetItem(nodeReg.NodeID, storage.NodeRegistry{
+			Node:               nodeReg,
+			ParticipationScore: nodeRegFromCache.ParticipationScore,
+		})
 	}
 	return err
 }

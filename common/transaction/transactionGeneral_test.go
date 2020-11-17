@@ -5,16 +5,16 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 	"reflect"
 	"regexp"
-	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -97,11 +97,10 @@ func TestGetTransactionBytes(t *testing.T) {
 				},
 				sign: false,
 			},
-			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214,
-				82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 0, 0, 0, 0, 229, 176, 168, 71, 174, 217,
-				223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14, 64,
-				66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 2, 0, 0, 0,
+			want: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149,
+				127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 0, 0, 0, 0, 229, 176, 168, 71,
+				174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232,
+				110, 14, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 2, 0, 0, 0, 0, 0, 0, 0,
 			},
 			wantErr: false,
 		},
@@ -137,10 +136,9 @@ func TestGetTransactionBytes(t *testing.T) {
 				},
 				sign: false,
 			},
-			want: []byte{
-				2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214,
-				82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 2, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0, 8,
-				0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 2, 0, 0, 0,
+			want: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149,
+				127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 2, 0, 0, 0, 64, 66, 15, 0, 0,
+				0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 2, 0, 0, 0, 0, 0, 0, 0,
 			},
 			wantErr: false,
 		},
@@ -181,7 +179,7 @@ func TestGetTransactionBytes(t *testing.T) {
 				223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14, 64,
 				66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250,
 				58, 2, 83, 75, 213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54, 24, 0, 0, 0, 0, 0, 0, 0, 100, 0,
-				0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+				0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			},
 		},
 		{
@@ -207,7 +205,7 @@ func TestGetTransactionBytes(t *testing.T) {
 			},
 			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149,
 				127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-				0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+				0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0},
 		},
 		{
 			name: "EscrowApproval:Signed",
@@ -232,7 +230,7 @@ func TestGetTransactionBytes(t *testing.T) {
 			},
 			want: []byte{4, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149,
 				127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-				0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0},
+				0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0},
 		},
 	}
 	for _, tt := range tests {
@@ -247,7 +245,7 @@ func TestGetTransactionBytes(t *testing.T) {
 				for _, bt := range got {
 					byteStrArr = append(byteStrArr, fmt.Sprintf("%v", bt))
 				}
-				t.Logf(strings.Join(byteStrArr, ", "))
+				fmt.Println(byteStrArr)
 				t.Errorf("GetTransactionBytes() = \n%v, want \n%v", got, tt.want)
 			}
 		})
@@ -264,7 +262,7 @@ func (*mockMempoolCacheStorageSuccessGet) GetItem(key, item interface{}) error {
 
 func TestParseTransactionBytes(t *testing.T) {
 	var mockTransactionWithEscrow = &model.Transaction{
-		ID:                      -8601896230479683290,
+		ID:                      9040547499122759451,
 		Version:                 1,
 		TransactionType:         2,
 		BlockID:                 0,
@@ -280,7 +278,7 @@ func TestParseTransactionBytes(t *testing.T) {
 		TransactionBodyLength: 8,
 		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
+			4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78,
 			68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
 			77, 80, 80, 39, 254, 173, 28, 169,
 		},
@@ -294,7 +292,7 @@ func TestParseTransactionBytes(t *testing.T) {
 	mockTransactionWithEscrow.TransactionHash = transactionWithEscrowHashed[:]
 
 	approvalTX, approvalTXBytes := GetFixtureForSpecificTransaction(
-		-1680037895617340975,
+		-8289164386094074251,
 		12345678,
 		senderAddress1,
 		nil,
@@ -371,7 +369,7 @@ func TestParseTransactionBytes(t *testing.T) {
 				mempoolCacheStorage: &mockMempoolCacheStorageSuccessGet{},
 			},
 			want: &model.Transaction{
-				ID:                      -9183611839227097187,
+				ID:                      499264076282620792,
 				Version:                 1,
 				TransactionType:         2,
 				BlockID:                 0,
@@ -568,7 +566,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesNoRecipient, _ := transactionUtil.GetTransactionBytes(txValidateNoRecipient, false)
 	txBytesHash := sha3.Sum256(txBytesNoRecipient)
-	signatureTXValidateNoRecipient, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateNoRecipient, _ := (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateNoRecipient.Signature = signatureTXValidateNoRecipient
 
@@ -580,7 +578,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesMustEscrow, _ := transactionUtil.GetTransactionBytes(txValidateMustEscrow, false)
 	txBytesMustEscrowHash := sha3.Sum256(txBytesMustEscrow)
-	signatureTXValidateMustEscrow, _ := (&crypto.Signature{}).Sign(txBytesMustEscrowHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateMustEscrow, _ := (&crypto.Signature{}).Sign(txBytesMustEscrowHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateMustEscrow.Signature = signatureTXValidateMustEscrow
 
@@ -592,7 +590,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 	)
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txValidateEscrow, false)
 	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
-	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.SignatureType_DefaultSignature,
+	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.AccountType_ZbcAccountType,
 		senderAddress1PassPhrase)
 	txValidateEscrow.Signature = signatureTXValidateEscrow
 
@@ -704,7 +702,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 					approverAddress1,
 				},
 			}},
-			want: []byte{156, 245, 22, 64, 141, 106, 136, 228, 125, 30, 62, 62, 38, 92, 203, 116, 9, 51, 188, 100, 158, 147, 219, 171, 75,
+			want: []byte{0, 0, 0, 0, 156, 245, 22, 64, 141, 106, 136, 228, 125, 30, 62, 62, 38, 92, 203, 116, 9, 51, 188, 100, 158, 147, 219, 171, 75,
 				7, 219, 56, 28, 223, 180, 47},
 		},
 	}
@@ -786,7 +784,7 @@ func TestMultisigTransactionUtil_ValidateSignatureInfo(t *testing.T) {
 	txHash := make([]byte, 32)
 	_, _, _, _, validAddress, _ := sig.GenerateAccountFromSeed(&accounttype.ZbcAccountType{}, "a")
 	validAddressHex := hex.EncodeToString(validAddress)
-	validSignature, _ := sig.Sign(txHash, model.SignatureType_DefaultSignature, "a")
+	validSignature, _ := sig.Sign(txHash, model.AccountType_ZbcAccountType, "a")
 	tests := []struct {
 		name    string
 		args    args

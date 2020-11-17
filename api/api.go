@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"html/template"
 	"net"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/api/service"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"

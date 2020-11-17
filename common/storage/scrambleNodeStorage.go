@@ -93,7 +93,11 @@ func (s *ScrambleCacheStackStorage) GetAll(items interface{}) error {
 
 func (s *ScrambleCacheStackStorage) GetAtIndex(index uint32, item interface{}) error {
 	if int(index) >= len(s.scrambledNodes) {
-		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
+		return blocker.NewBlocker(blocker.ValidationErr,
+			fmt.Sprintf("IndexOutOfRange-Has %d scramble round - requested index %d",
+				len(s.scrambledNodes),
+				index,
+			))
 	}
 	scrambleNodeCopy, ok := item.(*model.ScrambledNodes)
 	if !ok {

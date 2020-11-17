@@ -9,11 +9,12 @@ import (
 	"math"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -124,11 +125,17 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, signed bool) ([
 		buffer.Write(emptyAccAddr)
 	}
 
+	// transaction message
+	msgLength := len(transaction.GetMessage())
+	buffer.Write(util.ConvertUint32ToBytes(uint32(msgLength)))
+	if msgLength > 0 {
+		buffer.Write(transaction.GetMessage())
+	}
+
 	if signed {
 		if transaction.Signature == nil {
 			return nil, errors.New("TransactionSignatureNotExist")
 		}
-		buffer.Write(util.ConvertUint32ToBytes(uint32(len(transaction.Signature))))
 		buffer.Write(transaction.Signature)
 	}
 	return buffer.Bytes(), nil
@@ -256,12 +263,21 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 		transaction.Escrow = &escrow
 	}
 
-	if sign {
-		var signatureLengthBytes, err = util.ReadTransactionBytes(buffer, int(constant.TransactionSignatureLength))
+	chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.TxMessageBytesLength))
+	if err != nil {
+		return nil, err
+	}
+	messageLength := int(util.ConvertBytesToUint32(chunkedBytes))
+	if messageLength > 0 {
+		messageBytes, err := util.ReadTransactionBytes(buffer, messageLength)
 		if err != nil {
 			return nil, err
 		}
-		signatureLength := util.ConvertBytesToUint32(signatureLengthBytes)
+		transaction.Message = messageBytes
+	}
+
+	if sign {
+		signatureLength := senderAccType.GetSignatureLength()
 		transaction.Signature, err = util.ReadTransactionBytes(buffer, int(signatureLength))
 		if err != nil {
 			return nil, blocker.NewBlocker(
@@ -298,6 +314,12 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeZero",
+		)
+	}
+	if len(tx.Message) > constant.MaxMessageLength {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxMessageMaxLengthExceeded",
 		)
 	}
 	err = u.FeeScaleService.GetLatestFeeScale(&feeScale)
@@ -378,7 +400,9 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 	}
 	util.SortByteArrays(info.Addresses)
 	var (
-		buff = bytes.NewBuffer([]byte{})
+		buff    = bytes.NewBuffer([]byte{})
+		accType accounttype.AccountTypeInterface
+		err     error
 	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
@@ -387,7 +411,12 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 		buff.Write(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return hashed[:], nil
+	accType, err = accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), hashed[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return accType.GetAccountAddress()
 
 }
 

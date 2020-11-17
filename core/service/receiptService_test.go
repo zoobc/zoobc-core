@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
@@ -14,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -160,19 +161,19 @@ func fixtureGenerateMerkle() {
 	signature := crypto.NewSignature()
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockLinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[hex.EncodeToString(mockLinkedReceipt.Receipt.RecipientPublicKey)] =
 		222
 	unsignedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockLinkedReceipt.Receipt)
 	mockLinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
 	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceiptWithLinkedRMR.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
 	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.Receipt)
 	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature = signature.SignByNode(
 		unsignedUnlinkedReceiptByte, mockSeed)
 	// sign no rmr linked
-	mockUnlinkedReceipt.Receipt.RecipientPublicKey = crypto.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
+	mockUnlinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
 	mockUnlinkedReceipt.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
 	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceipt.Receipt)
 	mockUnlinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(
@@ -924,6 +925,49 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) RollbackTx() error
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransactions(queries [][]interface{}) error {
 	return errors.New("mockError:ExecuteTransactionsFail")
+}
+
+func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
+	type fields struct {
+		NodeReceiptQuery      query.BatchReceiptQueryInterface
+		MerkleTreeQuery       query.MerkleTreeQueryInterface
+		QueryExecutor         query.ExecutorInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		BatchReceiptStorage   storage.CacheStorageInterface
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr bool
+	}{
+		{
+			name: "wantSuccess",
+			fields: fields{
+				NodeReceiptQuery:      query.NewBatchReceiptQuery(),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
+				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
+				BatchReceiptStorage:   storage.NewReceiptPoolCacheStorage(),
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:         tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:          tt.fields.MerkleTreeQuery,
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				QueryExecutor:            tt.fields.QueryExecutor,
+				ReceiptUtil:              &coreUtil.ReceiptUtil{},
+				MainBlockStateStorage:    tt.fields.MainBlockStateStorage,
+				BatchReceiptCacheStorage: tt.fields.BatchReceiptStorage,
+			}
+			if err := rs.GenerateReceiptsMerkleRoot(); (err != nil) != tt.wantErr {
+				t.Errorf("ReceiptService.GenerateReceiptsMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
 
 type (

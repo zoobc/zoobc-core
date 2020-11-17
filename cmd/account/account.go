@@ -4,11 +4,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/spf13/cobra"
+	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
+	"log"
 )
 
 type (
@@ -44,6 +48,14 @@ private key both in bytes and hex representation + the secret phrase
 		Use:   "hexconv",
 		Short: "Convert a given (encoded/string) account address to hex format",
 	}
+	convHexAccountToEncodedCmd = &cobra.Command{
+		Use:   "hexdecode",
+		Short: "Decode a given (hex string) full account address and return its 'encoded' string format",
+	}
+	generateAccountAddressTableCmd = &cobra.Command{
+		Use:   "generateaddresstable",
+		Short: "Generate account address table by parsing account_balance table (requires a working zoobc.db)",
+	}
 
 	multiSigCmd = &cobra.Command{
 		Use:        "multisig",
@@ -70,11 +82,15 @@ func init() {
 	convAccuntToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
 		"formatted/encoded account address. eg. ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML")
 	convAccuntToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
+	convHexAccountToEncodedCmd.Flags().StringVar(&hexAccountAddress, "hexAccountAddress", "",
+		"full accound address in hex format: eg. 00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01")
+	generateAccountAddressTableCmd.Flags().StringVar(&dbPath, "dbPath", "../resource",
+		"folder path to zoobc.db, relative to cmd root path. if none provided, resource folder will be targeted")
 	bitcoinAccuntCmd.Flags().Int32Var(
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
 		int32(model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed),
-		"Defines the format of public key Bitcoin want to generate. 0 for compressed format & 1 for uncompressed format",
+		"Defines the format of public key Bitcoin want to generate. 0 for uncompressed format & 1 for compressed format",
 	)
 	// multisig
 	multiSigCmd.Flags().StringSliceVar(&multisigAddressesHex, "addresses", []string{},
@@ -98,6 +114,10 @@ func Commands() *cobra.Command {
 	accountCmd.AddCommand(bitcoinAccuntCmd)
 	convAccuntToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
 	accountCmd.AddCommand(convAccuntToHexCmd)
+	convHexAccountToEncodedCmd.Run = accountGeneratorInstance.ConvertHexAccountToEncoded()
+	accountCmd.AddCommand(convHexAccountToEncodedCmd)
+	generateAccountAddressTableCmd.Run = accountGeneratorInstance.GenerateAccountAddressTable()
+	accountCmd.AddCommand(generateAccountAddressTableCmd)
 	multiSigCmd.Run = accountGeneratorInstance.GenerateMultiSignatureAccount()
 	accountCmd.AddCommand(multiSigCmd)
 	return accountCmd
@@ -112,14 +132,14 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 			err       error
 		)
 		switch accountTypeInt {
-		case 0:
-			ed25519 := crypto.NewEd25519Signature()
+		case int32(model.AccountType_ZbcAccountType):
+			ed25519 := signaturetype.NewEd25519Signature()
 			accPubKey, err = ed25519.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
 			if err != nil {
 				panic(err)
 			}
-		case 1:
-			bitcoinSignature := crypto.NewBitcoinSignature(crypto.DefaultBitcoinNetworkParams(), crypto.DefaultBitcoinCurve())
+		case int32(model.AccountType_BTCAccountType):
+			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
 			if err != nil {
 				panic(err)
@@ -139,6 +159,169 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 		fmt.Printf("public key bytes: %v\n", accPubKey)
 		fmt.Printf("full account address: %v\n", fullAccountAddress)
 		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
+	}
+}
+
+// ConvertHexAccountToEncoded Convert hex account address to human readable encoded account address
+func (gc *GeneratorCommands) ConvertHexAccountToEncoded() RunCommand {
+	return func(cmd *cobra.Command, args []string) {
+		var (
+			accPubKey []byte
+			err       error
+		)
+		if hexAccountAddress == "" {
+			log.Fatal("--hexAccountAddress required")
+		}
+		accAddr, err := hex.DecodeString(hexAccountAddress)
+		if err != nil {
+			log.Fatal("invalid account address: failed decoding hex string")
+		}
+		accType, err := accounttype.NewAccountTypeFromAccount(accAddr)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("account address type: %s (%d)\n", model.AccountType_name[accountTypeInt], accountTypeInt)
+		encodedAccountAddress, err = accType.GetEncodedAddress()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("encoded account address: %s\n", encodedAccountAddress)
+		accPubKey = accType.GetAccountPublicKey()
+		fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
+		fmt.Printf("public key bytes: %v\n", accPubKey)
+		fullAccountAddress, err := accType.GetAccountAddress()
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("full account address: %v\n", fullAccountAddress)
+		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
+	}
+}
+
+// GenerateAccountAddressTable Generate an account address table from an account_balance table
+func (gc *GeneratorCommands) GenerateAccountAddressTable() RunCommand {
+	return func(cmd *cobra.Command, args []string) {
+		var (
+			dB, err                    = helper.GetSqliteDB(dbPath, "zoobc.db")
+			queryExecutor              = query.NewQueryExecutor(dB)
+			accountBalanceQuery        = query.NewAccountBalanceQuery()
+			selectAllAccountBalanceQry = fmt.Sprintf("SELECT DISTINCT account_address FROM %s",
+				accountBalanceQuery.TableName)
+			createAccountAddressTableQry = `
+CREATE TABLE IF NOT EXISTS "account_address" (
+	"full_address"	BLOB,
+	"address_type"	INTEGER,
+	"encoded_address"	TEXT UNIQUE,
+	"hex_address"	TEXT,
+	PRIMARY KEY("full_address")
+);
+DELETE FROM account_address;
+`
+			accountAddressInsertQry = "INSERT INTO account_address (full_address, address_type, encoded_address, hex_address) " +
+				"VALUES(?, ?, ?, ?)"
+			insertQueries [][]interface{}
+		)
+		if err != nil {
+			log.Fatal("Failed get Db")
+			return
+		}
+
+		err = queryExecutor.BeginTx()
+		if err != nil {
+			log.Fatal("Failed begin Tx Err: ", err.Error())
+			return
+		}
+
+		// create account_address table if doesn't exist
+		err = queryExecutor.ExecuteTransaction(createAccountAddressTableQry)
+		if err != nil {
+			err = queryExecutor.RollbackTx()
+			if err != nil {
+				log.Fatal("Failed to run RollbackTX DB")
+			}
+			log.Fatal("Failed to execute transaction")
+			return
+		}
+		// select all (unique) account balances from account_balance table
+		accountBalanceRows, err := queryExecutor.ExecuteSelect(selectAllAccountBalanceQry, true)
+		if err != nil {
+			err = queryExecutor.RollbackTx()
+			if err != nil {
+				log.Fatal("Failed to run RollbackTX DB")
+			}
+			log.Fatal("Failed to execute select query")
+			return
+		}
+		defer accountBalanceRows.Close()
+		// build insertQueries slice from accountBalanceRows resultset
+		for accountBalanceRows.Next() {
+			var (
+				accountBalance model.AccountBalance
+			)
+			err = accountBalanceRows.Scan(
+				&accountBalance.AccountAddress,
+			)
+			if err != nil {
+				err = queryExecutor.RollbackTx()
+				if err != nil {
+					log.Fatal("Failed to run RollbackTX DB")
+				}
+				log.Fatal("Failed to execute select query")
+				return
+			}
+			accType, err := accounttype.NewAccountTypeFromAccount(accountBalance.GetAccountAddress())
+			if err != nil {
+				err = queryExecutor.RollbackTx()
+				if err != nil {
+					log.Fatal("Failed to run RollbackTX DB")
+				}
+				log.Fatal("Failed to execute select query")
+				return
+			}
+			encodedAccountAddress, err = accType.GetEncodedAddress()
+			if err != nil {
+				err = queryExecutor.RollbackTx()
+				if err != nil {
+					log.Fatal("Failed to run RollbackTX DB")
+				}
+				log.Fatal("Failed to encode account address")
+				return
+			}
+			fullAddress, err := accType.GetAccountAddress()
+			if err != nil {
+				err = queryExecutor.RollbackTx()
+				if err != nil {
+					log.Fatal("Failed to run RollbackTX DB")
+				}
+				log.Fatal("Failed to get account full address")
+				return
+			}
+			insertQueries = append(
+				insertQueries,
+				[]interface{}{
+					accountAddressInsertQry,
+					fullAddress,
+					accType.GetTypeInt(),
+					encodedAccountAddress,
+					hex.EncodeToString(fullAddress),
+				},
+			)
+		}
+		err = queryExecutor.ExecuteTransactions(insertQueries)
+		if err != nil {
+			fmt.Println("Failed execute insert queries, ", err.Error())
+			err = queryExecutor.RollbackTx()
+			if err != nil {
+				log.Fatal("Failed to run RollbackTX DB")
+			}
+			log.Fatal(err)
+			return
+		}
+		err = queryExecutor.CommitTx()
+		if err != nil {
+			log.Fatal("Failed to run CommitTx DB, err : ", err.Error())
+		}
+		log.Fatal("command succeeded: account_address table created and populated")
 	}
 }
 
@@ -231,7 +414,7 @@ func (gc *GeneratorCommands) GenerateBitcoinAccount() RunCommand {
 
 // PrintAccount print out the generated account
 func PrintAccount(
-	accountType accounttype.AccountType,
+	accountType accounttype.AccountTypeInterface,
 	seed, publicKeyString, encodedAddress string,
 	privateKey, publicKey, fullAccountAddress []byte,
 ) {
