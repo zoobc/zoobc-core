@@ -28,7 +28,7 @@ const (
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 100
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 4000
+	GoRoutineHardLimit = 300
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
