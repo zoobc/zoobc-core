@@ -3,6 +3,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/util"
 	"os"
 	"os/signal"
@@ -95,6 +96,12 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 			func() {
 				ass.FeedbackVarsLock.RLock()
 				defer ass.FeedbackVarsLock.RUnlock()
+				if ass.FeedbackVars["tpsReceived"] != nil {
+					monitoring.SetTpsReceived(ass.FeedbackVars["tpsReceived"].(int))
+				}
+				if ass.FeedbackVars["tpsProcessed"] != nil {
+					monitoring.SetTpsProcessed(ass.FeedbackVars["tpsProcessed"].(int))
+				}
 				ass.FeedbackVars["tpsReceived"] = 0
 				ass.FeedbackVars["tpsProcessed"] = 0
 			}()
