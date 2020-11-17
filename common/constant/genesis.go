@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 5909986257834517547
+	MainchainGenesisBlockID int64 = 1628137501132229189
 )
 
 type (
@@ -38,7 +38,7 @@ var (
 		{
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5",
-			AccountBalance:     0,
+			AccountBalance:     1000000000000000,
 			// ZNK_BH4CS7LI_GSCZDUTT_N7B5CJI4_UQZ76HHK_MPQODMWA_P3RMYIY5_AMCEACOH
 			NodePublicKey: []byte{9, 248, 41, 125, 104, 52, 133, 145, 210, 115, 111, 195, 209, 37, 28, 164, 51, 255, 28,
 				234, 99, 224, 225, 178, 192, 126, 226, 204, 35, 29, 3, 4},
