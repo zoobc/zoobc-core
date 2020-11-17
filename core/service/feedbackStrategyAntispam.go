@@ -91,7 +91,7 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 					ass.GoRoutineSamples = append(ass.GoRoutineSamples, util.GetGoRoutineStats())
 				}
 				// STEF to test only!
-				_, _ = ass.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples)
+				// _, _ = ass.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples)
 			}()
 		case <-tickerResetPerSecondVars.C:
 			// Reset feedback variables that are sampled 'per second'
@@ -159,7 +159,7 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	// STEF to test only!
 	ass.Logger.Errorf("goroutines (last sample): %d", ass.GoRoutineSamples[len(ass.GoRoutineSamples)-1])
 	ass.Logger.Errorf("goroutines (avg for %d samples): %d", counter, avg)
-	ass.Logger.Errorf("limit level: %v", limitLevel)
+	ass.Logger.Errorf("limit level: %s", limitLevel)
 	return limitReached, limitLevel
 }
 
