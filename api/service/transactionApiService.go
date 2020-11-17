@@ -237,12 +237,8 @@ func (ts *TransactionService) PostTransaction(
 	feedbackVar = ts.FeedbackStrategy.GetFeedbackVar("tpsReceived")
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		switch limitLevel {
-		case constant.FeedbackLimitCritical:
-			return nil, status.Error(codes.Internal, "TooManyTps")
 		case constant.FeedbackLimitHigh:
-			if feedbackVar != nil && feedbackVar.(int) > 2 {
-				return nil, status.Error(codes.Internal, "TooManyTps")
-			}
+			return nil, status.Error(codes.Internal, "TooManyTps")
 		case constant.FeedbackLimitMedium:
 			if feedbackVar != nil && feedbackVar.(int) > 5 {
 				return nil, status.Error(codes.Internal, "TooManyTps")

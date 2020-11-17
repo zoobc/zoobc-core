@@ -147,13 +147,15 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitMediumPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitMedium
-		ass.Logger.Debugf("goroutine level medium! average count for last %d samples is %d", counter, avg)
+		ass.Logger.Errorf("goroutine level medium! average count for last %d samples is %d", counter, avg)
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitLowPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitLow
 	default:
 		limitLevel = constant.FeedbackLimitNone
 	}
+	ass.Logger.Errorf("goroutines (avg for %d samples): %d", counter, avg)
+	ass.Logger.Errorf("limit level: %v", limitLevel)
 	return limitReached, limitLevel
 }
 
