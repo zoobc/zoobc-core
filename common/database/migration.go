@@ -166,7 +166,8 @@ func (m *Migration) Init() error {
 				"block_height" INTEGER,
 				"batch_reference_block_height" INTEGER,
 				"receipt_index" INTEGER,
-				"published_index" INTEGER
+				"published_index" INTEGER,
+				"published_receipt_type" INTEGER
 			)
 			`,
 			`

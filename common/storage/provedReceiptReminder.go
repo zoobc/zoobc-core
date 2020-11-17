@@ -83,6 +83,13 @@ func (rs *ProvedReceiptReminderStorage) GetAllItems(items interface{}) error {
 	return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ItemsMustBe(*map[uint32]model.PublishedReceipt)")
 }
 
+func (rs *ProvedReceiptReminderStorage) GetTotalItems() int {
+	rs.Lock()
+	var totalItems = len(rs.reminders)
+	rs.Unlock()
+	return totalItems
+}
+
 func (rs *ProvedReceiptReminderStorage) RemoveItem(key interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()
