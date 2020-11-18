@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -15,7 +16,9 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	if (linkedReceipt + unlinkedReceipt) > maxReceipt {
 		return 0, blocker.NewBlocker(
 			blocker.ValidationErr,
-			"CalculateParticipationScore, the number of receipt exceeds",
+			fmt.Sprintf("CalculateParticipationScore, the number of receipt exceeds get %d max allowed %d",
+				linkedReceipt+unlinkedReceipt, maxReceipt,
+			),
 		)
 	}
 
