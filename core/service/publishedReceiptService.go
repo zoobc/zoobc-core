@@ -3,9 +3,7 @@ package service
 import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -39,8 +37,9 @@ func NewPublishedReceiptService(
 	}
 }
 
-// ProcessPublishedReceipts takes published receipts in a block and validate them, this function will run in a db transaction
-// so ensure queryExecutor.Begin() is called before calling this function.
+// ProcessPublishedReceipts takes published receipts in a block and validate
+// them, this function will run in a db transaction so ensure
+// queryExecutor.Begin() is called before calling this function.
 func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
 	var (
 		linkedCount int
@@ -48,37 +47,16 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) 
 	)
 	for index, rc := range block.GetFreeReceipts() {
 		// validate sender and recipient of receipt
+		rcCopy := *rc
 		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt())
 		if err != nil {
 			return 0, err
-		}
-		// check if linked
-		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-			merkle := &commonUtils.MerkleRoot{}
-			rcByte := ps.ReceiptUtil.GetSignedReceiptBytes(rc.GetReceipt())
-			rcHash := sha3.Sum256(rcByte)
-			root, err := merkle.GetMerkleRootFromIntermediateHashes(
-				rcHash[:],
-				rc.ReceiptIndex,
-				merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
-			)
-			if err != nil {
-				return 0, err
-			}
-			// look up root in published_receipt table
-			_, err = ps.PublishedReceiptUtil.GetPublishedReceiptByLinkedRMR(root)
-			if err != nil {
-				return 0, err
-			}
-			// add to linked receipt count for calculation later
-			linkedCount++
 		}
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,
 		// it's different with receiptIndex which is used to validate merkle root.
 		rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
-
-		err := ps.PublishedReceiptUtil.InsertPublishedReceipt(rc, true)
+		err := ps.PublishedReceiptUtil.InsertPublishedReceipt(&rcCopy, true)
 		if err != nil {
 			return 0, err
 		}
