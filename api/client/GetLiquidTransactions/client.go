@@ -39,7 +39,7 @@ func main() {
 			Pagination: &rpc_model.Pagination{
 				OrderField: "block_height",
 				OrderBy:    rpc_model.OrderBy_DESC,
-				Page:       2,
+				Page:       1,
 				Limit:      1,
 			},
 		},

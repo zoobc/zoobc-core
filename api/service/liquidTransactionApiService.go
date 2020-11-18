@@ -59,16 +59,21 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 		caseQ.And(caseQ.Equal("status", lpStatus))
 	}
 
-	countQ, countArgs := caseQ.Build()
-	rowCount, _ = lts.QueryExecutor.ExecuteSelectRow(query.GetTotalRecordOfSelect(countQ), false, countArgs...)
-	if err = rowCount.Scan(&count); err != nil {
-		if err != sql.ErrNoRows {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-
-		return nil, status.Error(codes.NotFound, "Record not found")
+	// count first
+	selectQuery, args := caseQ.Build()
+	countQuery := query.GetTotalRecordOfSelect(selectQuery)
+	rowCount, err = lts.QueryExecutor.ExecuteSelectRow(countQuery, false, args...)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	err = rowCount.Scan(
+		&count,
+	)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	// pagination
 	page := request.GetPagination()
 	if page.GetOrderField() != "" {
 		caseQ.OrderBy(page.GetOrderField(), page.GetOrderBy())
