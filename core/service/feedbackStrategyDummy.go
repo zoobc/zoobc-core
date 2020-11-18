@@ -22,6 +22,10 @@ func (dfs *DummyFeedbackStrategy) IsGoroutineLimitReached(numSamples int) (bool,
 	return false, constant.FeedbackLimitNone
 }
 
+func (dfs *DummyFeedbackStrategy) IsP2PRequestLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
+	return false, constant.FeedbackLimitNone
+}
+
 func (dfs *DummyFeedbackStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	return false, constant.FeedbackLimitNone
 }

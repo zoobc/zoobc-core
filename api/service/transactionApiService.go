@@ -220,21 +220,24 @@ func (ts *TransactionService) PostTransaction(
 	req *model.PostTransactionRequest,
 ) (*model.Transaction, error) {
 	var (
-		txBytes      = req.GetTransactionBytes()
-		txType       transaction.TypeAction
-		tx           *model.Transaction
-		err          error
-		tpsProcessed = 1
-		tpsReceived  = 1
-		txProcessed  = 1
-		txReceived   = 1
-		feedbackVar  interface{}
+		txBytes = req.GetTransactionBytes()
+		txType  transaction.TypeAction
+		tx      *model.Transaction
+		err     error
+		tpsProcessed,
+		tpsReceived,
+		txProcessed,
+		txReceived int
 	)
+
+	// Set txReceived (transactions to be processed received by clients since last node run)
+	txReceived = ts.FeedbackStrategy.IncrementVarCount("txReceived").(int)
+	monitoring.SetTxReceived(txReceived)
 
 	// TODO: this is an example to prove that, by limiting number of tx per second
 	//  when the node is too busy due to high number of goroutines,
 	//  the network can regulate itself without leading to blockchain splits or hard forks
-	feedbackVar = ts.FeedbackStrategy.GetFeedbackVar("tpsReceived")
+	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		switch limitLevel {
 		case constant.FeedbackLimitCritical:
@@ -244,24 +247,21 @@ func (ts *TransactionService) PostTransaction(
 				return nil, status.Error(codes.Internal, "TooManyTps")
 			}
 		case constant.FeedbackLimitMedium:
-			if feedbackVar != nil && feedbackVar.(int) > 5 {
+			if tpsReceived > 2 {
 				return nil, status.Error(codes.Internal, "TooManyTps")
 			}
 		}
 	}
-
-	// Set tpsReceived (transactions per seconds to be processed received by clients)
-	if feedbackVar != nil {
-		tpsReceived = feedbackVar.(int) + 1
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		switch limitLevel {
+		case constant.FeedbackLimitHigh:
+			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+		case constant.FeedbackLimitMedium:
+			if tpsReceived > 2 {
+				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+			}
+		}
 	}
-	ts.FeedbackStrategy.SetFeedbackVar("tpsReceivedTmp", tpsReceived)
-
-	// Set txReceived (transactions to be processed received by clients since last node run)
-	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("txReceived"); feedbackVar != nil {
-		txReceived = feedbackVar.(int) + 1
-	}
-	ts.FeedbackStrategy.SetFeedbackVar("txReceived", txReceived)
-	monitoring.SetTxReceived(txReceived)
 
 	// get unsigned bytes
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
@@ -313,17 +313,11 @@ func (ts *TransactionService) PostTransaction(
 
 	// Set tpsProcessed (transactions per seconds already processed received by clients).
 	// Note: these are the ones that produce network traffic because they must be broadcast to peers
-	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("tpsProcessed"); feedbackVar != nil {
-		tpsProcessed = feedbackVar.(int) + 1
-	}
-	ts.FeedbackStrategy.SetFeedbackVar("tpsProcessedTmp", tpsProcessed)
+	tpsProcessed = ts.FeedbackStrategy.IncrementVarCount("tpsProcessedTmp").(int)
 	monitoring.SetTpsProcessed(tpsProcessed)
 
 	// Set txProcessed (transactions already processed received by clients since last node run).
-	if feedbackVar := ts.FeedbackStrategy.GetFeedbackVar("txProcessed"); feedbackVar != nil {
-		txProcessed = feedbackVar.(int) + 1
-	}
-	ts.FeedbackStrategy.SetFeedbackVar("txProcessed", txProcessed)
+	txProcessed = ts.FeedbackStrategy.IncrementVarCount("txProcessed").(int)
 	monitoring.SetTxProcessed(txProcessed)
 
 	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
