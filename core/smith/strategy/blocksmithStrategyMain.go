@@ -40,7 +40,6 @@ type (
 		candidates                     []Candidate
 		me                             Candidate
 		lastBlockHash                  []byte
-		lastBlockEstimatedPersistTime  int64
 		rng                            *crypto.RandomNumberGenerator
 	}
 )
@@ -83,11 +82,6 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 		bss.candidates = []Candidate{}
 		bss.me = Candidate{}
 		err = bss.rng.Reset(constant.BlocksmithSelectionSeedPrefix, prevBlock.BlockSeed)
-		if err != nil {
-			return blocksmithIndex, err
-		}
-		// reset previousBlockEstimatedPersistTime
-		bss.lastBlockEstimatedPersistTime, err = bss.estimatePreviousBlockPersistTime(prevBlock)
 		if err != nil {
 			return blocksmithIndex, err
 		}
