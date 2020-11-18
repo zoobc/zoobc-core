@@ -202,6 +202,7 @@ func (prq *PublishedReceiptQuery) BuildModel(
 			&receipt.BatchReferenceBlockHeight,
 			&receipt.ReceiptIndex,
 			&receipt.PublishedIndex,
+			&receipt.PublishedReceiptType,
 		)
 		if err != nil {
 			return nil, err
