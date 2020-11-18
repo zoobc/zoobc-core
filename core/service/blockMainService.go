@@ -400,14 +400,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				blocker.BlockErr, "DuplicateBlockPool",
 			)
 		}
-
-		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr,
-				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
-			)
-		}
 	}
 
 	// start db transaction here
@@ -449,12 +441,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
-	}
 	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
@@ -558,7 +544,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
-
 		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
@@ -604,6 +589,23 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				return err
 			}
 		}
+	}
+
+	if block.Height > 0 {
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+			)
+		}
+	}
+
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		bs.queryAndCacheRollbackProcess("")
+		return err
 	}
 	// nodeRegistryProcess precess to admit & expel node registry
 	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
