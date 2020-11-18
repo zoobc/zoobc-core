@@ -203,17 +203,25 @@ func (ass *AntiSpamStrategy) GetFeedbackVar(k string) interface{} {
 }
 
 func (ass *AntiSpamStrategy) IncrementVarCount(k string) interface{} {
-	v := ass.GetFeedbackVar(k)
+	var (
+		v        = ass.GetFeedbackVar(k)
+		newCount = 1
+	)
 	if v != nil {
-		return v.(int) + 1
+		newCount = v.(int) + 1
+		ass.SetFeedbackVar(k, newCount)
 	}
-	return 1
+	return newCount
 }
 
 func (ass *AntiSpamStrategy) DecrementVarCount(k string) interface{} {
-	v := ass.GetFeedbackVar(k)
+	var (
+		v        = ass.GetFeedbackVar(k)
+		newCount = 0
+	)
 	if v != nil {
-		return v.(int) - 1
+		newCount = v.(int) - 1
+		ass.SetFeedbackVar(k, newCount)
 	}
-	return 1
+	return newCount
 }
