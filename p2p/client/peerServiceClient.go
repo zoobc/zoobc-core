@@ -450,7 +450,7 @@ func (psc *PeerServiceClient) SendBlock(
 		return err
 	}
 
-	return psc.ReceiptService.StoreReceipt(response.GetReceipt(), &chaintype.MainChain{})
+	return psc.ReceiptService.StoreReceipt(response.GetReceipt())
 }
 
 // SendTransaction send transaction to selected peer
@@ -495,7 +495,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	return psc.ReceiptService.StoreReceipt(response.GetReceipt(), &chaintype.MainChain{})
+	return psc.ReceiptService.StoreReceipt(response.GetReceipt())
 }
 
 // SendBlockTransactions sends transactions required by a block requested by the peer
@@ -541,7 +541,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
 			continue
 		}
-		if e := psc.ReceiptService.StoreReceipt(receipt, &chaintype.MainChain{}); e != nil {
+		if e := psc.ReceiptService.StoreReceipt(receipt); e != nil {
 			psc.Logger.Warnf("SendBlockTransactions: %s", e.Error())
 		}
 	}
