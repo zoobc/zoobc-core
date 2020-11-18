@@ -17,6 +17,7 @@ type (
 	FeedbackStrategyInterface interface {
 		StartSampling(samplingInterval time.Duration)
 		IsGoroutineLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
+		IsP2PRequestLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		GetSuggestedActions() map[constant.FeedbackAction]bool
@@ -119,7 +120,8 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 					ass.RunningServerP2PAPIRequests = append(ass.RunningServerP2PAPIRequests, P2PRequests.(int))
 				}
 				// STEF to test only!
-				go ass.IsGoroutineLimitReached(3)
+				go ass.IsGoroutineLimitReached(4)
+				go ass.IsP2PRequestLimitReached(4)
 			}()
 		case <-tickerResetPerSecondVars.C:
 			// Reset feedback variables that are sampled 'per second'
@@ -175,6 +177,55 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	}
 
 	// STEF to test only!
+	if len(ass.GoRoutineSamples) > 0 {
+		ass.Logger.Errorf("goroutines (last sample): %d", ass.GoRoutineSamples[len(ass.GoRoutineSamples)-1])
+	}
+	ass.Logger.Errorf("goroutines (avg for %d samples): %d", numSamples, avg)
+	ass.Logger.Errorf("limit level: %d", limitLevel)
+	return limitReached, limitLevel
+}
+
+func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
+	var (
+		avg, sumOutgoing, sumIncoming,
+		avgOutgoing, avgIncoming int
+		numQueuedSamplesOutGoing = len(ass.RunningCliP2PAPIRequests)
+		numQueuedSamplesIncoming = len(ass.RunningServerP2PAPIRequests)
+	)
+
+	// if there are less elements in queue that the number of samples we want to compute the average from, return false
+	if numQueuedSamplesOutGoing < numSamples || numQueuedSamplesIncoming < numSamples {
+		return false, constant.FeedbackLimitNone
+	}
+	for n := 1; n <= numSamples; n++ {
+		sumOutgoing += ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-n]
+	}
+	avgOutgoing = sumOutgoing / numSamples
+	for n := 1; n <= numSamples; n++ {
+		sumIncoming += ass.RunningServerP2PAPIRequests[len(ass.RunningServerP2PAPIRequests)-n]
+	}
+	avgIncoming = sumIncoming / numSamples
+	switch avg = avgOutgoing + avgIncoming; {
+	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitCriticalPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitCritical
+		ass.Logger.Errorf("P2PRequests level critical! average count for last %d samples is %d", numSamples, avg)
+	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitHighPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitHigh
+		ass.Logger.Errorf("P2PRequests level high! average count for last %d samples is %d", numSamples, avg)
+	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitMediumPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitMedium
+		ass.Logger.Errorf("P2PRequests level medium! average count for last %d samples is %d", numSamples, avg)
+	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitLowPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitLow
+	default:
+		limitLevel = constant.FeedbackLimitNone
+	}
+
+	// STEF to test only!
 	if len(ass.RunningServerP2PAPIRequests) > 0 {
 		ass.Logger.Errorf("incoming p2p requests (last sample): %d",
 			ass.RunningServerP2PAPIRequests[len(ass.RunningServerP2PAPIRequests)-1])
@@ -183,11 +234,6 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 		ass.Logger.Errorf("outgoing p2p requests (last sample): %d",
 			ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-1])
 	}
-	if len(ass.GoRoutineSamples) > 0 {
-		ass.Logger.Errorf("goroutines (last sample): %d", ass.GoRoutineSamples[len(ass.GoRoutineSamples)-1])
-	}
-	ass.Logger.Errorf("goroutines (avg for %d samples): %d", numSamples, avg)
-	ass.Logger.Errorf("limit level: %d", limitLevel)
 	return limitReached, limitLevel
 }
 
@@ -219,6 +265,7 @@ func (ass *AntiSpamStrategy) GetFeedbackVar(k string) interface{} {
 	return v
 }
 
+// IncrementVarCount increment k feedback map element (int) by one
 func (ass *AntiSpamStrategy) IncrementVarCount(k string) interface{} {
 	var (
 		v        = ass.GetFeedbackVar(k)
@@ -231,6 +278,7 @@ func (ass *AntiSpamStrategy) IncrementVarCount(k string) interface{} {
 	return newCount
 }
 
+// DecrementVarCount decrement k feedback map element (int) by one
 func (ass *AntiSpamStrategy) DecrementVarCount(k string) interface{} {
 	var (
 		v        = ass.GetFeedbackVar(k)
