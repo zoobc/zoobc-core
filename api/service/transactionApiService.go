@@ -249,7 +249,7 @@ func (ts *TransactionService) PostTransaction(
 			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
 			return nil, status.Error(codes.Internal, "TooManyTps")
 		case constant.FeedbackLimitMedium:
-			if tpsReceived > 2 {
+			if tpsReceived > 1 {
 				ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
 				return nil, status.Error(codes.Internal, "TooManyTps")
 			}
