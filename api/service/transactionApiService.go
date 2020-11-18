@@ -2,6 +2,9 @@ package service
 
 import (
 	"database/sql"
+	"math"
+
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -13,7 +16,6 @@ import (
 	"github.com/zoobc/zoobc-core/observer"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"math"
 )
 
 type (
@@ -36,6 +38,7 @@ type (
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
 		FeedbackStrategy   service.FeedbackStrategyInterface
+		Logger             *log.Logger
 	}
 )
 
@@ -50,6 +53,7 @@ func NewTransactionService(
 	observer *observer.Observer,
 	transactionUtil transaction.UtilInterface,
 	feedbackStrategy service.FeedbackStrategyInterface,
+	logger *log.Logger,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -60,6 +64,7 @@ func NewTransactionService(
 			Observer:           observer,
 			TransactionUtil:    transactionUtil,
 			FeedbackStrategy:   feedbackStrategy,
+			Logger:             logger,
 		}
 	}
 	return transactionServiceInstance
@@ -241,9 +246,11 @@ func (ts *TransactionService) PostTransaction(
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
+			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
 			return nil, status.Error(codes.Internal, "TooManyTps")
 		case constant.FeedbackLimitMedium:
 			if tpsReceived > 2 {
+				ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
 				return nil, status.Error(codes.Internal, "TooManyTps")
 			}
 		}
@@ -251,9 +258,11 @@ func (ts *TransactionService) PostTransaction(
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
+			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
 			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 		case constant.FeedbackLimitMedium:
 			if tpsReceived > 2 {
+				ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
 				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 			}
 		}

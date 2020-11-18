@@ -93,6 +93,7 @@ func startGrpcServer(
 			observer.NewObserver(),
 			transactionUtil,
 			feedbackStrategy,
+			logger,
 		),
 	})
 	// Set GRPC handler for Transactions requests
