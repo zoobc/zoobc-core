@@ -384,15 +384,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		blockPool := bs.BlockPoolService.GetBlock(round)
 		if blockPool != nil && !persist {
 			return blocker.NewBlocker(
-				blocker.BlockErr, "DuplicateBlockPool",
-			)
-		}
-
-		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr,
-				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+				blocker.DuplicateError, "DuplicateBlockPool",
 			)
 		}
 	}
@@ -444,12 +436,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
-	}
 	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
@@ -505,26 +491,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 		receiptBatch.ReceiptBatch[index+1] = receipts
 	}
-	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
-		// save batch's receipt and merkle root
-		receipts, err := bs.ReceiptService.GetReceiptFromPool(previousBlock.GetBlockHash())
-		if err != nil {
-			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
-			return err
-		}
-		receiptBatch.ReceiptBatch[0] = receipts
-		err = bs.ReceiptService.SaveReceiptAndMerkle(receiptBatch)
-		if err != nil {
-			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailSaveReceipt - %v", err))
-			return err
-		}
-	}
-
-	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
-	}
 
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
 	if !persist { // block content are validated
@@ -568,11 +534,36 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// - Block reward
 	// - Admit/Expel nodes to/from registry
 	// - Build scrambled node registry
-	if block.Height > 0 {
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+			)
+		}
+		// save batch's receipt and merkle root
+		receipts, err := bs.ReceiptService.GetReceiptFromPool(previousBlock.GetBlockHash())
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
+			return err
+		}
+		receiptBatch.ReceiptBatch[0] = receipts
+		err = bs.ReceiptService.SaveReceiptAndMerkle(receiptBatch)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailSaveReceipt - %v", err))
+			return err
+		}
+
+		linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess("")
+			return err
+		}
 
 		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
@@ -619,6 +610,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				return err
 			}
 		}
+	}
+
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		bs.queryAndCacheRollbackProcess("")
+		return err
 	}
 	// nodeRegistryProcess precess to admit & expel node registry
 	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
@@ -1124,7 +1122,9 @@ func (bs *BlockService) PopulateBlockData(block *model.Block) error {
 	prs, err := bs.PublishedReceiptUtil.GetPublishedReceiptsByBlockHeight(block.Height)
 	if err != nil {
 		bs.Logger.Errorln(err)
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block published receipts")
+		return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf(
+			"error getting block published receipts: %v", err,
+		))
 	}
 	block.Transactions = txs
 	block.FreeReceipts = prs
@@ -1278,7 +1278,7 @@ func (bs *BlockService) GenerateBlock(
 	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock)
 	fmt.Printf("provedReceipts %v", provedReceipts)
 	if err != nil {
-		return nil, err
+		bs.Logger.Errorf("GenerateBlock:FailSelectReceipts-%v\n", err)
 	}
 
 	// loop through transaction to build block hash
@@ -1439,7 +1439,20 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
-		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
+		// generate receipt and return as response
+		lastBlockCacheFormat := &storage.BlockCacheObject{
+			ID:        lastBlock.ID,
+			Height:    lastBlock.Height,
+			BlockHash: lastBlock.BlockHash,
+		}
+		receipt, err := bs.ReceiptService.GenerateReceipt(
+			bs.Chaintype, block.GetBlockHash(),
+			lastBlockCacheFormat,
+			senderPublicKey,
+			nodeSecretPhrase,
+			constant.ReceiptDatumTypeBlock,
+		)
+		return receipt, err
 	}
 
 	// check new block is better than current block
@@ -1583,7 +1596,6 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	sort.Slice(poppedBlocks, func(i, j int) bool {
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
 	})
-
 	return poppedBlocks, nil
 }
 
@@ -1648,6 +1660,11 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
+		if castedErr, ok := err.(blocker.Blocker); ok {
+			if castedErr.Type == blocker.DuplicateError {
+				return status.Error(codes.InvalidArgument, err.Error())
+			}
+		}
 		bs.Logger.Errorf(
 			"ProcessCompletedBlock2 push Block fail: %v",
 			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
