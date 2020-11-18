@@ -15,7 +15,7 @@ const (
 	// FeedbackLimitLowPerc percentage of hard limit to be considered medium level
 	FeedbackLimitMediumPerc = 60
 	// FeedbackLimitLowPerc percentage of hard limit to be considered high level
-	FeedbackLimitHighPerc = 90
+	FeedbackLimitHighPerc = 80
 	// FeedbackLimitLowPerc percentage of hard limit to be considered critical level
 	FeedbackLimitCriticalPerc = 100
 
@@ -28,9 +28,9 @@ const (
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 100
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 300
+	GoRoutineHardLimit = 400
 	// P2PRequestHardLimit max number of opened (running) P2P api requests, both incoming (server) and outgoing (client)
-	P2PRequestHardLimit = 200
+	P2PRequestHardLimit = 500
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
