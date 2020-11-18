@@ -369,6 +369,18 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
+			CREATE INDEX "liquid_payment_transaction_id_idx" ON "skipped_blocksmith" ("id")
+			`,
+			`
+			CREATE INDEX "liquid_payment_transaction_sender_address_idx" ON "skipped_blocksmith" ("sender_address")
+			`,
+			`
+			CREATE INDEX "liquid_payment_transaction_recipient_address_idx" ON "skipped_blocksmith" ("recipient_address")
+			`,
+			`
+			CREATE INDEX "liquid_payment_transaction_status_idx" ON "skipped_blocksmith" ("status")
+			`,
+			`
 			CREATE TABLE IF NOT EXISTS "fee_vote_commitment_vote" (
 				"vote_hash" BLOB,		-- hash of fee vote object
 				"voter_address" BLOB, -- sender account address of commit vote
