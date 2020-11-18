@@ -86,6 +86,7 @@ type (
 		MempoolServices          map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
+		FeedbackStrategy         coreService.FeedbackStrategyInterface
 	}
 )
 
@@ -100,6 +101,7 @@ func NewP2PServerService(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
+	feedbackStrategy coreService.FeedbackStrategyInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -111,6 +113,7 @@ func NewP2PServerService(
 		MempoolServices:          mempoolServices,
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
+		FeedbackStrategy:         feedbackStrategy,
 	}
 }
 

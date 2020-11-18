@@ -36,3 +36,11 @@ func (dfs *DummyFeedbackStrategy) SetFeedbackVar(k string, v interface{}) {
 func (dfs *DummyFeedbackStrategy) GetFeedbackVar(k string) interface{} {
 	return nil
 }
+
+func (dfs *DummyFeedbackStrategy) IncrementVarCount(k string) interface{} {
+	return 0
+}
+
+func (dfs *DummyFeedbackStrategy) DecrementVarCount(k string) interface{} {
+	return 0
+}

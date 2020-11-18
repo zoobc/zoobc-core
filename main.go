@@ -695,6 +695,7 @@ func initP2pInstance() {
 		receiptService,
 		nodeConfigurationService,
 		nodeAuthValidationService,
+		feedbackStrategy,
 		loggerP2PService,
 	)
 
@@ -719,6 +720,7 @@ func initP2pInstance() {
 		fileService,
 		nodeRegistrationService,
 		nodeConfigurationService,
+		feedbackStrategy,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -759,6 +761,7 @@ func startServices() {
 		nodeConfigurationService,
 		nodeAddressInfoService,
 		observerInstance,
+		feedbackStrategy,
 	)
 	api.Start(
 		queryExecutor,

@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"github.com/zoobc/zoobc-core/core/service"
 	"reflect"
 	"testing"
 
@@ -29,7 +30,8 @@ func (*mockGetPeerInfoSuccess) GetPeerInfo(ctx context.Context, req *model.GetPe
 
 func TestP2PServerHandler_GetPeerInfo(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -45,7 +47,8 @@ func TestP2PServerHandler_GetPeerInfo(t *testing.T) {
 		{
 			name: "GetPeerInfo:Error",
 			fields: fields{
-				Service: &mockGetPeerInfoError{},
+				Service:         &mockGetPeerInfoError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -53,7 +56,8 @@ func TestP2PServerHandler_GetPeerInfo(t *testing.T) {
 		{
 			name: "GetPeerInfo:Success",
 			fields: fields{
-				Service: &mockGetPeerInfoSuccess{},
+				Service:         &mockGetPeerInfoSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    &model.GetPeerInfoResponse{},
 			wantErr: false,
@@ -62,7 +66,8 @@ func TestP2PServerHandler_GetPeerInfo(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetPeerInfo(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -95,7 +100,8 @@ func (*mockGetMorePeersSuccess) GetMorePeers(ctx context.Context, req *model.Emp
 
 func TestP2PServerHandler_GetMorePeers(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -111,7 +117,8 @@ func TestP2PServerHandler_GetMorePeers(t *testing.T) {
 		{
 			name: "GetMorePeers:Error",
 			fields: fields{
-				Service: &mockGetMorePeersError{},
+				Service:         &mockGetMorePeersError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args:    args{},
 			want:    nil,
@@ -120,7 +127,8 @@ func TestP2PServerHandler_GetMorePeers(t *testing.T) {
 		{
 			name: "GetMorePeers:Success",
 			fields: fields{
-				Service: &mockGetMorePeersSuccess{},
+				Service:         &mockGetMorePeersSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{},
 			want: &model.GetMorePeersResponse{
@@ -132,7 +140,8 @@ func TestP2PServerHandler_GetMorePeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetMorePeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -164,7 +173,8 @@ func (*mockSendPeersSuccess) SendPeers(ctx context.Context, peers []*model.Node)
 
 func TestP2PServerHandler_SendPeers(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -182,6 +192,9 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 			args: args{
 				req: &model.SendPeersRequest{},
 			},
+			fields: fields{
+				FeedbackService: &service.DummyFeedbackStrategy{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -193,7 +206,8 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Service: &mockSendPeersError{},
+				Service:         &mockSendPeersError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -206,7 +220,8 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Service: &mockSendPeersSuccess{},
+				Service:         &mockSendPeersSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    &model.Empty{},
 			wantErr: false,
@@ -215,7 +230,8 @@ func TestP2PServerHandler_SendPeers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.SendPeers(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -250,7 +266,8 @@ func (*mockGetCumulativeDifficultySuccess) GetCumulativeDifficulty(ctx context.C
 
 func TestP2PServerHandler_GetCumulativeDifficulty(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -266,7 +283,8 @@ func TestP2PServerHandler_GetCumulativeDifficulty(t *testing.T) {
 		{
 			name: "GetCumulativeDifficulty:Error",
 			fields: fields{
-				Service: &mockGetCumulativeDifficultyError{},
+				Service:         &mockGetCumulativeDifficultyError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetCumulativeDifficultyRequest{},
@@ -277,7 +295,8 @@ func TestP2PServerHandler_GetCumulativeDifficulty(t *testing.T) {
 		{
 			name: "GetCumulativeDifficulty:Success",
 			fields: fields{
-				Service: &mockGetCumulativeDifficultySuccess{},
+				Service:         &mockGetCumulativeDifficultySuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetCumulativeDifficultyRequest{},
@@ -289,7 +308,8 @@ func TestP2PServerHandler_GetCumulativeDifficulty(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetCumulativeDifficulty(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -315,7 +335,8 @@ func (*mockGetCommonMilestoneBlockIDsSuccess) GetCommonMilestoneBlockIDs(ctx con
 }
 func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -337,6 +358,9 @@ func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 					LastMilestoneBlockID: int64(0),
 				},
 			},
+			fields: fields{
+				FeedbackService: &service.DummyFeedbackStrategy{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -350,7 +374,8 @@ func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Service: &mockGetCommonMilestoneBlockIDsSuccess{},
+				Service:         &mockGetCommonMilestoneBlockIDsSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    &model.GetCommonMilestoneBlockIdsResponse{},
 			wantErr: false,
@@ -359,7 +384,8 @@ func TestP2PServerHandler_GetCommonMilestoneBlockIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetCommonMilestoneBlockIDs(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -394,7 +420,8 @@ func (*mockGetNextBlockIDsSuccess) GetNextBlockIDs(ctx context.Context, chainTyp
 
 func TestP2PServerHandler_GetNextBlockIDs(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -410,7 +437,8 @@ func TestP2PServerHandler_GetNextBlockIDs(t *testing.T) {
 		{
 			name: "GetNextBlockIDs:Error",
 			fields: fields{
-				Service: &mockGetNextBlockIDsError{},
+				Service:         &mockGetNextBlockIDsError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetNextBlockIdsRequest{},
@@ -421,7 +449,8 @@ func TestP2PServerHandler_GetNextBlockIDs(t *testing.T) {
 		{
 			name: "GetNextBlockIDs:Success",
 			fields: fields{
-				Service: &mockGetNextBlockIDsSuccess{},
+				Service:         &mockGetNextBlockIDsSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetNextBlockIdsRequest{},
@@ -435,7 +464,8 @@ func TestP2PServerHandler_GetNextBlockIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetNextBlockIDs(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -469,7 +499,8 @@ func (*mockGetNextBlocksSuccess) GetNextBlocks(ctx context.Context, chainType ch
 
 func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -485,7 +516,8 @@ func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
 		{
 			name: "GetNextBlocks:Error",
 			fields: fields{
-				Service: &mockGetNextBlocksError{},
+				Service:         &mockGetNextBlocksError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetNextBlocksRequest{},
@@ -496,7 +528,8 @@ func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
 		{
 			name: "GetNextBlocks:Success",
 			fields: fields{
-				Service: &mockGetNextBlocksSuccess{},
+				Service:         &mockGetNextBlocksSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.GetNextBlocksRequest{},
@@ -508,7 +541,8 @@ func TestP2PServerHandler_GetNextBlocks(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.GetNextBlocks(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -542,7 +576,8 @@ func (*mockSendBlockSuccess) SendBlock(ctx context.Context, chainType chaintype.
 
 func TestP2PServerHandler_SendBlock(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -558,7 +593,8 @@ func TestP2PServerHandler_SendBlock(t *testing.T) {
 		{
 			name: "SendBlock:Error",
 			fields: fields{
-				Service: &mockSendBlockError{},
+				Service:         &mockSendBlockError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendBlockRequest{},
@@ -569,7 +605,8 @@ func TestP2PServerHandler_SendBlock(t *testing.T) {
 		{
 			name: "SendBlock:Success",
 			fields: fields{
-				Service: &mockSendBlockSuccess{},
+				Service:         &mockSendBlockSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendBlockRequest{},
@@ -581,7 +618,8 @@ func TestP2PServerHandler_SendBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.SendBlock(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -616,7 +654,8 @@ func (*mockSendTransactionSuccess) SendTransaction(ctx context.Context, chainTyp
 
 func TestP2PServerHandler_SendTransaction(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -632,7 +671,8 @@ func TestP2PServerHandler_SendTransaction(t *testing.T) {
 		{
 			name: "SendTransaction:Error",
 			fields: fields{
-				Service: &mockSendTransactionError{},
+				Service:         &mockSendTransactionError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendTransactionRequest{},
@@ -643,7 +683,8 @@ func TestP2PServerHandler_SendTransaction(t *testing.T) {
 		{
 			name: "SendTransaction:Success",
 			fields: fields{
-				Service: &mockSendTransactionSuccess{},
+				Service:         &mockSendTransactionSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendTransactionRequest{},
@@ -655,7 +696,8 @@ func TestP2PServerHandler_SendTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.SendTransaction(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -690,7 +732,8 @@ func (*mockSendBlockTransactionsSuccess) SendBlockTransactions(ctx context.Conte
 
 func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -706,7 +749,8 @@ func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
 		{
 			name: "SendBlockTransactions:Error",
 			fields: fields{
-				Service: &mockSendBlockTransactionsError{},
+				Service:         &mockSendBlockTransactionsError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendBlockTransactionsRequest{},
@@ -717,7 +761,8 @@ func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
 		{
 			name: "SendBlockTransactions:Success",
 			fields: fields{
-				Service: &mockSendBlockTransactionsSuccess{},
+				Service:         &mockSendBlockTransactionsSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			args: args{
 				req: &model.SendBlockTransactionsRequest{},
@@ -729,7 +774,8 @@ func TestP2PServerHandler_SendBlockTransactions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.SendBlockTransactions(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -836,7 +882,8 @@ func (*mockRequestDownloadFileSuccess) RequestDownloadFile(context.Context, []by
 
 func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
 	type fields struct {
-		Service service2.P2PServerServiceInterface
+		Service         service2.P2PServerServiceInterface
+		FeedbackService service.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx context.Context
@@ -856,6 +903,9 @@ func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
 					FileChunkNames: []string{},
 				},
 			},
+			fields: fields{
+				FeedbackService: &service.DummyFeedbackStrategy{},
+			},
 			want:    nil,
 			wantErr: true,
 		},
@@ -867,7 +917,8 @@ func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Service: &mockRequestDownloadFileError{},
+				Service:         &mockRequestDownloadFileError{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    nil,
 			wantErr: true,
@@ -880,7 +931,8 @@ func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
 				},
 			},
 			fields: fields{
-				Service: &mockRequestDownloadFileSuccess{},
+				Service:         &mockRequestDownloadFileSuccess{},
+				FeedbackService: &service.DummyFeedbackStrategy{},
 			},
 			want:    &model.FileDownloadResponse{},
 			wantErr: false,
@@ -889,7 +941,8 @@ func TestP2PServerHandler_RequestFileDownload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &P2PServerHandler{
-				Service: tt.fields.Service,
+				Service:          tt.fields.Service,
+				FeedbackStrategy: tt.fields.FeedbackService,
 			}
 			got, err := ss.RequestFileDownload(tt.args.ctx, tt.args.req)
 			if (err != nil) != tt.wantErr {
