@@ -38,11 +38,9 @@ type (
 		RunningServerP2PAPIRequests []int
 		// FeedbackVars variables relative to feedback system that can be used by the service where AntiSpamStrategy is injected into and/or
 		// for internal calculations
-		FeedbackVars         map[string]interface{}
-		FeedbackVarsLock     sync.RWMutex
-		FeedbackActionsLock  sync.RWMutex
-		FeedbackSamplingLock sync.RWMutex
-		Logger               *log.Logger
+		FeedbackVars     map[string]interface{}
+		FeedbackVarsLock sync.RWMutex
+		Logger           *log.Logger
 	}
 )
 
@@ -85,8 +83,6 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 		select {
 		case <-ticker.C:
 			go func() {
-				ass.FeedbackSamplingLock.RLock()
-				defer ass.FeedbackSamplingLock.RUnlock()
 				cpuPercentage, vm, _ := util.GetHwStats(samplingInterval)
 				if len(ass.CPUPercentageSamples) >= constant.FeedbackTotalSamples {
 					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples[1:], cpuPercentage)
@@ -150,8 +146,6 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 		avg              int
 		numQueuedSamples = len(ass.GoRoutineSamples)
 	)
-	ass.FeedbackSamplingLock.RLock()
-	defer ass.FeedbackSamplingLock.RUnlock()
 
 	// if there are less elements in queue that the number of samples we want to compute the average from, return false
 	if numQueuedSamples < numSamples {
