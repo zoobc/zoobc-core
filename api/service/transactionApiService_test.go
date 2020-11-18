@@ -222,6 +222,7 @@ func TestNewTransactionService(t *testing.T) {
 				nil,
 				transactionUtil,
 				nil,
+				nil,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
