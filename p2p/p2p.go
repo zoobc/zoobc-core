@@ -39,6 +39,7 @@ type (
 			nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
+			feedbackStrategy coreService.FeedbackStrategyInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -66,6 +67,7 @@ type (
 		FileService              coreService.FileServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		FeedbackStrategy         coreService.FeedbackStrategyInterface
 	}
 )
 
@@ -78,6 +80,7 @@ func NewP2PService(
 	fileService coreService.FileServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	feedbackStrategy coreService.FeedbackStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		PeerServiceClient:        peerServiceClient,
@@ -87,6 +90,7 @@ func NewP2PService(
 		FileService:              fileService,
 		NodeRegistrationService:  nodeRegistrationService,
 		NodeConfigurationService: nodeConfigurationService,
+		FeedbackStrategy:         feedbackStrategy,
 	}, nil
 }
 
@@ -104,6 +108,7 @@ func (s *Peer2PeerService) StartP2P(
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
+	feedbackStrategy coreService.FeedbackStrategyInterface,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
@@ -116,6 +121,7 @@ func (s *Peer2PeerService) StartP2P(
 		mempoolServices,
 		nodeSecretPhrase,
 		observer,
+		feedbackStrategy,
 	)
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request
@@ -135,6 +141,7 @@ func (s *Peer2PeerService) StartP2P(
 
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,
+			feedbackStrategy,
 		))
 		if err := grpcServer.Serve(p2pUtil.ServerListener(int(s.NodeConfigurationService.GetHost().GetInfo().GetPort()))); err != nil {
 			s.Logger.Fatal(err.Error())

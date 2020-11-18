@@ -141,6 +141,7 @@ func TestNewP2PServerService(t *testing.T) {
 		mempoolServices         map[int32]coreService.MempoolServiceInterface
 		nodeSecretPhrase        string
 		observer                *observer.Observer
+		feedbackStrategy        coreService.FeedbackStrategyInterface
 	}
 	tests := []struct {
 		name string
@@ -157,11 +158,13 @@ func TestNewP2PServerService(t *testing.T) {
 				mempoolServices:         make(map[int32]coreService.MempoolServiceInterface),
 				nodeSecretPhrase:        "",
 				observer:                nil,
+				feedbackStrategy:        &coreService.DummyFeedbackStrategy{},
 			},
 			want: &P2PServerService{
 				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
 				MempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
 				NodeSecretPhrase: "",
+				FeedbackStrategy: &coreService.DummyFeedbackStrategy{},
 			},
 		},
 	}
@@ -171,7 +174,10 @@ func TestNewP2PServerService(t *testing.T) {
 				nil, tt.args.peerExplorer,
 				tt.args.blockServices,
 				tt.args.mempoolServices,
-				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
+				tt.args.nodeSecretPhrase,
+				tt.args.observer,
+				tt.args.feedbackStrategy,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
 		})
