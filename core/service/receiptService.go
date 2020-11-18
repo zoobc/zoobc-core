@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
-	"math"
+	"fmt"
 	"sort"
 	"time"
 
@@ -43,10 +43,10 @@ type (
 		) (*model.Receipt, error)
 		// CheckDuplication to check duplication of *model.BatchReceipt when get response from send block and send transaction
 		CheckDuplication(publicKey []byte, datumHash []byte) (err error)
-		StoreReceipt(receipt *model.Receipt, chaintype chaintype.ChainType) error
+		StoreReceipt(receipt *model.Receipt) error
 		ClearCache()
 		SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error
-		GetReceiptFromPool(hash []byte) ([]model.Receipt, error)
+		GetReceiptFromPool(payloadHash []byte) ([]model.Receipt, error)
 	}
 
 	ReceiptService struct {
@@ -126,6 +126,7 @@ func (rs *ReceiptService) Initialize() error {
 // - proved receipts, receipts that
 func (rs *ReceiptService) SelectReceipts(previousBlock *model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
 	var (
+		allBatch                     = make([]storage.ReceiptBatchObject, 0)
 		freeBatch                    storage.ReceiptBatchObject
 		freeReceipts, provedReceipts = make([]*model.PublishedReceipt, 0), make([]*model.PublishedReceipt, 0)
 		err                          error
@@ -137,13 +138,29 @@ func (rs *ReceiptService) SelectReceipts(previousBlock *model.Block) ([]*model.P
 	if err != nil {
 		return freeReceipts, provedReceipts, err
 	}
-	randomNumber := rs.randomNumberGenerator.Next()
-	batchIndex := int(math.Floor(float64(randomNumber) / float64(len(freeBatch.ReceiptBatch))))
-	// choose free receipts
-	err = rs.ReceiptBatchStorage.GetAtIndex(uint32(0), &freeBatch)
+	err = rs.ReceiptBatchStorage.GetAll(&allBatch)
 	if err != nil {
 		return freeReceipts, provedReceipts, err
 	}
+	if len(allBatch) < constant.MaxReceiptBatchCacheRound {
+		return freeReceipts, provedReceipts, blocker.NewBlocker(blocker.CacheEmpty,
+			fmt.Sprintf("NoEnoughBatchReceipt-minimum: %d\tsupplied: %d\n", constant.MaxReceiptBatchCacheRound,
+				len(allBatch)))
+	}
+	// choose free receipts
+	freeBatch = allBatch[0]
+	if len(freeBatch.ReceiptBatch) == 0 {
+		return freeReceipts, provedReceipts, blocker.NewBlocker(blocker.CacheEmpty, "NoBatchReceipt")
+	}
+	randomNumber := rs.randomNumberGenerator.Next()
+	getBatchIndex := func(rdm int64) int {
+		rd := rdm / int64(len(freeBatch.ReceiptBatch))
+		mult := rd * int64(len(freeBatch.ReceiptBatch))
+		rem := rdm - mult
+		return int(rem)
+	}
+	batchIndex := getBatchIndex(randomNumber)
+
 	var (
 		merkleRoot util.MerkleRoot
 	)
@@ -184,13 +201,13 @@ func (rs *ReceiptService) SelectReceipts(previousBlock *model.Block) ([]*model.P
 	return freeReceipts, provedReceipts, err
 }
 
-func (rs *ReceiptService) GetReceiptFromPool(hash []byte) ([]model.Receipt, error) {
+func (rs *ReceiptService) GetReceiptFromPool(payloadHash []byte) ([]model.Receipt, error) {
 	var (
 		result []model.Receipt
 		err    error
 	)
-	hashHex := hex.EncodeToString(hash)
-	err = rs.ReceiptPoolCacheStorage.GetItem(hashHex, &result)
+	payloadHashHex := hex.EncodeToString(payloadHash)
+	err = rs.ReceiptPoolCacheStorage.GetItem(payloadHashHex, &result)
 	if result == nil {
 		result = make([]model.Receipt, 0)
 	}
@@ -341,34 +358,34 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 // CheckDuplication check existing batch receipt in cache storage
 func (rs *ReceiptService) CheckDuplication(publicKey, datumHash []byte) (err error) {
-	var (
-		receiptKey []byte
-		cType      chaintype.ChainType
-	)
-	if len(publicKey) == 0 && len(datumHash) == 0 {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"EmptyParams",
-		)
-	}
-	receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
-	if err != nil {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			err.Error(),
-		)
-	}
-
-	err = rs.ProvedReceiptReminderStorage.GetItem(hex.EncodeToString(receiptKey), &cType)
-	if err != nil {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"FailedGetReceiptKey",
-		)
-	}
-	if cType != nil {
-		return blocker.NewBlocker(blocker.DuplicateReceiptErr, "ReceiptExistsOnReminder")
-	}
+	// var (
+	// 	receiptKey []byte
+	// 	cType      chaintype.ChainType
+	// )
+	// if len(publicKey) == 0 && len(datumHash) == 0 {
+	// 	return blocker.NewBlocker(
+	// 		blocker.ValidationErr,
+	// 		"EmptyParams",
+	// 	)
+	// }
+	// receiptKey, err = rs.ReceiptUtil.GetReceiptKey(datumHash, publicKey)
+	// if err != nil {
+	// 	return blocker.NewBlocker(
+	// 		blocker.ValidationErr,
+	// 		err.Error(),
+	// 	)
+	// }
+	//
+	// err = rs.ReceiptPoolCacheStorage.GetItem(hex.EncodeToString(receiptKey), &cType)
+	// if err != nil {
+	// 	return blocker.NewBlocker(
+	// 		blocker.ValidationErr,
+	// 		"FailedGetReceiptPool",
+	// 	)
+	// }
+	// if cType != nil {
+	// 	return blocker.NewBlocker(blocker.DuplicateReceiptErr, "ReceiptExistsOnReminder")
+	// }
 	return nil
 }
 
@@ -508,16 +525,14 @@ func (rs *ReceiptService) GenerateReceipt(
 	return receipt, err
 }
 
-func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, chaintype chaintype.ChainType) error {
+func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt) error {
 	b := *receipt
 	err := rs.ReceiptPoolCacheStorage.SetItem(hex.EncodeToString(receipt.DatumHash), b)
-	if err != nil {
-		return err
-	}
-	err = rs.ProvedReceiptReminderStorage.SetItem(hex.EncodeToString(receipt.DatumHash), chaintype)
 	return err
 }
 
 func (rs *ReceiptService) ClearCache() {
 	_ = rs.ReceiptPoolCacheStorage.ClearCache()
+	_ = rs.ReceiptBatchStorage.Clear()
+	_ = rs.ProvedReceiptReminderStorage.ClearCache()
 }
