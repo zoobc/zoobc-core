@@ -51,10 +51,12 @@ func NewAntiSpamStrategy(
 	logger *log.Logger,
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
-		Logger:               logger,
-		CPUPercentageSamples: make([]float64, 0, constant.FeedbackTotalSamples),
-		MemUsageSamples:      make([]float64, 0, constant.FeedbackTotalSamples),
-		GoRoutineSamples:     make([]int, 0, constant.FeedbackTotalSamples),
+		Logger:                      logger,
+		CPUPercentageSamples:        make([]float64, 0, constant.FeedbackTotalSamples),
+		MemUsageSamples:             make([]float64, 0, constant.FeedbackTotalSamples),
+		GoRoutineSamples:            make([]int, 0, constant.FeedbackTotalSamples),
+		RunningServerP2PAPIRequests: make([]int, 0, constant.FeedbackTotalSamples),
+		RunningCliP2PAPIRequests:    make([]int, 0, constant.FeedbackTotalSamples),
 		FeedbackVars: map[string]interface{}{
 			"tpsReceived":         0,
 			"tpsReceivedTmp":      0,
@@ -86,34 +88,39 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 				ass.FeedbackSamplingLock.RLock()
 				defer ass.FeedbackSamplingLock.RUnlock()
 				cpuPercentage, vm, _ := util.GetHwStats(samplingInterval)
-				if len(ass.CPUPercentageSamples) > 99 {
+				if len(ass.CPUPercentageSamples) >= constant.FeedbackTotalSamples {
 					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples[1:], cpuPercentage)
 				} else {
 					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples, cpuPercentage)
 				}
-				if len(ass.MemUsageSamples) > 99 {
+				if len(ass.MemUsageSamples) >= constant.FeedbackTotalSamples {
 					ass.MemUsageSamples = append(ass.MemUsageSamples[1:], vm.UsedPercent)
 				} else {
 					ass.MemUsageSamples = append(ass.MemUsageSamples, vm.UsedPercent)
 				}
-				if len(ass.GoRoutineSamples) > 99 {
-					ass.GoRoutineSamples = append(ass.GoRoutineSamples[1:], util.GetGoRoutineStats())
+				nGoroutines := util.GetGoRoutineStats()
+				if len(ass.GoRoutineSamples) >= constant.FeedbackTotalSamples {
+					ass.GoRoutineSamples = append(ass.GoRoutineSamples[1:], nGoroutines)
 				} else {
-					ass.GoRoutineSamples = append(ass.GoRoutineSamples, util.GetGoRoutineStats())
+					ass.GoRoutineSamples = append(ass.GoRoutineSamples, nGoroutines)
 				}
-				if cliRequests := ass.GetFeedbackVar("P2POutgoingRequests"); cliRequests != nil {
-					if len(ass.RunningCliP2PAPIRequests) > 99 {
-						ass.RunningCliP2PAPIRequests = append(ass.RunningCliP2PAPIRequests[1:], cliRequests.(int))
-					} else {
-						ass.GoRoutineSamples = append(ass.GoRoutineSamples, cliRequests.(int))
-					}
+				cliRequests := ass.GetFeedbackVar("P2POutgoingRequests")
+				if cliRequests == nil {
+					cliRequests = 0
 				}
-				if P2PRequests := ass.GetFeedbackVar("P2PIncomingRequests"); P2PRequests != nil {
-					if len(ass.RunningCliP2PAPIRequests) > 99 {
-						ass.RunningCliP2PAPIRequests = append(ass.RunningServerP2PAPIRequests[1:], P2PRequests.(int))
-					} else {
-						ass.GoRoutineSamples = append(ass.GoRoutineSamples, P2PRequests.(int))
-					}
+				if len(ass.RunningCliP2PAPIRequests) >= constant.FeedbackTotalSamples {
+					ass.RunningCliP2PAPIRequests = append(ass.RunningCliP2PAPIRequests[1:], cliRequests.(int))
+				} else {
+					ass.RunningCliP2PAPIRequests = append(ass.RunningCliP2PAPIRequests, cliRequests.(int))
+				}
+				P2PRequests := ass.GetFeedbackVar("P2PIncomingRequests")
+				if P2PRequests == nil {
+					P2PRequests = 0
+				}
+				if len(ass.RunningServerP2PAPIRequests) >= constant.FeedbackTotalSamples {
+					ass.RunningServerP2PAPIRequests = append(ass.RunningServerP2PAPIRequests[1:], P2PRequests.(int))
+				} else {
+					ass.RunningServerP2PAPIRequests = append(ass.RunningServerP2PAPIRequests, P2PRequests.(int))
 				}
 			}()
 		case <-tickerResetPerSecondVars.C:
@@ -137,7 +144,6 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 // IsGoroutineLimitReached return true if one of the limits has been reached, together with the feedback limit level (from none to critical)
 func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
 	var (
-		counter          int
 		sumGoRoutines    int
 		avg              int
 		numQueuedSamples = len(ass.GoRoutineSamples)
@@ -149,26 +155,22 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	if numQueuedSamples < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
-	for n := numQueuedSamples; n > 0; n-- {
-		counter++
-		if counter >= numSamples {
-			break
-		}
-		sumGoRoutines += ass.GoRoutineSamples[n-1]
+	for n := 1; n <= numSamples; n++ {
+		sumGoRoutines += ass.GoRoutineSamples[len(ass.GoRoutineSamples)-n]
 	}
-	switch avg = sumGoRoutines / counter; {
+	switch avg = sumGoRoutines / numSamples; {
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitCriticalPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitCritical
-		ass.Logger.Errorf("goroutine level critical! average count for last %d samples is %d", counter, avg)
+		ass.Logger.Errorf("goroutine level critical! average count for last %d samples is %d", numSamples, avg)
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitHighPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitHigh
-		ass.Logger.Errorf("goroutine level high! average count for last %d samples is %d", counter, avg)
+		ass.Logger.Errorf("goroutine level high! average count for last %d samples is %d", numSamples, avg)
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitMediumPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitMedium
-		ass.Logger.Errorf("goroutine level medium! average count for last %d samples is %d", counter, avg)
+		ass.Logger.Errorf("goroutine level medium! average count for last %d samples is %d", numSamples, avg)
 	case avg >= constant.GoRoutineHardLimit*constant.FeedbackLimitLowPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitLow
