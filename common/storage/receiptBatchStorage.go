@@ -98,7 +98,7 @@ func (r *ReceiptBatchStorage) GetAll(items interface{}) error {
 
 func (r *ReceiptBatchStorage) GetAtIndex(index uint32, item interface{}) error {
 	if int(index) >= len(r.batches) {
-		return blocker.NewBlocker(blocker.ValidationErr, "IndexOutOfRange")
+		return blocker.NewBlocker(blocker.NotFound, "IndexOutOfRange")
 	}
 	batchCopy, ok := item.(*ReceiptBatchObject)
 	if !ok {
