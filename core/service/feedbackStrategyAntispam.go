@@ -126,10 +126,15 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 		case <-tickerResetPerSecondVars.C:
 			// Reset feedback variables that are sampled 'per second'
 			func() {
-				ass.SetFeedbackVar("tpsReceived", ass.FeedbackVars["tpsReceivedTmp"])
-				ass.SetFeedbackVar("tpsProcessed", ass.FeedbackVars["tpsProcessedTmp"])
-				monitoring.SetTpsReceived(ass.FeedbackVars["tpsReceived"].(int))
-				monitoring.SetTpsProcessed(ass.FeedbackVars["tpsProcessed"].(int))
+				if tpsReceivedTmp := ass.GetFeedbackVar("tpsReceivedTmp"); tpsReceivedTmp != nil {
+					ass.SetFeedbackVar("tpsReceived", tpsReceivedTmp)
+					monitoring.SetTpsReceived(tpsReceivedTmp.(int))
+				}
+				if tpsProcessedTmp := ass.GetFeedbackVar("tpsProcessedTmp"); tpsProcessedTmp != nil {
+					ass.SetFeedbackVar("tpsProcessed", tpsProcessedTmp)
+					monitoring.SetTpsReceived(tpsProcessedTmp.(int))
+				}
+				// Reset the temporary tps received/processed every second
 				ass.SetFeedbackVar("tpsReceivedTmp", 0)
 				ass.SetFeedbackVar("tpsProcessedTmp", 0)
 			}()
