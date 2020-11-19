@@ -2,6 +2,8 @@ package block
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -21,8 +23,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"strings"
-	"time"
 )
 
 type (
@@ -162,6 +162,8 @@ func initialize(
 		nil,
 		blocksStorage,
 		mempoolStorage,
+		nil,
+		nil,
 		nil,
 	)
 	nodeAddressInfoService := service.NewNodeAddressInfoService(

@@ -6,6 +6,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -39,15 +49,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
 )
 
 var (
@@ -58,7 +59,8 @@ var (
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
-	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
+	nodeAddressInfoStorage, spendableBalanceStorage                        storage.CacheStorageInterface
+	mempoolUnsaveCacheStorage                                              storage.CacheStorageInterface
 	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -279,13 +281,16 @@ func initiateMainInstance() {
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
+	mempoolBackupStorage = storage.NewMempoolBackupStorage()
+	mempoolUnsaveCacheStorage = storage.NewMempoolStorage()
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
-	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	spineBlocksStorage = storage.NewBlocksStorage()
+	spendableBalanceStorage = storage.NewSpendableBalanceStorage()
+
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -344,6 +349,7 @@ func initiateMainInstance() {
 		NodeAddressInfoStorage:     txNodeAddressInfoStorage,
 		ActiveNodeRegistryStorage:  txActiveNodeRegistryStorage,
 		PendingNodeRegistryStorage: txPendingNodeRegistryStorage,
+		SpendabelBalanceStorage:    spendableBalanceStorage,
 		FeeScaleService:            feeScaleService,
 	}
 
@@ -505,6 +511,8 @@ func initiateMainInstance() {
 		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
+		mempoolUnsaveCacheStorage,
+		spendableBalanceStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(

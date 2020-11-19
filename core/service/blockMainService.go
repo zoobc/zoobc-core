@@ -425,6 +425,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeAddressInfoCacheBeginTransaction - %s", err.Error()))
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
+	err = bs.MempoolService.SpendableBalanceBeginCacheTransaction()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("SpendableBalanceBeginCacheTransaction - %s", err.Error()))
+		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
 		Respecting Expiring escrow and multi signature transaction before push block process
@@ -752,6 +757,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			return err
 		}
 	}
+	err = bs.MempoolService.SpendableBalanceCommitCacheTransaction()
+	if err != nil {
+		bs.queryAndCacheRollbackProcess("")
+		return err
+	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// clear the block pool
 	bs.BlockPoolService.ClearBlockPool()
@@ -780,6 +790,10 @@ func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
 	err = bs.NodeRegistrationService.RollbackCacheTransaction()
 	if err != nil {
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
+	}
+	err = bs.MempoolService.SpendableBalanceRollbackCacheTransaction()
+	if err != nil {
+		bs.Logger.Errorf("spendableBalance:cacheRollbackErr - %s", err.Error())
 	}
 	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
 		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())

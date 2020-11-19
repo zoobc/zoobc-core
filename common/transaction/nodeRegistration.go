@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -182,23 +182,26 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 ApplyUnconfirmed is func that for applying to unconfirmed Transaction `NodeRegistration` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *NodeRegistration) ApplyUnconfirmed() error {
+func (tx *NodeRegistration) ApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -(tx.Body.GetLockedBalance() + tx.Fee)
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetLockedBalance() + tx.Fee))
-	if err != nil {
-		return err
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
+	var (
+		addedSpendable = tx.Body.GetLockedBalance() + tx.Fee
+		err            = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+	)
 	if err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 // Validate validate node registration transaction and tx body
@@ -437,15 +440,12 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 
 // EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
 // similar with ApplyUnconfirmed and Escrow.Commission
-func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
-
-	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetLockedBalance() + tx.Fee + tx.Escrow.GetCommission()))
-	if err != nil {
-		return err
+func (tx *NodeRegistration) EscrowApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -(tx.Body.GetLockedBalance() + tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 // EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
@@ -453,12 +453,15 @@ func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
 func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
 
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	var (
+		addedSpendable = tx.Body.GetLockedBalance() + tx.Fee + tx.Escrow.GetCommission()
+		err            = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+	)
 	if err != nil {
 		return err
 	}
-
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 // EscrowApplyConfirmed func that for applying Transaction SendMoney type

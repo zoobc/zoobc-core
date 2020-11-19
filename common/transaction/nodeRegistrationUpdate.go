@@ -3,8 +3,8 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -153,7 +153,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 ApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNodeRegistration` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
+func (tx *UpdateNodeRegistration) ApplyUnconfirmed(applyInCache bool) error {
 
 	var (
 		effectiveBalanceToLock int64
@@ -179,20 +179,18 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeReg.GetLockedBalance()
 	}
-
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(effectiveBalanceToLock + tx.Fee))
-	if err != nil {
-		return err
+	var addedSpendable = -(effectiveBalanceToLock + tx.Fee)
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 	var (
-		err                    error
-		effectiveBalanceToLock int64
-		prevNodeRegistration   model.NodeRegistration
-		row                    *sql.Row
+		err                  error
+		prevNodeRegistration model.NodeRegistration
+		row                  *sql.Row
 	)
 	// get the latest nodeRegistration by owner (sender account)
 	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
@@ -209,13 +207,17 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 	}
 
 	// delta amount to be locked
-	effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+	var (
+		effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
+		addedSpendable         = effectiveBalanceToLock + tx.Fee
+	)
 	// update sender balance by reducing his spendable balance of the tx fee
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, effectiveBalanceToLock+tx.Fee)
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 	if err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 // Validate validate node registration transaction and tx body
@@ -459,7 +461,7 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `UpdateNodeRegistration` type,
 perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed() error {
+func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed(applyInCache bool) error {
 
 	var (
 		effectiveBalanceToLock int64
@@ -489,12 +491,11 @@ func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed() error {
 		// delta amount to be locked
 		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
 	}
-
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(effectiveBalanceToLock + tx.Fee + tx.Escrow.GetCommission()))
-	if err != nil {
-		return err
+	var addedSpendable = -(effectiveBalanceToLock + tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -502,10 +503,9 @@ EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
 */
 func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	var (
-		effectiveBalanceToLock int64
-		nodeRegistration       model.NodeRegistration
-		row                    *sql.Row
-		err                    error
+		nodeRegistration model.NodeRegistration
+		row              *sql.Row
+		err              error
 	)
 
 	// get the latest node registration by owner (sender account)
@@ -524,13 +524,17 @@ func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	}
 
 	// delta amount to be locked
-	effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
+	var (
+		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
+		addedSpendable         = effectiveBalanceToLock + tx.Fee + tx.Escrow.GetCommission()
+	)
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, effectiveBalanceToLock+tx.Fee+tx.Escrow.GetCommission())
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 	if err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 // EscrowApplyConfirmed method for confirmed the transaction and store into database

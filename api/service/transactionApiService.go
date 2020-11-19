@@ -230,11 +230,7 @@ func (ts *TransactionService) PostTransaction(
 	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Apply Unconfirmed
-	err = ts.Query.BeginTx()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
+	// process validated received transction
 	err = ts.MempoolService.ReceivedTransactionFromWallet(tx, txBytes)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())

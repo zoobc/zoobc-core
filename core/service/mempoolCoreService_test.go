@@ -44,22 +44,25 @@ var _ = mockMempoolTransaction
 
 func TestNewMempoolService(t *testing.T) {
 	type args struct {
-		ct                     chaintype.ChainType
-		queryExecutor          query.ExecutorInterface
-		mempoolQuery           query.MempoolQueryInterface
-		merkleTreeQuery        query.MerkleTreeQueryInterface
-		accountBalanceQuery    query.AccountBalanceQueryInterface
-		transactionQuery       query.TransactionQueryInterface
-		actionTypeSwitcher     transaction.TypeActionSwitcher
-		obsr                   *observer.Observer
-		signature              crypto.SignatureInterface
-		logger                 *log.Logger
-		transactionUtil        transaction.UtilInterface
-		receiptUtil            coreUtil.ReceiptUtilInterface
-		receiptService         ReceiptServiceInterface
-		TransactionCoreService TransactionCoreServiceInterface
-		BlockStateStorage      storage.CacheStackStorageInterface
-		MempoolCacheStorage    storage.CacheStorageInterface
+		ct                        chaintype.ChainType
+		queryExecutor             query.ExecutorInterface
+		mempoolQuery              query.MempoolQueryInterface
+		merkleTreeQuery           query.MerkleTreeQueryInterface
+		accountBalanceQuery       query.AccountBalanceQueryInterface
+		transactionQuery          query.TransactionQueryInterface
+		actionTypeSwitcher        transaction.TypeActionSwitcher
+		obsr                      *observer.Observer
+		signature                 crypto.SignatureInterface
+		logger                    *log.Logger
+		transactionUtil           transaction.UtilInterface
+		receiptUtil               coreUtil.ReceiptUtilInterface
+		receiptService            ReceiptServiceInterface
+		TransactionCoreService    TransactionCoreServiceInterface
+		BlockStateStorage         storage.CacheStackStorageInterface
+		MempoolCacheStorage       storage.CacheStorageInterface
+		MempoolBackupStorage      storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage storage.CacheStorageInterface
+		SpendableBalanceStorage   storage.CacheStorageInterface
 	}
 
 	test := struct {
@@ -73,8 +76,9 @@ func TestNewMempoolService(t *testing.T) {
 			obsr: observer.NewObserver(),
 		},
 		want: &MempoolService{
-			Chaintype: &chaintype.MainChain{},
-			Observer:  observer.NewObserver(),
+			Chaintype:                          &chaintype.MainChain{},
+			Observer:                           observer.NewObserver(),
+			mapAccountsWithFullCacheMempoolIDs: make(map[string]map[int64]bool),
 		},
 	}
 
@@ -95,7 +99,9 @@ func TestNewMempoolService(t *testing.T) {
 		test.args.TransactionCoreService,
 		test.args.BlockStateStorage,
 		test.args.MempoolCacheStorage,
-		nil,
+		test.args.MempoolBackupStorage,
+		test.args.MempoolUnsaveCacheStorage,
+		test.args.SpendableBalanceStorage,
 	)
 
 	if !reflect.DeepEqual(got, test.want) {
@@ -907,7 +913,7 @@ type (
 	}
 )
 
-func (*mockEscrowTypeAction) EscrowApplyUnconfirmed() error {
+func (*mockEscrowTypeAction) EscrowApplyUnconfirmed(applyInCache bool) error {
 	return nil
 }
 func (*mockTxTypeSuccess) ApplyUnconfirmed() error {

@@ -279,7 +279,7 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 			if err != nil {
 				return err
 			}
-			err = txType.ApplyUnconfirmed()
+			err = txType.ApplyUnconfirmed(false)
 			if err != nil {
 				return err
 			}

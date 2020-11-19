@@ -254,7 +254,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			continue
 		}
 
-		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
+		err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType, false)
 		if err != nil {
 			fp.Logger.Warnf("ProcessLater:ApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
 			continue
@@ -322,7 +322,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 				return
 			}
 
-			err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType)
+			err = fp.TransactionCorService.ApplyUnconfirmedTransaction(txType, false)
 			if err != nil {
 				fp.Logger.Warnf("restoreMempoolsBackup:ApplyUnconfirmedTransaction: %v", err)
 				return

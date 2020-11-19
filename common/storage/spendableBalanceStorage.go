@@ -13,10 +13,13 @@ type (
 	// SpendableBalanceStorage cache for spendable balance
 	SpendableBalanceStorage struct {
 		sync.RWMutex
-		spendableBalances map[string]int64
+		transactionalLock              sync.RWMutex
+		isInTransaction                bool
+		transactionalSpendableBalances map[string]int64
+		spendableBalances              map[string]int64
 	}
 
-	SpendableBalaceCacheObject struct {
+	spendableBalanceCacheObject struct {
 		AccountAddress   []byte
 		SpendableBalance int64
 	}
@@ -33,12 +36,12 @@ func (sp *SpendableBalanceStorage) SetItem(key, item interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:[]byte")
 	}
-	spendableBalace, ok := item.(int64)
+	spendableBalance, ok := item.(int64)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:int64")
 	}
 	sp.Lock()
-	sp.spendableBalances[fmt.Sprintf("%q", account)] = spendableBalace
+	sp.spendableBalances[fmt.Sprintf("%q", account)] = spendableBalance
 	sp.Unlock()
 	return nil
 }
@@ -52,30 +55,50 @@ func (sp *SpendableBalanceStorage) GetItem(key, item interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:[]byte")
 	}
-	spendableBalace, ok := item.(*int64)
+	spendableBalance, ok := item.(*int64)
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:*int64")
 	}
-	sp.RLock()
-	defer sp.RUnlock()
-	*spendableBalace = sp.spendableBalances[fmt.Sprintf("%q", account)]
-	if *spendableBalace == 0 {
-		return blocker.NewBlocker(blocker.NotFound, "SpendableBalanceStorageZero")
+
+	if sp.isInTransaction {
+		// return from transactional list
+		sp.transactionalLock.RLock()
+		*spendableBalance = sp.transactionalSpendableBalances[fmt.Sprintf("%q", account)]
+		sp.transactionalLock.RUnlock()
+	} else {
+		// return from normal list
+		sp.RLock()
+		*spendableBalance = sp.spendableBalances[fmt.Sprintf("%q", account)]
+		sp.RUnlock()
 	}
 	return nil
 }
 
 func (sp *SpendableBalanceStorage) GetAllItems(item interface{}) error {
-	spendableBalacesObject, ok := item.(*[]SpendableBalaceCacheObject)
+	spendableBalancesObject, ok := item.(*[]spendableBalanceCacheObject)
 	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:*[]SpendableBalaceCacheObject")
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:*[]spendableBalanceCacheObject")
 	}
-	for accountStr, spendable := range sp.spendableBalances {
-		*spendableBalacesObject = append(*spendableBalacesObject, SpendableBalaceCacheObject{
-			AccountAddress:   []byte(accountStr),
-			SpendableBalance: spendable,
-		})
+	if sp.isInTransaction {
+		sp.transactionalLock.RLock()
+		for accountStr, spendable := range sp.transactionalSpendableBalances {
+			*spendableBalancesObject = append(*spendableBalancesObject, spendableBalanceCacheObject{
+				AccountAddress:   []byte(accountStr),
+				SpendableBalance: spendable,
+			})
+		}
+		sp.transactionalLock.RUnlock()
+	} else {
+		sp.RLock()
+		for accountStr, spendable := range sp.spendableBalances {
+			*spendableBalancesObject = append(*spendableBalancesObject, spendableBalanceCacheObject{
+				AccountAddress:   []byte(accountStr),
+				SpendableBalance: spendable,
+			})
+		}
+		sp.RUnlock()
 	}
+
 	return nil
 }
 func (sp *SpendableBalanceStorage) GetTotalItems() int {
@@ -108,4 +131,85 @@ func (sp *SpendableBalanceStorage) GetSize() int64 {
 func (sp *SpendableBalanceStorage) ClearCache() error {
 	sp.spendableBalances = make(map[string]int64)
 	return nil
+}
+
+// Transactional implementation
+
+// Begin prepare data to begin doing transactional change to the cache, this implementation
+// will never return error
+func (sp *SpendableBalanceStorage) Begin() error {
+	sp.Lock()
+	sp.transactionalLock.Lock()
+	defer sp.transactionalLock.Unlock()
+	sp.isInTransaction = true
+	sp.transactionalSpendableBalances = make(map[string]int64)
+	// copy current spendable balance into transaction list
+	for accountStr, spendableBalance := range sp.spendableBalances {
+		sp.transactionalSpendableBalances[accountStr] = spendableBalance
+	}
+	return nil
+}
+
+func (sp *SpendableBalanceStorage) Commit() error {
+	// make sure isInTransaction is true
+	if !sp.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
+	sp.transactionalLock.Lock()
+	defer func() {
+		sp.isInTransaction = false
+		sp.Unlock()
+		sp.transactionalLock.Unlock()
+	}()
+	// Update all spendable belence from transactional spendable belance
+	for accountStr, spendableBalance := range sp.transactionalSpendableBalances {
+		sp.spendableBalances[accountStr] = spendableBalance
+	}
+	sp.transactionalSpendableBalances = make(map[string]int64)
+	return nil
+}
+
+func (sp *SpendableBalanceStorage) Rollback() error {
+	// make sure isInTransaction is true
+	if !sp.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
+	sp.transactionalLock.Lock()
+	defer func() {
+		sp.isInTransaction = false
+		sp.Unlock()
+		sp.transactionalLock.Unlock()
+	}()
+	sp.transactionalSpendableBalances = make(map[string]int64)
+	return nil
+}
+
+// TxSetItem set individual item
+func (sp *SpendableBalanceStorage) TxSetItem(id, item interface{}) error {
+	// make sure isInTransaction is true
+	if !sp.isInTransaction {
+		return blocker.NewBlocker(blocker.ValidationErr, "BeginIsRequired")
+	}
+	account, ok := id.([]byte)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:[]byte")
+	}
+	spendableBalance, ok := item.(int64)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeKeyExpected:int64")
+	}
+	sp.transactionalLock.Lock()
+	sp.transactionalSpendableBalances[fmt.Sprintf("%q", account)] = spendableBalance
+	sp.transactionalLock.Unlock()
+	return nil
+}
+
+// TxSetItems currently doesn’t need to set in transactional
+func (sp *SpendableBalanceStorage) TxSetItems(items interface{}) error {
+	return blocker.NewBlocker(blocker.ValidationErr, "NotYetImeplemented")
+}
+
+// TxRemoveItem currently doesn’t need to remove in transactional
+func (sp *SpendableBalanceStorage) TxRemoveItem(id interface{}) error {
+	return blocker.NewBlocker(blocker.ValidationErr, "NotYetImeplemented")
 }

@@ -16,6 +16,7 @@ type (
 	}
 	MempoolCacheObject struct {
 		Tx                  model.Transaction
+		TxBytes             []byte
 		ArrivalTimestamp    int64
 		FeePerByte          int64
 		TransactionByteSize uint32
@@ -39,7 +40,7 @@ func (m *MempoolCacheStorage) SetItem(key, item interface{}) error {
 		if !ok {
 			return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 		}
-		m.mempoolMap[keyInt64] = mempoolMap
+		m.mempoolMap[keyInt64] = m.mempoolCopy(mempoolMap)
 		if monitoring.IsMonitoringActive() {
 			monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
 			monitoring.SetMempoolTransactionCount(len(m.mempoolMap))
@@ -62,7 +63,7 @@ func (m *MempoolCacheStorage) GetItem(key, item interface{}) error {
 		if !ok {
 			return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
 		}
-		*txCopy = m.mempoolMap[keyInt64]
+		*txCopy = m.mempoolCopy(m.mempoolMap[keyInt64])
 		return nil
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType Key")
@@ -79,7 +80,7 @@ func (m *MempoolCacheStorage) GetAllItems(item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongTypeItem")
 	}
 	for k, tx := range m.mempoolMap {
-		itemCopy[k] = tx
+		itemCopy[k] = m.mempoolCopy(tx)
 	}
 	return nil
 }
@@ -135,4 +136,10 @@ func (m *MempoolCacheStorage) ClearCache() error {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, 0)
 	}
 	return nil
+}
+
+func (m *MempoolCacheStorage) mempoolCopy(mempoolCacheObject MempoolCacheObject) MempoolCacheObject {
+	var mempoolCacheObjectCopy = mempoolCacheObject
+	copy(mempoolCacheObjectCopy.TxBytes, mempoolCacheObject.TxBytes)
+	return mempoolCacheObjectCopy
 }

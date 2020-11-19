@@ -84,13 +84,12 @@ func (tx *SendMoney) ApplyConfirmed(blockTimestamp int64) error {
 ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SendMoney` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *SendMoney) ApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetAmount() + tx.Fee))
-	if err != nil {
-		return err
+func (tx *SendMoney) ApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -(tx.Body.GetAmount() + tx.Fee)
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -98,11 +97,12 @@ UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SendMoney) UndoApplyUnconfirmed() error {
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
-	if err != nil {
+	var addedSpendable = tx.Body.GetAmount() + tx.Fee
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -265,14 +265,12 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
 similar with ApplyUnconfirmed and Escrow.Commission
 */
-func (tx *SendMoney) EscrowApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission()))
-	if err != nil {
-		return err
+func (tx *SendMoney) EscrowApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -(tx.Body.GetAmount() + tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
-
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -280,12 +278,13 @@ EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx a
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SendMoney) EscrowUndoApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.GetAmount()+tx.Escrow.GetCommission()+tx.Fee)
-	if err != nil {
+	var addedSpendable = tx.Body.GetAmount() + tx.Escrow.GetCommission() + tx.Fee
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+
 }
 
 /*

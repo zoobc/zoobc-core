@@ -644,7 +644,7 @@ type mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed) EscrowApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed) EscrowApplyUnconfirmed(applyInCache bool) error {
 	return nil
 }
 
@@ -663,7 +663,7 @@ type mockApplyUnconfirmedTransactionEscrowFalse struct {
 func (*mockApplyUnconfirmedTransactionEscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
-func (*mockApplyUnconfirmedTransactionEscrowFalse) ApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowFalse) ApplyUnconfirmed(bool) error {
 	return nil
 }
 
@@ -674,7 +674,8 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
-		txAction transaction.TypeAction
+		txAction     transaction.TypeAction
+		applyInCache bool
 	}
 	tests := []struct {
 		name    string
@@ -682,7 +683,6 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "ApplyUnconfirmedTransaction:EscrowTrue",
 			args: args{
@@ -705,7 +705,7 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tg.ApplyUnconfirmedTransaction(tt.args.txAction); (err != nil) != tt.wantErr {
+			if err := tg.ApplyUnconfirmedTransaction(tt.args.txAction, tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("TransactionCoreService.ApplyUnconfirmedTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

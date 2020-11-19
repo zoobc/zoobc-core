@@ -150,23 +150,21 @@ func (tx *RemoveNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 ApplyUnconfirmed is func that for applying to unconfirmed Transaction `RemoveNodeRegistration` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *RemoveNodeRegistration) ApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee))
-	if err != nil {
-		return err
+func (tx *RemoveNodeRegistration) ApplyUnconfirmed(applyInCache bool) error {
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, -(tx.Fee))
 	}
-
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee))
 }
 
 func (tx *RemoveNodeRegistration) UndoApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
-	if err != nil {
+	var addedSpendable = tx.Fee
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+
 }
 
 // Validate validate node registration transaction and tx body
@@ -316,27 +314,26 @@ func (tx *RemoveNodeRegistration) EscrowValidate(dbTx bool) error {
 EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `RemoveNodeRegistration` type.
 Perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *RemoveNodeRegistration) EscrowApplyUnconfirmed() error {
-
+func (tx *RemoveNodeRegistration) EscrowApplyUnconfirmed(applyInCache bool) error {
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee + tx.Escrow.GetCommission()))
-	if err != nil {
-		return err
+	var addedSpendable = -(tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
 EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
 */
 func (tx *RemoveNodeRegistration) EscrowUndoApplyUnconfirmed() error {
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
-	if err != nil {
+	var addedSpendable = tx.Fee + tx.Escrow.GetCommission()
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
 		return err
 	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 
-	return nil
 }
 
 // EscrowApplyConfirmed method for confirmed the transaction and store into database

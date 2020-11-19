@@ -65,15 +65,12 @@ func (tx *FeeVoteCommitTransaction) ApplyConfirmed(blockTimestamp int64) error {
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction FeeVoteCommitTransaction type
-func (tx *FeeVoteCommitTransaction) ApplyUnconfirmed() error {
-	var (
-		// update account sender spendable balance
-		err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
-	)
-	if err != nil {
-		return err
+func (tx *FeeVoteCommitTransaction) ApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -tx.Fee
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -86,9 +83,10 @@ func (tx *FeeVoteCommitTransaction) UndoApplyUnconfirmed() error {
 		err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 	)
 	if err != nil {
-		return blocker.NewBlocker(blocker.DBErr, err.Error())
+		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, tx.Fee)
 }
 
 /*
@@ -313,12 +311,24 @@ func (tx *FeeVoteCommitTransaction) EscrowApplyConfirmed(blockTimestamp int64) (
 	return nil
 }
 
-func (tx *FeeVoteCommitTransaction) EscrowApplyUnconfirmed() (err error) {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee + tx.Escrow.GetCommission()))
+func (tx *FeeVoteCommitTransaction) EscrowApplyUnconfirmed(applyInCache bool) (err error) {
+	var addedSpendable = -(tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+	}
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *FeeVoteCommitTransaction) EscrowUndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	var (
+		addedSpendable = tx.Fee + tx.Escrow.GetCommission()
+		err            = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+	)
+	if err != nil {
+		return err
+	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *FeeVoteCommitTransaction) EscrowValidate(dbTx bool) (err error) {
