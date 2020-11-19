@@ -132,7 +132,7 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 				}
 				if tpsProcessedTmp := ass.GetFeedbackVar("tpsProcessedTmp"); tpsProcessedTmp != nil {
 					ass.SetFeedbackVar("tpsProcessed", tpsProcessedTmp)
-					monitoring.SetTpsReceived(tpsProcessedTmp.(int))
+					monitoring.SetTpsProcessed(tpsProcessedTmp.(int))
 				}
 				// Reset the temporary tps received/processed every second
 				ass.SetFeedbackVar("tpsReceivedTmp", 0)
