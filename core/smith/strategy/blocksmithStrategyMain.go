@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"math"
@@ -265,10 +266,11 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	validNumberOfRounds := 1 + gap/bss.Chaintype.GetBlocksmithTimeGap()
 	for i := 0; i < round; i++ {
 		randomNumber := rng.Next()
-		if int64(i) > (int64(round) - validNumberOfRounds) {
+		if int64(i) >= (int64(round) - validNumberOfRounds) {
 			validRandomNumbers = append(validRandomNumbers, randomNumber)
 		}
 	}
+
 	for i := 0; i < len(validRandomNumbers); i++ {
 		idx = bss.convertRandomNumberToIndex(validRandomNumbers[i], int64(len(activeNodeRegistry)))
 		if bytes.Equal(activeNodeRegistry[idx].Node.NodePublicKey, block.BlocksmithPublicKey) {
@@ -282,7 +284,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 			}
 		}
 	}
-	return errors.New("IsBlockValid:Failed-InvalidSmithingTime")
+	return errors.New(fmt.Sprintf("IsBlockValid:Failed-InvalidSmithingTime"))
 }
 
 // getValidBlockPersistTime calculate the valid starting time (inclusive) and ending time (exclusive) for a block to be persisted

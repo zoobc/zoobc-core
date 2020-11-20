@@ -15,6 +15,7 @@ type (
 		InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
 		GetReceiptByRoot(root []byte) (str string, args []interface{})
+		GetReceiptByRootAndDatumHash(root []byte, datumHash []byte) (str string, args []interface{})
 		PruneData(blockHeight, limit uint32) (string, []interface{})
 		ExtractModel(receipt *model.BatchReceipt) []interface{}
 		BuildModel(receipts []*model.BatchReceipt, rows *sql.Rows) ([]*model.BatchReceipt, error)
@@ -79,17 +80,24 @@ func (rq *BatchReceiptQuery) GetReceipts(paginate model.Pagination) string {
 	return query
 }
 
-// GetReceiptByRoot return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
-// published_receipt table
+// GetReceiptByRoot return sql query to fetch pas by its merkle root
 func (rq *BatchReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
-		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
-		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) "+
-		"GROUP BY recipient_public_key",
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? ORDER BY rmr_index ASC",
 		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, []interface{}{
 		root,
 	}
+}
+
+// GetReceiptByRootAndDatumHash return sql query to fetch pas by its merkle root and provided datumHashes
+func (rq *BatchReceiptQuery) GetReceiptByRootAndDatumHash(root []byte, datumHash []byte) (string, []interface{}) {
+
+	var (
+		args = []interface{}{root, datumHash}
+	)
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? ORDER BY rmr_index ASC",
+		strings.Join(rq.Fields, ", "), rq.getTableName()
+	return query, args
 }
 
 // InsertReceipt inserts a new pas into DB

@@ -799,7 +799,7 @@ func TestReceiptService_SelectReceipts(t *testing.T) {
 				ScrambleNodeService:     tt.fields.ScrambleNodeService,
 				MainBlocksStorage:       tt.fields.MainBlocksStorage,
 			}
-			got, _, err := rs.SelectReceipts(tt.args.blockTimestamp)
+			got, _, err := rs.SelectReceipts(tt.args.blockTimestamp, nil, 0)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -947,7 +947,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
 				QueryExecutor:         &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
 				MainBlockStateStorage: &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
-				BatchReceiptStorage:   storage.NewReceiptPoolCacheStorage(),
+				BatchReceiptStorage:   storage.NewReceiptPoolCacheStorage(0),
 			},
 			wantErr: false,
 		},
@@ -1142,7 +1142,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			name: "WantErr:InvalidKeyItem",
 			fields: fields{
 				ReceiptUtil:            &coreUtil.ReceiptUtil{},
-				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(),
+				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(0),
 			},
 			wantErr: true,
 		},
@@ -1160,7 +1160,7 @@ func TestReceiptService_IsDuplicated(t *testing.T) {
 			name: "want:Success",
 			fields: fields{
 				ReceiptUtil:            &coreUtil.ReceiptUtil{},
-				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(),
+				ReceiptReminderStorage: storage.NewProvedReceiptReminderStorage(0),
 			},
 			args: args{datumHash: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}, publicKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9}},
 		},
