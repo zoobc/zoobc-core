@@ -31,3 +31,10 @@ func (r *RandomNumberGenerator) Reset(prefix string, seed []byte) error {
 func (r *RandomNumberGenerator) Next() int64 {
 	return r.rand.Int63()
 }
+
+func (*RandomNumberGenerator) ConvertRandomNumberToIndex(randomNumber, indexRange int64) int64 {
+	rd := randomNumber / indexRange
+	mult := rd * indexRange
+	rem := randomNumber - mult
+	return rem
+}

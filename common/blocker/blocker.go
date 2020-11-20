@@ -49,6 +49,7 @@ var (
 	SchedulerError            TypeBlocker = "SchedulerError"
 	CacheEmpty                TypeBlocker = "CacheEmpty"
 	DuplicateError            TypeBlocker = "DuplicateError"
+	InsufficientError         TypeBlocker = "InsufficientError"
 )
 
 func SetIsDebugMode(val bool) {
