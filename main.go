@@ -281,9 +281,9 @@ func initiateMainInstance() {
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
 	mempoolStorage = storage.NewMempoolStorage()
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
-	provedReceiptReminderStorage = storage.NewProvedReceiptReminderStorage()
+	provedReceiptReminderStorage = storage.NewProvedReceiptReminderStorage(constant.MaxReceipt)
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
+	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage(constant.MaxReceipt)
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	receiptBatchStorage = storage.NewReceiptBatchStackStorage()
@@ -387,6 +387,7 @@ func initiateMainInstance() {
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
@@ -472,6 +473,10 @@ func initiateMainInstance() {
 		mainchainPublishedReceiptUtil,
 		receiptService,
 		queryExecutor,
+		scrambleNodeService,
+		nodeRegistrationService,
+		nodeConfigurationService,
+		provedReceiptReminderStorage,
 	)
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
@@ -1035,12 +1040,12 @@ func startScheduler() {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
 	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
+	// if err := schedulerInstance.AddJob(
+	// 	constant.ReceiptGenerateMarkleRootPeriod,
+	// 	receiptService.GenerateReceiptsMerkleRoot,
+	// ); err != nil {
+	// 	loggerCoreService.Error("Scheduler Err : ", err.Error())
+	// }
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

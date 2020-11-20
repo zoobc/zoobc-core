@@ -173,10 +173,12 @@ func (mr *MerkleRoot) ToBytes() (root, tree []byte) {
 
 // FromBytes build []byte to [][]*bytes.Buffer tree representation for easier validation
 func (mr *MerkleRoot) FromBytes(tree, root []byte) [][]*bytes.Buffer {
-	var hashTree [][]*bytes.Buffer
+	var (
+		hashTree [][]*bytes.Buffer
+		offset   int
+	)
 	// 2n-1 of the tree
 	treeLevelZeroLength := ((len(tree) / constant.ReceiptHashSize) + 2) / 2
-	var offset int
 	for treeLevelZeroLength != 1 {
 		var tempHashes []*bytes.Buffer
 		limit := offset + treeLevelZeroLength

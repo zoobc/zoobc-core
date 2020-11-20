@@ -3,10 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"math"
-	"sync"
-	"time"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -23,6 +19,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"math"
+	"sync"
+	"time"
 )
 
 type (
