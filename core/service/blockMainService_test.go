@@ -1451,7 +1451,7 @@ type (
 	}
 )
 
-func (*mockReceiptServiceReturnEmpty) SelectReceipts(previousBlock *model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
+func (*mockReceiptServiceReturnEmpty) SelectReceipts(previousBlock *model.Block, currentBlockSeed []byte, maxReceipt int) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil, nil
 }
 

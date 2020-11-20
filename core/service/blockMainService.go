@@ -534,30 +534,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// - Block reward
 	// - Admit/Expel nodes to/from registry
 	// - Build scrambled node registry
-	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
+	if block.GetHeight() > 1 {
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
-		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr,
-				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
-			)
-		}
-		// save batch's receipt and merkle root
-		receipts, err := bs.ReceiptService.GetReceiptFromPool(previousBlock.GetBlockHash())
-		if err != nil {
-			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
-			return err
-		}
-		receiptBatch.ReceiptBatch[0] = receipts
-		err = bs.ReceiptService.SaveReceiptAndMerkle(receiptBatch)
-		if err != nil {
-			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailSaveReceipt - %v", err))
-			return err
-		}
 
 		linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 		if err != nil {
@@ -611,7 +592,31 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 	}
-
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		// this is to manage the edge case when the blocksmith array has not been initialized yet:
+		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
+		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
+		// sort blocksmiths for current block
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			return blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+			)
+		}
+		// save batch's receipt and merkle root
+		receipts, err := bs.ReceiptService.GetReceiptFromPool(previousBlock.GetBlockHash())
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailGetReceiptPool - %v", err))
+			return err
+		}
+		receiptBatch.ReceiptBatch[0] = receipts
+		err = bs.ReceiptService.SaveReceiptAndMerkle(receiptBatch)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("BlockMainService:PushBlock-FailSaveReceipt - %v", err))
+			return err
+		}
+	}
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
@@ -1213,23 +1218,6 @@ func (bs *BlockService) GetPayloadHashAndLength(block *model.Block) (payloadHash
 		}
 		payloadLength += txTypeLength
 	}
-	// filter only good receipt
-	for _, br := range block.GetFreeReceipts() {
-		brBytes := bs.ReceiptUtil.GetSignedReceiptBytes(br.GetReceipt())
-		_, err = digest.Write(brBytes)
-		if err != nil {
-			return nil, 0, err
-		}
-		payloadLength += uint32(len(brBytes))
-	}
-	for _, br := range block.GetProvedReceipts() {
-		brBytes := bs.ReceiptUtil.GetSignedReceiptBytes(br.GetReceipt())
-		_, err = digest.Write(brBytes)
-		if err != nil {
-			return nil, 0, err
-		}
-		payloadLength += uint32(len(brBytes))
-	}
 	payloadHash = digest.Sum([]byte{})
 	return
 }
@@ -1269,19 +1257,15 @@ func (bs *BlockService) GenerateBlock(
 			totalFee += tx.Fee
 		}
 	}
-	// activeRegistries, err := bs.NodeRegistrationService.GetActiveRegisteredNodes()
+	var (
+		receiptCount int
+	)
+	activeRegistries, err := bs.NodeRegistrationService.GetActiveRegisteredNodes()
 
 	if err != nil {
 		return nil, err
 	}
-	// select published receipts to be added to the block
-	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock)
-	fmt.Printf("provedReceipts %v", provedReceipts)
-	if err != nil {
-		bs.Logger.Errorf("GenerateBlock:FailSelectReceipts-%v\n", err)
-	}
 
-	// loop through transaction to build block hash
 	if _, err = digest.Write(previousBlock.GetBlockSeed()); err != nil {
 		return nil, err
 	}
@@ -1294,6 +1278,18 @@ func (bs *BlockService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
+
+	// select published receipts to be added to the block
+	if len(activeRegistries) < constant.MaxReceipt {
+		receiptCount = len(activeRegistries) - 1
+	} else {
+		receiptCount = constant.MaxReceipt
+	}
+	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock, nil, receiptCount)
+	if err != nil {
+		bs.Logger.Errorf("GenerateBlock:FailSelectReceipts-%v\n", err)
+	}
+
 	block, err := bs.NewMainBlock(
 		1,
 		previousBlockHash,
@@ -1434,7 +1430,7 @@ func (bs *BlockService) ReceiveBlock(
 	// or if broadcast block is our current last block
 	if !bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetBlockHash()) &&
 		!bytes.Equal(block.GetPreviousBlockHash(), lastBlock.GetPreviousBlockHash()) {
-		return nil, status.Error(codes.InvalidArgument, "InvalidBlock")
+		return nil, status.Error(codes.InvalidArgument, "InvalidBlock-previousHash - and lastPreviousHash not match")
 	}
 
 	// check if received the exact same block as current node's last block
@@ -1460,13 +1456,13 @@ func (bs *BlockService) ReceiveBlock(
 		block.Timestamp < lastBlock.Timestamp {
 		lastBlock, err = commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 		if err != nil {
-			return nil, status.Error(codes.Internal, "FailGetBlock")
+			return nil, status.Error(codes.Internal, fmt.Sprintf("FailGetBlock-%v", err))
 		}
 	}
 
 	// pre validation block
 	if err = bs.BlocksmithStrategy.IsBlockValid(lastBlock, block); err != nil {
-		return nil, status.Error(codes.InvalidArgument, "BlockFailPrevalidation")
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("BlockFailPrevalidation %v\n", err))
 	}
 
 	isQueued, err := bs.ProcessQueueBlock(block, peer)
@@ -1477,6 +1473,24 @@ func (bs *BlockService) ReceiveBlock(
 	if !isQueued {
 		err = bs.ProcessCompletedBlock(block)
 		if err != nil {
+			if castedErr, ok := err.(blocker.Blocker); ok {
+				if castedErr.Type == blocker.DuplicateError {
+					// generate receipt and return as response
+					lastBlockCacheFormat := &storage.BlockCacheObject{
+						ID:        lastBlock.ID,
+						Height:    lastBlock.Height,
+						BlockHash: lastBlock.BlockHash,
+					}
+					receipt, err := bs.ReceiptService.GenerateReceipt(
+						bs.Chaintype, block.GetBlockHash(),
+						lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeBlock,
+					)
+					return receipt, err
+				}
+			}
 			return nil, err
 		}
 	}
@@ -1616,14 +1630,14 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			previousBlock, err := commonUtils.GetBlockByHeight(lastBlock.Height-1, bs.QueryExecutor, bs.BlockQuery)
 			if err != nil {
 				return status.Error(codes.Internal,
-					"fail to get last block",
+					fmt.Sprintf("fail to get last block - %v\n", err),
 				)
 			}
 			err = bs.ValidateBlock(block, previousBlock)
 			if err != nil {
 				bs.Logger.Warnf("ProcessCompletedBlock:blockValidationFail: %v\n",
 					blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()))
-				return status.Error(codes.InvalidArgument, "InvalidBlock")
+				return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock:%v\n", err))
 			}
 			lastBlocks, err := bs.PopOffToBlock(previousBlock)
 			if err != nil {
@@ -1638,15 +1652,16 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 				if errPushBlock != nil {
 					bs.Logger.Errorf("ProcessCompletedBlock pushing back popped off block fail: %v",
 						blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), previousBlock.GetID()))
-					return status.Error(codes.InvalidArgument, "InvalidBlock")
+					return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock1: %v", errPushBlock))
 				}
 				bs.Logger.Info("pushing back popped off block")
-				return status.Error(codes.InvalidArgument, "InvalidBlock")
+				return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock2 - %v\n", err))
 			}
 			return nil
 		}
 		return status.Error(codes.InvalidArgument,
-			"previousBlockHashDoesNotMatchWithLastBlockHash",
+			fmt.Sprintf("previousBlockHashDoesNotMatchWithLastBlockHash-myLast: %d\tincoming: %d\n", lastBlock.GetHeight(),
+				block.GetHeight()),
 		)
 	}
 	// Validate incoming block
@@ -1656,19 +1671,15 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			"ProcessCompletedBlock2:blockValidationFail: %v\n",
 			blocker.NewBlocker(blocker.ValidateMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
 		)
-		return status.Error(codes.InvalidArgument, "InvalidBlock")
+		return status.Error(codes.InvalidArgument, fmt.Sprintf("InvalidBlock3 - %v", err))
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
 		if castedErr, ok := err.(blocker.Blocker); ok {
 			if castedErr.Type == blocker.DuplicateError {
-				return status.Error(codes.InvalidArgument, err.Error())
+				return err
 			}
 		}
-		bs.Logger.Errorf(
-			"ProcessCompletedBlock2 push Block fail: %v",
-			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
-		)
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
