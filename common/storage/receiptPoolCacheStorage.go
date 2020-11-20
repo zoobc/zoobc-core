@@ -10,13 +10,15 @@ import (
 
 type (
 	ReceiptPoolCacheStorage struct {
+		limit int
 		sync.RWMutex
 		receipts map[string][]model.Receipt
 	}
 )
 
-func NewReceiptPoolCacheStorage() *ReceiptPoolCacheStorage {
+func NewReceiptPoolCacheStorage(limit int) *ReceiptPoolCacheStorage {
 	return &ReceiptPoolCacheStorage{
+		limit:    limit,
 		receipts: make(map[string][]model.Receipt),
 	}
 }
@@ -25,9 +27,9 @@ func NewReceiptPoolCacheStorage() *ReceiptPoolCacheStorage {
 //      - key: nil
 //      - item: BatchReceiptCache
 func (brs *ReceiptPoolCacheStorage) SetItem(key, item interface{}) error {
+
 	brs.Lock()
 	defer brs.Unlock()
-
 	var (
 		ok    bool
 		nItem model.Receipt
@@ -38,6 +40,13 @@ func (brs *ReceiptPoolCacheStorage) SetItem(key, item interface{}) error {
 	}
 	if nItem, ok = item.(model.Receipt); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptPoolCacheStorage:InvalidItemType:Expect-model.Receipt")
+	}
+	if _, ok := brs.receipts[nKey]; ok {
+		// make sure for each item, the receipt doesn't exceeds allowed published, so we can easily extract the receipt
+		// by fetching all of the receipt of certain item
+		if len(brs.receipts[nKey]) >= brs.limit {
+			brs.receipts[nKey] = brs.receipts[nKey][1:]
+		}
 	}
 
 	brs.receipts[nKey] = append(brs.receipts[nKey], nItem)
