@@ -258,10 +258,12 @@ func (ts *TransactionService) PostTransaction(
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
 			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+			monitoring.IncreaseTxFiltered()
 			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 		case constant.FeedbackLimitMedium:
 			if tpsReceived > 2 {
 				ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+				monitoring.IncreaseTxFiltered()
 				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 			}
 		}
