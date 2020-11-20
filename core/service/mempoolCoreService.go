@@ -61,28 +61,28 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		TransactionUtil                  transaction.UtilInterface
-		Chaintype                        chaintype.ChainType
-		QueryExecutor                    query.ExecutorInterface
-		MempoolQuery                     query.MempoolQueryInterface
-		MerkleTreeQuery                  query.MerkleTreeQueryInterface
-		ActionTypeSwitcher               transaction.TypeActionSwitcher
-		AccountBalanceQuery              query.AccountBalanceQueryInterface
-		TransactionQuery                 query.TransactionQueryInterface
-		Signature                        crypto.SignatureInterface
-		Observer                         *observer.Observer
-		Logger                           *log.Logger
-		ReceiptUtil                      coreUtil.ReceiptUtilInterface
-		ReceiptService                   ReceiptServiceInterface
-		TransactionCoreService           TransactionCoreServiceInterface
-		BlocksStorage                    storage.CacheStackStorageInterface
-		MempoolCacheStorage              storage.CacheStorageInterface
-		MempoolBackupStorage             storage.CacheStorageInterface
-		MempoolUnsaveCacheStorage        storage.CacheStorageInterface
-		SpendableBalanceStorage          storage.CacheStorageInterface
-		lastIncomingTransactionTimestamp int64
-		accountsUnsaveMempoolIDsMap      map[string]map[int64]bool
-		accountsUnsaveMempoolIDsMapLock  sync.RWMutex
+		TransactionUtil                 transaction.UtilInterface
+		Chaintype                       chaintype.ChainType
+		QueryExecutor                   query.ExecutorInterface
+		MempoolQuery                    query.MempoolQueryInterface
+		MerkleTreeQuery                 query.MerkleTreeQueryInterface
+		ActionTypeSwitcher              transaction.TypeActionSwitcher
+		AccountBalanceQuery             query.AccountBalanceQueryInterface
+		TransactionQuery                query.TransactionQueryInterface
+		Signature                       crypto.SignatureInterface
+		Observer                        *observer.Observer
+		Logger                          *log.Logger
+		ReceiptUtil                     coreUtil.ReceiptUtilInterface
+		ReceiptService                  ReceiptServiceInterface
+		TransactionCoreService          TransactionCoreServiceInterface
+		BlocksStorage                   storage.CacheStackStorageInterface
+		MempoolCacheStorage             storage.CacheStorageInterface
+		MempoolBackupStorage            storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage       storage.CacheStorageInterface
+		SpendableBalanceStorage         storage.CacheStorageInterface
+		lastIncomingTransactionTime     time.Time
+		accountsUnsaveMempoolIDsMap     map[string]map[int64]bool
+		accountsUnsaveMempoolIDsMapLock sync.RWMutex
 	}
 )
 
@@ -220,9 +220,9 @@ func (mps *MempoolService) GetMempoolTransactions() (storage.MempoolMap, error) 
 // AddMempoolTransaction validates and insert a transaction into the mempool and also set the BlockHeight as well
 func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
 	var (
-		arrivalTimestamp = time.Now().UTC().Unix()
-		lastBlock        storage.BlockCacheObject
-		err              = mps.BlocksStorage.GetTop(&lastBlock)
+		arrivalTime = time.Now()
+		lastBlock   storage.BlockCacheObject
+		err         = mps.BlocksStorage.GetTop(&lastBlock)
 	)
 	if err != nil {
 		return err
@@ -231,7 +231,7 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 		FeePerByte:              commonUtils.FeePerByteTransaction(tx.GetFee(), txBytes),
 		ID:                      tx.GetID(),
 		TransactionBytes:        txBytes,
-		ArrivalTimestamp:        arrivalTimestamp,
+		ArrivalTimestamp:        arrivalTime.UTC().Unix(),
 		SenderAccountAddress:    tx.GetSenderAccountAddress(),
 		RecipientAccountAddress: tx.GetRecipientAccountAddress(),
 		BlockHeight:             lastBlock.Height,
@@ -245,7 +245,7 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 	}
 	err = mps.MempoolCacheStorage.SetItem(tx.GetID(), storage.MempoolCacheObject{
 		Tx:                  *tx,
-		ArrivalTimestamp:    arrivalTimestamp,
+		ArrivalTimestamp:    arrivalTime.UTC().Unix(),
 		FeePerByte:          mpTx.FeePerByte,
 		TransactionByteSize: uint32(len(txBytes)),
 		BlockHeight:         mpTx.BlockHeight,
@@ -253,7 +253,7 @@ func (mps *MempoolService) AddMempoolTransaction(tx *model.Transaction, txBytes 
 	if err != nil {
 		return err
 	}
-	mps.lastIncomingTransactionTimestamp = arrivalTimestamp
+	mps.lastIncomingTransactionTime = arrivalTime
 	return nil
 }
 
@@ -265,11 +265,11 @@ func (mps *MempoolService) AddMempoolFullCache(tx *model.Transaction, txBytes []
 		return err
 	}
 
-	var arrivalTimestamp = time.Now().UTC().Unix()
+	var arrivalTime = time.Now()
 	err = mps.MempoolUnsaveCacheStorage.SetItem(tx.GetID(), storage.MempoolCacheObject{
 		Tx:                  *tx,
 		TxBytes:             txBytes,
-		ArrivalTimestamp:    arrivalTimestamp,
+		ArrivalTimestamp:    arrivalTime.UTC().Unix(),
 		FeePerByte:          commonUtils.FeePerByteTransaction(tx.GetFee(), txBytes),
 		TransactionByteSize: uint32(len(txBytes)),
 		BlockHeight:         lastBlock.Height,
@@ -277,7 +277,7 @@ func (mps *MempoolService) AddMempoolFullCache(tx *model.Transaction, txBytes []
 	if err != nil {
 		return err
 	}
-	mps.lastIncomingTransactionTimestamp = arrivalTimestamp
+	mps.lastIncomingTransactionTime = arrivalTime
 	// save map of transaction unsave to track spendable cache
 	var accountStr = fmt.Sprintf("%q", tx.SenderAccountAddress)
 	mps.accountsUnsaveMempoolIDsMapLock.Lock()
@@ -469,7 +469,15 @@ func (mps *MempoolService) processReceiveTransaction(receivedTx *model.Transacti
 		}
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
-	var isApplyInCache = mps.lastIncomingTransactionTimestamp != 0
+	var isApplyInCache bool
+	switch {
+	case mps.lastIncomingTransactionTime.IsZero():
+		isApplyInCache = false
+	case time.Since(mps.lastIncomingTransactionTime).Seconds() < 1, mps.MempoolUnsaveCacheStorage.GetTotalItems() > 0:
+		// apply in unsave mempool when last incoming timestamp is lees than 1 second OR
+		// unsave mempool storage still have unmove transaction
+		isApplyInCache = true
+	}
 	// save into full cache mempool transaction (unsave mempool)
 	if isApplyInCache {
 		err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType, isApplyInCache)
