@@ -229,14 +229,12 @@ func (ts *TransactionService) PostTransaction(
 		tx      *model.Transaction
 		err     error
 		tpsProcessed,
-		tpsReceived,
-		txProcessed,
-		txReceived int
+		tpsReceived int
 	)
 
 	// Set txReceived (transactions to be processed received by clients since last node run)
-	txReceived = ts.FeedbackStrategy.IncrementVarCount("txReceived").(int)
-	monitoring.SetTxReceived(txReceived)
+	ts.FeedbackStrategy.IncrementVarCount("txReceived")
+	monitoring.IncrementTxReceived()
 
 	// TODO: this is an example to prove that, by limiting number of tx per second
 	//  when the node is too busy due to high number of goroutines,
@@ -246,6 +244,7 @@ func (ts *TransactionService) PostTransaction(
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
 			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+			monitoring.IncrementTxFiltered()
 			return nil, status.Error(codes.Internal, "TooManyTps")
 		case constant.FeedbackLimitMedium:
 			if tpsReceived > 2 {
@@ -321,8 +320,8 @@ func (ts *TransactionService) PostTransaction(
 	monitoring.SetTpsProcessed(tpsProcessed)
 
 	// Set txProcessed (transactions already processed received by clients since last node run).
-	txProcessed = ts.FeedbackStrategy.IncrementVarCount("txProcessed").(int)
-	monitoring.SetTxProcessed(txProcessed)
+	ts.FeedbackStrategy.IncrementVarCount("txProcessed")
+	monitoring.IncrementTxProcessed()
 
 	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction

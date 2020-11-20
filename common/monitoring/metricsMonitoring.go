@@ -33,8 +33,9 @@ var (
 	nodeScore                          prometheus.Gauge
 	tpsReceived                        prometheus.Gauge
 	tpsProcessed                       prometheus.Gauge
-	txReceived                         prometheus.Gauge
-	txProcessed                        prometheus.Gauge
+	txReceived                         prometheus.Counter
+	txProcessed                        prometheus.Counter
+	txFiltered                         prometheus.Counter
 	blockerCounterVector               *prometheus.CounterVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
@@ -226,7 +227,7 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(tpsReceived)
 
-	txReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+	txReceived = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "zoobc_tx_received",
 		Help: "Transactions received since node last start",
 	})
@@ -238,11 +239,17 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(tpsProcessed)
 
-	txProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+	txProcessed = prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "zoobc_tx_processed",
 		Help: "Transactions processed since node last start",
 	})
 	prometheus.MustRegister(txProcessed)
+
+	txFiltered = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "zoobc_tx_filtered",
+		Help: "Transactions filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(txFiltered)
 
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
@@ -500,18 +507,25 @@ func SetTpsProcessed(tps int) {
 	tpsProcessed.Set(float64(tps))
 }
 
-func SetTxReceived(n int) {
+func IncrementTxReceived() {
 	if !isMonitoringActive {
 		return
 	}
-	txReceived.Set(float64(n))
+	txReceived.Inc()
 }
 
-func SetTxProcessed(n int) {
+func IncrementTxProcessed() {
 	if !isMonitoringActive {
 		return
 	}
-	txProcessed.Set(float64(n))
+	txProcessed.Inc()
+}
+
+func IncrementTxFiltered() {
+	if !isMonitoringActive {
+		return
+	}
+	txFiltered.Inc()
 }
 
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
