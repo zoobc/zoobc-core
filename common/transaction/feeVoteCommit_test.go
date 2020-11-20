@@ -264,6 +264,12 @@ func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) AddAccountSpendableB
 	return nil
 }
 
+func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
+
 func TestFeeVoteCommitTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                         int64

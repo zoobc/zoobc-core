@@ -76,9 +76,9 @@ func TestNewMempoolService(t *testing.T) {
 			obsr: observer.NewObserver(),
 		},
 		want: &MempoolService{
-			Chaintype:                          &chaintype.MainChain{},
-			Observer:                           observer.NewObserver(),
-			mapAccountsWithFullCacheMempoolIDs: make(map[string]map[int64]bool),
+			Chaintype:                   &chaintype.MainChain{},
+			Observer:                    observer.NewObserver(),
+			accountsUnsaveMempoolIDsMap: make(map[string]map[int64]bool),
 		},
 	}
 
@@ -479,6 +479,9 @@ type (
 	mockMempoolCacheStorageExpiryExist struct {
 		storage.MempoolCacheStorage
 	}
+	mockSpendableBalanceStorageDeleteExpiredMempoolTransactions struct {
+		storage.SpendableBalanceStorage
+	}
 )
 
 func (*mockMempoolCacheStorageEmpty) GetAllItems(item interface{}) error {
@@ -508,16 +511,17 @@ func (*mockMempoolCacheStorageExpiryExist) GetAllItems(item interface{}) error {
 
 func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype              chaintype.ChainType
-		QueryExecutor          query.ExecutorInterface
-		MempoolQuery           query.MempoolQueryInterface
-		ActionTypeSwitcher     transaction.TypeActionSwitcher
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
-		Signature              crypto.SignatureInterface
-		TransactionQuery       query.TransactionQueryInterface
-		Observer               *observer.Observer
-		MempoolCacheStorage    storage.CacheStorageInterface
-		TransactionCoreService TransactionCoreServiceInterface
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		MempoolQuery            query.MempoolQueryInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		Signature               crypto.SignatureInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Observer                *observer.Observer
+		MempoolCacheStorage     storage.CacheStorageInterface
+		TransactionCoreService  TransactionCoreServiceInterface
+		SpendableBalanceStorage storage.CacheStorageInterface
 	}
 	tests := []struct {
 		name    string
@@ -541,7 +545,8 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 				ActionTypeSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockQueryExecutorDeleteExpiredMempoolTransactions{},
 				},
-				MempoolCacheStorage: &mockMempoolCacheStorageExpiryExist{},
+				MempoolCacheStorage:     &mockMempoolCacheStorageExpiryExist{},
+				SpendableBalanceStorage: &mockSpendableBalanceStorageDeleteExpiredMempoolTransactions{},
 				TransactionCoreService: NewTransactionCoreService(
 					log.New(),
 					&mockQueryExecutorDeleteExpiredMempoolTransactions{},
@@ -561,16 +566,17 @@ func TestMempoolService_DeleteExpiredMempoolTransactions(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				Chaintype:              tt.fields.Chaintype,
-				QueryExecutor:          tt.fields.QueryExecutor,
-				MempoolQuery:           tt.fields.MempoolQuery,
-				ActionTypeSwitcher:     tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
-				Signature:              tt.fields.Signature,
-				TransactionQuery:       tt.fields.TransactionQuery,
-				Observer:               tt.fields.Observer,
-				TransactionCoreService: tt.fields.TransactionCoreService,
-				MempoolCacheStorage:    tt.fields.MempoolCacheStorage,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				Signature:               tt.fields.Signature,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Observer:                tt.fields.Observer,
+				TransactionCoreService:  tt.fields.TransactionCoreService,
+				MempoolCacheStorage:     tt.fields.MempoolCacheStorage,
+				SpendableBalanceStorage: tt.fields.SpendableBalanceStorage,
 			}
 			if err := mps.DeleteExpiredMempoolTransactions(); (err != nil) != tt.wantErr {
 				t.Errorf("DeleteExpiredMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
@@ -781,20 +787,21 @@ func (*mockMempoolCacheStorageFailGetItem) GetItem(key, item interface{}) error 
 
 func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		MerkleTreeQuery     query.MerkleTreeQueryInterface
-		ActionTypeSwitcher  transaction.TypeActionSwitcher
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		Signature           crypto.SignatureInterface
-		TransactionQuery    query.TransactionQueryInterface
-		Observer            *observer.Observer
-		Logger              *log.Logger
-		TransactionUtil     transaction.UtilInterface
-		ReceiptUtil         coreUtil.ReceiptUtilInterface
-		ReceiptService      ReceiptServiceInterface
-		MempoolCacheStorage storage.CacheStorageInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		MempoolQuery              query.MempoolQueryInterface
+		MerkleTreeQuery           query.MerkleTreeQueryInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Signature                 crypto.SignatureInterface
+		TransactionQuery          query.TransactionQueryInterface
+		Observer                  *observer.Observer
+		Logger                    *log.Logger
+		TransactionUtil           transaction.UtilInterface
+		ReceiptUtil               coreUtil.ReceiptUtilInterface
+		ReceiptService            ReceiptServiceInterface
+		MempoolCacheStorage       storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage storage.CacheStorageInterface
 	}
 	type args struct {
 		senderPublicKey, receivedTxBytes []byte
@@ -816,8 +823,9 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		{
 			name: "Fail:ParseTransaction_error",
 			fields: fields{
-				TransactionUtil:     &mockTransactionUtilErrorParse{},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				TransactionUtil:           &mockTransactionUtilErrorParse{},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
 			want:    want{},
@@ -826,12 +834,13 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		{
 			name: "Fail:ValidateMempoolTransaction_error_non_duplicate",
 			fields: fields{
-				QueryExecutor:       &mockGetMempoolTransactionsByBlockHeightExecutor{},
-				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
-				TransactionUtil:     &mockTransactionUtilSuccess{},
-				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{},
-				MempoolCacheStorage: &mockMempoolCacheStorageFailGetItem{},
+				QueryExecutor:             &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:              query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:           &mockTransactionUtilSuccess{},
+				ReceiptUtil:               &mockReceiptUtilSuccess{},
+				ReceiptService:            &mockReceiptServiceSucces{},
+				MempoolCacheStorage:       &mockMempoolCacheStorageFailGetItem{},
+				MempoolUnsaveCacheStorage: &mockMempoolCacheStorageFailGetItem{},
 			},
 			args:    args{},
 			want:    want{},
@@ -840,12 +849,13 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		{
 			name: "Fail:ValidateMempoolTransaction_error_duplicate_and_kv_executor_get_error_non_err_key_not_found",
 			fields: fields{
-				QueryExecutor:       &mockGetMempoolTransactionsByBlockHeightExecutor{},
-				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
-				TransactionUtil:     &mockTransactionUtilSuccess{},
-				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{WantErr: true},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				QueryExecutor:             &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:              query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:           &mockTransactionUtilSuccess{},
+				ReceiptUtil:               &mockReceiptUtilSuccess{},
+				ReceiptService:            &mockReceiptServiceSucces{WantErr: true},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
 			want:    want{},
@@ -854,12 +864,13 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 		{
 			name: "Fail:ValidateMempoolTransaction_error_duplicate_and_kv_executor_found_the_record_the_sender_has_received_receipt_for_this_data",
 			fields: fields{
-				QueryExecutor:       &mockGetMempoolTransactionsByBlockHeightExecutor{},
-				MempoolQuery:        query.NewMempoolQuery(chaintype.GetChainType(0)),
-				TransactionUtil:     &mockTransactionUtilSuccess{},
-				ReceiptUtil:         &mockReceiptUtilSuccess{},
-				ReceiptService:      &mockReceiptServiceSucces{WantDuplicated: true},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				QueryExecutor:             &mockGetMempoolTransactionsByBlockHeightExecutor{},
+				MempoolQuery:              query.NewMempoolQuery(chaintype.GetChainType(0)),
+				TransactionUtil:           &mockTransactionUtilSuccess{},
+				ReceiptUtil:               &mockReceiptUtilSuccess{},
+				ReceiptService:            &mockReceiptServiceSucces{WantDuplicated: true},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args:    args{},
 			want:    want{},
@@ -869,19 +880,20 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mps := &MempoolService{
-				Chaintype:           tt.fields.Chaintype,
-				MerkleTreeQuery:     tt.fields.MerkleTreeQuery,
-				ActionTypeSwitcher:  tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				Signature:           tt.fields.Signature,
-				TransactionQuery:    tt.fields.TransactionQuery,
-				Observer:            tt.fields.Observer,
-				Logger:              tt.fields.Logger,
-				TransactionUtil:     tt.fields.TransactionUtil,
-				ReceiptUtil:         tt.fields.ReceiptUtil,
-				ReceiptService:      tt.fields.ReceiptService,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
+				Chaintype:                 tt.fields.Chaintype,
+				MerkleTreeQuery:           tt.fields.MerkleTreeQuery,
+				ActionTypeSwitcher:        tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:       tt.fields.AccountBalanceQuery,
+				Signature:                 tt.fields.Signature,
+				TransactionQuery:          tt.fields.TransactionQuery,
+				Observer:                  tt.fields.Observer,
+				Logger:                    tt.fields.Logger,
+				TransactionUtil:           tt.fields.TransactionUtil,
+				ReceiptUtil:               tt.fields.ReceiptUtil,
+				ReceiptService:            tt.fields.ReceiptService,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				MempoolCacheStorage:       tt.fields.MempoolCacheStorage,
+				MempoolUnsaveCacheStorage: tt.fields.MempoolUnsaveCacheStorage,
 			}
 			batchReceipt, tx, err := mps.processeReceiptAndValidateTransactionP2P(
 				tt.args.senderPublicKey,
@@ -1189,15 +1201,16 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 	successTx.Signature, _ = (&crypto.Signature{}).Sign(txBytesHash[:], model.AccountType_ZbcAccountType,
 		"concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved")
 	type fields struct {
-		Chaintype              chaintype.ChainType
-		QueryExecutor          query.ExecutorInterface
-		MempoolQuery           query.MempoolQueryInterface
-		ActionTypeSwitcher     transaction.TypeActionSwitcher
-		AccountBalanceQuery    query.AccountBalanceQueryInterface
-		TransactionQuery       query.TransactionQueryInterface
-		Observer               *observer.Observer
-		TransactionCoreService TransactionCoreServiceInterface
-		MempoolCacheStorage    storage.CacheStorageInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		MempoolQuery              query.MempoolQueryInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		Observer                  *observer.Observer
+		TransactionCoreService    TransactionCoreServiceInterface
+		MempoolCacheStorage       storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage storage.CacheStorageInterface
 	}
 	type args struct {
 		mpTx *model.Transaction
@@ -1225,7 +1238,8 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 					nil,
 					nil,
 				),
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
 				mpTx: successTx,
@@ -1235,12 +1249,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 		{
 			name: "wantErr:TransactionExisted",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccess{},
-				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				Chaintype:                 &chaintype.MainChain{},
+				QueryExecutor:             &mockExecutorValidateMempoolTransactionSuccess{},
+				MempoolQuery:              query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher:        &transaction.TypeSwitcher{},
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
@@ -1257,12 +1272,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 		{
 			name: "wantErr:TransactionExisted",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				QueryExecutor:       &mockExecutorValidateMempoolTransactionFail{},
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				Chaintype:                 &chaintype.MainChain{},
+				QueryExecutor:             &mockExecutorValidateMempoolTransactionFail{},
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:              query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher:        &transaction.TypeSwitcher{},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
 				mpTx: transaction.GetFixturesForTransaction(
@@ -1279,12 +1295,13 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 		{
 			name: "wantErr:ParseFail",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				QueryExecutor:       &mockExecutorValidateMempoolTransactionSuccessNoRow{},
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				ActionTypeSwitcher:  &transaction.TypeSwitcher{},
-				MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
+				Chaintype:                 &chaintype.MainChain{},
+				QueryExecutor:             &mockExecutorValidateMempoolTransactionSuccessNoRow{},
+				TransactionQuery:          query.NewTransactionQuery(&chaintype.MainChain{}),
+				MempoolQuery:              query.NewMempoolQuery(&chaintype.MainChain{}),
+				ActionTypeSwitcher:        &transaction.TypeSwitcher{},
+				MempoolCacheStorage:       &mockCacheStorageAlwaysSuccess{},
+				MempoolUnsaveCacheStorage: &mockCacheStorageAlwaysSuccess{},
 			},
 			args: args{
 				mpTx: &model.Transaction{
@@ -1308,8 +1325,9 @@ func TestMempoolService_ValidateMempoolTransaction(t *testing.T) {
 					QueryExecutor:       &mockQueryExecutoMempoolCoreService{},
 					AccountDatasetQuery: &mockAccountDatasetQueryMempoolCoreService{wantNoRow: true},
 				},
-				TransactionCoreService: tt.fields.TransactionCoreService,
-				MempoolCacheStorage:    tt.fields.MempoolCacheStorage,
+				TransactionCoreService:    tt.fields.TransactionCoreService,
+				MempoolCacheStorage:       tt.fields.MempoolCacheStorage,
+				MempoolUnsaveCacheStorage: tt.fields.MempoolUnsaveCacheStorage,
 			}
 			if err := mps.ValidateMempoolTransaction(tt.args.mpTx); (err != nil) != tt.wantErr {
 				t.Errorf("MempoolServiceUtil.ValidateMempoolTransaction() error = %v, wantErr %v", err, tt.wantErr)

@@ -3,9 +3,10 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -849,10 +850,10 @@ func (*pendingTransactionhelperApplyUnconfirmedPendingTransactionTypeSwitcherSuc
 	return &pendingTransactionhelperApplyUnconfirmedPendingTransactionActionTypeSuccess{}, nil
 }
 
-func (*pendingTransactionhelperApplyUnconfirmedPendingTransactionActionTypeSuccess) ApplyUnconfirmed() error {
+func (*pendingTransactionhelperApplyUnconfirmedPendingTransactionActionTypeSuccess) ApplyUnconfirmed(bool) error {
 	return nil
 }
-func (*pendingTransactionhelperApplyUnconfirmedPendingTransactionActionTypeFail) ApplyUnconfirmed() error {
+func (*pendingTransactionhelperApplyUnconfirmedPendingTransactionActionTypeFail) ApplyUnconfirmed(bool) error {
 	return errors.New("mockedError")
 }
 
@@ -866,6 +867,7 @@ func TestPendingTransactionHelper_ApplyUnconfirmedPendingTransaction(t *testing.
 	}
 	type args struct {
 		pendingTransactionBytes []byte
+		applyInCache            bool
 	}
 	tests := []struct {
 		name    string
@@ -926,7 +928,7 @@ func TestPendingTransactionHelper_ApplyUnconfirmedPendingTransaction(t *testing.
 				TypeSwitcher:            tt.fields.TypeSwitcher,
 				QueryExecutor:           tt.fields.QueryExecutor,
 			}
-			if err := pth.ApplyUnconfirmedPendingTransaction(tt.args.pendingTransactionBytes); (err != nil) != tt.wantErr {
+			if err := pth.ApplyUnconfirmedPendingTransaction(tt.args.pendingTransactionBytes, tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyUnconfirmedPendingTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -1587,6 +1589,11 @@ func (*mockAccountBalanceHelperAddAccountSpendableBalanceSuccess) AddAccountSpen
 	address []byte, amount int64) error {
 	return nil
 }
+func (*mockAccountBalanceHelperAddAccountSpendableBalanceSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
 
 func (*mockUndoApplyUnconfirmedPendingTransactionHelperUndoPendingFail) UndoApplyUnconfirmedPendingTransaction(
 	pendingTransactionBytes []byte) error {
@@ -1699,12 +1706,14 @@ type (
 )
 
 func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedFail) ApplyUnconfirmedPendingTransaction(
-	pendingTransactionBytes []byte) error {
+	pendingTransactionBytes []byte, applyInCache bool,
+) error {
 	return errors.New("mockedError")
 }
 
 func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess) ApplyUnconfirmedPendingTransaction(
-	pendingTransactionBytes []byte) error {
+	pendingTransactionBytes []byte, applyInCache bool,
+) error {
 	return nil
 }
 
@@ -1727,9 +1736,13 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		AccountBalanceHelper     AccountBalanceHelperInterface
 		TransactionHelper        TransactionHelperInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -1792,7 +1805,7 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

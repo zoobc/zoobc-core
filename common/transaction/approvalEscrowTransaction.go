@@ -197,7 +197,7 @@ ApplyUnconfirmed exec before Confirmed
 func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed(applyInCache bool) error {
 	var addedSpendable = -tx.Fee
 	if applyInCache {
-		tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
 	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }

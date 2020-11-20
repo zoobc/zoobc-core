@@ -3,13 +3,13 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -45,7 +45,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	}, "ZOOBC")
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
-	accountBalanceHelper := NewAccountBalanceHelper(&query.Executor{}, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
+	accountBalanceHelper := NewAccountBalanceHelper(
+		&query.Executor{},
+		query.NewAccountBalanceQuery(),
+		query.NewAccountLedgerQuery(),
+		nil,
+	)
 	// cache mock
 	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
 		return cache.(storage.TransactionalCache)

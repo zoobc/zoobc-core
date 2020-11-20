@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
@@ -381,6 +382,9 @@ type (
 	mockQueryExecutorExpiringEscrowSuccess struct {
 		query.ExecutorInterface
 	}
+	mockSpendableBalanceCacheExpiringEscrowSuccess struct {
+		storage.SpendableBalanceStorage
+	}
 )
 
 func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx() error {
@@ -453,6 +457,10 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteTransactions(queries [][]i
 	return nil
 }
 
+func (*mockSpendableBalanceCacheExpiringEscrowSuccess) GetItem(key, item interface{}) error {
+	return nil
+}
+
 func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 	type fields struct {
 		TransactionQuery       query.TransactionQueryInterface
@@ -475,7 +483,10 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				EscrowTransactionQuery: query.NewEscrowTransactionQuery(),
 				QueryExecutor:          &mockQueryExecutorExpiringEscrowSuccess{},
-				TypeActionSwitcher:     &transaction.TypeSwitcher{Executor: &mockQueryExecutorExpiringEscrowSuccess{}},
+				TypeActionSwitcher: &transaction.TypeSwitcher{
+					Executor:                &mockQueryExecutorExpiringEscrowSuccess{},
+					SpendabelBalanceStorage: &mockSpendableBalanceCacheExpiringEscrowSuccess{},
+				},
 			},
 		},
 	}

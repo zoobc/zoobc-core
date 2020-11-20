@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -52,6 +53,7 @@ type (
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error)
 		BackupMempools(commonBlock *model.Block) error
+		MoveFullCacheMempools() error
 		SpendableBalanceBeginCacheTransaction() error
 		SpendableBalanceRollbackCacheTransaction() error
 		SpendableBalanceCommitCacheTransaction() error
@@ -59,27 +61,28 @@ type (
 
 	// MempoolService contains all transactions in mempool plus a mux to manage locks in concurrency
 	MempoolService struct {
-		TransactionUtil                    transaction.UtilInterface
-		Chaintype                          chaintype.ChainType
-		QueryExecutor                      query.ExecutorInterface
-		MempoolQuery                       query.MempoolQueryInterface
-		MerkleTreeQuery                    query.MerkleTreeQueryInterface
-		ActionTypeSwitcher                 transaction.TypeActionSwitcher
-		AccountBalanceQuery                query.AccountBalanceQueryInterface
-		TransactionQuery                   query.TransactionQueryInterface
-		Signature                          crypto.SignatureInterface
-		Observer                           *observer.Observer
-		Logger                             *log.Logger
-		ReceiptUtil                        coreUtil.ReceiptUtilInterface
-		ReceiptService                     ReceiptServiceInterface
-		TransactionCoreService             TransactionCoreServiceInterface
-		BlocksStorage                      storage.CacheStackStorageInterface
-		MempoolCacheStorage                storage.CacheStorageInterface
-		MempoolBackupStorage               storage.CacheStorageInterface
-		MempoolUnsaveCacheStorage          storage.CacheStorageInterface
-		SpendableBalanceStorage            storage.CacheStorageInterface
-		lastIncomingTransactionTimestamp   int64
-		mapAccountsWithFullCacheMempoolIDs map[string]map[int64]bool
+		TransactionUtil                  transaction.UtilInterface
+		Chaintype                        chaintype.ChainType
+		QueryExecutor                    query.ExecutorInterface
+		MempoolQuery                     query.MempoolQueryInterface
+		MerkleTreeQuery                  query.MerkleTreeQueryInterface
+		ActionTypeSwitcher               transaction.TypeActionSwitcher
+		AccountBalanceQuery              query.AccountBalanceQueryInterface
+		TransactionQuery                 query.TransactionQueryInterface
+		Signature                        crypto.SignatureInterface
+		Observer                         *observer.Observer
+		Logger                           *log.Logger
+		ReceiptUtil                      coreUtil.ReceiptUtilInterface
+		ReceiptService                   ReceiptServiceInterface
+		TransactionCoreService           TransactionCoreServiceInterface
+		BlocksStorage                    storage.CacheStackStorageInterface
+		MempoolCacheStorage              storage.CacheStorageInterface
+		MempoolBackupStorage             storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage        storage.CacheStorageInterface
+		SpendableBalanceStorage          storage.CacheStorageInterface
+		lastIncomingTransactionTimestamp int64
+		accountsUnsaveMempoolIDsMap      map[string]map[int64]bool
+		accountsUnsaveMempoolIDsMapLock  sync.RWMutex
 	}
 )
 
@@ -101,29 +104,29 @@ func NewMempoolService(
 	transactionCoreService TransactionCoreServiceInterface,
 	blocksStorage storage.CacheStackStorageInterface,
 	mempoolCacheStorage, mempoolBackupStorage,
-	spendableBalanceStorage, mempoolUnsaveCacheStorage storage.CacheStorageInterface,
+	mempoolUnsaveCacheStorage, spendableBalanceStorage storage.CacheStorageInterface,
 ) *MempoolService {
 	return &MempoolService{
-		TransactionUtil:                    transactionUtil,
-		Chaintype:                          ct,
-		QueryExecutor:                      queryExecutor,
-		MempoolQuery:                       mempoolQuery,
-		MerkleTreeQuery:                    merkleTreeQuery,
-		ActionTypeSwitcher:                 actionTypeSwitcher,
-		AccountBalanceQuery:                accountBalanceQuery,
-		Signature:                          signature,
-		TransactionQuery:                   transactionQuery,
-		Observer:                           observer,
-		Logger:                             logger,
-		ReceiptUtil:                        receiptUtil,
-		ReceiptService:                     receiptService,
-		TransactionCoreService:             transactionCoreService,
-		BlocksStorage:                      blocksStorage,
-		MempoolCacheStorage:                mempoolCacheStorage,
-		MempoolBackupStorage:               mempoolBackupStorage,
-		MempoolUnsaveCacheStorage:          mempoolUnsaveCacheStorage,
-		SpendableBalanceStorage:            spendableBalanceStorage,
-		mapAccountsWithFullCacheMempoolIDs: make(map[string]map[int64]bool),
+		TransactionUtil:             transactionUtil,
+		Chaintype:                   ct,
+		QueryExecutor:               queryExecutor,
+		MempoolQuery:                mempoolQuery,
+		MerkleTreeQuery:             merkleTreeQuery,
+		ActionTypeSwitcher:          actionTypeSwitcher,
+		AccountBalanceQuery:         accountBalanceQuery,
+		Signature:                   signature,
+		TransactionQuery:            transactionQuery,
+		Observer:                    observer,
+		Logger:                      logger,
+		ReceiptUtil:                 receiptUtil,
+		ReceiptService:              receiptService,
+		TransactionCoreService:      transactionCoreService,
+		BlocksStorage:               blocksStorage,
+		MempoolCacheStorage:         mempoolCacheStorage,
+		MempoolBackupStorage:        mempoolBackupStorage,
+		MempoolUnsaveCacheStorage:   mempoolUnsaveCacheStorage,
+		SpendableBalanceStorage:     spendableBalanceStorage,
+		accountsUnsaveMempoolIDsMap: make(map[string]map[int64]bool),
 	}
 }
 
@@ -171,16 +174,25 @@ func (mps *MempoolService) RemoveMempoolTransactions(transactions []*model.Trans
 	var (
 		idsStr []string
 		ids    []int64
+		err    error
 	)
 	for _, tx := range transactions {
 		idsStr = append(idsStr, "'"+strconv.FormatInt(tx.GetID(), 10)+"'")
 		ids = append(ids, tx.GetID())
+		err = mps.removeMapMempoolSpendableBalanceCache(tx.SenderAccountAddress, tx.ID)
+		if err != nil {
+			return err
+		}
 	}
-	err := mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.DeleteMempoolTransactions(idsStr))
+	err = mps.QueryExecutor.ExecuteTransaction(mps.MempoolQuery.DeleteMempoolTransactions(idsStr))
 	if err != nil {
 		return err
 	}
 	err = mps.MempoolCacheStorage.RemoveItem(ids)
+	if err != nil {
+		return err
+	}
+	err = mps.MempoolUnsaveCacheStorage.RemoveItem(ids)
 	if err != nil {
 		return err
 	}
@@ -266,6 +278,14 @@ func (mps *MempoolService) AddMempoolFullCache(tx *model.Transaction, txBytes []
 		return err
 	}
 	mps.lastIncomingTransactionTimestamp = arrivalTimestamp
+	// save map of transaction unsave to track spendable cache
+	var accountStr = fmt.Sprintf("%q", tx.SenderAccountAddress)
+	mps.accountsUnsaveMempoolIDsMapLock.Lock()
+	defer mps.accountsUnsaveMempoolIDsMapLock.Unlock()
+	if mps.accountsUnsaveMempoolIDsMap[accountStr] == nil {
+		mps.accountsUnsaveMempoolIDsMap[accountStr] = make(map[int64]bool)
+	}
+	mps.accountsUnsaveMempoolIDsMap[accountStr][tx.ID] = true
 	return nil
 }
 
@@ -345,6 +365,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
 func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
+	fmt.Println("Current Height --->", blockHeight-1)
 	mempoolTransactions, err := mps.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
@@ -395,6 +416,7 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 		selectedMempoolTxs = append(selectedMempoolTxs, memObjCopy)
 		payloadLength += transactionLength
 	}
+	fmt.Println("selectedMempoolTxs :", len(selectedMempoolTxs))
 	sortFeePerByteThenTimestampThenID(selectedMempoolTxs)
 	for _, mpTx := range selectedMempoolTxs {
 		txCopy := mpTx.Tx
@@ -783,94 +805,112 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 // MoveFullCacheMempools to move full cache mempool to DB mempool
 func (mps *MempoolService) MoveFullCacheMempools() error {
+	fmt.Println("Unsaved Mempools : : ", mps.MempoolUnsaveCacheStorage.GetTotalItems())
+	fmt.Println("Saved Mempools : ", mps.MempoolCacheStorage.GetTotalItems())
+	fmt.Println("-")
 	if mps.MempoolUnsaveCacheStorage.GetTotalItems() > 0 {
 		var (
-			err               error
-			savedMempoolTotal = mps.MempoolCacheStorage.GetTotalItems()
+			err       error
+			cachedTxs = make(storage.MempoolMap)
 		)
-		if savedMempoolTotal < constant.MempoolMaxMoveTrasactions {
-			var cachedTxs = make(storage.MempoolMap)
-			err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
+		err = mps.MempoolUnsaveCacheStorage.GetAllItems(cachedTxs)
+		if err != nil {
+			return err
+		}
+		err = mps.QueryExecutor.BeginTx()
+		if err != nil {
+			return err
+		}
+		var movedMempoolID []int64
+		// start re apply unconfimed transaction
+		for mempoolID, memObj := range cachedTxs {
+			tx := memObj.Tx
+			txType, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
 			if err != nil {
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
-			err = mps.QueryExecutor.BeginTx()
+			err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType, false)
 			if err != nil {
+				mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
-			var movedMempoolID []int64
-			// start re apply unconfimed transaction
-			for mempoolID, memObj := range cachedTxs {
-				tx := memObj.Tx
-				txType, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
-				if err != nil {
-					if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						mps.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-				err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType, false)
-				if err != nil {
-					mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
-					if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						mps.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-				// Store to Mempool Transaction
-				insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(
-					&model.MempoolTransaction{
-						ID:                      tx.GetID(),
-						SenderAccountAddress:    tx.GetSenderAccountAddress(),
-						RecipientAccountAddress: tx.GetRecipientAccountAddress(),
-						FeePerByte:              memObj.FeePerByte,
-						TransactionBytes:        memObj.TxBytes,
-						ArrivalTimestamp:        memObj.ArrivalTimestamp,
-						BlockHeight:             memObj.BlockHeight,
-					},
-				)
-				err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
-				if err != nil {
-					if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						mps.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-				// save into normal mempool cache
-				err = mps.MempoolCacheStorage.SetItem(tx.GetID(), memObj)
-				if err != nil {
-					if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-						mps.Logger.Error(rollbackErr.Error())
-					}
-					return err
-				}
-				// remove mempool that already move from full cache (unsave mempool) to normal mempool
-				err = mps.MempoolUnsaveCacheStorage.RemoveItem(mempoolID)
-				if err != nil {
-					return err
-				}
-				// delete mapping accout address with mempool ID & cahce spendabel balance if neded
-				var accountStr = fmt.Sprintf("%q", tx.SenderAccountAddress)
-				delete(mps.mapAccountsWithFullCacheMempoolIDs[accountStr], tx.ID)
-				if len(mps.mapAccountsWithFullCacheMempoolIDs[accountStr]) == 0 {
-					err = mps.SpendableBalanceStorage.RemoveItem(tx.SenderAccountAddress)
-					if err != nil {
-						return err
-					}
-					delete(mps.mapAccountsWithFullCacheMempoolIDs, accountStr)
-				}
-				movedMempoolID = append(movedMempoolID, mempoolID)
-				// stop moving mempool if already reach maximum move
-				if len(movedMempoolID) == constant.MempoolMaxMoveTrasactions {
-					break
-				}
-			}
-			err = mps.QueryExecutor.CommitTx()
+			// Store to Mempool Transaction
+			insertMempoolQ, insertMempoolArgs := mps.MempoolQuery.InsertMempoolTransaction(
+				&model.MempoolTransaction{
+					ID:                      tx.GetID(),
+					SenderAccountAddress:    tx.GetSenderAccountAddress(),
+					RecipientAccountAddress: tx.GetRecipientAccountAddress(),
+					FeePerByte:              memObj.FeePerByte,
+					TransactionBytes:        memObj.TxBytes,
+					ArrivalTimestamp:        memObj.ArrivalTimestamp,
+					BlockHeight:             memObj.BlockHeight,
+				},
+			)
+			err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 			if err != nil {
-				mps.Logger.Warnf("error committing db transaction: %v", err)
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
 				return err
 			}
+			// save into normal mempool cache
+			err = mps.MempoolCacheStorage.SetItem(tx.GetID(), memObj)
+			if err != nil {
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+			// remove mempool that already move from full cache (unsave mempool) to normal mempool
+			err = mps.MempoolUnsaveCacheStorage.RemoveItem(mempoolID)
+			if err != nil {
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+			err = mps.removeMapMempoolSpendableBalanceCache(tx.SenderAccountAddress, tx.ID)
+			if err != nil {
+				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+					mps.Logger.Error(rollbackErr.Error())
+				}
+				return err
+			}
+			movedMempoolID = append(movedMempoolID, mempoolID)
+			// stop moving mempool if already reach maximum move
+			if len(movedMempoolID) == constant.MempoolMaxMoveTrasactions {
+				break
+			}
+		}
+		err = mps.QueryExecutor.CommitTx()
+		if err != nil {
+			mps.Logger.Warnf("error committing db transaction: %v", err)
+			return err
+		}
 
+	}
+	return nil
+}
+
+func (mps *MempoolService) removeMapMempoolSpendableBalanceCache(senderAccountAddress []byte, txID int64) error {
+	// delete mapping accout address with mempool ID & cahce spendabel balance if neded
+	var accountStr = fmt.Sprintf("%q", senderAccountAddress)
+	mps.accountsUnsaveMempoolIDsMapLock.Lock()
+	defer mps.accountsUnsaveMempoolIDsMapLock.Unlock()
+	if mps.accountsUnsaveMempoolIDsMap[accountStr] != nil {
+		delete(mps.accountsUnsaveMempoolIDsMap[accountStr], txID)
+		if len(mps.accountsUnsaveMempoolIDsMap[accountStr]) == 0 {
+			var err = mps.SpendableBalanceStorage.RemoveItem(senderAccountAddress)
+			if err != nil {
+				return err
+			}
+			delete(mps.accountsUnsaveMempoolIDsMap, accountStr)
 		}
 	}
 	return nil
@@ -901,4 +941,8 @@ func (mps *MempoolService) SpendableBalanceCommitCacheTransaction() error {
 		return blocker.NewBlocker(blocker.AppErr, "FailToCastSpendableBalanceStorageAsTransactionalCacheInterface")
 	}
 	return txSpendableBalanceCache.Commit()
+}
+
+func (mps *MempoolService) TestStorage() storage.CacheStorageInterface {
+	return mps.SpendableBalanceStorage
 }

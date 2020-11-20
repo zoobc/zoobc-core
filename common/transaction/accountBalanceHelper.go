@@ -97,7 +97,7 @@ func (abh *AccountBalanceHelper) UpdateAccountSpendableBalanceInCache(address []
 	if spendAbleBalance == 0 {
 		return nil
 	}
-	spendAbleBalance = spendAbleBalance + amount
+	spendAbleBalance += amount
 	txSpendableBalanceStorage, ok := abh.SpendableBalanceStorage.(storage.TransactionalCache)
 	if !ok {
 		return blocker.NewBlocker(blocker.AppErr, "FailToCastSpendableBalanceStorageAsTransactionalCacheInterface")
@@ -153,7 +153,7 @@ func (abh *AccountBalanceHelper) AddAccountBalance(
 		return nil
 	}
 	// updating spendable balance in cache
-	spendableBalanceCache = spendableBalanceCache + amount
+	spendableBalanceCache += amount
 	txSpendableBalanceStorage, ok := abh.SpendableBalanceStorage.(storage.TransactionalCache)
 	if !ok {
 		return blocker.NewBlocker(blocker.AppErr, "FailToCastSpendableBalanceStorageAsTransactionalCacheInterface")

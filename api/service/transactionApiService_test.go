@@ -5,16 +5,16 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -106,11 +106,11 @@ func (*mockTxTypeSuccess) Validate(bool) error {
 	return nil
 }
 
-func (*mockTxTypeApplyUnconfirmedFail) ApplyUnconfirmed() error {
+func (*mockTxTypeApplyUnconfirmedFail) ApplyUnconfirmed(bool) error {
 	return errors.New("mockError:ApplyUnconfirmedFail")
 }
 
-func (*mockTxTypeSuccess) ApplyUnconfirmed() error {
+func (*mockTxTypeSuccess) ApplyUnconfirmed(bool) error {
 	return nil
 }
 
@@ -126,7 +126,10 @@ func (*mockMempoolServiceFailValidate) ValidateMempoolTransaction(mpTx *model.Tr
 	return errors.New("mockedError")
 }
 
-func (*mockMempoolServiceSuccess) AddMempoolTransaction(tx *model.Transaction, txBytes []byte) error {
+func (*mockMempoolServiceSuccess) ReceivedTransactionFromWallet(
+	receivedTx *model.Transaction,
+	receivedTxBytes []byte,
+) error {
 	return nil
 }
 
@@ -224,7 +227,7 @@ func TestNewTransactionService(t *testing.T) {
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
-			defer resetTransactionService()
+			resetTransactionService()
 		})
 	}
 }
@@ -268,6 +271,9 @@ type (
 	mockCacheStorageAlwaysSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockMempoolServiceReceivedPostTransactionTransactionFromWalletFail struct {
+		service.MempoolService
+	}
 )
 
 func (*mockCacheStorageAlwaysSuccess) SetItem(key, item interface{}) error { return nil }
@@ -277,6 +283,17 @@ func (*mockCacheStorageAlwaysSuccess) RemoveItem(key interface{}) error    { ret
 func (*mockCacheStorageAlwaysSuccess) GetSize() int64                      { return 0 }
 func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { return nil }
 
+func (*mockMempoolServiceReceivedPostTransactionTransactionFromWalletFail) ValidateMempoolTransaction(
+	mpTx *model.Transaction) error {
+	return nil
+}
+
+func (*mockMempoolServiceReceivedPostTransactionTransactionFromWalletFail) ReceivedTransactionFromWallet(
+	receivedTx *model.Transaction,
+	receivedTxBytes []byte,
+) error {
+	return errors.New("mockedErr")
+}
 func TestTransactionService_PostTransaction(t *testing.T) {
 
 	var (
@@ -299,20 +316,6 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		model.TransactionType_SendMoneyTransaction,
 		&model.SendMoneyTransactionBody{
 			Amount: 10,
-		},
-		false,
-		true,
-	)
-	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
-		-62373445000112233,
-		1581301507,
-		txAPISenderAccount1,
-		nil,
-		12,
-		model.TransactionType_ApprovalEscrowTransaction,
-		&model.ApprovalEscrowTransactionBody{
-			Approval:      0,
-			TransactionID: 0,
 		},
 		false,
 		true,
@@ -356,12 +359,11 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			want:    nil,
 		},
 		{
-			name: "PostTransaction:txType.ValidateFail",
+			name: "ValidateMempoolTransaction:Fail",
 			fields: fields{
-				Query:              nil,
-				ActionTypeSwitcher: &mockTypeSwitcherValidateFail{},
-				MempoolService:     &mockMempoolServiceFailValidate{},
-				Log:                mockLog,
+				MempoolService: &mockMempoolServiceFailValidate{},
+				Observer:       observer.NewObserver(),
+				Log:            mockLog,
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
@@ -369,19 +371,18 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: transactionBytes,
 				},
 			},
 			wantErr: true,
 			want:    nil,
 		},
 		{
-			name: "PostTransaction:beginTxFail",
+			name: "ReceivedTransactionFromWallet:Fail",
 			fields: fields{
-				Query:              &mockTransactionExecutorFailBeginTx{},
-				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
-				Log:                mockLog,
-				MempoolService:     &mockMempoolServiceSuccess{},
+				MempoolService: &mockMempoolServiceReceivedPostTransactionTransactionFromWalletFail{},
+				Observer:       observer.NewObserver(),
+				Log:            mockLog,
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
@@ -389,120 +390,18 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: transactionBytes,
 				},
 			},
 			wantErr: true,
 			want:    nil,
 		},
 		{
-			name: "PostTransaction:txType.ApplyUnconfirmedFail",
+			name: "Success",
 			fields: fields{
-				Query:              &mockTransactionExecutorSuccess{},
-				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
-				Log:                mockLog,
-				MempoolService:     &mockMempoolServiceSuccess{},
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
-				},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "PostTransaction:txType.ApplyUnconfirmedFail-RollbackFail",
-			fields: fields{
-				Query:              &mockTransactionExecutorRollbackFail{},
-				ActionTypeSwitcher: &mockTypeSwitcherApplyUnconfirmedFail{},
-				Log:                mockLog,
-				MempoolService:     &mockMempoolServiceSuccess{},
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
-				},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "PostTransaction:txType.AddMempoolTransactionFail",
-			fields: fields{
-				Query:              &mockTransactionExecutorSuccess{},
-				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
-				MempoolService:     &mockMempoolServiceFailAdd{},
-				Log:                mockLog,
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
-				},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "PostTransaction:txType.AddMempoolTransactionFail-RollbackFail",
-			fields: fields{
-				Query:              &mockTransactionExecutorRollbackFail{},
-				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
-				MempoolService:     &mockMempoolServiceFailAdd{},
-				Log:                mockLog,
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
-				},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "PostTransaction:txType.AddMempoolTransactionFail-RollbackFail",
-			fields: fields{
-				Query:              &mockTransactionExecutorCommitFail{},
-				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
-				MempoolService:     &mockMempoolServiceSuccess{},
-				Log:                mockLog,
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
-				},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "PostTransaction:txType.Success",
-			fields: fields{
-				Query:              &mockTransactionExecutorSuccess{},
-				ActionTypeSwitcher: &mockTypeSwitcherSuccess{},
-				MempoolService:     &mockMempoolServiceSuccess{},
-				Observer:           observer.NewObserver(),
-				Log:                mockLog,
+				MempoolService: &mockMempoolServiceSuccess{},
+				Observer:       observer.NewObserver(),
+				Log:            mockLog,
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
@@ -515,28 +414,6 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			},
 			wantErr: false,
 			want:    txTypeSuccess,
-		},
-		{
-			name: "WantError:ValidateMempoolFail1",
-			fields: fields{
-				Query:     &mockQueryExecutorPostApprovalEscrowTX{},
-				Signature: nil,
-				ActionTypeSwitcher: &transaction.TypeSwitcher{
-					Executor: &mockQueryExecutorPostApprovalEscrowTX{},
-				},
-				MempoolService: &mockMempoolServicePostApprovalEscrowTXSuccess{},
-				Observer:       observer.NewObserver(),
-				TransactionUtil: &transaction.Util{
-					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
-				},
-			},
-			args: args{
-				chaintype: &chaintype.MainChain{},
-				req: &model.PostTransactionRequest{
-					TransactionBytes: escrowApprovalTXBytes,
-				},
-			},
-			want: escrowApprovalTX,
 		},
 	}
 	for _, tt := range tests {

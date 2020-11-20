@@ -1073,6 +1073,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+	if err := schedulerInstance.AddJob(
+		constant.MempoolMoveFullCachePeriod,
+		mempoolService.MoveFullCacheMempools,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+
 }
 
 func startBlockchainSynchronizers() {
