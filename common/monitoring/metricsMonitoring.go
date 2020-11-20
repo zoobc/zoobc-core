@@ -33,9 +33,9 @@ var (
 	nodeScore                          prometheus.Gauge
 	tpsReceived                        prometheus.Gauge
 	tpsProcessed                       prometheus.Gauge
-	txReceived                         prometheus.Counter
-	txProcessed                        prometheus.Counter
-	txFiltered                         prometheus.Counter
+	txReceived                         prometheus.Gauge
+	txProcessed                        prometheus.Gauge
+	txFiltered                         prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
@@ -227,7 +227,7 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(tpsReceived)
 
-	txReceived = prometheus.NewCounter(prometheus.CounterOpts{
+	txReceived = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_tx_received",
 		Help: "Transactions received since node last start",
 	})
@@ -239,13 +239,13 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(tpsProcessed)
 
-	txProcessed = prometheus.NewCounter(prometheus.CounterOpts{
+	txProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_tx_processed",
 		Help: "Transactions processed since node last start",
 	})
 	prometheus.MustRegister(txProcessed)
 
-	txFiltered = prometheus.NewCounter(prometheus.CounterOpts{
+	txFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "zoobc_tx_filtered",
 		Help: "Transactions filtered by anti-spam strategy",
 	})
@@ -507,21 +507,21 @@ func SetTpsProcessed(tps int) {
 	tpsProcessed.Set(float64(tps))
 }
 
-func IncrementTxReceived() {
+func IncreaseTxReceived() {
 	if !isMonitoringActive {
 		return
 	}
 	txReceived.Inc()
 }
 
-func IncrementTxProcessed() {
+func IncreaseTxProcessed() {
 	if !isMonitoringActive {
 		return
 	}
 	txProcessed.Inc()
 }
 
-func IncrementTxFiltered() {
+func IncreaseTxFiltered() {
 	if !isMonitoringActive {
 		return
 	}
