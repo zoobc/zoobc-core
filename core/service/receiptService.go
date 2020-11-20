@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -25,8 +24,11 @@ import (
 type (
 	ReceiptServiceInterface interface {
 		Initialize() error
-		SelectReceipts(previousBlock *model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error)
-		GenerateReceiptsMerkleRoot() error
+		SelectReceipts(
+			previousBlock *model.Block,
+			currentBlockSeed []byte,
+			maxReceipt int,
+		) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error)
 		// ValidateReceipt to validating *model.BatchReceipt when send block or send transaction and also when want to publishing receipt
 		ValidateReceipt(
 			receipt *model.Receipt,
@@ -47,6 +49,7 @@ type (
 		ClearCache()
 		SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error
 		GetReceiptFromPool(payloadHash []byte) ([]model.Receipt, error)
+		IsProvedReceiptEmpty(receipt *model.PublishedReceipt) bool
 	}
 
 	ReceiptService struct {
@@ -54,6 +57,7 @@ type (
 		MerkleTreeQuery              query.MerkleTreeQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		BlockQuery                   query.BlockQueryInterface
+		TransactionQuery             query.TransactionQueryInterface
 		QueryExecutor                query.ExecutorInterface
 		NodeRegistrationService      NodeRegistrationServiceInterface
 		Signature                    crypto.SignatureInterface
@@ -76,6 +80,7 @@ func NewReceiptService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	blockQuery query.BlockQueryInterface,
+	transactionQuery query.TransactionQueryInterface,
 	queryExecutor query.ExecutorInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
@@ -91,6 +96,7 @@ func NewReceiptService(
 		MerkleTreeQuery:              merkleTreeQuery,
 		NodeRegistrationQuery:        nodeRegistrationQuery,
 		BlockQuery:                   blockQuery,
+		TransactionQuery:             transactionQuery,
 		QueryExecutor:                queryExecutor,
 		NodeRegistrationService:      nodeRegistrationService,
 		Signature:                    signature,
@@ -121,83 +127,286 @@ func (rs *ReceiptService) Initialize() error {
 	return nil
 }
 
-// SelectReceipts select list of receipts to be included in a block by, the receipt will be separated to 2 categories
-// - free receipts, whatever receipts goes in (current.height - 40) blocks, by selecting random batch to include
-// - proved receipts, receipts that
-func (rs *ReceiptService) SelectReceipts(previousBlock *model.Block) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
+func (rs *ReceiptService) getFreeReceipts(previousBlock *model.Block, currentBlockSeed []byte) ([]*model.PublishedReceipt, error) {
 	var (
-		allBatch                     = make([]storage.ReceiptBatchObject, 0)
-		freeBatch                    storage.ReceiptBatchObject
-		freeReceipts, provedReceipts = make([]*model.PublishedReceipt, 0), make([]*model.PublishedReceipt, 0)
-		err                          error
+		allBatch = make([]storage.ReceiptBatchObject, 0)
+		result   = make([]*model.PublishedReceipt, 0)
+		err      error
 	)
-	if previousBlock.GetHeight() <= constant.MaxReceiptBatchCacheRound {
-		return freeReceipts, provedReceipts, err
-	}
-	err = rs.randomNumberGenerator.Reset(constant.ReceiptSelectionSeedPrefix, previousBlock.GetBlockSeed())
+
+	err = rs.randomNumberGenerator.Reset(constant.BlocksmithSelectionFreeReceiptSeedPrefix, currentBlockSeed)
 	if err != nil {
-		return freeReceipts, provedReceipts, err
+		return result, err
 	}
 	err = rs.ReceiptBatchStorage.GetAll(&allBatch)
 	if err != nil {
-		return freeReceipts, provedReceipts, err
+		return result, err
 	}
+
+	// todo: delete this dummy section for logging
+	var arr = make([]int, 0)
+	for _, batch := range allBatch {
+		arr = append(arr, len(batch.ReceiptBatch[0]))
+	}
+	fmt.Printf("height: %d - freeReceiptCount: %d: [%v]\n", previousBlock.GetHeight(), len(allBatch), arr)
+	// todo: delete this dummy section for logging
+
 	if len(allBatch) < constant.MaxReceiptBatchCacheRound {
-		return freeReceipts, provedReceipts, blocker.NewBlocker(blocker.CacheEmpty,
+		return result, blocker.NewBlocker(blocker.CacheEmpty,
 			fmt.Sprintf("NoEnoughBatchReceipt-minimum: %d\tsupplied: %d\n", constant.MaxReceiptBatchCacheRound,
 				len(allBatch)))
 	}
 	// choose free receipts
-	freeBatch = allBatch[0]
-	if len(freeBatch.ReceiptBatch) == 0 {
-		return freeReceipts, provedReceipts, blocker.NewBlocker(blocker.CacheEmpty, "NoBatchReceipt")
+
+	fmt.Printf("height: %d - freeReceipt-%d-count: %d\n", previousBlock.Height, previousBlock.GetHeight()-4, len(allBatch[0].ReceiptBatch))
+	if len(allBatch[0].ReceiptBatch) == 0 {
+		return result, blocker.NewBlocker(blocker.CacheEmpty, "NoBatchReceipt")
 	}
 	randomNumber := rs.randomNumberGenerator.Next()
-	getBatchIndex := func(rdm int64) int {
-		rd := rdm / int64(len(freeBatch.ReceiptBatch))
-		mult := rd * int64(len(freeBatch.ReceiptBatch))
-		rem := rdm - mult
-		return int(rem)
-	}
-	batchIndex := getBatchIndex(randomNumber)
 
-	var (
-		merkleRoot util.MerkleRoot
-	)
-	merkleRoot.HashTree = merkleRoot.FromBytes(freeBatch.MerkleTree, freeBatch.MerkleRoot)
-	getReceiptIntermediateHashes := func(rc model.Receipt, leafIndex int32) []byte {
-		var (
-			intermediateHashes [][]byte
-		)
-		intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(rc.DatumHash), leafIndex)
-		for _, buf := range intermediateHashesBuffer {
-			intermediateHashes = append(intermediateHashes, buf.Bytes())
-		}
-		return merkleRoot.FlattenIntermediateHashes(intermediateHashes)
-	}
-	for i := 0; i < len(freeBatch.ReceiptBatch[batchIndex]); i++ {
-		bReceipt := freeBatch.ReceiptBatch[batchIndex][i]
-		leafIndex := (batchIndex * i) + i
+	batchIndex := rs.randomNumberGenerator.ConvertRandomNumberToIndex(randomNumber, int64(len(allBatch[0].ReceiptBatch)))
+
+	for i := 0; i < len(allBatch[0].ReceiptBatch[batchIndex]); i++ {
+		bReceipt := allBatch[0].ReceiptBatch[batchIndex][i]
+		leafIndex := (int(batchIndex) * i) + i
 		pReceipt := &model.PublishedReceipt{
 			Receipt:                   &bReceipt,
-			IntermediateHashes:        getReceiptIntermediateHashes(bReceipt, int32(leafIndex)),
+			IntermediateHashes:        nil, // no intermediate hashes for free receipts
 			BlockHeight:               previousBlock.GetHeight() + 1,
 			BatchReferenceBlockHeight: bReceipt.ReferenceBlockHeight,
 			ReceiptIndex:              uint32(leafIndex),
 			PublishedIndex:            uint32(i),
 			PublishedReceiptType:      model.PublishedReceiptType_FreeReceipt,
 		}
-		freeReceipts = append(freeReceipts, pReceipt)
+		result = append(result, pReceipt)
 	}
+	return result, nil
+}
+
+func (rs *ReceiptService) getProvedReceipts(
+	previousBlock *model.Block,
+	currentBlockSeed []byte,
+	maxReceipt int,
+) ([]*model.PublishedReceipt, error) {
 	// choose proved receipts
 	var (
-		provedReceiptReminders = make(map[uint32]model.PublishedReceipt)
+		result                 = make([]*model.PublishedReceipt, 0)
+		provedReceiptReminders = make(map[uint32]storage.ProvedReceiptReminderObject)
+		err                    error
 	)
 	err = rs.ProvedReceiptReminderStorage.GetAllItems(&provedReceiptReminders)
 	if err != nil {
-		return freeReceipts, provedReceipts, err
+		return result, err
+	}
+
+	fmt.Printf("height: %d - provedReceiptCount: %d\n", previousBlock.GetHeight(), len(provedReceiptReminders))
+
+	if len(provedReceiptReminders) < maxReceipt {
+
+		fmt.Printf("SelectReceipts-InsufficientProvedReceipt - required: %d\thave: %d",
+			maxReceipt,
+			len(provedReceiptReminders))
+
+		return result, blocker.NewBlocker(blocker.InsufficientError,
+			fmt.Sprintf("SelectReceipts-InsufficientProvedReceipt - required: %d\thave: %d",
+				maxReceipt,
+				len(provedReceiptReminders)),
+		)
+	}
+
+	fetchReceiptsFromMerkleAndHash := func(merkleRoot []byte, datumHash []byte) ([][]*model.BatchReceipt, error) {
+		var (
+			batchReceipts = make([]*model.BatchReceipt, 0)
+			result        = make([][]*model.BatchReceipt, 0)
+			err           error
+		)
+		// fetch batch_receipt where merkle_root == provedReceiptRO.MerkleRoot
+		qry, args := rs.BatchReceiptQuery.GetReceiptByRootAndDatumHash(merkleRoot, datumHash)
+
+		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			// todo: Error log
+			return result, err
+		}
+		defer rows.Close()
+		batchReceipts, err = rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
+		if err != nil {
+			return result, nil
+		}
+		var (
+			lastHashHex string
+			lastIndex   = -1
+		)
+
+		for _, receipt := range batchReceipts {
+			hashHex := hex.EncodeToString(receipt.GetReceipt().GetDatumHash())
+			if lastHashHex != hashHex {
+				result = append(result, make([]*model.BatchReceipt, 0))
+				lastIndex += 1
+			}
+			result[lastIndex] = append(result[lastIndex], receipt)
+		}
+		return result, nil
+	}
+	fetchMerkleTree := func(merkleRoot []byte) ([]byte, error) {
+		root, args := rs.MerkleTreeQuery.GetMerkleTreeByRoot(merkleRoot)
+		row, err := rs.QueryExecutor.ExecuteSelectRow(root, false, args...)
+		if err != nil {
+			return nil, err
+		}
+		return rs.MerkleTreeQuery.ScanTree(row)
+	}
+	fetchTxsByBlockID := func(blockID int64) ([]*model.Transaction, error) {
+		var (
+			txs = make([]*model.Transaction, 0)
+		)
+		qry, args := rs.TransactionQuery.GetTransactionsByBlockID(blockID)
+		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			// todo: Error log
+			return txs, err
+		}
+		defer rows.Close()
+		txs, err = rs.TransactionQuery.BuildModel(txs, rows)
+		if err != nil {
+			return txs, nil
+		}
+	}
+	rng := crypto.NewRandomNumberGenerator()
+	rng.Reset(constant.BlocksmithSelectionProvedReceiptSeedPrefix, currentBlockSeed)
+	emptyProvedReceipt := &model.PublishedReceipt{
+		Receipt:                   nil,
+		IntermediateHashes:        []byte{},
+		BlockHeight:               previousBlock.GetHeight() + 1,
+		BatchReferenceBlockHeight: 0,
+		ReceiptIndex:              0,
+		PublishedIndex:            uint32(len(result)),
+		PublishedReceiptType:      model.PublishedReceiptType_ProvedReceipt,
 	}
 	// fetch proved reminders
+	for height, provedReceiptRO := range provedReceiptReminders {
+		// generate random number (consensus safe) as to which receipt to pick
+		rdNumItemIndex := rng.Next()
+		leafRandomNumber := rng.Next()
+		// if provedReceiptRO.MerkleRoot = []byte{} / empty bytes, then it means we are in the scramble at the height
+		// but not getting reference receipt published, so skipped
+		if len(provedReceiptRO.MerkleRoot) == 0 {
+			// keep filling to proved receipt list even if we don't have it, this is to keep the rng in consensus
+			// to the receipt list index
+			fmt.Printf("empty proved receipt at height: %d", height)
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		// fetch block+txs at provedReceiptRO height
+		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(height, rs.QueryExecutor, rs.BlockQuery, rs.MainBlocksStorage)
+		if err != nil {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		txsAtHeight, err := fetchTxsByBlockID(blockAtHeight.ID)
+		if err != nil {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		itemIndex := rng.ConvertRandomNumberToIndex(rdNumItemIndex, int64(len(txsAtHeight)+1))
+		// pick receipt and fetch its intermediate hashes
+		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(maxReceipt))
+		if int(receiverIndex) >= len(txsAtHeight)+1 {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		var (
+			itemHash []byte
+		)
+		if itemIndex == 0 {
+			itemHash = previousBlock.GetBlockHash()
+		} else {
+			itemHash = txsAtHeight[itemIndex-1].TransactionHash
+		}
+		merkleItems, err := fetchReceiptsFromMerkleAndHash(provedReceiptRO.MerkleRoot, itemHash)
+		if err != nil {
+			// log error
+			fmt.Printf("%v", err)
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		tree, err := fetchMerkleTree(provedReceiptRO.MerkleRoot)
+		if err != nil {
+			fmt.Printf("fetchMerkleTree: %v", err)
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+
+		leaf := item[receiverIndex] // todo: handle if item not in (possible panic error)
+		intermediateHashes := rs.getReceiptIntermediateHash(
+			*leaf.GetReceipt(),
+			int32(receiverIndex),
+			provedReceiptRO.MerkleRoot,
+			tree,
+		)
+
+		fmt.Printf("\n\n\nprovedReceipt\nintermediateHashes:%v\nleaf: %v\ntree: %v\n\n", intermediateHashes, leaf, tree)
+
+		pReceipt := &model.PublishedReceipt{
+			Receipt:                   leaf.GetReceipt(),
+			IntermediateHashes:        intermediateHashes,
+			BlockHeight:               previousBlock.GetHeight() + 1,
+			BatchReferenceBlockHeight: leaf.GetReceipt().GetReferenceBlockHeight(),
+			ReceiptIndex:              uint32(receiverIndex),
+			PublishedIndex:            uint32(len(result)),
+			PublishedReceiptType:      model.PublishedReceiptType_ProvedReceipt,
+		}
+		result = append(result, pReceipt)
+	}
+	// clear proved receipt reminders
+	if err != nil {
+		// log error
+		fmt.Printf("SelectReceipts:ProvedReceiptReminderStorage.Clear() err: %v", err)
+	}
+	return result, nil
+}
+
+func (rs *ReceiptService) getReceiptIntermediateHash(rc model.Receipt, leafIndex int32, root, merkleTree []byte) []byte {
+	var (
+		intermediateHashes [][]byte
+		merkleRoot         util.MerkleRoot
+	)
+	merkleRoot.HashTree = merkleRoot.FromBytes(merkleTree, root)
+	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(rc.DatumHash), leafIndex)
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
+	return merkleRoot.FlattenIntermediateHashes(intermediateHashes)
+}
+
+// SelectReceipts select list of receipts to be included in a block by, the receipt will be separated to 2 categories
+// - free receipts, whatever receipts goes in (current.height - 40) blocks, by selecting random batch to include
+// - proved receipts, receipts that can be linked back to past blocksmith's block including one / more of our receipt's
+// merkle root.
+// failure in this function should not stop the node to generate block, since it's not consensus rule but independent node's
+// receipt collection.
+func (rs *ReceiptService) SelectReceipts(
+	previousBlock *model.Block,
+	currentBlockSeed []byte,
+	maxReceipt int,
+) ([]*model.PublishedReceipt, []*model.PublishedReceipt, error) {
+	var (
+		freeReceipts, provedReceipts = make([]*model.PublishedReceipt, 0), make([]*model.PublishedReceipt, 0)
+		err                          error
+	)
+	if previousBlock.GetHeight() <= constant.MaxReceiptBatchCacheRound {
+		return freeReceipts, provedReceipts, err
+	}
+	freeReceipts, err = rs.getFreeReceipts(previousBlock, currentBlockSeed)
+	if err != nil {
+		// todo: log only, continue looking for proved receipt
+		freeReceipts = make([]*model.PublishedReceipt, 0)
+	}
+	provedReceipts, err = rs.getProvedReceipts(previousBlock, currentBlockSeed, maxReceipt)
+	if err != nil {
+		// todo: log only, continue returning empty receipt
+		provedReceipts = make([]*model.PublishedReceipt, 0)
+	}
 	return freeReceipts, provedReceipts, err
 }
 
@@ -221,6 +430,7 @@ func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.Receip
 		return nil
 	}
 	var (
+		merkleTree   []byte
 		merkleRoot   util.MerkleRoot
 		receiptCount = len(receiptBatchObject.ReceiptBatch) * len(receiptBatchObject.ReceiptBatch[0])
 		merkleLeafs  = make([]*bytes.Buffer, 0, receiptCount)
@@ -237,8 +447,7 @@ func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.Receip
 	if err != nil {
 		return err
 	}
-	root, merkleTree := merkleRoot.ToBytes()
-	receiptBatchObject.MerkleRoot = root
+	receiptBatchObject.MerkleRoot, merkleTree = merkleRoot.ToBytes()
 	for i := 0; i < len(receiptBatchObject.ReceiptBatch); i++ {
 		for j := 0; j < len(receiptBatchObject.ReceiptBatch[i]); j++ {
 			batchReceipt := &model.BatchReceipt{
@@ -257,7 +466,10 @@ func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.Receip
 		receiptBatchObject.BlockHeight,
 	)
 	queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
-
+	fmt.Printf("merkle-root: %v\nmerkle-tree: %v\nmerkle-leafs: %v\n\n\n",
+		hex.EncodeToString(receiptBatchObject.MerkleRoot),
+		len(merkleTree),
+		len(receiptBatchObject.ReceiptBatch[0]))
 	err = rs.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
 		return err
@@ -265,95 +477,6 @@ func (rs *ReceiptService) SaveReceiptAndMerkle(receiptBatchObject storage.Receip
 	rs.LastMerkleRoot = receiptBatchObject.MerkleRoot // update local cache
 	receiptBatchObject.MerkleTree = merkleTree
 	return rs.ReceiptBatchStorage.Push(receiptBatchObject)
-}
-
-// GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
-// generating will do when number of collected receipts(batch receipts) already <= the number of required
-func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
-	var (
-		receiptsCached, receipts []model.Receipt
-		hashedReceipts           []*bytes.Buffer
-		merkleRoot               util.MerkleRoot
-		queries                  [][]interface{}
-		batchReceipt             *model.BatchReceipt
-		block                    model.Block
-		err                      error
-	)
-
-	err = rs.ReceiptPoolCacheStorage.GetAllItems(&receiptsCached)
-	if err != nil {
-		return err
-	}
-
-	if len(receiptsCached) >= int(constant.ReceiptBatchMaximum) {
-		// Need to sorting before do next
-		sort.SliceStable(receiptsCached, func(i, j int) bool {
-			return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
-		})
-
-		var cacheCount int
-		for _, receipt := range receiptsCached {
-			if len(receipts) == int(constant.ReceiptBatchMaximum) {
-				break
-			}
-			b := receipt
-			err = rs.ValidateReceipt(&b)
-			if err == nil {
-				receipts = append(receipts, b)
-				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&b))
-				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
-			}
-			cacheCount++
-		}
-		receiptsCached = receiptsCached[cacheCount:]
-
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		rootMerkle, treeMerkle := merkleRoot.ToBytes()
-
-		queries = make([][]interface{}, len(hashedReceipts)+1)
-		for k, receipt := range receipts {
-			b := receipt
-			batchReceipt = &model.BatchReceipt{
-				Receipt:  &b,
-				RMR:      rootMerkle,
-				RMRIndex: uint32(k),
-			}
-			insertNodeReceiptQ, insertNodeReceiptArgs := rs.BatchReceiptQuery.InsertReceipt(batchReceipt)
-			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
-		}
-		err = rs.MainBlockStateStorage.GetItem(nil, &block)
-		if err != nil {
-			return err
-		}
-		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
-			rootMerkle,
-			treeMerkle,
-			time.Now().Unix(),
-			block.Height,
-		)
-		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
-
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = rs.QueryExecutor.RollbackTx()
-			return err
-		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-		rs.LastMerkleRoot = rootMerkle // update local cache
-		return rs.ReceiptPoolCacheStorage.SetItems(receiptsCached)
-	}
-
-	return nil
 }
 
 // CheckDuplication check existing batch receipt in cache storage
@@ -531,7 +654,15 @@ func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt) error {
 	return err
 }
 
+func (*ReceiptService) IsProvedReceiptEmpty(receipt *model.PublishedReceipt) bool {
+	if receipt.GetReceipt() == nil {
+		return true
+	}
+	return false
+}
+
 func (rs *ReceiptService) ClearCache() {
+	fmt.Printf("\n\n\nclear cache\n\n")
 	_ = rs.ReceiptPoolCacheStorage.ClearCache()
 	_ = rs.ReceiptBatchStorage.Clear()
 	_ = rs.ProvedReceiptReminderStorage.ClearCache()
