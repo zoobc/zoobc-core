@@ -365,7 +365,6 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 //		 the same block hash.
 // This function is equivalent of selectMempoolTransactions in NXT
 func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
-	fmt.Println("Current Height --->", blockHeight-1)
 	mempoolTransactions, err := mps.GetMempoolTransactions()
 	if err != nil {
 		return nil, err
@@ -416,7 +415,6 @@ func (mps *MempoolService) SelectTransactionsFromMempool(blockTimestamp int64, b
 		selectedMempoolTxs = append(selectedMempoolTxs, memObjCopy)
 		payloadLength += transactionLength
 	}
-	fmt.Println("selectedMempoolTxs :", len(selectedMempoolTxs))
 	sortFeePerByteThenTimestampThenID(selectedMempoolTxs)
 	for _, mpTx := range selectedMempoolTxs {
 		txCopy := mpTx.Tx
@@ -805,9 +803,6 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 // MoveFullCacheMempools to move full cache mempool to DB mempool
 func (mps *MempoolService) MoveFullCacheMempools() error {
-	fmt.Println("Unsaved Mempools : : ", mps.MempoolUnsaveCacheStorage.GetTotalItems())
-	fmt.Println("Saved Mempools : ", mps.MempoolCacheStorage.GetTotalItems())
-	fmt.Println("-")
 	if mps.MempoolUnsaveCacheStorage.GetTotalItems() > 0 {
 		var (
 			err       error
