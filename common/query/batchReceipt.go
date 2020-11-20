@@ -90,13 +90,13 @@ func (rq *BatchReceiptQuery) GetReceiptByRoot(root []byte) (str string, args []i
 }
 
 // GetReceiptByRootAndDatumHash return sql query to fetch pas by its merkle root and provided datumHashes
-func (rq *BatchReceiptQuery) GetReceiptByRootAndDatumHash(root []byte, datumHash []byte) (string, []interface{}) {
+func (rq *BatchReceiptQuery) GetReceiptByRootAndDatumHash(root, datumHash []byte) (string, []interface{}) {
 
 	var (
 		args = []interface{}{root, datumHash}
 	)
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? ORDER BY rmr_index ASC",
-		strings.Join(rq.Fields, ", "), rq.getTableName()
+		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, args
 }
 

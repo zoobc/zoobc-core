@@ -157,6 +157,40 @@ func GetPriorityPeersByNodeID(
 	return priorityPeers, nil
 }
 
+// GetSortedPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
+func GetSortedPriorityPeersByNodeID(
+	senderPeerID int64,
+	scrambledNodes *model.ScrambledNodes,
+) ([]*model.Peer, error) {
+	var (
+		priorityPeers       = make(map[string]*model.Peer)
+		sortedPriorityPeers = make([]*model.Peer, 0)
+		nodeIDStr           = fmt.Sprintf("%d", senderPeerID)
+	)
+	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
+	if hostIndex == nil {
+		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
+	}
+	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
+	addedPosition := 0
+	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
+		var (
+			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
+			peer          = scrambledNodes.AddressNodes[peersPosition]
+			peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
+		)
+		if priorityPeers[peerIDStr] != nil {
+			break
+		}
+		if peerIDStr != nodeIDStr {
+			priorityPeers[peerIDStr] = peer
+			sortedPriorityPeers = append(sortedPriorityPeers, peer)
+		}
+		addedPosition++
+	}
+	return sortedPriorityPeers, nil
+}
+
 func CheckPeerCompatibility(host, peer *model.Node) error {
 	if peer.GetCodeName() != host.GetCodeName() {
 		return blocker.NewBlocker(blocker.P2PPeerError, "peer code name does not match")

@@ -60,6 +60,7 @@ type (
 		TransactionQuery             query.TransactionQueryInterface
 		QueryExecutor                query.ExecutorInterface
 		NodeRegistrationService      NodeRegistrationServiceInterface
+		NodeConfigurationService     NodeConfigurationServiceInterface
 		Signature                    crypto.SignatureInterface
 		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
 		ReceiptUtil                  coreUtil.ReceiptUtilInterface
@@ -88,6 +89,7 @@ func NewReceiptService(
 	receiptUtil coreUtil.ReceiptUtilInterface,
 	mainBlockStateStorage, provedReceiptReminderStorage, receiptPoolCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
+	nodeConfigurationService NodeConfigurationServiceInterface,
 	mainBlocksStorage, receiptBatchStorage storage.CacheStackStorageInterface,
 	randomNumberGenerator *crypto.RandomNumberGenerator,
 ) *ReceiptService {
@@ -104,6 +106,7 @@ func NewReceiptService(
 		ReceiptUtil:                  receiptUtil,
 		MainBlockStateStorage:        mainBlockStateStorage,
 		ScrambleNodeService:          scrambleNodeService,
+		NodeConfigurationService:     nodeConfigurationService,
 		ProvedReceiptReminderStorage: provedReceiptReminderStorage,
 		ReceiptPoolCacheStorage:      receiptPoolCacheStorage,
 		ReceiptBatchStorage:          receiptBatchStorage,
@@ -199,14 +202,7 @@ func (rs *ReceiptService) getProvedReceipts(
 		return result, err
 	}
 
-	fmt.Printf("height: %d - provedReceiptCount: %d\n", previousBlock.GetHeight(), len(provedReceiptReminders))
-
 	if len(provedReceiptReminders) < maxReceipt {
-
-		fmt.Printf("SelectReceipts-InsufficientProvedReceipt - required: %d\thave: %d",
-			maxReceipt,
-			len(provedReceiptReminders))
-
 		return result, blocker.NewBlocker(blocker.InsufficientError,
 			fmt.Sprintf("SelectReceipts-InsufficientProvedReceipt - required: %d\thave: %d",
 				maxReceipt,
@@ -214,10 +210,9 @@ func (rs *ReceiptService) getProvedReceipts(
 		)
 	}
 
-	fetchReceiptsFromMerkleAndHash := func(merkleRoot []byte, datumHash []byte) ([][]*model.BatchReceipt, error) {
+	fetchReceiptsFromMerkleAndHash := func(merkleRoot []byte, datumHash []byte) ([]*model.BatchReceipt, error) {
 		var (
 			batchReceipts = make([]*model.BatchReceipt, 0)
-			result        = make([][]*model.BatchReceipt, 0)
 			err           error
 		)
 		// fetch batch_receipt where merkle_root == provedReceiptRO.MerkleRoot
@@ -225,28 +220,11 @@ func (rs *ReceiptService) getProvedReceipts(
 
 		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
 		if err != nil {
-			// todo: Error log
-			return result, err
+			return batchReceipts, err
 		}
 		defer rows.Close()
-		batchReceipts, err = rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
-		if err != nil {
-			return result, nil
-		}
-		var (
-			lastHashHex string
-			lastIndex   = -1
-		)
+		return rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
 
-		for _, receipt := range batchReceipts {
-			hashHex := hex.EncodeToString(receipt.GetReceipt().GetDatumHash())
-			if lastHashHex != hashHex {
-				result = append(result, make([]*model.BatchReceipt, 0))
-				lastIndex += 1
-			}
-			result[lastIndex] = append(result[lastIndex], receipt)
-		}
-		return result, nil
 	}
 	fetchMerkleTree := func(merkleRoot []byte) ([]byte, error) {
 		root, args := rs.MerkleTreeQuery.GetMerkleTreeByRoot(merkleRoot)
@@ -267,10 +245,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			return txs, err
 		}
 		defer rows.Close()
-		txs, err = rs.TransactionQuery.BuildModel(txs, rows)
-		if err != nil {
-			return txs, nil
-		}
+		return rs.TransactionQuery.BuildModel(txs, rows)
 	}
 	rng := crypto.NewRandomNumberGenerator()
 	rng.Reset(constant.BlocksmithSelectionProvedReceiptSeedPrefix, currentBlockSeed)
@@ -282,6 +257,10 @@ func (rs *ReceiptService) getProvedReceipts(
 		ReceiptIndex:              0,
 		PublishedIndex:            uint32(len(result)),
 		PublishedReceiptType:      model.PublishedReceiptType_ProvedReceipt,
+	}
+	hostID, err := rs.NodeConfigurationService.GetHostID()
+	if err != nil {
+		return result, err
 	}
 	// fetch proved reminders
 	for height, provedReceiptRO := range provedReceiptReminders {
@@ -310,11 +289,6 @@ func (rs *ReceiptService) getProvedReceipts(
 		}
 		itemIndex := rng.ConvertRandomNumberToIndex(rdNumItemIndex, int64(len(txsAtHeight)+1))
 		// pick receipt and fetch its intermediate hashes
-		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(maxReceipt))
-		if int(receiverIndex) >= len(txsAtHeight)+1 {
-			result = append(result, emptyProvedReceipt)
-			continue
-		}
 		var (
 			itemHash []byte
 		)
@@ -323,6 +297,7 @@ func (rs *ReceiptService) getProvedReceipts(
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
+
 		merkleItems, err := fetchReceiptsFromMerkleAndHash(provedReceiptRO.MerkleRoot, itemHash)
 		if err != nil {
 			// log error
@@ -330,6 +305,24 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
+		scrambleAtHeight, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(height)
+		if err != nil {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		priorityAtHeight, err := p2pUtil.GetSortedPriorityPeersByNodeID(hostID, scrambleAtHeight)
+		if err != nil {
+			fmt.Printf("%v", err)
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(len(priorityAtHeight)))
+		if int(receiverIndex) >= len(merkleItems) {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		leaf := merkleItems[receiverIndex]
+
 		tree, err := fetchMerkleTree(provedReceiptRO.MerkleRoot)
 		if err != nil {
 			fmt.Printf("fetchMerkleTree: %v", err)
@@ -337,7 +330,6 @@ func (rs *ReceiptService) getProvedReceipts(
 			continue
 		}
 
-		leaf := item[receiverIndex] // todo: handle if item not in (possible panic error)
 		intermediateHashes := rs.getReceiptIntermediateHash(
 			*leaf.GetReceipt(),
 			int32(receiverIndex),

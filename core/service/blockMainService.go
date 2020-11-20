@@ -540,7 +540,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
 
-		linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
+		linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(previousBlock, block)
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
 			return err
@@ -1285,7 +1285,7 @@ func (bs *BlockService) GenerateBlock(
 	} else {
 		receiptCount = constant.MaxReceipt
 	}
-	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock, nil, receiptCount)
+	freeReceipts, provedReceipts, err = bs.ReceiptService.SelectReceipts(previousBlock, blockSeed, receiptCount)
 	if err != nil {
 		bs.Logger.Errorf("GenerateBlock:FailSelectReceipts-%v\n", err)
 	}

@@ -397,6 +397,7 @@ func initiateMainInstance() {
 		provedReceiptReminderStorage,
 		batchReceiptCacheStorage,
 		scrambleNodeService,
+		nodeConfigurationService,
 		mainBlocksStorage,
 		receiptBatchStorage,
 		crypto.NewRandomNumberGenerator(),
@@ -469,6 +470,7 @@ func initiateMainInstance() {
 	)
 	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
 		query.NewPublishedReceiptQuery(),
+		query.NewBlockQuery(mainchain),
 		receiptUtil,
 		mainchainPublishedReceiptUtil,
 		receiptService,
@@ -477,6 +479,7 @@ func initiateMainInstance() {
 		nodeRegistrationService,
 		nodeConfigurationService,
 		provedReceiptReminderStorage,
+		mainBlocksStorage,
 	)
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,

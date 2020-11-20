@@ -1051,7 +1051,7 @@ func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([
 	return nil
 }
 
-func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
+func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error) {
 	return 0, nil
 }
 
@@ -1758,7 +1758,7 @@ func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Bloc
 
 }
 
-func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
+func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error) {
 	return 0, nil
 }
 
