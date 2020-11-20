@@ -144,6 +144,7 @@ func initialize(
 		nil,
 		nil,
 		nil,
+		nil,
 		nil, storage.NewReceiptBatchStackStorage(),
 		crypto.NewRandomNumberGenerator(),
 	)

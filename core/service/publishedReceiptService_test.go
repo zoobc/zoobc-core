@@ -193,7 +193,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				ReceiptService:        tt.fields.ReceiptService,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			got, err := ps.ProcessPublishedReceipts(tt.args.block)
+			got, err := ps.ProcessPublishedReceipts(nil, tt.args.block)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessPublishedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return

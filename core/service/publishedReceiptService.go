@@ -8,6 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
+	util3 "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
 	util2 "github.com/zoobc/zoobc-core/p2p/util"
 )
@@ -15,11 +16,12 @@ import (
 type (
 	// PublishedReceiptServiceInterface act as interface for processing the published receipt data
 	PublishedReceiptServiceInterface interface {
-		ProcessPublishedReceipts(block *model.Block) (int, error)
+		ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error)
 	}
 
 	PublishedReceiptService struct {
 		PublishedReceiptQuery        query.PublishedReceiptQueryInterface
+		BlockQuery                   query.BlockQueryInterface
 		ReceiptUtil                  util.ReceiptUtilInterface
 		PublishedReceiptUtil         util.PublishedReceiptUtilInterface
 		ReceiptService               ReceiptServiceInterface
@@ -28,11 +30,13 @@ type (
 		NodeRegistrationService      NodeRegistrationServiceInterface
 		NodeConfigurationService     NodeConfigurationServiceInterface
 		ProvedReceiptReminderStorage storage.CacheStorageInterface
+		BlocksStorage                storage.CacheStackStorageInterface
 	}
 )
 
 func NewPublishedReceiptService(
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
+	blockQuery query.BlockQueryInterface,
 	receiptUtil util.ReceiptUtilInterface,
 	publishedReceiptUtil util.PublishedReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
@@ -41,9 +45,11 @@ func NewPublishedReceiptService(
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	nodeConfigurationService NodeConfigurationServiceInterface,
 	provedReceiptReminderStorage storage.CacheStorageInterface,
+	blockStorage storage.CacheStackStorageInterface,
 ) *PublishedReceiptService {
 	return &PublishedReceiptService{
 		PublishedReceiptQuery:        publishedReceiptQuery,
+		BlockQuery:                   blockQuery,
 		ReceiptUtil:                  receiptUtil,
 		PublishedReceiptUtil:         publishedReceiptUtil,
 		ReceiptService:               receiptService,
@@ -52,13 +58,14 @@ func NewPublishedReceiptService(
 		NodeRegistrationService:      nodeRegistrationService,
 		NodeConfigurationService:     nodeConfigurationService,
 		ProvedReceiptReminderStorage: provedReceiptReminderStorage,
+		BlocksStorage:                blockStorage,
 	}
 }
 
 // ProcessPublishedReceipts takes published receipts in a block and validate
 // them, this function will run in a db transaction so ensure
 // queryExecutor.Begin() is called before calling this function.
-func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
+func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error) {
 	var (
 		linkedCount int
 		err         error
@@ -122,12 +129,35 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) 
 	rng := crypto.NewRandomNumberGenerator()
 	rng.Reset(constant.BlocksmithSelectionProvedReceiptSeedPrefix, block.GetBlockSeed())
 	for index, rc := range block.GetProvedReceipts() {
-
+		// generate random number (consensus safe) as to which receipt to pick
+		rdNumItemIndex := rng.Next()
+		leafRandomNumber := rng.Next()
 		rcCopy := *rc
 		if ps.ReceiptService.IsProvedReceiptEmpty(rc) {
 			continue
 		}
 		// validation...
+		// fetch block+txs at provedReceiptRO height
+		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(rc.GetBlockHeight(), ps.QueryExecutor, ps.BlockQuery, ps.BlocksStorage)
+		if err != nil {
+			return linkedCount, err
+		}
+		txsAtHeight, err := fetchTxsByBlockID(blockAtHeight.ID)
+		if err != nil {
+			return linkedCount, err
+		}
+		itemIndex := rng.ConvertRandomNumberToIndex(rdNumItemIndex, int64(len(txsAtHeight)+1))
+		// pick receipt and fetch its intermediate hashes
+		var (
+			itemHash []byte
+		)
+		if itemIndex == 0 {
+			itemHash = previousBlock.GetBlockHash()
+		} else {
+			itemHash = txsAtHeight[itemIndex-1].TransactionHash
+		}
+
+		merkleItems, err := fetchReceiptsFromMerkleAndHash(rc.GetReceipt(), itemHash)
 		// todo
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,
