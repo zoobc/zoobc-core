@@ -605,11 +605,38 @@ type (
 	}
 )
 
+func (*mockNodeRegistryCacheSuccess) GetItem(index, item interface{}) error {
+	castedItem := item.(*storage.NodeRegistry)
+	*castedItem = storage.NodeRegistry{
+		ParticipationScore: 10,
+	}
+	return nil
+}
+
 func (*mockNodeRegistryCacheSuccess) TxRemoveItem(interface{}) error {
 	return nil
 }
 
 func (*mockNodeRegistryCacheSuccess) TxSetItem(id, item interface{}) error {
+	return nil
+}
+
+type (
+	mockNodeRegistryCacheNotFound struct {
+		storage.NodeRegistryCacheStorage
+	}
+)
+
+func (*mockNodeRegistryCacheNotFound) GetItem(index, item interface{}) error {
+
+	return blocker.NewBlocker(blocker.NotFound, "mockedError")
+}
+
+func (*mockNodeRegistryCacheNotFound) TxRemoveItem(interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheNotFound) TxSetItem(id, item interface{}) error {
 	return nil
 }
 

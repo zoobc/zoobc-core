@@ -39,7 +39,7 @@ type (
 		GenerateReceiptWithReminder(
 			ct chaintype.ChainType,
 			receivedDatumHash []byte,
-			lastBlock *model.Block,
+			lastBlock *storage.BlockCacheObject,
 			senderPublicKey []byte,
 			nodeSecretPhrase string,
 			datumType uint32,
@@ -47,6 +47,7 @@ type (
 		// CheckDuplication to check duplication of *model.BatchReceipt when get response from send block and send transaction
 		CheckDuplication(publicKey []byte, datumHash []byte) (err error)
 		StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error
+		ClearCache()
 	}
 
 	ReceiptService struct {
@@ -495,7 +496,7 @@ func (rs *ReceiptService) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*m
 func (rs *ReceiptService) GenerateReceiptWithReminder(
 	ct chaintype.ChainType,
 	receivedDatumHash []byte,
-	lastBlock *model.Block,
+	lastBlock *storage.BlockCacheObject,
 	senderPublicKey []byte,
 	nodeSecretPhrase string,
 	datumType uint32,
@@ -533,23 +534,20 @@ func (rs *ReceiptService) GenerateReceiptWithReminder(
 	if err != nil {
 		return receipt, err
 	}
-
 	return receipt, err
 }
 
-func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) error {
-	receiptKey, err := rs.ReceiptUtil.GetReceiptKey(receipt.GetDatumHash(), senderPublicKey)
-	if err != nil {
-		return err
-	}
+func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) (err error) {
+
 	b := *receipt
 	err = rs.BatchReceiptCacheStorage.SetItem(nil, b)
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptReminderStorage.SetItem(hex.EncodeToString(receiptKey), chaintype)
-	if err != nil {
-		return err
-	}
 	return nil
+}
+
+func (rs *ReceiptService) ClearCache() {
+	_ = rs.BatchReceiptCacheStorage.ClearCache()
+	_ = rs.ReceiptReminderStorage.ClearCache()
 }

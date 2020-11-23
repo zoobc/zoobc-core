@@ -81,6 +81,14 @@ func (rs *ReceiptReminderStorage) GetAllItems(key interface{}) error {
 	}
 	return blocker.NewBlocker(blocker.ValidationErr, "WrongType key")
 }
+
+func (rs *ReceiptReminderStorage) GetTotalItems() int {
+	rs.Lock()
+	var totalItems = len(rs.reminders)
+	rs.Unlock()
+	return totalItems
+}
+
 func (rs *ReceiptReminderStorage) RemoveItem(key interface{}) error {
 	rs.Lock()
 	defer rs.Unlock()

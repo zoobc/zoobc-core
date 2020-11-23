@@ -87,6 +87,16 @@ func (n *NodeShardCacheStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (n *NodeShardCacheStorage) GetTotalItems() int {
+	n.RLock()
+	defer n.RUnlock()
+	var totalItems int
+	for _, IDs := range n.shardMap.NodeShards {
+		totalItems += len(IDs)
+	}
+	return totalItems
+}
+
 func (n *NodeShardCacheStorage) RemoveItem(key interface{}) error {
 	return nil
 }
