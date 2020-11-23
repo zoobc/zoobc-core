@@ -29,7 +29,7 @@ type (
 		ParseTransactionBytes(transactionBytes []byte, sign bool) (*model.Transaction, error)
 		GetTransactionID(transactionHash []byte) (int64, error)
 		ValidateTransaction(tx *model.Transaction, typeAction TypeAction, verifySignature bool) error
-		GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, error)
+		GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash []byte, address []byte, err error)
 	}
 
 	Util struct {
@@ -400,29 +400,29 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
-func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, error) {
+func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash []byte, addr []byte, err error) {
 	if info == nil {
-		return nil, fmt.Errorf("params cannot be nil")
+		return hash, nil, fmt.Errorf("params cannot be nil")
 	}
 	util.SortByteArrays(info.Addresses)
 	var (
 		buff    = bytes.NewBuffer([]byte{})
 		accType accounttype.AccountTypeInterface
-		err     error
 	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
-	for _, address := range info.GetAddresses() {
-		buff.Write(address)
+	for _, add := range info.GetAddresses() {
+		buff.Write(add)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	accType, err = accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), hashed[:])
+	accType, err = accounttype.NewAccountType(int32(model.AccountType_MultiSignatureAccountType), hashed[:])
 	if err != nil {
-		return nil, err
+		return hash, nil, err
 	}
 
-	return accType.GetAccountAddress()
+	addr, err = accType.GetAccountAddress()
+	return hashed[:], addr, err
 
 }
 
@@ -864,40 +864,37 @@ func (mtu *MultisigTransactionUtil) ParseMultiSignatureInfoBytes(
 		addresses [][]byte
 	)
 
-	multisigInfoPresent := util.ConvertBytesToUint32(buff.Next(int(constant.MultisigFieldLength)))
-	if multisigInfoPresent == constant.MultiSigFieldPresent {
-		minSignatures := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigInfoMinSignature)))
-		nonce := util.ConvertBytesToUint64(buff.Next(int(constant.MultiSigInfoNonce)))
-		addressesLength := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigNumberOfAddress)))
-		for i := 0; i < int(addressesLength); i++ {
-			var (
-				accType     accounttype.AccountTypeInterface
-				address     []byte
-				accTypeUint uint32
-			)
-			accTypeUint = util.ConvertBytesToUint32(buff.Next(int(constant.AccountAddressTypeLength)))
-			if model.AccountType(accTypeUint) == model.AccountType_MultiSignatureAccountType {
-				lenUint := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigAddressLength)))
-				address = buff.Next(int(lenUint))
-			} else {
-				accType, err = accounttype.ParseBytesToAccountType(buff)
-				if err != nil {
-					return err
-				}
-				address, err = accType.GetAccountAddress()
-				if err != nil {
-					return err
-				}
+	minSignatures := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigInfoMinSignature)))
+	nonce := util.ConvertBytesToUint64(buff.Next(int(constant.MultiSigInfoNonce)))
+	addressesLength := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigNumberOfAddress)))
+	for i := 0; i < int(addressesLength); i++ {
+		var (
+			accType     accounttype.AccountTypeInterface
+			address     []byte
+			accTypeUint uint32
+		)
+		accTypeUint = util.ConvertBytesToUint32(buff.Next(int(constant.AccountAddressTypeLength)))
+		if model.AccountType(accTypeUint) == model.AccountType_MultiSignatureAccountType {
+			lenUint := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigAddressLength)))
+			address = buff.Next(int(lenUint))
+		} else {
+			accType, err = accounttype.ParseBytesToAccountType(buff)
+			if err != nil {
+				return err
 			}
-			addresses = append(addresses, address)
+			address, err = accType.GetAccountAddress()
+			if err != nil {
+				return err
+			}
 		}
-
-		multiSignatureInfo = &model.MultiSignatureInfo{
-			MinimumSignatures: minSignatures,
-			Nonce:             int64(nonce),
-			Addresses:         addresses,
-			BlockHeight:       txHeight,
-		}
+		addresses = append(addresses, address)
 	}
-	return errors.New("MultiSignatureInfoDoesNotPresent")
+
+	multiSignatureInfo = &model.MultiSignatureInfo{
+		MinimumSignatures: minSignatures,
+		Nonce:             int64(nonce),
+		Addresses:         addresses,
+		BlockHeight:       txHeight,
+	}
+	return nil
 }

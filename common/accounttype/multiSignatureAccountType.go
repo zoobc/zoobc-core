@@ -77,7 +77,7 @@ func (m *MultiSignatureAccountType) GetAccountPublicKeyString() (string, error) 
 	if len(m.publicKey) == 0 {
 		return "", blocker.NewBlocker(blocker.AppErr, "EmptyAccountPublicKey")
 	}
-	m.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcNodeAccount, m.publicKey)
+	m.publicKeyString, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixMultiSignatureAccount, m.publicKey)
 	return m.publicKeyString, err
 }
 
@@ -97,14 +97,14 @@ func (m *MultiSignatureAccountType) GetSignatureLength() uint32 {
 	return 0
 }
 
-func (m *MultiSignatureAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
+func (m *MultiSignatureAccountType) Sign([]byte, string, ...interface{}) ([]byte, error) {
 	return []byte{}, blocker.NewBlocker(blocker.AppErr, "NotAllowedSigning")
 }
 
-func (m *MultiSignatureAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
+func (m *MultiSignatureAccountType) VerifySignature([]byte, []byte, []byte) error {
 	return blocker.NewBlocker(blocker.AppErr, "NotAllowedVerifying")
 }
 
 func (m *MultiSignatureAccountType) GenerateAccountFromSeed(string, ...interface{}) error {
-	return blocker.NewBlocker(blocker.AppErr, "NotAlloweedGenerateAccountFromSeed")
+	return blocker.NewBlocker(blocker.AppErr, "NotAllowedGenerateAccountFromSeed")
 }

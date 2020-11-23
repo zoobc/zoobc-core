@@ -2,11 +2,15 @@ package transaction
 
 import (
 	"database/sql"
+	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
+	"log"
 	"os"
 	"path"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -186,15 +190,17 @@ func init() {
 	/*
 		MultiSig Command
 	*/
-	multiSigCmd.Flags().StringSliceVar(&addressesHex, "addressesHex", []string{}, "list of participants "+
-		"--addressesHex='address1,address2'")
+	// multiSigCmd.Flags().StringSliceVar(&addressesHex, "addressesHex", []string{}, "list of participants "+
+	// 	"--addressesHex='address1,address2'")
 	multiSigCmd.Flags().Int64Var(&nonce, "nonce", 0, "random number / access code for the multisig info")
 	multiSigCmd.Flags().Uint32Var(&minSignature, "min-signature", 0, "minimum number of signature required for the transaction "+
 		"to be valid")
-	multiSigCmd.Flags().StringVar(&unsignedTxHex, "unsigned-transaction", "", "hex string of the unsigned transaction bytes")
-	multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
-	multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
-		"--address1='signature1' --address2='signature2'")
+	// multiSigCmd.Flags().StringVar(&unsignedTxHex, "unsigned-transaction", "", "hex string of the unsigned transaction bytes")
+	// multiSigCmd.Flags().StringVar(&txHash, "transaction-hash", "", "hash of transaction being signed by address-signature list (hex)")
+	// multiSigCmd.Flags().StringToStringVar(&addressSignatures, "address-signatures", make(map[string]string), "address:signature list "+
+	// 	"--address1='signature1' --address2='signature2'")
+	multiSigCmd.Flags().StringSliceVar(&participantSeeds, "participant-seeds", []string{}, "Participant list")
+	multiSigCmd.Flags().IntVar(&nested, "nested", 0, "OnChain/OffChain Flow")
 
 	/*
 		Fee Vote Commitment Command
@@ -486,11 +492,53 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 			message,
 		)
 
-		tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
+		// tx = GeneratedMultiSignatureTransaction(tx, minSignature, nonce, unsignedTxHex, txHash, addressSignatures, addressesHex)
+		// if tx == nil {
+		// 	fmt.Printf("fail to generate transaction, please check the provided parameter")
+		// } else {
+		// 	senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		// 	PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
+		// }
+
+		var participantAddresses = make([][]byte, 0)
+		for _, participantSeed := range participantSeeds {
+			var (
+				b       []byte
+				e       error
+				accType accounttype.AccountTypeInterface
+			)
+
+			b, e = signaturetype.NewEd25519Signature().GetPrivateKeyFromSeedUseSlip10(participantSeed)
+			if e != nil {
+				log.Fatal(e)
+			}
+			b, e = signaturetype.NewEd25519Signature().GetPublicKeyFromPrivateKeyUseSlip10(b)
+			if e != nil {
+				log.Fatal(e)
+			}
+			accType, e = accounttype.NewAccountType((&accounttype.ZbcAccountType{}).GetTypeInt(), b)
+			if e != nil {
+				log.Fatal(e)
+			}
+			account, errAccount := accType.GetAccountAddress()
+			if errAccount != nil {
+				log.Fatal(errAccount)
+			}
+			participantAddresses = append(participantAddresses, account)
+		}
+		tx = GenerateTXMultiSignature(
+			tx,
+			&model.MultiSignatureInfo{
+				MinimumSignatures: minSignature,
+				Nonce:             nonce,
+				Addresses:         participantAddresses,
+			},
+			nested,
+		)
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountTypeFromAccountHex(hex.EncodeToString(tx.GetSenderAccountAddress())).GetTypeInt()
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}

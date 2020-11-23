@@ -3,6 +3,8 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/accounttype"
@@ -12,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"log"
 )
 
 type (
@@ -343,12 +344,34 @@ func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
 			Nonce:             multiSigNonce,
 			Addresses:         multisigFullAccountAddresses,
 		}
-		address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
+		multiSignatureHash, address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
 		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println(address)
+			log.Fatal(err)
+
 		}
+
+		var (
+			accType       accounttype.AccountTypeInterface
+			encodedFormat string
+		)
+		accType, err = accounttype.NewAccountTypeFromAccount(address)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		encodedFormat, err = accType.GetAccountPublicKeyString()
+		if err != nil {
+			log.Fatal(err)
+		}
+		PrintAccount(
+			accType,
+			"",
+			"",
+			encodedFormat,
+			[]byte{},
+			multiSignatureHash,
+			address,
+		)
 	}
 }
 

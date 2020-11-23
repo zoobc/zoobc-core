@@ -1,20 +1,21 @@
 package transaction
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -239,7 +240,8 @@ func GenerateBasicTransaction(
 	message string,
 ) *model.Transaction {
 	if senderAccountAddressHex == "" && senderSeed != "" {
-		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		// accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		accountType := &accounttype.ZbcAccountType{}
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
@@ -251,10 +253,19 @@ func GenerateBasicTransaction(
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
-			if err != nil {
-				panic(err.Error())
+			accType, e := accounttype.NewAccountType(accountType.GetTypeInt(), bb)
+			if e != nil {
+				panic(e)
 			}
+			senderBytes, e := accType.GetAccountAddress()
+			if e != nil {
+				panic(e)
+			}
+			senderAccountAddressHex = hex.EncodeToString(senderBytes)
+			// senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
+			// if err != nil {
+			// 	panic(err.Error())
+			// }
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
@@ -615,5 +626,115 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+// GenerateTXMultiSignature return multi signature transaction based on provided basic transaction
+func GenerateTXMultiSignature(
+	tx *model.Transaction,
+	multiSignatureInfo *model.MultiSignatureInfo,
+	nested int,
+) *model.Transaction {
+
+	var (
+		signatureInfo *model.SignatureInfo
+		senderHex     = hex.EncodeToString(tx.GetSenderAccountAddress())
+		err           error
+	)
+
+	innerTX := GenerateBasicTransaction(
+		senderHex,
+		senderSeed,
+		version,
+		timestamp,
+		fee,
+		recipientAccountAddressHex,
+		message,
+	)
+	innerTX = GenerateTxSendMoney(innerTX, 1)
+	senderAccountType := getAccountTypeFromAccountHex(senderHex).GetTypeInt()
+	unsignedTXBytes := GenerateSignedTxBytes(innerTX, senderSeed, senderAccountType, false)
+	unsignedTXBytesHash := sha3.Sum256(unsignedTXBytes)
+	signatureInfo = &model.SignatureInfo{
+		TransactionHash: unsignedTXBytesHash[:],
+	}
+
+	var signatures = make(map[string][]byte)
+	for k, participantAddress := range multiSignatureInfo.GetAddresses() {
+		var (
+			accType accounttype.AccountTypeInterface
+		)
+		accType, err = accounttype.NewAccountTypeFromAccount(participantAddress)
+		if err != nil {
+			log.Fatal(err)
+		}
+		sig, errSig := signature.Sign(
+			unsignedTXBytesHash[:],
+			model.AccountType(accType.GetTypeInt()),
+			participantSeeds[k],
+			true,
+		)
+		if errSig != nil {
+			return nil
+		}
+		signatures[hex.EncodeToString(participantAddress)] = sig
+	}
+
+	if nested > 0 {
+		if len(multiSignatureInfo.GetAddresses()) < 3 {
+			log.Fatal("need to have min 3 participants")
+		}
+
+		for i := 0; i < nested; i++ {
+			if i > len(multiSignatureInfo.GetAddresses()) {
+				break
+			}
+
+			var (
+				multiSignatureInfoHash, multiSignatureAddress []byte
+				signatureInfoKey, signatureInfoValue          *bytes.Buffer
+				signatureInfoKeyAsMusig                       *model.MultiSignatureInfo
+			)
+
+			signatureInfoKeyAsMusig = &model.MultiSignatureInfo{
+				MinimumSignatures: multiSignatureInfo.GetMinimumSignatures(),
+				Nonce:             multiSignatureInfo.GetNonce(),
+				Addresses: [][]byte{
+					multiSignatureInfo.GetAddresses()[i],
+					multiSignatureInfo.GetAddresses()[i+1],
+				},
+			}
+			multiSignatureInfoHash, multiSignatureAddress, err = (&transaction.Util{}).GenerateMultiSigAddress(signatureInfoKeyAsMusig)
+			if err != nil {
+				log.Fatal(err)
+			}
+			multiSignatureInfo.Addresses = append(multiSignatureInfo.GetAddresses(), multiSignatureAddress)
+
+			// KeyFormat: [AccountType][MultiSignatureInfoHashLen][MultiSignatureInfoHash]
+			signatureInfoKey = bytes.NewBuffer(util.ConvertUint32ToBytes(uint32(model.AccountType_MultiSignatureAccountType)))
+			signatureInfoKey.Write(util.ConvertUint32ToBytes(uint32(len(multiSignatureInfoHash))))
+			signatureInfoKey.Write(multiSignatureInfoHash)
+
+			// ValueFormat: [NumberOfSignatures][Signature][...]
+			signatureInfoValue = bytes.NewBuffer(util.ConvertUint32ToBytes(uint32(len(signatureInfoKeyAsMusig.GetAddresses()))))
+			signatureInfoValue.Write(signatures[hex.EncodeToString(multiSignatureInfo.GetAddresses()[i])])
+			signatureInfoValue.Write(signatures[hex.EncodeToString(multiSignatureInfo.GetAddresses()[i+1])])
+			signatures[hex.EncodeToString(signatureInfoKey.Bytes())] = signatureInfoValue.Bytes()
+		}
+	}
+	signatureInfo.Signatures = signatures
+
+	txBody := &model.MultiSignatureTransactionBody{
+		MultiSignatureInfo:       multiSignatureInfo,
+		UnsignedTransactionBytes: unsignedTXBytes,
+		SignatureInfo:            signatureInfo,
+	}
+
+	txBodyBytes, _ := (&transaction.MultiSignatureTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["multiSignature"])
 	return tx
 }

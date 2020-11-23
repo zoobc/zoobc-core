@@ -709,7 +709,7 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tu := &Util{}
-			got, err := tu.GenerateMultiSigAddress(tt.args.info)
+			_, got, err := tu.GenerateMultiSigAddress(tt.args.info)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateMultiSigAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return
