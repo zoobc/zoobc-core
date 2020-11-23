@@ -16,7 +16,10 @@ const (
 	// Gap of the CleanTimedoutTxCandidateThread
 	CleanTimedoutBlockTxCachedThreadGap = 10
 	// MaxMoveMempoolTrasaction is maximum mempool to move from full cache to normal cache
-	MempoolMaxMoveTrasactions = 3 * MaxNumberOfTransactionsInBlock
+	MempoolMaxMoveTrasactions = 2 * MaxNumberOfTransactionsInBlock
 	// MempoolMovePeriod the period to move full cahce mempool into normal cache
-	MempoolMoveFullCachePeriod = 5 * time.Second
+	MempoolMoveFullCachePeriod = 4 * time.Second
+	// MempoolMaxTimeGapBecameFullCacheTransaction the maximimum time gap between incoming transaction
+	// to determine whether the incoming transaction became full cache mempool or not
+	MempoolMaxTimeGapBecameFullCacheTransaction = 2
 )

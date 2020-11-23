@@ -301,12 +301,21 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 		}
 	}
 	var (
-		mempoolObj storage.MempoolCacheObject
-		tx         model.Transaction
-		err        error
-		row        *sql.Row
-		txType     transaction.TypeAction
+		mempoolObj,
+		unsaveMempoolObj storage.MempoolCacheObject
+		tx     model.Transaction
+		err    error
+		row    *sql.Row
+		txType transaction.TypeAction
 	)
+	// check duplication in unsave mempool cache
+	err = mps.MempoolUnsaveCacheStorage.GetItem(mpTx.GetID(), &unsaveMempoolObj)
+	if err != nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "FailReadingMempoolCache")
+	}
+	if mpTx.GetID() == unsaveMempoolObj.Tx.GetID() {
+		return blocker.NewBlocker(blocker.DuplicateMempoolErr, "MempoolDuplicated")
+	}
 	// check duplication in save mempool cache
 	err = mps.MempoolCacheStorage.GetItem(mpTx.GetID(), &mempoolObj)
 	if err != nil {
@@ -315,15 +324,6 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 	if mpTx.GetID() == mempoolObj.Tx.GetID() {
 		return blocker.NewBlocker(blocker.DuplicateMempoolErr, "MempoolDuplicated")
 	}
-	// check duplication in unsave mempool cache
-	err = mps.MempoolUnsaveCacheStorage.GetItem(mpTx.GetID(), &mempoolObj)
-	if err != nil {
-		return blocker.NewBlocker(blocker.ValidationErr, "FailReadingMempoolCache")
-	}
-	if mpTx.GetID() == mempoolObj.Tx.GetID() {
-		return blocker.NewBlocker(blocker.DuplicateMempoolErr, "MempoolDuplicated")
-	}
-
 	// check for duplication in transaction table
 	transactionQ := mps.TransactionQuery.GetTransaction(mpTx.GetID())
 	row, err = mps.QueryExecutor.ExecuteSelectRow(transactionQ, false)
@@ -465,7 +465,7 @@ func (mps *MempoolService) processReceiveTransaction(receivedTx *model.Transacti
 	if err != nil {
 		rollbackErr := mps.QueryExecutor.RollbackTx()
 		if rollbackErr != nil {
-			mps.Logger.Warnf("rollbackErr:ReceivedTransactionFromP2P - %v", rollbackErr)
+			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
 		}
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -860,10 +860,12 @@ func (mps *MempoolService) MoveFullCacheMempools() error {
 			err = mps.QueryExecutor.ExecuteTransaction(insertMempoolQ, insertMempoolArgs...)
 			if err != nil {
 				if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					mps.Logger.Error(rollbackErr.Error())
+					mps.Logger.Errorf("rollbackErr:MoveMempool - %v", rollbackErr)
 				}
 				return err
 			}
+			// make sure the order add & remove between save & usnave mempool cache
+			// is same with order of check duplicate on ValidateMempool to avoid duplicated mempol when moving mempool
 			// save into normal mempool cache
 			err = mps.MempoolCacheStorage.SetItem(tx.GetID(), memObj)
 			if err != nil {
