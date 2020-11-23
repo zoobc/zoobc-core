@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"html/template"
 	"net"
 	"net/http"
@@ -49,7 +50,7 @@ func startGrpcServer(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
@@ -252,7 +253,7 @@ func Start(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) {
 	startGrpcServer(
 		queryExecutor,

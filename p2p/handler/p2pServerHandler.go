@@ -2,10 +2,9 @@ package handler
 
 import (
 	"context"
-	coreService "github.com/zoobc/zoobc-core/core/service"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	service2 "github.com/zoobc/zoobc-core/p2p/service"
@@ -14,12 +13,12 @@ import (
 // P2PServerHandler represent data service node as server
 type P2PServerHandler struct {
 	Service          service2.P2PServerServiceInterface
-	FeedbackStrategy coreService.FeedbackStrategyInterface
+	FeedbackStrategy feedbacksystem.FeedbackStrategyInterface
 }
 
 func NewP2PServerHandler(
 	p2pServerService service2.P2PServerServiceInterface,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) *P2PServerHandler {
 	return &P2PServerHandler{
 		Service:          p2pServerService,

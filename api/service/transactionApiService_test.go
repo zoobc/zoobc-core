@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
@@ -328,7 +329,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		Log                *logrus.Logger
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
-		FeedbackStrategy   service.FeedbackStrategyInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -348,7 +349,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -369,7 +370,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -390,7 +391,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -411,7 +412,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -432,7 +433,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -453,7 +454,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -474,7 +475,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -495,7 +496,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -517,7 +518,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -541,7 +542,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
-				FeedbackStrategy: &service.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},

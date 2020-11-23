@@ -8,6 +8,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -37,7 +38,7 @@ type (
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
-		FeedbackStrategy   service.FeedbackStrategyInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
 		Logger             *log.Logger
 	}
 )
@@ -52,7 +53,7 @@ func NewTransactionService(
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
 	transactionUtil transaction.UtilInterface,
-	feedbackStrategy service.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 	logger *log.Logger,
 ) *TransactionService {
 	if transactionServiceInstance == nil {

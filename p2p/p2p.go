@@ -2,6 +2,7 @@ package p2p
 
 import (
 	"encoding/base64"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"math/rand"
 	"time"
 
@@ -39,7 +40,7 @@ type (
 			nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
-			feedbackStrategy coreService.FeedbackStrategyInterface,
+			feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -67,7 +68,7 @@ type (
 		FileService              coreService.FileServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
-		FeedbackStrategy         coreService.FeedbackStrategyInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 )
 
@@ -80,7 +81,7 @@ func NewP2PService(
 	fileService coreService.FileServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		PeerServiceClient:        peerServiceClient,
@@ -108,7 +109,7 @@ func (s *Peer2PeerService) StartP2P(
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
