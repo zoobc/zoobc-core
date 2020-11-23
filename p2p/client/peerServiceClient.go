@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"math"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ type (
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
 		NodeAuthValidation       auth.NodeAuthValidationInterface
-		FeedbackStrategy         coreService.FeedbackStrategyInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -95,7 +96,7 @@ func NewPeerServiceClient(
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAuthValidation auth.NodeAuthValidationInterface,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log

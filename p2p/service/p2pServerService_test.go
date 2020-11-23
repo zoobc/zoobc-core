@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"reflect"
 	"testing"
 
@@ -141,7 +142,7 @@ func TestNewP2PServerService(t *testing.T) {
 		mempoolServices         map[int32]coreService.MempoolServiceInterface
 		nodeSecretPhrase        string
 		observer                *observer.Observer
-		feedbackStrategy        coreService.FeedbackStrategyInterface
+		feedbackStrategy        feedbacksystem.FeedbackStrategyInterface
 	}
 	tests := []struct {
 		name string
@@ -158,13 +159,13 @@ func TestNewP2PServerService(t *testing.T) {
 				mempoolServices:         make(map[int32]coreService.MempoolServiceInterface),
 				nodeSecretPhrase:        "",
 				observer:                nil,
-				feedbackStrategy:        &coreService.DummyFeedbackStrategy{},
+				feedbackStrategy:        &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			want: &P2PServerService{
 				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
 				MempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
 				NodeSecretPhrase: "",
-				FeedbackStrategy: &coreService.DummyFeedbackStrategy{},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 		},
 	}

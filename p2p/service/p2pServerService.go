@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -86,7 +88,7 @@ type (
 		MempoolServices          map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
-		FeedbackStrategy         coreService.FeedbackStrategyInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 )
 
@@ -101,7 +103,7 @@ func NewP2PServerService(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
-	feedbackStrategy coreService.FeedbackStrategyInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -471,6 +473,19 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
+	if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitCritical {
+			monitoring.IncreaseP2PTxFiltered()
+			return nil, status.Error(codes.Internal, "NodeIsBusy")
+		}
+	}
+	if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitCritical {
+			monitoring.IncreaseP2PTxFiltered()
+			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+		}
+	}
+
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var blockService = ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {

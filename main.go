@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -110,7 +111,7 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
-	feedbackStrategy                                                       service.FeedbackStrategyInterface
+	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
 	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
 	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
@@ -254,12 +255,12 @@ func initiateMainInstance() {
 	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	if config.AntiSpamFilter {
-		feedbackStrategy = service.NewAntiSpamStrategy(
+		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
 			loggerCoreService,
 		)
 	} else {
 		// no filtering: turn antispam filter off
-		feedbackStrategy = &service.DummyFeedbackStrategy{}
+		feedbackStrategy = feedbacksystem.NewDummyFeedbackStrategy()
 	}
 
 	cliMonitoring = monitoring.NewCLIMonitoring(config)

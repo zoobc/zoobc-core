@@ -36,6 +36,7 @@ var (
 	txReceived                         prometheus.Gauge
 	txProcessed                        prometheus.Gauge
 	txFiltered                         prometheus.Gauge
+	P2PTxFiltered                      prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
@@ -250,6 +251,12 @@ func SetMonitoringActive(isActive bool) {
 		Help: "Transactions filtered by anti-spam strategy",
 	})
 	prometheus.MustRegister(txFiltered)
+
+	P2PTxFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered",
+		Help: "Transactions broadcast by other nodes filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(P2PTxFiltered)
 
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
@@ -526,6 +533,13 @@ func IncreaseTxFiltered() {
 		return
 	}
 	txFiltered.Inc()
+}
+
+func IncreaseP2PTxFiltered() {
+	if !isMonitoringActive {
+		return
+	}
+	P2PTxFiltered.Inc()
 }
 
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {

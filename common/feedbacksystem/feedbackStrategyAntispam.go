@@ -1,4 +1,4 @@
-package service
+package feedbacksystem
 
 import (
 	"os"
@@ -14,19 +14,6 @@ import (
 )
 
 type (
-	FeedbackStrategyInterface interface {
-		StartSampling(samplingInterval time.Duration)
-		IsGoroutineLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		IsP2PRequestLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		GetSuggestedActions() map[constant.FeedbackAction]bool
-		SetFeedbackVar(k string, v interface{})
-		GetFeedbackVar(k string) interface{}
-		IncrementVarCount(k string) interface{}
-		DecrementVarCount(k string) interface{}
-	}
-
 	// AntiSpamStrategy implements an anti spam filter and it is used to reduce or inhibit number of api requests when the app
 	// reaches some hard limits on concurrent processes, memory and/or cpu
 	AntiSpamStrategy struct {
@@ -182,20 +169,24 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 
 func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
 	var (
-		avg, sumOutgoing, sumIncoming,
+		avg, sumIncoming,
 		avgOutgoing, avgIncoming int
-		numQueuedSamplesOutGoing = len(ass.RunningCliP2PAPIRequests)
+		// STEF test limiting by only considering incoming p2p requests (other nodes spamming)
+		// sumOutgoing int
+		// numQueuedSamplesOutGoing = len(ass.RunningCliP2PAPIRequests)
 		numQueuedSamplesIncoming = len(ass.RunningServerP2PAPIRequests)
 	)
 
 	// if there are less elements in queue that the number of samples we want to compute the average from, return false
-	if numQueuedSamplesOutGoing < numSamples || numQueuedSamplesIncoming < numSamples {
+	if numQueuedSamplesIncoming < numSamples {
+		// if numQueuedSamplesOutGoing < numSamples || numQueuedSamplesIncoming < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
-	for n := 1; n <= numSamples; n++ {
-		sumOutgoing += ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-n]
-	}
-	avgOutgoing = sumOutgoing / numSamples
+	// STEF test limiting by only considering incoming p2p requests (other nodes spamming)
+	// for n := 1; n <= numSamples; n++ {
+	// 	sumOutgoing += ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-n]
+	// }
+	// avgOutgoing = sumOutgoing / numSamples
 	for n := 1; n <= numSamples; n++ {
 		sumIncoming += ass.RunningServerP2PAPIRequests[len(ass.RunningServerP2PAPIRequests)-n]
 	}
