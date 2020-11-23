@@ -298,7 +298,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "child_type" INTEGER DEFAULT 0 -- indicate transaction has a child of transaction
+				ADD COLUMN "child_type" INTEGER DEFAULT 0 -- indicate transaction is a child of transaction
 			`,
 			`
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")

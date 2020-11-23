@@ -100,18 +100,19 @@ func (tq *TransactionQuery) InsertTransactions(txs []*model.Transaction) (str st
 
 }
 func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND child_type = 0 "+
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND child_type = ? "+
 		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
-	return query, []interface{}{blockID}
+	return query, []interface{}{blockID, uint32(model.TransactionChildType_NoneChild)}
 }
 
 func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, args []interface{}) {
 
+	args = append(args, uint32(model.TransactionChildType_NoneChild))
 	for _, id := range txIds {
 		args = append(args, id)
 	}
 	return fmt.Sprintf(
-			"SELECT %s FROM %s WHERE child_type = 0 AND id IN(?%s)",
+			"SELECT %s FROM %s WHERE child_type = ? AND id IN(?%s)",
 			strings.Join(tq.Fields, ", "),
 			tq.getTableName(),
 			strings.Repeat(", ?", len(txIds)-1),
