@@ -3,9 +3,10 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -45,6 +46,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	}, "ZOOBC")
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
+	createBlockchainObjectBody, createBlockchainObjectBytes := GetFixturesForCreateBlockchainObjectTransaction()
 	accountBalanceHelper := NewAccountBalanceHelper(&query.Executor{}, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
 	// cache mock
 	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
@@ -552,6 +554,38 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
+			},
+		},
+		{
+			name: "wantCreateBlockchainObject",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					TransactionBody:         createBlockchainObjectBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{9, 0, 0, 0}),
+					TransactionBodyBytes:    createBlockchainObjectBytes,
+				},
+			},
+			want: &CreateBlockchainObjectTransaction{
+				ID:                            0,
+				SenderAddress:                 mockTxSenderAccountAddress,
+				Body:                          createBlockchainObjectBody,
+				Height:                        5,
+				QueryExecutor:                 &query.Executor{},
+				AccountBalanceHelper:          accountBalanceHelper,
+				EscrowQuery:                   query.NewEscrowTransactionQuery(),
+				BlockchainObjectQuery:         query.NewBlockchainObjectQuery(),
+				BlockchainObjectPropertyQuery: query.NewBlockchainObjectPropertyQuery(),
+				AccountDatasetQuery:           query.NewAccountDatasetsQuery(),
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			},
 		},
 	}

@@ -17,3 +17,4 @@ func (*FeeVoteCommitTransactionBody) isTransaction_TransactionBody()          {}
 func (*FeeVoteRevealTransactionBody) isTransaction_TransactionBody()          {}
 func (*LiquidPaymentTransactionBody) isTransaction_TransactionBody()          {}
 func (*LiquidPaymentStopTransactionBody) isTransaction_TransactionBody()      {}
+func (*CreateBlockchainObjectTransactionBody) isTransaction_TransactionBody() {}

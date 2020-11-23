@@ -9,12 +9,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -544,7 +542,7 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
-			"FailToValidateInnerTx-TransactionTypeValidation",
+			"FailToValidateInnerTx-TransactionTypeValidation err: "+err.Error(),
 		)
 	}
 	txHash := sha3.Sum256(unsignedTxBytes)

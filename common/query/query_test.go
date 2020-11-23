@@ -42,6 +42,8 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewNodeAdmissionTimestampQuery(),
 				NewMultiSignatureParticipantQuery(),
 				NewBatchReceiptQuery(),
+				NewBlockchainObjectQuery(),
+				NewBlockchainObjectPropertyQuery(),
 			},
 		},
 		{

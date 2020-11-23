@@ -335,6 +335,28 @@ func GetFixturesForLiquidPaymentStopTransaction() (
 	txBodyBytes, _ = sa.GetBodyBytes()
 	return txBody, txBodyBytes
 }
+func GetFixturesForCreateBlockchainObjectTransaction() (
+	txBody *model.CreateBlockchainObjectTransactionBody,
+	txBodyBytes []byte,
+) {
+	txBody = &model.CreateBlockchainObjectTransactionBody{
+		BlockchainObjectBalance: 123,
+		BlockchainObjectImmutableProperties: map[string]string{
+			"mockKey1": "mockValue1",
+			"mockKey2": "mockValue2",
+		},
+		BlockchainObjectMutableProperties: map[string]string{
+			"mockKey1": "mockValue1",
+			"mockKey2": "mockValue2",
+		},
+	}
+
+	sa := CreateBlockchainObjectTransaction{
+		Body: txBody,
+	}
+	txBodyBytes, _ = sa.GetBodyBytes()
+	return txBody, txBodyBytes
+}
 
 func GetFixtureForSpecificTransaction(
 	id, timestamp int64,

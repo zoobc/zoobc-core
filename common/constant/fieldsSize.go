@@ -59,4 +59,8 @@ var (
 
 	LiquidPaymentCompleteMinutesLength uint32 = 8
 	TransactionID                      uint32 = 8
+
+	BlockchainObjectNumberOfProperties  uint32 = 4
+	BlockchainObjectPropertyKeyLength   uint32 = 4
+	BlockchainObjectPropertyValueLength uint32 = 4
 )

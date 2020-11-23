@@ -10,12 +10,8 @@ import (
 type Blocksmith struct {
 	NodeID        int64
 	NodePublicKey []byte
-	NodeOrder     *big.Int
-	SmithOrder    uint32
 	Score         *big.Int
-	BlockSeed     int64
 	SecretPhrase  string
-	Deadline      uint32
 }
 
 // NewBlocksmith initiate generator

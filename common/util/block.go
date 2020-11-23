@@ -133,6 +133,7 @@ func GetBlockByHeightUseBlocksCache(
 	blockCacheObject.BlockHash = block.BlockHash
 	blockCacheObject.Height = block.Height
 	blockCacheObject.ID = block.ID
+	blockCacheObject.Timestamp = block.GetTimestamp()
 	return &blockCacheObject, nil
 }
 
