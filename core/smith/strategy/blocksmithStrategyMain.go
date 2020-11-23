@@ -265,7 +265,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	validNumberOfRounds := 1 + gap/bss.Chaintype.GetBlocksmithTimeGap()
 	for i := 0; i < round; i++ {
 		randomNumber := rng.Next()
-		if int64(i) > (int64(round) - validNumberOfRounds) {
+		if int64(i) >= (int64(round) - validNumberOfRounds) {
 			validRandomNumbers = append(validRandomNumbers, randomNumber)
 		}
 	}
