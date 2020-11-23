@@ -75,6 +75,9 @@ type (
 	mockBlockServiceGetLastBlockFailed struct {
 		coreService.BlockService
 	}
+	mockBlockServiceGetLastBlockCacheFormatFailed struct {
+		coreService.BlockService
+	}
 
 	mockNodeConfigurationService struct {
 		coreService.NodeConfigurationServiceInterface
@@ -125,6 +128,10 @@ func (*mockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
 func (*mockBlockServiceGetLastBlockFailed) GetLastBlock() (*model.Block, error) {
+	return nil, errors.New("mock Error")
+}
+
+func (*mockBlockServiceGetLastBlockCacheFormatFailed) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
 	return nil, errors.New("mock Error")
 }
 
@@ -526,8 +533,13 @@ var (
 	}
 )
 
-func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		Timestamp: mockBlock.Timestamp,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
 	switch id {
@@ -542,12 +554,22 @@ func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByID(id int64,
 	}
 }
 
-func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByHeight(blockHeight uint32) (*model.Block, error) {
+func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByHeightCacheFormat(blockHeight uint32) (*storage.BlockCacheObject, error) {
 	switch blockHeight {
 	case mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.GetHeight():
-		return &mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight, nil
+		return &storage.BlockCacheObject{
+			ID:        mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.ID,
+			Height:    mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.Height,
+			Timestamp: mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.Timestamp,
+			BlockHash: mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.BlockHash,
+		}, nil
 	case mockGetCommonMilestoneBlockIDsGenesisBlock.GetHeight():
-		return &mockGetCommonMilestoneBlockIDsGenesisBlock, nil
+		return &storage.BlockCacheObject{
+			ID:        mockGetCommonMilestoneBlockIDsGenesisBlock.ID,
+			Height:    mockGetCommonMilestoneBlockIDsGenesisBlock.Height,
+			Timestamp: mockGetCommonMilestoneBlockIDsGenesisBlock.Timestamp,
+			BlockHash: mockGetCommonMilestoneBlockIDsGenesisBlock.BlockHash,
+		}, nil
 	default:
 		return nil, errors.New("mock Error")
 	}
@@ -620,7 +642,7 @@ func TestP2PServerService_GetCommonMilestoneBlockIDs(t *testing.T) {
 			fields: fields{
 				PeerExplorer: &mockPeerExplorerStrategySuccess{},
 				BlockServices: map[int32]coreService.BlockServiceInterface{
-					mockChainType.GetTypeInt(): &mockBlockServiceGetLastBlockFailed{},
+					mockChainType.GetTypeInt(): &mockBlockServiceGetLastBlockCacheFormatFailed{},
 				},
 			},
 			args: args{
