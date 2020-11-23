@@ -26,9 +26,9 @@ const (
 	// FeedbackMinGoroutineSamples min number of samples to calculate average of goroutine currently spawned
 	FeedbackMinGoroutineSamples = 4
 	// FeedbackTotalSamples total number of samples kept im memory
-	FeedbackTotalSamples = 100
+	FeedbackTotalSamples = 50
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 400
+	GoRoutineHardLimit = 2000
 	// P2PRequestHardLimit max number of opened (running) P2P api requests, both incoming (server) and outgoing (client)
 	P2PRequestHardLimit = 500
 
