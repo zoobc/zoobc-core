@@ -473,7 +473,9 @@ func (mps *MempoolService) processReceiveTransaction(receivedTx *model.Transacti
 	switch {
 	case mps.lastIncomingTransactionTime.IsZero():
 		isApplyInCache = false
-	case time.Since(mps.lastIncomingTransactionTime).Seconds() < 1, mps.MempoolUnsaveCacheStorage.GetTotalItems() > 0:
+		fallthrough
+	case time.Since(mps.lastIncomingTransactionTime).Seconds() < constant.MempoolMaxTimeGapBecameFullCacheTransaction,
+		mps.MempoolUnsaveCacheStorage.GetTotalItems() > 0:
 		// apply in unsave mempool when last incoming timestamp is lees than 1 second OR
 		// unsave mempool storage still have unmove transaction
 		isApplyInCache = true
