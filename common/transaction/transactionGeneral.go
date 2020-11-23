@@ -406,7 +406,9 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 	}
 	util.SortByteArrays(info.Addresses)
 	var (
-		buff = bytes.NewBuffer([]byte{})
+		buff    = bytes.NewBuffer([]byte{})
+		accType accounttype.AccountTypeInterface
+		err     error
 	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
 	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
@@ -415,7 +417,12 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) ([]byte, 
 		buff.Write(address)
 	}
 	hashed := sha3.Sum256(buff.Bytes())
-	return hashed[:], nil
+	accType, err = accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), hashed[:])
+	if err != nil {
+		return nil, err
+	}
+
+	return accType.GetAccountAddress()
 
 }
 
