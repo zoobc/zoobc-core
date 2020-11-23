@@ -474,7 +474,7 @@ func (ps *P2PServerService) SendTransaction(
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
 	if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
-		if limitLevel == constant.FeedbackLimitCritical {
+		if limitLevel == constant.FeedbackLimitHigh {
 			monitoring.IncreaseP2PTxFiltered()
 			return nil, status.Error(codes.Internal, "NodeIsBusy")
 		}
