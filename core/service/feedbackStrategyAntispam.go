@@ -119,9 +119,6 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 				} else {
 					ass.RunningServerP2PAPIRequests = append(ass.RunningServerP2PAPIRequests, P2PRequests.(int))
 				}
-				// STEF to test only!
-				// go ass.IsGoroutineLimitReached(4)
-				// go ass.IsP2PRequestLimitReached(4)
 			}()
 		case <-tickerResetPerSecondVars.C:
 			// Reset feedback variables that are sampled 'per second'
@@ -180,13 +177,6 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	default:
 		limitLevel = constant.FeedbackLimitNone
 	}
-
-	// STEF to test only!
-	// if len(ass.GoRoutineSamples) > 0 {
-	// 	ass.Logger.Errorf("goroutines (last sample): %d", ass.GoRoutineSamples[len(ass.GoRoutineSamples)-1])
-	// }
-	// ass.Logger.Errorf("goroutines (avg for %d samples): %d", numSamples, avg)
-	// ass.Logger.Errorf("limit level: %d", limitLevel)
 	return limitReached, limitLevel
 }
 
@@ -230,15 +220,6 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 		limitLevel = constant.FeedbackLimitNone
 	}
 
-	// STEF to test only!
-	// if len(ass.RunningServerP2PAPIRequests) > 0 {
-	// 	ass.Logger.Errorf("incoming p2p requests (last sample): %d",
-	// 		ass.RunningServerP2PAPIRequests[len(ass.RunningServerP2PAPIRequests)-1])
-	// }
-	// if len(ass.RunningCliP2PAPIRequests) > 0 {
-	// 	ass.Logger.Errorf("outgoing p2p requests (last sample): %d",
-	// 		ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-1])
-	// }
 	return limitReached, limitLevel
 }
 
