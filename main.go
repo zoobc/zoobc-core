@@ -41,6 +41,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -59,7 +60,7 @@ var (
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
-	scrambleNodeStorage, mainBlocksStorage                                 storage.CacheStackStorageInterface
+	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -109,6 +110,8 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -283,6 +286,7 @@ func initiateMainInstance() {
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
+	spineBlocksStorage = storage.NewBlocksStorage()
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -353,6 +357,7 @@ func initiateMainInstance() {
 		nodeAddressInfoStorage,
 		mainBlockStateStorage,
 		activeNodeRegistryCacheStorage,
+		mainBlocksStorage,
 		loggerCoreService,
 	)
 	nodeRegistrationService = service.NewNodeRegistrationService(
@@ -409,12 +414,29 @@ func initiateMainInstance() {
 		fileService,
 	)
 
-	blocksmithStrategyMain := blockSmithStrategy.NewBlocksmithStrategyMain(
-		queryExecutor,
-		query.NewNodeRegistrationQuery(),
-		query.NewSkippedBlocksmithQuery(),
+	blocksmithStrategyMain = blockSmithStrategy.NewBlocksmithStrategyMain(
 		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(mainchain),
+		mainBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		mainchain,
 	)
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+		loggerCoreService,
+		config.NodeKey.PublicKey,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(spinechain),
+		spineBlocksStorage,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		spinechain,
+	)
+
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
 		mainchain,
 		observerInstance,
@@ -481,7 +503,7 @@ func initiateMainInstance() {
 		receiptUtil,
 		receiptService,
 		transactionCoreServiceIns,
-		mainBlockStateStorage,
+		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
 	)
@@ -575,12 +597,6 @@ func initiateMainInstance() {
 		loggerCoreService,
 	)
 
-	blocksmithStrategySpine := blockSmithStrategy.NewBlocksmithStrategySpine(
-		queryExecutor,
-		query.NewSpinePublicKeyQuery(),
-		loggerCoreService,
-		query.NewBlockQuery(spinechain),
-	)
 	spinechainBlocksmithService := service.NewBlocksmithService(
 		query.NewAccountBalanceQuery(),
 		query.NewAccountLedgerQuery(),
@@ -841,6 +857,11 @@ func startMainchain() {
 		os.Exit(1)
 	}
 
+	err = mempoolService.InitMempoolTransaction()
+	if err != nil {
+		loggerCoreService.Fatal(err)
+		os.Exit(1)
+	}
 	monitoring.SetLastBlock(mainchain, lastBlockAtStart)
 	// TODO: Check computer/node local time. Comparing with last block timestamp
 	// initialize node registry cache
@@ -883,6 +904,7 @@ func startMainchain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategyMain,
 		)
 		mainchainProcessor.Start(sleepPeriod)
 	}
@@ -965,6 +987,7 @@ func startSpinechain() {
 			loggerCoreService,
 			blockchainStatusService,
 			nodeRegistrationService,
+			blocksmithStrategySpine,
 		)
 		spinechainProcessor.Start(sleepPeriod)
 	}

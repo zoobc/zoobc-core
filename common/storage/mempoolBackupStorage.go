@@ -106,6 +106,13 @@ func (m *MempoolBackupStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (m *MempoolBackupStorage) GetTotalItems() int {
+	m.RLock()
+	var totalItems = len(m.mempools)
+	m.RUnlock()
+	return totalItems
+}
+
 // RemoveItem remove specific item by key
 func (m *MempoolBackupStorage) RemoveItem(key interface{}) error {
 	m.Lock()

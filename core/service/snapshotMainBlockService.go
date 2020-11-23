@@ -290,11 +290,16 @@ func (ss *SnapshotMainBlockService) ImportSnapshotFile(snapshotFileInfo *model.S
 			}
 		}
 	}
+	// update or clear all cache storage
 	err = ss.ScrambleNodeService.InitializeScrambleCache(currentBlock.GetHeight())
 	if err != nil {
 		return err
 	}
 	err = ss.NodeRegistrationService.InitializeCache()
+	if err != nil {
+		return err
+	}
+	err = ss.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
 		return err
 	}
@@ -512,6 +517,14 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 		return err
 	}
 	highestBlock, err = ss.BlockMainService.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	err = ss.ScrambleNodeService.InitializeScrambleCache(highestBlock.GetHeight())
+	if err != nil {
+		return err
+	}
+	err = ss.NodeRegistrationService.InitializeCache()
 	if err != nil {
 		return err
 	}

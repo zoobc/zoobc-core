@@ -4,21 +4,20 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"sort"
 	"sync"
 
-	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	log "github.com/sirupsen/logrus"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
@@ -229,13 +228,7 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 		return err
 	}
 
-	// check if blocksmith can smith at the time
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousLastBlock)
-	blocksmithIndex := blocksmithsMap[string(block.BlocksmithPublicKey)]
-	if blocksmithIndex == nil {
-		return blocker.NewBlocker(blocker.BlockErr, "InvalidBlocksmith")
-	}
-	err := bs.BlocksmithStrategy.IsBlockTimestampValid(*blocksmithIndex, int64(len(blocksmithsMap)), previousLastBlock, block)
+	err := bs.BlocksmithStrategy.IsBlockValid(previousLastBlock, block)
 	if err != nil {
 		return err
 	}
@@ -317,18 +310,10 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
-		sortedBlocksmithMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(previousBlock)
-		blocksmithIndex := sortedBlocksmithMap[string(block.GetBlocksmithPublicKey())]
-		if blocksmithIndex == nil {
-			return blocker.NewBlocker(blocker.BlockErr, "BlocksmithNotInSmithingList")
-		}
-		blockCumulativeDifficulty, err := coreUtil.CalculateCumulativeDifficulty(
-			previousBlock, *blocksmithIndex,
-		)
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
 		if err != nil {
-			return err
+			return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("CalculateCumulativeDifficulty:%v", err))
 		}
-		block.CumulativeDifficulty = blockCumulativeDifficulty
 	}
 	// start db transaction here
 	err = bs.QueryExecutor.BeginTx()
@@ -375,8 +360,6 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		return err
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
-	// sort blocksmiths for next block
-	bs.BlocksmithStrategy.SortBlocksmiths(block, true)
 	// broadcast block
 	if broadcast {
 		bs.Observer.Notify(observer.BroadcastBlock, block, bs.Chaintype)
@@ -485,6 +468,10 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	return block, nil
+}
+
+func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
+	return nil, blocker.NewBlocker(blocker.AppErr, "GetBlockByHeightCacheFormat-NotImplementedYet")
 }
 
 // GetGenesisBlock return the genesis block
@@ -615,7 +602,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		newReferenceBlockHeight     uint32
 	)
 	// select main block to be include in spine block
-	lastMainBlock, err := bs.MainBlockService.GetLastBlock()
+	lastMainBlock, err := bs.MainBlockService.GetLastBlockCacheFormat()
 	if err != nil {
 		return nil, err
 	}
@@ -918,7 +905,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
-	var mainLastBlock, err = bs.MainBlockService.GetLastBlock()
+	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()
 	if err != nil {
 		return err
 	}
@@ -928,7 +915,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	}
 	var referenceBlock = mainLastBlock
 	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
-		referenceBlock, err = bs.MainBlockService.GetBlockByHeight(incomingBlock.ReferenceBlockHeight)
+		referenceBlock, err = bs.MainBlockService.GetBlockByHeightCacheFormat(incomingBlock.ReferenceBlockHeight)
 		if err != nil {
 			return err
 		}
@@ -1108,47 +1095,6 @@ func (bs *BlockSpineService) BlockTransactionsRequestedListener() observer.Liste
 	return observer.Listener{
 		OnNotify: func(transactionsIdsInterface interface{}, args ...interface{}) {},
 	}
-}
-
-func (bs *BlockSpineService) WillSmith(
-	blocksmith *model.Blocksmith,
-	blockchainProcessorLastBlockID int64,
-) (lastBlockID, blocksmithIndex int64, err error) {
-	lastBlock, err := bs.GetLastBlock()
-	if err != nil {
-		return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
-			blocker.SmithingErr, "genesis block has not been applied")
-	}
-	// caching: only calculate smith time once per new block
-	if lastBlock.GetID() != blockchainProcessorLastBlockID {
-		blockchainProcessorLastBlockID = lastBlock.GetID()
-		blockSmithStrategy := bs.GetBlocksmithStrategy()
-		blockSmithStrategy.SortBlocksmiths(lastBlock, true)
-		// check if eligible to create block in this round
-		blocksmithsMap := blockSmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-		blocksmithIdx, ok := blocksmithsMap[string(blocksmith.NodePublicKey)]
-		if !ok {
-			return blockchainProcessorLastBlockID, blocksmithIndex,
-				blocker.NewBlocker(blocker.SmithingErr, "BlocksmithNotInBlocksmithList")
-		}
-		// calculate blocksmith score for the block type
-		// FIXME: ask @barton how to compute score for spine blocksmiths, since we don't have participation score and receipts attached to them?
-		blocksmithScore := constant.DefaultParticipationScore
-		err = blockSmithStrategy.CalculateScore(blocksmith, blocksmithScore)
-		if err != nil {
-			return blockchainProcessorLastBlockID, blocksmithIndex, err
-		}
-		monitoring.SetBlockchainSmithIndex(bs.GetChainType(), *blocksmithIdx)
-	}
-	// check if it's legal to create block for current blocksmith now
-	blocksmithsMap := bs.BlocksmithStrategy.GetSortedBlocksmithsMap(lastBlock)
-	err = bs.BlocksmithStrategy.IsValidSmithTime(blocksmithIndex, int64(len(blocksmithsMap)), lastBlock)
-	if err == nil {
-		return blockchainProcessorLastBlockID, blocksmithIndex, nil
-	}
-	return blockchainProcessorLastBlockID, blocksmithIndex, blocker.NewBlocker(
-		blocker.SmithingErr, "NotTimeToSmithYet",
-	)
 }
 
 func (bs *BlockSpineService) ValidateSpineBlockManifest(spineBlockManifest *model.SpineBlockManifest) error {

@@ -12,6 +12,7 @@ import (
 
 type (
 	SkippedBlocksmithQueryInterface interface {
+		GetNumberOfSkippedBlocksmithsByBlockHeight(blockHeight uint32) (qStr string)
 		GetSkippedBlocksmithsByBlockHeight(blockHeight uint32) (qStr string)
 		InsertSkippedBlocksmith(skippedBlocksmith *model.SkippedBlocksmith) (qStr string, args []interface{})
 		InsertSkippedBlocksmiths(skippedBlockSmiths []*model.SkippedBlocksmith) (str string, args []interface{})
@@ -49,6 +50,14 @@ func (sbq *SkippedBlocksmithQuery) GetSkippedBlocksmithsByBlockHeight(blockHeigh
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE block_height = %d",
 		strings.Join(sbq.Fields, ", "),
+		sbq.getTableName(),
+		blockHeight,
+	)
+}
+
+func (sbq *SkippedBlocksmithQuery) GetNumberOfSkippedBlocksmithsByBlockHeight(blockHeight uint32) string {
+	return fmt.Sprintf(
+		"SELECT COUNT(*) FROM %s WHERE block_height = %d",
 		sbq.getTableName(),
 		blockHeight,
 	)
