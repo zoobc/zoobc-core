@@ -281,7 +281,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 			return nil, status.Error(codes.InvalidArgument, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
-		myLastBlock, err := blockService.GetLastBlock()
+		myLastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil || myLastBlock == nil {
 			return nil, status.Error(codes.Internal, "failedGetLastBlock")
 		}
@@ -316,7 +316,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 
 	LoopBlocks:
 		for ; limit > 0; limit-- {
-			block, err := blockService.GetBlockByHeight(height)
+			block, err := blockService.GetBlockByHeightCacheFormat(height)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
