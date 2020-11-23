@@ -28,7 +28,7 @@ const (
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 50
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 2000
+	GoRoutineHardLimit = 3000
 	// P2PRequestHardLimit max number of opened (running) P2P api requests, both incoming (server) and outgoing (client)
 	P2PRequestHardLimit = 500
 
