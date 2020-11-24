@@ -43,15 +43,14 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 	mockSetupAccountDatasetTransactionBody, _ := GetFixturesForSetupAccountDataset()
 
 	type fields struct {
-		Body                *model.SetupAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		QueryExecutor       query.ExecutorInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
+		Body                 *model.SetupAccountDatasetTransactionBody
+		Fee                  int64
+		SenderAddress        []byte
+		RecipientAddress     []byte
+		Height               uint32
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
+		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -61,44 +60,41 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
-				Body:                mockSetupAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedSuccess{},
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Body:                 mockSetupAccountDatasetTransactionBody,
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				QueryExecutor:        &executorSetupAccountDatasetApplyConfirmedSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
 		{
-			name: "wantErr:UndoUnconfirmFail",
+			name: "wantErr:UndoUnconfirmedFail",
 			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				Height:              3,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedFail{},
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Body:                 &model.SetupAccountDatasetTransactionBody{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				Height:               3,
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				QueryExecutor:        &executorSetupAccountDatasetApplyConfirmedFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "wantErr:TransactionsFail",
 			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				Height:              0,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &executorSetupAccountDatasetApplyConfirmedFail{},
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
+				Body:                 &model.SetupAccountDatasetTransactionBody{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				Height:               0,
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				QueryExecutor:        &executorSetupAccountDatasetApplyConfirmedFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -106,15 +102,14 @@ func TestSetupAccountDataset_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SetupAccountDataset{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
+				Body:                 tt.fields.Body,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyConfirmed(0); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.ApplyConfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -168,14 +163,14 @@ func (*executorSetupAccountDatasetApplyUnconfirmedFail) ExecuteTransaction(qStr 
 
 func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		Body                *model.SetupAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body                 *model.SetupAccountDatasetTransactionBody
+		Fee                  int64
+		SenderAddress        []byte
+		RecipientAddress     []byte
+		Height               uint32
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
+		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -189,28 +184,28 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 					Property: "Admin",
 					Value:    "Welcome",
 				},
-				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor:       &executorSetupAccountDatasetApplyUnconfirmedSuccess{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  nil,
+				QueryExecutor:        &executorSetupAccountDatasetApplyUnconfirmedSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
 		{
-			name: "wantErr:ExecuteSpandableBalanceFail",
+			name: "wantErr:ExecuteSpendableBalanceFail",
 			fields: fields{
 				Body: &model.SetupAccountDatasetTransactionBody{
 					Property: "Admin",
 					Value:    "Welcome",
 				},
-				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor:       &executorSetupAccountDatasetApplyUnconfirmedFail{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  nil,
+				QueryExecutor:        &executorSetupAccountDatasetApplyUnconfirmedFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -218,14 +213,14 @@ func TestSetupAccountDataset_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SetupAccountDataset{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:                 tt.fields.Body,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -253,14 +248,14 @@ func (*executorSetupAccountDatasetUndoUnconfirmFail) ExecuteTransaction(qStr str
 
 func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		Body                *model.SetupAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body                 *model.SetupAccountDatasetTransactionBody
+		Fee                  int64
+		SenderAddress        []byte
+		RecipientAddress     []byte
+		Height               uint32
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
+		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -270,26 +265,26 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor:       &executorSetupAccountDatasetUndoUnconfirmSuccess{},
+				Body:                 &model.SetupAccountDatasetTransactionBody{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  nil,
+				QueryExecutor:        &executorSetupAccountDatasetUndoUnconfirmSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 			wantErr: false,
 		},
 		{
 			name: "UndoApplyUnconfirmed:fail",
 			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: nil,
-				QueryExecutor:       &executorSetupAccountDatasetUndoUnconfirmFail{},
+				Body:                 &model.SetupAccountDatasetTransactionBody{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  nil,
+				QueryExecutor:        &executorSetupAccountDatasetUndoUnconfirmFail{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -297,14 +292,14 @@ func TestSetupAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SetupAccountDataset{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:                 tt.fields.Body,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.UndoApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
@@ -328,7 +323,7 @@ func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string,
 	case true:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
-				"BCZ",
+				senderAddress1,
 				1,
 				1,
 				1,
@@ -339,8 +334,8 @@ func (*executorSetupAccountDatasetValidateSuccess) ExecuteSelectRow(qStr string,
 	default:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewAccountDatasetsQuery().Fields).AddRow(
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				senderAddress1,
+				recipientAddress1,
 				"Admin",
 				"You're Welcome",
 				false,
@@ -359,7 +354,7 @@ func (*executorSetupAccountDatasetValidateAlreadyExists) ExecuteSelectRow(qStr s
 	case true:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewAccountBalanceQuery().Fields).AddRow(
-				"BCZ",
+				senderAddress1,
 				1,
 				1,
 				1,
@@ -370,8 +365,8 @@ func (*executorSetupAccountDatasetValidateAlreadyExists) ExecuteSelectRow(qStr s
 	default:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(query.NewAccountDatasetsQuery().Fields).AddRow(
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
-				"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+				senderAddress1,
+				recipientAddress1,
 				"Admin",
 				"You're Welcome",
 				true,
@@ -386,14 +381,14 @@ func (*executorSetupAccountDatasetValidateAlreadyExists) ExecuteSelectRow(qStr s
 
 func TestSetupAccountDataset_Validate(t *testing.T) {
 	type fields struct {
-		Body                *model.SetupAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
-		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountDatasetQuery query.AccountDatasetQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		Body                 *model.SetupAccountDatasetTransactionBody
+		Fee                  int64
+		SenderAddress        []byte
+		RecipientAddress     []byte
+		Height               uint32
+		AccountDatasetQuery  query.AccountDatasetQueryInterface
+		QueryExecutor        query.ExecutorInterface
+		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	tests := []struct {
 		name    string
@@ -403,11 +398,11 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 		{
 			name: "wantErr:BalanceNotEnough",
 			fields: fields{
-				Body:                &model.SetupAccountDatasetTransactionBody{},
-				Fee:                 60,
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &executorSetupAccountDatasetValidateSuccess{},
+				Body:                 &model.SetupAccountDatasetTransactionBody{},
+				Fee:                  60,
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				QueryExecutor:        &executorSetupAccountDatasetValidateSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
 			wantErr: true,
 		},
@@ -419,9 +414,8 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 					Value:    "Welcome",
 				},
 				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				SenderAddress:       senderAddress1,
+				RecipientAddress:    recipientAddress1,
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorSetupAccountDatasetValidateAlreadyExists{},
 			},
@@ -434,26 +428,26 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 					Property: "Admin",
 					Value:    "Welcome",
 				},
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
-				QueryExecutor:       &executorSetupAccountDatasetValidateSuccess{},
+				Fee:                  1,
+				SenderAddress:        senderAddress1,
+				RecipientAddress:     recipientAddress1,
+				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				QueryExecutor:        &executorSetupAccountDatasetValidateSuccess{},
+				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &SetupAccountDataset{
-				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				Body:                 tt.fields.Body,
+				Fee:                  tt.fields.Fee,
+				SenderAddress:        tt.fields.SenderAddress,
+				RecipientAddress:     tt.fields.RecipientAddress,
+				Height:               tt.fields.Height,
+				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
+				QueryExecutor:        tt.fields.QueryExecutor,
+				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
 			if err := tx.Validate(false); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -466,10 +460,9 @@ func TestSetupAccountDataset_GetAmount(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -483,13 +476,12 @@ func TestSetupAccountDataset_GetAmount(t *testing.T) {
 			fields: fields{
 				Body:                &model.SetupAccountDatasetTransactionBody{},
 				Fee:                 1,
-				SenderAddress:       "",
+				SenderAddress:       nil,
 				Height:              5,
-				AccountBalanceQuery: nil,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
-			want: 1,
+			want: 0,
 		},
 	}
 	for _, tt := range tests {
@@ -500,7 +492,6 @@ func TestSetupAccountDataset_GetAmount(t *testing.T) {
 				SenderAddress:       tt.fields.SenderAddress,
 				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
@@ -515,10 +506,9 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -534,11 +524,12 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 					Property: "Admin",
 					Value:    "Welcome",
 				},
-				Fee:                 1,
-				SenderAddress:       "BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				RecipientAddress:    "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				Fee: 1,
+				SenderAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72,
+					239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				RecipientAddress: []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+					45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
 				Height:              5,
-				AccountBalanceQuery: nil,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
@@ -553,11 +544,10 @@ func TestSetupAccountDataset_GetSize(t *testing.T) {
 				SenderAddress:       tt.fields.SenderAddress,
 				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("SetupAccountDataset.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -569,10 +559,9 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -589,10 +578,9 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 					Value:    "Happy birthday",
 				},
 				Fee:                 1,
-				SenderAddress:       "Hl891TeTFxGgWOWfOOFKYr_XdhXNxO8JK8WnMJV6g8aL",
-				RecipientAddress:    "HlZLh3VcnNlvByWoAzXOQ2jAlwFOiyO9_njI3oq5Ygha",
+				SenderAddress:       senderAddress1,
+				RecipientAddress:    recipientAddress1,
 				Height:              5,
-				AccountBalanceQuery: nil,
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
@@ -611,11 +599,10 @@ func TestSetupAccountDataset_GetBodyBytes(t *testing.T) {
 				SenderAddress:       tt.fields.SenderAddress,
 				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SetupAccountDataset.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -627,10 +614,9 @@ func TestSetupAccountDataset_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		Body                *model.SetupAccountDatasetTransactionBody
 		Fee                 int64
-		SenderAddress       string
-		RecipientAddress    string
+		SenderAddress       []byte
+		RecipientAddress    []byte
 		Height              uint32
-		AccountBalanceQuery query.AccountBalanceQueryInterface
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -660,7 +646,6 @@ func TestSetupAccountDataset_GetTransactionBody(t *testing.T) {
 				SenderAddress:       tt.fields.SenderAddress,
 				RecipientAddress:    tt.fields.RecipientAddress,
 				Height:              tt.fields.Height,
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}

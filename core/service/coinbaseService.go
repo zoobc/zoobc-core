@@ -1,18 +1,15 @@
 package service
 
 import (
-	"database/sql"
-	"math"
-	"math/big"
-	"sort"
-
 	"github.com/montanaflynn/stats"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"math"
 
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -20,16 +17,17 @@ type (
 	CoinbaseServiceInterface interface {
 		GetCoinbase(blockTimesatamp, previousBlockTimesatamp int64) int64
 		CoinbaseLotteryWinners(
-			blocksmiths []*model.Blocksmith,
-			blockTimestamp int64,
-			previousBlockTimestamp int64,
-		) ([]string, error)
+			activeNodeRegistries []storage.NodeRegistry,
+			scoreSum, blockTimestamp int64,
+			previousBlock *model.Block,
+		) ([][]byte, error)
 	}
 
 	CoinbaseService struct {
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		Chaintype             chaintype.ChainType
+		Rng                   *crypto.RandomNumberGenerator
 	}
 )
 
@@ -37,11 +35,13 @@ func NewCoinbaseService(
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	queryExecutor query.ExecutorInterface,
 	chaintype chaintype.ChainType,
+	rng *crypto.RandomNumberGenerator,
 ) *CoinbaseService {
 	return &CoinbaseService{
 		NodeRegistrationQuery: nodeRegistrationQuery,
 		QueryExecutor:         queryExecutor,
 		Chaintype:             chaintype,
+		Rng:                   rng,
 	}
 }
 
@@ -74,58 +74,44 @@ func (cbs *CoinbaseService) GetTotalDistribution(blockTimestamp int64) int64 {
 // and sort it using the NodeOrder algorithm. The first n (n = constant.MaxNumBlocksmithRewards) in the newly ordered list
 // are the coinbase lottery winner (the blocksmiths that will be rewarded for the current block)
 func (cbs *CoinbaseService) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
-	previousBlockTimestamp int64,
-) ([]string, error) {
-	var (
-		selectedAccounts []string
-		numRewards       int64
-		qry              string
-		qryArgs          []interface{}
-		row              *sql.Row
-		err              error
-		nodeRegistration model.NodeRegistration
-	)
-	// copy the pointer array to not change original order
+	activeRegistries []storage.NodeRegistry,
+	scoreSum, blockTimestamp int64,
+	previousBlock *model.Block,
+) ([][]byte, error) {
 
-	// sort blocksmiths by NodeOrder
-	sort.SliceStable(blocksmiths, func(i, j int) bool {
-		bi, bj := blocksmiths[i], blocksmiths[j]
-		res := bi.NodeOrder.Cmp(bj.NodeOrder)
-		if res == 0 {
-			// compare node ID
-			nodePKI := new(big.Int).SetUint64(uint64(bi.NodeID))
-			nodePKJ := new(big.Int).SetUint64(uint64(bj.NodeID))
-			res = nodePKI.Cmp(nodePKJ)
-		}
-		// ascending sort
-		return res < 0
-	})
+	var (
+		selectedAccounts [][]byte
+		numRewards       int64
+	)
+	err := cbs.Rng.Reset(constant.CoinbaseSelectionSeedPrefix, previousBlock.GetBlockSeed())
+	if err != nil {
+		return nil, err
+	}
+	activeRegistryLength := len(activeRegistries)
 
 	// get number of rewards recipients
-	numRewards = (blockTimestamp - previousBlockTimestamp) * constant.CoinbaseNumberRewardsPerSecond
+	numRewards = (blockTimestamp - previousBlock.Timestamp) * constant.CoinbaseNumberRewardsPerSecond
 	numRewards = util.MinInt64(numRewards, constant.CoinbaseMaxNumberRewardsPerBlock)
-	numRewards = util.MinInt64(numRewards, int64(len(blocksmiths)))
+	numRewards = util.MinInt64(numRewards, int64(activeRegistryLength))
+	for i := 0; i < int(numRewards); i++ {
+		var (
+			tempPreviousSum int64
+			rawRandomNumber = cbs.Rng.Next()
+			// scale down random number to [0-scoreSum]
+			rounds             = rawRandomNumber / scoreSum
+			roundWithRemainder = rounds * scoreSum
+			winnerScore        = rawRandomNumber - roundWithRemainder
+		)
 
-	for idx, sortedBlockSmith := range blocksmiths {
-		if idx >= int(numRewards) {
-			break
-		}
-		// get node registration related to current BlockSmith to retrieve the node's owner account at the block's height
-		qry, qryArgs = cbs.NodeRegistrationQuery.GetNodeRegistrationByID(sortedBlockSmith.NodeID)
-		row, err = cbs.QueryExecutor.ExecuteSelectRow(qry, false, qryArgs...)
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		err = cbs.NodeRegistrationQuery.Scan(&nodeRegistration, row)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, blocker.NewBlocker(blocker.DBErr, "CoinbaseLotteryNodeRegistrationNotFound")
+		for j := 0; j < activeRegistryLength; j++ {
+			participationScore := int64(
+				math.Floor(float64(activeRegistries[j].ParticipationScore) / float64(activeRegistryLength)))
+			if winnerScore >= tempPreviousSum && winnerScore < tempPreviousSum+participationScore {
+				selectedAccounts = append(selectedAccounts, activeRegistries[j].Node.AccountAddress)
+				break
 			}
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+			tempPreviousSum += participationScore
 		}
-		selectedAccounts = append(selectedAccounts, nodeRegistration.AccountAddress)
 	}
 	return selectedAccounts, nil
 }

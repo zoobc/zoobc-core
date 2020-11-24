@@ -90,6 +90,7 @@ func (m *GetNodeHardwareRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GetNodeHardwareRequest proto.InternalMessageInfo
 
+// Get Node Current Time Based on UTC
 type GetNodeTimeResponse struct {
 	NodeTime             int64    `protobuf:"varint,1,opt,name=NodeTime,proto3" json:"NodeTime,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`

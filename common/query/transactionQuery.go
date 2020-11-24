@@ -46,6 +46,7 @@ func NewTransactionQuery(chaintype chaintype.ChainType) *TransactionQuery {
 			"version",
 			"transaction_index",
 			"multisig_child",
+			"message",
 		},
 		TableName: "\"transaction\"",
 		ChainType: chaintype,
@@ -113,6 +114,7 @@ func (*TransactionQuery) ExtractModel(tx *model.Transaction) []interface{} {
 		&tx.Version,
 		&tx.TransactionIndex,
 		&tx.MultisigChild,
+		&tx.Message,
 	}
 }
 
@@ -138,6 +140,7 @@ func (*TransactionQuery) BuildModel(txs []*model.Transaction, rows *sql.Rows) ([
 			&tx.Version,
 			&tx.TransactionIndex,
 			&tx.MultisigChild,
+			&tx.Message,
 		)
 		if err != nil {
 			return nil, err
@@ -164,6 +167,7 @@ func (*TransactionQuery) Scan(tx *model.Transaction, row *sql.Row) error {
 		&tx.Version,
 		&tx.TransactionIndex,
 		&tx.MultisigChild,
+		&tx.Message,
 	)
 	return err
 }

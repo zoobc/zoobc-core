@@ -13,7 +13,7 @@ type (
 	// FeeVoteCommitmentVoteQueryInterface interface that implemented by FeeVoteCommitmentVoteQuery
 	FeeVoteCommitmentVoteQueryInterface interface {
 		GetVoteCommitByAccountAddressAndHeight(
-			accountAddress string,
+			accountAddress []byte,
 			height uint32,
 		) (qStr string, args []interface{})
 		InsertCommitVote(voteCommit *model.FeeVoteCommitmentVote) (qStr string, args []interface{})
@@ -112,7 +112,7 @@ func (fsvc *FeeVoteCommitmentVoteQuery) RecalibrateVersionedTable() []string {
 
 // GetVoteCommitByAccountAddressAndHeight to get vote commit by account address & block height
 func (fsvc *FeeVoteCommitmentVoteQuery) GetVoteCommitByAccountAddressAndHeight(
-	accountAddress string, height uint32,
+	accountAddress []byte, height uint32,
 ) (
 	qStr string, args []interface{},
 ) {

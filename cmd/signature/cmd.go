@@ -3,9 +3,9 @@ package signature
 import (
 	"encoding/hex"
 	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"golang.org/x/crypto/sha3"
@@ -58,7 +58,7 @@ func init() {
 	verifyCmd.Flags().StringVar(&signatureHex, "signature-hex", "", "hex string of the signature")
 	verifyCmd.Flags().StringVar(&signatureBytes, "signature-bytes", "", "signature bytes stseparated by `, `. eg:"+
 		"--signature-bytes='1, 222, 54, 12, 32'")
-	verifyCmd.Flags().StringVar(&accountAddress, "account-address", "", "the address who sign the data")
+	verifyCmd.Flags().StringVar(&accountAddressHex, "account-address", "", "the address who sign the data")
 
 }
 
@@ -82,11 +82,12 @@ func Commands() *cobra.Command {
 // SignEd25519 is sign command handler using Ed25519 algorithm
 func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	var (
-		unsignedBytes       []byte
-		hashedUnsignedBytes [32]byte
-		accountAddress      string
-		signature           []byte
-		err                 error
+		unsignedBytes         []byte
+		hashedUnsignedBytes   [32]byte
+		encodedAccountAddress string
+		fullAccountAddress    []byte
+		signature             []byte
+		err                   error
 	)
 
 	if dataHex != "" {
@@ -100,8 +101,9 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 			panic("failed to parse data bytes")
 		}
 	}
-	_, _, _, accountAddress, err = gc.Signature.GenerateAccountFromSeed(
-		model.SignatureType_DefaultSignature,
+	accType := &accounttype.ZbcAccountType{}
+	_, _, _, encodedAccountAddress, fullAccountAddress, err = gc.Signature.GenerateAccountFromSeed(
+		accType,
 		seed,
 		ed25519UseSlip10,
 	)
@@ -114,7 +116,7 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 	}
 	signature, err = gc.Signature.Sign(
 		unsignedBytes,
-		model.SignatureType_DefaultSignature,
+		model.AccountType_ZbcAccountType,
 		seed,
 		ed25519UseSlip10,
 	)
@@ -122,7 +124,10 @@ func (gc *GeneratorCommands) SignEd25519(*cobra.Command, []string) {
 		panic(err.Error())
 	}
 
-	fmt.Printf("account-address:\t%v\n", accountAddress)
+	fmt.Printf("account-address type:\t%d\n", accType.GetTypeInt())
+	fmt.Printf("encoded account-address:\t%v\n", encodedAccountAddress)
+	fmt.Printf("account-address:\t%v\n", fullAccountAddress)
+	fmt.Printf("account-address hex:\t%v\n", hex.EncodeToString(fullAccountAddress))
 	fmt.Printf("transaction-bytes:\t%v\n", unsignedBytes)
 	fmt.Printf("transaction-hash:\t%v\n", hex.EncodeToString(hashedUnsignedBytes[:]))
 	fmt.Printf("signature-bytes:\t%v\n", signature)
@@ -162,7 +167,11 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 		}
 	}
 
-	err = gc.Signature.VerifySignature(unsignedBytes, signature, accountAddress)
+	decodedAccountAddress, err := hex.DecodeString(accountAddressHex)
+	if err != nil {
+		panic(err)
+	}
+	err = gc.Signature.VerifySignature(unsignedBytes, signature, decodedAccountAddress)
 	if err != nil {
 		failedVerifyCause = err.Error()
 		isVerified = false
@@ -170,7 +179,7 @@ func (gc *GeneratorCommands) VerySignature(*cobra.Command, []string) {
 
 	fmt.Printf("verify-status:\t%v\n", isVerified)
 	fmt.Printf("failed-causes:\t%v\n", failedVerifyCause)
-	fmt.Printf("address:\t%v\n", accountAddress)
+	fmt.Printf("address:\t%v\n", accountAddressHex)
 	fmt.Printf("payload-bytes:\t%v\n", unsignedBytes)
 	fmt.Printf("payload-hex:\t%v\n", hex.EncodeToString(unsignedBytes))
 

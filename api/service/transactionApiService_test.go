@@ -5,6 +5,8 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
@@ -12,7 +14,6 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -74,7 +75,13 @@ type (
 	}
 )
 
-var mockLog = logrus.New()
+var (
+	mockLog             = logrus.New()
+	txAPISenderAccount1 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+		28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	txAPIRecipientAccount1 = []byte{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229,
+		116, 202, 211, 235, 190, 224, 217, 238, 63, 223, 225, 162}
+)
 
 func (*mockTypeSwitcherValidateFail) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
 	return &mockTxTypeValidateFail{}, nil
@@ -146,7 +153,7 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelect(qe string, tx bool, args
 	mock.ExpectQuery(qe).WillReturnRows(sqlmock.NewRows([]string{
 		"ID", "BlockID", "Height", "SenderAccountType", "SenderAccountAddress", "RecipientAccountType", "RecipientAccountAddress",
 		"TransactionType", "Fee", "Timestamp", "TransactionHash", "TransactionBodyLength", "TransactionBodyBytes", "Signature",
-		"Version"}))
+		"Version", "message"}))
 	return db.Query(qe)
 }
 func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
@@ -215,6 +222,8 @@ func TestNewTransactionService(t *testing.T) {
 				nil,
 				nil,
 				transactionUtil,
+				nil,
+				nil,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
@@ -273,11 +282,22 @@ func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { ret
 
 func TestTransactionService_PostTransaction(t *testing.T) {
 
-	txTypeSuccess, transactionHashed := transaction.GetFixtureForSpecificTransaction(
-		1390544043583530800,
+	var (
+		sendMoneyTxBytes = []byte{1, 0, 0, 0, 1, 45, 230, 135, 95, 0, 0, 0, 0, 0, 0, 0, 0, 22, 42, 66, 34, 152, 48, 253, 178,
+			113, 165, 192, 70, 53, 235, 121, 157, 138, 101, 3, 61, 204, 73, 16, 90, 211, 203, 42, 245, 241, 134, 173, 131, 0,
+			0, 0, 0, 209, 39, 149, 255, 194, 205, 12, 110, 147, 76, 232, 143, 197, 139, 71, 162, 195, 147, 119, 235, 115, 12,
+			231, 73, 49, 234, 207, 187, 242, 63, 97, 58, 65, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 128, 150, 152, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 210, 101, 51, 243, 100, 27,
+			194, 204, 144, 1, 175, 209, 142, 115, 121, 46, 40, 121, 135, 142, 71, 154, 17, 95, 71, 146, 84, 32, 118, 159, 18,
+			34, 130, 212, 36, 74, 216, 185, 83, 52, 230, 253, 195, 38, 52, 167, 16, 65, 208, 53, 216, 114, 168, 219, 57, 140,
+			251, 189, 213, 101, 58, 65, 89, 11}
+	)
+
+	txTypeSuccess, transactionBytes := transaction.GetFixtureForSpecificTransaction(
+		5298837107897007947,
 		1562806389280,
-		"BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
-		"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
+		txAPISenderAccount1,
+		txAPIRecipientAccount1,
 		8,
 		model.TransactionType_SendMoneyTransaction,
 		&model.SendMoneyTransactionBody{
@@ -287,10 +307,10 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		true,
 	)
 	escrowApprovalTX, escrowApprovalTXBytes := transaction.GetFixtureForSpecificTransaction(
-		1681608995461262354,
+		-62373445000112233,
 		1581301507,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"",
+		txAPISenderAccount1,
+		nil,
 		12,
 		model.TransactionType_ApprovalEscrowTransaction,
 		&model.ApprovalEscrowTransactionBody{
@@ -309,6 +329,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		Log                *logrus.Logger
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -328,18 +349,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -355,18 +370,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -382,18 +391,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -409,18 +412,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -436,18 +433,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -463,18 +454,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -490,18 +475,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -517,18 +496,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: []byte{2, 0, 0, 0, 1, 32, 10, 133, 222, 107, 1, 0, 0, 0, 0, 0, 0, 66, 67, 90, 68, 95, 86, 120, 102, 79, 50,
-						83, 57, 97, 122, 105, 73, 76, 51, 99, 110, 95, 99, 88, 87, 55, 117, 80, 68, 86, 80, 79, 114, 110, 88, 117, 80,
-						57, 56, 71, 69, 65, 85, 67, 55, 0, 0, 0, 0, 66, 67, 90, 75, 76, 118, 103, 85, 89, 90, 49, 75, 75, 120, 45, 106,
-						116, 70, 57, 75, 111, 74, 115, 107, 106, 86, 80, 118, 66, 57, 106, 112, 73, 106, 102, 122, 122, 73, 54, 122,
-						68, 87, 48, 74, 64, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 4, 38, 103, 73, 250, 169, 63,
-						155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174, 239, 46, 190, 78, 68, 90, 83, 142, 11,
-						4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255, 81, 229, 184,
-						77, 80, 80, 39, 254, 173, 28, 169},
+					TransactionBytes: sendMoneyTxBytes,
 				},
 			},
 			wantErr: true,
@@ -545,11 +518,12 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: transactionHashed,
+					TransactionBytes: transactionBytes,
 				},
 			},
 			wantErr: false,
@@ -568,6 +542,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -587,6 +562,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				MempoolService:     tt.fields.MempoolService,
 				Observer:           tt.fields.Observer,
 				TransactionUtil:    tt.fields.TransactionUtil,
+				FeedbackStrategy:   tt.fields.FeedbackStrategy,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
@@ -623,8 +599,8 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				4545420970999433273,
 				1,
 				1,
-				"senderA",
-				"recipientA",
+				txAPISenderAccount1,
+				txAPIRecipientAccount1,
 				1,
 				1,
 				10000,
@@ -635,6 +611,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				1,
 				1,
 				false,
+				[]byte{1, 2, 3},
 			),
 		)
 	return db.Query("")
@@ -674,7 +651,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Limit: 2,
 						Page:  0,
 					},
-					AccountAddress: "BCZD_VxfO2S9aziIL3cn_cXW7uPDVPOrnXuP98GEAUC7",
+					AccountAddress: txAPISenderAccount1,
 				},
 			},
 			want:    nil,
@@ -710,7 +687,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Limit: 1,
 						Page:  0,
 					},
-					AccountAddress: "accountA",
+					AccountAddress: txAPISenderAccount1,
 					Height:         1,
 				},
 			},
@@ -721,8 +698,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						ID:                      4545420970999433273,
 						BlockID:                 1,
 						Height:                  1,
-						SenderAccountAddress:    "senderA",
-						RecipientAccountAddress: "recipientA",
+						SenderAccountAddress:    txAPISenderAccount1,
+						RecipientAccountAddress: txAPIRecipientAccount1,
 						TransactionType:         1,
 						Fee:                     1,
 						Timestamp:               10000,
@@ -733,6 +710,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Version:                 1,
 						TransactionIndex:        1,
 						MultisigChild:           false,
+						Message:                 []byte{1, 2, 3},
 					},
 				},
 			},
@@ -777,8 +755,8 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelect(
 			4545420970999433273,
 			1,
 			1,
-			"senderA",
-			"recipientA",
+			txAPISenderAccount1,
+			txAPIRecipientAccount1,
 			0,
 			1,
 			10000,
@@ -800,8 +778,8 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				4545420970999433273,
 				1,
 				1,
-				"senderA",
-				"recipientA",
+				txAPISenderAccount1,
+				txAPIRecipientAccount1,
 				0,
 				1,
 				10000,
@@ -810,6 +788,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
 				false,
+				"",
 			),
 	)
 	return db.QueryRow(""), nil
@@ -877,8 +856,8 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				ID:                      4545420970999433273,
 				BlockID:                 1,
 				Height:                  1,
-				SenderAccountAddress:    "senderA",
-				RecipientAccountAddress: "recipientA",
+				SenderAccountAddress:    txAPISenderAccount1,
+				RecipientAccountAddress: txAPIRecipientAccount1,
 				TransactionType:         0,
 				Fee:                     1,
 				Timestamp:               10000,
@@ -889,6 +868,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Version:                 1,
 				TransactionIndex:        1,
 				MultisigChild:           false,
+				Message:                 []byte{},
 			},
 		},
 	}

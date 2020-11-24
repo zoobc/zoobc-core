@@ -8,19 +8,17 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-	"sync"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/crypto/sha3"
+	"github.com/zoobc/zoobc-core/common/crypto"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -29,6 +27,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -83,18 +82,6 @@ type (
 		mockTypeAction
 	}
 
-	mockKVExecutorSuccess struct {
-		kvdb.KVExecutor
-	}
-
-	mockKVExecutorSuccessKeyNotFound struct {
-		mockKVExecutorSuccess
-	}
-
-	mockKVExecutorFailOtherError struct {
-		mockKVExecutorSuccess
-	}
-
 	mockNodeRegistrationServiceSuccess struct {
 		NodeRegistrationService
 	}
@@ -103,6 +90,10 @@ type (
 		NodeRegistrationService
 	}
 )
+
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalParticipationScore() ([]storage.NodeRegistry, int64, error) {
+	return []storage.NodeRegistry{}, 0, nil
+}
 
 func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 	nodeID, scoreDelta int64,
@@ -115,7 +106,8 @@ func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeAdmitted(limit uint32) ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTADMITTED",
+			AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		},
 	}, nil
 }
@@ -124,12 +116,29 @@ func (*mockNodeRegistrationServiceSuccess) AdmitNodes(nodeRegistrations []*model
 	return nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) CommitCacheTransaction() error {
+	return nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+				202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		},
 	}, nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) BeginCacheTransaction() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) CommitCacheTransaction() error {
+	return nil
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNextNodeAdmissionTimestamp() (*model.NodeAdmissionTimestamp, error) {
@@ -155,7 +164,8 @@ func (*mockNodeRegistrationServiceFail) AddParticipationScore(
 func (*mockNodeRegistrationServiceFail) SelectNodesToBeExpelled() ([]*model.NodeRegistration, error) {
 	return []*model.NodeRegistration{
 		{
-			AccountAddress: "TESTEXPELLED",
+			AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139,
+				255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		},
 	}, nil
 }
@@ -172,6 +182,13 @@ func (*mockNodeRegistrationServiceFail) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp,
 ) error {
 	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) BackupCache() error {
+	return nil
+}
+
+func (*mockNodeRegistrationServiceFail) RestoreCacheTransaction() {
 }
 
 func (*mockNodeRegistrationServiceSuccess) GetNodeAdmittanceCycle() uint32 {
@@ -198,30 +215,13 @@ func (*mockNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(lastB
 	return lastBlockHeight
 }
 
-func (*mockKVExecutorSuccess) Get(key string) ([]byte, error) {
-	return nil, nil
-}
-
-func (*mockKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
-	return nil
-}
-
-func (*mockKVExecutorSuccessKeyNotFound) Get(key string) ([]byte, error) {
-	return nil, badger.ErrKeyNotFound
-}
-
-func (*mockKVExecutorFailOtherError) Get(key string) ([]byte, error) {
-	return nil, badger.ErrInvalidKey
-}
-
-func (*mockKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
-	return badger.ErrInvalidKey
-}
-
 var (
-	bcsAddress1    = "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN"
-	bcsAddress2    = "BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J"
-	bcsAddress3    = "nK_ouxdDDwuJiogiDAi_zs1LqeN7f5ZsXbFtXGqGc0Pd"
+	bcsAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	bcsAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	bcsAddress3 = []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188, 43,
+		59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
 	bcsNodePubKey1 = []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey2 = []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
@@ -233,22 +233,42 @@ var (
 			Amount: 10,
 		},
 	}
-	mockSendMoneyTxBodyBytes = mockSendMoneyTxBody.GetBodyBytes()
-	mockTransaction          = &model.Transaction{
-		ID:                      1,
-		BlockID:                 1,
-		Height:                  0,
-		SenderAccountAddress:    "BCZ",
-		RecipientAccountAddress: "ZCB",
-		TransactionType:         1,
-		Fee:                     10,
-		Timestamp:               1000,
-		TransactionHash:         []byte{},
-		TransactionBodyLength:   8,
-		TransactionBodyBytes:    mockSendMoneyTxBodyBytes,
-		Signature:               []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Version:                 1,
-		TransactionIndex:        1,
+	mockSendMoneyTxBodyBytes, _ = mockSendMoneyTxBody.GetBodyBytes()
+	mockTransaction             = &model.Transaction{
+		ID:      1,
+		BlockID: 1,
+		Height:  0,
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		TransactionType:       1,
+		Fee:                   10,
+		Timestamp:             1000,
+		TransactionHash:       []byte{},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:               1,
+		TransactionIndex:      1,
+	}
+	mockTransactionExpired = &model.Transaction{
+		ID:      1,
+		BlockID: 1,
+		Height:  12,
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		TransactionType:       1,
+		Fee:                   10,
+		Timestamp:             1000,
+		TransactionHash:       []byte{},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:               1,
+		TransactionIndex:      1,
 	}
 
 	mockAccountBalance = &model.AccountBalance{
@@ -420,15 +440,16 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"account_address", "registration_height", "locked_balance", "registration_status", "latest", "height",
 		}).AddRow(1, bcsNodePubKey1, bcsAddress1, 10, 100000000, uint32(model.NodeRegistrationState_NodeQueued), true, 100))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, " +
+		"merkle_tree, reference_block_height FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
 			"Version"},
 		).AddRow(1, []byte{}, []byte{}, 1, 10000, []byte{}, []byte{}, "", 2, []byte{}, bcsNodePubKey1, 0, 0, 0, 1))
 	case fmt.Sprintf("SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, "+
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version "+
-		"FROM main_block WHERE height = %d", mockBlockData.GetHeight()+1):
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, "+
+		"merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height = %d", mockBlockData.GetHeight()+1):
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"ID", "BlockHash", "PreviousBlockHash", "Height", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
@@ -444,8 +465,8 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 		},
 		).AddRow(-1, 100000, true, 0))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
-		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version FROM main_block ORDER BY " +
-		"height DESC LIMIT 1":
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, " +
+		"merkle_tree, reference_block_height FROM main_block ORDER BY height DESC LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
@@ -465,6 +486,9 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 				mockBlockData.GetTotalFee(),
 				mockBlockData.GetTotalCoinBase(),
 				mockBlockData.GetVersion(),
+				mockBlockData.GetMerkleRoot(),
+				mockBlockData.GetMerkleTree(),
+				mockBlockData.GetReferenceBlockHeight(),
 			))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
 		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
@@ -538,14 +562,14 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
 			"receipt_index", "published_index",
 		}).AddRow(
-			mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
-			mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-			mockPublishedReceipt[0].BatchReceipt.DatumType,
-			mockPublishedReceipt[0].BatchReceipt.DatumHash,
-			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-			mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].BatchReceipt.RMRLinked,
-			mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+			mockPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockPublishedReceipt[0].Receipt.DatumType,
+			mockPublishedReceipt[0].Receipt.DatumHash,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockPublishedReceipt[0].Receipt.RMRLinked,
+			mockPublishedReceipt[0].Receipt.RecipientSignature,
 			mockPublishedReceipt[0].IntermediateHashes,
 			mockPublishedReceipt[0].BlockHeight,
 			mockPublishedReceipt[0].ReceiptIndex,
@@ -626,7 +650,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 
 var mockPublishedReceipt = []*model.PublishedReceipt{
 	{
-		BatchReceipt: &model.BatchReceipt{
+		Receipt: &model.Receipt{
 			SenderPublicKey:      make([]byte, 32),
 			RecipientPublicKey:   make([]byte, 32),
 			DatumType:            0,
@@ -760,20 +784,52 @@ func TestBlockService_NewBlock(t *testing.T) {
 
 func TestBlockService_NewGenesisBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		NodeAddressInfoService      NodeAddressInfoServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
+		BlockStateStorage           storage.CacheStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
 		version              uint32
 		previousBlockHash    []byte
 		blockSeed            []byte
 		blockSmithPublicKey  []byte
+		merkleRoot           []byte
+		merkleTree           []byte
 		previousBlockHeight  uint32
+		referenceBlockHeight uint32
 		timestamp            int64
 		totalAmount          int64
 		totalFee             int64
@@ -787,10 +843,11 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 		genesisSignature     []byte
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   *model.Block
+		name    string
+		fields  fields
+		args    args
+		want    *model.Block
+		wantErr bool
 	}{
 		{
 			name: "wantSuccess",
@@ -803,7 +860,10 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				previousBlockHash:    []byte{},
 				blockSeed:            []byte{},
 				blockSmithPublicKey:  bcsNodePubKey1,
+				merkleRoot:           []byte{},
+				merkleTree:           []byte{},
 				previousBlockHeight:  0,
+				referenceBlockHeight: 0,
 				timestamp:            15875392,
 				totalAmount:          0,
 				totalFee:             0,
@@ -821,6 +881,8 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				PreviousBlockHash:    []byte{},
 				BlockSeed:            []byte{},
 				BlocksmithPublicKey:  bcsNodePubKey1,
+				MerkleRoot:           []byte{},
+				MerkleTree:           []byte{},
 				Timestamp:            15875392,
 				TotalAmount:          0,
 				TotalFee:             0,
@@ -840,20 +902,52 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
+				Chaintype:                   tt.fields.Chaintype,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:      tt.fields.NodeAddressInfoService,
+				BlocksmithService:           tt.fields.BlocksmithService,
+				FeeScaleService:             tt.fields.FeeScaleService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				FeeVoteRevealVoteQuery:      tt.fields.FeeVoteRevealVoteQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				BlockPoolService:            tt.fields.BlockPoolService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
+				TransactionUtil:             tt.fields.TransactionUtil,
+				ReceiptUtil:                 tt.fields.ReceiptUtil,
+				PublishedReceiptUtil:        tt.fields.PublishedReceiptUtil,
+				TransactionCoreService:      tt.fields.TransactionCoreService,
+				CoinbaseService:             tt.fields.CoinbaseService,
+				ParticipationScoreService:   tt.fields.ParticipationScoreService,
+				PublishedReceiptService:     tt.fields.PublishedReceiptService,
+				PruneQuery:                  tt.fields.PruneQuery,
+				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlockchainStatusService:     tt.fields.BlockchainStatusService,
+				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
-			if got, _ := bs.NewGenesisBlock(
+			got, err := bs.NewGenesisBlock(
 				tt.args.version,
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
+				tt.args.merkleRoot,
+				tt.args.merkleTree,
 				tt.args.previousBlockHeight,
+				tt.args.referenceBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
 				tt.args.totalFee,
@@ -865,8 +959,13 @@ func TestBlockService_NewGenesisBlock(t *testing.T) {
 				tt.args.payloadLength,
 				tt.args.cumulativeDifficulty,
 				tt.args.genesisSignature,
-			); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("BlockService.NewGenesisBlock() = %v, want %v", got, tt.want)
+			)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BlockService.NewGenesisBlock() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BlockService.NewGenesisBlock() = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -877,36 +976,18 @@ var (
 		{
 			NodePublicKey: bcsNodePubKey1,
 			NodeID:        2,
-			NodeOrder:     new(big.Int).SetInt64(1000),
 			Score:         new(big.Int).SetInt64(1000),
 		},
 		{
 			NodePublicKey: bcsNodePubKey2,
 			NodeID:        3,
-			NodeOrder:     new(big.Int).SetInt64(2000),
 			Score:         new(big.Int).SetInt64(2000),
 		},
 		{
 			NodePublicKey: mockBlockData.BlocksmithPublicKey,
 			NodeID:        4,
-			NodeOrder:     new(big.Int).SetInt64(3000),
 			Score:         new(big.Int).SetInt64(3000),
 		},
-	}
-	mockPreviousBlockPushBlock = model.Block{
-		ID:                   0,
-		Timestamp:            10000,
-		CumulativeDifficulty: "10000",
-		Version:              1,
-		PreviousBlockHash:    []byte{},
-		BlockSeed:            []byte{},
-		BlocksmithPublicKey:  bcsNodePubKey1,
-		TotalAmount:          0,
-		TotalFee:             0,
-		TotalCoinBase:        0,
-		Transactions:         []*model.Transaction{},
-		PayloadHash:          []byte{},
-		BlockSignature:       []byte{},
 	}
 	mockBlockPushBlock = model.Block{
 		ID:                  1,
@@ -986,24 +1067,37 @@ type (
 	mockBlockchainStatusService struct {
 		BlockchainStatusService
 	}
+	mockPushBlockNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
 )
 
 func (*mockBlockchainStatusService) SetLastBlock(block *model.Block, ct chaintype.ChainType) {}
 
 func (*mockPushBlockCoinbaseLotteryWinnersSuccess) CoinbaseLotteryWinners(
-	blocksmiths []*model.Blocksmith,
-	blockTimestamp,
-	previousBlockTimestamp int64,
-) ([]string, error) {
-	return []string{}, nil
+	activeNodeRegistries []storage.NodeRegistry,
+	scoreSum, blockTimestamp int64,
+	previousBlock *model.Block,
+) ([][]byte, error) {
+	return make([][]byte, 0), nil
 }
 
-func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([]string, int64, int64, uint32) error {
+func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([][]byte, int64, int64, uint32) error {
 	return nil
 }
 
 func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
 	return 0, nil
+}
+
+func (*mockPushBlockNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
+	return nil
+}
+func (*mockPushBlockNodeAddressInfoServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+func (*mockPushBlockNodeAddressInfoServiceSuccess) CommitCacheTransaction() error {
+	return nil
 }
 
 type (
@@ -1029,286 +1123,45 @@ func (*mockMempoolServiceRemoveTransactionsSuccess) RemoveMempoolTransactions(me
 	return nil
 }
 
-func TestBlockService_PushBlock(t *testing.T) {
-	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		AccountLedgerQuery      query.AccountLedgerQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		Signature               crypto.SignatureInterface
-		SkippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		BlockPoolService        BlockPoolServiceInterface
-		CoinbaseService         CoinbaseServiceInterface
-		BlocksmithService       BlocksmithServiceInterface
-		TransactionCoreService  TransactionCoreServiceInterface
-		PublishedReceiptService PublishedReceiptServiceInterface
-		FeeScaleService         fee.FeeScaleServiceInterface
-		BlockStateStorage       storage.CacheStorageInterface
-		BlockchainStatusService BlockchainStatusServiceInterface
-		MempoolService          MempoolServiceInterface
+func (*mockMempoolServiceRemoveTransactionsSuccess) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
+}
+
+type (
+	mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess struct {
+		ScrambleNodeService
 	}
-	type args struct {
-		previousBlock *model.Block
-		block         *model.Block
-		broadcast     bool
-		persist       bool
+	mockScrambleNodeServicePushBlockBuildScrambleNodeFail struct {
+		ScrambleNodeService
 	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "PushBlock:DuplicateBlockPool-PersistFalse",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Observer:                observer.NewObserver(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-			},
-			args: args{
-				previousBlock: &mockPreviousBlockPushBlock,
-				block:         &mockBlockPushBlock,
-				broadcast:     false,
-				persist:       false,
-			},
-			wantErr: true,
-		},
-		{
-			name: "PushBlock:DuplicateBlockPool-PersistTrue",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Observer:                observer.NewObserver(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				BlockPoolService:        &mockBlockPoolServiceDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				TransactionCoreService: NewTransactionCoreService(
-					log.New(),
-					&mockQueryExecutorSuccess{},
-					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
-					},
-					&transaction.Util{},
-					query.NewTransactionQuery(&chaintype.MainChain{}),
-					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
-					query.NewLiquidPaymentTransactionQuery(),
-				),
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-			},
-			args: args{
-				previousBlock: &mockPreviousBlockPushBlock,
-				block:         &mockBlockPushBlock,
-				broadcast:     false,
-				persist:       true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "PushBlock:Transactions<0",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				Observer:                observer.NewObserver(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				TransactionCoreService: NewTransactionCoreService(
-					log.New(),
-					&mockQueryExecutorSuccess{},
-					&transaction.TypeSwitcher{Executor: &mockQueryExecutorSuccess{}},
-					&transaction.Util{},
-					query.NewTransactionQuery(&chaintype.MainChain{}),
-					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
-					query.NewLiquidPaymentTransactionQuery(),
-				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-			},
-			args: args{
-				previousBlock: &mockPreviousBlockPushBlock,
-				block:         &mockBlockPushBlock,
-				broadcast:     false,
-				persist:       true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "PushBlock:Transactions<0 : broadcast true",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				Observer:                observer.NewObserver(),
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				TransactionCoreService: NewTransactionCoreService(
-					log.New(),
-					&mockQueryExecutorSuccess{},
-					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
-					},
-					&transaction.Util{},
-					query.NewTransactionQuery(&chaintype.MainChain{}),
-					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
-					query.NewLiquidPaymentTransactionQuery(),
-				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-			},
-			args: args{
-				previousBlock: &mockPreviousBlockPushBlock,
-				block:         &mockBlockPushBlock,
-				broadcast:     true,
-				persist:       true,
-			},
-			wantErr: false,
-		},
-		{
-			name: "PushBlock_FAIL:BuildScrambledNodes_Fails",
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockQueryExecutorSuccess{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				NodeRegistrationService: &mockNodeRegistrationServiceFail{},
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				SkippedBlocksmithQuery:  query.NewSkippedBlocksmithQuery(),
-				Observer:                observer.NewObserver(),
-				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				CoinbaseService:         &mockPushBlockCoinbaseLotteryWinnersSuccess{},
-				BlocksmithService:       &mockPushBlockBlocksmithServiceSuccess{},
-				TransactionCoreService: NewTransactionCoreService(
-					log.New(),
-					&mockQueryExecutorSuccess{},
-					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
-					},
-					&transaction.Util{},
-					query.NewTransactionQuery(&chaintype.MainChain{}),
-					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
-					query.NewLiquidPaymentTransactionQuery(),
-				),
-				PublishedReceiptService: &mockPushBlockPublishedReceiptServiceSuccess{},
-				FeeScaleService:         &mockPushBlockFeeScaleServiceNoAdjust{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
-				MempoolService:          &mockMempoolServiceRemoveTransactionsSuccess{},
-			},
-			args: args{
-				previousBlock: &mockPreviousBlockPushBlock,
-				block:         &mockBlockPushBlock,
-				broadcast:     false,
-				persist:       true,
-			},
-			wantErr: true,
-		},
+)
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeFail) BuildScrambledNodes(block *model.Block) error {
+	return errors.New("mockedError")
+}
+
+func (*mockScrambleNodeServicePushBlockBuildScrambleNodeFail) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
+type (
+	mockPendingTransactionServiceExpiringSuccess struct {
+		PendingTransactionServiceInterface
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
-				SkippedBlocksmithQuery:  tt.fields.SkippedBlocksmithQuery,
-				Signature:               tt.fields.Signature,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				Logger:                  log.New(),
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				ReceiptUtil:             &coreUtil.ReceiptUtil{},
-				BlockPoolService:        tt.fields.BlockPoolService,
-				CoinbaseService:         tt.fields.CoinbaseService,
-				BlocksmithService:       tt.fields.BlocksmithService,
-				TransactionCoreService:  tt.fields.TransactionCoreService,
-				PublishedReceiptService: tt.fields.PublishedReceiptService,
-				FeeScaleService:         tt.fields.FeeScaleService,
-				BlockStateStorage:       tt.fields.BlockStateStorage,
-				BlockchainStatusService: tt.fields.BlockchainStatusService,
-				MempoolService:          tt.fields.MempoolService,
-			}
-			if err := bs.PushBlock(tt.args.previousBlock, tt.args.block, tt.args.broadcast,
-				tt.args.persist); (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.PushBlock() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
+)
+
+func (*mockPendingTransactionServiceExpiringSuccess) ExpiringPendingTransactions(
+	blockHeight uint32, useTX bool,
+) error {
+	return nil
 }
 
 type (
@@ -1342,6 +1195,9 @@ func (*mockQueryExecutorGetGenesisBlockSuccess) ExecuteSelectRow(qStr string, tx
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -1444,6 +1300,9 @@ func (*mockQueryExecutorGetBlocksSuccess) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.Query(qStr)
 }
@@ -1555,8 +1414,10 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 				transactions: []*model.Transaction{
 					transaction.GetFixturesForTransaction(
 						1562893303,
-						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+						[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+							213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 						false,
 					),
 				},
@@ -1575,8 +1436,10 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 				transactions: []*model.Transaction{
 					transaction.GetFixturesForTransaction(
 						1562893303,
-						"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-						"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+						[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+							72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+						[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+							213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 						false,
 					),
 				},
@@ -1648,8 +1511,10 @@ func (*mockQueryExecutorMempoolSuccess) ExecuteSelect(query string, tx bool, arg
 		transaction.GetFixturesForSignedMempoolTransaction(
 			1,
 			1562893305,
-			"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-			"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+			[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+				72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+			[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+				213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 			false,
 		).TransactionBytes),
 	)
@@ -1664,8 +1529,10 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionFromMempool() ([]*model
 			TransactionBytes: transaction.GetFixturesForSignedMempoolTransaction(
 				1,
 				1562893305,
-				"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-				"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+				[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+					72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+				[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+					213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 				false,
 			).TransactionBytes,
 		},
@@ -1677,8 +1544,10 @@ func (*mockMempoolServiceSelectSuccess) SelectTransactionsFromMempool(blockTimes
 	txByte := transaction.GetFixturesForSignedMempoolTransaction(
 		1,
 		1562893305,
-		"BCZEGOb3WNx3fDOVf9ZS4EjvOIv_UeW4TVBQJ_6tHKlE",
-		"BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5ORFpTjgtN",
+		[]byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		[]byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75,
+			213, 137, 66, 236, 188, 43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 		false,
 	).TransactionBytes
 	txHash := sha3.Sum256(txByte)
@@ -1695,6 +1564,11 @@ func (*mockMempoolServiceSelectFail) SelectTransactionsFromMempool(blockTimestam
 	return nil, errors.New("want error on select")
 }
 
+// mockMempoolServiceSelectFail
+func (*mockMempoolServiceSelectFail) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
+}
+
 // mockMempoolServiceSelectSuccess
 func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMempool(
 	blockTimestamp int64,
@@ -1707,6 +1581,15 @@ func (*mockMempoolServiceSelectWrongTransactionBytes) SelectTransactionsFromMemp
 	}, nil
 }
 
+type (
+	mockNodeRegistrationServiceGenerateBlockSuccess struct {
+		NodeRegistrationServiceInterface
+	}
+)
+
+func (*mockNodeRegistrationServiceGenerateBlockSuccess) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	return make([]*model.NodeRegistration, 10), nil
+}
 func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 	blockTimesatamp, previousBlockTimesatamp int64,
 ) int64 {
@@ -1715,17 +1598,18 @@ func (*mockGenerateBlockCoinbaseServiceSuccess) GetCoinbase(
 
 func TestBlockService_GenerateBlock(t *testing.T) {
 	type fields struct {
-		Chaintype          chaintype.ChainType
-		QueryExecutor      query.ExecutorInterface
-		BlockQuery         query.BlockQueryInterface
-		MempoolQuery       query.MempoolQueryInterface
-		TransactionQuery   query.TransactionQueryInterface
-		Signature          crypto.SignatureInterface
-		MempoolService     MempoolServiceInterface
-		ReceiptService     ReceiptServiceInterface
-		BlocksmithStrategy strategy.BlocksmithStrategyInterface
-		ActionTypeSwitcher transaction.TypeActionSwitcher
-		CoinbaseService    CoinbaseServiceInterface
+		Chaintype               chaintype.ChainType
+		QueryExecutor           query.ExecutorInterface
+		BlockQuery              query.BlockQueryInterface
+		MempoolQuery            query.MempoolQueryInterface
+		TransactionQuery        query.TransactionQueryInterface
+		Signature               crypto.SignatureInterface
+		MempoolService          MempoolServiceInterface
+		ReceiptService          ReceiptServiceInterface
+		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
+		ActionTypeSwitcher      transaction.TypeActionSwitcher
+		CoinbaseService         CoinbaseServiceInterface
+		NodeRegistrationService NodeRegistrationServiceInterface
 	}
 	type args struct {
 		previousBlock            *model.Block
@@ -1785,10 +1669,11 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 						ActionTypeSwitcher: &mockTypeActionSuccess{},
 					},
 				},
-				BlocksmithStrategy: &mockBlocksmithServicePushBlock{},
-				ReceiptService:     &mockReceiptServiceReturnEmpty{},
-				ActionTypeSwitcher: &mockTypeActionSuccess{},
-				CoinbaseService:    &mockGenerateBlockCoinbaseServiceSuccess{},
+				BlocksmithStrategy:      &mockBlocksmithServicePushBlock{},
+				ReceiptService:          &mockReceiptServiceReturnEmpty{},
+				ActionTypeSwitcher:      &mockTypeActionSuccess{},
+				CoinbaseService:         &mockGenerateBlockCoinbaseServiceSuccess{},
+				NodeRegistrationService: &mockNodeRegistrationServiceGenerateBlockSuccess{},
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -1815,18 +1700,19 @@ func TestBlockService_GenerateBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:          tt.fields.Chaintype,
-				QueryExecutor:      tt.fields.QueryExecutor,
-				BlockQuery:         tt.fields.BlockQuery,
-				MempoolQuery:       tt.fields.MempoolQuery,
-				TransactionQuery:   tt.fields.TransactionQuery,
-				Signature:          tt.fields.Signature,
-				MempoolService:     tt.fields.MempoolService,
-				ReceiptService:     tt.fields.ReceiptService,
-				BlocksmithStrategy: tt.fields.BlocksmithStrategy,
-				ActionTypeSwitcher: tt.fields.ActionTypeSwitcher,
-				ReceiptUtil:        &coreUtil.ReceiptUtil{},
-				CoinbaseService:    tt.fields.CoinbaseService,
+				Chaintype:               tt.fields.Chaintype,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				BlockQuery:              tt.fields.BlockQuery,
+				MempoolQuery:            tt.fields.MempoolQuery,
+				TransactionQuery:        tt.fields.TransactionQuery,
+				Signature:               tt.fields.Signature,
+				MempoolService:          tt.fields.MempoolService,
+				ReceiptService:          tt.fields.ReceiptService,
+				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
+				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
+				ReceiptUtil:             &coreUtil.ReceiptUtil{},
+				CoinbaseService:         tt.fields.CoinbaseService,
+				NodeRegistrationService: tt.fields.NodeRegistrationService,
 			}
 			_, err := bs.GenerateBlock(
 				tt.args.previousBlock,
@@ -1873,7 +1759,20 @@ type (
 	mockAddGenesisFeeScaleServiceCache struct {
 		fee.FeeScaleServiceInterface
 	}
+	mockAddGenesisNodeAddressInfoServiceSuccess struct {
+		NodeAddressInfoServiceInterface
+	}
 )
+
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
+	return nil
+}
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) RollbackCacheTransaction() error {
+	return nil
+}
+func (*mockAddGenesisNodeAddressInfoServiceSuccess) CommitCacheTransaction() error {
+	return nil
+}
 
 func (*mockAddGenesisFeeScaleServiceCache) GetCurrentPhase(
 	blockTimestamp int64,
@@ -1901,26 +1800,44 @@ func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(bl
 	return 0, nil
 }
 
+type (
+	mockScrambleServiceAddGenesisSuccess struct {
+		ScrambleNodeService
+	}
+)
+
+func (*mockScrambleServiceAddGenesisSuccess) BuildScrambledNodes(block *model.Block) error {
+	return nil
+}
+
+func (*mockScrambleServiceAddGenesisSuccess) GetBlockHeightToBuildScrambleNodes(lastBlockHeight uint32) uint32 {
+	return 1
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
-		Chaintype               chaintype.ChainType
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		Observer                *observer.Observer
-		NodeRegistrationService NodeRegistrationServiceInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		BlockPoolService        BlockPoolServiceInterface
-		Logger                  *log.Logger
-		TransactionCoreService  TransactionCoreServiceInterface
-		PublishedReceiptService PublishedReceiptServiceInterface
-		BlockStateStorage       storage.CacheStorageInterface
-		BlockchainStatusService BlockchainStatusServiceInterface
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		BlockQuery                query.BlockQueryInterface
+		MempoolQuery              query.MempoolQueryInterface
+		TransactionQuery          query.TransactionQueryInterface
+		AccountBalanceQuery       query.AccountBalanceQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolService            MempoolServiceInterface
+		ActionTypeSwitcher        transaction.TypeActionSwitcher
+		Observer                  *observer.Observer
+		NodeRegistrationService   NodeRegistrationServiceInterface
+		NodeAddressInfoService    NodeAddressInfoServiceInterface
+		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
+		BlockPoolService          BlockPoolServiceInterface
+		Logger                    *log.Logger
+		TransactionCoreService    TransactionCoreServiceInterface
+		PublishedReceiptService   PublishedReceiptServiceInterface
+		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
+		BlockchainStatusService   BlockchainStatusServiceInterface
+		ScrambleNodeService       ScrambleNodeServiceInterface
+		PendingTransactionService PendingTransactionServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -1941,6 +1858,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
 				Observer:                observer.NewObserver(),
 				NodeRegistrationService: &mockNodeRegistrationServiceSuccess{},
+				NodeAddressInfoService:  &mockAddGenesisNodeAddressInfoServiceSuccess{},
 				BlocksmithStrategy:      &mockBlocksmithServiceAddGenesisSuccess{},
 				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
 				Logger:                  log.New(),
@@ -1948,17 +1866,21 @@ func TestBlockService_AddGenesis(t *testing.T) {
 					log.New(),
 					&mockQueryExecutorSuccess{},
 					&transaction.TypeSwitcher{
-						Executor: &mockQueryExecutorSuccess{},
+						Executor:                   &mockQueryExecutorSuccess{},
+						ActiveNodeRegistryStorage:  &mockNodeRegistryCacheAlwaysSuccess{},
+						PendingNodeRegistryStorage: &mockNodeRegistryCacheAlwaysSuccess{},
 					},
 					&transaction.Util{},
 					query.NewTransactionQuery(&chaintype.MainChain{}),
 					query.NewEscrowTransactionQuery(),
-					query.NewPendingTransactionQuery(),
 					query.NewLiquidPaymentTransactionQuery(),
 				),
-				PublishedReceiptService: &mockAddGenesisPublishedReceiptServiceSuccess{},
-				BlockStateStorage:       storage.NewBlockStateStorage(),
-				BlockchainStatusService: &mockBlockchainStatusService{},
+				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
+				BlockStateStorage:         storage.NewBlockStateStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(),
+				BlockchainStatusService:   &mockBlockchainStatusService{},
+				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
+				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
 			},
 			wantErr: false,
 		},
@@ -1966,25 +1888,29 @@ func TestBlockService_AddGenesis(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				Observer:                tt.fields.Observer,
-				NodeRegistrationService: tt.fields.NodeRegistrationService,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				BlockPoolService:        tt.fields.BlockPoolService,
-				Logger:                  tt.fields.Logger,
-				TransactionCoreService:  tt.fields.TransactionCoreService,
-				PublishedReceiptService: tt.fields.PublishedReceiptService,
-				FeeScaleService:         &mockAddGenesisFeeScaleServiceCache{},
-				BlockStateStorage:       tt.fields.BlockStateStorage,
-				BlockchainStatusService: tt.fields.BlockchainStatusService,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				BlockQuery:                tt.fields.BlockQuery,
+				MempoolQuery:              tt.fields.MempoolQuery,
+				AccountBalanceQuery:       tt.fields.AccountBalanceQuery,
+				TransactionQuery:          tt.fields.TransactionQuery,
+				Signature:                 tt.fields.Signature,
+				MempoolService:            tt.fields.MempoolService,
+				ActionTypeSwitcher:        tt.fields.ActionTypeSwitcher,
+				Observer:                  tt.fields.Observer,
+				NodeRegistrationService:   tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:    tt.fields.NodeAddressInfoService,
+				BlocksmithStrategy:        tt.fields.BlocksmithStrategy,
+				BlockPoolService:          tt.fields.BlockPoolService,
+				Logger:                    tt.fields.Logger,
+				TransactionCoreService:    tt.fields.TransactionCoreService,
+				PublishedReceiptService:   tt.fields.PublishedReceiptService,
+				FeeScaleService:           &mockAddGenesisFeeScaleServiceCache{},
+				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
+				BlockchainStatusService:   tt.fields.BlockchainStatusService,
+				ScrambleNodeService:       tt.fields.ScrambleNodeService,
+				PendingTransactionService: tt.fields.PendingTransactionService,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -2044,6 +1970,9 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelect(qStr string, tx bool, ar
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.Query("")
 }
@@ -2069,6 +1998,9 @@ func (*mockQueryExecutorCheckGenesisTrue) ExecuteSelectRow(qStr string, tx bool,
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -2161,6 +2093,9 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qStr string, _
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	))
 	return db.QueryRow(qStr), nil
 }
@@ -2171,7 +2106,7 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE height = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockBlockData.GetHeight(),
@@ -2189,6 +2124,9 @@ func (*mockQueryExecutorGetBlockByHeightSuccess) ExecuteSelect(qStr string, tx b
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
 		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
@@ -2217,6 +2155,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByHeight mocks
+	mockGetBlockByHeightPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2249,6 +2190,10 @@ func (*mockGetBlockByHeightTransactionCoreServiceSuccess) GetTransactionsByBlock
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByHeightPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByHeight(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2261,6 +2206,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 		ActionTypeSwitcher     transaction.TypeActionSwitcher
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 		Observer               *observer.Observer
 	}
 	type args struct {
@@ -2281,6 +2227,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByHeightTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByHeightPublishedReceiptUtilSuccess{},
 			},
 			want:    &mockGetBlockByHeightResult,
 			wantErr: false,
@@ -2312,6 +2259,7 @@ func TestBlockService_GetBlockByHeight(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByHeight(tt.args.height)
 			if (err != nil) != tt.wantErr {
@@ -2341,7 +2289,7 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, " +
-		"version FROM main_block WHERE id = 1":
+		"version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields).AddRow(
 			mockBlockData.GetHeight(),
@@ -2359,6 +2307,9 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelect(qStr string, tx bool,
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, " +
 		"fee, timestamp, transaction_hash, transaction_body_length, transaction_body_bytes, " +
@@ -2393,6 +2344,9 @@ func (*mockQueryExecutorGetBlockByIDSuccess) ExecuteSelectRow(qStr string, tx bo
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qStr), nil
 }
@@ -2407,7 +2361,9 @@ type (
 		TransactionCoreService
 	}
 	// GetBlockByID mocks
-
+	mockGetBlockByIDPublishedReceiptUtilSuccess struct {
+		coreUtil.PublishedReceiptUtilInterface
+	}
 )
 
 var (
@@ -2440,6 +2396,10 @@ func (*mockGetBlockByIDTransactionCoreServiceSuccess) GetTransactionsByBlockID(b
 	return make([]*model.Transaction, 0), nil
 }
 
+func (*mockGetBlockByIDPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
+	return nil, nil
+}
+
 func TestBlockService_GetBlockByID(t *testing.T) {
 	type fields struct {
 		Chaintype              chaintype.ChainType
@@ -2453,6 +2413,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 		AccountBalanceQuery    query.AccountBalanceQueryInterface
 		Observer               *observer.Observer
 		TransactionCoreService TransactionCoreServiceInterface
+		PublishedReceiptUtil   coreUtil.PublishedReceiptUtilInterface
 	}
 	type args struct {
 		ID               int64
@@ -2473,6 +2434,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				TransactionCoreService: &mockGetBlockByIDTransactionCoreServiceSuccess{},
+				PublishedReceiptUtil:   &mockGetBlockByIDPublishedReceiptUtilSuccess{},
 			},
 			args: args{
 				ID:               int64(1),
@@ -2506,6 +2468,7 @@ func TestBlockService_GetBlockByID(t *testing.T) {
 				AccountBalanceQuery:    tt.fields.AccountBalanceQuery,
 				Observer:               tt.fields.Observer,
 				TransactionCoreService: tt.fields.TransactionCoreService,
+				PublishedReceiptUtil:   tt.fields.PublishedReceiptUtil,
 			}
 			got, err := bs.GetBlockByID(tt.args.ID, tt.args.withAttachedData)
 			if (err != nil) != tt.wantErr {
@@ -2553,6 +2516,9 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	).AddRow(
 		mockBlockData.GetHeight(),
 		mockBlockData.GetID(),
@@ -2569,6 +2535,9 @@ func (*mockQueryExecutorGetBlocksFromHeightSuccess) ExecuteSelect(qStr string, t
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	),
 	)
 	return db.Query(qStr)
@@ -2663,6 +2632,7 @@ func TestBlockService_GetBlocksFromHeight(t *testing.T) {
 type (
 	mockReceiptServiceSuccess struct {
 		ReceiptService
+		WantDuplicated bool
 	}
 	mockReceiptServiceFail struct {
 		ReceiptService
@@ -2686,24 +2656,24 @@ type (
 	}
 )
 
-func (*mockReceiptServiceSuccess) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
-) (*model.BatchReceipt, error) {
+func (*mockReceiptServiceSuccess) GenerateReceiptWithReminder(
+	chaintype.ChainType, []byte, *storage.BlockCacheObject, []byte, string, uint32,
+) (*model.Receipt, error) {
 	return nil, nil
 }
 
+func (mrs *mockReceiptServiceSuccess) CheckDuplication([]byte, []byte) (err error) {
+	if mrs.WantDuplicated {
+		return blocker.NewBlocker(
+			blocker.DuplicateReceiptErr,
+			err.Error(),
+		)
+	}
+	return nil
+}
+
 func (*mockReceiptServiceFail) GenerateBatchReceiptWithReminder(
-	ct chaintype.ChainType,
-	receivedDatumHash []byte,
-	lastBlock *model.Block,
-	senderPublicKey []byte,
-	nodeSecretPhrase, receiptKey string,
-	datumType uint32,
+	chaintype.ChainType, []byte, *model.Block, []byte, string, uint32,
 ) (*model.BatchReceipt, error) {
 	return nil, errors.New("mockedErr")
 }
@@ -2755,60 +2725,9 @@ var (
 			228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74,
 		},
 	}
-	mockGoodIncomingBlockNilPreviousHash = &model.Block{
-		PreviousBlockHash:    nil,
-		BlockSignature:       nil,
-		CumulativeDifficulty: "200",
-		Timestamp:            10000,
-		BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
-		Transactions: []*model.Transaction{
-			mockTransaction,
-		},
-	}
-	mockGoodIncomingBlockInvalidPreviousHash = &model.Block{
-		PreviousBlockHash: make([]byte, 64),
-		BlockHash: []byte{
-			167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98, 245, 128, 255,
-			77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74,
-		},
-		BlockSignature:       nil,
-		CumulativeDifficulty: "200",
-		Timestamp:            10000,
-		BlocksmithPublicKey:  mockBlocksmiths[0].NodePublicKey,
-		Transactions: []*model.Transaction{
-			mockTransaction,
-		},
-	}
 
 	mockBlockIDProcessQueueReceiveBlockAlreadyQueued int64 = 1
 )
-
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmiths(block *model.Block) []*model.Blocksmith {
-	return []*model.Blocksmith{
-		{
-			NodeID:        1,
-			NodeOrder:     new(big.Int).SetInt64(8000),
-			NodePublicKey: []byte{1, 3, 4, 5, 6},
-		},
-		{
-			NodeID:    2,
-			NodeOrder: new(big.Int).SetInt64(1000),
-		},
-		{
-			NodeID:    3,
-			NodeOrder: new(big.Int).SetInt64(5000),
-		},
-	}
-}
-
-func (*mockBlocksmithServiceReceiveBlock) GetSortedBlocksmithsMap(block *model.Block) map[string]*int64 {
-	var a, b, c = int64(0), int64(1), int64(2)
-	return map[string]*int64{
-		string(mockBlocksmiths[0].NodePublicKey): &a,
-		string(mockBlocksmiths[1].NodePublicKey): &b,
-		string(mockBlocksmiths[2].NodePublicKey): &c,
-	}
-}
 
 func (*mockBlocksmithServiceReceiveBlock) IsBlockTimestampValid(blocksmithIndex, numberOfBlocksmiths int64, previousBlock,
 	currentBlock *model.Block) error {
@@ -2862,448 +2781,59 @@ func (*mockMempoolServiceGetMempoolTransactionSuccess) GetMempoolTransactions() 
 	return make(storage.MempoolMap), nil
 }
 
-func TestBlockService_ReceiveBlock(t *testing.T) {
-	mockBlockData.BlockHash = mockGoodLastBlockHash
-	type fields struct {
-		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
-		QueryExecutor               query.ExecutorInterface
-		BlockQuery                  query.BlockQueryInterface
-		MempoolQuery                query.MempoolQueryInterface
-		TransactionQuery            query.TransactionQueryInterface
-		MerkleTreeQuery             query.MerkleTreeQueryInterface
-		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
-		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
-		Signature                   crypto.SignatureInterface
-		MempoolService              MempoolServiceInterface
-		ActionTypeSwitcher          transaction.TypeActionSwitcher
-		AccountBalanceQuery         query.AccountBalanceQueryInterface
-		AccountLedgerQuery          query.AccountLedgerQueryInterface
-		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
-		Observer                    *observer.Observer
-		NodeRegistrationService     NodeRegistrationServiceInterface
-		ReceiptService              ReceiptServiceInterface
-		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
-		BlockPoolService            BlockPoolServiceInterface
-		BlockStateStorage           storage.CacheStorageInterface
+type (
+	mockNodeRegistryCacheAlwaysSuccess struct {
+		storage.NodeRegistryCacheStorage
 	}
-	type args struct {
-		senderPublicKey  []byte
-		lastBlock        *model.Block
-		block            *model.Block
-		nodeSecretPhrase string
-	}
-	mockBlockData.BlockHash = mockGoodLastBlockHash
+)
 
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		want    *model.BatchReceipt
-		wantErr bool
-	}{
-		{
-			name: "ReceiveBlock:wantErr-{incoming-block.previousBlockHash==nil}",
-			args: args{
-				senderPublicKey:  nil,
-				lastBlock:        nil,
-				block:            mockGoodIncomingBlockNilPreviousHash,
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				QueryExecutor:               nil,
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				NodeRegistrationService:     nil,
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				BlockIncompleteQueueService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-{last-block-hash!=previousBlockHash}",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock: &model.Block{
-					BlockHash:      []byte{1},
-					BlockSignature: []byte{},
-				},
-				block:            mockGoodIncomingBlockInvalidPreviousHash,
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:        nil,
-				Signature:               &mockSignature{},
-				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wamtErr-{same-height}-fail-get-block-by-height",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					Height:            mockLastBlockData.GetHeight(),
-					PreviousBlockHash: mockLastBlockData.GetPreviousBlockHash(),
-					Timestamp:         mockLastBlockData.GetTimestamp() - 1,
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           &mockQueryExecutorGetBlockByHeightFail{},
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:            nil,
-				TransactionQuery:        nil,
-				Signature:               nil,
-				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				BlocksmithStrategy:      nil,
-				BlockPoolService:        nil,
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-Prevalidate-fail",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: []byte{1},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            nil,
-				TransactionQuery:        nil,
-				Signature:               nil,
-				MempoolService:          &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:      nil,
-				AccountBalanceQuery:     nil,
-				AccountLedgerQuery:      nil,
-				Observer:                nil,
-				BlocksmithStrategy:      &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:          &mockReceiptServiceSuccess{},
-				BlockPoolService:        &mockBlockPoolServiceNoDuplicate{},
-				NodeRegistrationService: nil,
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-ProcessCompletedBlock-fail",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  nil,
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  query.NewBlockQuery(&chaintype.MainChain{}),
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              nil,
-				BlockPoolService:            nil,
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockFail{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-get-receipt-key-failed",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   []byte{00},
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccess{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-already-send-receipt",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccess{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-failed-get-receipt",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorFailOtherError{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            &mockBlockPoolServiceNoDuplicate{},
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-generate-receipt-failed",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceFail{},
-				BlockPoolService:            nil,
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: true,
-			want:    nil,
-		},
-		{
-			name: "ReceiveBlock:wantErr-generate-receipt-success",
-			args: args{
-				senderPublicKey: nil,
-				lastBlock:       &mockLastBlockData,
-				block: &model.Block{
-					ID:                  mockBlockIDProcessQueueReceiveBlockAlreadyQueued,
-					PreviousBlockHash:   mockLastBlockData.GetBlockHash(),
-					BlocksmithPublicKey: mockBlocksmiths[0].NodePublicKey,
-					Timestamp:           mockSmithTime + 1,
-					TransactionIDs: []int64{
-						mockTransaction.GetID(),
-					},
-				},
-				nodeSecretPhrase: "",
-			},
-			fields: fields{
-				Chaintype:                   &chaintype.MainChain{},
-				KVExecutor:                  &mockKVExecutorSuccessKeyNotFound{},
-				QueryExecutor:               &mockQueryExecutorReceiveBlockFail{},
-				BlockQuery:                  nil,
-				MempoolQuery:                query.NewMempoolQuery(&chaintype.MainChain{}),
-				TransactionQuery:            nil,
-				Signature:                   nil,
-				MempoolService:              &mockMempoolServiceGetMempoolTransactionSuccess{},
-				ActionTypeSwitcher:          nil,
-				AccountBalanceQuery:         nil,
-				AccountLedgerQuery:          nil,
-				Observer:                    nil,
-				BlocksmithStrategy:          &mockBlocksmithServiceReceiveBlock{},
-				ReceiptService:              &mockReceiptServiceSuccess{},
-				BlockPoolService:            nil,
-				BlockIncompleteQueueService: &mockBlockIncompleteQueueServiceReceiveBlock{},
-				NodeRegistrationService:     nil,
-				BlockStateStorage:           &mockBlockStateStorageReceiveBlockSuccess{},
-			},
-			wantErr: false,
-			want:    nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
-				QueryExecutor:               tt.fields.QueryExecutor,
-				BlockQuery:                  tt.fields.BlockQuery,
-				MempoolQuery:                tt.fields.MempoolQuery,
-				TransactionQuery:            tt.fields.TransactionQuery,
-				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
-				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
-				Signature:                   tt.fields.Signature,
-				MempoolService:              tt.fields.MempoolService,
-				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
-				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
-				Observer:                    tt.fields.Observer,
-				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
-				Logger:                      log.New(),
-				NodeRegistrationService:     tt.fields.NodeRegistrationService,
-				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
-				ReceiptUtil:                 &coreUtil.ReceiptUtil{},
-				ReceiptService:              tt.fields.ReceiptService,
-				BlockPoolService:            tt.fields.BlockPoolService,
-				BlockStateStorage:           tt.fields.BlockStateStorage,
-			}
-			got, err := bs.ReceiveBlock(
-				tt.args.senderPublicKey, tt.args.lastBlock, tt.args.block, tt.args.nodeSecretPhrase, &model.Peer{},
-			)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ReceiveBlock() error = \n%v, wantErr \n%v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("ReceiveBlock() got = \n%v want \n%v", got, tt.want)
-			}
-		})
-	}
+func (*mockNodeRegistryCacheAlwaysSuccess) Begin() error {
+	return nil
 }
 
-var mockSmithTime int64 = 1
+func (*mockNodeRegistryCacheAlwaysSuccess) Commit() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) Rollback() error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxSetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxSetItems(items interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) TxRemoveItem(idx interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) RemoveItem(idx interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) GetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) GetAllItems(items interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) SetItem(idx, item interface{}) error {
+	return nil
+}
+
+func (*mockNodeRegistryCacheAlwaysSuccess) SetItems(items interface{}) error {
+	return nil
+}
 
 func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -3331,16 +2861,18 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 		{
 			name: "GenerateGenesisBlock:success",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
-				QueryExecutor:           nil,
-				BlockQuery:              nil,
-				MempoolQuery:            nil,
-				TransactionQuery:        nil,
-				MerkleTreeQuery:         nil,
-				Signature:               nil,
-				MempoolService:          nil,
-				ActionTypeSwitcher:      &transaction.TypeSwitcher{},
+				Chaintype:        &chaintype.MainChain{},
+				QueryExecutor:    nil,
+				BlockQuery:       nil,
+				MempoolQuery:     nil,
+				TransactionQuery: nil,
+				MerkleTreeQuery:  nil,
+				Signature:        nil,
+				MempoolService:   nil,
+				ActionTypeSwitcher: &transaction.TypeSwitcher{
+					ActiveNodeRegistryStorage:  &mockNodeRegistryCacheAlwaysSuccess{},
+					PendingNodeRegistryStorage: &mockNodeRegistryCacheAlwaysSuccess{},
+				},
 				AccountBalanceQuery:     nil,
 				ParticipationScoreQuery: nil,
 				NodeRegistrationQuery:   nil,
@@ -3383,14 +2915,13 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    -1590500092516375213,
+			want:    -1404528444615386701,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
@@ -3442,6 +2973,9 @@ func (*mockQueryExecutorValidateBlockSuccess) ExecuteSelect(qStr string, tx bool
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	rows, _ := db.Query(qStr)
 	return rows, nil
@@ -3453,28 +2987,6 @@ var (
 		BlockSignature:      []byte{},
 		BlocksmithPublicKey: []byte{1, 2, 3, 4},
 		PreviousBlockHash:   []byte{},
-	}
-
-	mockValidateBlockSuccess = &model.Block{
-		Timestamp: 1572246820,
-		ID:        constant.MainchainGenesisBlockID,
-		BlockHash: make([]byte, 32),
-		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
-			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-		Height: 1,
-		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
-		CumulativeDifficulty: "1000",
-		PayloadLength:        0,
-		PayloadHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
-			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
-			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-		TotalAmount:   1000,
-		TotalFee:      0,
-		TotalCoinBase: 1,
-		Version:       0,
 	}
 )
 
@@ -3501,148 +3013,6 @@ func (*mockBlocksmithServiceValidateBlockSuccess) IsBlockTimestampValid(blocksmi
 func (*mockBlocksmithServiceValidateBlockSuccess) IsValidSmithTime(blocksmithIndex, numberOfBlocksmiths int64,
 	previousBlock *model.Block) error {
 	return nil
-}
-
-func TestBlockService_ValidateBlock(t *testing.T) {
-	type fields struct {
-		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
-		QueryExecutor           query.ExecutorInterface
-		BlockQuery              query.BlockQueryInterface
-		MempoolQuery            query.MempoolQueryInterface
-		TransactionQuery        query.TransactionQueryInterface
-		MerkleTreeQuery         query.MerkleTreeQueryInterface
-		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
-		Signature               crypto.SignatureInterface
-		MempoolService          MempoolServiceInterface
-		ReceiptService          ReceiptServiceInterface
-		ActionTypeSwitcher      transaction.TypeActionSwitcher
-		AccountBalanceQuery     query.AccountBalanceQueryInterface
-		ParticipationScoreQuery query.ParticipationScoreQueryInterface
-		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
-		BlocksmithStrategy      strategy.BlocksmithStrategyInterface
-		Observer                *observer.Observer
-		Logger                  *log.Logger
-	}
-	type args struct {
-		block             *model.Block
-		previousLastBlock *model.Block
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "ValidateBlock:fail-{InvalidTimestamp}",
-			args: args{
-				block: &model.Block{
-					Timestamp: 1572246820 + constant.GenerateBlockTimeoutSec + 1,
-				},
-			},
-			fields:  fields{},
-			wantErr: true,
-		},
-		{
-			name: "ValidateBlock:fail-{notInBlocksmithList}",
-			args: args{
-				block: &model.Block{
-					Timestamp:           1572246820,
-					BlockSignature:      []byte{},
-					BlocksmithPublicKey: []byte{},
-				},
-			},
-			fields: fields{
-				Signature:          &mockSignatureFail{},
-				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "ValidateBlock:fail-{InvalidSignature}",
-			args: args{
-				block: mockValidateBadBlockInvalidBlockHash,
-			},
-			fields: fields{
-				Signature:          &mockSignatureFail{},
-				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "ValidateBlock:fail-{InvalidBlockHash}",
-			args: args{
-				block:             mockValidateBadBlockInvalidBlockHash,
-				previousLastBlock: &model.Block{},
-			},
-			fields: fields{
-				Signature:          &mockSignature{},
-				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "ValidateBlock:fail-{InvalidCumulativeDifficulty}",
-			args: args{
-				block: &model.Block{
-					Timestamp:           1572246820,
-					BlockSignature:      []byte{},
-					BlocksmithPublicKey: []byte{},
-					PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
-						97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
-					CumulativeDifficulty: "10",
-				},
-				previousLastBlock: &model.Block{},
-			},
-			fields: fields{
-				Signature:          &mockSignature{},
-				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:      &mockQueryExecutorValidateBlockSuccess{},
-				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
-			},
-			wantErr: true,
-		},
-		{
-			name: "ValidateBlock:success",
-			args: args{
-				block:             mockValidateBlockSuccess,
-				previousLastBlock: &model.Block{},
-			},
-			fields: fields{
-				Signature:          &mockSignature{},
-				BlockQuery:         query.NewBlockQuery(&chaintype.MainChain{}),
-				QueryExecutor:      &mockQueryExecutorValidateBlockSuccess{},
-				BlocksmithStrategy: &mockBlocksmithServiceValidateBlockSuccess{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			bs := &BlockService{
-				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
-				QueryExecutor:           tt.fields.QueryExecutor,
-				BlockQuery:              tt.fields.BlockQuery,
-				MempoolQuery:            tt.fields.MempoolQuery,
-				TransactionQuery:        tt.fields.TransactionQuery,
-				PublishedReceiptQuery:   tt.fields.PublishedReceiptQuery,
-				Signature:               tt.fields.Signature,
-				MempoolService:          tt.fields.MempoolService,
-				ReceiptService:          tt.fields.ReceiptService,
-				ActionTypeSwitcher:      tt.fields.ActionTypeSwitcher,
-				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
-				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,
-				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
-				BlocksmithStrategy:      tt.fields.BlocksmithStrategy,
-				Observer:                tt.fields.Observer,
-				Logger:                  tt.fields.Logger,
-			}
-			if err := bs.ValidateBlock(tt.args.block, tt.args.previousLastBlock); (err != nil) != tt.wantErr {
-				t.Errorf("BlockService.ValidateBlock() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
 }
 
 type (
@@ -3842,7 +3212,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelect(
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -3864,7 +3234,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 	switch qStr {
 	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
 				mockGoodBlock.GetHeight(),
@@ -3881,11 +3251,16 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 				mockGoodBlock.GetTotalAmount(),
 				mockGoodBlock.GetTotalFee(),
 				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 1":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	default:
@@ -3902,7 +3277,7 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	default:
@@ -3922,6 +3297,10 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 				mockGoodBlock.GetTotalAmount(),
 				mockGoodBlock.GetTotalFee(),
 				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
 			),
 		)
 	}
@@ -3939,19 +3318,19 @@ func (*mockNodeRegistrationServiceBlockPopSuccess) UpdateNextNodeAdmissionCache(
 	return nil
 }
 
-func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
-	return make([]*model.MempoolTransaction, 0), nil
+func (*mockNodeRegistrationServiceBlockPopSuccess) InitializeCache() error {
+	return nil
+}
+
+func (*mockMempoolServiceBlockPopSuccess) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
+	return make([]*model.Transaction, 0), nil
 }
 
 func (*mockMempoolServiceBlockPopSuccess) BackupMempools(commonBlock *model.Block) error {
 	return nil
 }
 
-func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(
-	height uint32,
-) ([]*model.MempoolTransaction, error) {
+func (*mockMempoolServiceBlockPopFail) GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error) {
 	return nil, errors.New("mockedError")
 }
 
@@ -3962,7 +3341,9 @@ func (*mockMempoolServiceBlockPopFail) BackupMempools(commonBlock *model.Block) 
 func (*mockReceiptSuccess) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
 }
+func (*mockReceiptSuccess) ClearCache() {
 
+}
 func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return nil, errors.New("mockError")
 }
@@ -3990,7 +3371,8 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 	switch qStr {
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE height = 999":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+		"FROM main_block WHERE height = 999":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
 				mockGoodCommonBlock.GetHeight(),
@@ -4008,11 +3390,15 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 				mockGoodCommonBlock.GetTotalFee(),
 				mockGoodCommonBlock.GetTotalCoinBase(),
 				mockGoodCommonBlock.GetVersion(),
+				mockGoodCommonBlock.GetMerkleRoot(),
+				mockGoodCommonBlock.GetMerkleTree(),
+				mockGoodCommonBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
-		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
+		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height " +
+		"FROM main_block WHERE id = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields).AddRow(
 				mockGoodCommonBlock.GetHeight(),
@@ -4030,6 +3416,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 				mockGoodCommonBlock.GetTotalFee(),
 				mockGoodCommonBlock.GetTotalCoinBase(),
 				mockGoodCommonBlock.GetVersion(),
+				mockGoodCommonBlock.GetMerkleRoot(),
+				mockGoodCommonBlock.GetMerkleTree(),
+				mockGoodCommonBlock.GetReferenceBlockHeight(),
 			),
 		)
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -4068,6 +3457,9 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		),
 	)
 	return db.QueryRow(qStr), nil
@@ -4094,6 +3486,9 @@ type (
 	mockPopOffToBlockBlockStateStorageSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockPopOffToBlockBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 	mockPopOffToBlockBlockStateStorageHardForkSuccess struct {
 		storage.CacheStorageInterface
 	}
@@ -4107,6 +3502,10 @@ func (*mockBlockPoolServicePopOffToBlockSuccess) ClearBlockPool() {}
 
 func (*mockPublishedReceiptUtilSuccess) GetPublishedReceiptsByBlockHeight(blockHeight uint32) ([]*model.PublishedReceipt, error) {
 	return make([]*model.PublishedReceipt, 0), nil
+}
+
+func (*mockPopOffToBlockBlocksStorageSuccess) PopTo(uint32) error {
+	return nil
 }
 
 type (
@@ -4153,6 +3552,9 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		)
 	default:
 		mockedRows.AddRow(
@@ -4171,6 +3573,9 @@ func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteSelectRow(qStr string, 
 			mockGoodBlock.GetTotalFee(),
 			mockGoodBlock.GetTotalCoinBase(),
 			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
 		)
 
 	}
@@ -4206,13 +3611,22 @@ func (*mockPopOffToBlockBlockStateStorageHardForkSuccess) SetItem(lastChange, it
 	return nil
 }
 
+type (
+	mockScrambleServicePopOffToBlockSuccess struct {
+		ScrambleNodeService
+	}
+)
+
+func (*mockScrambleServicePopOffToBlockSuccess) PopOffScrambleToHeight(height uint32) error {
+	return nil
+}
+
 func TestBlockService_PopOffToBlock(t *testing.T) {
 	var mockPopedBlock = mockGoodBlock
 	mockPopedBlock.ID = 100
 	mockPopedBlock.Height = 100
 	type fields struct {
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -4242,6 +3656,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		ParticipationScoreService   ParticipationScoreServiceInterface
 		PublishedReceiptService     PublishedReceiptServiceInterface
 		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -4257,7 +3673,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetLastBlock",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopGetLastBlockFail{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4276,6 +3691,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Observer:                nil,
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageFail{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4287,7 +3703,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-HardFork",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4307,6 +3722,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageHardForkSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
@@ -4318,7 +3734,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-CommonBlockNotFound",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopFailCommonNotFound{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4338,6 +3753,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				TransactionCoreService:  &mockPopOffToBlockTransactionCoreService{},
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4349,7 +3765,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetPublishedReceiptError",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4370,6 +3785,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4381,7 +3798,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Fail-GetMempoolToBackupFail",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4402,6 +3818,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4413,7 +3831,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 			name: "Success",
 			fields: fields{
 				Chaintype:               &chaintype.MainChain{},
-				KVExecutor:              nil,
 				QueryExecutor:           &mockExecutorBlockPopSuccess{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
@@ -4434,6 +3851,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
+				BlocksStorage:           &mockPopOffToBlockBlocksStorageSuccess{},
+				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -4446,7 +3865,6 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,
@@ -4476,6 +3894,8 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				ParticipationScoreService:   tt.fields.ParticipationScoreService,
 				PublishedReceiptService:     tt.fields.PublishedReceiptService,
 				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlocksStorage:               tt.fields.BlocksStorage,
+				ScrambleNodeService:         tt.fields.ScrambleNodeService,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {
@@ -4603,7 +4023,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 
 	type fields struct {
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -4664,7 +4083,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4696,7 +4114,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4728,7 +4145,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 			},
 			fields: fields{
 				Chaintype:        &chaintype.MainChain{},
-				KVExecutor:       &mockKVExecutorSuccess{},
 				QueryExecutor:    &mockQueryExecutorSuccess{},
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:     query.NewMempoolQuery(&chaintype.MainChain{}),
@@ -4758,7 +4174,6 @@ func TestBlockService_ProcessQueueBlock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,
@@ -4839,14 +4254,14 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 			WillReturnRows(sqlmock.NewRows(
 				query.NewPublishedReceiptQuery().Fields,
 			).AddRow(
-				mockPublishedReceipt[0].BatchReceipt.SenderPublicKey,
-				mockPublishedReceipt[0].BatchReceipt.RecipientPublicKey,
-				mockPublishedReceipt[0].BatchReceipt.DatumType,
-				mockPublishedReceipt[0].BatchReceipt.DatumHash,
-				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHeight,
-				mockPublishedReceipt[0].BatchReceipt.ReferenceBlockHash,
-				mockPublishedReceipt[0].BatchReceipt.RMRLinked,
-				mockPublishedReceipt[0].BatchReceipt.RecipientSignature,
+				mockPublishedReceipt[0].Receipt.SenderPublicKey,
+				mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+				mockPublishedReceipt[0].Receipt.DatumType,
+				mockPublishedReceipt[0].Receipt.DatumHash,
+				mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+				mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+				mockPublishedReceipt[0].Receipt.RMRLinked,
+				mockPublishedReceipt[0].Receipt.RecipientSignature,
 				mockPublishedReceipt[0].IntermediateHashes,
 				mockPublishedReceipt[0].BlockHeight,
 				mockPublishedReceipt[0].ReceiptIndex,
@@ -4897,7 +4312,6 @@ func (*mockPopulateBlockDataPublishedReceiptUtilFail) GetPublishedReceiptsByBloc
 func TestBlockMainService_PopulateBlockData(t *testing.T) {
 	type fields struct {
 		Chaintype               chaintype.ChainType
-		KVExecutor              kvdb.KVExecutorInterface
 		QueryExecutor           query.ExecutorInterface
 		BlockQuery              query.BlockQueryInterface
 		MempoolQuery            query.MempoolQueryInterface
@@ -4976,7 +4390,6 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
 				Chaintype:               tt.fields.Chaintype,
-				KVExecutor:              tt.fields.KVExecutor,
 				QueryExecutor:           tt.fields.QueryExecutor,
 				BlockQuery:              tt.fields.BlockQuery,
 				MempoolQuery:            tt.fields.MempoolQuery,
@@ -5013,7 +4426,7 @@ type (
 	}
 )
 
-func (mRu *mockReceiptUtil) GetSignedBatchReceiptBytes(receipt *model.BatchReceipt) []byte {
+func (mRu *mockReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte {
 	if mRu.resSignetBytes != nil {
 		return mRu.resSignetBytes
 	}
@@ -5040,9 +4453,7 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 		PublishedReceipts: mockPublishedReceipt,
 	}
 	type fields struct {
-		RWMutex                     sync.RWMutex
 		Chaintype                   chaintype.ChainType
-		KVExecutor                  kvdb.KVExecutorInterface
 		QueryExecutor               query.ExecutorInterface
 		BlockQuery                  query.BlockQueryInterface
 		MempoolQuery                query.MempoolQueryInterface
@@ -5112,9 +4523,7 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &BlockService{
-				RWMutex:                     tt.fields.RWMutex,
 				Chaintype:                   tt.fields.Chaintype,
-				KVExecutor:                  tt.fields.KVExecutor,
 				QueryExecutor:               tt.fields.QueryExecutor,
 				BlockQuery:                  tt.fields.BlockQuery,
 				MempoolQuery:                tt.fields.MempoolQuery,

@@ -69,25 +69,25 @@ type (
 )
 
 func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateReceipt(
-	receipt *model.BatchReceipt,
+	_ *model.Receipt,
 ) error {
 	return errors.New("mockedError")
 }
 
 func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateReceipt(
-	receipt *model.BatchReceipt,
+	_ *model.Receipt,
 ) error {
 	return nil
 }
 
 func (*mockProcessPublishedReceiptPublishedReceiptUtilFail) InsertPublishedReceipt(
-	publishedReceipt *model.PublishedReceipt, tx bool,
+	_ *model.PublishedReceipt, _ bool,
 ) error {
 	return errors.New("mockedError")
 }
 
 func (*mockProcessPublishedReceiptPublishedReceiptUtilSuccess) InsertPublishedReceipt(
-	publishedReceipt *model.PublishedReceipt, tx bool,
+	_ *model.PublishedReceipt, _ bool,
 ) error {
 	return nil
 }
@@ -95,7 +95,7 @@ func (*mockProcessPublishedReceiptPublishedReceiptUtilSuccess) InsertPublishedRe
 func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 	dummyPublishedReceipts := []*model.PublishedReceipt{
 		{
-			BatchReceipt: &model.BatchReceipt{},
+			Receipt: &model.Receipt{},
 		},
 	}
 	type fields struct {
