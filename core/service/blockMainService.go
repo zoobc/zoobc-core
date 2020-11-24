@@ -1488,8 +1488,19 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
-	block := lastBlock
+	var (
+		poppedBlocks      []*model.Block
+		publishedReceipts []*model.PublishedReceipt
+		block             = lastBlock
+	)
+	// TODO:
+	// Need to refactor this codes with better solution in the future
+	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
+	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.PublishedReceipts = publishedReceipts
 
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
