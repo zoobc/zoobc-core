@@ -382,27 +382,6 @@ func initiateMainInstance() {
 		scrambleNodeStorage,
 	)
 
-	receiptService = service.NewReceiptService(
-		query.NewBatchReceiptQuery(),
-		query.NewMerkleTreeQuery(),
-		query.NewNodeRegistrationQuery(),
-		query.NewBlockQuery(mainchain),
-		query.NewTransactionQuery(mainchain),
-		queryExecutor,
-		nodeRegistrationService,
-		crypto.NewSignature(),
-		query.NewPublishedReceiptQuery(),
-		receiptUtil,
-		mainBlockStateStorage,
-		provedReceiptReminderStorage,
-		batchReceiptCacheStorage,
-		scrambleNodeService,
-		nodeConfigurationService,
-		mainBlocksStorage,
-		receiptBatchStorage,
-		crypto.NewRandomNumberGenerator(),
-	)
-
 	spineBlockManifestService = service.NewSpineBlockManifestService(
 		queryExecutor,
 		query.NewSpineBlockManifestQuery(),
@@ -468,19 +447,6 @@ func initiateMainInstance() {
 		query.NewPublishedReceiptQuery(),
 		queryExecutor,
 	)
-	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
-		query.NewPublishedReceiptQuery(),
-		query.NewBlockQuery(mainchain),
-		receiptUtil,
-		mainchainPublishedReceiptUtil,
-		receiptService,
-		queryExecutor,
-		scrambleNodeService,
-		nodeRegistrationService,
-		nodeConfigurationService,
-		provedReceiptReminderStorage,
-		mainBlocksStorage,
-	)
 	transactionCoreServiceIns = service.NewTransactionCoreService(
 		loggerCoreService,
 		queryExecutor,
@@ -489,6 +455,41 @@ func initiateMainInstance() {
 		query.NewTransactionQuery(mainchain),
 		query.NewEscrowTransactionQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
+	)
+	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
+		query.NewPublishedReceiptQuery(),
+		query.NewBlockQuery(mainchain),
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		receiptService,
+		queryExecutor,
+		transactionCoreServiceIns,
+		scrambleNodeService,
+		nodeRegistrationService,
+		nodeConfigurationService,
+		provedReceiptReminderStorage,
+		mainBlocksStorage,
+	)
+
+	receiptService = service.NewReceiptService(
+		query.NewBatchReceiptQuery(),
+		query.NewMerkleTreeQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(mainchain),
+		queryExecutor,
+		transactionCoreServiceIns,
+		nodeRegistrationService,
+		crypto.NewSignature(),
+		query.NewPublishedReceiptQuery(),
+		receiptUtil,
+		mainBlockStateStorage,
+		provedReceiptReminderStorage,
+		batchReceiptCacheStorage,
+		scrambleNodeService,
+		nodeConfigurationService,
+		mainBlocksStorage,
+		receiptBatchStorage,
+		crypto.NewRandomNumberGenerator(),
 	)
 	pendingTransactionServiceIns = service.NewPendingTransactionService(
 		loggerCoreService,

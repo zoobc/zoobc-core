@@ -279,7 +279,7 @@ func (ps *PriorityStrategy) ValidatePriorityPeer(scrambledNodes *model.Scrambled
 		if host.GetID() == 0 || peer.GetID() == 0 {
 			return false
 		}
-		priorityPeers, err := p2pUtil.GetPriorityPeersByNodeID(host.GetID(), scrambledNodes)
+		priorityPeers, _, err := p2pUtil.GetPriorityPeersByNodeID(host.GetID(), scrambledNodes)
 		if err != nil {
 			return false
 		}

@@ -126,50 +126,16 @@ func GetStartIndexPriorityPeer(
 }
 
 // GetPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
-func GetPriorityPeersByNodeID(
-	senderPeerID int64,
-	scrambledNodes *model.ScrambledNodes,
-) (map[string]*model.Peer, error) {
-	var (
-		priorityPeers = make(map[string]*model.Peer)
-		nodeIDStr     = fmt.Sprintf("%d", senderPeerID)
-	)
-	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
-	if hostIndex == nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
-	}
-	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
-	addedPosition := 0
-	for addedPosition < constant.PriorityStrategyMaxPriorityPeers {
-		var (
-			peersPosition = (startPeers + addedPosition + 1) % (len(scrambledNodes.IndexNodes))
-			peer          = scrambledNodes.AddressNodes[peersPosition]
-			peerIDStr     = fmt.Sprintf("%d", peer.GetInfo().ID)
-		)
-		if priorityPeers[peerIDStr] != nil {
-			break
-		}
-		if peerIDStr != nodeIDStr {
-			priorityPeers[peerIDStr] = peer
-		}
-		addedPosition++
-	}
-	return priorityPeers, nil
-}
-
-// GetSortedPriorityPeersByNodeID extract a list of scrambled nodes by nodeID
-func GetSortedPriorityPeersByNodeID(
-	senderPeerID int64,
-	scrambledNodes *model.ScrambledNodes,
-) ([]*model.Peer, error) {
+func GetPriorityPeersByNodeID(senderPeerID int64, scrambledNodes *model.ScrambledNodes) (map[string]*model.Peer, []*model.Peer, error) {
 	var (
 		priorityPeers       = make(map[string]*model.Peer)
 		sortedPriorityPeers = make([]*model.Peer, 0)
-		nodeIDStr           = fmt.Sprintf("%d", senderPeerID)
+
+		nodeIDStr = fmt.Sprintf("%d", senderPeerID)
 	)
 	hostIndex := scrambledNodes.IndexNodes[nodeIDStr]
 	if hostIndex == nil {
-		return nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
+		return nil, nil, blocker.NewBlocker(blocker.ValidationErr, "senderNotInScrambledList")
 	}
 	startPeers := GetStartIndexPriorityPeer(*hostIndex, scrambledNodes)
 	addedPosition := 0
@@ -188,7 +154,7 @@ func GetSortedPriorityPeersByNodeID(
 		}
 		addedPosition++
 	}
-	return sortedPriorityPeers, nil
+	return priorityPeers, sortedPriorityPeers, nil
 }
 
 func CheckPeerCompatibility(host, peer *model.Node) error {

@@ -76,7 +76,7 @@ func Commands() map[string]*cobra.Command {
 
 func getPriorityPeers() map[string]*model.Peer {
 	scrambledNodes := getScrambledNodesAtHeight()
-	peers, err := p2pUtil.GetPriorityPeersByNodeID(
+	peers, _, err := p2pUtil.GetPriorityPeersByNodeID(
 		senderPeerID,
 		scrambledNodes,
 	)

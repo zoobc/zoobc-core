@@ -2,7 +2,9 @@ package service
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -26,6 +28,7 @@ type (
 		PublishedReceiptUtil         util.PublishedReceiptUtilInterface
 		ReceiptService               ReceiptServiceInterface
 		QueryExecutor                query.ExecutorInterface
+		TransactionCoreService       TransactionCoreServiceInterface
 		ScrambleNodeService          ScrambleNodeServiceInterface
 		NodeRegistrationService      NodeRegistrationServiceInterface
 		NodeConfigurationService     NodeConfigurationServiceInterface
@@ -41,6 +44,7 @@ func NewPublishedReceiptService(
 	publishedReceiptUtil util.PublishedReceiptUtilInterface,
 	receiptService ReceiptServiceInterface,
 	queryExecutor query.ExecutorInterface,
+	transactionCoreService TransactionCoreServiceInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	nodeConfigurationService NodeConfigurationServiceInterface,
@@ -54,6 +58,7 @@ func NewPublishedReceiptService(
 		PublishedReceiptUtil:         publishedReceiptUtil,
 		ReceiptService:               receiptService,
 		QueryExecutor:                queryExecutor,
+		TransactionCoreService:       transactionCoreService,
 		ScrambleNodeService:          scrambleNodeService,
 		NodeRegistrationService:      nodeRegistrationService,
 		NodeConfigurationService:     nodeConfigurationService,
@@ -63,7 +68,7 @@ func NewPublishedReceiptService(
 }
 
 // ProcessPublishedReceipts takes published receipts in a block and validate
-// them, this function will run in a db transaction so ensure
+// them, this function will run in a db transaction to ensure
 // queryExecutor.Begin() is called before calling this function.
 func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error) {
 	var (
@@ -81,7 +86,10 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 	if err != nil {
 		return linkedCount, err
 	}
-	blocksmithPriority, err := util2.GetPriorityPeersByNodeID(blocksmithNodeRegistry.GetNodeID(), scrambleAtReceiptHeight)
+	blocksmithPriority, blocksmithSortedPriority, err := util2.GetPriorityPeersByNodeID(
+		blocksmithNodeRegistry.GetNodeID(),
+		scrambleAtReceiptHeight,
+	)
 	if err != nil {
 		return linkedCount, err
 	}
@@ -134,6 +142,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		leafRandomNumber := rng.Next()
 		rcCopy := *rc
 		if ps.ReceiptService.IsProvedReceiptEmpty(rc) {
+			// node doesn't publish receipt for this slot, skipping
 			continue
 		}
 		// validation...
@@ -142,12 +151,12 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		if err != nil {
 			return linkedCount, err
 		}
-		txsAtHeight, err := fetchTxsByBlockID(blockAtHeight.ID)
+		txsAtHeight, err := ps.TransactionCoreService.GetTransactionsByBlockID(blockAtHeight.ID)
 		if err != nil {
 			return linkedCount, err
 		}
 		itemIndex := rng.ConvertRandomNumberToIndex(rdNumItemIndex, int64(len(txsAtHeight)+1))
-		// pick receipt and fetch its intermediate hashes
+		// pick the right data hash of the receipt based on `itemIndex` value
 		var (
 			itemHash []byte
 		)
@@ -156,14 +165,44 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
-
-		merkleItems, err := fetchReceiptsFromMerkleAndHash(rc.GetReceipt(), itemHash)
+		if !bytes.Equal(rc.GetReceipt().GetDatumHash(), itemHash) {
+			// node does not publish the expected receipt, stop receipt validation, block has invalid proved receipt
+			return 0, blocker.NewBlocker(blocker.ValidationErr, "ProcessPublishReceipt:InvalidReceiptHashPublished")
+		}
+		recipientIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, 0)
+		if int(recipientIndex) >= len(blocksmithSortedPriority) {
+			return 0, blocker.NewBlocker(
+				blocker.ValidationErr,
+				fmt.Sprintf("ProcessPublishReceipt:InvalidReceiptRecipient-IndexOutOfRange-index=%d-priorityPeerLength=%d",
+					recipientIndex,
+					len(blocksmithSortedPriority),
+				),
+			)
+		}
+		if !bytes.Equal(
+			rc.GetReceipt().GetRecipientPublicKey(),
+			blocksmithSortedPriority[recipientIndex].GetInfo().GetPublicKey(),
+		) {
+			// looking for which receipt included, -1 means no matching recipient
+			var getIndex = -1
+			for i, peer := range blocksmithSortedPriority {
+				if bytes.Equal(peer.GetInfo().GetPublicKey(), rc.GetReceipt().GetRecipientPublicKey()) {
+					getIndex = i
+					break
+				}
+			}
+			fmt.Sprintf("ProcessPublishReceipt:InvalidReceiptRecipient-expect:index=%d-pk=%s-get:index=%d:pk=%s",
+				recipientIndex, hex.EncodeToString(blocksmithSortedPriority[recipientIndex].GetInfo().GetPublicKey()),
+				getIndex, hex.EncodeToString(rc.GetReceipt().GetRecipientPublicKey()),
+			)
+		}
+		// check if receipt come from expected recipient based on `
 		// todo
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,
 		// it's different with receiptIndex which is used to validate merkle root.
 		rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
-		err := ps.PublishedReceiptUtil.InsertPublishedReceipt(&rcCopy, true)
+		err = ps.PublishedReceiptUtil.InsertPublishedReceipt(&rcCopy, true)
 		if err != nil {
 			return 0, err
 		}

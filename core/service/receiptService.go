@@ -49,6 +49,7 @@ type (
 		ClearCache()
 		SaveReceiptAndMerkle(receiptBatchObject storage.ReceiptBatchObject) error
 		GetReceiptFromPool(payloadHash []byte) ([]model.Receipt, error)
+		GetReceipByRootAndDatumHash(merkleRoot []byte, datumHash []byte) ([]*model.BatchReceipt, error)
 		IsProvedReceiptEmpty(receipt *model.PublishedReceipt) bool
 	}
 
@@ -57,8 +58,8 @@ type (
 		MerkleTreeQuery              query.MerkleTreeQueryInterface
 		NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 		BlockQuery                   query.BlockQueryInterface
-		TransactionQuery             query.TransactionQueryInterface
 		QueryExecutor                query.ExecutorInterface
+		TransactionCoreService       TransactionCoreServiceInterface
 		NodeRegistrationService      NodeRegistrationServiceInterface
 		NodeConfigurationService     NodeConfigurationServiceInterface
 		Signature                    crypto.SignatureInterface
@@ -81,8 +82,8 @@ func NewReceiptService(
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	nodeRegistrationQuery query.NodeRegistrationQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	transactionQuery query.TransactionQueryInterface,
 	queryExecutor query.ExecutorInterface,
+	transactionCoreService TransactionCoreServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
@@ -98,8 +99,8 @@ func NewReceiptService(
 		MerkleTreeQuery:              merkleTreeQuery,
 		NodeRegistrationQuery:        nodeRegistrationQuery,
 		BlockQuery:                   blockQuery,
-		TransactionQuery:             transactionQuery,
 		QueryExecutor:                queryExecutor,
+		TransactionCoreService:       transactionCoreService,
 		NodeRegistrationService:      nodeRegistrationService,
 		Signature:                    signature,
 		PublishedReceiptQuery:        publishedReceiptQuery,
@@ -128,6 +129,22 @@ func (rs *ReceiptService) Initialize() error {
 	}
 	rs.LastMerkleRoot = lastMerkleRoot
 	return nil
+}
+
+func (rs *ReceiptService) GetReceipByRootAndDatumHash(merkleRoot []byte, datumHash []byte) ([]*model.BatchReceipt, error) {
+	var (
+		batchReceipts = make([]*model.BatchReceipt, 0)
+		err           error
+	)
+	// fetch batch_receipt where merkle_root == provedReceiptRO.MerkleRoot
+	qry, args := rs.BatchReceiptQuery.GetReceiptByRootAndDatumHash(merkleRoot, datumHash)
+
+	rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return batchReceipts, err
+	}
+	defer rows.Close()
+	return rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
 }
 
 func (rs *ReceiptService) getFreeReceipts(previousBlock *model.Block, currentBlockSeed []byte) ([]*model.PublishedReceipt, error) {
@@ -210,22 +227,6 @@ func (rs *ReceiptService) getProvedReceipts(
 		)
 	}
 
-	fetchReceiptsFromMerkleAndHash := func(merkleRoot []byte, datumHash []byte) ([]*model.BatchReceipt, error) {
-		var (
-			batchReceipts = make([]*model.BatchReceipt, 0)
-			err           error
-		)
-		// fetch batch_receipt where merkle_root == provedReceiptRO.MerkleRoot
-		qry, args := rs.BatchReceiptQuery.GetReceiptByRootAndDatumHash(merkleRoot, datumHash)
-
-		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			return batchReceipts, err
-		}
-		defer rows.Close()
-		return rs.BatchReceiptQuery.BuildModel(batchReceipts, rows)
-
-	}
 	fetchMerkleTree := func(merkleRoot []byte) ([]byte, error) {
 		root, args := rs.MerkleTreeQuery.GetMerkleTreeByRoot(merkleRoot)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(root, false, args...)
@@ -233,19 +234,6 @@ func (rs *ReceiptService) getProvedReceipts(
 			return nil, err
 		}
 		return rs.MerkleTreeQuery.ScanTree(row)
-	}
-	fetchTxsByBlockID := func(blockID int64) ([]*model.Transaction, error) {
-		var (
-			txs = make([]*model.Transaction, 0)
-		)
-		qry, args := rs.TransactionQuery.GetTransactionsByBlockID(blockID)
-		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
-		if err != nil {
-			// todo: Error log
-			return txs, err
-		}
-		defer rows.Close()
-		return rs.TransactionQuery.BuildModel(txs, rows)
 	}
 	rng := crypto.NewRandomNumberGenerator()
 	rng.Reset(constant.BlocksmithSelectionProvedReceiptSeedPrefix, currentBlockSeed)
@@ -282,7 +270,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		txsAtHeight, err := fetchTxsByBlockID(blockAtHeight.ID)
+		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockID(blockAtHeight.ID)
 		if err != nil {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -298,7 +286,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
 
-		merkleItems, err := fetchReceiptsFromMerkleAndHash(provedReceiptRO.MerkleRoot, itemHash)
+		merkleItems, err := rs.GetReceipByRootAndDatumHash(provedReceiptRO.MerkleRoot, itemHash)
 		if err != nil {
 			// log error
 			fmt.Printf("%v", err)
@@ -310,13 +298,13 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		priorityAtHeight, err := p2pUtil.GetSortedPriorityPeersByNodeID(hostID, scrambleAtHeight)
+		_, sortedPriorityAtHeight, err := p2pUtil.GetPriorityPeersByNodeID(hostID, scrambleAtHeight)
 		if err != nil {
 			fmt.Printf("%v", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(len(priorityAtHeight)))
+		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(len(sortedPriorityAtHeight)))
 		if int(receiverIndex) >= len(merkleItems) {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -565,7 +553,7 @@ func (rs *ReceiptService) validateReceiptSenderRecipient(
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
 	}
-	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
+	if peers, _, err = p2pUtil.GetPriorityPeersByNodeID(
 		senderNodeID,
 		scrambledNode,
 	); err != nil {
