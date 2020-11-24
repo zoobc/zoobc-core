@@ -709,16 +709,17 @@ func GenerateTXMultiSignature(
 				log.Fatal(err)
 			}
 			multiSignatureInfo.Addresses = append(multiSignatureInfo.GetAddresses(), multiSignatureAddress)
-
 			// KeyFormat: [AccountType][MultiSignatureInfoHashLen][MultiSignatureInfoHash]
 			signatureInfoKey = bytes.NewBuffer(util.ConvertUint32ToBytes(uint32(model.AccountType_MultiSignatureAccountType)))
 			signatureInfoKey.Write(util.ConvertUint32ToBytes(uint32(len(multiSignatureInfoHash))))
 			signatureInfoKey.Write(multiSignatureInfoHash)
 
-			// ValueFormat: [NumberOfSignatures][Signature][...]
-			signatureInfoValue = bytes.NewBuffer(util.ConvertUint32ToBytes(uint32(len(signatureInfoKeyAsMusig.GetAddresses()))))
-			signatureInfoValue.Write(signatures[hex.EncodeToString(multiSignatureInfo.GetAddresses()[i])])
-			signatureInfoValue.Write(signatures[hex.EncodeToString(multiSignatureInfo.GetAddresses()[i+1])])
+			// ValueFormat: [[LenSignature][Signature]][...]
+			signatureInfoValue = bytes.NewBuffer([]byte{})
+			signatureInfoValue.Write(util.ConvertUint32ToBytes(uint32(len(signatures[hex.EncodeToString(signatureInfoKeyAsMusig.GetAddresses()[0])]))))
+			signatureInfoValue.Write(signatures[hex.EncodeToString(signatureInfoKeyAsMusig.GetAddresses()[0])])
+			signatureInfoValue.Write(util.ConvertUint32ToBytes(uint32(len(signatures[hex.EncodeToString(signatureInfoKeyAsMusig.GetAddresses()[1])]))))
+			signatureInfoValue.Write(signatures[hex.EncodeToString(signatureInfoKeyAsMusig.GetAddresses()[1])])
 			signatures[hex.EncodeToString(signatureInfoKey.Bytes())] = signatureInfoValue.Bytes()
 		}
 	}

@@ -456,6 +456,14 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 					BlockHeight:     tx.Height,
 					Latest:          true,
 				}
+				if tx.Body.GetMultiSignatureInfo() != nil {
+					_, musigAddress, e := tx.TransactionUtil.GenerateMultiSigAddress(tx.Body.GetMultiSignatureInfo())
+					if e != nil {
+						return err
+					}
+					pendingSig.MultiSignatureAddress = musigAddress
+				}
+
 				err = tx.SignatureInfoHelper.InsertPendingSignature(pendingSig)
 				if err != nil {
 					return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -621,7 +629,6 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 		}
 	}
 	if body.GetSignatureInfo() != nil {
-		// TODO: MultiSignature Need to check already have MultiSignatureInfo
 
 		var (
 			pendingTX model.PendingTransaction

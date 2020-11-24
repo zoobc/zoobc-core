@@ -3,9 +3,9 @@ package query
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"strings"
 
+	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -34,6 +34,7 @@ func NewPendingSignatureQuery() *PendingSignatureQuery {
 		Fields: []string{
 			"transaction_hash",
 			"account_address",
+			"multisig_address",
 			"signature",
 			"block_height",
 			"latest",
@@ -148,6 +149,7 @@ func (psq *PendingSignatureQuery) RecalibrateVersionedTable() []string {
 func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.Row) error {
 	err := row.Scan(
 		&pendingSig.TransactionHash,
+		&pendingSig.MultiSignatureAddress,
 		&pendingSig.AccountAddress,
 		&pendingSig.Signature,
 		&pendingSig.BlockHeight,
@@ -159,6 +161,7 @@ func (*PendingSignatureQuery) Scan(pendingSig *model.PendingSignature, row *sql.
 func (*PendingSignatureQuery) ExtractModel(pendingSig *model.PendingSignature) []interface{} {
 	return []interface{}{
 		&pendingSig.TransactionHash,
+		&pendingSig.MultiSignatureAddress,
 		&pendingSig.AccountAddress,
 		&pendingSig.Signature,
 		&pendingSig.BlockHeight,
@@ -173,6 +176,7 @@ func (psq *PendingSignatureQuery) BuildModel(
 		var pendingSig model.PendingSignature
 		err := rows.Scan(
 			&pendingSig.TransactionHash,
+			&pendingSig.MultiSignatureAddress,
 			&pendingSig.AccountAddress,
 			&pendingSig.Signature,
 			&pendingSig.BlockHeight,

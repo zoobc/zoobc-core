@@ -45,7 +45,8 @@ type (
 			multisignatureInfoHelper MultisignatureInfoHelperInterface,
 			signatureInfoHelper SignatureInfoHelperInterface,
 			pendingTransactionHelper PendingTransactionHelperInterface,
-			tx *model.MultiSignatureTransactionBody, txHeight uint32,
+			body *model.MultiSignatureTransactionBody,
+			txHeight uint32,
 		) ([]*model.MultiSignatureTransactionBody, error)
 		ValidatePendingTransactionBytes(
 			transactionUtil UtilInterface,
@@ -410,7 +411,7 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash []b
 		accType accounttype.AccountTypeInterface
 	)
 	buff.Write(util.ConvertUint32ToBytes(info.GetMinimumSignatures()))
-	buff.Write(util.ConvertIntToBytes(int(info.GetNonce())))
+	buff.Write(util.ConvertUint64ToBytes(uint64(info.GetNonce())))
 	buff.Write(util.ConvertUint32ToBytes(uint32(len(info.GetAddresses()))))
 	for _, add := range info.GetAddresses() {
 		buff.Write(add)
@@ -422,7 +423,7 @@ func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash []b
 	}
 
 	addr, err = accType.GetAccountAddress()
-	return hashed[:], addr, err
+	return buff.Bytes(), addr, err
 
 }
 
@@ -578,215 +579,53 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 	multisignatureInfoHelper MultisignatureInfoHelperInterface,
 	signatureInfoHelper SignatureInfoHelperInterface,
 	pendingTransactionHelper PendingTransactionHelperInterface,
-	body *model.MultiSignatureTransactionBody, txHeight uint32,
+	body *model.MultiSignatureTransactionBody,
+	txHeight uint32,
 ) ([]*model.MultiSignatureTransactionBody, error) {
-	if body.MultiSignatureInfo != nil {
-		var (
-			pendingTxs   []*model.PendingTransaction
-			dbPendingTxs []*model.PendingTransaction
-		)
-		multisigAddress := body.MultiSignatureInfo.MultisigAddress
-		if len(body.UnsignedTransactionBytes) > 0 {
-			txHash := sha3.Sum256(body.UnsignedTransactionBytes)
-			pendingTxs = append(pendingTxs, &model.PendingTransaction{
-				TransactionHash:  txHash[:],
-				TransactionBytes: body.UnsignedTransactionBytes,
-				Status:           model.PendingTransactionStatus_PendingTransactionPending,
-				BlockHeight:      txHeight,
-			})
-		}
-		dbPendingTxs, err := pendingTransactionHelper.GetPendingTransactionBySenderAddress(multisigAddress, txHeight)
-		if err != nil {
-			return nil, err
-		}
+	var (
+		multiSignatureInfo       = body.GetMultiSignatureInfo()
+		unsignedTransactionBytes = body.GetUnsignedTransactionBytes()
+		signatureInfo            = body.GetSignatureInfo()
+		pendingTransaction       model.PendingTransaction
+		err                      error
+	)
 
-		pendingTxs = append(pendingTxs, dbPendingTxs...)
-		if len(pendingTxs) < 1 {
-			return nil, nil
-		}
-		var readyTxs []*model.MultiSignatureTransactionBody
-		for _, v := range pendingTxs {
-			var (
-				sigInfo               *model.SignatureInfo
-				pendingSigs           []*model.PendingSignature
-				signatures            = make(map[string][]byte)
-				validSignatureCounter uint32
+	if multiSignatureInfo == nil {
+		if len(unsignedTransactionBytes) != 0 {
+			var innerTX *model.Transaction
+			innerTX, err = transactionUtil.ParseTransactionBytes(unsignedTransactionBytes, false)
+			if err != nil {
+				return nil, err
+			}
+			err = multisignatureInfoHelper.GetMultisigInfoByAddress(multiSignatureInfo, innerTX.GetSenderAccountAddress(), txHeight)
+			if err != nil {
+				// No need to check via pending transaction anymore
+				return nil, err
+			}
+		} else if signatureInfo != nil {
+			// signatureInfo Should exists
+			err = pendingTransactionHelper.GetPendingTransactionByHash(
+				&pendingTransaction,
+				signatureInfo.GetTransactionHash(),
+				[]model.PendingTransactionStatus{model.PendingTransactionStatus_PendingTransactionPending},
+				txHeight,
+				false,
 			)
-			pendingSigs, err := signatureInfoHelper.GetPendingSignatureByTransactionHash(v.TransactionHash, txHeight)
 			if err != nil {
 				return nil, err
 			}
 
-			for _, sig := range pendingSigs {
-				signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
-			}
-			if body.SignatureInfo != nil {
-				if bytes.Equal(v.TransactionHash, body.SignatureInfo.TransactionHash) {
-					for addr, sig := range body.SignatureInfo.Signatures {
-						signatures[addr] = sig
-					}
-				}
-			}
-			if len(signatures) < 1 {
-				continue
-			}
-			sigInfo = &model.SignatureInfo{
-				TransactionHash: v.TransactionHash,
-				Signatures:      signatures,
-			}
-			for _, addr := range body.MultiSignatureInfo.Addresses {
-				if sigInfo.Signatures[hex.EncodeToString(addr)] != nil {
-					validSignatureCounter++
-				}
-			}
-			if validSignatureCounter >= body.MultiSignatureInfo.MinimumSignatures {
-				// todo: return ready to applyConfirm tx
-				cpTx := &model.MultiSignatureTransactionBody{
-					MultiSignatureInfo:       body.MultiSignatureInfo,
-					UnsignedTransactionBytes: v.TransactionBytes,
-					SignatureInfo:            sigInfo,
-				}
-				readyTxs = append(readyTxs, cpTx)
-			}
-		}
-		return readyTxs, nil
-	} else if len(body.UnsignedTransactionBytes) > 0 {
-		var (
-			multisigInfo          model.MultiSignatureInfo
-			pendingSigs           []*model.PendingSignature
-			validSignatureCounter uint32
-			err                   error
-		)
-		txHash := sha3.Sum256(body.UnsignedTransactionBytes)
-		innerTx, err := transactionUtil.ParseTransactionBytes(body.UnsignedTransactionBytes, false)
-		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.ValidationErr,
-				"FailToParseTransactionBytes",
+			err = multisignatureInfoHelper.GetMultisigInfoByAddress(
+				multiSignatureInfo,
+				pendingTransaction.GetSenderAddress(),
+				txHeight,
 			)
-		}
-		err = multisignatureInfoHelper.GetMultisigInfoByAddress(
-			&multisigInfo,
-			innerTx.SenderAccountAddress,
-			txHeight,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows { // multisig info not present
-				return nil, nil
-			}
-			// other database errors
-			return nil, err
-		}
-		body.MultiSignatureInfo = &multisigInfo
-		if body.SignatureInfo != nil {
-			for addrHex, sig := range body.SignatureInfo.Signatures {
-				decodedAddr, err := hex.DecodeString(addrHex)
-				if err != nil {
-					return nil, blocker.NewBlocker(
-						blocker.AppErr,
-						"InvalidAccountAddress",
-					)
-				}
-				pendingSigs = append(pendingSigs, &model.PendingSignature{
-					TransactionHash: body.SignatureInfo.TransactionHash,
-					AccountAddress:  decodedAddr,
-					Signature:       sig,
-					BlockHeight:     txHeight,
-				})
+			if err != nil {
+				return nil, err
 			}
 		}
-		var dbPendingSigs []*model.PendingSignature
-		dbPendingSigs, err = signatureInfoHelper.GetPendingSignatureByTransactionHash(txHash[:], txHeight)
-		if err != nil {
-			return nil, err
-		}
-
-		pendingSigs = append(pendingSigs, dbPendingSigs...)
-		body.SignatureInfo = &model.SignatureInfo{
-			TransactionHash: txHash[:],
-			Signatures:      make(map[string][]byte),
-		}
-		for _, sig := range pendingSigs {
-			body.SignatureInfo.Signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
-		}
-		if len(body.SignatureInfo.Signatures) < 1 {
-			return nil, nil
-		}
-
-		for _, addr := range multisigInfo.Addresses {
-			if body.SignatureInfo.Signatures[hex.EncodeToString(addr)] != nil {
-				validSignatureCounter++
-			}
-		}
-		if validSignatureCounter >= multisigInfo.MinimumSignatures {
-			return []*model.MultiSignatureTransactionBody{
-				body,
-			}, nil
-		}
-	} else if body.SignatureInfo != nil {
-		var (
-			pendingTx             model.PendingTransaction
-			pendingSigs           []*model.PendingSignature
-			multisigInfo          model.MultiSignatureInfo
-			validSignatureCounter uint32
-			err                   error
-		)
-		txHash := body.SignatureInfo.TransactionHash
-
-		err = pendingTransactionHelper.GetPendingTransactionByHash(
-			&pendingTx,
-			txHash,
-			[]model.PendingTransactionStatus{model.PendingTransactionStatus_PendingTransactionPending},
-			txHeight,
-			true,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, nil
-			}
-			return nil, err
-		}
-		body.UnsignedTransactionBytes = pendingTx.TransactionBytes
-		innerTx, err := transactionUtil.ParseTransactionBytes(body.UnsignedTransactionBytes, false)
-		if err != nil {
-			return nil, blocker.NewBlocker(
-				blocker.ValidationErr,
-				"FailToParseTransactionBytes",
-			)
-		}
-		pendingSigs, err = signatureInfoHelper.GetPendingSignatureByTransactionHash(txHash, txHeight)
-		if err != nil {
-			return nil, err
-		}
-		for _, sig := range pendingSigs {
-			body.SignatureInfo.Signatures[hex.EncodeToString(sig.AccountAddress)] = sig.Signature
-		}
-		err = multisignatureInfoHelper.GetMultisigInfoByAddress(
-			&multisigInfo,
-			innerTx.SenderAccountAddress,
-			txHeight,
-		)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				return nil, nil
-			}
-			return nil, err
-		}
-		// validate signature
-		for _, addr := range multisigInfo.Addresses {
-			if body.SignatureInfo.Signatures[hex.EncodeToString(addr)] != nil {
-				validSignatureCounter++
-			}
-		}
-		if validSignatureCounter >= multisigInfo.MinimumSignatures {
-			cpTx := body
-			cpTx.UnsignedTransactionBytes = pendingTx.TransactionBytes
-			cpTx.MultiSignatureInfo = &multisigInfo
-			return []*model.MultiSignatureTransactionBody{
-				cpTx,
-			}, nil
-		}
-
+	} else {
+		// another case
 	}
 	return nil, nil
 }
@@ -819,8 +658,11 @@ func (mtu *MultisigTransactionUtil) ParseSignatureInfoBytesAsCandidates(
 		prev += multiSigInfoLength
 		m := multiSignatureInfo
 		*multiSignaturesInfo = append(*multiSignaturesInfo, &m)
+
 		for _, participant := range multiSignatureInfo.GetAddresses() {
-			nextValue := util.ConvertBytesToUint32(value[valuePrev:][:constant.MultiSignatureOffchainSignatureLength])
+			nextValue := util.ConvertBytesToUint32(value[int(valuePrev):][:int(constant.MultiSignatureOffchainSignatureLength)])
+			valuePrev += constant.MultiSignatureOffchainSignatureLength
+
 			err = mtu.ParseSignatureInfoBytesAsCandidates(
 				txHash,
 				participant,
@@ -832,24 +674,37 @@ func (mtu *MultisigTransactionUtil) ParseSignatureInfoBytesAsCandidates(
 			if err != nil {
 				return err
 			}
-			valuePrev += constant.MultiSignatureOffchainSignatureLength + nextValue
+			valuePrev += nextValue
 		}
 	} else {
-		// TODO: MultiSignature Can be has an empty signature
 		accType, err = accounttype.NewAccountType(int32(asMultiSigInfo), []byte{})
 		if err != nil {
 			return err
 		}
-
-		*pendingSignatures = append(*pendingSignatures, &model.PendingSignature{
-			AccountAddress:  key[prev:][:accType.GetAccountPublicKeyLength()],
+		pendingSignature := &model.PendingSignature{
+			AccountAddress:  key[prev:][:constant.AccountAddressTypeLength+accType.GetAccountPublicKeyLength()],
 			Signature:       value[valuePrev:][:accType.GetSignatureLength()],
 			TransactionHash: txHash,
 			BlockHeight:     txHeight,
 			Latest:          true,
-		})
-		prev += accType.GetAccountPublicKeyLength()
-		valuePrev += accType.GetSignatureLength()
+		}
+
+		if multiSignaturesInfo != nil {
+			for k, multiSignatureInfo := range *multiSignaturesInfo {
+				if k == 0 {
+					_, musigAddress, e := (&Util{}).GenerateMultiSigAddress(multiSignatureInfo)
+					if e != nil {
+						return e
+					}
+					pendingSignature.MultiSignatureAddress = musigAddress
+					break
+				}
+			}
+		}
+
+		p := pendingSignature
+		*pendingSignatures = append(*pendingSignatures, p)
+
 	}
 	return nil
 }
@@ -878,19 +733,16 @@ func (mtu *MultisigTransactionUtil) ParseMultiSignatureInfoBytes(
 			lenUint := util.ConvertBytesToUint32(buff.Next(int(constant.MultiSigAddressLength)))
 			address = buff.Next(int(lenUint))
 		} else {
-			accType, err = accounttype.ParseBytesToAccountType(buff)
+			accType, err = accounttype.NewAccountType(int32(accTypeUint), []byte{})
 			if err != nil {
 				return err
 			}
-			address, err = accType.GetAccountAddress()
-			if err != nil {
-				return err
-			}
+			address = append(util.ConvertUint32ToBytes(accTypeUint), buff.Next(int(accType.GetAccountPublicKeyLength()))...)
 		}
 		addresses = append(addresses, address)
 	}
 
-	multiSignatureInfo = &model.MultiSignatureInfo{
+	*multiSignatureInfo = model.MultiSignatureInfo{
 		MinimumSignatures: minSignatures,
 		Nonce:             int64(nonce),
 		Addresses:         addresses,
