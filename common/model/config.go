@@ -22,6 +22,7 @@ type (
 		APICertFile, APIKeyFile                                   string
 		DatabaseFileName, ResourcePath,
 		NodeKeyFileName, SnapshotPath string
+		AntiSpamFilter bool
 
 		// validation fields
 		ConfigFileExist bool
@@ -62,6 +63,7 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+	cfg.AntiSpamFilter = viper.GetBool("antiSpamFilter")
 }
 
 func (cfg *Config) SaveConfig(filePath string) error {
@@ -73,6 +75,7 @@ func (cfg *Config) SaveConfig(filePath string) error {
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
 	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
+	viper.Set("antiSpamFilter", cfg.AntiSpamFilter)
 	// todo: code in rush, need refactor later andy-shi88
 	_, err = os.Stat(filepath.Join(filePath, "./config.toml"))
 	if err != nil {
