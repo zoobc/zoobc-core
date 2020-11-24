@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"reflect"
 	"testing"
 
@@ -148,6 +149,7 @@ func TestNewP2PServerService(t *testing.T) {
 		mempoolServices         map[int32]coreService.MempoolServiceInterface
 		nodeSecretPhrase        string
 		observer                *observer.Observer
+		feedbackStrategy        feedbacksystem.FeedbackStrategyInterface
 	}
 	tests := []struct {
 		name string
@@ -164,11 +166,13 @@ func TestNewP2PServerService(t *testing.T) {
 				mempoolServices:         make(map[int32]coreService.MempoolServiceInterface),
 				nodeSecretPhrase:        "",
 				observer:                nil,
+				feedbackStrategy:        &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			want: &P2PServerService{
 				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
 				MempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
 				NodeSecretPhrase: "",
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 		},
 	}
@@ -178,7 +182,10 @@ func TestNewP2PServerService(t *testing.T) {
 				nil, tt.args.peerExplorer,
 				tt.args.blockServices,
 				tt.args.mempoolServices,
-				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
+				tt.args.nodeSecretPhrase,
+				tt.args.observer,
+				tt.args.feedbackStrategy,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1355,6 +1362,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase string
 		Observer         *observer.Observer
+		FeedbackStrategy feedbacksystem.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx              context.Context
@@ -1372,7 +1380,8 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:ValidateRequest",
 			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategyValidateRequestFail{},
+				PeerExplorer:     &mockPeerExplorerStrategyValidateRequestFail{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args:    args{},
 			want:    nil,
@@ -1381,8 +1390,9 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:InvalidChainType_BlockService",
 			fields: fields{
-				PeerExplorer:  &mockPeerExplorerStrategySuccess{},
-				BlockServices: map[int32]coreService.BlockServiceInterface{},
+				PeerExplorer:     &mockPeerExplorerStrategySuccess{},
+				BlockServices:    map[int32]coreService.BlockServiceInterface{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1398,6 +1408,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceGetLastBlockFail{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1413,7 +1424,8 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceSuccess{},
 				},
-				MempoolServices: map[int32]coreService.MempoolServiceInterface{},
+				MempoolServices:  map[int32]coreService.MempoolServiceInterface{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1432,6 +1444,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceReceivedTransactionFail{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1450,6 +1463,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceSuccess{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1470,6 +1484,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices:  tt.fields.MempoolServices,
 				NodeSecretPhrase: tt.fields.NodeSecretPhrase,
 				Observer:         tt.fields.Observer,
+				FeedbackStrategy: tt.fields.FeedbackStrategy,
 			}
 			got, err := ps.SendTransaction(tt.args.ctx, tt.args.chainType, tt.args.transactionBytes, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {

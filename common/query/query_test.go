@@ -43,6 +43,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewMultiSignatureParticipantQuery(),
 				NewBatchReceiptQuery(),
 				NewAtomicTransactionQuery(),
+				NewMerkleTreeQuery(),
 			},
 		},
 		{

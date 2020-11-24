@@ -8,14 +8,14 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/storage"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -222,6 +222,8 @@ func TestNewTransactionService(t *testing.T) {
 				nil,
 				nil,
 				transactionUtil,
+				nil,
+				nil,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewTransactionService() = %v, want %v", got, tt.want)
 			}
@@ -327,6 +329,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		Log                *logrus.Logger
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
 	}
 	type args struct {
 		chaintype chaintype.ChainType
@@ -346,6 +349,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -366,6 +370,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -386,6 +391,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -406,6 +412,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -426,6 +433,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -446,6 +454,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -466,6 +475,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -486,6 +496,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -507,6 +518,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -530,6 +542,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				TransactionUtil: &transaction.Util{
 					MempoolCacheStorage: &mockCacheStorageAlwaysSuccess{},
 				},
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			args: args{
 				chaintype: &chaintype.MainChain{},
@@ -549,6 +562,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 				MempoolService:     tt.fields.MempoolService,
 				Observer:           tt.fields.Observer,
 				TransactionUtil:    tt.fields.TransactionUtil,
+				FeedbackStrategy:   tt.fields.FeedbackStrategy,
 			}
 			got, err := ts.PostTransaction(tt.args.chaintype, tt.args.req)
 			if (err != nil) != tt.wantErr {
