@@ -286,7 +286,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 	if err != nil {
 		return err
 	}
-	// Apply Unconfirmed // todo-fuck: finding #1
+	// Apply Unconfirmed
 	err = fp.QueryExecutor.BeginTx()
 	if err != nil {
 		return err

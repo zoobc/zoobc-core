@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"reflect"
 	"testing"
 
@@ -75,6 +76,9 @@ type (
 	mockBlockServiceGetLastBlockFailed struct {
 		coreService.BlockService
 	}
+	mockBlockServiceGetLastBlockCacheFormatFailed struct {
+		coreService.BlockService
+	}
 
 	mockNodeConfigurationService struct {
 		coreService.NodeConfigurationServiceInterface
@@ -128,6 +132,10 @@ func (*mockBlockServiceGetLastBlockFailed) GetLastBlock() (*model.Block, error) 
 	return nil, errors.New("mock Error")
 }
 
+func (*mockBlockServiceGetLastBlockCacheFormatFailed) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return nil, errors.New("mock Error")
+}
+
 func (*mockNodeConfigurationService) GetHost() *model.Host {
 	return &model.Host{Info: &mockNode}
 }
@@ -141,6 +149,7 @@ func TestNewP2PServerService(t *testing.T) {
 		mempoolServices         map[int32]coreService.MempoolServiceInterface
 		nodeSecretPhrase        string
 		observer                *observer.Observer
+		feedbackStrategy        feedbacksystem.FeedbackStrategyInterface
 	}
 	tests := []struct {
 		name string
@@ -157,11 +166,13 @@ func TestNewP2PServerService(t *testing.T) {
 				mempoolServices:         make(map[int32]coreService.MempoolServiceInterface),
 				nodeSecretPhrase:        "",
 				observer:                nil,
+				feedbackStrategy:        &feedbacksystem.DummyFeedbackStrategy{},
 			},
 			want: &P2PServerService{
 				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
 				MempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
 				NodeSecretPhrase: "",
+				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
 			},
 		},
 	}
@@ -171,7 +182,10 @@ func TestNewP2PServerService(t *testing.T) {
 				nil, tt.args.peerExplorer,
 				tt.args.blockServices,
 				tt.args.mempoolServices,
-				tt.args.nodeSecretPhrase, tt.args.observer); !reflect.DeepEqual(got, tt.want) {
+				tt.args.nodeSecretPhrase,
+				tt.args.observer,
+				tt.args.feedbackStrategy,
+			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
 		})
@@ -526,8 +540,13 @@ var (
 	}
 )
 
-func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
-	return &mockBlock, nil
+func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		Timestamp: mockBlock.Timestamp,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
 	switch id {
@@ -542,12 +561,22 @@ func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByID(id int64,
 	}
 }
 
-func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByHeight(blockHeight uint32) (*model.Block, error) {
+func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByHeightCacheFormat(blockHeight uint32) (*storage.BlockCacheObject, error) {
 	switch blockHeight {
 	case mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.GetHeight():
-		return &mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight, nil
+		return &storage.BlockCacheObject{
+			ID:        mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.ID,
+			Height:    mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.Height,
+			Timestamp: mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.Timestamp,
+			BlockHash: mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight.BlockHash,
+		}, nil
 	case mockGetCommonMilestoneBlockIDsGenesisBlock.GetHeight():
-		return &mockGetCommonMilestoneBlockIDsGenesisBlock, nil
+		return &storage.BlockCacheObject{
+			ID:        mockGetCommonMilestoneBlockIDsGenesisBlock.ID,
+			Height:    mockGetCommonMilestoneBlockIDsGenesisBlock.Height,
+			Timestamp: mockGetCommonMilestoneBlockIDsGenesisBlock.Timestamp,
+			BlockHash: mockGetCommonMilestoneBlockIDsGenesisBlock.BlockHash,
+		}, nil
 	default:
 		return nil, errors.New("mock Error")
 	}
@@ -620,7 +649,7 @@ func TestP2PServerService_GetCommonMilestoneBlockIDs(t *testing.T) {
 			fields: fields{
 				PeerExplorer: &mockPeerExplorerStrategySuccess{},
 				BlockServices: map[int32]coreService.BlockServiceInterface{
-					mockChainType.GetTypeInt(): &mockBlockServiceGetLastBlockFailed{},
+					mockChainType.GetTypeInt(): &mockBlockServiceGetLastBlockCacheFormatFailed{},
 				},
 			},
 			args: args{
@@ -1337,6 +1366,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		MempoolServices  map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase string
 		Observer         *observer.Observer
+		FeedbackStrategy feedbacksystem.FeedbackStrategyInterface
 	}
 	type args struct {
 		ctx              context.Context
@@ -1354,7 +1384,8 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:ValidateRequest",
 			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategyValidateRequestFail{},
+				PeerExplorer:     &mockPeerExplorerStrategyValidateRequestFail{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args:    args{},
 			want:    nil,
@@ -1363,8 +1394,9 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:InvalidChainType_BlockService",
 			fields: fields{
-				PeerExplorer:  &mockPeerExplorerStrategySuccess{},
-				BlockServices: map[int32]coreService.BlockServiceInterface{},
+				PeerExplorer:     &mockPeerExplorerStrategySuccess{},
+				BlockServices:    map[int32]coreService.BlockServiceInterface{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1380,6 +1412,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceGetLastBlockFail{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1395,7 +1428,8 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceSuccess{},
 				},
-				MempoolServices: map[int32]coreService.MempoolServiceInterface{},
+				MempoolServices:  map[int32]coreService.MempoolServiceInterface{},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1414,6 +1448,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceReceivedTransactionFail{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1432,6 +1467,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceSuccess{},
 				},
+				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1452,6 +1488,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices:  tt.fields.MempoolServices,
 				NodeSecretPhrase: tt.fields.NodeSecretPhrase,
 				Observer:         tt.fields.Observer,
+				FeedbackStrategy: tt.fields.FeedbackStrategy,
 			}
 			got, err := ps.SendTransaction(tt.args.ctx, tt.args.chainType, tt.args.transactionBytes, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {

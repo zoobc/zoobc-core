@@ -30,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -111,6 +112,7 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
 	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
 	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
@@ -250,9 +252,20 @@ func initiateMainInstance() {
 			os.Exit(1)
 		}
 	}
+
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
+
+	if config.AntiSpamFilter {
+		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
+			loggerCoreService,
+		)
+	} else {
+		// no filtering: turn antispam filter off
+		feedbackStrategy = feedbacksystem.NewDummyFeedbackStrategy()
+	}
+
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -690,6 +703,7 @@ func initP2pInstance() {
 		receiptService,
 		nodeConfigurationService,
 		nodeAuthValidationService,
+		feedbackStrategy,
 		loggerP2PService,
 	)
 
@@ -714,6 +728,7 @@ func initP2pInstance() {
 		fileService,
 		nodeRegistrationService,
 		nodeConfigurationService,
+		feedbackStrategy,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -754,6 +769,7 @@ func startServices() {
 		nodeConfigurationService,
 		nodeAddressInfoService,
 		observerInstance,
+		feedbackStrategy,
 	)
 	api.Start(
 		queryExecutor,
@@ -776,6 +792,7 @@ func startServices() {
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
 		config.NodeKey.PublicKey,
+		feedbackStrategy,
 	)
 }
 
@@ -1137,6 +1154,7 @@ func start() {
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
+	go feedbackStrategy.StartSampling(constant.FeedbackSamplingInterval)
 
 	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
