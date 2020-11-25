@@ -1488,9 +1488,10 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
-	block := lastBlock
-
+	var (
+		poppedBlocks []*model.Block
+		block        = lastBlock
+	)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
 		// make sure this block contains all its attributes (transaction, receipts)
