@@ -229,9 +229,6 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 		enough bool
 	)
 
-	if tx.Escrow.GetCommission() <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
-	}
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
