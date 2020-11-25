@@ -43,7 +43,7 @@ var (
 			NodePublicKey: []byte{9, 248, 41, 125, 104, 52, 133, 145, 210, 115, 111, 195, 209, 37, 28, 164, 51, 255, 28,
 				234, 99, 224, 225, 178, 192, 126, 226, 204, 35, 29, 3, 4},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -54,7 +54,7 @@ var (
 			NodePublicKey: []byte{102, 196, 107, 60, 42, 183, 137, 227, 161, 20, 206, 140, 234, 199, 53, 107, 26, 195, 178,
 				182, 212, 201, 89, 218, 16, 21, 37, 13, 99, 226, 164, 133},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -65,7 +65,7 @@ var (
 			NodePublicKey: []byte{58, 91, 210, 235, 121, 116, 200, 209, 105, 93, 234, 238, 192, 146, 70, 161, 237, 221, 163,
 				198, 97, 112, 112, 226, 85, 172, 8, 41, 197, 96, 160, 255},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -76,7 +76,7 @@ var (
 			NodePublicKey: []byte{35, 49, 25, 199, 78, 213, 15, 211, 244, 5, 252, 229, 171, 19, 86, 23, 231, 34, 62,
 				196, 65, 36, 178, 115, 55, 163, 232, 173, 29, 69, 148, 229},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -87,7 +87,7 @@ var (
 			NodePublicKey: []byte{74, 156, 23, 198, 133, 190, 116, 118, 32, 165, 49, 130, 56, 99, 252, 159, 28, 197, 214,
 				120, 239, 6, 194, 54, 191, 80, 159, 199, 243, 121, 111, 88},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -98,7 +98,7 @@ var (
 			NodePublicKey: []byte{115, 178, 174, 213, 167, 9, 118, 252, 154, 240, 230, 85, 197, 247, 105, 137, 113, 34, 51,
 				125, 83, 28, 155, 77, 207, 152, 197, 207, 10, 15, 246, 20},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -109,7 +109,7 @@ var (
 			NodePublicKey: []byte{23, 196, 105, 216, 194, 92, 68, 193, 124, 76, 152, 192, 162, 22, 159, 142, 64, 185, 171,
 				253, 19, 108, 3, 84, 165, 85, 224, 191, 171, 86, 53, 85},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -120,7 +120,7 @@ var (
 			NodePublicKey: []byte{87, 241, 215, 177, 149, 128, 133, 22, 100, 20, 94, 98, 113, 78, 120, 148, 248, 92, 32,
 				103, 226, 66, 200, 68, 243, 68, 3, 243, 202, 123, 250, 193},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -131,7 +131,7 @@ var (
 			NodePublicKey: []byte{185, 231, 164, 153, 154, 95, 122, 106, 250, 11, 37, 79, 144, 131, 185, 222, 191, 60, 105,
 				91, 169, 207, 36, 35, 42, 136, 243, 8, 78, 122, 6, 133},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -142,7 +142,7 @@ var (
 			NodePublicKey: []byte{185, 134, 20, 207, 5, 196, 185, 42, 246, 178, 34, 110, 166, 53, 75, 139, 77, 243, 88,
 				103, 195, 222, 144, 7, 252, 127, 85, 156, 95, 163, 63, 97},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -153,7 +153,7 @@ var (
 			NodePublicKey: []byte{44, 6, 234, 50, 45, 185, 169, 30, 191, 187, 179, 91, 243, 157, 35, 142, 72, 71, 137,
 				8, 228, 161, 146, 108, 31, 191, 96, 249, 132, 32, 221, 112},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -164,7 +164,7 @@ var (
 			NodePublicKey: []byte{171, 9, 19, 14, 240, 194, 246, 157, 129, 101, 158, 175, 156, 118, 153, 71, 121, 168, 169,
 				139, 245, 195, 77, 118, 204, 223, 105, 134, 93, 27, 187, 120},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -175,7 +175,7 @@ var (
 			NodePublicKey: []byte{153, 83, 43, 89, 51, 124, 116, 86, 208, 224, 29, 4, 26, 225, 189, 244, 69, 254, 194,
 				216, 73, 39, 150, 205, 235, 212, 22, 89, 129, 129, 51, 225},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -186,7 +186,7 @@ var (
 			NodePublicKey: []byte{119, 193, 216, 159, 43, 125, 247, 181, 87, 241, 25, 189, 176, 45, 233, 114, 61, 24, 68,
 				236, 16, 47, 12, 124, 10, 101, 102, 63, 194, 247, 212, 30},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -197,7 +197,7 @@ var (
 			NodePublicKey: []byte{202, 13, 236, 22, 194, 70, 12, 208, 67, 75, 43, 108, 233, 25, 96, 29, 204, 158, 213,
 				55, 108, 183, 196, 72, 82, 161, 15, 94, 186, 118, 253, 42},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -208,7 +208,7 @@ var (
 			NodePublicKey: []byte{65, 224, 29, 171, 204, 107, 66, 32, 116, 2, 153, 196, 86, 181, 254, 237, 116, 152, 245,
 				131, 42, 99, 92, 78, 226, 109, 201, 246, 177, 127, 72, 94},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -219,7 +219,7 @@ var (
 			NodePublicKey: []byte{107, 54, 158, 9, 164, 105, 223, 200, 39, 208, 167, 244, 248, 79, 240, 33, 30, 65, 108,
 				88, 185, 229, 75, 217, 175, 188, 235, 71, 190, 162, 100, 175},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -230,7 +230,7 @@ var (
 			NodePublicKey: []byte{14, 191, 126, 12, 119, 194, 172, 96, 146, 214, 39, 88, 56, 199, 10, 53, 10, 243, 237,
 				206, 40, 105, 113, 160, 72, 69, 247, 31, 34, 15, 113, 102},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -241,7 +241,7 @@ var (
 			NodePublicKey: []byte{161, 86, 46, 248, 91, 208, 29, 3, 58, 179, 11, 80, 40, 117, 4, 254, 83, 135, 244,
 				85, 28, 220, 48, 135, 64, 202, 48, 91, 96, 175, 44, 200},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -252,7 +252,7 @@ var (
 			NodePublicKey: []byte{94, 60, 75, 26, 106, 172, 57, 94, 87, 3, 125, 79, 116, 96, 49, 33, 0, 126, 97,
 				236, 213, 84, 163, 190, 125, 205, 61, 161, 211, 89, 126, 121},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -263,7 +263,7 @@ var (
 			NodePublicKey: []byte{110, 139, 99, 205, 133, 94, 152, 106, 40, 215, 92, 184, 186, 113, 167, 130, 217, 2, 130,
 				54, 18, 153, 219, 154, 154, 10, 149, 130, 107, 171, 133, 211},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -274,7 +274,7 @@ var (
 			NodePublicKey: []byte{30, 143, 19, 241, 142, 1, 215, 154, 133, 178, 185, 13, 163, 208, 92, 109, 214, 232, 83,
 				161, 190, 15, 226, 28, 138, 62, 96, 24, 1, 85, 132, 68},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -285,7 +285,7 @@ var (
 			NodePublicKey: []byte{109, 31, 203, 232, 166, 250, 139, 241, 144, 13, 212, 157, 197, 18, 201, 200, 85, 27, 72,
 				224, 164, 203, 128, 78, 116, 197, 215, 1, 249, 214, 80, 120},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -296,7 +296,7 @@ var (
 			NodePublicKey: []byte{110, 122, 118, 212, 222, 154, 31, 94, 252, 61, 75, 138, 69, 140, 248, 13, 240, 70, 196,
 				37, 25, 178, 115, 185, 80, 217, 132, 8, 223, 174, 81, 146},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -307,7 +307,7 @@ var (
 			NodePublicKey: []byte{74, 160, 166, 190, 146, 243, 239, 40, 101, 205, 225, 114, 82, 190, 112, 253, 116, 191, 117,
 				37, 250, 49, 251, 146, 146, 168, 54, 212, 103, 99, 165, 194},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -318,7 +318,7 @@ var (
 			NodePublicKey: []byte{207, 84, 172, 94, 64, 204, 105, 132, 239, 138, 193, 178, 37, 104, 175, 137, 137, 198, 252,
 				232, 4, 209, 55, 111, 101, 205, 110, 224, 212, 204, 192, 126},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -329,7 +329,7 @@ var (
 			NodePublicKey: []byte{224, 16, 68, 46, 78, 95, 70, 60, 139, 88, 114, 235, 147, 10, 167, 187, 174, 75, 130,
 				231, 142, 142, 152, 85, 171, 82, 195, 136, 211, 221, 226, 84},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -340,7 +340,7 @@ var (
 			NodePublicKey: []byte{234, 128, 192, 108, 88, 146, 99, 172, 100, 111, 183, 250, 49, 250, 212, 203, 170, 123, 2,
 				200, 10, 171, 128, 24, 0, 255, 148, 137, 74, 228, 112, 25},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -351,7 +351,7 @@ var (
 			NodePublicKey: []byte{101, 10, 68, 197, 124, 141, 153, 241, 229, 70, 139, 221, 230, 120, 134, 221, 139, 69, 154,
 				165, 146, 11, 231, 63, 233, 16, 6, 4, 184, 254, 211, 20},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -362,7 +362,7 @@ var (
 			NodePublicKey: []byte{16, 107, 226, 76, 251, 22, 44, 68, 131, 254, 82, 63, 227, 16, 24, 64, 146, 92, 175,
 				76, 53, 255, 11, 171, 139, 92, 31, 141, 206, 145, 93, 114},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -373,7 +373,7 @@ var (
 			NodePublicKey: []byte{0, 156, 169, 50, 151, 27, 151, 130, 215, 44, 115, 244, 151, 183, 241, 142, 100, 145, 77,
 				172, 53, 77, 82, 223, 26, 41, 186, 170, 223, 111, 96, 2},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -384,7 +384,7 @@ var (
 			NodePublicKey: []byte{199, 238, 41, 91, 175, 251, 231, 147, 167, 157, 33, 43, 207, 25, 163, 51, 95, 47, 196,
 				20, 219, 245, 74, 53, 16, 58, 82, 141, 18, 164, 119, 203},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -395,7 +395,7 @@ var (
 			NodePublicKey: []byte{152, 5, 249, 245, 147, 221, 154, 229, 188, 5, 185, 149, 32, 7, 164, 238, 84, 73, 199,
 				217, 105, 118, 209, 115, 240, 63, 34, 92, 42, 60, 12, 54},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -406,7 +406,7 @@ var (
 			NodePublicKey: []byte{116, 195, 163, 47, 89, 162, 111, 215, 17, 9, 131, 18, 241, 227, 231, 127, 106, 24, 48,
 				44, 226, 65, 137, 31, 133, 14, 247, 243, 29, 216, 221, 156},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -417,7 +417,7 @@ var (
 			NodePublicKey: []byte{142, 136, 44, 239, 40, 83, 114, 177, 36, 119, 52, 113, 83, 97, 54, 84, 22, 165, 24,
 				11, 232, 5, 38, 194, 132, 215, 185, 58, 191, 45, 190, 198},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -428,7 +428,7 @@ var (
 			NodePublicKey: []byte{198, 245, 69, 77, 64, 51, 195, 129, 155, 122, 83, 26, 69, 40, 48, 200, 180, 112, 93,
 				212, 141, 85, 159, 220, 172, 53, 124, 240, 126, 87, 225, 142},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -439,7 +439,7 @@ var (
 			NodePublicKey: []byte{166, 186, 15, 187, 180, 152, 41, 165, 104, 28, 189, 113, 45, 39, 148, 57, 43, 137, 250,
 				205, 82, 253, 195, 83, 144, 44, 117, 41, 165, 110, 215, 69},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -450,7 +450,7 @@ var (
 			NodePublicKey: []byte{217, 230, 103, 220, 100, 155, 55, 46, 44, 248, 36, 28, 151, 171, 135, 105, 111, 139, 219,
 				137, 148, 5, 197, 87, 3, 81, 121, 49, 14, 152, 86, 215},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -461,7 +461,7 @@ var (
 			NodePublicKey: []byte{163, 47, 115, 180, 159, 60, 44, 56, 199, 212, 225, 163, 35, 126, 87, 188, 187, 159, 214,
 				116, 175, 158, 81, 110, 28, 14, 153, 199, 109, 139, 195, 84},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -472,7 +472,7 @@ var (
 			NodePublicKey: []byte{103, 44, 15, 126, 130, 124, 46, 146, 137, 83, 142, 70, 211, 54, 110, 113, 176, 7, 195,
 				76, 101, 4, 183, 118, 249, 80, 203, 175, 221, 57, 82, 52},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -483,7 +483,7 @@ var (
 			NodePublicKey: []byte{20, 150, 199, 10, 172, 5, 203, 118, 107, 141, 159, 61, 183, 219, 110, 3, 176, 34, 156,
 				141, 139, 57, 191, 88, 72, 131, 17, 187, 147, 246, 121, 169},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -494,7 +494,7 @@ var (
 			NodePublicKey: []byte{222, 102, 28, 176, 167, 1, 237, 178, 195, 171, 251, 60, 0, 224, 80, 176, 187, 66, 84,
 				65, 219, 194, 18, 125, 56, 107, 243, 54, 172, 224, 192, 191},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -505,7 +505,7 @@ var (
 			NodePublicKey: []byte{6, 28, 8, 77, 48, 2, 250, 218, 156, 233, 51, 45, 119, 93, 86, 12, 38, 233, 44,
 				173, 197, 167, 237, 7, 126, 196, 176, 195, 247, 4, 207, 97},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -516,7 +516,7 @@ var (
 			NodePublicKey: []byte{59, 118, 28, 201, 232, 14, 34, 177, 85, 212, 83, 230, 42, 239, 140, 25, 70, 161, 152,
 				111, 251, 185, 17, 216, 243, 185, 153, 200, 55, 153, 136, 50},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -527,7 +527,7 @@ var (
 			NodePublicKey: []byte{245, 212, 185, 74, 141, 31, 107, 72, 46, 29, 242, 114, 8, 30, 233, 66, 199, 21, 156,
 				233, 31, 58, 116, 110, 230, 51, 77, 7, 250, 119, 98, 98},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -538,7 +538,7 @@ var (
 			NodePublicKey: []byte{193, 22, 135, 150, 16, 135, 230, 205, 130, 214, 194, 62, 143, 107, 71, 112, 238, 124, 15,
 				122, 239, 203, 165, 230, 147, 72, 64, 35, 255, 35, 204, 87},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -549,7 +549,7 @@ var (
 			NodePublicKey: []byte{54, 15, 61, 26, 147, 88, 80, 17, 205, 190, 24, 214, 211, 96, 71, 125, 145, 95, 134,
 				149, 247, 29, 131, 85, 11, 108, 251, 68, 207, 195, 26, 252},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -560,7 +560,7 @@ var (
 			NodePublicKey: []byte{95, 26, 227, 150, 16, 33, 170, 196, 144, 162, 58, 48, 45, 166, 138, 36, 239, 87, 42,
 				72, 242, 253, 3, 30, 98, 234, 218, 154, 146, 45, 84, 156},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -571,7 +571,7 @@ var (
 			NodePublicKey: []byte{180, 189, 192, 121, 38, 85, 204, 1, 20, 118, 109, 178, 249, 150, 223, 172, 148, 215, 133,
 				240, 201, 59, 190, 60, 244, 110, 181, 3, 14, 21, 48, 93},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -582,7 +582,7 @@ var (
 			NodePublicKey: []byte{44, 94, 210, 145, 83, 39, 179, 118, 45, 125, 116, 20, 11, 72, 102, 148, 225, 142, 191,
 				247, 225, 59, 67, 34, 114, 204, 158, 222, 163, 159, 151, 182},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -593,7 +593,7 @@ var (
 			NodePublicKey: []byte{128, 158, 88, 127, 79, 104, 122, 205, 216, 197, 146, 57, 229, 33, 47, 148, 250, 208, 5,
 				241, 240, 208, 13, 45, 93, 10, 87, 7, 18, 53, 150, 224},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -604,7 +604,7 @@ var (
 			NodePublicKey: []byte{217, 205, 25, 180, 189, 147, 141, 99, 168, 244, 103, 188, 192, 218, 136, 44, 177, 117, 38,
 				119, 252, 119, 23, 129, 151, 154, 249, 181, 48, 67, 18, 240},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -615,7 +615,7 @@ var (
 			NodePublicKey: []byte{8, 88, 232, 202, 54, 193, 230, 175, 70, 246, 230, 16, 132, 73, 103, 204, 51, 202, 74,
 				141, 5, 207, 47, 68, 89, 22, 8, 12, 119, 223, 132, 56},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -626,7 +626,7 @@ var (
 			NodePublicKey: []byte{140, 137, 222, 191, 210, 42, 200, 159, 152, 32, 20, 155, 118, 137, 20, 78, 118, 200, 155,
 				161, 71, 253, 172, 29, 88, 24, 150, 250, 143, 146, 142, 104},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -637,7 +637,7 @@ var (
 			NodePublicKey: []byte{96, 173, 221, 181, 137, 70, 243, 214, 16, 202, 192, 96, 214, 3, 116, 199, 190, 215, 56,
 				80, 12, 209, 11, 33, 227, 235, 49, 217, 37, 164, 4, 90},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -648,7 +648,7 @@ var (
 			NodePublicKey: []byte{12, 97, 134, 61, 185, 237, 5, 158, 76, 221, 56, 206, 44, 67, 203, 103, 74, 17, 3,
 				135, 102, 71, 236, 26, 223, 33, 217, 35, 187, 185, 22, 11},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -659,7 +659,7 @@ var (
 			NodePublicKey: []byte{242, 133, 63, 170, 199, 255, 191, 109, 88, 215, 236, 131, 123, 46, 146, 163, 27, 246, 78,
 				17, 155, 125, 211, 30, 155, 90, 118, 158, 182, 171, 241, 42},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -670,7 +670,7 @@ var (
 			NodePublicKey: []byte{230, 227, 154, 210, 213, 2, 190, 25, 87, 241, 60, 144, 40, 13, 56, 20, 68, 105, 61,
 				64, 208, 232, 135, 95, 48, 166, 227, 123, 217, 150, 122, 141},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -681,7 +681,7 @@ var (
 			NodePublicKey: []byte{12, 175, 172, 189, 203, 163, 54, 163, 50, 181, 232, 64, 249, 114, 161, 253, 99, 122, 148,
 				48, 228, 181, 93, 215, 104, 170, 230, 204, 160, 19, 8, 43},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -692,7 +692,7 @@ var (
 			NodePublicKey: []byte{47, 76, 72, 162, 139, 175, 244, 13, 171, 203, 125, 148, 66, 193, 150, 36, 6, 75, 50,
 				121, 100, 57, 60, 102, 226, 234, 225, 60, 6, 194, 99, 36},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -703,7 +703,7 @@ var (
 			NodePublicKey: []byte{178, 178, 215, 87, 244, 14, 135, 161, 2, 201, 71, 13, 10, 142, 113, 221, 179, 140, 174,
 				70, 59, 177, 91, 108, 95, 84, 97, 107, 120, 238, 163, 38},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -714,7 +714,7 @@ var (
 			NodePublicKey: []byte{41, 201, 21, 235, 34, 7, 224, 115, 15, 184, 247, 191, 201, 83, 93, 1, 46, 191, 112,
 				117, 205, 252, 170, 56, 203, 0, 172, 181, 87, 40, 97, 251},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -725,7 +725,7 @@ var (
 			NodePublicKey: []byte{141, 76, 208, 139, 253, 227, 214, 215, 154, 225, 254, 101, 156, 3, 123, 14, 80, 136, 143,
 				110, 218, 55, 78, 165, 227, 190, 124, 26, 212, 225, 142, 231},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -736,7 +736,7 @@ var (
 			NodePublicKey: []byte{191, 200, 50, 36, 155, 97, 133, 41, 108, 25, 161, 37, 206, 194, 63, 209, 22, 251, 93,
 				181, 226, 2, 89, 120, 222, 86, 157, 154, 254, 165, 119, 23},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -747,7 +747,7 @@ var (
 			NodePublicKey: []byte{184, 83, 83, 102, 4, 184, 101, 213, 189, 54, 248, 11, 180, 4, 145, 78, 168, 229, 87,
 				178, 130, 203, 64, 176, 110, 8, 227, 4, 170, 48, 164, 160},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -758,7 +758,7 @@ var (
 			NodePublicKey: []byte{193, 11, 167, 222, 9, 189, 252, 245, 112, 77, 251, 67, 111, 194, 217, 186, 90, 64, 129,
 				7, 231, 35, 163, 55, 151, 177, 29, 182, 164, 2, 2, 189},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -769,7 +769,7 @@ var (
 			NodePublicKey: []byte{27, 147, 218, 215, 181, 233, 160, 70, 245, 189, 172, 219, 243, 82, 203, 119, 19, 50, 92,
 				119, 37, 46, 157, 237, 52, 155, 13, 63, 178, 7, 196, 197},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -780,7 +780,7 @@ var (
 			NodePublicKey: []byte{235, 70, 207, 242, 59, 33, 241, 15, 174, 242, 56, 170, 187, 61, 36, 113, 98, 174, 161,
 				45, 215, 35, 153, 158, 219, 171, 93, 76, 100, 14, 115, 173},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -791,7 +791,7 @@ var (
 			NodePublicKey: []byte{131, 140, 106, 154, 16, 133, 111, 79, 174, 5, 106, 193, 233, 229, 4, 195, 36, 167, 53,
 				217, 212, 182, 112, 239, 82, 59, 212, 121, 117, 140, 15, 40},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -802,7 +802,7 @@ var (
 			NodePublicKey: []byte{186, 38, 205, 42, 81, 145, 69, 65, 131, 88, 52, 44, 135, 18, 158, 237, 146, 216, 214,
 				200, 153, 245, 206, 73, 226, 113, 216, 129, 209, 20, 95, 22},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -813,7 +813,7 @@ var (
 			NodePublicKey: []byte{118, 34, 187, 171, 17, 231, 13, 175, 138, 128, 219, 29, 169, 120, 239, 160, 18, 7, 188,
 				54, 2, 111, 153, 67, 42, 181, 27, 98, 17, 34, 96, 61},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -824,7 +824,7 @@ var (
 			NodePublicKey: []byte{33, 132, 216, 35, 227, 1, 230, 133, 11, 145, 125, 156, 10, 254, 246, 74, 11, 203, 227,
 				97, 213, 96, 32, 245, 60, 220, 178, 115, 248, 229, 114, 158},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -835,7 +835,7 @@ var (
 			NodePublicKey: []byte{224, 66, 21, 246, 135, 231, 137, 181, 77, 207, 108, 128, 165, 216, 155, 6, 241, 211, 148,
 				116, 60, 113, 25, 163, 125, 184, 42, 222, 251, 215, 157, 50},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -846,7 +846,7 @@ var (
 			NodePublicKey: []byte{138, 15, 201, 57, 254, 17, 219, 126, 208, 228, 223, 127, 103, 203, 206, 212, 76, 88, 49,
 				27, 237, 126, 254, 42, 178, 83, 244, 190, 195, 16, 61, 84},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -857,7 +857,7 @@ var (
 			NodePublicKey: []byte{210, 84, 160, 91, 11, 153, 182, 94, 137, 251, 104, 180, 7, 248, 113, 104, 156, 88, 221,
 				4, 10, 225, 12, 27, 73, 155, 18, 62, 130, 208, 13, 241},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -868,7 +868,7 @@ var (
 			NodePublicKey: []byte{157, 161, 170, 151, 3, 243, 94, 88, 199, 21, 163, 135, 107, 110, 22, 127, 121, 113, 126,
 				12, 168, 18, 119, 74, 244, 36, 164, 29, 53, 64, 214, 95},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -879,7 +879,7 @@ var (
 			NodePublicKey: []byte{37, 173, 135, 102, 246, 181, 22, 210, 173, 133, 172, 209, 4, 10, 77, 190, 208, 195, 118,
 				11, 65, 24, 86, 8, 224, 30, 237, 196, 120, 7, 214, 94},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -890,7 +890,7 @@ var (
 			NodePublicKey: []byte{211, 61, 54, 107, 146, 133, 118, 51, 3, 191, 143, 140, 82, 74, 88, 108, 222, 223, 212,
 				58, 103, 80, 12, 166, 82, 39, 201, 153, 14, 105, 73, 85},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -901,7 +901,7 @@ var (
 			NodePublicKey: []byte{222, 91, 142, 223, 96, 97, 57, 190, 13, 23, 174, 18, 167, 70, 54, 160, 162, 121, 144,
 				229, 244, 121, 116, 79, 47, 101, 145, 42, 38, 215, 242, 214},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -912,7 +912,7 @@ var (
 			NodePublicKey: []byte{1, 157, 95, 93, 138, 23, 235, 45, 145, 70, 44, 63, 24, 98, 88, 1, 252, 255, 49,
 				247, 24, 10, 248, 78, 137, 57, 90, 116, 232, 173, 255, 3},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -923,7 +923,7 @@ var (
 			NodePublicKey: []byte{75, 65, 152, 92, 242, 130, 12, 89, 72, 125, 152, 99, 141, 11, 165, 235, 12, 164, 212,
 				69, 189, 62, 122, 54, 49, 114, 140, 21, 204, 50, 15, 154},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -934,7 +934,7 @@ var (
 			NodePublicKey: []byte{196, 27, 158, 159, 156, 132, 84, 152, 224, 178, 137, 26, 145, 185, 69, 126, 2, 121, 216,
 				173, 98, 219, 146, 141, 253, 85, 80, 249, 17, 144, 71, 80},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -945,7 +945,7 @@ var (
 			NodePublicKey: []byte{88, 19, 184, 106, 141, 29, 240, 154, 123, 194, 132, 59, 200, 195, 160, 54, 15, 15, 27,
 				62, 97, 90, 178, 9, 13, 109, 243, 242, 173, 244, 155, 193},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -956,7 +956,7 @@ var (
 			NodePublicKey: []byte{95, 6, 229, 158, 251, 96, 206, 30, 85, 210, 179, 220, 37, 16, 177, 64, 194, 229, 66,
 				252, 210, 219, 67, 27, 200, 67, 122, 158, 67, 232, 90, 246},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -967,7 +967,7 @@ var (
 			NodePublicKey: []byte{114, 1, 158, 236, 227, 136, 144, 15, 213, 159, 237, 35, 36, 158, 32, 11, 145, 124, 80,
 				57, 254, 12, 140, 183, 176, 177, 57, 184, 100, 99, 239, 239},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -978,7 +978,7 @@ var (
 			NodePublicKey: []byte{152, 244, 113, 133, 133, 102, 112, 229, 124, 50, 44, 109, 41, 91, 193, 225, 81, 159, 198,
 				201, 102, 200, 244, 77, 13, 17, 134, 106, 238, 213, 13, 101},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -989,7 +989,7 @@ var (
 			NodePublicKey: []byte{62, 49, 72, 170, 105, 117, 110, 186, 186, 222, 60, 52, 61, 133, 130, 114, 112, 115, 249,
 				133, 166, 181, 158, 252, 151, 149, 45, 17, 212, 152, 14, 42},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1000,7 +1000,7 @@ var (
 			NodePublicKey: []byte{104, 169, 137, 71, 118, 21, 152, 15, 82, 97, 27, 139, 112, 185, 42, 186, 253, 242, 232,
 				130, 73, 97, 164, 155, 116, 109, 43, 12, 190, 110, 46, 34},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1011,7 +1011,7 @@ var (
 			NodePublicKey: []byte{20, 164, 33, 70, 16, 66, 17, 199, 83, 63, 58, 99, 146, 56, 1, 253, 27, 229, 148,
 				94, 93, 209, 165, 246, 45, 191, 49, 172, 197, 154, 97, 86},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1022,7 +1022,7 @@ var (
 			NodePublicKey: []byte{99, 219, 9, 156, 194, 105, 123, 79, 244, 195, 133, 115, 151, 197, 143, 143, 198, 26, 48,
 				130, 91, 73, 163, 187, 65, 248, 184, 75, 162, 177, 4, 133},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1033,7 +1033,7 @@ var (
 			NodePublicKey: []byte{112, 168, 158, 253, 33, 201, 33, 242, 144, 164, 54, 56, 83, 224, 62, 137, 104, 57, 11,
 				23, 157, 87, 220, 165, 35, 178, 13, 108, 128, 71, 33, 238},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1044,7 +1044,7 @@ var (
 			NodePublicKey: []byte{235, 44, 106, 204, 76, 1, 0, 114, 170, 243, 7, 33, 219, 134, 124, 201, 43, 227, 115,
 				132, 58, 23, 68, 228, 200, 96, 128, 91, 243, 15, 161, 192},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1055,7 +1055,7 @@ var (
 			NodePublicKey: []byte{44, 55, 224, 12, 57, 187, 214, 245, 142, 38, 49, 128, 176, 166, 180, 163, 207, 3, 87,
 				22, 91, 40, 0, 166, 171, 211, 124, 146, 187, 252, 73, 80},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1066,7 +1066,7 @@ var (
 			NodePublicKey: []byte{73, 68, 69, 164, 87, 212, 138, 143, 23, 158, 18, 58, 220, 50, 85, 58, 48, 157, 28,
 				132, 102, 246, 23, 159, 105, 225, 151, 135, 147, 234, 148, 100},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1077,7 +1077,7 @@ var (
 			NodePublicKey: []byte{121, 30, 60, 123, 61, 82, 122, 17, 232, 37, 112, 193, 113, 83, 65, 240, 142, 203, 207,
 				34, 190, 177, 168, 172, 62, 187, 122, 229, 183, 100, 123, 13},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1088,7 +1088,7 @@ var (
 			NodePublicKey: []byte{192, 71, 102, 148, 143, 85, 120, 188, 33, 162, 247, 236, 178, 143, 112, 233, 121, 130, 236,
 				29, 61, 249, 111, 91, 19, 104, 250, 218, 10, 239, 152, 65},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1099,7 +1099,7 @@ var (
 			NodePublicKey: []byte{214, 73, 217, 171, 233, 15, 222, 157, 182, 119, 36, 188, 152, 142, 100, 6, 10, 91, 225,
 				162, 197, 165, 62, 197, 51, 19, 245, 207, 121, 65, 243, 253},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1110,7 +1110,7 @@ var (
 			NodePublicKey: []byte{42, 248, 8, 214, 35, 27, 77, 244, 86, 16, 56, 204, 19, 59, 207, 174, 180, 229, 98,
 				93, 137, 156, 251, 144, 12, 22, 101, 70, 206, 184, 19, 205},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1121,7 +1121,7 @@ var (
 			NodePublicKey: []byte{117, 223, 104, 28, 234, 146, 145, 89, 0, 1, 204, 233, 245, 246, 200, 139, 40, 98, 17,
 				26, 10, 108, 106, 62, 163, 50, 235, 175, 200, 100, 157, 253},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 		{
@@ -1132,7 +1132,7 @@ var (
 			NodePublicKey: []byte{4, 169, 2, 118, 137, 169, 98, 248, 136, 56, 248, 109, 6, 235, 176, 81, 165, 194, 206,
 				104, 178, 242, 104, 101, 122, 89, 62, 105, 26, 208, 124, 117},
 			LockedBalance:      0,
-			ParticipationScore: 500000000000000000,
+			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
 		},
 	}
