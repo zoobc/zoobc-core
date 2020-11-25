@@ -86,7 +86,7 @@ func (m *MultiSignatureAccountType) GetAccountPrivateKey() ([]byte, error) {
 }
 
 func (m *MultiSignatureAccountType) IsEqual(acc AccountTypeInterface) bool {
-	return bytes.Equal(m.GetAccountPublicKey(), acc.GetAccountPublicKey()) && acc.GetTypeInt() == acc.GetTypeInt()
+	return bytes.Equal(m.GetAccountPublicKey(), acc.GetAccountPublicKey()) && (acc.GetTypeInt() == acc.GetTypeInt())
 }
 
 func (m *MultiSignatureAccountType) GetSignatureType() model.SignatureType {

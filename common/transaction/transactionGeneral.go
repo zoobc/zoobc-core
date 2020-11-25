@@ -40,7 +40,17 @@ type (
 	}
 
 	MultisigTransactionUtilInterface interface {
-		CheckMultisigComplete(transactionUtil UtilInterface, multisignatureInfoHelper MultisignatureInfoHelperInterface, signatureInfoHelper SignatureInfoHelperInterface, pendingTransactionHelper PendingTransactionHelperInterface, body *model.MultiSignatureTransactionBody, txHeight uint32, multiSignaturesInfo *[]*model.MultiSignatureInfo, pendingSignatures *[]*model.PendingSignature, pendingTransaction *model.PendingTransaction) error
+		CheckMultisigComplete(
+			transactionUtil UtilInterface,
+			multisignatureInfoHelper MultisignatureInfoHelperInterface,
+			signatureInfoHelper SignatureInfoHelperInterface,
+			pendingTransactionHelper PendingTransactionHelperInterface,
+			body *model.MultiSignatureTransactionBody,
+			txHeight uint32,
+			multiSignaturesInfo *[]*model.MultiSignatureInfo,
+			pendingSignatures *[]*model.PendingSignature,
+			pendingTransaction *model.PendingTransaction,
+		) error
 		ValidatePendingTransactionBytes(
 			transactionUtil UtilInterface,
 			typeSwitcher TypeActionSwitcher,
@@ -55,7 +65,12 @@ type (
 		ValidateSignatureInfo(
 			signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 		) error
-		ParseSignatureInfoBytesAsCandidates(txHash, multiSignatureAddress, key, value []byte, txHeight uint32, multiSignaturesInfo *[]*model.MultiSignatureInfo, pendingSignatures *[]*model.PendingSignature) (err error)
+		ParseSignatureInfoBytesAsCandidates(
+			txHash, multiSignatureAddress, key, value []byte,
+			txHeight uint32,
+			multiSignaturesInfo *[]*model.MultiSignatureInfo,
+			pendingSignatures *[]*model.PendingSignature,
+		) (err error)
 	}
 	MultisigTransactionUtil struct {
 	}
@@ -389,7 +404,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 
 // GenerateMultiSigAddress assembling MultiSignatureInfo to be an account address
 // that is multi signature account address
-func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash []byte, addr []byte, err error) {
+func (u *Util) GenerateMultiSigAddress(info *model.MultiSignatureInfo) (hash, addr []byte, err error) {
 	if info == nil {
 		return hash, nil, fmt.Errorf("params cannot be nil")
 	}
