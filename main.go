@@ -293,9 +293,9 @@ func initiateMainInstance() {
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-	mempoolStorage = storage.NewMempoolStorage()
+	mempoolStorage = storage.NewMempoolStorage(monitoring.TypeMempoolCacheStorage, monitoring.TypeMempoolCountCacheStorage)
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
-	mempoolUnsaveCacheStorage = storage.NewMempoolStorage()
+	mempoolUnsaveCacheStorage = storage.NewMempoolStorage(monitoring.TypeMempoolUnsaveCacheStorage, monitoring.TypeMempoolUnsaveCountCacheStorage)
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()

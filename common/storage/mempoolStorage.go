@@ -12,7 +12,9 @@ type (
 	// MempoolCacheStorage cache layer for mempool transaction
 	MempoolCacheStorage struct {
 		sync.RWMutex
-		mempoolMap MempoolMap
+		metricSizeLabel  monitoring.CacheStorageType
+		metricCountLabel monitoring.CacheStorageType
+		mempoolMap       MempoolMap
 	}
 	MempoolCacheObject struct {
 		Tx                  model.Transaction
@@ -25,9 +27,11 @@ type (
 	MempoolMap map[int64]MempoolCacheObject
 )
 
-func NewMempoolStorage() *MempoolCacheStorage {
+func NewMempoolStorage(metricSizeLabel, metricCountLabel monitoring.CacheStorageType) *MempoolCacheStorage {
 	return &MempoolCacheStorage{
-		mempoolMap: make(MempoolMap),
+		mempoolMap:       make(MempoolMap),
+		metricSizeLabel:  metricSizeLabel,
+		metricCountLabel: metricCountLabel,
 	}
 }
 
@@ -42,8 +46,8 @@ func (m *MempoolCacheStorage) SetItem(key, item interface{}) error {
 		}
 		m.mempoolMap[keyInt64] = m.mempoolCopy(mempoolMap)
 		if monitoring.IsMonitoringActive() {
-			monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
-			monitoring.SetMempoolTransactionCount(len(m.mempoolMap))
+			monitoring.SetCacheStorageMetrics(m.metricSizeLabel, float64(m.size()))
+			monitoring.SetMempoolTransactionCount(m.metricCountLabel, len(m.mempoolMap))
 		}
 	} else {
 		return blocker.NewBlocker(blocker.ValidationErr, "WrongType item")
@@ -108,8 +112,8 @@ func (m *MempoolCacheStorage) RemoveItem(keys interface{}) error {
 		delete(m.mempoolMap, id)
 	}
 	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, float64(m.size()))
-		monitoring.SetMempoolTransactionCount(len(m.mempoolMap))
+		monitoring.SetCacheStorageMetrics(m.metricSizeLabel, float64(m.size()))
+		monitoring.SetMempoolTransactionCount(m.metricCountLabel, len(m.mempoolMap))
 	}
 	return nil
 }
@@ -133,7 +137,8 @@ func (m *MempoolCacheStorage) GetSize() int64 {
 func (m *MempoolCacheStorage) ClearCache() error {
 	m.mempoolMap = make(MempoolMap)
 	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, 0)
+		monitoring.SetCacheStorageMetrics(m.metricSizeLabel, 0)
+		monitoring.SetMempoolTransactionCount(m.metricCountLabel, len(m.mempoolMap))
 	}
 	return nil
 }
