@@ -444,7 +444,13 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 }
 
 func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
-	return nil, blocker.NewBlocker(blocker.AppErr, "NotImplementedYet")
+	// TODO: implement blocks storage cache
+	block, err := bs.GetLastBlock()
+	if err != nil {
+		return nil, err
+	}
+	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
+	return &blockCacheFormat, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
@@ -471,7 +477,13 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 }
 
 func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
-	return nil, blocker.NewBlocker(blocker.AppErr, "GetBlockByHeightCacheFormat-NotImplementedYet")
+	// TODO: implement blocks storage cache
+	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
+	return &blockCacheFormat, nil
 }
 
 // GetGenesisBlock return the genesis block
