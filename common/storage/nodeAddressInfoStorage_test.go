@@ -127,6 +127,8 @@ func TestNodeAddressInfoStorage_ClearCache(t *testing.T) {
 }
 
 func TestNodeAddressInfoStorage_Commit(t *testing.T) {
+	mock := sync.RWMutex{}
+	mock.Lock()
 	type fields struct {
 		RWMutex                                    sync.RWMutex
 		transactionalLock                          sync.RWMutex
@@ -144,13 +146,13 @@ func TestNodeAddressInfoStorage_Commit(t *testing.T) {
 		{
 			name: "NodeAddressInfoStorage_Commit:Success",
 			fields: fields{
-				RWMutex:                                    sync.RWMutex{},
+				RWMutex:                                    mock,
 				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            true,
-				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
-				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
-				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
-				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+				nodeAddressInfoMapByID:                     nil,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
 			wantErr: false,
 		},
@@ -187,6 +189,31 @@ func TestNodeAddressInfoStorage_Commit(t *testing.T) {
 }
 
 func TestNodeAddressInfoStorage_GetAllItems(t *testing.T) {
+	mockNaiMapByID := make(map[int64]map[string]model.NodeAddressInfo)
+	mockNaiMapModel := map[string]model.NodeAddressInfo{
+		"127.0.0.1": {
+			NodeID:      1,
+			Address:     "127.0.0.1",
+			Port:        3001,
+			BlockHeight: 10,
+			BlockHash:   make([]byte, 32),
+			Status:      0,
+			Signature:   make([]byte, 64),
+		},
+	}
+	mockNaiMapByID[1] = mockNaiMapModel
+	mockItem := []*model.NodeAddressInfo{
+		{
+			NodeID:      111,
+			Address:     "127.0.0.1",
+			Port:        3001,
+			BlockHeight: 10,
+			BlockHash:   make([]byte, 32),
+			Status:      2,
+			Signature:   make([]byte, 64),
+		},
+	}
+
 	type fields struct {
 		RWMutex                                    sync.RWMutex
 		transactionalLock                          sync.RWMutex
@@ -210,6 +237,22 @@ func TestNodeAddressInfoStorage_GetAllItems(t *testing.T) {
 			fields: fields{
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            true,
+				nodeAddressInfoMapByID:                     mockNaiMapByID,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
+			},
+			args: args{
+				item: &mockItem,
+			},
+			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_GetAllItems:Fail-ItemError",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
 				nodeAddressInfoMapByID:                     nil,
 				nodeAddressInfoMapByAddressPort:            nil,
@@ -219,7 +262,7 @@ func TestNodeAddressInfoStorage_GetAllItems(t *testing.T) {
 			args: args{
 				item: nil,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -241,6 +284,23 @@ func TestNodeAddressInfoStorage_GetAllItems(t *testing.T) {
 }
 
 func TestNodeAddressInfoStorage_GetItem(t *testing.T) {
+	mockNaiMapByID := make(map[int64]map[string]model.NodeAddressInfo)
+	mockNaiMapModel := map[string]model.NodeAddressInfo{
+		"127.0.0.1": {
+			NodeID:      1,
+			Address:     "127.0.0.1",
+			Port:        3001,
+			BlockHeight: 10,
+			BlockHash:   make([]byte, 32),
+			Status:      0,
+			Signature:   make([]byte, 64),
+		},
+	}
+	mockNaiMapByID[1] = mockNaiMapModel
+	mockNaiMapByStatus := make(map[model.NodeAddressStatus]map[int64]map[string]bool)
+	mockNaiMapStatusBool := map[int64]map[string]bool{1: {"127.0.0.1": true}}
+	mockNaiMapByStatus[model.NodeAddressStatus_Unset] = mockNaiMapStatusBool
+	var mockItem []*model.NodeAddressInfo
 	type fields struct {
 		RWMutex                                    sync.RWMutex
 		transactionalLock                          sync.RWMutex
@@ -265,15 +325,99 @@ func TestNodeAddressInfoStorage_GetItem(t *testing.T) {
 			fields: fields{
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            true,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 mockNaiMapByStatus,
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      111,
+					AddressPort: "127.0.0.1",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
+				item: &mockItem,
+			},
+			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_GetItem:Fail-NilKey",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
-				nodeAddressInfoMapByID:                     nil,
-				nodeAddressInfoMapByAddressPort:            nil,
-				nodeAddressInfoMapByStatus:                 nil,
-				transactionalRemovedNodeAddressInfoMapByID: nil,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
 			},
 			args: args{
 				key:  nil,
 				item: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_GetItem:Fail-NilItem",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key:  NodeAddressInfoStorageKey{},
+				item: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_GetItem:Fail-StatusNil",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      0,
+					AddressPort: "",
+					Statuses:    nil,
+				},
+				item: mockItem,
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_GetItem:Success-StorageKeyStatus\"\"",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     mockNaiMapByID,
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 mockNaiMapByStatus,
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      0,
+					AddressPort: "",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_Unset,
+					},
+				},
+				item: &mockItem,
 			},
 			wantErr: false,
 		},
@@ -322,7 +466,7 @@ func TestNodeAddressInfoStorage_GetSize(t *testing.T) {
 				nodeAddressInfoMapByStatus:                 nil,
 				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
-			want: 0,
+			want: 318,
 		},
 	}
 	for _, tt := range tests {
@@ -364,10 +508,10 @@ func TestNodeAddressInfoStorage_GetTotalItems(t *testing.T) {
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
-				nodeAddressInfoMapByID:                     nil,
-				nodeAddressInfoMapByAddressPort:            nil,
-				nodeAddressInfoMapByStatus:                 nil,
-				transactionalRemovedNodeAddressInfoMapByID: nil,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
 			},
 			want: 0,
 		},
@@ -421,9 +565,73 @@ func TestNodeAddressInfoStorage_RemoveItem(t *testing.T) {
 				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
 			args: args{
-				key: nil,
+				key: NodeAddressInfoStorageKey{
+					NodeID:      111,
+					AddressPort: "127.0.0.1",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_RemoveItem:KeyError",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     nil,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
+			},
+			args: args{
+				key: 1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_RemoveItem:StatusNil",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     nil,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      111,
+					AddressPort: "127.0.0.1",
+					Statuses:    []model.NodeAddressStatus{},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_RemoveItem:NodeId:0",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     nil,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      0,
+					AddressPort: "127.0.0.1",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -445,6 +653,8 @@ func TestNodeAddressInfoStorage_RemoveItem(t *testing.T) {
 }
 
 func TestNodeAddressInfoStorage_Rollback(t *testing.T) {
+	mock := sync.RWMutex{}
+	mock.Lock()
 	type fields struct {
 		RWMutex                                    sync.RWMutex
 		transactionalLock                          sync.RWMutex
@@ -462,6 +672,19 @@ func TestNodeAddressInfoStorage_Rollback(t *testing.T) {
 		{
 			name: "NodeAddressInfoStorage_Rollback:Success",
 			fields: fields{
+				RWMutex:                                    mock,
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            true,
+				nodeAddressInfoMapByID:                     nil,
+				nodeAddressInfoMapByAddressPort:            nil,
+				nodeAddressInfoMapByStatus:                 nil,
+				transactionalRemovedNodeAddressInfoMapByID: nil,
+			},
+			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_Rollback:Fail",
+			fields: fields{
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
@@ -470,7 +693,7 @@ func TestNodeAddressInfoStorage_Rollback(t *testing.T) {
 				nodeAddressInfoMapByStatus:                 nil,
 				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -517,6 +740,31 @@ func TestNodeAddressInfoStorage_SetItem(t *testing.T) {
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: nil,
+				item: model.NodeAddressInfo{
+					NodeID:      111,
+					Address:     "127.0.0.1",
+					Port:        3001,
+					BlockHeight: 10,
+					BlockHash:   make([]byte, 32),
+					Status:      0,
+					Signature:   make([]byte, 64),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_SetItem:Fail",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
 				nodeAddressInfoMapByID:                     nil,
 				nodeAddressInfoMapByAddressPort:            nil,
 				nodeAddressInfoMapByStatus:                 nil,
@@ -526,7 +774,7 @@ func TestNodeAddressInfoStorage_SetItem(t *testing.T) {
 				key:  nil,
 				item: nil,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -645,15 +893,79 @@ func TestNodeAddressInfoStorage_TxRemoveItem(t *testing.T) {
 				RWMutex:                                    sync.RWMutex{},
 				transactionalLock:                          sync.RWMutex{},
 				isInTransaction:                            false,
-				nodeAddressInfoMapByID:                     nil,
-				nodeAddressInfoMapByAddressPort:            nil,
-				nodeAddressInfoMapByStatus:                 nil,
-				transactionalRemovedNodeAddressInfoMapByID: nil,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      111,
+					AddressPort: "127.0.0.1",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "NodeAddressInfoStorage_TxRemoveItem:Error-Key",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
 			},
 			args: args{
 				key: nil,
 			},
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_TxRemoveItem:Error-StatusNil",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      111,
+					AddressPort: "127.0.0.1",
+					Statuses:    []model.NodeAddressStatus{},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "NodeAddressInfoStorage_TxRemoveItem:Error-NodeId:0",
+			fields: fields{
+				RWMutex:                                    sync.RWMutex{},
+				transactionalLock:                          sync.RWMutex{},
+				isInTransaction:                            false,
+				nodeAddressInfoMapByID:                     make(map[int64]map[string]model.NodeAddressInfo),
+				nodeAddressInfoMapByAddressPort:            make(map[string]map[int64]bool),
+				nodeAddressInfoMapByStatus:                 make(map[model.NodeAddressStatus]map[int64]map[string]bool),
+				transactionalRemovedNodeAddressInfoMapByID: make(map[int64]map[string]bool),
+			},
+			args: args{
+				key: NodeAddressInfoStorageKey{
+					NodeID:      0,
+					AddressPort: "127.0.0.1",
+					Statuses: []model.NodeAddressStatus{
+						model.NodeAddressStatus_NodeAddressConfirmed,
+					},
+				},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -816,21 +1128,28 @@ func TestNodeAddressInfoStorage_append(t *testing.T) {
 				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
 			args: args{
-				nodeAddresses: nil,
+				nodeAddresses: []*model.NodeAddressInfo{},
 				nodeAddress: model.NodeAddressInfo{
-					NodeID:               0,
-					Address:              "",
-					Port:                 0,
-					BlockHeight:          0,
-					BlockHash:            nil,
-					Status:               0,
-					Signature:            nil,
-					XXX_NoUnkeyedLiteral: struct{}{},
-					XXX_unrecognized:     nil,
-					XXX_sizecache:        0,
+					NodeID:      111,
+					Address:     "127.0.0.1",
+					Port:        3001,
+					BlockHeight: 10,
+					BlockHash:   make([]byte, 32),
+					Status:      2,
+					Signature:   make([]byte, 64),
 				},
 			},
-			want: nil,
+			want: []*model.NodeAddressInfo{
+				{
+					NodeID:      111,
+					Address:     "127.0.0.1",
+					Port:        3001,
+					BlockHeight: 10,
+					BlockHash:   make([]byte, 32),
+					Status:      2,
+					Signature:   make([]byte, 64),
+				},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -877,7 +1196,7 @@ func TestNodeAddressInfoStorage_size(t *testing.T) {
 				nodeAddressInfoMapByStatus:                 nil,
 				transactionalRemovedNodeAddressInfoMapByID: nil,
 			},
-			want: 0,
+			want: 318,
 		},
 	}
 	for _, tt := range tests {
