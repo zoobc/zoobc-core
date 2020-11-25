@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -42,7 +42,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
-	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -112,8 +111,8 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
 	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
-	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
-	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
+	blocksmithStrategyMain                                                 blockSmithStrategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                blockSmithStrategy.BlocksmithStrategyInterface
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
