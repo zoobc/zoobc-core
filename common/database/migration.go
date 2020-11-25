@@ -279,10 +279,11 @@ func (m *Migration) Init() error {
 			`
 			CREATE TABLE IF NOT EXISTS "pending_signature" (
 				"transaction_hash" BLOB,		-- transaction hash of pending transaction being signed
+				"multisig_address" BLOB,        -- multi signature address
 				"account_address" BLOB,			-- account address of the respective signature
-				"signature" BLOB,			-- full transaction bytes of the pending transaction
+				"signature" BLOB,			    -- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
-				"latest" INTEGER,			-- latest flag for pending signature
+				"latest" INTEGER,			    -- latest flag for pending signature
 				PRIMARY KEY("account_address", "transaction_hash", "block_height")
 			)
 			`,

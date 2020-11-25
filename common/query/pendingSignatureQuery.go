@@ -33,8 +33,8 @@ func NewPendingSignatureQuery() *PendingSignatureQuery {
 	return &PendingSignatureQuery{
 		Fields: []string{
 			"transaction_hash",
-			"account_address",
 			"multisig_address",
+			"account_address",
 			"signature",
 			"block_height",
 			"latest",

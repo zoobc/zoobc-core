@@ -3,9 +3,10 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -368,6 +369,7 @@ func (*multisignatureInfoHelperGetPendingSignatureByTransactionHashExecutorSucce
 	pendingSignatureQuery := query.NewPendingSignatureQuery()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(pendingSignatureQuery.Fields).AddRow(
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].TransactionHash,
+		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].GetMultiSignatureAddress(),
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].AccountAddress,
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].Signature,
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].BlockHeight,
