@@ -36,6 +36,7 @@ var (
 	/*
 		MultiSignatureTransaction part size
 	*/
+
 	MultisigFieldLength uint32 = 4
 	// MultiSigFieldMissing indicate fields is missing, no need to read the bytes
 	MultiSigFieldMissing uint32
