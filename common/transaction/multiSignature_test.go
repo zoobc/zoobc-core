@@ -1313,7 +1313,9 @@ func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccoun
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
 	return nil
 }
-
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) HasEnoughSpendableBalance(bool, []byte, int64) (enough bool, err error) {
+	return true, nil
+}
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
 		ID                       int64
@@ -1400,8 +1402,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            &model.SignatureInfo{},
 				},
-				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
-				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisigUtil:             &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &MultisignatureInfoHelper{},
 			},
 			args: args{
 				dbTx: true,

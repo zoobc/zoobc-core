@@ -71,7 +71,7 @@ func (tq *TransactionQuery) GetTransaction(id int64) string {
 // InsertTransaction inserts a new transaction into DB
 func (tq *TransactionQuery) InsertTransaction(tx *model.Transaction) (str string, args []interface{}) {
 	var value = fmt.Sprintf("?%s", strings.Repeat(", ?", len(tq.Fields)-1))
-	query := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
+	query := fmt.Sprintf("INSERT OR REPLACE INTO %s (%s) VALUES(%s)",
 		tq.getTableName(), strings.Join(tq.Fields, ", "), value)
 	return query, tq.ExtractModel(tx)
 }
