@@ -474,18 +474,26 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
-	if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
-		if limitLevel == constant.FeedbackLimitHigh {
+	if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitCritical {
 			monitoring.IncreaseP2PTxFilteredIncoming()
 			return nil, status.Error(codes.Internal, "NodeIsBusy")
 		}
 	}
-	if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
-		if limitLevel == constant.FeedbackLimitCritical {
-			monitoring.IncreaseP2PTxFilteredIncoming()
-			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
-		}
-	}
+
+	// STEF trying limiting inbound p2p requests only from CPU usage
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitHigh {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "NodeIsBusy")
+	// 	}
+	// }
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitCritical {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+	// 	}
+	// }
 
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var blockService = ps.BlockServices[chainType.GetTypeInt()]

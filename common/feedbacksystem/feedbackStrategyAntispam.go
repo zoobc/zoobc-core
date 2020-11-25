@@ -1,6 +1,7 @@
 package feedbacksystem
 
 import (
+	"github.com/shirou/gopsutil/cpu"
 	"os"
 	"os/signal"
 	"sync"
@@ -215,7 +216,15 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 
 // IsCPULimitReached to be implemented
 func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
-	panic("implement me")
+	CPUPerc, err := cpu.Percent(time.Duration(numSamples)*time.Second, false)
+	if err != nil {
+		return false, constant.FeedbackLimitNone
+	}
+	CPUPercInt := int(CPUPerc[0])
+	if CPUPercInt > constant.FeedbackLimitCPUPercentage {
+		return true, constant.FeedbackLimitCritical
+	}
+	return false, constant.FeedbackLimitNone
 }
 
 // IsMemoryLimitReached to be implemented

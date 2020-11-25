@@ -32,6 +32,8 @@ const (
 	// P2PRequestHardLimit max number of opened (running) P2P api requests, both incoming (server) and outgoing (client)
 	P2PRequestHardLimit = 400
 
+	FeedbackLimitCPUPercentage = 95
+
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
 	FeedbackLimitMedium

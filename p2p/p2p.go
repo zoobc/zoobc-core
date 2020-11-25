@@ -214,18 +214,26 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				ok        bool
 			)
 
-			if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
-				if limitLevel == constant.FeedbackLimitHigh {
-					monitoring.IncreaseP2PTxFilteredOutgoing()
-					return
-				}
-			}
-			if limitReached, limitLevel := s.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+			if limitReached, limitLevel := s.FeedbackStrategy.IsCPULimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 				if limitLevel == constant.FeedbackLimitCritical {
 					monitoring.IncreaseP2PTxFilteredOutgoing()
 					return
 				}
 			}
+
+			// STEF trying limiting outbound p2p requests only from CPU usage
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitHigh {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitCritical {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
 
 			t, ok = transactionBytes.([]byte)
 			if !ok {
