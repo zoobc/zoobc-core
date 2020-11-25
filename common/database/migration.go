@@ -284,7 +284,7 @@ func (m *Migration) Init() error {
 				"signature" BLOB,			    -- full transaction bytes of the pending transaction
 				"block_height" INTEGER,			-- height when pending signature inserted/updated
 				"latest" INTEGER,			    -- latest flag for pending signature
-				PRIMARY KEY("account_address", "transaction_hash", "block_height")
+				PRIMARY KEY("multisig_address", "account_address", "transaction_hash", "block_height")
 			)
 			`,
 			`

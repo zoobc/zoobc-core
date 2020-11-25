@@ -498,7 +498,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 		// parse the UnsignedTransactionBytes
 		var utx *model.Transaction
 		utx, err = tx.PendingTransactionHelper.ApplyConfirmedPendingTransaction(
-			pendingTransaction.GetTransactionHash(),
+			pendingTransaction.GetTransactionBytes(),
 			tx.Height,
 			blockTimestamp,
 		)
