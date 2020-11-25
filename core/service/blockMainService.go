@@ -739,12 +739,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.UpdateLastBlockCache(nil)
 	}
 	// cache last block into blocks cache storage
-	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-		Timestamp: block.GetTimestamp(),
-		Height:    block.Height,
-		BlockHash: block.BlockHash,
-		ID:        block.ID,
-	})
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
 	if err != nil {
 		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
 		_ = bs.InitializeBlocksCache()
@@ -1188,12 +1183,9 @@ func (bs *BlockService) InitializeBlocksCache() error {
 		return err
 	}
 	for i := 0; i < len(blocks); i++ {
-		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-			Timestamp: blocks[i].GetTimestamp(),
-			Height:    blocks[i].Height,
-			BlockHash: blocks[i].BlockHash,
-			ID:        blocks[i].ID,
-		})
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
 		if err != nil {
 			return err
 		}
@@ -1475,15 +1467,11 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCacheFormat := &storage.BlockCacheObject{
-		ID:        lastBlock.ID,
-		Height:    lastBlock.Height,
-		BlockHash: lastBlock.BlockHash,
-	}
+	lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
 	// generate receipt and return as response
 	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
 		bs.Chaintype, block.GetBlockHash(),
-		lastBlockCacheFormat,
+		&lastBlockCacheFormat,
 		senderPublicKey,
 		nodeSecretPhrase,
 		constant.ReceiptDatumTypeBlock,
@@ -1495,12 +1483,9 @@ func (bs *BlockService) ReceiveBlock(
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
-	var (
-		publishedReceipts []*model.PublishedReceipt
-		err               error
-	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	// make sure this block contains all its attributes (transaction, receipts)
+	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -1517,31 +1502,18 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
-	block := lastBlock
-
-	// TODO:
-	// Need to refactor this codes with better solution in the future
-	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
+	var (
+		poppedBlocks []*model.Block
+		block        = lastBlock
+	)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
+		// make sure this block contains all its attributes (transaction, receipts)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		block.PublishedReceipts = publishedReceipts
 	}
-
 	// Backup existing transactions from mempool before rollback
 	// note: rollback process do inside Backup Mempools func
 	err = bs.MempoolService.BackupMempools(commonBlock)

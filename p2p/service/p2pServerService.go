@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
@@ -283,7 +284,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		}
 		myLastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil || myLastBlock == nil {
-			return nil, status.Error(codes.Internal, "failedGetLastBlock")
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failGetLastBlockErr: %v", err.Error()))
 		}
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height

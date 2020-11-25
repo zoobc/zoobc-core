@@ -472,3 +472,42 @@ func TestMerkleTreeQuery_PruneData(t *testing.T) {
 		})
 	}
 }
+
+func TestMerkleTreeQuery_Rollback(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantMultiQueries [][]interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMerkleTreeQuery),
+			args:   args{height: 1},
+			wantMultiQueries: [][]interface{}{
+				{
+					"DELETE FROM merkle_tree WHERE block_height > ?",
+					uint32(1),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mrQ := &MerkleTreeQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if gotMultiQueries := mrQ.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
+				t.Errorf("MerkleTreeQuery.Rollback() = %v, want %v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
+}
