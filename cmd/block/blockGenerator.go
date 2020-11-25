@@ -119,7 +119,7 @@ func initialize(
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
-	mempoolStorage := storage.NewMempoolStorage()
+	mempoolStorage := storage.NewMempoolStorage(monitoring.TypeMempoolCacheStorage, monitoring.TypeMempoolCountCacheStorage)
 
 	actionSwitcher := &transaction.TypeSwitcher{
 		Executor:            queryExecutor,
