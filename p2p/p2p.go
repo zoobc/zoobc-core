@@ -2,7 +2,9 @@ package p2p
 
 import (
 	"encoding/base64"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math/rand"
 	"time"
 
@@ -211,6 +213,20 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				chainType chaintype.ChainType
 				ok        bool
 			)
+
+			if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+				if limitLevel == constant.FeedbackLimitHigh {
+					monitoring.IncreaseP2PTxFiltered()
+					return
+				}
+			}
+			if limitReached, limitLevel := s.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+				if limitLevel == constant.FeedbackLimitCritical {
+					monitoring.IncreaseP2PTxFiltered()
+					return
+				}
+			}
+
 			t, ok = transactionBytes.([]byte)
 			if !ok {
 				s.Logger.Fatalln("transactionBytes casting failures in SendTransactionListener")
