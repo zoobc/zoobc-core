@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"sort"
 	"time"
 
@@ -282,9 +283,17 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		block                    model.Block
 		err                      error
 	)
+	// NOTE: this is temporary solution, should be enhace after implement new receipt logic
+	err = rs.QueryExecutor.BeginTx()
+	if err != nil {
+		return err
+	}
 
 	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
 	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+		}
 		return err
 	}
 
@@ -312,6 +321,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
 		if err != nil {
+			if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+			}
 			return err
 		}
 		rootMerkle, treeMerkle := merkleRoot.ToBytes()
@@ -329,6 +341,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		}
 		err = rs.MainBlockStateStorage.GetItem(nil, &block)
 		if err != nil {
+			if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+			}
 			return err
 		}
 		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
@@ -339,13 +354,11 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
 		err = rs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = rs.QueryExecutor.RollbackTx()
+			if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+			}
 			return err
 		}
 		err = rs.QueryExecutor.CommitTx()
