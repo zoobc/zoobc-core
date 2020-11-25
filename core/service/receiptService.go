@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"sort"
 	"time"
 
@@ -282,81 +283,96 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		block                    model.Block
 		err                      error
 	)
-
-	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
+	// NOTE: this is temporary solution, should be enhace after implement new receipt logic
+	err = rs.QueryExecutor.BeginTx()
 	if err != nil {
 		return err
 	}
 
-	if len(receiptsCached) >= int(constant.ReceiptBatchMaximum) {
-		// Need to sorting before do next
-		sort.SliceStable(receiptsCached, func(i, j int) bool {
-			return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
-		})
-
-		var cacheCount int
-		for _, receipt := range receiptsCached {
-			if len(receipts) == int(constant.ReceiptBatchMaximum) {
-				break
-			}
-			b := receipt
-			err = rs.ValidateReceipt(&b)
-			if err == nil {
-				receipts = append(receipts, b)
-				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&b))
-				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
-			}
-			cacheCount++
+	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
+	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
-		receiptsCached = receiptsCached[cacheCount:]
-
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
-		if err != nil {
-			return err
-		}
-		rootMerkle, treeMerkle := merkleRoot.ToBytes()
-
-		queries = make([][]interface{}, len(hashedReceipts)+1)
-		for k, receipt := range receipts {
-			b := receipt
-			batchReceipt = &model.BatchReceipt{
-				Receipt:  &b,
-				RMR:      rootMerkle,
-				RMRIndex: uint32(k),
-			}
-			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(batchReceipt)
-			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
-		}
-		err = rs.MainBlockStateStorage.GetItem(nil, &block)
-		if err != nil {
-			return err
-		}
-		insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
-			rootMerkle,
-			treeMerkle,
-			time.Now().Unix(),
-			block.Height,
-		)
-		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
-
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
-		err = rs.QueryExecutor.ExecuteTransactions(queries)
-		if err != nil {
-			_ = rs.QueryExecutor.RollbackTx()
-			return err
-		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
-		}
-		rs.LastMerkleRoot = rootMerkle // update local cache
-		return rs.BatchReceiptCacheStorage.SetItems(receiptsCached)
+		return err
 	}
 
-	return nil
+	if len(receiptsCached) < int(constant.ReceiptBatchMaximum) {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+		}
+		return nil
+	}
+
+	// Need to sorting before do next
+	sort.SliceStable(receiptsCached, func(i, j int) bool {
+		return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
+	})
+
+	var cacheCount int
+	for _, receipt := range receiptsCached {
+		if len(receipts) == int(constant.ReceiptBatchMaximum) {
+			break
+		}
+		b := receipt
+		err = rs.ValidateReceipt(&b)
+		if err == nil {
+			receipts = append(receipts, b)
+			hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&b))
+			hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
+		}
+		cacheCount++
+	}
+	receiptsCached = receiptsCached[cacheCount:]
+
+	_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+		}
+		return err
+	}
+	rootMerkle, treeMerkle := merkleRoot.ToBytes()
+
+	queries = make([][]interface{}, len(hashedReceipts)+1)
+	for k, receipt := range receipts {
+		b := receipt
+		batchReceipt = &model.BatchReceipt{
+			Receipt:  &b,
+			RMR:      rootMerkle,
+			RMRIndex: uint32(k),
+		}
+		insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(batchReceipt)
+		queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
+	}
+	err = rs.MainBlockStateStorage.GetItem(nil, &block)
+	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+		}
+		return err
+	}
+	insertMerkleTreeQ, insertMerkleTreeArgs := rs.MerkleTreeQuery.InsertMerkleTree(
+		rootMerkle,
+		treeMerkle,
+		time.Now().Unix(),
+		block.Height,
+	)
+	queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
+
+	err = rs.QueryExecutor.ExecuteTransactions(queries)
+	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
+		}
+		return err
+	}
+	err = rs.QueryExecutor.CommitTx()
+	if err != nil {
+		return err
+	}
+	rs.LastMerkleRoot = rootMerkle // update local cache
+	return rs.BatchReceiptCacheStorage.SetItems(receiptsCached)
 }
 
 // CheckDuplication check existing batch receipt in cache storage

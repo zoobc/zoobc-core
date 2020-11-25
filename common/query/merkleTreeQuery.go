@@ -159,3 +159,12 @@ func (mrQ *MerkleTreeQuery) BuildTree(rows *sql.Rows) (map[string][]byte, error)
 	}
 	return listTree, nil
 }
+
+func (mrQ *MerkleTreeQuery) Rollback(height uint32) (multiQueries [][]interface{}) {
+	return [][]interface{}{
+		{
+			fmt.Sprintf("DELETE FROM %s WHERE block_height > ?", mrQ.getTableName()),
+			height,
+		},
+	}
+}

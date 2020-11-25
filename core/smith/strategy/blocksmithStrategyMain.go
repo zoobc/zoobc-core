@@ -143,16 +143,20 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 		bss.Chaintype.GetBlocksmithNetworkTolerance()
 
 	qry := bss.SkippedBlocksmithQuery.GetNumberOfSkippedBlocksmithsByBlockHeight(lastBlock.GetHeight())
-	row, err := bss.QueryExecutor.ExecuteSelectRow(qry, false)
+	rows, err := bss.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return result, err
 	}
-	err = row.Scan(&numberOfSkippedBlocksmith)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return result, err
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&numberOfSkippedBlocksmith)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return result, err
+			}
 		}
 	}
+
 	if numberOfSkippedBlocksmith > 0 {
 		result = firstBlocksmithExpiryTime + (int64(numberOfSkippedBlocksmith-1) * bss.Chaintype.GetBlocksmithTimeGap())
 	} else {
