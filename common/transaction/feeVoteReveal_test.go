@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -398,6 +398,11 @@ func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountSpendableBalance(
 func (*mockAccountBalanceHelperFeeVoteRevealSuccess) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
 	return nil
 }
+func (*mockAccountBalanceHelperFeeVoteRevealSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
 
 func (*mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess) ExecuteTransaction(string, ...interface{}) error {
 	return nil
@@ -420,9 +425,13 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 		AccountBalanceHelper   AccountBalanceHelperInterface
 		QueryExecutor          query.ExecutorInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -450,7 +459,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

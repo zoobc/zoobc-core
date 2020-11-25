@@ -1377,20 +1377,27 @@ type (
 	mockMempoolCacheStorageRemoveMempoolTransactionsSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockMempoolUnsaveCacheStorageRemoveMempoolTransactionsSuccess struct {
+		storage.CacheStorageInterface
+	}
 )
 
 func (*mockMempoolCacheStorageRemoveMempoolTransactionsSuccess) RemoveItem(item interface{}) error {
 	return nil
 }
+func (*mockMempoolUnsaveCacheStorageRemoveMempoolTransactionsSuccess) RemoveItem(item interface{}) error {
+	return nil
+}
 
 func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 	type fields struct {
-		Chaintype           chaintype.ChainType
-		QueryExecutor       query.ExecutorInterface
-		MempoolQuery        query.MempoolQueryInterface
-		Signature           crypto.SignatureInterface
-		MempoolCacheStorage storage.CacheStorageInterface
-		Logger              *log.Logger
+		Chaintype                 chaintype.ChainType
+		QueryExecutor             query.ExecutorInterface
+		MempoolQuery              query.MempoolQueryInterface
+		Signature                 crypto.SignatureInterface
+		MempoolCacheStorage       storage.CacheStorageInterface
+		MempoolUnsaveCacheStorage storage.CacheStorageInterface
+		Logger                    *log.Logger
 	}
 	type args struct {
 		transactions []*model.Transaction
@@ -1404,11 +1411,12 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 		{
 			name: "RemoveMempoolTransaction:Success",
 			fields: fields{
-				Chaintype:           &chaintype.MainChain{},
-				MempoolQuery:        query.NewMempoolQuery(&chaintype.MainChain{}),
-				QueryExecutor:       &mockQueryExecutorSuccess{},
-				MempoolCacheStorage: &mockMempoolCacheStorageRemoveMempoolTransactionsSuccess{},
-				Logger:              log.New(),
+				Chaintype:                 &chaintype.MainChain{},
+				MempoolQuery:              query.NewMempoolQuery(&chaintype.MainChain{}),
+				QueryExecutor:             &mockQueryExecutorSuccess{},
+				MempoolCacheStorage:       &mockMempoolCacheStorageRemoveMempoolTransactionsSuccess{},
+				MempoolUnsaveCacheStorage: &mockMempoolUnsaveCacheStorageRemoveMempoolTransactionsSuccess{},
+				Logger:                    log.New(),
 			},
 			args: args{
 				transactions: []*model.Transaction{
@@ -1450,12 +1458,13 @@ func TestMempoolService_RemoveMempoolTransactions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bs := &MempoolService{
-				Chaintype:           tt.fields.Chaintype,
-				QueryExecutor:       tt.fields.QueryExecutor,
-				MempoolQuery:        tt.fields.MempoolQuery,
-				Signature:           tt.fields.Signature,
-				Logger:              tt.fields.Logger,
-				MempoolCacheStorage: tt.fields.MempoolCacheStorage,
+				Chaintype:                 tt.fields.Chaintype,
+				QueryExecutor:             tt.fields.QueryExecutor,
+				MempoolQuery:              tt.fields.MempoolQuery,
+				Signature:                 tt.fields.Signature,
+				Logger:                    tt.fields.Logger,
+				MempoolCacheStorage:       tt.fields.MempoolCacheStorage,
+				MempoolUnsaveCacheStorage: tt.fields.MempoolUnsaveCacheStorage,
 			}
 			if err := bs.RemoveMempoolTransactions(tt.args.transactions); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.RemoveMempoolTransactions() error = %v, wantErr %v", err, tt.wantErr)
@@ -1762,6 +1771,9 @@ type (
 	mockAddGenesisNodeAddressInfoServiceSuccess struct {
 		NodeAddressInfoServiceInterface
 	}
+	mockAddGenensisMempoolServiceSuccess struct {
+		MempoolService
+	}
 )
 
 func (*mockAddGenesisNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
@@ -1814,6 +1826,24 @@ func (*mockScrambleServiceAddGenesisSuccess) GetBlockHeightToBuildScrambleNodes(
 	return 1
 }
 
+func (*mockAddGenensisMempoolServiceSuccess) SelectTransactionsFromMempool(blockTimestamp int64, blockHeight uint32) ([]*model.Transaction, error) {
+	return nil, nil
+}
+
+// mockMempoolServiceSelectFail
+func (*mockAddGenensisMempoolServiceSuccess) GetMempoolTransactions() (storage.MempoolMap, error) {
+	return make(storage.MempoolMap), nil
+}
+func (*mockAddGenensisMempoolServiceSuccess) SpendableBalanceBeginCacheTransaction() error {
+	return nil
+}
+func (*mockAddGenensisMempoolServiceSuccess) SpendableBalanceRollbackCacheTransaction() error {
+	return nil
+}
+func (*mockAddGenensisMempoolServiceSuccess) SpendableBalanceCommitCacheTransaction() error {
+	return nil
+}
+
 func TestBlockService_AddGenesis(t *testing.T) {
 	type fields struct {
 		Chaintype                 chaintype.ChainType
@@ -1851,7 +1881,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				Signature:               &mockSignature{},
 				MempoolQuery:            query.NewMempoolQuery(&chaintype.MainChain{}),
 				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
-				MempoolService:          &mockMempoolServiceSelectFail{},
+				MempoolService:          &mockAddGenensisMempoolServiceSuccess{},
 				ActionTypeSwitcher:      &mockTypeActionSuccess{},
 				QueryExecutor:           &mockAddGenesisExecutor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),

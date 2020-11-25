@@ -24,7 +24,7 @@ func (tx *TXEmpty) SkipMempoolTransaction(
 func (tx *TXEmpty) ApplyConfirmed(int64) error {
 	return nil
 }
-func (tx *TXEmpty) ApplyUnconfirmed() error {
+func (tx *TXEmpty) ApplyUnconfirmed(applyInCache bool) error {
 	return nil
 }
 

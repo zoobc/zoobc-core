@@ -2,7 +2,7 @@ package constant
 
 import "time"
 
-var (
+const (
 	MaxMessageLength                     = 256
 	MaxNumberOfTransactionsInBlock       = 330
 	MinTransactionSizeInBlock            = 176

@@ -3,8 +3,8 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/accounttype"
 
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -139,14 +139,11 @@ func (tx *ClaimNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 ApplyUnconfirmed is func that for applying to unconfirmed Transaction `ClaimNodeRegistration` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *ClaimNodeRegistration) ApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee))
-	if err != nil {
-		return err
+func (tx *ClaimNodeRegistration) ApplyUnconfirmed(applyInCache bool) error {
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, -(tx.Fee))
 	}
-
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee))
 }
 
 func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
@@ -155,7 +152,8 @@ func (tx *ClaimNodeRegistration) UndoApplyUnconfirmed() error {
 	if err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, tx.Fee)
 }
 
 // Validate validate node registration transaction and tx body
@@ -330,13 +328,12 @@ func (tx *ClaimNodeRegistration) EscrowValidate(dbTX bool) error {
 EscrowApplyUnconfirmed is func that for applying to unconfirmed Transaction `ClaimNodeRegistration` type:
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
-func (tx *ClaimNodeRegistration) EscrowApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee + tx.Escrow.GetCommission()))
-	if err != nil {
-		return err
+func (tx *ClaimNodeRegistration) EscrowApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -(tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -344,11 +341,15 @@ EscrowUndoApplyUnconfirmed func that perform on apply confirm preparation
 */
 func (tx *ClaimNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	var (
+		addedSpendable = tx.Fee + tx.Escrow.GetCommission()
+		err            = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+	)
 	if err != nil {
 		return err
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 /*

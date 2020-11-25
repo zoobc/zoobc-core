@@ -72,22 +72,23 @@ func (tx *LiquidPaymentTransaction) ApplyConfirmed(blockTimestamp int64) (err er
 	return nil
 }
 
-func (tx *LiquidPaymentTransaction) ApplyUnconfirmed() (err error) {
+func (tx *LiquidPaymentTransaction) ApplyUnconfirmed(applyInCache bool) (err error) {
+	var addedSpendable = -(tx.Body.Amount + tx.Fee)
 	// update sender
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Body.Amount + tx.Fee))
-	if err != nil {
-		return err
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *LiquidPaymentTransaction) UndoApplyUnconfirmed() (err error) {
 	// update sender
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Body.Amount+tx.Fee)
+	var addedSpendable = tx.Body.Amount + tx.Fee
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 	if err != nil {
 		return err
 	}
-	return nil
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
@@ -274,26 +275,23 @@ func (tx *LiquidPaymentTransaction) EscrowApplyConfirmed(blockTimestamp int64) (
 	return nil
 }
 
-func (tx *LiquidPaymentTransaction) EscrowApplyUnconfirmed() (err error) {
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(
-		tx.SenderAddress,
-		-(tx.Body.Amount + tx.Fee + tx.Escrow.GetCommission()),
-	)
-	if err != nil {
-		return err
+func (tx *LiquidPaymentTransaction) EscrowApplyUnconfirmed(applyInCache bool) (err error) {
+	var addedSpendable = -(tx.Body.Amount + tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 	}
-	return nil
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+
 }
 
 func (tx *LiquidPaymentTransaction) EscrowUndoApplyUnconfirmed() (err error) {
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(
-		tx.SenderAddress,
-		tx.Body.Amount+tx.Fee+tx.Escrow.GetCommission(),
-	)
+	var addedSpendable = tx.Body.Amount + tx.Fee + tx.Escrow.GetCommission()
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 	if err != nil {
 		return err
 	}
-	return nil
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+
 }
 
 func (tx *LiquidPaymentTransaction) EscrowValidate(dbTx bool) (err error) {

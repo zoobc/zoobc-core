@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -60,7 +60,8 @@ var (
 	nextNodeAdmissionStorage, mempoolStorage, receiptReminderStorage       storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
-	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
+	nodeAddressInfoStorage, spendableBalanceStorage                        storage.CacheStorageInterface
+	mempoolUnsaveCacheStorage                                              storage.CacheStorageInterface
 	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
@@ -292,14 +293,17 @@ func initiateMainInstance() {
 	blockStateStorages[spinechain.GetTypeInt()] = spineBlockStateStorage
 	nextNodeAdmissionStorage = storage.NewNodeAdmissionTimestampStorage()
 	nodeShardStorage = storage.NewNodeShardCacheStorage()
-	mempoolStorage = storage.NewMempoolStorage()
+	mempoolStorage = storage.NewMempoolStorage(monitoring.TypeMempoolCacheStorage, monitoring.TypeMempoolCountCacheStorage)
+	mempoolBackupStorage = storage.NewMempoolBackupStorage()
+	mempoolUnsaveCacheStorage = storage.NewMempoolStorage(monitoring.TypeMempoolUnsaveCacheStorage, monitoring.TypeMempoolUnsaveCountCacheStorage)
 	scrambleNodeStorage = storage.NewScrambleCacheStackStorage()
 	receiptReminderStorage = storage.NewReceiptReminderStorage()
-	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
 	mainBlocksStorage = storage.NewBlocksStorage()
 	spineBlocksStorage = storage.NewBlocksStorage()
+	spendableBalanceStorage = storage.NewSpendableBalanceStorage()
+
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -358,6 +362,7 @@ func initiateMainInstance() {
 		NodeAddressInfoStorage:     txNodeAddressInfoStorage,
 		ActiveNodeRegistryStorage:  txActiveNodeRegistryStorage,
 		PendingNodeRegistryStorage: txPendingNodeRegistryStorage,
+		SpendabelBalanceStorage:    spendableBalanceStorage,
 		FeeScaleService:            feeScaleService,
 	}
 
@@ -519,6 +524,8 @@ func initiateMainInstance() {
 		mainBlocksStorage,
 		mempoolStorage,
 		mempoolBackupStorage,
+		mempoolUnsaveCacheStorage,
+		spendableBalanceStorage,
 	)
 
 	mainchainBlockService = service.NewBlockMainService(
@@ -1083,6 +1090,13 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err: ", err.Error())
 	}
+	if err := schedulerInstance.AddJob(
+		constant.MempoolMoveFullCachePeriod,
+		mempoolService.MoveFullCacheMempools,
+	); err != nil {
+		loggerCoreService.Error("Scheduler Err: ", err.Error())
+	}
+
 }
 
 func startBlockchainSynchronizers() {

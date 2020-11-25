@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -180,8 +181,12 @@ func (tx *FeeVoteRevealTransaction) checkDuplicateVoteReveal(dbTx bool) error {
 }
 
 // ApplyUnconfirmed to apply unconfirmed transaction
-func (tx *FeeVoteRevealTransaction) ApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+func (tx *FeeVoteRevealTransaction) ApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -tx.Fee
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+	}
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -189,7 +194,11 @@ UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *FeeVoteRevealTransaction) UndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee); err != nil {
+		return err
+	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, tx.Fee)
 }
 
 // ApplyConfirmed applying transaction, will store ledger, account balance update, and also the transaction it self
@@ -385,12 +394,24 @@ func (tx *FeeVoteRevealTransaction) EscrowApplyConfirmed(blockTimestamp int64) (
 	return nil
 }
 
-func (tx *FeeVoteRevealTransaction) EscrowApplyUnconfirmed() (err error) {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+func (tx *FeeVoteRevealTransaction) EscrowApplyUnconfirmed(applyInCache bool) (err error) {
+	var addedSpendable = -(tx.Fee + tx.Escrow.GetCommission())
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+	}
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowUndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	var (
+		addedSpendable = tx.Fee + tx.Escrow.GetCommission()
+		err            = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
+	)
+	if err != nil {
+		return err
+	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {

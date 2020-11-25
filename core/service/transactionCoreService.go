@@ -17,7 +17,7 @@ type (
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
 		ValidateTransaction(txAction transaction.TypeAction, useTX bool) error
-		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
+		ApplyUnconfirmedTransaction(txAction transaction.TypeAction, applyInCache bool) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
 		ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error
@@ -317,21 +317,19 @@ func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeA
 	}
 }
 
-func (tg *TransactionCoreService) ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error {
-
+func (tg *TransactionCoreService) ApplyUnconfirmedTransaction(txAction transaction.TypeAction, applyInCache bool) error {
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:
-		err := escrowAction.EscrowApplyUnconfirmed()
+		err := escrowAction.EscrowApplyUnconfirmed(applyInCache)
 		return err
 	default:
-		err := txAction.ApplyUnconfirmed()
+		err := txAction.ApplyUnconfirmed(applyInCache)
 		return err
 	}
 }
 
 func (tg *TransactionCoreService) UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error {
-
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:

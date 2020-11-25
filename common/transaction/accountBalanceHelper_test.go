@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/model"
-
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -16,6 +16,9 @@ type (
 	}
 	mockAccountBalanceHelperExecutorAddSpendableSuccess struct {
 		query.ExecutorInterface
+	}
+	mockAccountBalanceHelperSpendableBalanceStorageSuccess struct {
+		storage.SpendableBalanceStorage
 	}
 )
 
@@ -32,6 +35,10 @@ func (*mockAccountBalanceHelperExecutorAddSpendableSuccess) ExecuteTransaction(q
 }
 
 func (*mockAccountBalanceHelperExecutorAddSpendableSuccess) ExecuteTransactions(queries [][]interface{}) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperSpendableBalanceStorageSuccess) GetItem(key, item interface{}) error {
 	return nil
 }
 
@@ -84,9 +91,10 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 
 func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 	type fields struct {
-		AccountBalanceQuery query.AccountBalanceQueryInterface
-		AccountLedgerQuery  query.AccountLedgerQueryInterface
-		QueryExecutor       query.ExecutorInterface
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		SpendableBalanceStorage storage.CacheStorageInterface
 	}
 	type args struct {
 		address     []byte
@@ -112,9 +120,10 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 		{
 			name: "executeSuccess",
 			fields: fields{
-				AccountBalanceQuery: query.NewAccountBalanceQuery(),
-				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
-				QueryExecutor:       &mockAccountBalanceHelperExecutorAddSpendableSuccess{},
+				AccountBalanceQuery:     query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:      query.NewAccountLedgerQuery(),
+				QueryExecutor:           &mockAccountBalanceHelperExecutorAddSpendableSuccess{},
+				SpendableBalanceStorage: &mockAccountBalanceHelperSpendableBalanceStorageSuccess{},
 			},
 			args:    args{},
 			wantErr: false,
@@ -123,9 +132,10 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			abh := &AccountBalanceHelper{
-				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
-				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
-				QueryExecutor:       tt.fields.QueryExecutor,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				SpendableBalanceStorage: tt.fields.SpendableBalanceStorage,
 			}
 			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, 0, tt.args.blockHeight, 0, 0); (err != nil) != tt.wantErr {
 				t.Errorf("AddAccountBalance() error = %v, wantErr %v", err, tt.wantErr)
@@ -164,8 +174,49 @@ func (*mockAccountBalanceHelperSuccess) AddAccountBalance(
 ) error {
 	return nil
 }
+func (*mockAccountBalanceHelperSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
 func (*mockAccountBalanceHelperFail) AddAccountBalance(
 	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
 ) error {
 	return sql.ErrTxDone
+}
+
+func TestAccountBalanceHelper_AddAccountSpendableBalanceInCache(t *testing.T) {
+	type fields struct {
+		accountBalance          model.AccountBalance
+		AccountBalanceQuery     query.AccountBalanceQueryInterface
+		AccountLedgerQuery      query.AccountLedgerQueryInterface
+		QueryExecutor           query.ExecutorInterface
+		SpendableBalanceStorage storage.CacheStorageInterface
+	}
+	type args struct {
+		address []byte
+		amount  int64
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			abh := &AccountBalanceHelper{
+				accountBalance:          tt.fields.accountBalance,
+				AccountBalanceQuery:     tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:      tt.fields.AccountLedgerQuery,
+				QueryExecutor:           tt.fields.QueryExecutor,
+				SpendableBalanceStorage: tt.fields.SpendableBalanceStorage,
+			}
+			if err := abh.AddAccountSpendableBalanceInCache(tt.args.address, tt.args.amount); (err != nil) != tt.wantErr {
+				t.Errorf("AccountBalanceHelper.AddAccountSpendableBalanceInCache() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }

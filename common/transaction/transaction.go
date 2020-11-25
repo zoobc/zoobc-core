@@ -19,7 +19,7 @@ type (
 	TypeAction interface {
 		// ApplyConfirmed perhaps this method called with QueryExecutor.BeginTX() because inside this process has separated QueryExecutor.Execute
 		ApplyConfirmed(blockTimestamp int64) error
-		ApplyUnconfirmed() error
+		ApplyUnconfirmed(applyInCache bool) error
 		UndoApplyUnconfirmed() error
 		// Validate dbTx specify whether validation should read from transaction state or db state
 		Validate(dbTx bool) error
@@ -49,6 +49,7 @@ type (
 		NodeAddressInfoStorage     storage.TransactionalCache
 		PendingNodeRegistryStorage storage.TransactionalCache
 		ActiveNodeRegistryStorage  storage.TransactionalCache
+		SpendabelBalanceStorage    storage.CacheStorageInterface
 		FeeScaleService            fee.FeeScaleServiceInterface
 	}
 )
@@ -56,15 +57,20 @@ type (
 // GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	var (
+		err                  error
 		buf                  = util.ConvertUint32ToBytes(tx.GetTransactionType())
-		accountBalanceHelper = NewAccountBalanceHelper(ts.Executor, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
 		transactionHelper    = NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
 		transactionBody      model.TransactionBodyInterface
-		transactionUtil      = &Util{
+		accountBalanceHelper = NewAccountBalanceHelper(
+			ts.Executor,
+			query.NewAccountBalanceQuery(),
+			query.NewAccountLedgerQuery(),
+			ts.SpendabelBalanceStorage,
+		)
+		transactionUtil = &Util{
 			MempoolCacheStorage: ts.MempoolCacheStorage,
 			FeeScaleService:     ts.FeeScaleService,
 		}
-		err error
 	)
 
 	switch buf[0] {

@@ -53,6 +53,12 @@ type (
 		isError bool
 		LiquidPaymentTransaction
 	}
+	mockAccountBalanceHelperLiquidPaymentStopSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperLiquidPaymentStopFail struct {
+		AccountBalanceHelper
+	}
 )
 
 var (
@@ -142,6 +148,31 @@ func (m *mockLiquidPaymentTransaction) CompletePayment(blockHeight uint32, block
 	return nil
 }
 
+func (*mockAccountBalanceHelperLiquidPaymentStopSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+func (*mockAccountBalanceHelperLiquidPaymentStopSuccess) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperLiquidPaymentStopSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperLiquidPaymentStopFail) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return errors.New("mockedError")
+}
+func (*mockAccountBalanceHelperLiquidPaymentStopFail) AddAccountBalance([]byte, int64, model.EventType, uint32, int64, uint64) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperLiquidPaymentStopFail) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return errors.New("mockedError")
+}
 func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
@@ -173,6 +204,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 					&executorSetupLiquidPaymentStopFail{},
 					query.NewAccountBalanceQuery(),
 					query.NewAccountLedgerQuery(),
+					nil,
 				),
 				QueryExecutor: &executorSetupLiquidPaymentStopFail{},
 			},
@@ -181,11 +213,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetPendingLiquidPaymentTransactionByID",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
 				Body: &model.LiquidPaymentStopTransactionBody{
@@ -197,11 +225,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_LiquidPaymentTransactionQuery",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQueryFail{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
 				Body: &model.LiquidPaymentStopTransactionBody{
@@ -213,11 +237,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetTransaction",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -230,11 +250,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_GetTransaction",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQueryFail{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -247,11 +263,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:GetTransactionType_error",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -267,11 +279,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:casting_error_liquidPaymentTransaction",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -287,11 +295,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:CompletePayment_error",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -309,11 +313,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess:status_is_already_completed",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
@@ -326,11 +326,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorLiquidPaymentStopApplyConfirmed{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -383,9 +379,13 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -401,12 +401,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopFail{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -423,12 +419,8 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopSuccess{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -449,7 +441,7 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("LiquidPaymentStop.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -489,12 +481,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopFail{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -511,12 +499,8 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopSuccess{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -604,12 +588,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -625,12 +605,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -646,12 +622,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -667,12 +639,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQueryFail{},
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopFail{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper:          &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -691,12 +659,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 					Sender:    liquidPayStopAddress1,
 					Recipient: liquidPayStopAddress2,
 				},
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopSuccess{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -715,12 +679,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
-				AccountBalanceHelper: NewAccountBalanceHelper(
-					&executorSetupLiquidPaymentStopSuccess{},
-					query.NewAccountBalanceQuery(),
-					query.NewAccountLedgerQuery(),
-				),
-				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopSuccess{},
+				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
