@@ -1489,19 +1489,9 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 
 	var (
-		poppedBlocks      []*model.Block
-		publishedReceipts []*model.PublishedReceipt
-		block             = lastBlock
+		poppedBlocks []*model.Block
+		block        = lastBlock
 	)
-	// TODO:
-	// Need to refactor this codes with better solution in the future
-	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
 		// make sure this block contains all its attributes (transaction, receipts)

@@ -152,7 +152,7 @@ func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
 }
 
 func BlockConvertToCacheFormat(block *model.Block) storage.BlockCacheObject {
-	var bHash []byte
+	var bHash = make([]byte, len(block.BlockHash))
 	copy(bHash, block.BlockHash)
 	return storage.BlockCacheObject{
 		ID:        block.ID,
