@@ -216,13 +216,13 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 
 			if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 				if limitLevel == constant.FeedbackLimitHigh {
-					monitoring.IncreaseP2PTxFiltered()
+					monitoring.IncreaseP2PTxFilteredOutgoing()
 					return
 				}
 			}
 			if limitReached, limitLevel := s.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 				if limitLevel == constant.FeedbackLimitCritical {
-					monitoring.IncreaseP2PTxFiltered()
+					monitoring.IncreaseP2PTxFilteredOutgoing()
 					return
 				}
 			}

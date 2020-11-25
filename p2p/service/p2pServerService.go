@@ -476,13 +476,13 @@ func (ps *P2PServerService) SendTransaction(
 ) (*model.SendTransactionResponse, error) {
 	if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		if limitLevel == constant.FeedbackLimitHigh {
-			monitoring.IncreaseP2PTxFiltered()
+			monitoring.IncreaseP2PTxFilteredIncoming()
 			return nil, status.Error(codes.Internal, "NodeIsBusy")
 		}
 	}
 	if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
 		if limitLevel == constant.FeedbackLimitCritical {
-			monitoring.IncreaseP2PTxFiltered()
+			monitoring.IncreaseP2PTxFilteredIncoming()
 			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
 		}
 	}
