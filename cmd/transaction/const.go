@@ -61,14 +61,10 @@ var (
 	transactionID int64
 
 	// multiSignature
-	unsignedTxHex     string
-	addressSignatures map[string]string
-	txHash            string
-	addressesHex      []string
-	nonce             int64
-	minSignature      uint32
-	participantSeeds  []string
-	nested            int
+	nonce            int64
+	minSignature     uint32
+	participantSeeds []string
+	nested           int
 
 	// fee vote
 	recentBlockHeight uint32

@@ -356,7 +356,10 @@ func (msi *MultisignatureInfoHelper) InsertMultiSignaturesInfo(multiSignaturesIn
 func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 
 	var (
-		address []byte
+		address             []byte
+		pendingTransaction  model.PendingTransaction
+		multiSignaturesInfo []*model.MultiSignatureInfo
+		pendingSignatures   []*model.PendingSignature
 	)
 
 	// if have multisig info, MultisigInfoService.AddMultisigInfo() -> noop duplicate
@@ -384,8 +387,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 			)
 		}
 		txHash := sha3.Sum256(tx.Body.UnsignedTransactionBytes)
-		var pendingTx model.PendingTransaction
-		err = tx.PendingTransactionHelper.GetPendingTransactionByHash(&pendingTx, txHash[:], []model.PendingTransactionStatus{
+		err = tx.PendingTransactionHelper.GetPendingTransactionByHash(&pendingTransaction, txHash[:], []model.PendingTransactionStatus{
 			model.PendingTransactionStatus_PendingTransactionPending,
 		}, tx.Height, true)
 		if err == sql.ErrNoRows {
@@ -395,7 +397,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 				return err
 			}
 			// save the pending transaction
-			pendingTx = model.PendingTransaction{
+			pendingTransaction = model.PendingTransaction{
 				SenderAddress:    innerTx.SenderAccountAddress,
 				TransactionHash:  txHash[:],
 				TransactionBytes: tx.Body.UnsignedTransactionBytes,
@@ -403,7 +405,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 				BlockHeight:      tx.Height,
 				Latest:           true,
 			}
-			err = tx.PendingTransactionHelper.InsertPendingTransaction(&pendingTx)
+			err = tx.PendingTransactionHelper.InsertPendingTransaction(&pendingTransaction)
 			if err != nil {
 				return err
 			}
@@ -416,6 +418,13 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 	}
 	// if have signature, PendingSignature.AddPendingSignature -> noop duplicate
 	if tx.Body.SignatureInfo != nil {
+		var musigAddress []byte
+		if tx.Body.GetMultiSignatureInfo() != nil {
+			_, musigAddress, err = tx.TransactionUtil.GenerateMultiSigAddress(tx.Body.GetMultiSignatureInfo())
+			if err != nil {
+				return err
+			}
+		}
 		for addrHex, sig := range tx.Body.SignatureInfo.Signatures {
 			var (
 				addr []byte
@@ -426,82 +435,81 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 			}
 			if util.ConvertBytesToUint32(addr[:constant.AccountAddressTypeLength]) == uint32(model.AccountType_MultiSignatureAccountType) {
 				var (
-					multiSignaturesInfo []*model.MultiSignatureInfo
-					pendingSignatures   []*model.PendingSignature
+					mis []*model.MultiSignatureInfo
+					ps  []*model.PendingSignature
 				)
 				err = tx.MultisigUtil.ParseSignatureInfoBytesAsCandidates(
 					tx.Body.GetSignatureInfo().GetTransactionHash(),
+					musigAddress,
 					addr,
 					sig,
 					tx.Height,
-					&multiSignaturesInfo,
-					&pendingSignatures,
+					&mis,
+					&ps,
 				)
 				if err != nil {
 					return err
 				}
-				err = tx.MultisignatureInfoHelper.InsertMultiSignaturesInfo(multiSignaturesInfo)
+				err = tx.MultisignatureInfoHelper.InsertMultiSignaturesInfo(mis)
 				if err != nil {
 					return err
 				}
-				err = tx.SignatureInfoHelper.InsertPendingSignatures(pendingSignatures)
+				err = tx.SignatureInfoHelper.InsertPendingSignatures(ps)
 				if err != nil {
 					return err
 				}
+				multiSignaturesInfo = append(multiSignaturesInfo, mis...)
+				pendingSignatures = append(pendingSignatures, ps...)
 			} else {
 				pendingSig := &model.PendingSignature{
-					TransactionHash: tx.Body.SignatureInfo.TransactionHash,
-					AccountAddress:  addr,
-					Signature:       sig,
-					BlockHeight:     tx.Height,
-					Latest:          true,
-				}
-				if tx.Body.GetMultiSignatureInfo() != nil {
-					_, musigAddress, e := tx.TransactionUtil.GenerateMultiSigAddress(tx.Body.GetMultiSignatureInfo())
-					if e != nil {
-						return err
-					}
-					pendingSig.MultiSignatureAddress = musigAddress
+					TransactionHash:       tx.Body.SignatureInfo.TransactionHash,
+					AccountAddress:        addr,
+					Signature:             sig,
+					BlockHeight:           tx.Height,
+					Latest:                true,
+					MultiSignatureAddress: musigAddress,
 				}
 
 				err = tx.SignatureInfoHelper.InsertPendingSignature(pendingSig)
 				if err != nil {
 					return blocker.NewBlocker(blocker.DBErr, err.Error())
 				}
+				pendingSignatures = append(pendingSignatures, pendingSig)
 			}
 		}
 	}
 	// checks for completion, if multisigInfo && txBytes && signatureInfo exist, check if signature info complete
-	txs, err := tx.MultisigUtil.CheckMultisigComplete(
+	err = tx.MultisigUtil.CheckMultisigComplete(
 		tx.TransactionUtil,
 		tx.MultisignatureInfoHelper,
 		tx.SignatureInfoHelper,
 		tx.PendingTransactionHelper,
 		tx.Body,
 		tx.Height,
+		&multiSignaturesInfo,
+		&pendingSignatures,
+		&pendingTransaction,
 	)
 	if err != nil {
 		return err
 	}
 	// every element in txs will have all three optional field filled, to avoid infinite recursive calls.
-	for _, v := range txs {
-		cpTx := tx
-		cpTx.Body = v
+	for _, pendingSignature := range pendingSignatures {
 		// parse the UnsignedTransactionBytes
-		utx, err := tx.PendingTransactionHelper.ApplyConfirmedPendingTransaction(
-			cpTx.Body.UnsignedTransactionBytes,
+		var utx *model.Transaction
+		utx, err = tx.PendingTransactionHelper.ApplyConfirmedPendingTransaction(
+			pendingTransaction.GetTransactionHash(),
 			tx.Height,
 			blockTimestamp,
 		)
 		if err != nil {
 			return err
 		}
-
 		// update pending transaction status
 		pendingTx := &model.PendingTransaction{
-			SenderAddress:    v.MultiSignatureInfo.MultisigAddress,
-			TransactionHash:  v.SignatureInfo.TransactionHash,
-			TransactionBytes: v.UnsignedTransactionBytes,
+			SenderAddress:    pendingSignature.GetMultiSignatureAddress(),
+			TransactionHash:  pendingSignature.GetTransactionHash(),
+			TransactionBytes: pendingTransaction.GetTransactionBytes(),
 			Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
 			BlockHeight:      tx.Height,
 			Latest:           true,
@@ -511,7 +519,6 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 		if err != nil {
 			return err
 		}
-
 		// save multisig_child transaction
 		utx.MultisigChild = true
 		utx.BlockID = tx.BlockID
@@ -686,8 +693,16 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			err = tx.Signature.VerifySignature(body.GetSignatureInfo().GetTransactionHash(), sig, decodedAcc)
 			if err != nil {
 				if util.ConvertBytesToUint32(decodedAcc[:constant.AccountAddressTypeLength]) == uint32(model.AccountType_MultiSignatureAccountType) {
+					var musigAddress []byte
+					if tx.Body.GetMultiSignatureInfo() != nil {
+						_, musigAddress, err = tx.TransactionUtil.GenerateMultiSigAddress(tx.Body.GetMultiSignatureInfo())
+						if err != nil {
+							return err
+						}
+					}
 					err = tx.MultisigUtil.ParseSignatureInfoBytesAsCandidates(
 						body.GetSignatureInfo().GetTransactionHash(),
+						musigAddress,
 						decodedAcc,
 						sig,
 						tx.Height,
