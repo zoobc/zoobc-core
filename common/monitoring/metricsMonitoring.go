@@ -573,11 +573,11 @@ func SetBlockProcessTime(timeMs int64) {
 	blockProcessTimeGaugeVector.WithLabelValues("BlockProcessTime").Set(float64(timeMs))
 }
 
-func SetMempoolTransactionCount(mempoolTxCount int) {
+func SetMempoolTransactionCount(cacheType CacheStorageType, mempoolTxCount int) {
 	if !isMonitoringActive {
 		return
 	}
-	mempoolTransactionCountGaugeVector.WithLabelValues("MempoolTransactionCount").Set(float64(mempoolTxCount))
+	mempoolTransactionCountGaugeVector.WithLabelValues(string(cacheType)).Set(float64(mempoolTxCount))
 }
 
 func IncrementGoRoutineActivity(activityName string) {
@@ -667,15 +667,18 @@ type (
 // Cache Storage environments
 // Please add new one when add new cache storage instance
 var (
-	TypeMempoolCacheStorage         CacheStorageType = "mempools"
-	TypeBatchReceiptCacheStorage    CacheStorageType = "batch_receipts"
-	TypeScrambleNodeCacheStorage    CacheStorageType = "scramble_nodes"
-	TypeMempoolBackupCacheStorage   CacheStorageType = "backup_mempools"
-	TypeNodeShardCacheStorage       CacheStorageType = "node_shards"
-	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
-	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
-	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
-	TypeBlocksCacheStorage          CacheStorageType = "blocks_cache_object"
+	TypeMempoolCacheStorage            CacheStorageType = "mempools"
+	TypeMempoolCountCacheStorage       CacheStorageType = "mempools_count"
+	TypeMempoolUnsaveCacheStorage      CacheStorageType = "mempools_unsave"
+	TypeMempoolUnsaveCountCacheStorage CacheStorageType = "mempools_unsave_count"
+	TypeBatchReceiptCacheStorage       CacheStorageType = "batch_receipts"
+	TypeScrambleNodeCacheStorage       CacheStorageType = "scramble_nodes"
+	TypeMempoolBackupCacheStorage      CacheStorageType = "backup_mempools"
+	TypeNodeShardCacheStorage          CacheStorageType = "node_shards"
+	TypeNodeAddressInfoCacheStorage    CacheStorageType = "node_address_infos"
+	TypeActiveNodeRegistryStorage      CacheStorageType = "node_registry_active"
+	TypePendingNodeRegistryStorage     CacheStorageType = "node_registry_pending"
+	TypeBlocksCacheStorage             CacheStorageType = "blocks_cache_object"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {

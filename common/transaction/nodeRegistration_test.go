@@ -911,9 +911,15 @@ func (*mockAccountBalanceHelperNRSuccess) HasEnoughSpendableBalance(
 ) (enough bool, err error) {
 	return true, nil
 }
+func (*mockAccountBalanceHelperNRSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
 func (*mockAccountBalanceHelperNRFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return sql.ErrTxDone
 }
+
 func (*mockAccountBalanceHelperNRFail) HasEnoughSpendableBalance(
 	dbTX bool, address []byte, compareBalance int64,
 ) (enough bool, err error) {
@@ -931,9 +937,13 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -981,7 +991,7 @@ func TestNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

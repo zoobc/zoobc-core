@@ -227,7 +227,6 @@ func (ts *TransactionService) PostTransaction(
 ) (*model.Transaction, error) {
 	var (
 		txBytes = req.GetTransactionBytes()
-		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
 		tpsProcessed,
@@ -277,44 +276,11 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Validate Tx
-	txType, err = ts.ActionTypeSwitcher.GetTransactionType(tx)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
 	if err = ts.MempoolService.ValidateMempoolTransaction(tx); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	// Apply Unconfirmed
-	err = ts.Query.BeginTx()
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-
-	// TODO: repetitive way
-	escrowable, ok := txType.Escrowable()
-	switch ok {
-	case true:
-		err = escrowable.EscrowApplyUnconfirmed()
-	default:
-		err = txType.ApplyUnconfirmed()
-	}
-	if err != nil {
-		errRollback := ts.Query.RollbackTx()
-		if errRollback != nil {
-			return nil, status.Error(codes.Internal, errRollback.Error())
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	// Save to mempool
-	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
-	if err != nil {
-		errRollback := ts.Query.RollbackTx()
-		if errRollback != nil {
-			return nil, status.Error(codes.Internal, errRollback.Error())
-		}
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	err = ts.Query.CommitTx()
+	// process validated received transction
+	err = ts.MempoolService.ReceivedTransactionFromWallet(tx, txBytes)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

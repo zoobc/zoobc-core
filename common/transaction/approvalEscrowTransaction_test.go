@@ -372,9 +372,13 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 		TypeActionSwitcher   TypeActionSwitcher
 		AccountBalanceHelper AccountBalanceHelperInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -408,7 +412,7 @@ func TestApprovalEscrowTransaction_ApplyUnconfirmed(t *testing.T) {
 				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -422,6 +426,12 @@ type (
 )
 
 func (*mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperApprovalEscrowTransactionUndoApplyUnconfirmedSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
 	return nil
 }
 

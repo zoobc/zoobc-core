@@ -168,18 +168,25 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 		Fee                        int64
 		SenderAddress              []byte
 		Height                     uint32
-		Timestamp                  int64
 		Body                       *model.FeeVoteCommitTransactionBody
+		Escrow                     *model.Escrow
 		FeeScaleService            fee.FeeScaleServiceInterface
 		NodeRegistrationQuery      query.NodeRegistrationQueryInterface
 		BlockQuery                 query.BlockQueryInterface
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		AccountBalanceHelper       AccountBalanceHelperInterface
 		QueryExecutor              query.ExecutorInterface
+		EscrowQuery                query.EscrowTransactionQueryInterface
+		EscrowFee                  fee.FeeModelInterface
+		NormalFee                  fee.FeeModelInterface
+	}
+	type args struct {
+		applyInCache bool
 	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -223,14 +230,18 @@ func TestFeeVoteCommitTransaction_ApplyUnconfirmed(t *testing.T) {
 				SenderAddress:              tt.fields.SenderAddress,
 				Height:                     tt.fields.Height,
 				Body:                       tt.fields.Body,
+				Escrow:                     tt.fields.Escrow,
 				FeeScaleService:            tt.fields.FeeScaleService,
 				NodeRegistrationQuery:      tt.fields.NodeRegistrationQuery,
 				BlockQuery:                 tt.fields.BlockQuery,
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
 				AccountBalanceHelper:       tt.fields.AccountBalanceHelper,
 				QueryExecutor:              tt.fields.QueryExecutor,
+				EscrowQuery:                tt.fields.EscrowQuery,
+				EscrowFee:                  tt.fields.EscrowFee,
+				NormalFee:                  tt.fields.NormalFee,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("FeeVoteCommitTransaction.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -250,6 +261,12 @@ func (*mockAccountBalanceHelperFeeVoteUndoApplyUnconfirmedFail) AddAccountSpenda
 	return errors.New("MockedError")
 }
 func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+
+func (*mockAccountBalanceHelperUndoApplyUnconfirmedSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
 	return nil
 }
 

@@ -509,7 +509,7 @@ func (ps *P2PServerService) SendTransaction(
 				"mempoolServiceNotFoundByThisChainType",
 			)
 		}
-		receipt, err := mempoolService.ReceivedTransaction(
+		receipt, err := mempoolService.ReceivedTransactionFromP2P(
 			senderPublicKey,
 			transactionBytes,
 			lastBlockCacheFormat,

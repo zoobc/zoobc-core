@@ -34,7 +34,7 @@ type (
 	EscrowTypeAction interface {
 		// EscrowApplyConfirmed perhaps this method called with QueryExecutor.BeginTX() because inside this process has separated QueryExecutor.Execute
 		EscrowApplyConfirmed(blockTimestamp int64) error
-		EscrowApplyUnconfirmed() error
+		EscrowApplyUnconfirmed(applyInCache bool) error
 		EscrowUndoApplyUnconfirmed() error
 		EscrowValidate(dbTx bool) error
 		// EscrowApproval handle approval an escrow transaction, execute tasks that was skipped on EscrowApplyConfirmed.
@@ -194,15 +194,24 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 /*
 ApplyUnconfirmed exec before Confirmed
 */
-func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed(applyInCache bool) error {
+	var addedSpendable = -tx.Fee
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
+	}
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable)
 }
 
 /*
 UndoApplyUnconfirmed func exec before confirmed
 */
 func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	var addedSpendable = tx.Fee
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
+		return err
+	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 /*
@@ -304,7 +313,7 @@ func (tx *ApprovalEscrowTransaction) EscrowValidate(dbTx bool) error {
 EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
 similar with ApplyUnconfirmed and Escrow.Commission
 */
-func (tx *ApprovalEscrowTransaction) EscrowApplyUnconfirmed() error {
+func (tx *ApprovalEscrowTransaction) EscrowApplyUnconfirmed(applyInCache bool) error {
 
 	return nil
 }

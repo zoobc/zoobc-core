@@ -13,6 +13,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
 
@@ -381,6 +382,9 @@ type (
 	mockQueryExecutorExpiringEscrowSuccess struct {
 		query.ExecutorInterface
 	}
+	mockSpendableBalanceCacheExpiringEscrowSuccess struct {
+		storage.SpendableBalanceStorage
+	}
 )
 
 func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx() error {
@@ -453,6 +457,10 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteTransactions(queries [][]i
 	return nil
 }
 
+func (*mockSpendableBalanceCacheExpiringEscrowSuccess) GetItem(key, item interface{}) error {
+	return nil
+}
+
 func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 	type fields struct {
 		TransactionQuery       query.TransactionQueryInterface
@@ -475,7 +483,10 @@ func TestTransactionCoreService_ExpiringEscrowTransactions(t *testing.T) {
 				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
 				EscrowTransactionQuery: query.NewEscrowTransactionQuery(),
 				QueryExecutor:          &mockQueryExecutorExpiringEscrowSuccess{},
-				TypeActionSwitcher:     &transaction.TypeSwitcher{Executor: &mockQueryExecutorExpiringEscrowSuccess{}},
+				TypeActionSwitcher: &transaction.TypeSwitcher{
+					Executor:                &mockQueryExecutorExpiringEscrowSuccess{},
+					SpendabelBalanceStorage: &mockSpendableBalanceCacheExpiringEscrowSuccess{},
+				},
 			},
 		},
 	}
@@ -644,7 +655,7 @@ type mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed) EscrowApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowApplyUnconfirmed) EscrowApplyUnconfirmed(applyInCache bool) error {
 	return nil
 }
 
@@ -663,7 +674,7 @@ type mockApplyUnconfirmedTransactionEscrowFalse struct {
 func (*mockApplyUnconfirmedTransactionEscrowFalse) Escrowable() (transaction.EscrowTypeAction, bool) {
 	return nil, false
 }
-func (*mockApplyUnconfirmedTransactionEscrowFalse) ApplyUnconfirmed() error {
+func (*mockApplyUnconfirmedTransactionEscrowFalse) ApplyUnconfirmed(bool) error {
 	return nil
 }
 
@@ -674,7 +685,8 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
-		txAction transaction.TypeAction
+		txAction     transaction.TypeAction
+		applyInCache bool
 	}
 	tests := []struct {
 		name    string
@@ -682,7 +694,6 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
 		{
 			name: "ApplyUnconfirmedTransaction:EscrowTrue",
 			args: args{
@@ -705,7 +716,7 @@ func TestTransactionCoreService_ApplyUnconfirmedTransaction(t *testing.T) {
 				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tg.ApplyUnconfirmedTransaction(tt.args.txAction); (err != nil) != tt.wantErr {
+			if err := tg.ApplyUnconfirmedTransaction(tt.args.txAction, tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("TransactionCoreService.ApplyUnconfirmedTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

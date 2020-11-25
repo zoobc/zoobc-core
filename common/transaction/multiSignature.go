@@ -80,7 +80,7 @@ type (
 		GetPendingTransactionBySenderAddress(
 			senderAddress []byte, txHeight uint32,
 		) ([]*model.PendingTransaction, error)
-		ApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
+		ApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte, applyInCahc bool) error
 		UndoApplyUnconfirmedPendingTransaction(pendingTransactionBytes []byte) error
 		ApplyConfirmedPendingTransaction(
 			pendingTransaction []byte, txHeight uint32, blockTimestamp int64,
@@ -163,7 +163,7 @@ func (pth *PendingTransactionHelper) InsertPendingTransaction(
 }
 
 func (pth *PendingTransactionHelper) ApplyUnconfirmedPendingTransaction(
-	pendingTransactionBytes []byte,
+	pendingTransactionBytes []byte, applyInCache bool,
 ) error {
 	// parse and apply unconfirmed
 	innerTx, err := pth.TransactionUtil.ParseTransactionBytes(pendingTransactionBytes, false)
@@ -180,7 +180,7 @@ func (pth *PendingTransactionHelper) ApplyUnconfirmedPendingTransaction(
 			"FailToCastInnerTransaction",
 		)
 	}
-	err = innerTa.ApplyUnconfirmed()
+	err = innerTa.ApplyUnconfirmed(applyInCache)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -366,7 +366,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}, tx.Height, true)
 		if err == sql.ErrNoRows {
 			// apply-unconfirmed on pending transaction
-			err = tx.PendingTransactionHelper.ApplyUnconfirmedPendingTransaction(tx.Body.UnsignedTransactionBytes)
+			err = tx.PendingTransactionHelper.ApplyUnconfirmedPendingTransaction(tx.Body.UnsignedTransactionBytes, false)
 			if err != nil {
 				return err
 			}
@@ -475,19 +475,23 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	return nil
 }
 
-func (tx *MultiSignatureTransaction) ApplyUnconfirmed() error {
+func (tx *MultiSignatureTransaction) ApplyUnconfirmed(applyInCache bool) error {
 	var (
 		err error
 	)
 	// reduce fee from sender
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	if applyInCache {
+		err = tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, -tx.Fee)
+	} else {
+		err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	}
 	if err != nil {
 		return err
 	}
 	// Run ApplyUnconfirmed of inner transaction
 	if len(tx.Body.UnsignedTransactionBytes) > 0 {
 		// parse and apply unconfirmed
-		err = tx.PendingTransactionHelper.ApplyUnconfirmedPendingTransaction(tx.Body.UnsignedTransactionBytes)
+		err = tx.PendingTransactionHelper.ApplyUnconfirmedPendingTransaction(tx.Body.UnsignedTransactionBytes, applyInCache)
 		if err != nil {
 			return err
 		}
@@ -507,7 +511,9 @@ func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 			return err
 		}
 	}
-	return nil
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, tx.Fee)
+
 }
 
 // Validate dbTx specify whether validation should read from transaction state or db state
@@ -830,12 +836,20 @@ func (tx *MultiSignatureTransaction) EscrowApplyConfirmed(blockTimestamp int64) 
 	)
 }
 
-func (tx *MultiSignatureTransaction) EscrowApplyUnconfirmed() error {
+func (tx *MultiSignatureTransaction) EscrowApplyUnconfirmed(applyInCache bool) error {
+	if applyInCache {
+		return tx.AccountBalanceHelper.AddAccountSpendableBalanceInCache(tx.SenderAddress, -tx.Fee)
+	}
 	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
 }
 
 func (tx *MultiSignatureTransaction) EscrowUndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	var addedSpendable = tx.Fee + tx.Escrow.GetCommission()
+	if err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, addedSpendable); err != nil {
+		return err
+	}
+	// update existing spendable balance in cache storage
+	return tx.AccountBalanceHelper.UpdateAccountSpendableBalanceInCache(tx.SenderAddress, addedSpendable)
 }
 
 func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {

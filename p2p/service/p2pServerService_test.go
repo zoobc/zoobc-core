@@ -1340,14 +1340,18 @@ func (*mockSendTransactionBlockServiceSuccess) GetLastBlockCacheFormat() (*stora
 		BlockHash: mockBlock.BlockHash,
 	}, nil
 }
-func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(
-	[]byte, []byte, *storage.BlockCacheObject, string,
+func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransactionFromP2P(
+	senderPublicKey, receivedTxBytes []byte,
+	lastBlockCacheFromat *storage.BlockCacheObject,
+	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
-func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
-	[]byte, []byte, *storage.BlockCacheObject, string,
+func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransactionFromP2P(
+	senderPublicKey, receivedTxBytes []byte,
+	lastBlockCacheFromat *storage.BlockCacheObject,
+	nodeSecretPhrase string,
 ) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},

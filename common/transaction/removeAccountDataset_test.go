@@ -185,9 +185,13 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -237,7 +241,7 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveAccountDataset.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

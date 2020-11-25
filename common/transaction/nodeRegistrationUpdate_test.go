@@ -552,9 +552,13 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		AuthPoown             auth.NodeAuthValidationInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
+	type args struct {
+		applyInCache bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -594,7 +598,7 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
+			if err := tx.ApplyUnconfirmed(tt.args.applyInCache); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.ApplyUnconfirmed() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -749,10 +753,20 @@ type (
 func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return nil
 }
+func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
+
 func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail) AddAccountSpendableBalance(address []byte, amount int64) error {
 	return sql.ErrNoRows
 }
-
+func (*mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail) UpdateAccountSpendableBalanceInCache(
+	address []byte, amount int64,
+) error {
+	return nil
+}
 func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{
 		LockedBalance: int64(10000000000),

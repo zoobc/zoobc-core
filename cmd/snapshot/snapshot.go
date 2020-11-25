@@ -3,11 +3,8 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
-
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -15,11 +12,14 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"golang.org/x/crypto/sha3"
 )
@@ -77,7 +77,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			snapshotFile,
 		)
 		executor = query.NewQueryExecutor(sqliteDB)
-		mempoolStorage := storage.NewMempoolStorage()
+		mempoolStorage := storage.NewMempoolStorage(monitoring.TypeMempoolCacheStorage, monitoring.TypeMempoolCountCacheStorage)
 		nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 		snapshotMainService := service.NewSnapshotMainBlockService(
 			snapshotFile,
@@ -227,7 +227,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 		var (
 			signature                 = crypto.NewSignature()
 			nodeAuthValidationService = auth.NewNodeAuthValidation(signature)
-			mempoolStorage            = storage.NewMempoolStorage()
+			mempoolStorage            = storage.NewMempoolStorage(monitoring.TypeMempoolCacheStorage, monitoring.TypeMempoolCountCacheStorage)
 			snapshotFileInfo          *model.SnapshotFileInfo
 			sqliteInstance            = database.NewSqliteDB()
 			mainChain                 = &chaintype.MainChain{}
