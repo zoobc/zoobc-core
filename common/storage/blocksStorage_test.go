@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 func TestBlocksStorage_Clear(t *testing.T) {
@@ -45,6 +47,20 @@ func TestBlocksStorage_Clear(t *testing.T) {
 }
 
 func TestBlocksStorage_GetAll(t *testing.T) {
+	mockItems := []BlockCacheObject{
+		{
+			ID:        1,
+			Height:    1,
+			Timestamp: 1,
+			BlockHash: make([]byte, 32),
+		},
+		{
+			ID:        2,
+			Height:    2,
+			Timestamp: 2,
+			BlockHash: make([]byte, 32),
+		},
+	}
 	type fields struct {
 		RWMutex         sync.RWMutex
 		itemLimit       int
@@ -66,12 +82,51 @@ func TestBlocksStorage_GetAll(t *testing.T) {
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks: []BlockCacheObject{
+					{
+						ID:        1,
+						Height:    1,
+						Timestamp: 1,
+						BlockHash: make([]byte, 32),
+					},
+					{
+						ID:        2,
+						Height:    2,
+						Timestamp: 2,
+						BlockHash: make([]byte, 32),
+					},
+				},
+			},
+			args: args{
+				items: &mockItems,
+			},
+			wantErr: false,
+		},
+		{
+			name: "TestBlocksStorage_GetAll:Fail-ItemError",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks: []BlockCacheObject{
+					{
+						ID:        1,
+						Height:    1,
+						Timestamp: 1,
+						BlockHash: make([]byte, 32),
+					},
+					{
+						ID:        2,
+						Height:    2,
+						Timestamp: 2,
+						BlockHash: make([]byte, 32),
+					},
+				},
 			},
 			args: args{
 				items: nil,
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -90,6 +145,14 @@ func TestBlocksStorage_GetAll(t *testing.T) {
 }
 
 func TestBlocksStorage_GetAtIndex(t *testing.T) {
+	mockBlockCacheObject := []BlockCacheObject{
+		{
+			ID:        9,
+			Height:    9,
+			Timestamp: 9,
+			BlockHash: make([]byte, 32),
+		},
+	}
 	type fields struct {
 		RWMutex         sync.RWMutex
 		itemLimit       int
@@ -111,14 +174,71 @@ func TestBlocksStorage_GetAtIndex(t *testing.T) {
 			fields: fields{
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
-				lastBlockHeight: 0,
-				blocks:          nil,
+				lastBlockHeight: 9,
+				blocks:          mockBlockCacheObject,
 			},
 			args: args{
-				height: 0,
-				item:   nil,
+				height: 9,
+				item: &BlockCacheObject{
+					ID:        9,
+					Height:    9,
+					Timestamp: 9,
+					BlockHash: make([]byte, 32),
+				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "TestBlocksStorage_GetAtIndex:Fail-ErrorBlockCacheObject",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 9,
+				blocks:          mockBlockCacheObject,
+			},
+			args: args{
+				height: 9,
+				item:   nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlocksStorage_GetAtIndex:Fail-IndexOutOfRange",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 9,
+				blocks:          mockBlockCacheObject,
+			},
+			args: args{
+				height: 10,
+				item: &BlockCacheObject{
+					ID:        10,
+					Height:    9,
+					Timestamp: 9,
+					BlockHash: make([]byte, 32),
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlocksStorage_GetAtIndex:Fail-IndexOutOfRange",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 10,
+				blocks:          mockBlockCacheObject,
+			},
+			args: args{
+				height: 9,
+				item: &BlockCacheObject{
+					ID:        9,
+					Height:    9,
+					Timestamp: 9,
+					BlockHash: make([]byte, 32),
+				},
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -137,6 +257,14 @@ func TestBlocksStorage_GetAtIndex(t *testing.T) {
 }
 
 func TestBlocksStorage_GetTop(t *testing.T) {
+	mockBlockCacheObject := []BlockCacheObject{
+		{
+			ID:        9,
+			Height:    9,
+			Timestamp: 9,
+			BlockHash: make([]byte, 32),
+		},
+	}
 	type fields struct {
 		RWMutex         sync.RWMutex
 		itemLimit       int
@@ -158,12 +286,50 @@ func TestBlocksStorage_GetTop(t *testing.T) {
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks:          mockBlockCacheObject,
+			},
+			args: args{
+				item: &BlockCacheObject{
+					ID:        10,
+					Height:    10,
+					Timestamp: 10,
+					BlockHash: make([]byte, 32),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "TestBlocksStorage_GetTop:Fail-EmptyBlockCache",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks:          []BlockCacheObject{},
 			},
 			args: args{
 				item: nil,
 			},
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "TestBlocksStorage_GetTop:Fail-ErrorNotBlockCacheObject",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks: []BlockCacheObject{
+					{
+						ID:        0,
+						Height:    0,
+						Timestamp: 0,
+						BlockHash: nil,
+					},
+				},
+			},
+			args: args{
+				item: nil,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -241,12 +407,59 @@ func TestBlocksStorage_PopTo(t *testing.T) {
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks: []BlockCacheObject{
+					{
+						ID:        0,
+						Height:    0,
+						Timestamp: 0,
+						BlockHash: nil,
+					},
+				},
 			},
 			args: args{
 				height: 0,
 			},
 			wantErr: false,
+		},
+		{
+			name: "TestBlocksStorage_PopTo:Fail-HeightOutOfRange",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks: []BlockCacheObject{
+					{
+						ID:        0,
+						Height:    0,
+						Timestamp: 0,
+						BlockHash: nil,
+					},
+				},
+			},
+			args: args{
+				height: 1,
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlocksStorage_PopTo:Fail-HeightOutOfRange",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 2,
+				blocks: []BlockCacheObject{
+					{
+						ID:        0,
+						Height:    0,
+						Timestamp: 0,
+						BlockHash: nil,
+					},
+				},
+			},
+			args: args{
+				height: 0,
+			},
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -289,7 +502,56 @@ func TestBlocksStorage_Push(t *testing.T) {
 				blocks:          nil,
 			},
 			args: args{
+				item: BlockCacheObject{
+					ID:        0,
+					Height:    0,
+					Timestamp: 0,
+					BlockHash: nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "TestBlocksStorage_Push:Fail-NotBlockCacheObject",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks:          nil,
+			},
+			args: args{
 				item: nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlocksStorage_Push:Success:RemoveFirstCache",
+			fields: fields{
+				RWMutex:         sync.RWMutex{},
+				itemLimit:       0,
+				lastBlockHeight: 0,
+				blocks: []BlockCacheObject{
+					{
+						ID:        0,
+						Height:    0,
+						Timestamp: 0,
+						BlockHash: nil,
+					},
+					{
+						ID:        1,
+						Height:    1,
+						Timestamp: 1,
+						BlockHash: nil,
+					},
+				},
+			},
+			args: args{
+				item: BlockCacheObject{
+					ID:        1,
+					Height:    1,
+					Timestamp: 1,
+					BlockHash: nil,
+				},
 			},
 			wantErr: false,
 		},
@@ -338,14 +600,14 @@ func TestBlocksStorage_copy(t *testing.T) {
 					ID:        0,
 					Height:    0,
 					Timestamp: 0,
-					BlockHash: nil,
+					BlockHash: make([]byte, 32),
 				},
 			},
 			wantBlockCacheObjectCopy: BlockCacheObject{
 				ID:        0,
 				Height:    0,
 				Timestamp: 0,
-				BlockHash: nil,
+				BlockHash: make([]byte, 32),
 			},
 		},
 	}
@@ -384,7 +646,7 @@ func TestBlocksStorage_size(t *testing.T) {
 				lastBlockHeight: 0,
 				blocks:          nil,
 			},
-			want: 0,
+			want: 104,
 		},
 	}
 	for _, tt := range tests {
@@ -410,10 +672,9 @@ func TestNewBlocksStorage(t *testing.T) {
 		{
 			name: "TestNewBlocksStorage:Success",
 			want: &BlocksStorage{
-				RWMutex:         sync.RWMutex{},
-				itemLimit:       0,
+				itemLimit:       int(constant.MaxBlocksCacheStorage),
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks:          make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
 			},
 		},
 	}
