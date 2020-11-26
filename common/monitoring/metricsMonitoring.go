@@ -3,16 +3,14 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
-	"math"
-	"net/http"
-	"reflect"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"math"
+	"net/http"
 )
 
 var (
@@ -484,20 +482,12 @@ func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
-func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
+func SetNodeScore(score int64) {
 	if !isMonitoringActive {
 		return
 	}
 
-	var scoreInt64 int64
-	for _, blockSmith := range activeBlocksmiths {
-		if reflect.DeepEqual(blockSmith.NodePublicKey, nodePublicKey) {
-			scoreInt64 = blockSmith.Score.Int64()
-			break
-		}
-	}
-
-	nodeScore.Set(float64(scoreInt64))
+	nodeScore.Set(float64(score))
 }
 
 func SetTpsReceived(tps int) {
