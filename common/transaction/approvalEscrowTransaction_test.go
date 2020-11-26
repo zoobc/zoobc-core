@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -167,9 +168,10 @@ func (*mockQueryExecutorValidate) ExecuteSelectRow(qStr string, tx bool, args ..
 		approvalEscrowAccountAddress3,
 		1,
 		10,
-		100,
+		time.Now().Add(time.Hour).Unix(),
 		0,
 		1,
+		time.Now().Unix(),
 		true,
 		"",
 	)

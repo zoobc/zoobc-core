@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
@@ -89,7 +90,7 @@ var (
 		59, 241, 146, 243, 147, 58, 161, 35, 229, 54}
 )
 
-func (*mockGetTransactionsByIdsExecutorFail) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockGetTransactionsByIdsExecutorFail) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	return nil, errors.New("mockedError")
 }
 
@@ -158,6 +159,7 @@ func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q 
 			mockedEscrow.GetTimeout(),
 			mockedEscrow.GetStatus(),
 			mockedEscrow.GetBlockHeight(),
+			mockedEscrow.GetBlockTimestamp(),
 			mockedEscrow.GetLatest(),
 			mockedEscrow.GetInstruction(),
 		))
@@ -402,9 +404,10 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx boo
 		address3,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
+		time.Now().Add(time.Hour).Unix(),
 		true,
 		"",
 	)

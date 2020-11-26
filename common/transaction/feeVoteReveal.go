@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -399,9 +400,6 @@ func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
 	}
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
-	}
-	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
-		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
 
 	err = tx.Validate(dbTx)

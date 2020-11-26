@@ -1,6 +1,8 @@
 package transaction
 
 import (
+	"strconv"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -42,7 +44,7 @@ var (
 		Timestamp:            1562806389280,
 		BlockSeed:            []byte{},
 		BlockSignature:       []byte{},
-		CumulativeDifficulty: string(100000000),
+		CumulativeDifficulty: strconv.Itoa(100000000),
 		PayloadLength:        0,
 		PayloadHash:          []byte{},
 		BlocksmithPublicKey:  nodePubKey1,
@@ -50,33 +52,6 @@ var (
 		TotalFee:             10000000,
 		TotalCoinBase:        1,
 		Version:              0,
-	}
-	TransactionWithEscrow = &model.Transaction{
-		ID:                      670925173877174625,
-		Version:                 1,
-		TransactionType:         2,
-		BlockID:                 0,
-		Height:                  0,
-		Timestamp:               1562806389280,
-		SenderAccountAddress:    senderAddress1,
-		RecipientAccountAddress: recipientAddress1,
-		Fee:                     1,
-		TransactionHash: []byte{
-			59, 106, 191, 6, 145, 54, 181, 186, 75, 93, 234, 139, 131, 96, 153, 252, 40, 245, 235, 132,
-			187, 45, 245, 113, 210, 87, 23, 67, 157, 117, 41, 143,
-		},
-		TransactionBodyLength: 8,
-		TransactionBodyBytes:  []byte{1, 2, 3, 4, 5, 6, 7, 8},
-		Signature: []byte{
-			0, 0, 0, 0, 4, 38, 103, 73, 250, 169, 63, 155, 106, 21, 9, 76, 77, 137, 3, 120, 21, 69, 90, 118, 242, 84, 174,
-			239, 46, 190, 78, 68, 90, 83, 142, 11, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56,
-			139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169,
-		},
-		Escrow: &model.Escrow{
-			ApproverAddress: make([]byte, 36), // STEF TODO: update it with a real address (in bytes),
-			Commission:      1,
-			Timeout:         100,
-		},
 	}
 )
 

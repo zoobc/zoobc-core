@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -23,11 +22,10 @@ type (
 		InsertEscrowTransactions(escrows []*model.Escrow) (str string, args []interface{})
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
-		GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string
+		GetExpiredEscrowTransactionsAtCurrentBlock(blockTimestamp int64) string
 		GetEscrowTransactionsByTransactionIdsAndStatus(
 			transactionIds []string, status model.EscrowStatus,
 		) string
-		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
@@ -47,6 +45,7 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"timeout",
 			"status",
 			"block_height",
+			"block_timestamp",
 			"latest",
 			"instruction",
 		},
@@ -179,22 +178,9 @@ func (et *EscrowTransactionQuery) GetEscrowTransactions(fields map[string]interf
 }
 
 // GetExpiredEscrowTransactionsAtCurrentBlock fetch provided block height expired escrow transaction
-func (et *EscrowTransactionQuery) GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE timeout + block_height = %d AND latest = true AND status = %d",
-		strings.Join(et.Fields, ", "), et.getTableName(), blockHeight, model.EscrowStatus_Pending)
-}
-
-// ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
-func (et *EscrowTransactionQuery) ExpiringEscrowTransactions(blockHeight uint32) (qStr string, args []interface{}) {
-	return fmt.Sprintf(
-			"UPDATE %s SET latest = ?, status = ? WHERE timeout < ? AND status = 0",
-			et.getTableName(),
-		),
-		[]interface{}{
-			1,
-			model.EscrowStatus_Expired,
-			blockHeight,
-		}
+func (et *EscrowTransactionQuery) GetExpiredEscrowTransactionsAtCurrentBlock(blockTimestamp int64) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE timeout < %d AND latest = true AND status = %d",
+		strings.Join(et.Fields, ", "), et.getTableName(), blockTimestamp, model.EscrowStatus_Pending)
 }
 
 func (et *EscrowTransactionQuery) GetEscrowTransactionsByTransactionIdsAndStatus(
@@ -221,6 +207,7 @@ func (et *EscrowTransactionQuery) ExtractModel(escrow *model.Escrow) []interface
 		escrow.GetTimeout(),
 		escrow.GetStatus(),
 		escrow.GetBlockHeight(),
+		escrow.GetBlockTimestamp(),
 		escrow.GetLatest(),
 		escrow.GetInstruction(),
 	}
@@ -245,6 +232,7 @@ func (et *EscrowTransactionQuery) BuildModels(rows *sql.Rows) ([]*model.Escrow, 
 			&escrow.Timeout,
 			&escrow.Status,
 			&escrow.BlockHeight,
+			&escrow.BlockTimestamp,
 			&escrow.Latest,
 			&escrow.Instruction,
 		)
@@ -268,6 +256,7 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.Timeout,
 		&escrow.Status,
 		&escrow.BlockHeight,
+		&escrow.BlockTimestamp,
 		&escrow.Latest,
 		&escrow.Instruction,
 	)

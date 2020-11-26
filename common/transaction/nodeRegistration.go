@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -412,9 +413,7 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetCommission() <= 0 {
 		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
 	}
-	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
-		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
-	}
+
 	err = tx.Validate(dbTx)
 	if err != nil {
 		return err

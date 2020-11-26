@@ -53,7 +53,7 @@ var (
 	escrow               bool
 	esApproverAddressHex string
 	esCommission         int64
-	esTimeout            uint64
+	esTimeout            int64
 	esInstruction        string
 
 	// escrowApproval

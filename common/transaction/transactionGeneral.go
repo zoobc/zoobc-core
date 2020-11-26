@@ -9,12 +9,10 @@ import (
 	"math"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-
 	"github.com/zoobc/zoobc-core/common/accounttype"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -108,7 +106,7 @@ func (*Util) GetTransactionBytes(transaction *model.Transaction, signed bool) ([
 		buffer.Write(transaction.GetEscrow().GetApproverAddress())
 
 		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetCommission())))
-		buffer.Write(util.ConvertUint64ToBytes(transaction.GetEscrow().GetTimeout()))
+		buffer.Write(util.ConvertUint64ToBytes(uint64(transaction.GetEscrow().GetTimeout())))
 
 		buffer.Write(util.ConvertUint32ToBytes(uint32(len([]byte(transaction.GetEscrow().GetInstruction())))))
 		buffer.Write([]byte(transaction.GetEscrow().GetInstruction()))
@@ -247,7 +245,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 		if err != nil {
 			return nil, err
 		}
-		escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
+		escrow.Timeout = int64(util.ConvertBytesToUint64(chunkedBytes))
 
 		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
 		if err != nil {

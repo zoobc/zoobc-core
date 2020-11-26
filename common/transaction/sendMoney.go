@@ -33,11 +33,7 @@ type (
 )
 
 // SkipMempoolTransaction this tx type has no mempool filter
-func (tx *SendMoney) SkipMempoolTransaction(
-	selectedTransactions []*model.Transaction,
-	newBlockTimestamp int64,
-	newBlockHeight uint32,
-) (bool, error) {
+func (tx *SendMoney) SkipMempoolTransaction([]*model.Transaction, int64, uint32) (bool, error) {
 	return false, nil
 }
 
@@ -237,9 +233,6 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	}
 	if tx.Escrow.GetRecipientAddress() == nil || bytes.Equal(tx.Escrow.GetRecipientAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
-	}
-	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
-		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
 
 	err = tx.Validate(dbTx)
