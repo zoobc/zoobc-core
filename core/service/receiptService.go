@@ -51,6 +51,10 @@ type (
 		GetReceiptFromPool(payloadHash []byte) ([]model.Receipt, error)
 		GetReceipByRootAndDatumHash(merkleRoot []byte, datumHash []byte) ([]*model.BatchReceipt, error)
 		IsProvedReceiptEmpty(receipt *model.PublishedReceipt) bool
+		GetMerkleRootFromReceiptIntermediateHash(
+			receipt *model.Receipt,
+			intermediateHashes []byte,
+		) ([]byte, error)
 	}
 
 	ReceiptService struct {
@@ -138,7 +142,6 @@ func (rs *ReceiptService) GetReceipByRootAndDatumHash(merkleRoot []byte, datumHa
 	)
 	// fetch batch_receipt where merkle_root == provedReceiptRO.MerkleRoot
 	qry, args := rs.BatchReceiptQuery.GetReceiptByRootAndDatumHash(merkleRoot, datumHash)
-
 	rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args...)
 	if err != nil {
 		return batchReceipts, err
@@ -215,10 +218,11 @@ func (rs *ReceiptService) getProvedReceipts(
 		err                    error
 	)
 	err = rs.ProvedReceiptReminderStorage.GetAllItems(&provedReceiptReminders)
+	fmt.Printf("getProvedReceipt: err: %v\tcount: %v\n", err, len(provedReceiptReminders))
+
 	if err != nil {
 		return result, err
 	}
-
 	if len(provedReceiptReminders) < maxReceipt {
 		return result, blocker.NewBlocker(blocker.InsufficientError,
 			fmt.Sprintf("SelectReceipts-InsufficientProvedReceipt - required: %d\thave: %d",
@@ -251,21 +255,31 @@ func (rs *ReceiptService) getProvedReceipts(
 		return result, err
 	}
 	// fetch proved reminders
+	var count int
 	for height, provedReceiptRO := range provedReceiptReminders {
+		count++
 		// generate random number (consensus safe) as to which receipt to pick
-		rdNumItemIndex := rng.Next()
-		leafRandomNumber := rng.Next()
+		itemIndexRandomNumber := rng.Next()
+		leafIndexRandomNumber := rng.Next()
 		// if provedReceiptRO.MerkleRoot = []byte{} / empty bytes, then it means we are in the scramble at the height
 		// but not getting reference receipt published, so skipped
 		if len(provedReceiptRO.MerkleRoot) == 0 {
+			fmt.Printf("filling empty proved receipt at height: %d index: %d\n", height, count-1)
 			// keep filling to proved receipt list even if we don't have it, this is to keep the rng in consensus
 			// to the receipt list index
-			fmt.Printf("empty proved receipt at height: %d", height)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
+		fmt.Printf("filling filled proved receipt at height: %d index: %d\n", height, count-1)
+
 		// fetch block+txs at provedReceiptRO height
-		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(height, rs.QueryExecutor, rs.BlockQuery, rs.MainBlocksStorage)
+		// TODO: this should be get block by hash
+		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(
+			height-constant.MaxReceiptBatchCacheRound-1,
+			rs.QueryExecutor,
+			rs.BlockQuery,
+			rs.MainBlocksStorage,
+		)
 		if err != nil {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -275,7 +289,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		itemIndex := rng.ConvertRandomNumberToIndex(rdNumItemIndex, int64(len(txsAtHeight)+1))
+		itemIndex := rng.ConvertRandomNumberToIndex(itemIndexRandomNumber, int64(len(txsAtHeight)+1))
 		// pick receipt and fetch its intermediate hashes
 		var (
 			itemHash []byte
@@ -285,10 +299,16 @@ func (rs *ReceiptService) getProvedReceipts(
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
-
 		merkleItems, err := rs.GetReceipByRootAndDatumHash(provedReceiptRO.MerkleRoot, itemHash)
-		if err != nil {
+		if err != nil || len(merkleItems) == 0 {
 			// log error
+			if err == nil {
+				fmt.Printf("no receipt with root:datum hash: %v:%v\n",
+					hex.EncodeToString(provedReceiptRO.MerkleRoot),
+					hex.EncodeToString(itemHash),
+				)
+
+			}
 			fmt.Printf("%v", err)
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -304,7 +324,9 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		receiverIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(len(sortedPriorityAtHeight)))
+		receiverIndex := rng.ConvertRandomNumberToIndex(leafIndexRandomNumber, int64(len(sortedPriorityAtHeight)))
+		fmt.Printf("proved-select:receiverIndex: %d\n", receiverIndex)
+		fmt.Printf("merkleItems count: %d\n", len(merkleItems))
 		if int(receiverIndex) >= len(merkleItems) {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -313,11 +335,11 @@ func (rs *ReceiptService) getProvedReceipts(
 
 		tree, err := fetchMerkleTree(provedReceiptRO.MerkleRoot)
 		if err != nil {
-			fmt.Printf("fetchMerkleTree: %v", err)
+			fmt.Printf("fetchMerkleTree ERROR: %v\n\n\n\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-
+		fmt.Printf("merkle tree: %v\n\n\n", tree)
 		intermediateHashes := rs.getReceiptIntermediateHash(
 			*leaf.GetReceipt(),
 			int32(receiverIndex),
@@ -352,7 +374,8 @@ func (rs *ReceiptService) getReceiptIntermediateHash(rc model.Receipt, leafIndex
 		merkleRoot         util.MerkleRoot
 	)
 	merkleRoot.HashTree = merkleRoot.FromBytes(merkleTree, root)
-	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(rc.DatumHash), leafIndex)
+	rcHash := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&rc))
+	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(rcHash[:]), leafIndex)
 	for _, buf := range intermediateHashesBuffer {
 		intermediateHashes = append(intermediateHashes, buf.Bytes())
 	}
@@ -646,4 +669,23 @@ func (rs *ReceiptService) ClearCache() {
 	_ = rs.ReceiptPoolCacheStorage.ClearCache()
 	_ = rs.ReceiptBatchStorage.Clear()
 	_ = rs.ProvedReceiptReminderStorage.ClearCache()
+}
+
+func (rs *ReceiptService) GetMerkleRootFromReceiptIntermediateHash(
+	receipt *model.Receipt,
+	intermediateHashes []byte,
+) ([]byte, error) {
+	var (
+		root []byte
+		err  error
+	)
+	hash := sha3.New256()
+	rcHash := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(receipt))
+	hash.Write(rcHash[:])
+	for i := 0; i < len(intermediateHashes)/constant.ReceiptHashSize; i++ {
+		iHash := intermediateHashes[i*constant.ReceiptHashSize : (i+1)*constant.ReceiptHashSize]
+		hash.Write(iHash)
+	}
+	root = hash.Sum([]byte{})
+	return root, err
 }

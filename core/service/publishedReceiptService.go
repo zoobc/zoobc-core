@@ -143,8 +143,11 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		rcCopy := *rc
 		if ps.ReceiptService.IsProvedReceiptEmpty(rc) {
 			// node doesn't publish receipt for this slot, skipping
+			fmt.Printf("empty proved at index: %d\n", index)
 			continue
 		}
+		fmt.Printf("NON-empty proved at index: %d\n", index)
+
 		// validation...
 		// fetch block+txs at provedReceiptRO height
 		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(rc.GetBlockHeight(), ps.QueryExecutor, ps.BlockQuery, ps.BlocksStorage)
@@ -179,6 +182,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 				),
 			)
 		}
+		// check if receipt come from expected recipient based on `recipientIndex`
 		if !bytes.Equal(
 			rc.GetReceipt().GetRecipientPublicKey(),
 			blocksmithSortedPriority[recipientIndex].GetInfo().GetPublicKey(),
@@ -191,12 +195,18 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 					break
 				}
 			}
-			fmt.Sprintf("ProcessPublishReceipt:InvalidReceiptRecipient-expect:index=%d-pk=%s-get:index=%d:pk=%s",
-				recipientIndex, hex.EncodeToString(blocksmithSortedPriority[recipientIndex].GetInfo().GetPublicKey()),
-				getIndex, hex.EncodeToString(rc.GetReceipt().GetRecipientPublicKey()),
+			return 0, blocker.NewBlocker(
+				blocker.ValidationErr,
+				fmt.Sprintf("ProcessPublishReceipt:InvalidReceiptRecipient-expect:index=%d-pk=%s-get:index=%d:pk=%s",
+					recipientIndex, hex.EncodeToString(blocksmithSortedPriority[recipientIndex].GetInfo().GetPublicKey()),
+					getIndex, hex.EncodeToString(rc.GetReceipt().GetRecipientPublicKey()),
+				),
 			)
 		}
-		// check if receipt come from expected recipient based on `
+		// calculate rc+intermediateHash merkle root, and validate if is in `published_receipt.rmr_linked`
+		calculatedMerkleRoot, err := ps.ReceiptService.GetMerkleRootFromReceiptIntermediateHash(rc.GetReceipt(), rc.GetIntermediateHashes())
+		fmt.Printf("calculated merkle root: %s\n", hex.EncodeToString(calculatedMerkleRoot))
+		// check if calculated merkle root in `published_receipt.rmr_linked`
 		// todo
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,

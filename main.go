@@ -456,20 +456,6 @@ func initiateMainInstance() {
 		query.NewEscrowTransactionQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
 	)
-	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
-		query.NewPublishedReceiptQuery(),
-		query.NewBlockQuery(mainchain),
-		receiptUtil,
-		mainchainPublishedReceiptUtil,
-		receiptService,
-		queryExecutor,
-		transactionCoreServiceIns,
-		scrambleNodeService,
-		nodeRegistrationService,
-		nodeConfigurationService,
-		provedReceiptReminderStorage,
-		mainBlocksStorage,
-	)
 
 	receiptService = service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
@@ -491,6 +477,22 @@ func initiateMainInstance() {
 		receiptBatchStorage,
 		crypto.NewRandomNumberGenerator(),
 	)
+
+	mainchainPublishedReceiptService = service.NewPublishedReceiptService(
+		query.NewPublishedReceiptQuery(),
+		query.NewBlockQuery(mainchain),
+		receiptUtil,
+		mainchainPublishedReceiptUtil,
+		receiptService,
+		queryExecutor,
+		transactionCoreServiceIns,
+		scrambleNodeService,
+		nodeRegistrationService,
+		nodeConfigurationService,
+		provedReceiptReminderStorage,
+		mainBlocksStorage,
+	)
+
 	pendingTransactionServiceIns = service.NewPendingTransactionService(
 		loggerCoreService,
 		queryExecutor,

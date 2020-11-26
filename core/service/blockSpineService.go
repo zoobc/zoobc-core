@@ -887,7 +887,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 	if err != nil {
 		return err
 	}
-	// no need validate merkle root when reference block height is higher than curerent last main block
+	// no need validate merkle root when reference block height is higher than current last main block
 	if incomingBlock.ReferenceBlockHeight > mainLastBlock.Height {
 		return nil
 	}
