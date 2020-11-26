@@ -2,9 +2,7 @@ package p2p
 
 import (
 	"encoding/base64"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math/rand"
 	"time"
 
@@ -214,14 +212,14 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				ok        bool
 			)
 
-			if limitReached, limitLevel := s.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
-				if limitLevel == constant.FeedbackLimitCritical {
-					monitoring.IncreaseP2PTxFilteredOutgoing()
-					return
-				}
-			}
-
-			// TODO: uncomment if we want to limit broadcast tx when goroutines and p2p inbound requests' limits are reached
+			// TODO: uncomment here to restore anti-spam filters for outgoing p2p transactions (to be broadcast to peers)
+			// note: this had lead to the network falling out of sync because many nodes have different mempool,
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitCritical {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
 			// if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
 			// 	if limitLevel == constant.FeedbackLimitHigh {
 			// 		monitoring.IncreaseP2PTxFilteredOutgoing()

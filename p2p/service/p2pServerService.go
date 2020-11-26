@@ -5,11 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -474,20 +472,15 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
-	if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
-		if limitLevel == constant.FeedbackLimitCritical {
-			monitoring.IncreaseP2PTxFilteredIncoming()
-			return nil, status.Error(codes.Internal, "NodeIsBusy")
-		}
-	}
-
-	if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
-		if limitLevel == constant.FeedbackLimitCritical {
-			monitoring.IncreaseP2PTxFilteredIncoming()
-			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
-		}
-	}
-
+	// TODO: uncomment here to restore anti-spam filters for incoming p2p transactions (tx broadcast by others)
+	// note: this had lead to the network falling out of sync because many nodes have different mempool,
+	// so if we want to re-enable the behaviour, we have to tune it so that tx are filtered only when strictly required
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitCritical {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "NodeIsBusy")
+	// 	}
+	// }
 	// if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
 	// 	if limitLevel == constant.FeedbackLimitHigh {
 	// 		monitoring.IncreaseP2PTxFilteredIncoming()
