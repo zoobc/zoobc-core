@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"math"
@@ -81,6 +82,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 		bss.lastBlockHash = prevBlock.BlockHash
 		bss.candidates = []Candidate{}
 		bss.me = Candidate{}
+		monitoring.SetBlockchainSmithIndex(bss.Chaintype, -1)
 		err = bss.rng.Reset(constant.BlocksmithSelectionSeedPrefix, prevBlock.BlockSeed)
 		if err != nil {
 			return blocksmithIndex, err
@@ -219,6 +221,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 		}
 		if bytes.Equal(candidate.Blocksmith.NodePublicKey, bss.CurrentNodePublicKey) {
 			// set self as candidate if found same node public key
+			monitoring.SetBlockchainSmithIndex(bss.Chaintype, candidate.Index)
 			bss.me = candidate
 		}
 		bss.candidates = append(bss.candidates, candidate)
