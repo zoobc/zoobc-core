@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math"
 	"math/big"
 
@@ -183,6 +184,9 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 		return nil, err
 	}
 	for _, registry := range activeNodeRegistry {
+		if bytes.Equal(registry.Node.NodePublicKey, nrs.CurrentNodePublicKey) {
+			monitoring.SetNodeScore(registry.ParticipationScore)
+		}
 		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
 	return nodeRegistries, nil
