@@ -26,7 +26,7 @@ const (
 	// FeedbackMinSamples min number of samples to calculate average of a FeedbackVar (eg. goroutines or P2PRequests) currently spawned
 	FeedbackMinSamples = 4
 	// FeedbackCPUSampleTime CPU usage sampling time interval
-	FeedbackCPUSampleTime = 2 * time.Second
+	FeedbackCPUSampleTime = 5 * time.Second
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 50
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
