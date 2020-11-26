@@ -125,6 +125,7 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 			}()
 		case <-sigs:
 			ticker.Stop()
+			tickerResetPerSecondVars.Stop()
 			ass.Logger.Info("resourceSampling thread stopped")
 			return
 		}
