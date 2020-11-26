@@ -2,9 +2,9 @@ package handler
 
 import (
 	"context"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	service2 "github.com/zoobc/zoobc-core/p2p/service"
@@ -12,14 +12,17 @@ import (
 
 // P2PServerHandler represent data service node as server
 type P2PServerHandler struct {
-	Service service2.P2PServerServiceInterface
+	Service          service2.P2PServerServiceInterface
+	FeedbackStrategy feedbacksystem.FeedbackStrategyInterface
 }
 
 func NewP2PServerHandler(
 	p2pServerService service2.P2PServerServiceInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) *P2PServerHandler {
 	return &P2PServerHandler{
-		Service: p2pServerService,
+		Service:          p2pServerService,
+		FeedbackStrategy: feedbackStrategy,
 	}
 }
 
@@ -27,6 +30,8 @@ func NewP2PServerHandler(
 func (ss *P2PServerHandler) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	return ss.Service.GetPeerInfo(ctx, req)
 }
@@ -36,6 +41,8 @@ func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model
 	GetNodeAddressesInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	return ss.Service.GetNodeAddressesInfo(ctx, req)
 }
@@ -44,6 +51,8 @@ func (ss *P2PServerHandler) GetNodeAddressesInfo(ctx context.Context, req *model
 func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	// service method (P2PServerServiceInterface) to send a node address info message to a peer
 	return ss.Service.SendNodeAddressInfo(ctx, req)
@@ -53,6 +62,8 @@ func (ss *P2PServerHandler) SendNodeAddressInfo(ctx context.Context, req *model.
 func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) (*model.GetMorePeersResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetMorePeersServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	var nodes []*model.Node
 	nodes, err := ss.Service.GetMorePeers(ctx, req)
@@ -68,6 +79,8 @@ func (ss *P2PServerHandler) GetMorePeers(ctx context.Context, req *model.Empty) 
 func (ss *P2PServerHandler) SendPeers(ctx context.Context, req *model.SendPeersRequest) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendPeersServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendPeersServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	// TODO: only accept nodes that are already registered in the node registration
 	if req.Peers == nil {
@@ -85,6 +98,8 @@ func (ss *P2PServerHandler) GetCumulativeDifficulty(ctx context.Context,
 ) (*model.GetCumulativeDifficultyResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	return ss.Service.GetCumulativeDifficulty(ctx, chaintype.GetChainType(req.ChainType))
 }
@@ -93,6 +108,8 @@ func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
 	req *model.GetCommonMilestoneBlockIdsRequest) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	// if `lastBlockID` is supplied
 	// check it the last `lastBlockID` got matches with the host's lastBlock then return the response as is
@@ -111,6 +128,8 @@ func (ss *P2PServerHandler) GetCommonMilestoneBlockIDs(ctx context.Context,
 func (ss *P2PServerHandler) GetNextBlockIDs(ctx context.Context, req *model.GetNextBlockIdsRequest) (*model.BlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	chainType := chaintype.GetChainType(req.ChainType)
 	blockIds, err := ss.Service.GetNextBlockIDs(ctx, chainType, req.Limit, req.BlockId)
@@ -125,6 +144,8 @@ func (ss *P2PServerHandler) GetNextBlockIDs(ctx context.Context, req *model.GetN
 func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNextBlocksRequest) (*model.BlocksData, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlocksServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlocksServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	// TODO: getting data from cache
 	chainType := chaintype.GetChainType(req.ChainType)
@@ -140,6 +161,8 @@ func (ss *P2PServerHandler) GetNextBlocks(ctx context.Context, req *model.GetNex
 func (ss *P2PServerHandler) SendBlock(ctx context.Context, req *model.SendBlockRequest) (*model.SendBlockResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendBlockServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendBlockServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	// todo: validate request
 	return ss.Service.SendBlock(
@@ -157,6 +180,8 @@ func (ss *P2PServerHandler) SendTransaction(
 ) (*model.SendTransactionResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
 
 	return ss.Service.SendTransaction(
 		ctx,
@@ -171,6 +196,11 @@ func (ss *P2PServerHandler) SendBlockTransactions(
 	ctx context.Context,
 	req *model.SendBlockTransactionsRequest,
 ) (*model.SendBlockTransactionsResponse, error) {
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
+
 	return ss.Service.SendBlockTransactions(
 		ctx,
 		chaintype.GetChainType(req.ChainType),
@@ -199,6 +229,9 @@ func (ss *P2PServerHandler) RequestFileDownload(
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
+
 	if len(req.FileChunkNames) == 0 {
 		return nil, blocker.NewBlocker(
 			blocker.RequestParameterErr,
@@ -215,6 +248,9 @@ func (ss *P2PServerHandler) RequestFileDownload(
 func (ss *P2PServerHandler) GetNodeProofOfOrigin(ctx context.Context, req *model.GetNodeProofOfOriginRequest) (*model.ProofOfOrigin, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOriginServer)
+	ss.FeedbackStrategy.IncrementVarCount("P2PIncomingRequests")
+	defer ss.FeedbackStrategy.DecrementVarCount("P2PIncomingRequests")
+
 	res, err := ss.Service.GetNodeProofOfOrigin(ctx, req)
 	return res, err
 }

@@ -2,26 +2,27 @@ package block
 
 import (
 	"fmt"
-	"strings"
-	"time"
-
-	"github.com/zoobc/zoobc-core/common/storage"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-
+	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	"strings"
+	"time"
 )
 
 type (
@@ -36,6 +37,7 @@ var (
 	blockProcessor          smith.BlockchainProcessorInterface
 	blockService            service.BlockServiceInterface
 	nodeRegistrationService service.NodeRegistrationServiceInterface
+	blockSmithStrategy      strategy.BlocksmithStrategyInterface
 	blocksmithStrategy      strategy.BlocksmithStrategyInterface
 	queryExecutor           query.ExecutorInterface
 	migration               database.Migration
@@ -98,13 +100,15 @@ func Commands() *cobra.Command {
 func initialize(
 	secretPhrase, outputPath string,
 ) {
+	signature := crypto.NewSignature()
+	nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 	transactionUtil := &transaction.Util{}
 	receiptUtil := &coreUtil.ReceiptUtil{}
 	paths := strings.Split(outputPath, "/")
 	dbPath, dbName := strings.Join(paths[:len(paths)-1], "/")+"/", paths[len(paths)-1]
 	chainType = &chaintype.MainChain{}
 	observerInstance := observer.NewObserver()
-	blocksmith = model.NewBlocksmith(secretPhrase, crypto.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase), 0)
+	blocksmith = model.NewBlocksmith(secretPhrase, signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase), 0)
 	// initialize/open db and queryExecutor
 	dbInstance := database.NewSqliteDB()
 	if err := dbInstance.InitializeDB(dbPath, dbName); err != nil {
@@ -115,29 +119,35 @@ func initialize(
 		panic(err)
 	}
 	queryExecutor = query.NewQueryExecutor(db)
-	actionSwitcher := &transaction.TypeSwitcher{
-		Executor: queryExecutor,
-	}
 	mempoolStorage := storage.NewMempoolStorage()
+
+	actionSwitcher := &transaction.TypeSwitcher{
+		Executor:            queryExecutor,
+		NodeAuthValidation:  nodeAuthValidation,
+		MempoolCacheStorage: mempoolStorage,
+	}
 	blockStorage := storage.NewBlockStateStorage()
+	blocksStorage := storage.NewBlocksStorage()
+	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
-		query.NewNodeReceiptQuery(),
-		nil,
+		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
-		nil,
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),
 		nil,
 		receiptUtil,
 		nil,
+		nil,
+		nil,
+		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewMempoolQuery(chainType),
 		query.NewMerkleTreeQuery(),
@@ -150,26 +160,48 @@ func initialize(
 		receiptUtil,
 		receiptService,
 		nil,
-		blockStorage,
+		blocksStorage,
 		mempoolStorage,
+		nil,
 	)
-	nodeRegistrationService := service.NewNodeRegistrationService(
+	nodeAddressInfoService := service.NewNodeAddressInfoService(
 		queryExecutor,
 		query.NewNodeAddressInfoQuery(),
+		query.NewNodeRegistrationQuery(),
+		query.NewBlockQuery(chainType),
+		nil,
+		nodeAddressInfoStorage,
+		nil,
+		nil,
+		nil,
+		log.New(),
+	)
+	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
+	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
+	nodeRegistrationService := service.NewNodeRegistrationService(
+		queryExecutor,
 		query.NewAccountBalanceQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewParticipationScoreQuery(),
-		query.NewBlockQuery(chainType),
 		query.NewNodeAdmissionTimestampQuery(),
 		log.New(),
 		&mockBlockchainStatusService{},
+		nodeAddressInfoService,
 		nil,
-		nil,
-		nil,
-		nil,
+		activeNodeRegistryCacheStorage,
+		pendingNodeRegistryCacheStorage,
 	)
+
 	blocksmithStrategy = strategy.NewBlocksmithStrategyMain(
-		queryExecutor, query.NewNodeRegistrationQuery(), query.NewSkippedBlocksmithQuery(), log.New(),
+		log.New(),
+		nil,
+		activeNodeRegistryCacheStorage,
+		query.NewSkippedBlocksmithQuery(),
+		query.NewBlockQuery(&chaintype.MainChain{}),
+		nil,
+		queryExecutor,
+		crypto.NewRandomNumberGenerator(),
+		nil,
 	)
 	publishedReceiptUtil := coreUtil.NewPublishedReceiptUtil(
 		query.NewPublishedReceiptQuery(),
@@ -177,12 +209,11 @@ func initialize(
 	)
 	feeScaleService := fee.NewFeeScaleService(
 		query.NewFeeScaleQuery(),
-		query.NewBlockQuery(&chaintype.MainChain{}),
+		blockStorage,
 		queryExecutor,
 	)
 	blockService = service.NewBlockMainService(
 		chainType,
-		nil,
 		queryExecutor,
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
@@ -192,6 +223,7 @@ func initialize(
 		mempoolService,
 		receiptService,
 		nodeRegistrationService,
+		nodeAddressInfoService,
 		actionSwitcher,
 		query.NewAccountBalanceQuery(),
 		query.NewParticipationScoreQuery(),
@@ -213,18 +245,7 @@ func initialize(
 			query.NewTransactionQuery(chainType),
 			nil,
 			nil,
-			nil,
-		),
-		nil,
-		nil,
-		nil,
-		nil,
-		nil,
-		feeScaleService,
-		query.GetPruneQuery(chainType),
-		nil,
-		nil,
-	)
+		), nil, nil, nil, nil, nil, nil, feeScaleService, query.GetPruneQuery(chainType), nil, nil, nil, nil)
 
 	migration = database.Migration{Query: queryExecutor}
 }
@@ -242,6 +263,7 @@ func generateBlocks(numberOfBlocks int, blocksmithSecretPhrase, outputPath strin
 		log.New(),
 		&mockBlockchainStatusService{},
 		nodeRegistrationService,
+		blockSmithStrategy,
 	)
 	startTime := time.Now().UnixNano() / 1e6
 	fmt.Printf("generating %d blocks\n", numberOfBlocks)

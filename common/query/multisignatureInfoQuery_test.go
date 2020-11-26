@@ -5,8 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/constant"
+
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -26,20 +27,105 @@ func getBuildModelErrorMockRows() *sql.Rows {
 	return rows
 }
 
-func getBuildModelSuccessMockRows() *sql.Rows {
+func getBuildModelSuccessMockRows(withParticipant bool) *sql.Rows {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
+	if withParticipant {
+		mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "multisig_address"))
+		mockRow.AddRow(
+			multisigAccountAddress1,
+			uint32(1),
+			int64(10),
+			uint32(12),
+			true,
+			multisigAccountAddress2,
+		)
+		mock.ExpectQuery("").WillReturnRows(mockRow)
+		rows, _ := db.Query("")
+		return rows
+	}
+	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
 	mockRow.AddRow(
-		"multisig_address",
+		multisigAccountAddress1,
 		uint32(1),
 		int64(10),
 		uint32(12),
 		true,
-		"address_1,address_2",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	rows, _ := db.Query("")
 	return rows
+}
+
+func TestMultisignatureInfoQuery_BuildModelWithParticipant(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		mss  []*model.MultiSignatureInfo
+		rows *sql.Rows
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.MultiSignatureInfo
+		wantErr bool
+	}{
+		{
+			name: "BuildModel-RowsError",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				mss:  []*model.MultiSignatureInfo{},
+				rows: getBuildModelErrorMockRows(),
+			},
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name: "BuildModel",
+			fields: fields{
+				Fields:    mockMultisigInfoQueryInstance.Fields,
+				TableName: mockMultisigInfoQueryInstance.TableName,
+			},
+			args: args{
+				mss:  []*model.MultiSignatureInfo{},
+				rows: getBuildModelSuccessMockRows(true),
+			},
+			want: []*model.MultiSignatureInfo{
+				{
+					MultisigAddress:   multisigAccountAddress1,
+					MinimumSignatures: 1,
+					Nonce:             10,
+					BlockHeight:       12,
+					Latest:            true,
+					Addresses: [][]byte{
+						multisigAccountAddress2,
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msi := &MultisignatureInfoQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			got, err := msi.BuildModelWithParticipant(tt.args.mss, tt.args.rows)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("BuildModel() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("BuildModel() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
 
 func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
@@ -79,16 +165,15 @@ func TestMultisignatureInfoQuery_BuildModel(t *testing.T) {
 			},
 			args: args{
 				mss:  []*model.MultiSignatureInfo{},
-				rows: getBuildModelSuccessMockRows(),
+				rows: getBuildModelSuccessMockRows(false),
 			},
 			want: []*model.MultiSignatureInfo{
 				{
-					MultisigAddress:   "multisig_address",
+					MultisigAddress:   multisigAccountAddress1,
 					MinimumSignatures: 1,
 					Nonce:             10,
 					BlockHeight:       12,
 					Latest:            true,
-					Addresses:         []string{"address_1", "address_2"},
 				},
 			},
 			wantErr: false,
@@ -117,10 +202,13 @@ var (
 	mockExtractMultisignatureInfoMultisig = &model.MultiSignatureInfo{
 		MinimumSignatures: 0,
 		Nonce:             0,
-		Addresses:         []string{"A", "B"},
-		MultisigAddress:   "",
-		BlockHeight:       0,
-		Latest:            true,
+		Addresses: [][]byte{
+			multisigAccountAddress2,
+			multisigAccountAddress3,
+		},
+		MultisigAddress: nil,
+		BlockHeight:     0,
+		Latest:          true,
 	}
 	// Extract mocks
 )
@@ -170,15 +258,21 @@ func TestMultisignatureInfoQuery_ExtractModel(t *testing.T) {
 	}
 }
 
-func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
+func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddressWithParticipants(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		multisigAddress      string
+		multisigAddress      []byte
 		currentHeight, limit uint32
 	}
+
+	var (
+		multisigAddr = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
+	)
+
 	tests := []struct {
 		name     string
 		fields   fields
@@ -187,22 +281,21 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 		wantArgs []interface{}
 	}{
 		{
-			name: "GetMultisignatureInfoByAddress-Success",
+			name: "GetMultisignatureInfoByAddressWithParticipants-Success",
 			fields: fields{
 				Fields:    mockMultisigInfoQueryInstance.Fields,
 				TableName: mockMultisigInfoQueryInstance.TableName,
 			},
 			args: args{
-				multisigAddress: "A",
+				multisigAddress: multisigAddr,
 				currentHeight:   0,
 				limit:           constant.MinRollbackBlocks,
 			},
-			wantStr: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, " +
-				"(SELECT GROUP_CONCAT(account_address, ',') FROM " +
-				"multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height " +
-				"ORDER BY account_address_index DESC) as addresses " +
-				"FROM multisignature_info WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-			wantArgs: []interface{}{"A", "A", uint32(0)},
+			wantStr: "SELECT t1.multisig_address, t1.minimum_signatures, t1.nonce, t1.block_height, t1.latest, t2.account_address " +
+				"FROM multisignature_info t1 LEFT JOIN multisignature_participant t2 ON t1.multisig_address = t2.multisig_address " +
+				"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true " +
+				"ORDER BY t2.account_address_index DESC",
+			wantArgs: []interface{}{multisigAddr, uint32(0)},
 		},
 	}
 	for _, tt := range tests {
@@ -211,17 +304,17 @@ func TestMultisignatureInfoQuery_GetMultisignatureInfoByAddress(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := msi.GetMultisignatureInfoByAddress(
+			gotStr, gotArgs := msi.GetMultisignatureInfoByAddressWithParticipants(
 				tt.args.multisigAddress,
 				tt.args.currentHeight,
 				tt.args.limit,
 			)
 			if gotStr != tt.wantStr {
-				t.Errorf("GetMultisignatureInfoByAddress() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
+				t.Errorf("GetMultisignatureInfoByAddressWithParticipants() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetMultisignatureInfoByAddress() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("GetMultisignatureInfoByAddressWithParticipants() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -232,10 +325,12 @@ var (
 	mockInsertMultisignatureInfoMultisig = &model.MultiSignatureInfo{
 		MinimumSignatures: 0,
 		Nonce:             0,
-		Addresses: []string{
-			"A", "B", "C",
+		Addresses: [][]byte{
+			multisigAccountAddress2,
+			multisigAccountAddress3,
+			multisigAccountAddress3,
 		},
-		MultisigAddress: "MSG_",
+		MultisigAddress: multisigAccountAddress1,
 		BlockHeight:     0,
 		Latest:          true,
 	}
@@ -354,14 +449,13 @@ func getNumberScanFailMockRow() *sql.Row {
 
 func getNumberScanSuccessMockRow() *sql.Row {
 	db, mock, _ := sqlmock.New()
-	mockRow := sqlmock.NewRows(append(mockMultisigInfoQueryInstance.Fields, "addresses"))
+	mockRow := sqlmock.NewRows(mockMultisigInfoQueryInstance.Fields)
 	mockRow.AddRow(
-		"multisig_address",
+		multisigAccountAddress1,
 		uint32(123),
 		int64(10),
 		uint32(12),
 		true,
-		"addresses",
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRow)
 	return db.QueryRow("")
@@ -513,13 +607,9 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest, (" +
-				"SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant " +
-				"GROUP BY multisig_address, block_height ORDER BY account_address_index ASC" +
-				") as addresses FROM multisignature_info " +
-				"WHERE (multisig_address, block_height) IN (" +
-				"SELECT t2.multisig_address, MAX(t2.block_height) " +
-				"FROM multisignature_info as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
+			want: "SELECT multisig_address, minimum_signatures, nonce, block_height, latest FROM multisignature_info " +
+				"WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) " +
+				"FROM multisignature_info t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
 				"GROUP BY t2.multisig_address) ORDER BY block_height",
 		},
 	}
@@ -532,6 +622,7 @@ func TestMultisignatureInfoQuery_SelectDataForSnapshot(t *testing.T) {
 			if got := msi.SelectDataForSnapshot(tt.args.fromHeight, tt.args.toHeight); got != tt.want {
 				t.Errorf("MultisignatureInfoQuery.SelectDataForSnapshot() = \n%v, want \n%v", got, tt.want)
 			}
+
 		})
 	}
 }
@@ -609,7 +700,9 @@ func TestMultisignatureInfoQuery_InsertMultiSignatureInfos(t *testing.T) {
 				{
 					"INSERT INTO multisignature_participant (multisig_address, account_address, account_address_index, latest, block_height) " +
 						"VALUES(?, ?, ?, ?, ?),(?, ?, ?, ?, ?),(?, ?, ?, ?, ?)",
-					"MSG_", "A", uint32(0), true, uint32(0), "MSG_", "B", uint32(1), true, uint32(0), "MSG_", "C", uint32(2), true, uint32(0),
+					multisigAccountAddress1, multisigAccountAddress2, uint32(0), true, uint32(0), multisigAccountAddress1,
+					multisigAccountAddress3, uint32(1), true, uint32(0), multisigAccountAddress1, multisigAccountAddress3, uint32(2), true,
+					uint32(0),
 				},
 			},
 		},

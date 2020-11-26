@@ -53,7 +53,7 @@ func TestChunk_ShardChunk(t *testing.T) {
 	})
 }
 
-func TestChunk_GetShardAssigment(t *testing.T) {
+func TestChunk_GetShardAssignment(t *testing.T) {
 	t.Run("assignShard - 1000 nodes", func(t *testing.T) {
 		const n = 100000
 		startPrepareData := time.Now()
@@ -72,7 +72,7 @@ func TestChunk_GetShardAssigment(t *testing.T) {
 		}
 		nodeIDs := generateRandomNodeIDs(1000)
 		startAssignChunk := time.Now()
-		shard, err := chunk.GetShardAssigment(chunks, 6, nodeIDs, false)
+		shard, err := chunk.GetShardAssignment(chunks, 6, nodeIDs, false)
 		if err != nil {
 			t.Errorf("error-assigning-shard: %v", err)
 		}

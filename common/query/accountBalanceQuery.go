@@ -17,7 +17,7 @@ type (
 	}
 	// AccountBalanceQueryInterface interface that implemented by AccountBalanceQuery
 	AccountBalanceQueryInterface interface {
-		GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{})
+		GetAccountBalanceByAccountAddress(accountAddress []byte) (str string, args []interface{})
 		GetAccountBalances() string
 		InsertAccountBalance(accountBalance *model.AccountBalance) (str string, args []interface{})
 		InsertAccountBalances(accountBalances []*model.AccountBalance) (str string, args []interface{})
@@ -44,7 +44,7 @@ func NewAccountBalanceQuery() *AccountBalanceQuery {
 	}
 }
 
-func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress string) (str string, args []interface{}) {
+func (q *AccountBalanceQuery) GetAccountBalanceByAccountAddress(accountAddress []byte) (str string, args []interface{}) {
 	return fmt.Sprintf(`SELECT %s FROM %s WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC`,
 		strings.Join(q.Fields, ","), q.TableName), []interface{}{accountAddress}
 }

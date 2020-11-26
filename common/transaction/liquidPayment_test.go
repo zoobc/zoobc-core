@@ -21,6 +21,13 @@ type (
 	}
 )
 
+var (
+	liquidPayAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	liquidPayAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+)
+
 func (*executorSetupLiquidPaymentSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
@@ -49,14 +56,13 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -73,8 +79,8 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -82,9 +88,12 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			args:    args{},
 			wantErr: true,
@@ -94,8 +103,8 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -103,9 +112,12 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			args:    args{},
 			wantErr: false,
@@ -123,7 +135,6 @@ func TestLiquidPayment_ApplyConfirmed(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			if err := tx.ApplyConfirmed(tt.args.blockTimestamp); (err != nil) != tt.wantErr {
@@ -137,14 +148,13 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -157,8 +167,8 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -166,9 +176,12 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -177,8 +190,8 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -186,9 +199,12 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -205,7 +221,6 @@ func TestLiquidPayment_ApplyUnconfirmed(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			if err := tx.ApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -219,14 +234,13 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -239,8 +253,8 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -248,9 +262,12 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -259,8 +276,8 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -268,9 +285,12 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -287,7 +307,6 @@ func TestLiquidPayment_UndoApplyUnconfirmed(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			if err := tx.UndoApplyUnconfirmed(); (err != nil) != tt.wantErr {
@@ -320,14 +339,13 @@ func TestLiquidPayment_Validate(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -344,8 +362,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          0,
@@ -353,9 +371,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -364,8 +385,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          -1,
@@ -373,9 +394,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -384,8 +408,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "",
-				RecipientAddress: "dfdas",
+				SenderAddress:    nil,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -393,9 +417,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -404,8 +431,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: nil,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -413,9 +440,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -424,8 +454,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "fddasdf",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: liquidPayAddress1,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -433,9 +463,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -444,8 +477,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "fddasdf",
+				SenderAddress:    liquidPayAddress2,
+				RecipientAddress: liquidPayAddress1,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -453,9 +486,12 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(&mockAccountBalanceQueryForLiquidPaymentFail{}, &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					&mockAccountBalanceQueryForLiquidPaymentFail{},
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -464,8 +500,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "dfdas",
-				RecipientAddress: "fddasdf",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -473,11 +509,10 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(&mockAccountBalanceQueryForLiquidPaymentSuccess{
+				AccountBalanceHelper: NewAccountBalanceHelper(&executorSetupLiquidPaymentSuccess{}, &mockAccountBalanceQueryForLiquidPaymentSuccess{
 					mockSpendableBalance: 1,
-				}, &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper: NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:           fee.NewBlockLifeTimeFeeModel(1, 2),
+				}, query.NewAccountLedgerQuery()),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -486,8 +521,8 @@ func TestLiquidPayment_Validate(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -495,11 +530,10 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper: NewAccountBalanceHelper(&mockAccountBalanceQueryForLiquidPaymentSuccess{
+				AccountBalanceHelper: NewAccountBalanceHelper(&executorSetupLiquidPaymentSuccess{}, &mockAccountBalanceQueryForLiquidPaymentSuccess{
 					mockSpendableBalance: 20,
-				}, &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper: NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:           fee.NewBlockLifeTimeFeeModel(1, 2),
+				}, query.NewAccountLedgerQuery()),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -516,7 +550,6 @@ func TestLiquidPayment_Validate(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
@@ -530,15 +563,15 @@ func TestLiquidPayment_GetMinimumFee(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
+		Escrow                        *model.Escrow
 	}
 	tests := []struct {
 		name    string
@@ -550,6 +583,7 @@ func TestLiquidPayment_GetMinimumFee(t *testing.T) {
 			name: "wantSuccess",
 			fields: fields{
 				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
+				Escrow:    &model.Escrow{},
 			},
 			want: constant.OneZBC / 100,
 		},
@@ -566,8 +600,8 @@ func TestLiquidPayment_GetMinimumFee(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
+				Escrow:                        tt.fields.Escrow,
 			}
 			got, err := tx.GetMinimumFee()
 			if (err != nil) != tt.wantErr {
@@ -585,14 +619,13 @@ func TestLiquidPayment_GetAmount(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -621,9 +654,12 @@ func TestLiquidPayment_GetAmount(t *testing.T) {
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     tt.fields.NormalFee,
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: tt.fields.NormalFee,
 			}
 			if got := tx.GetAmount(); got != tt.want {
 				t.Errorf("LiquidPayment.GetAmount() = %v, want %v", got, tt.want)
@@ -645,7 +681,7 @@ func TestLiquidPayment_GetSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentTransaction{}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("LiquidPayment.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -656,14 +692,13 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -681,8 +716,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -696,8 +731,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -711,8 +746,8 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:                 nil,
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -737,7 +772,6 @@ func TestLiquidPayment_ParseBodyBytes(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			got, err := tx.ParseBodyBytes(tt.args.txBodyBytes)
@@ -756,14 +790,13 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -779,8 +812,8 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 					CompleteMinutes: 200,
 				},
 				Fee:                  0,
-				SenderAddress:        "",
-				RecipientAddress:     "",
+				SenderAddress:        nil,
+				RecipientAddress:     nil,
 				Height:               0,
 				AccountBalanceHelper: nil,
 				QueryExecutor:        nil,
@@ -802,10 +835,9 @@ func TestLiquidPayment_GetBodyBytes(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LiquidPayment.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -816,14 +848,13 @@ func TestLiquidPayment_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -858,7 +889,6 @@ func TestLiquidPayment_GetTransactionBody(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			tx.GetTransactionBody(tt.args.transaction)
@@ -870,14 +900,13 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -908,8 +937,8 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -917,9 +946,12 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -932,8 +964,8 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayAddress1,
+				RecipientAddress: liquidPayAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentTransactionBody{
 					Amount:          10,
@@ -941,9 +973,12 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -960,7 +995,6 @@ func TestLiquidPayment_CompletePayment(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			if err := tx.CompletePayment(tt.args.blockHeight, tt.args.blockTimestamp, tt.args.firstAppliedTimestamp); (err != nil) != tt.wantErr {
@@ -974,14 +1008,13 @@ func TestLiquidPayment_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	type args struct {
@@ -1013,7 +1046,6 @@ func TestLiquidPayment_SkipMempoolTransaction(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			got, err := tx.SkipMempoolTransaction(tt.args.selectedTransactions, tt.args.newBlockTimestamp, tt.args.newBlockHeight)
@@ -1032,14 +1064,13 @@ func TestLiquidPayment_Escrowable(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 	}
 	tests := []struct {
@@ -1065,7 +1096,6 @@ func TestLiquidPayment_Escrowable(t *testing.T) {
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 			}
 			got, got1 := tx.Escrowable()

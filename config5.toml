@@ -1,6 +1,5 @@
 resourcePath = "./resource"
 dbName = "zoobc_5.db"
-badgerDbName="zoobc_5_kv/"
 nodeKeyFile = "node_keys_5.json"
 snapshotPath = "./resource/snapshots_5"
 
@@ -17,7 +16,7 @@ monitoringPort=9095
 cpuProfilingPort=6065
 apiReqTimeoutSec=2
 
-ownerAccountAddress = "ZBC_6U4T7CVD_DEITASZG_RXZT4M73_A3EFPAMX_IKQ2A5GE_ITZJOSKM_DNAASSHP"
+ownerAccountAddress = "00000000f5393f8aa31911304b268df33e33fb06c857819742a1a074c444f297494c1b40"
 
 smithing=true
 proofOfOwnershipReqTimeoutSec = 2

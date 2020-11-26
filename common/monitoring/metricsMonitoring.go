@@ -3,16 +3,15 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/lib/address"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"math"
 	"net/http"
 	"reflect"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -20,34 +19,41 @@ var (
 	isMonitoringActive bool
 	nodePublicKey      []byte
 
-	sendAddressInfoToPeer            prometheus.Counter
-	getAddressInfoTableFromPeer      prometheus.Counter
-	receiptCounter                   prometheus.Counter
-	nodeAddressInfoCounter           prometheus.Gauge
-	confirmedAddressCounter          prometheus.Gauge
-	pendingAddressCounter            prometheus.Gauge
-	unresolvedPeersCounter           prometheus.Gauge
-	resolvedPeersCounter             prometheus.Gauge
-	unresolvedPriorityPeersCounter   prometheus.Gauge
-	resolvedPriorityPeersCounter     prometheus.Gauge
-	activeRegisteredNodesGauge       prometheus.Gauge
-	nodeScore                        prometheus.Gauge
-	blockerCounterVector             *prometheus.CounterVec
-	statusLockGaugeVector            *prometheus.GaugeVec
-	blockchainStatusGaugeVector      *prometheus.GaugeVec
-	blockchainSmithIndexGaugeVector  *prometheus.GaugeVec
-	blockchainIDMsbGaugeVector       *prometheus.GaugeVec
-	blockchainIDLsbGaugeVector       *prometheus.GaugeVec
-	blockchainHeightGaugeVector      *prometheus.GaugeVec
-	goRoutineActivityGaugeVector     *prometheus.GaugeVec
-	downloadCycleDebuggerGaugeVector *prometheus.GaugeVec
-	apiGaugeVector                   *prometheus.GaugeVec
-	apiRunningGaugeVector            *prometheus.GaugeVec
-	snapshotDownloadRequestCounter   *prometheus.CounterVec
-	dbStatGaugeVector                *prometheus.GaugeVec
+	sendAddressInfoToPeer              prometheus.Counter
+	getAddressInfoTableFromPeer        prometheus.Counter
+	receiptCounter                     prometheus.Counter
+	nodeAddressInfoCounter             prometheus.Gauge
+	confirmedAddressCounter            prometheus.Gauge
+	pendingAddressCounter              prometheus.Gauge
+	unresolvedPeersCounter             prometheus.Gauge
+	resolvedPeersCounter               prometheus.Gauge
+	unresolvedPriorityPeersCounter     prometheus.Gauge
+	resolvedPriorityPeersCounter       prometheus.Gauge
+	activeRegisteredNodesGauge         prometheus.Gauge
+	nodeScore                          prometheus.Gauge
+	tpsReceived                        prometheus.Gauge
+	tpsProcessed                       prometheus.Gauge
+	txReceived                         prometheus.Gauge
+	txProcessed                        prometheus.Gauge
+	txFiltered                         prometheus.Gauge
+	P2PTxFiltered                      prometheus.Gauge
+	blockerCounterVector               *prometheus.CounterVec
+	statusLockGaugeVector              *prometheus.GaugeVec
+	blockchainStatusGaugeVector        *prometheus.GaugeVec
+	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
+	blockchainIDMsbGaugeVector         *prometheus.GaugeVec
+	blockchainIDLsbGaugeVector         *prometheus.GaugeVec
+	blockchainHeightGaugeVector        *prometheus.GaugeVec
+	goRoutineActivityGaugeVector       *prometheus.GaugeVec
+	downloadCycleDebuggerGaugeVector   *prometheus.GaugeVec
+	apiGaugeVector                     *prometheus.GaugeVec
+	apiRunningGaugeVector              *prometheus.GaugeVec
+	snapshotDownloadRequestCounter     *prometheus.CounterVec
+	dbStatGaugeVector                  *prometheus.GaugeVec
+	cacheStorageGaugeVector            *prometheus.GaugeVec
+	mempoolTransactionCountGaugeVector *prometheus.GaugeVec
+	blockProcessTimeGaugeVector        *prometheus.GaugeVec
 
-	badgerMetrics         map[string]prometheus.Gauge
-	badgerMetricsLock     sync.Mutex
 	cliMonitoringInstance CLIMonitoringInteface
 )
 
@@ -216,6 +222,42 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(nodeScore)
 
+	tpsReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_received",
+		Help: "Transactions per second received",
+	})
+	prometheus.MustRegister(tpsReceived)
+
+	txReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_received",
+		Help: "Transactions received since node last start",
+	})
+	prometheus.MustRegister(txReceived)
+
+	tpsProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_processed",
+		Help: "Transactions per second processed",
+	})
+	prometheus.MustRegister(tpsProcessed)
+
+	txProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_processed",
+		Help: "Transactions processed since node last start",
+	})
+	prometheus.MustRegister(txProcessed)
+
+	txFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_filtered",
+		Help: "Transactions filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(txFiltered)
+
+	P2PTxFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered",
+		Help: "Transactions broadcast by other nodes filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(P2PTxFiltered)
+
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
 		Help: "Blockchain last block id MSB",
@@ -270,6 +312,24 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"status"})
 	prometheus.MustRegister(dbStatGaugeVector)
 
+	blockProcessTimeGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_block_process_time_ms",
+		Help: "Block process time",
+	}, []string{"block_height"})
+	prometheus.MustRegister(blockProcessTimeGaugeVector)
+
+	mempoolTransactionCountGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_mempool_transaction_count",
+		Help: "Mempool count",
+	}, []string{"block_height"})
+	prometheus.MustRegister(mempoolTransactionCountGaugeVector)
+
+	// Cache Storage
+	cacheStorageGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_cache_storage",
+		Help: "Cache storage usage in bytes",
+	}, []string{"cache_type"})
+	prometheus.MustRegister(cacheStorageGaugeVector)
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -440,6 +500,48 @@ func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
 	nodeScore.Set(float64(scoreInt64))
 }
 
+func SetTpsReceived(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsReceived.Set(float64(tps))
+}
+
+func SetTpsProcessed(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsProcessed.Set(float64(tps))
+}
+
+func IncreaseTxReceived() {
+	if !isMonitoringActive {
+		return
+	}
+	txReceived.Inc()
+}
+
+func IncreaseTxProcessed() {
+	if !isMonitoringActive {
+		return
+	}
+	txProcessed.Inc()
+}
+
+func IncreaseTxFiltered() {
+	if !isMonitoringActive {
+		return
+	}
+	txFiltered.Inc()
+}
+
+func IncreaseP2PTxFiltered() {
+	if !isMonitoringActive {
+		return
+	}
+	P2PTxFiltered.Inc()
+}
+
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
 	if cliMonitoringInstance != nil {
 		cliMonitoringInstance.UpdateSmithingInfo(sortedBlocksmiths, sortedBlocksmithsMap)
@@ -462,6 +564,20 @@ func SetLastBlock(chainType chaintype.ChainType, block *model.Block) {
 	blockchainIDMsbGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetID() / int64(1000000000)))
 	blockchainIDLsbGaugeVector.WithLabelValues(chainType.GetName()).Set(math.Abs(float64(block.GetID() % int64(1000000000))))
 	blockchainHeightGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(block.GetHeight()))
+}
+
+func SetBlockProcessTime(timeMs int64) {
+	if !isMonitoringActive {
+		return
+	}
+	blockProcessTimeGaugeVector.WithLabelValues("BlockProcessTime").Set(float64(timeMs))
+}
+
+func SetMempoolTransactionCount(mempoolTxCount int) {
+	if !isMonitoringActive {
+		return
+	}
+	mempoolTransactionCountGaugeVector.WithLabelValues("MempoolTransactionCount").Set(float64(mempoolTxCount))
 }
 
 func IncrementGoRoutineActivity(activityName string) {
@@ -543,22 +659,27 @@ func SetDatabaseStats(dbStat sql.DBStats) {
 	dbStatGaugeVector.WithLabelValues("ConnectionsWaitCount").Set(float64(dbStat.WaitCount))
 }
 
-func SetBadgerMetrics(metrics map[string]float64) {
-	if badgerMetrics == nil {
-		badgerMetrics = make(map[string]prometheus.Gauge)
-	}
+type (
+	// CacheStorageType type of cache storage that needed for inc or dec the value
+	CacheStorageType string
+)
 
-	for key, val := range metrics {
-		if _, ok := badgerMetrics[key]; !ok {
-			badgerMetricsLock.Lock()
-			if _, ok := badgerMetrics[key]; !ok {
-				badgerMetrics[key] = prometheus.NewGauge(prometheus.GaugeOpts{
-					Name: key,
-				})
-				prometheus.MustRegister(badgerMetrics[key])
-			}
-			badgerMetricsLock.Unlock()
-		}
-		badgerMetrics[key].Set(val)
+// Cache Storage environments
+// Please add new one when add new cache storage instance
+var (
+	TypeMempoolCacheStorage         CacheStorageType = "mempools"
+	TypeBatchReceiptCacheStorage    CacheStorageType = "batch_receipts"
+	TypeScrambleNodeCacheStorage    CacheStorageType = "scramble_nodes"
+	TypeMempoolBackupCacheStorage   CacheStorageType = "backup_mempools"
+	TypeNodeShardCacheStorage       CacheStorageType = "node_shards"
+	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
+	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
+	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
+	TypeBlocksCacheStorage          CacheStorageType = "blocks_cache_object"
+)
+
+func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {
+	if isMonitoringActive {
+		cacheStorageGaugeVector.WithLabelValues(string(cacheType)).Set(size)
 	}
 }

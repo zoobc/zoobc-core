@@ -22,6 +22,7 @@ type (
 		P2pService              p2p.Peer2PeerServiceInterface
 		BlockServices           map[int32]coreService.BlockServiceInterface
 		NodeRegistrationService coreService.NodeRegistrationServiceInterface
+		ScrambleNodeService     coreService.ScrambleNodeServiceInterface
 		BlockStateStorages      map[int32]storage.CacheStorageInterface
 	}
 )
@@ -34,6 +35,7 @@ func NewHostService(
 	p2pService p2p.Peer2PeerServiceInterface,
 	blockServices map[int32]coreService.BlockServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 	blockStateStorages map[int32]storage.CacheStorageInterface,
 ) HostServiceInterface {
 	if hostServiceInstance == nil {
@@ -42,6 +44,7 @@ func NewHostService(
 			P2pService:              p2pService,
 			BlockServices:           blockServices,
 			NodeRegistrationService: nodeRegistrationService,
+			ScrambleNodeService:     scrambleNodeService,
 			BlockStateStorages:      blockStateStorages,
 		}
 	}
@@ -70,7 +73,7 @@ func (hs *HostService) GetHostInfo() (*model.HostInfo, error) {
 	if len(chainStatuses) == 0 || chainStatuses[(&chaintype.MainChain{}).GetTypeInt()] == nil {
 		return nil, status.Error(codes.InvalidArgument, "mainLastBlockIsNil")
 	}
-	scrambledNodes, err := hs.NodeRegistrationService.GetScrambleNodesByHeight(chainStatuses[0].GetHeight())
+	scrambledNodes, err := hs.ScrambleNodeService.GetScrambleNodesByHeight(chainStatuses[0].GetHeight())
 	if err != nil {
 		return nil, err
 	}

@@ -29,7 +29,6 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	}
 
 	viper.SetDefault("dbName", "zoobc.db")
-	viper.SetDefault("badgerDbName", "zoobc_kv/")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
 	viper.Set("resourcePath", filepath.Join(resourcePath))
 	viper.SetDefault("peerPort", 8001)
@@ -42,6 +41,7 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", true)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
+	viper.SetDefault("antiSpamFilter", true)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed

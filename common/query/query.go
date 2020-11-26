@@ -1,9 +1,10 @@
 package query
 
 import (
+	"math"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"math"
 )
 
 type (
@@ -50,6 +51,8 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewFeeVoteRevealVoteQuery(),
 			NewNodeAdmissionTimestampQuery(),
 			NewMultiSignatureParticipantQuery(),
+			NewBatchReceiptQuery(),
+			NewMerkleTreeQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -111,7 +114,7 @@ func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
 	switch ct.(type) {
 	case *chaintype.MainChain:
 		pruneQuery = []PruneQuery{
-			NewNodeReceiptQuery(),
+			NewBatchReceiptQuery(),
 			NewMerkleTreeQuery(),
 		}
 	default:

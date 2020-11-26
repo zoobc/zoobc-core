@@ -36,7 +36,8 @@ var (
 		"block_height":    uint32(1),
 	}
 	mockAccountBalance = &model.AccountBalance{
-		AccountAddress:   "BCZ",
+		AccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224, 72, 239, 56, 139, 255,
+			81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
 		BlockHeight:      0,
 		SpendableBalance: 0,
 		Balance:          0,
@@ -57,7 +58,7 @@ var _ = mockAccountBalanceRow
 
 func TestAccountBalanceQuery_GetAccountBalanceByAccountID(t *testing.T) {
 	t.Run("GetAccountBalanceByAccountID", func(t *testing.T) {
-		res, args := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress("BCZ")
+		res, args := mockAccountBalanceQuery.GetAccountBalanceByAccountAddress(mockAccountBalance.AccountAddress)
 		want := "SELECT account_address,block_height,spendable_balance,balance,pop_revenue,latest " +
 			"FROM account_balance WHERE account_address = ? AND latest = 1 ORDER BY block_height DESC"
 		if res != want {
@@ -325,7 +326,8 @@ func TestAccountBalanceQuery_InsertAccountBalances(t *testing.T) {
 			args: args{
 				accountBalances: []*model.AccountBalance{
 					{
-						AccountAddress:   "BCZ",
+						AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+							28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 						BlockHeight:      0,
 						SpendableBalance: 0,
 						Balance:          0,
@@ -337,7 +339,8 @@ func TestAccountBalanceQuery_InsertAccountBalances(t *testing.T) {
 			wantStr: "INSERT INTO account_balance (account_address, block_height, spendable_balance, balance, pop_revenue, latest) " +
 				"VALUES (?, ?, ?, ?, ?, ?)",
 			wantArgs: []interface{}{
-				"BCZ",
+				[]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79,
+					28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 				uint32(0),
 				int64(0),
 				int64(0),

@@ -3,6 +3,7 @@ package decryptcert
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
 var (
@@ -100,7 +100,8 @@ func generateClusterConfigFile(entries []certEntry, newClusterConfigFilePath str
 		// (they are possibly pre-registered nodes managed by someone, thus they shouldn't be deployed automatically)
 
 		// verify that the NodePublicKey from cert = the one parsed by node using node seed
-		_, _, nodePubKeyStr, _, err = sig.GenerateAccountFromSeed(model.SignatureType_DefaultSignature, genEntry.NodeSeed)
+		accType := &accounttype.ZbcAccountType{}
+		_, _, nodePubKeyStr, _, _, err = sig.GenerateAccountFromSeed(accType, genEntry.NodeSeed)
 		if genEntry.NodePublicKey != nodePubKeyStr {
 			log.Printf("invalid node pub key:\npk: %s\ncomputed: %s\nacc: %s",
 				genEntry.NodePublicKey, nodePubKeyStr, genEntry.AccountAddress)

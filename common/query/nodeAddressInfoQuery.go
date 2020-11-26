@@ -77,9 +77,9 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 			" block_hash = ?,"+
 			" signature = ?,"+
 			" status = ?"+
-			" WHERE node_id = ?", paq.getTableName())
+			" WHERE node_id = ? AND status = ?", paq.getTableName())
 	// move NodeID at the bottom of the values array
-	values := append(paq.ExtractModel(peerAddress)[1:], peerAddress.NodeID)
+	values := append(paq.ExtractModel(peerAddress)[1:], peerAddress.NodeID, peerAddress.Status)
 	queries = append(queries,
 		append([]interface{}{qryUpdate}, values...),
 	)

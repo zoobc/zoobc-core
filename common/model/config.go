@@ -15,10 +15,14 @@ type (
 		Smithing, IsNodeAddressDynamic, LogOnCli, CliMonitoring   bool
 		WellknownPeers                                            []string
 		NodeKey                                                   *NodeKey
-		MyAddress, OwnerAccountAddress, NodeSeed                  string
+		MyAddress, OwnerAccountAddressHex, NodeSeed               string
+		OwnerAccountAddress                                       []byte
+		OwnerEncodedAccountAddress                                string
+		OwnerAccountAddressTypeInt                                int32
 		APICertFile, APIKeyFile                                   string
-		DatabaseFileName, ResourcePath, BadgerDbName,
+		DatabaseFileName, ResourcePath,
 		NodeKeyFileName, SnapshotPath string
+		AntiSpamFilter bool
 
 		// validation fields
 		ConfigFileExist bool
@@ -47,11 +51,10 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.HTTPAPIPort = viper.GetInt("apiHTTPPort")
 	cfg.MaxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
 	cfg.CPUProfilingPort = viper.GetInt("cpuProfilingPort")
-	cfg.OwnerAccountAddress = viper.GetString("ownerAccountAddress")
+	cfg.OwnerAccountAddressHex = viper.GetString("ownerAccountAddress")
 	cfg.WellknownPeers = viper.GetStringSlice("wellknownPeers")
 	cfg.Smithing = viper.GetBool("smithing")
 	cfg.DatabaseFileName = viper.GetString("dbName")
-	cfg.BadgerDbName = viper.GetString("badgerDbName")
 	cfg.ResourcePath = viper.GetString("resourcePath")
 	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
 	cfg.NodeSeed = viper.GetString("nodeSeed")
@@ -60,17 +63,19 @@ func (cfg *Config) LoadConfigurations() {
 	cfg.SnapshotPath = viper.GetString("snapshotPath")
 	cfg.LogOnCli = viper.GetBool("logOnCli")
 	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+	cfg.AntiSpamFilter = viper.GetBool("antiSpamFilter")
 }
 
 func (cfg *Config) SaveConfig(filePath string) error {
 	var err error
 	viper.Set("smithing", cfg.Smithing)
-	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddress)
+	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddressHex)
 	viper.Set("wellknownPeers", cfg.WellknownPeers)
 	viper.Set("peerPort", cfg.PeerPort)
 	viper.Set("apiRPCPort", cfg.RPCAPIPort)
 	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
 	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
+	viper.Set("antiSpamFilter", cfg.AntiSpamFilter)
 	// todo: code in rush, need refactor later andy-shi88
 	_, err = os.Stat(filepath.Join(filePath, "./config.toml"))
 	if err != nil {

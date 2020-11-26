@@ -11,8 +11,8 @@ import (
 
 type (
 	MultisignatureInfoQueryInterface interface {
-		GetMultisignatureInfoByAddress(
-			multisigAddress string,
+		GetMultisignatureInfoByAddressWithParticipants(
+			multisigAddress []byte,
 			currentHeight, limit uint32,
 		) (str string, args []interface{})
 		InsertMultisignatureInfo(multisigInfo *model.MultiSignatureInfo) [][]interface{}
@@ -20,6 +20,7 @@ type (
 		Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error
 		ExtractModel(multisigInfo *model.MultiSignatureInfo) []interface{}
 		BuildModel(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
+		BuildModelWithParticipant(multisigInfos []*model.MultiSignatureInfo, rows *sql.Rows) ([]*model.MultiSignatureInfo, error)
 	}
 
 	MultisignatureInfoQuery struct {
@@ -46,26 +47,31 @@ func (msi *MultisignatureInfoQuery) getTableName() string {
 	return msi.TableName
 }
 
-func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddress(
-	multisigAddress string,
+// GetMultisignatureInfoByAddressWithParticipants get multi signature info and participants
+func (msi *MultisignatureInfoQuery) GetMultisignatureInfoByAddressWithParticipants(
+	multisigAddress []byte,
 	currentHeight, limit uint32,
 ) (str string, args []interface{}) {
 	var (
-		blockHeight uint32
+		blockHeight   uint32
+		t1Fields      []string
+		msParticipant = NewMultiSignatureParticipantQuery()
 	)
 	if currentHeight > limit {
 		blockHeight = currentHeight - limit
 	}
-	query := fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE multisig_address = ? AND block_height >= ? AND latest = true",
-		strings.Join(msi.Fields, ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') "+
-			"FROM multisignature_participant WHERE multisig_address = ? AND latest = true GROUP BY multisig_address, block_height "+
-			"ORDER BY account_address_index DESC) as addresses",
+	for _, msiField := range msi.Fields {
+		t1Fields = append(t1Fields, fmt.Sprintf("t1.%s", msiField))
+	}
+	queryMultisigInfo := fmt.Sprintf(
+		"SELECT %s, t2.account_address FROM %s t1 LEFT JOIN %s t2 ON t1.multisig_address = t2.multisig_address "+
+			"WHERE t1.multisig_address = ? AND t1.block_height >= ? AND t1.latest = true AND t2.latest = true "+
+			"ORDER BY t2.account_address_index DESC",
+		strings.Join(t1Fields, ", "),
 		msi.getTableName(),
+		msParticipant.getTableName(),
 	)
-	return query, []interface{}{
-		multisigAddress,
+	return queryMultisigInfo, []interface{}{
 		multisigAddress,
 		blockHeight,
 	}
@@ -185,19 +191,15 @@ func (msi *MultisignatureInfoQuery) RecalibrateVersionedTable() []string {
 	}
 }
 
-// Scan will build model from *sql.Row that expect has addresses column
-// which is result from sub query of multisignature_participant
+// Scan will build model from *sql.Row
 func (*MultisignatureInfoQuery) Scan(multisigInfo *model.MultiSignatureInfo, row *sql.Row) error {
-	var addresses string
 	err := row.Scan(
 		&multisigInfo.MultisigAddress,
 		&multisigInfo.MinimumSignatures,
 		&multisigInfo.Nonce,
 		&multisigInfo.BlockHeight,
 		&multisigInfo.Latest,
-		&addresses,
 	)
-	multisigInfo.Addresses = strings.Split(addresses, ",")
 	return err
 }
 
@@ -212,15 +214,13 @@ func (*MultisignatureInfoQuery) ExtractModel(multisigInfo *model.MultiSignatureI
 	}
 }
 
-// BuildModel will build model from *sql.Rows that expect has addresses column
-// which is result from sub query of multisignature_participant
+// BuildModel will build model from *sql.Rows
 func (msi *MultisignatureInfoQuery) BuildModel(
 	mss []*model.MultiSignatureInfo, rows *sql.Rows,
 ) ([]*model.MultiSignatureInfo, error) {
 	for rows.Next() {
 		var (
 			multisigInfo model.MultiSignatureInfo
-			addresses    string
 		)
 		err := rows.Scan(
 			&multisigInfo.MultisigAddress,
@@ -228,9 +228,34 @@ func (msi *MultisignatureInfoQuery) BuildModel(
 			&multisigInfo.Nonce,
 			&multisigInfo.BlockHeight,
 			&multisigInfo.Latest,
-			&addresses,
 		)
-		multisigInfo.Addresses = strings.Split(addresses, ",")
+		if err != nil {
+			return nil, err
+		}
+		mss = append(mss, &multisigInfo)
+	}
+	return mss, nil
+}
+
+// BuildModelWithParticipant will build model from *sql.Rows that expect has addresses column
+// which is result from sub query of multisignature_participant
+func (msi *MultisignatureInfoQuery) BuildModelWithParticipant(
+	mss []*model.MultiSignatureInfo, rows *sql.Rows,
+) ([]*model.MultiSignatureInfo, error) {
+	for rows.Next() {
+		var (
+			multisigInfo       model.MultiSignatureInfo
+			participantAddress []byte
+		)
+		err := rows.Scan(
+			&multisigInfo.MultisigAddress,
+			&multisigInfo.MinimumSignatures,
+			&multisigInfo.Nonce,
+			&multisigInfo.BlockHeight,
+			&multisigInfo.Latest,
+			&participantAddress,
+		)
+		multisigInfo.Addresses = [][]byte{participantAddress}
 		if err != nil {
 			return nil, err
 		}
@@ -260,13 +285,11 @@ func (msi *MultisignatureInfoQuery) Rollback(height uint32) (multiQueries [][]in
 
 func (msi *MultisignatureInfoQuery) SelectDataForSnapshot(fromHeight, toHeight uint32) string {
 	return fmt.Sprintf(
-		"SELECT %s, %s FROM %s WHERE (multisig_address, block_height) "+
-			"IN (SELECT t2.multisig_address, MAX(t2.block_height) FROM %s as t2 "+
-			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 "+
-			"GROUP BY t2.multisig_address) ORDER BY block_height",
+		"SELECT %s FROM %s WHERE (multisig_address, block_height) IN "+
+			"(SELECT t2.multisig_address, MAX(t2.block_height) FROM %s t2 "+
+			"WHERE t2.block_height >= %d AND t2.block_height <= %d AND t2.block_height != 0 GROUP BY t2.multisig_address) "+
+			"ORDER BY block_height",
 		strings.Join(msi.Fields, ", "),
-		"(SELECT GROUP_CONCAT(account_address, ',') FROM multisignature_participant GROUP BY multisig_address, block_height "+
-			"ORDER BY account_address_index ASC) as addresses",
 		msi.getTableName(),
 		msi.getTableName(),
 		fromHeight,

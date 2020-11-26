@@ -10,4 +10,5 @@ var (
 	BlockchainSendingBlocks                             = 6
 	BlockchainStatusReceivingBlockScanBlockPool         = 7
 	BlockchainStatusReceivingBlockProcessCompletedBlock = 8
+	BlockchainStatusGettingBlocks                       = 9
 )

@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
-
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -61,7 +60,7 @@ type (
 var (
 	// GetPublishedReceiptByLinkedRMR mocks
 	mockGetPublishedReceiptByRMRResult = &model.PublishedReceipt{
-		BatchReceipt:       &model.BatchReceipt{},
+		Receipt:            &model.Receipt{},
 		IntermediateHashes: nil,
 		BlockHeight:        1,
 		ReceiptIndex:       1,
@@ -163,7 +162,7 @@ type (
 var (
 	mockGetPublishedReceiptByBlockHeightResult = []*model.PublishedReceipt{
 		{
-			BatchReceipt:       nil,
+			Receipt:            nil,
 			IntermediateHashes: nil,
 			BlockHeight:        1,
 			ReceiptIndex:       2,
@@ -297,7 +296,7 @@ func (*mockInsertPublishedReceiptExecutorSuccess) ExecuteStatement(query string,
 
 func TestPublishedReceiptUtil_InsertPublishedReceipt(t *testing.T) {
 	dummyPublishedReceipt := &model.PublishedReceipt{
-		BatchReceipt: &model.BatchReceipt{},
+		Receipt: &model.Receipt{},
 	}
 	type fields struct {
 		PublishedReceiptQuery query.PublishedReceiptQueryInterface
@@ -376,7 +375,7 @@ func TestPublishedReceiptUtil_InsertPublishedReceipt(t *testing.T) {
 }
 
 var (
-	mockBatchReceipt = &model.BatchReceipt{
+	mockReceipt = &model.Receipt{
 		SenderPublicKey:      make([]byte, 32),
 		RecipientPublicKey:   make([]byte, 32),
 		DatumType:            1,
@@ -387,7 +386,7 @@ var (
 		RecipientSignature:   make([]byte, 64),
 	}
 	mockPublishedReceipt = &model.PublishedReceipt{
-		BatchReceipt:       mockBatchReceipt,
+		Receipt:            mockReceipt,
 		IntermediateHashes: make([]byte, 3*32),
 		BlockHeight:        2,
 		ReceiptIndex:       1,
@@ -411,14 +410,14 @@ func (*mockPublishedReceiptUtilExecutorSuccess) ExecuteSelect(qStr string, tx bo
 	dbMocked, mock, _ := sqlmock.New()
 	mockedRows := mock.NewRows(query.NewPublishedReceiptQuery().Fields)
 	mockedRows.AddRow(
-		mockBatchReceipt.SenderPublicKey,
-		mockBatchReceipt.RecipientPublicKey,
-		mockBatchReceipt.DatumType,
-		mockBatchReceipt.DatumHash,
-		mockBatchReceipt.ReferenceBlockHeight,
-		mockBatchReceipt.ReferenceBlockHash,
-		mockBatchReceipt.RMRLinked,
-		mockBatchReceipt.RecipientSignature,
+		mockReceipt.SenderPublicKey,
+		mockReceipt.RecipientPublicKey,
+		mockReceipt.DatumType,
+		mockReceipt.DatumHash,
+		mockReceipt.ReferenceBlockHeight,
+		mockReceipt.ReferenceBlockHash,
+		mockReceipt.RMRLinked,
+		mockReceipt.RecipientSignature,
 		mockPublishedReceipt.IntermediateHashes,
 		mockPublishedReceipt.BlockHeight,
 		mockPublishedReceipt.ReceiptIndex,
@@ -483,7 +482,7 @@ func TestPublishedReceiptUtil_GetPublishedReceiptsByBlockHeightRange(t *testing.
 			}
 			got, err := psu.GetPublishedReceiptsByBlockHeightRange(tt.args.fromBlockHeight, tt.args.toBlockHeight)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GetPublishedReceiptsByBlockHeightRange() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GetPublishedReceiptsByBlockHeightRange() error = \n%v, wantErr \n%v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {

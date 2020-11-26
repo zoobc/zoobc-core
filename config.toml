@@ -1,36 +1,27 @@
-badgerDbName = "zoobc_1_kv/"
-dbName = "zoobc.db"
-nodeKeyFile = "node_keys.json"
-resourcePath = "./resource"
-snapshotPath = "./resource/snapshots"
-
-# Peer
-myAddress = "127.0.0.1"
-peerPort = 8001
-wellknownPeers = ["127.0.0.1:8002"]
-
 apiHTTPPort = 7001
-apiRPCPort = 7000
-maxAPIRequestPerSecond = 10
-# comment out or set to 0 to disable http proxy, only enable in dev mode
 apiReqTimeoutSec = 2
-cpuProfilingPort = 6060
-monitoringPort = 9090
-
-ownerAccountAddress = "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML"
-
-proofOfOwnershipReqTimeoutSec = 2
-smithing = true
-# Log Levels
-# Available log level: info, warn, error, fatal, panic
-logLevels = ["fatal", "error", "panic"]
-
-# to show all log on terminal/cli that recoreded in .log/log_files
-logOnCli = false
+apiRPCPort = 7000
 # to show usefull information on terminal/cli. The logOnCli must be false
 cliMonitoring = true
-
+antispamfilter = true
+cpuProfilingPort = 6060
+dbName = "zoobc.db"
+# Available log level: info, warn, error, fatal, panic
+logLevels = ["fatal","error","panic"]
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli = false
+maxAPIRequestPerSecond = 10
+monitoringPort = 9090
+myAddress = "127.0.0.1"
+nodeKeyFile = "node_keys.json"
+ownerAccountAddress = "000000002f714c0ee3b1469902bd56f1fd444c32e0fdeae880eb7718c34fc4694a4aed55"
+peerPort = 8001
+proofOfOwnershipReqTimeoutSec = 2
+resourcePath = "resource"
+smithing = true
+snapshotPath = "resource/snapshots"
 walletCertFileName = "wallet.zbc"
+wellknownPeers = ["127.0.0.1:8002"]
 
 #apiCertFile="./resource/network.crt"
 #apiKeyFile="./resource/network.key"

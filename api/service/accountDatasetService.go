@@ -52,10 +52,10 @@ func (ads *AccountDatasetService) GetAccountDatasets(
 	if request.GetValue() != "" {
 		caseQ.Where(caseQ.Equal("value", request.GetValue()))
 	}
-	if request.GetRecipientAccountAddress() != "" {
+	if request.GetRecipientAccountAddress() != nil {
 		caseQ.Where(caseQ.Equal("recipient_account_address", request.GetRecipientAccountAddress()))
 	}
-	if request.GetSetterAccountAddress() != "" {
+	if request.GetSetterAccountAddress() != nil {
 		caseQ.Where(caseQ.Equal("setter_account_address", request.GetSetterAccountAddress()))
 	}
 	if request.GetHeight() > 0 {
@@ -114,7 +114,7 @@ func (ads *AccountDatasetService) GetAccountDataset(
 	if request.GetProperty() != "" {
 		caseQ.Where(caseQ.Equal("property", request.GetProperty()))
 	}
-	if request.GetRecipientAccountAddress() != "" {
+	if request.GetRecipientAccountAddress() != nil {
 		caseQ.Where(caseQ.Equal("recipient_account_address", request.GetRecipientAccountAddress()))
 	}
 	caseQ.And(caseQ.Equal("latest", 1))

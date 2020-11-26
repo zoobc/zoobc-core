@@ -8,8 +8,7 @@ import (
 
 	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/model"
-	rpc_model "github.com/zoobc/zoobc-core/common/model"
-	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
 	"google.golang.org/grpc"
 )
@@ -36,13 +35,15 @@ func main() {
 	}
 	defer conn.Close()
 
-	c := rpc_service.NewMultisigServiceClient(conn)
+	c := service.NewMultisigServiceClient(conn)
 
 	response, err := c.GetParticipantsByMultisigAddresses(context.Background(),
-		&rpc_model.GetParticipantsByMultisigAddressesRequest{
-			MultisigAddresses: []string{
-				"ZBC_XHRAYYEM_TVCKY56B_SD3EY5QA_OBYYZN7F_OTFNH256_4DM64P67_4GRBA673",
-				"ZBC_6ULV6WBV_J3JVOADT_32COLTXK_KFDHGLW4_LRZ2NEDU_YK4Z3XWS_NLU2VOMX",
+		&model.GetParticipantsByMultisigAddressesRequest{
+			MultisigAddresses: [][]byte{
+				{0, 0, 0, 0, 185, 226, 12, 96, 140, 157, 68, 172, 119, 193, 144, 246, 76, 118, 0, 112, 113, 140, 183, 229, 116, 202,
+					211, 235, 190, 224, 217, 238, 63, 223, 225, 162},
+				{0, 0, 0, 0, 245, 23, 95, 88, 53, 78, 211, 87, 0, 115, 222, 132, 229, 206, 234, 81, 70, 115, 46, 220, 92, 115, 166,
+					144, 116, 194, 185, 157, 222, 210, 106, 233},
 			},
 			Pagination: &model.Pagination{
 				OrderField: "block_height",

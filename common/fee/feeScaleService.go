@@ -9,7 +9,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
+	"github.com/zoobc/zoobc-core/common/storage"
 )
 
 type (
@@ -24,23 +24,23 @@ type (
 	}
 
 	FeeScaleService struct {
-		lastBlockTimestamp  int64
-		lastFeeScale        model.FeeScale
-		FeeScaleQuery       query.FeeScaleQueryInterface
-		MainchainBlockQuery query.BlockQueryInterface
-		Executor            query.ExecutorInterface
+		lastBlockTimestamp    int64
+		lastFeeScale          model.FeeScale
+		FeeScaleQuery         query.FeeScaleQueryInterface
+		MainBlockStateStorage storage.CacheStorageInterface
+		Executor              query.ExecutorInterface
 	}
 )
 
 func NewFeeScaleService(
 	feeScaleQuery query.FeeScaleQueryInterface,
-	mainchainBlockQuery query.BlockQueryInterface,
+	mainBlockStateStorage storage.CacheStorageInterface,
 	executor query.ExecutorInterface,
 ) *FeeScaleService {
 	return &FeeScaleService{
-		FeeScaleQuery:       feeScaleQuery,
-		MainchainBlockQuery: mainchainBlockQuery,
-		Executor:            executor,
+		FeeScaleQuery:         feeScaleQuery,
+		MainBlockStateStorage: mainBlockStateStorage,
+		Executor:              executor,
 	}
 }
 
@@ -88,7 +88,10 @@ func (fss *FeeScaleService) GetCurrentPhase(
 		if blockTimestamp == constant.MainchainGenesisBlockTimestamp { // genesis exception
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, nil
 		}
-		lastBlock, err := util.GetLastBlock(fss.Executor, fss.MainchainBlockQuery)
+		var (
+			lastBlock model.Block
+			err       = fss.MainBlockStateStorage.GetItem(nil, &lastBlock)
+		)
 		if err != nil {
 			return model.FeeVotePhase_FeeVotePhaseCommmit, false, err
 		}

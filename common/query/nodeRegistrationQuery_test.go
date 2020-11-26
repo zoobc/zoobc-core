@@ -2,6 +2,7 @@ package query
 
 import (
 	"database/sql"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -12,9 +13,10 @@ import (
 var (
 	mockNodeRegistrationQuery = NewNodeRegistrationQuery()
 	mockNodeRegistry          = &model.NodeRegistration{
-		NodeID:             1,
-		NodePublicKey:      []byte{1},
-		AccountAddress:     "BCZ",
+		NodeID:        1,
+		NodePublicKey: []byte{1},
+		AccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
 		RegistrationHeight: 1,
 		LockedBalance:      10000,
 		RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -74,7 +76,8 @@ func TestNodeRegistrationQuery_GetNodeRegistrationByNodePublicKey(t *testing.T) 
 
 func TestNodeRegistrationQuery_GetNodeRegistrationByAccountAddress(t *testing.T) {
 	t.Run("GetNodeRegistrationByAccountAddress:success", func(t *testing.T) {
-		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress("BCZ")
+		res, args := mockNodeRegistrationQuery.GetNodeRegistrationByAccountAddress([]byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62,
+			98, 47, 207, 16, 210, 190, 79, 28, 126, 202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14})
 		want := "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
 			"registration_status, latest, height FROM node_registry WHERE account_address = ? AND latest=1 ORDER BY height DESC LIMIT 1"
 		if res != want {
@@ -164,8 +167,9 @@ func TestNodeRegistrationQuery_UpdateNodeRegistration(t *testing.T) {
 
 		q := mockNodeRegistrationQuery.UpdateNodeRegistration(mockNodeRegistry)
 		wantQ0 := "UPDATE node_registry SET latest = 0 WHERE ID = ?"
-		wantQ1 := "INSERT INTO node_registry (id,node_public_key,account_address,registration_height," +
-			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?)"
+		wantQ1 := fmt.Sprintf("INSERT INTO node_registry (id,node_public_key,account_address,registration_height,"+
+			"locked_balance,registration_status,latest,height) VALUES(? , ?, ?, ?, ?, ?, ?, ?) "+
+			"ON CONFLICT(id, height) DO UPDATE SET registration_status = %d, latest = 1", mockNodeRegistry.RegistrationStatus)
 		wantArg := []interface{}{
 			mockNodeRegistry.NodeID,
 			mockNodeRegistry.NodePublicKey,
@@ -269,18 +273,6 @@ func TestNodeRegistrationQuery_GetNodeRegistrationsByHighestLockedBalance(t *tes
 	})
 }
 
-func TestNodeRegistrationQuery_GetNodeRegistrationsWithZeroScore(t *testing.T) {
-	t.Run("GetNodeRegistrationsWithZeroScore", func(t *testing.T) {
-		res := mockNodeRegistrationQuery.GetNodeRegistrationsWithZeroScore(model.NodeRegistrationState_NodeRegistered)
-		want := "SELECT A.id, A.node_public_key, A.account_address, A.registration_height, A.locked_balance, " +
-			"A.registration_status, A.latest, A.height FROM node_registry as A INNER JOIN participation_score as B ON A.id = B.node_id " +
-			"WHERE B.score <= 0 AND A.latest=1 AND A.registration_status=0 AND B.latest=1"
-		if res != want {
-			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
-		}
-	})
-}
-
 func TestNodeRegistrationQuery_GetLastVersionedNodeRegistrationByPublicKey(t *testing.T) {
 	t.Run("GetLastVersionedNodeRegistrationByPublicKey:success", func(t *testing.T) {
 		res, arg := mockNodeRegistrationQuery.GetLastVersionedNodeRegistrationByPublicKey([]byte{1}, uint32(1))
@@ -308,7 +300,7 @@ func (*mockQueryExecutorScan) ExecuteSelectRow(qStr string, args ...interface{})
 		sqlmock.NewRows(mockNodeRegistrationQuery.Fields).AddRow(
 			1,
 			[]byte{1},
-			"BCZ",
+			mockNodeRegistry.AccountAddress,
 			1,
 			10000,
 			uint32(model.NodeRegistrationState_NodeQueued),
@@ -348,7 +340,7 @@ func TestNodeRegistrationQuery_Scan(t *testing.T) {
 			want: model.NodeRegistration{
 				NodeID:             1,
 				NodePublicKey:      []byte{1},
-				AccountAddress:     "BCZ",
+				AccountAddress:     mockNodeRegistry.AccountAddress,
 				RegistrationHeight: 1,
 				LockedBalance:      10000,
 				RegistrationStatus: uint32(model.NodeRegistrationState_NodeQueued),
@@ -575,39 +567,6 @@ func TestNodeRegistrationQuery_GetNodeRegistryAtHeightWithNodeAddress(t *testing
 	}
 }
 
-func TestNodeRegistrationQuery_GetActiveNodeRegistrations(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   string
-	}{
-		{
-			name: "GetActiveNodeRegistrations:success",
-			fields: fields{
-				TableName: NewNodeRegistrationQuery().TableName,
-				Fields:    NewNodeRegistrationQuery().Fields,
-			},
-			want: "SELECT id, node_public_key, account_address, registration_height, locked_balance, registration_status, " +
-				"latest, height FROM node_registry WHERE registration_status = 0 AND latest = 1",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			nrq := &NodeRegistrationQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			if got := nrq.GetActiveNodeRegistrations(); got != tt.want {
-				t.Errorf("NodeRegistrationQuery.GetActiveNodeRegistrations() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestNodeRegistrationQuery_GetActiveNodeRegistrationsWithNodeAddress(t *testing.T) {
 	type fields struct {
 		Fields                  []string
@@ -725,4 +684,16 @@ func TestNodeRegistrationQuery_GetPendingNodeRegistrations(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNodeRegistrationQuery_GetNodeRegistrationsByBlockHeightInterval(t *testing.T) {
+	t.Run("GetNodeRegistrationsByBlockHeightInterval", func(t *testing.T) {
+		res := mockNodeRegistrationQuery.GetNodeRegistrationsByBlockHeightInterval(0, 1)
+		want := "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
+			"registration_status, latest, height FROM node_registry WHERE height >= 0 AND height <= 1 AND " +
+			"registration_status != 1 AND latest=1 ORDER BY height"
+		if res != want {
+			t.Errorf("string not match:\nget: %s\nwant: %s", res, want)
+		}
+	})
 }

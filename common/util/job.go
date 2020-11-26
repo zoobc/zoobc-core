@@ -40,11 +40,13 @@ func (s *Scheduler) AddJob(period time.Duration, fn interface{}, args ...interfa
 		jobParams[k] = reflect.ValueOf(arg)
 	}
 	go func() {
+		ticker := time.NewTicker(period)
 		for {
 			select {
 			case <-s.Done:
+				ticker.Stop()
 				return
-			case <-time.NewTicker(period).C:
+			case <-ticker.C:
 				// Execute method and log the error value
 				values := jobFunction.Call(jobParams)
 				if len(values) > 0 && !values[0].IsNil() {

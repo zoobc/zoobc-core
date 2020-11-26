@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -30,8 +29,8 @@ type (
 	}
 
 	mockLiquidPaymentTransactionQuerySuccess struct {
-		Sender    string
-		Recipient string
+		Sender    []byte
+		Recipient []byte
 		Status    model.LiquidPaymentStatus
 		query.LiquidPaymentTransactionQuery
 	}
@@ -54,6 +53,15 @@ type (
 		isError bool
 		LiquidPaymentTransaction
 	}
+)
+
+var (
+	liquidPayStopAddress1 = []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+		72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169}
+	liquidPayStopAddress2 = []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+		202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14}
+	liquidPayStopAddress3 = []byte{0, 0, 0, 0, 33, 130, 42, 143, 177, 97, 43, 208, 76, 119, 240, 91, 41, 170, 240, 161, 55, 224, 8, 205,
+		139, 227, 189, 146, 86, 211, 52, 194, 131, 126, 233, 100}
 )
 
 func (*executorSetupLiquidPaymentStopSuccess) ExecuteTransactions([][]interface{}) error {
@@ -138,15 +146,14 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -162,17 +169,23 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteTransactions_error_balances",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				QueryExecutor:        &executorSetupLiquidPaymentStopFail{},
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				QueryExecutor: &executorSetupLiquidPaymentStopFail{},
 			},
 			wantErr: true,
 		},
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetPendingLiquidPaymentTransactionByID",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
 				Body: &model.LiquidPaymentStopTransactionBody{
@@ -184,8 +197,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_LiquidPaymentTransactionQuery",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQueryFail{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
 				Body: &model.LiquidPaymentStopTransactionBody{
@@ -197,8 +213,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetTransaction",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -211,8 +230,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_GetTransaction",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQueryFail{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -225,8 +247,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:GetTransactionType_error",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -242,8 +267,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:casting_error_liquidPaymentTransaction",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -259,8 +287,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:CompletePayment_error",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -278,8 +309,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess:status_is_already_completed",
 			fields: fields{
-				AccountBalanceHelper: NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
@@ -292,8 +326,11 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorLiquidPaymentStopApplyConfirmed{}),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorLiquidPaymentStopApplyConfirmed{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{},
 				TransactionQuery:              &mockTransactionQuerySuccess{},
 				QueryExecutor:                 &executorLiquidPaymentStopApplyConfirmed{},
@@ -321,7 +358,6 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -336,15 +372,14 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -358,17 +393,20 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -377,17 +415,20 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -405,7 +446,6 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -420,15 +460,14 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -442,17 +481,20 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -461,17 +503,20 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 			fields: fields{
 				ID:               10,
 				Fee:              10,
-				SenderAddress:    "asdfasdf",
-				RecipientAddress: "dfdas",
+				SenderAddress:    liquidPayStopAddress1,
+				RecipientAddress: liquidPayStopAddress2,
 				Height:           10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
 		},
@@ -489,7 +534,6 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -510,8 +554,15 @@ var (
 	mockFeeLiquidPaymentStopValidate int64 = 10
 )
 
-func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) GetBalanceByAccountID(
-	accountBalance *model.AccountBalance, address string, dbTx bool,
+func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) HasEnoughSpendableBalance(
+	dbTX bool,
+	address []byte,
+	compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
+}
+func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) GetBalanceByAccountAddress(
+	accountBalance *model.AccountBalance, address []byte, dbTx bool,
 ) error {
 	accountBalance.SpendableBalance = mockFeeLiquidPaymentStopValidate + 1
 	return nil
@@ -521,15 +572,14 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -547,16 +597,19 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "",
+				SenderAddress: nil,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -565,16 +618,19 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 0,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -583,16 +639,19 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -601,16 +660,19 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor:                 &executorSetupLiquidPaymentStopFail{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQueryFail{},
-				AccountBalanceHelper:          NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopFail{}),
-				AccountLedgerHelper:           NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopFail{}),
-				NormalFee:                     fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopFail{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -619,19 +681,22 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: liquidPayStopAddress3,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender:    "abc",
-					Recipient: "vca",
+					Sender:    liquidPayStopAddress1,
+					Recipient: liquidPayStopAddress2,
 				},
-				AccountBalanceHelper: NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -640,19 +705,22 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           10,
-				SenderAddress: "dfdas",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "dfdas",
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentCompleted,
 				},
-				AccountBalanceHelper: NewAccountBalanceHelper(query.NewAccountBalanceQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
-				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
+				AccountBalanceHelper: NewAccountBalanceHelper(
+					&executorSetupLiquidPaymentStopSuccess{},
+					query.NewAccountBalanceQuery(),
+					query.NewAccountLedgerQuery(),
+				),
+				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: true,
 		},
@@ -661,18 +729,17 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "asdfasdf",
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
@@ -682,18 +749,17 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Sender: "asdfasdf",
+					Sender: liquidPayStopAddress1,
 					Status: model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
@@ -703,18 +769,17 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 			fields: fields{
 				ID:            10,
 				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: "asdfasdf",
+				SenderAddress: liquidPayStopAddress1,
 				Height:        10,
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
 				QueryExecutor: &executorSetupLiquidPaymentStopSuccess{},
 				LiquidPaymentTransactionQuery: &mockLiquidPaymentTransactionQuerySuccess{
-					Recipient: "asdfasdf",
+					Recipient: liquidPayStopAddress1,
 					Status:    model.LiquidPaymentStatus_LiquidPaymentPending,
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
-				AccountLedgerHelper:  NewAccountLedgerHelper(query.NewAccountLedgerQuery(), &executorSetupLiquidPaymentStopSuccess{}),
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
 			wantErr: false,
@@ -733,7 +798,6 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -744,78 +808,18 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 	}
 }
 
-func TestLiquidPaymentStop_GetMinimumFee(t *testing.T) {
-	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
-		Height                        uint32
-		Body                          *model.LiquidPaymentStopTransactionBody
-		QueryExecutor                 query.ExecutorInterface
-		TransactionQuery              query.TransactionQueryInterface
-		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
-		NormalFee                     fee.FeeModelInterface
-		TypeActionSwitcher            TypeActionSwitcher
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		want    int64
-		wantErr bool
-	}{
-		{
-			name: "wantSuccess",
-			fields: fields{
-				NormalFee: fee.NewConstantFeeModel(constant.OneZBC / 100),
-			},
-			want: constant.OneZBC / 100,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
-				Body:                          tt.fields.Body,
-				QueryExecutor:                 tt.fields.QueryExecutor,
-				TransactionQuery:              tt.fields.TransactionQuery,
-				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
-				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
-				NormalFee:                     tt.fields.NormalFee,
-				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
-			}
-			got, err := tx.GetMinimumFee()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("LiquidPaymentStop.GetMinimumFee() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("LiquidPaymentStop.GetMinimumFee() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -845,7 +849,6 @@ func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -860,15 +863,14 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -895,11 +897,10 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if got := tx.GetSize(); got != tt.want {
+			if got, _ := tx.GetSize(); got != tt.want {
 				t.Errorf("LiquidPaymentStop.GetSize() = %v, want %v", got, tt.want)
 			}
 		})
@@ -910,15 +911,14 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -937,8 +937,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -951,8 +951,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -965,8 +965,8 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 			fields: fields{
 				Body:             nil,
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -990,7 +990,6 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -1010,15 +1009,14 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -1034,8 +1032,8 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 					TransactionID: 1000,
 				},
 				Fee:              0,
-				SenderAddress:    "",
-				RecipientAddress: "",
+				SenderAddress:    nil,
+				RecipientAddress: nil,
 				Height:           0,
 				QueryExecutor:    nil,
 			},
@@ -1057,11 +1055,10 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if got := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
+			if got, _ := tx.GetBodyBytes(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("LiquidPaymentStop.GetBodyBytes() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1072,15 +1069,14 @@ func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -1117,7 +1113,6 @@ func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -1130,15 +1125,14 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -1172,7 +1166,6 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
@@ -1192,15 +1185,14 @@ func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 	type fields struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
 	}
@@ -1228,7 +1220,6 @@ func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 				TransactionQuery:              tt.fields.TransactionQuery,
 				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
 				AccountBalanceHelper:          tt.fields.AccountBalanceHelper,
-				AccountLedgerHelper:           tt.fields.AccountLedgerHelper,
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}

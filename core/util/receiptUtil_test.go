@@ -1,24 +1,19 @@
 package util
 
 import (
-	"database/sql"
 	"reflect"
-	"regexp"
 	"testing"
 
-	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/dgraph-io/badger/v2"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/kvdb"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
 var (
 	receiptUtilInstance = &ReceiptUtil{}
-	mockReceipt         = &model.BatchReceipt{
+	mockReceipt1        = &model.Receipt{
 		SenderPublicKey:      []byte{1, 2, 3},
 		RecipientPublicKey:   []byte{3, 2, 1},
 		DatumType:            constant.ReceiptDatumTypeBlock,
@@ -50,38 +45,6 @@ var (
 	}
 )
 
-type (
-	mockGenerateBatchReceiptWithReminderKVExecutorSuccess struct {
-		kvdb.KVExecutor
-	}
-	mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError struct {
-		kvdb.KVExecutor
-	}
-	mockGenerateBatchReceiptWithReminderQueryExecutorSuccess struct {
-		query.Executor
-	}
-)
-
-func (*mockGenerateBatchReceiptWithReminderKVExecutorSuccess) Insert(key string, value []byte, expiry int) error {
-	return nil
-}
-func (*mockGenerateBatchReceiptWithReminderKVExecutorFailOtherError) Insert(key string, value []byte, expiry int) error {
-	return badger.ErrInvalidKey
-}
-
-func (*mockGenerateBatchReceiptWithReminderQueryExecutorSuccess) ExecuteSelectRow(
-	qStr string,
-	tx bool, args ...interface{},
-) (*sql.Row, error) {
-	db, mock, _ := sqlmock.New()
-	defer db.Close()
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(sqlmock.NewRows([]string{
-		"ID", "Tree", "Timestamp",
-	}))
-	row := db.QueryRow(qStr)
-	return row, nil
-}
-
 func TestGetNumberOfMaxReceipts(t *testing.T) {
 	type args struct {
 		numberOfSortedBlocksmiths int
@@ -112,10 +75,14 @@ func TestGetNumberOfMaxReceipts(t *testing.T) {
 }
 
 func TestGenerateBatchReceipt(t *testing.T) {
-	mockReceipt.DatumHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
+	mockGenerateBatchReceiptBlock := &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockReceipt1.ReferenceBlockHash,
+	}
 	type args struct {
 		ct                 chaintype.ChainType
-		referenceBlock     *model.Block
+		referenceBlock     *storage.BlockCacheObject
 		senderPublicKey    []byte
 		recipientPublicKey []byte
 		datumHash          []byte
@@ -124,43 +91,43 @@ func TestGenerateBatchReceipt(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *model.BatchReceipt
+		want    *model.Receipt
 		wantErr bool
 	}{
 		{
 			name: "GenerateReceipt : success",
 			args: args{
 				ct:                 &chaintype.MainChain{},
-				referenceBlock:     mockBlock,
-				senderPublicKey:    mockReceipt.SenderPublicKey,
-				recipientPublicKey: mockReceipt.RecipientPublicKey,
-				datumHash:          mockReceipt.DatumHash,
-				datumType:          mockReceipt.DatumType,
+				referenceBlock:     mockGenerateBatchReceiptBlock,
+				senderPublicKey:    mockReceipt1.SenderPublicKey,
+				recipientPublicKey: mockReceipt1.RecipientPublicKey,
+				datumHash:          mockReceipt1.DatumHash,
+				datumType:          mockReceipt1.DatumType,
 			},
-			want:    mockReceipt,
+			want:    mockReceipt1,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := receiptUtilInstance.GenerateBatchReceipt(
+			got, err := receiptUtilInstance.GenerateReceipt(
 				tt.args.ct, tt.args.referenceBlock, tt.args.senderPublicKey, tt.args.recipientPublicKey,
 				tt.args.datumHash, nil, tt.args.datumType)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateBatchReceipt() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("GenerateReceipt() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GenerateBatchReceipt() got = %v, want %v", got, tt.want)
+				t.Errorf("GenerateReceipt() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
 func TestGetUnsignedReceiptBytes(t *testing.T) {
-	mockReceipt.DatumHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
+	mockReceipt1.DatumHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
 	type args struct {
-		receipt *model.BatchReceipt
+		receipt *model.Receipt
 	}
 	tests := []struct {
 		name string
@@ -169,7 +136,7 @@ func TestGetUnsignedReceiptBytes(t *testing.T) {
 	}{
 		{
 			name: "GetUnsignedReceiptBytes:success",
-			args: args{receipt: mockReceipt},
+			args: args{receipt: mockReceipt1},
 			want: []byte{
 				1, 2, 3, 3, 2, 1, 0, 0, 0, 0, 167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160, 97, 214, 98,
 				245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74, 1, 0, 0, 0, 167, 255, 198, 248,
@@ -180,7 +147,7 @@ func TestGetUnsignedReceiptBytes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := receiptUtilInstance.GetUnsignedBatchReceiptBytes(tt.args.receipt); !reflect.DeepEqual(got, tt.want) {
+			if got := receiptUtilInstance.GetUnsignedReceiptBytes(tt.args.receipt); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetUnsignedReceiptBytes() = %v, want %v", got, tt.want)
 			}
 		})
