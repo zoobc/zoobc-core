@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -298,8 +298,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -634,6 +634,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*

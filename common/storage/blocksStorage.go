@@ -14,6 +14,7 @@ type (
 	// Blockstorage will cache last 720 blocks
 	BlocksStorage struct {
 		sync.RWMutex
+		metricLabel     monitoring.CacheStorageType
 		itemLimit       int
 		lastBlockHeight uint32
 		blocks          []BlockCacheObject
@@ -27,10 +28,11 @@ type (
 	}
 )
 
-func NewBlocksStorage() *BlocksStorage {
+func NewBlocksStorage(metricLabel monitoring.CacheStorageType) *BlocksStorage {
 	return &BlocksStorage{
-		itemLimit: int(constant.MaxBlocksCacheStorage),
-		blocks:    make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
+		metricLabel: metricLabel,
+		itemLimit:   int(constant.MaxBlocksCacheStorage),
+		blocks:      make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
 	}
 }
 
@@ -54,7 +56,7 @@ func (b *BlocksStorage) Push(item interface{}) error {
 	b.blocks = append(b.blocks, b.copy(blockCacheObjectCopy))
 	b.lastBlockHeight = blockCacheObjectCopy.Height
 	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
+		monitoring.SetCacheStorageMetrics(b.metricLabel, float64(b.size()))
 	}
 	return nil
 }
@@ -77,7 +79,7 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 	b.blocks = b.blocks[:heightIndex+1]
 	b.lastBlockHeight = height
 	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
+		monitoring.SetCacheStorageMetrics(b.metricLabel, float64(b.size()))
 	}
 	return nil
 }
@@ -139,7 +141,7 @@ func (b *BlocksStorage) Clear() error {
 	b.blocks = make([]BlockCacheObject, 0, b.itemLimit)
 	b.lastBlockHeight = 0
 	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, 0)
+		monitoring.SetCacheStorageMetrics(b.metricLabel, 0)
 	}
 	return nil
 }
@@ -156,8 +158,15 @@ func (b *BlocksStorage) size() int {
 }
 
 func (b *BlocksStorage) copy(blockCacheObject BlockCacheObject) (blockCacheObjectCopy BlockCacheObject) {
-	blockCacheObjectCopy = blockCacheObject
 	// copy array type to remove reference
-	copy(blockCacheObjectCopy.BlockHash, blockCacheObject.BlockHash)
+	var blockHash = make([]byte, len(blockCacheObject.BlockHash))
+	copy(blockHash, blockCacheObject.BlockHash)
+
+	blockCacheObjectCopy = BlockCacheObject{
+		ID:        blockCacheObject.ID,
+		Height:    blockCacheObject.Height,
+		Timestamp: blockCacheObject.Timestamp,
+		BlockHash: blockHash,
+	}
 	return blockCacheObjectCopy
 }
