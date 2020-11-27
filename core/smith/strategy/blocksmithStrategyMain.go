@@ -139,7 +139,7 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 	}
 
 	if numberOfSkippedBlocksmith > 0 {
-		result = lastBlock.GetTimestamp() + (blockToleranceTime - int64(numberOfSkippedBlocksmith)*bss.Chaintype.GetBlocksmithTimeGap())
+		result = lastBlock.GetTimestamp() + blockToleranceTime - int64(numberOfSkippedBlocksmith)*bss.Chaintype.GetBlocksmithTimeGap()
 	} else {
 		result = lastBlock.GetTimestamp()
 	}
