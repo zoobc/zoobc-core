@@ -17,7 +17,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
-	"github.com/zoobc/zoobc-core/common/util"
 )
 
 type (
@@ -118,30 +117,10 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 		// no need to estimate persist time if previous block is genesis
 		return lastBlock.GetTimestamp(), nil
 	}
-	previousLastBlock, err := func(lastBlock *model.Block) (*model.Block, error) {
-		// get previous.height - 1 block to estimate persist time
-		previousLastBlockObj, err := util.GetBlockByHeightUseBlocksCache(
-			lastBlock.GetHeight()-1,
-			bss.QueryExecutor,
-			bss.BlockQuery,
-			bss.BlocksCacheStorage,
-		)
-		if err != nil {
-			return nil, err
-		}
-		return &model.Block{
-			ID:        previousLastBlockObj.ID,
-			Height:    previousLastBlockObj.Height,
-			Timestamp: previousLastBlockObj.Timestamp,
-			BlockHash: previousLastBlockObj.BlockHash,
-		}, nil
-	}(lastBlock)
-
 	if err != nil {
 		return lastBlock.GetTimestamp(), err
 	}
-	firstBlocksmithExpiryTime := previousLastBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() +
-		bss.Chaintype.GetBlocksmithBlockCreationTime() +
+	blockToleranceTime := bss.Chaintype.GetBlocksmithBlockCreationTime() +
 		bss.Chaintype.GetBlocksmithNetworkTolerance()
 
 	qry := bss.SkippedBlocksmithQuery.GetNumberOfSkippedBlocksmithsByBlockHeight(lastBlock.GetHeight())
@@ -160,7 +139,7 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 	}
 
 	if numberOfSkippedBlocksmith > 0 {
-		result = firstBlocksmithExpiryTime + (int64(numberOfSkippedBlocksmith-1) * bss.Chaintype.GetBlocksmithTimeGap())
+		result = lastBlock.GetTimestamp() + blockToleranceTime - int64(numberOfSkippedBlocksmith)*bss.Chaintype.GetBlocksmithTimeGap()
 	} else {
 		result = lastBlock.GetTimestamp()
 	}
