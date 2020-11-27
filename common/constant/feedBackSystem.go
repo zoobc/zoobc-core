@@ -26,15 +26,15 @@ const (
 	// FeedbackMinSamples min number of samples to calculate average of a FeedbackVar (eg. goroutines or P2PRequests) currently spawned
 	FeedbackMinSamples = 4
 	// FeedbackCPUSampleTime CPU usage sampling time interval
-	FeedbackCPUSampleTime = 5 * time.Second
+	FeedbackCPUSampleTime = 10 * time.Second
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 50
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
 	GoRoutineHardLimit = 700
 	// P2PRequestHardLimit max number of opened (running) incoming P2P api requests (tx broadcast by other peers)
-	P2PRequestHardLimit = 350
+	P2PRequestHardLimit = 100
 
-	FeedbackLimitCPUPercentage = 95
+	FeedbackLimitCPUPercentage = 85
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
