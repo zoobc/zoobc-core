@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 	"math"
 	"math/big"
 	"time"
@@ -16,6 +14,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
@@ -34,13 +34,12 @@ type (
 		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
 		BlockQuery                     query.BlockQueryInterface
 		QueryExecutor                  query.ExecutorInterface
-		BlockCacheStorage              storage.CacheStackStorageInterface
+		BlocksCacheStorage             storage.CacheStackStorageInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
 		me                             Candidate
 		lastBlockHash                  []byte
-		lastBlockEstimatedPersistTime  int64
 		rng                            *crypto.RandomNumberGenerator
 	}
 )
@@ -51,7 +50,7 @@ func NewBlocksmithStrategyMain(
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	blockCacheStorage storage.CacheStackStorageInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
 	queryExecutor query.ExecutorInterface,
 	rng *crypto.RandomNumberGenerator,
 	chaintype chaintype.ChainType,
@@ -64,7 +63,7 @@ func NewBlocksmithStrategyMain(
 		QueryExecutor:                  queryExecutor,
 		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
 		BlockQuery:                     blockQuery,
-		BlockCacheStorage:              blockCacheStorage,
+		BlocksCacheStorage:             blocksCacheStorage,
 		me:                             Candidate{},
 		candidates:                     make([]Candidate, 0),
 		rng:                            rng,
@@ -82,12 +81,8 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 		bss.lastBlockHash = prevBlock.BlockHash
 		bss.candidates = []Candidate{}
 		bss.me = Candidate{}
+		monitoring.SetBlockchainSmithIndex(bss.Chaintype, -1)
 		err = bss.rng.Reset(constant.BlocksmithSelectionSeedPrefix, prevBlock.BlockSeed)
-		if err != nil {
-			return blocksmithIndex, err
-		}
-		// reset previousBlockEstimatedPersistTime
-		bss.lastBlockEstimatedPersistTime, err = bss.estimatePreviousBlockPersistTime(prevBlock)
 		if err != nil {
 			return blocksmithIndex, err
 		}
@@ -122,45 +117,29 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 		// no need to estimate persist time if previous block is genesis
 		return lastBlock.GetTimestamp(), nil
 	}
-	previousLastBlock, err := func(lastBlock *model.Block) (*model.Block, error) {
-		// get previous.height - 1 block to estimate persist time
-		previousLastBlockObj, err := util.GetBlockByHeightUseBlocksCache(
-			lastBlock.GetHeight()-1,
-			bss.QueryExecutor,
-			bss.BlockQuery,
-			bss.BlockCacheStorage,
-		)
-		if err != nil {
-			return nil, err
-		}
-		return &model.Block{
-			ID:        previousLastBlockObj.ID,
-			Height:    previousLastBlockObj.Height,
-			Timestamp: previousLastBlockObj.Timestamp,
-			BlockHash: previousLastBlockObj.BlockHash,
-		}, nil
-	}(lastBlock)
-
 	if err != nil {
 		return lastBlock.GetTimestamp(), err
 	}
-	firstBlocksmithExpiryTime := previousLastBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() +
-		bss.Chaintype.GetBlocksmithBlockCreationTime() +
+	blockToleranceTime := bss.Chaintype.GetBlocksmithBlockCreationTime() +
 		bss.Chaintype.GetBlocksmithNetworkTolerance()
 
 	qry := bss.SkippedBlocksmithQuery.GetNumberOfSkippedBlocksmithsByBlockHeight(lastBlock.GetHeight())
-	row, err := bss.QueryExecutor.ExecuteSelectRow(qry, false)
+	rows, err := bss.QueryExecutor.ExecuteSelect(qry, false)
 	if err != nil {
 		return result, err
 	}
-	err = row.Scan(&numberOfSkippedBlocksmith)
-	if err != nil {
-		if err != sql.ErrNoRows {
-			return result, err
+	defer rows.Close()
+	for rows.Next() {
+		err = rows.Scan(&numberOfSkippedBlocksmith)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return result, err
+			}
 		}
 	}
+
 	if numberOfSkippedBlocksmith > 0 {
-		result = firstBlocksmithExpiryTime + (int64(numberOfSkippedBlocksmith-1) * bss.Chaintype.GetBlocksmithTimeGap())
+		result = lastBlock.GetTimestamp() + blockToleranceTime - int64(numberOfSkippedBlocksmith)*bss.Chaintype.GetBlocksmithTimeGap()
 	} else {
 		result = lastBlock.GetTimestamp()
 	}
@@ -189,12 +168,16 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 	}
 
 	activeNodeRegistryCount := len(activeNodeRegistry)
-	round, err := bss.GetSmithingRound(&model.Block{Timestamp: bss.lastBlockEstimatedPersistTime}, &model.Block{Timestamp: now})
+	round, err := bss.GetSmithingRound(prevBlock, &model.Block{Timestamp: now})
 	if err != nil {
 		return err
 	}
 	currCandidateCount := len(bss.candidates)
 	newCandidateCount := currCandidateCount
+	lastBlockEstimatedPersistTime, err := bss.estimatePreviousBlockPersistTime(prevBlock)
+	if err != nil {
+		return err
+	}
 	for i := 0; i < round-currCandidateCount; i++ {
 		var (
 			idx        int
@@ -206,7 +189,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 			NodeID:        activeNodeRegistry[idx].Node.GetNodeID(),
 			NodePublicKey: activeNodeRegistry[idx].Node.GetNodePublicKey(),
 		}
-		startTime := bss.lastBlockEstimatedPersistTime +
+		startTime := lastBlockEstimatedPersistTime +
 			bss.Chaintype.GetSmithingPeriod() + int64(newCandidateCount)*bss.Chaintype.GetBlocksmithTimeGap()
 		expiryTime := startTime + bss.Chaintype.GetBlocksmithNetworkTolerance() + bss.Chaintype.GetBlocksmithBlockCreationTime()
 		candidate = Candidate{
@@ -217,6 +200,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 		}
 		if bytes.Equal(candidate.Blocksmith.NodePublicKey, bss.CurrentNodePublicKey) {
 			// set self as candidate if found same node public key
+			monitoring.SetBlockchainSmithIndex(bss.Chaintype, candidate.Index)
 			bss.me = candidate
 		}
 		bss.candidates = append(bss.candidates, candidate)
@@ -226,12 +210,14 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 }
 
 func (bss *BlocksmithStrategyMain) CalculateCumulativeDifficulty(prevBlock, block *model.Block) (string, error) {
-	round, err := bss.GetSmithingRound(prevBlock, block)
+	// all blocksmith up to current blocksmith
+	blocksmiths, err := bss.GetBlocksBlocksmiths(prevBlock, block)
 	if err != nil {
 		return "", err
 	}
 	prevCummulativeDiff, _ := new(big.Int).SetString(prevBlock.GetCumulativeDifficulty(), 10)
-	currentCumulativeDifficulty := new(big.Int).SetInt64(constant.CumulativeDifficultyDivisor / int64(round))
+	currentCumulativeDifficulty := new(big.Int).SetInt64(constant.CumulativeDifficultyDivisor / int64(len(blocksmiths)))
+
 	newCummulativeDifficulty := new(big.Int).Add(prevCummulativeDiff, currentCumulativeDifficulty)
 	return newCummulativeDifficulty.String(), nil
 }
@@ -265,14 +251,14 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 	validNumberOfRounds := 1 + gap/bss.Chaintype.GetBlocksmithTimeGap()
 	for i := 0; i < round; i++ {
 		randomNumber := rng.Next()
-		if int64(i) > (int64(round) - validNumberOfRounds) {
+		if int64(i) >= (int64(round) - validNumberOfRounds) {
 			validRandomNumbers = append(validRandomNumbers, randomNumber)
 		}
 	}
 	for i := 0; i < len(validRandomNumbers); i++ {
 		idx = bss.convertRandomNumberToIndex(validRandomNumbers[i], int64(len(activeNodeRegistry)))
 		if bytes.Equal(activeNodeRegistry[idx].Node.NodePublicKey, block.BlocksmithPublicKey) {
-			startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-(len(validRandomNumbers)-i))
+			startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-len(validRandomNumbers)+(i+1))
 			if err != nil {
 				return err
 			}
@@ -369,6 +355,8 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 	if err != nil {
 		return nil, err
 	}
+	var blocksmithIndex = -1
+
 	for i := 0; i < round; i++ {
 		randomNumber := rng.Next()
 		skippedNodeIdx := bss.convertRandomNumberToIndex(randomNumber, int64(len(activeNodeRegistry)))
@@ -379,19 +367,13 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 		})
 		isValidBlocksmith := bytes.Equal(activeNodeRegistry[skippedNodeIdx].Node.GetNodePublicKey(), block.GetBlocksmithPublicKey())
 		if isValidBlocksmith {
-			startTime, endTime, err := bss.getValidBlockPersistTime(previousBlock, i+1)
-			if err != nil {
-				return nil, err
-			}
-			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
-				break
-			}
+			blocksmithIndex = i
 		}
-		if i == round-1 && !isValidBlocksmith {
+		if i == round-1 && blocksmithIndex < 0 {
 			return nil, blocker.NewBlocker(blocker.ValidationErr, "GetBlocksBlocksmith:BlocksmithNotInCandidates")
 		}
 	}
-	return result, nil
+	return result[:blocksmithIndex+1], nil
 }
 
 func (bss *BlocksmithStrategyMain) GetSmithingIndex(
@@ -407,7 +389,11 @@ func (bss *BlocksmithStrategyMain) GetSmithingIndex(
 		return 0, err
 	}
 
-	timeGap := block.GetTimestamp() - previousBlock.GetTimestamp()
+	previousBlockEstimatedPersistTime, err := bss.estimatePreviousBlockPersistTime(previousBlock)
+	if err != nil {
+		return 0, err
+	}
+	timeGap := block.GetTimestamp() - previousBlockEstimatedPersistTime
 	if timeGap < bss.Chaintype.GetSmithingPeriod()+bss.Chaintype.GetBlocksmithTimeGap() {
 		// first blocksmith, validate if blocksmith public key is valid
 		randomNumber := rng.Next()

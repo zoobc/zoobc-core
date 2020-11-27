@@ -5,6 +5,9 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -86,6 +89,7 @@ type (
 		MempoolServices          map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 )
 
@@ -100,6 +104,7 @@ func NewP2PServerService(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -111,6 +116,7 @@ func NewP2PServerService(
 		MempoolServices:          mempoolServices,
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
+		FeedbackStrategy:         feedbackStrategy,
 	}
 }
 
@@ -276,9 +282,9 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 			return nil, status.Error(codes.InvalidArgument, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
-		myLastBlock, err := blockService.GetLastBlock()
+		myLastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil || myLastBlock == nil {
-			return nil, status.Error(codes.Internal, "failedGetLastBlock")
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failGetLastBlockErr: %v", err.Error()))
 		}
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
@@ -311,7 +317,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 
 	LoopBlocks:
 		for ; limit > 0; limit-- {
-			block, err := blockService.GetBlockByHeight(height)
+			block, err := blockService.GetBlockByHeightCacheFormat(height)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -468,6 +474,19 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
+	if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitHigh {
+			monitoring.IncreaseP2PTxFiltered()
+			return nil, status.Error(codes.Internal, "NodeIsBusy")
+		}
+	}
+	if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitCritical {
+			monitoring.IncreaseP2PTxFiltered()
+			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+		}
+	}
+
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var blockService = ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {

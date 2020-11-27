@@ -6,6 +6,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -39,15 +50,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
 )
 
 var (
@@ -109,6 +111,7 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
+	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
 	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
 	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
 )
@@ -248,9 +251,20 @@ func initiateMainInstance() {
 			os.Exit(1)
 		}
 	}
+
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
+
+	if config.AntiSpamFilter {
+		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
+			loggerCoreService,
+		)
+	} else {
+		// no filtering: turn antispam filter off
+		feedbackStrategy = feedbacksystem.NewDummyFeedbackStrategy()
+	}
+
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -284,8 +298,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -620,6 +634,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*
@@ -682,6 +697,7 @@ func initP2pInstance() {
 		receiptService,
 		nodeConfigurationService,
 		nodeAuthValidationService,
+		feedbackStrategy,
 		loggerP2PService,
 	)
 
@@ -706,6 +722,7 @@ func initP2pInstance() {
 		fileService,
 		nodeRegistrationService,
 		nodeConfigurationService,
+		feedbackStrategy,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -746,6 +763,7 @@ func startServices() {
 		nodeConfigurationService,
 		nodeAddressInfoService,
 		observerInstance,
+		feedbackStrategy,
 	)
 	api.Start(
 		queryExecutor,
@@ -768,6 +786,7 @@ func startServices() {
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
 		config.NodeKey.PublicKey,
+		feedbackStrategy,
 	)
 }
 
@@ -1122,6 +1141,7 @@ func start() {
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
+	go feedbackStrategy.StartSampling(constant.FeedbackSamplingInterval)
 
 	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
