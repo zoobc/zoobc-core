@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-	"github.com/zoobc/zoobc-core/common/query"
 	"math"
 	"math/big"
 	"time"
@@ -16,6 +14,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
@@ -34,7 +34,7 @@ type (
 		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
 		BlockQuery                     query.BlockQueryInterface
 		QueryExecutor                  query.ExecutorInterface
-		BlockCacheStorage              storage.CacheStackStorageInterface
+		BlocksCacheStorage             storage.CacheStackStorageInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
@@ -50,7 +50,7 @@ func NewBlocksmithStrategyMain(
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	blockCacheStorage storage.CacheStackStorageInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
 	queryExecutor query.ExecutorInterface,
 	rng *crypto.RandomNumberGenerator,
 	chaintype chaintype.ChainType,
@@ -63,7 +63,7 @@ func NewBlocksmithStrategyMain(
 		QueryExecutor:                  queryExecutor,
 		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
 		BlockQuery:                     blockQuery,
-		BlockCacheStorage:              blockCacheStorage,
+		BlocksCacheStorage:             blocksCacheStorage,
 		me:                             Candidate{},
 		candidates:                     make([]Candidate, 0),
 		rng:                            rng,
