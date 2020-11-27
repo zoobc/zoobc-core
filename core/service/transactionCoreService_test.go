@@ -159,7 +159,6 @@ func (*mockGetTransactionsByIdsExecutorSelectWithEscrowSuccess) ExecuteSelect(q 
 			mockedEscrow.GetTimeout(),
 			mockedEscrow.GetStatus(),
 			mockedEscrow.GetBlockHeight(),
-			mockedEscrow.GetBlockTimestamp(),
 			mockedEscrow.GetLatest(),
 			mockedEscrow.GetInstruction(),
 		))
@@ -407,7 +406,6 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx boo
 		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
-		time.Now().Add(time.Hour).Unix(),
 		true,
 		"",
 	)

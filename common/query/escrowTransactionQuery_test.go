@@ -30,13 +30,12 @@ var (
 			252, 193, 14, 191, 200, 158, 211, 172, 37, 0, 58, 107, 64},
 		ApproverAddress: []byte{0, 0, 0, 0, 2, 178, 0, 53, 239, 224, 110, 3, 190, 249, 254, 250, 58, 2, 83, 75, 213, 137, 66, 236, 188,
 			43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
-		Amount:         10,
-		Commission:     1,
-		Timeout:        time.Now().Unix(),
-		Status:         1,
-		BlockHeight:    0,
-		BlockTimestamp: time.Now().Add(time.Hour).Unix(),
-		Latest:         true,
+		Amount:      10,
+		Commission:  1,
+		Timeout:     time.Now().Unix(),
+		Status:      1,
+		BlockHeight: 0,
+		Latest:      true,
 	}
 	mockEscrowValues = []interface{}{
 		int64(1),
@@ -48,7 +47,6 @@ var (
 		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
-		time.Now().Add(time.Hour).Unix(),
 		true,
 		"",
 	}
@@ -82,7 +80,6 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 					Timeout:          time.Now().Unix(),
 					Status:           1,
 					BlockHeight:      0,
-					BlockTimestamp:   time.Now().Add(time.Hour).Unix(),
 					Latest:           true,
 				},
 			},
@@ -94,7 +91,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 				},
 				{
 					"INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission,timeout,status," +
-						"block_height,block_timestamp,latest,instruction) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+						"block_height,latest,instruction) VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 					int64(0),
 					escrowSenderAddress,
 					escrowRecipientAddress,
@@ -104,7 +101,6 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 					time.Now().Unix(),
 					model.EscrowStatus_Approved,
 					uint32(0),
-					time.Now().Add(time.Hour).Unix(),
 					true,
 					"",
 				},
@@ -144,7 +140,7 @@ func TestEscrowTransactionQuery_GetLatestEscrowTransactionByID(t *testing.T) {
 			fields: fields(*mockEscrowQuery),
 			args:   args{id: 1},
 			wantQStr: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, " +
-				"status, block_height, block_timestamp, latest, instruction FROM escrow_transaction WHERE id = ? AND latest = ?",
+				"status, block_height, latest, instruction FROM escrow_transaction WHERE id = ? AND latest = ?",
 			wantArgs: []interface{}{int64(1), true},
 		},
 	}
@@ -213,7 +209,6 @@ func TestEscrowTransactionQuery_BuildModels(t *testing.T) {
 		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
-		time.Now().Add(time.Hour).Unix(),
 		true,
 		"",
 	)
@@ -274,7 +269,6 @@ func TestEscrowTransactionQuery_Scan(t *testing.T) {
 		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
-		time.Now().Add(time.Hour).Unix(),
 		true,
 		"",
 	)
@@ -389,7 +383,7 @@ func TestEscrowTransactionQuery_SelectDataForSnapshot(t *testing.T) {
 				Fields:    qry.Fields,
 				TableName: qry.TableName,
 			},
-			want: "SELECT id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,block_timestamp,latest," +
+			want: "SELECT id,sender_address,recipient_address,approver_address,amount,commission,timeout,status,block_height,latest," +
 				"instruction FROM escrow_transaction WHERE (id, block_height) IN (SELECT t2.id, " +
 				"MAX(t2.block_height) FROM escrow_transaction as t2 WHERE t2." +
 				"block_height >= 0 AND t2.block_height <= 1 AND t2.block_height != 0 GROUP BY t2.id) ORDER BY block_height",
@@ -433,7 +427,7 @@ func TestEscrowTransactionQuery_GetEscrowTransactions(t *testing.T) {
 				},
 			},
 			want: "SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, " +
-				"status, block_height, block_timestamp, latest, instruction FROM escrow_transaction WHERE height = ? AND latest = ? ",
+				"status, block_height, latest, instruction FROM escrow_transaction WHERE height = ? AND latest = ? ",
 			want1: []interface{}{
 				100,
 				1,
@@ -513,7 +507,7 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsByTransactionIdsAndStatus(t
 		escrowQuery := NewEscrowTransactionQuery()
 		query := escrowQuery.GetEscrowTransactionsByTransactionIdsAndStatus([]string{"1", "2"}, model.EscrowStatus_Pending)
 		expect := fmt.Sprintf("SELECT id, sender_address, recipient_address, approver_address, amount, commission, timeout, status, "+
-			"block_height, block_timestamp, latest, instruction FROM escrow_transaction WHERE id IN (1, 2) AND status = %d", model.EscrowStatus_Pending)
+			"block_height, latest, instruction FROM escrow_transaction WHERE id IN (1, 2) AND status = %d", model.EscrowStatus_Pending)
 		if query != expect {
 			t.Errorf("expect: %v\ngot: %v\n", expect, query)
 		}
@@ -544,7 +538,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
 				},
 			},
 			wantStr: "INSERT INTO escrow_transaction (id,sender_address,recipient_address,approver_address,amount,commission," +
-				"timeout,status,block_height,block_timestamp,latest,instruction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"timeout,status,block_height,latest,instruction) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			wantArgs: NewEscrowTransactionQuery().ExtractModel(mockEscrow),
 		},
 	}
@@ -556,11 +550,11 @@ func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
 			}
 			gotStr, gotArgs := et.InsertEscrowTransactions(tt.args.escrows)
 			if gotStr != tt.wantStr {
-				t.Errorf("InsertEscrowTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("InsertEscrowTransactions() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("InsertEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("InsertEscrowTransactions() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

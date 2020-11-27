@@ -246,7 +246,6 @@ func (m *Migration) Init() error {
 				"timeout" INTEGER,
 				"status" INTEGER,
 				"block_height" INTEGER,
-				"block_timestamp" INTEGER,
 				"latest" INTEGER,
 				"instruction" TEXT,
 				PRIMARY KEY("id", "block_height")

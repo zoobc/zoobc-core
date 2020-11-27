@@ -171,7 +171,6 @@ func (*mockQueryExecutorValidate) ExecuteSelectRow(qStr string, tx bool, args ..
 		time.Now().Add(time.Hour).Unix(),
 		0,
 		1,
-		time.Now().Unix(),
 		true,
 		"",
 	)

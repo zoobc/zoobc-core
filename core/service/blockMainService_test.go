@@ -640,7 +640,6 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			time.Now().Unix(),
 			model.EscrowStatus_Approved,
 			uint32(0),
-			time.Now().Add(time.Hour).Unix(),
 			true,
 			"",
 		)

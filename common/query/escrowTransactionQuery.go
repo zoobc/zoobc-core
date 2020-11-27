@@ -45,7 +45,6 @@ func NewEscrowTransactionQuery() *EscrowTransactionQuery {
 			"timeout",
 			"status",
 			"block_height",
-			"block_timestamp",
 			"latest",
 			"instruction",
 		},
@@ -207,7 +206,6 @@ func (et *EscrowTransactionQuery) ExtractModel(escrow *model.Escrow) []interface
 		escrow.GetTimeout(),
 		escrow.GetStatus(),
 		escrow.GetBlockHeight(),
-		escrow.GetBlockTimestamp(),
 		escrow.GetLatest(),
 		escrow.GetInstruction(),
 	}
@@ -232,7 +230,6 @@ func (et *EscrowTransactionQuery) BuildModels(rows *sql.Rows) ([]*model.Escrow, 
 			&escrow.Timeout,
 			&escrow.Status,
 			&escrow.BlockHeight,
-			&escrow.BlockTimestamp,
 			&escrow.Latest,
 			&escrow.Instruction,
 		)
@@ -256,7 +253,6 @@ func (et *EscrowTransactionQuery) Scan(escrow *model.Escrow, row *sql.Row) error
 		&escrow.Timeout,
 		&escrow.Status,
 		&escrow.BlockHeight,
-		&escrow.BlockTimestamp,
 		&escrow.Latest,
 		&escrow.Instruction,
 	)
