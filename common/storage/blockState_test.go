@@ -98,37 +98,49 @@ func TestBlockStateStorage_GetItem(t *testing.T) {
 			name: "TestBlockStateStorage_GetItem:Success",
 			fields: fields{
 				RWMutex:        sync.RWMutex{},
+				lastBlockBytes: []byte(`{"byte":["a"]}`),
+			},
+			args: args{
+				lastUpdate: nil,
+				block:      &model.Block{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "TestBlockStateStorage_GetItem:Fail-EmptyCache",
+			fields: fields{
+				RWMutex:        sync.RWMutex{},
+				lastBlockBytes: nil,
+			},
+			args: args{
+				lastUpdate: nil,
+				block:      &model.Block{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlockStateStorage_GetItem:Fail-WrongTypeItem",
+			fields: fields{
+				RWMutex:        sync.RWMutex{},
+				lastBlockBytes: []byte(`{"byte":["a"]}`),
+			},
+			args: args{
+				lastUpdate: nil,
+				block:      nil,
+			},
+			wantErr: true,
+		},
+		{
+			name: "TestBlockStateStorage_GetItem:Fail-Unmarshal",
+			fields: fields{
+				RWMutex:        sync.RWMutex{},
 				lastBlockBytes: make([]byte, 32),
 			},
 			args: args{
 				lastUpdate: nil,
-				block: &model.Block{
-					ID:                   0,
-					BlockHash:            make([]byte, 32),
-					PreviousBlockHash:    make([]byte, 32),
-					Height:               0,
-					Timestamp:            0,
-					BlockSeed:            nil,
-					BlockSignature:       nil,
-					CumulativeDifficulty: "",
-					BlocksmithPublicKey:  nil,
-					TotalAmount:          0,
-					TotalFee:             0,
-					TotalCoinBase:        0,
-					Version:              0,
-					PayloadLength:        0,
-					PayloadHash:          nil,
-					MerkleRoot:           nil,
-					MerkleTree:           nil,
-					ReferenceBlockHeight: 0,
-					Transactions:         nil,
-					PublishedReceipts:    nil,
-					SpinePublicKeys:      nil,
-					SpineBlockManifests:  nil,
-					TransactionIDs:       nil,
-				},
+				block:      &model.Block{},
 			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
