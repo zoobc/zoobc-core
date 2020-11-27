@@ -32,9 +32,9 @@ const (
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
 	GoRoutineHardLimit = 700
 	// P2PRequestHardLimit max number of opened (running) incoming P2P api requests (tx broadcast by other peers)
-	P2PRequestHardLimit = 100
+	P2PRequestHardLimit = 150
 
-	FeedbackLimitCPUPercentage = 85
+	FeedbackLimitCPUPercentage = 75
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow
