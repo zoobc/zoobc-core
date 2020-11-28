@@ -97,6 +97,8 @@ func (r *ReceiptBatchStorage) GetAll(items interface{}) error {
 }
 
 func (r *ReceiptBatchStorage) GetAtIndex(index uint32, item interface{}) error {
+	r.RLock()
+	defer r.RUnlock()
 	if int(index) >= len(r.batches) {
 		return blocker.NewBlocker(blocker.NotFound, "IndexOutOfRange")
 	}
@@ -104,8 +106,7 @@ func (r *ReceiptBatchStorage) GetAtIndex(index uint32, item interface{}) error {
 	if !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNot:storage.ReceiptBatchObject")
 	}
-	r.RLock()
-	defer r.RUnlock()
+
 	*batchCopy = r.batches[int(index)]
 	return nil
 }
@@ -126,6 +127,8 @@ func (r *ReceiptBatchStorage) GetTop(item interface{}) error {
 }
 
 func (r *ReceiptBatchStorage) Clear() error {
+	r.Lock()
+	defer r.Unlock()
 	r.batches = make([]ReceiptBatchObject, 0, r.itemLimit)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeReceiptBatchStorage, 0)
