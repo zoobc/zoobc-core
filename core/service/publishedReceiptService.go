@@ -32,7 +32,7 @@ type (
 		ScrambleNodeService          ScrambleNodeServiceInterface
 		NodeRegistrationService      NodeRegistrationServiceInterface
 		NodeConfigurationService     NodeConfigurationServiceInterface
-		ProvedReceiptReminderStorage storage.CacheStorageInterface
+		ProvedReceiptReminderStorage storage.CacheStackStorageInterface
 		BlocksStorage                storage.CacheStackStorageInterface
 	}
 )
@@ -48,7 +48,7 @@ func NewPublishedReceiptService(
 	scrambleNodeService ScrambleNodeServiceInterface,
 	nodeRegistrationService NodeRegistrationServiceInterface,
 	nodeConfigurationService NodeConfigurationServiceInterface,
-	provedReceiptReminderStorage storage.CacheStorageInterface,
+	provedReceiptReminderStorage storage.CacheStackStorageInterface,
 	blockStorage storage.CacheStackStorageInterface,
 ) *PublishedReceiptService {
 	return &PublishedReceiptService{
@@ -112,7 +112,9 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 			if bytes.Equal(rc.GetReceipt().GetRecipientPublicKey(), hostPublicKey) {
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
 				provedReceiptReminder = storage.ProvedReceiptReminderObject{
-					MerkleRoot: rc.GetReceipt().RMRLinked,
+					MerkleRoot:           rc.GetReceipt().RMRLinked,
+					ReferenceBlockHash:   block.GetBlockHash(),
+					ReferenceBlockHeight: block.GetHeight(),
 				}
 			} else {
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
@@ -120,7 +122,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 					MerkleRoot: make([]byte, 0),
 				}
 			}
-			err := ps.ProvedReceiptReminderStorage.SetItem(block.Height, provedReceiptReminder)
+			err := ps.ProvedReceiptReminderStorage.Push(provedReceiptReminder)
 			if err != nil {
 				return linkedCount, err
 			}

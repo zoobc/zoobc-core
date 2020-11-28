@@ -3,8 +3,8 @@ package storage
 import (
 	"bytes"
 	"encoding/gob"
+	"fmt"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"math"
 	"sync"
 )
 
@@ -13,31 +13,38 @@ type (
 		limit int
 		sync.RWMutex
 		// reminders map[receipt_key]
-		reminders map[uint32]ProvedReceiptReminderObject
+		reminders []ProvedReceiptReminderObject
 	}
 
 	ProvedReceiptReminderObject struct {
-		MerkleRoot []byte
+		ReferenceBlockHeight uint32
+		ReferenceBlockHash   []byte
+		MerkleRoot           []byte
 	}
 )
 
 func NewProvedReceiptReminderStorage(limit int) *ProvedReceiptReminderStorage {
 	return &ProvedReceiptReminderStorage{
 		limit:     limit,
-		reminders: make(map[uint32]ProvedReceiptReminderObject),
+		reminders: make([]ProvedReceiptReminderObject, 0),
 	}
 }
 
-// SetItem add new item into storage
-func (rs *ProvedReceiptReminderStorage) SetItem(key, item interface{}) error {
+func (rs *ProvedReceiptReminderStorage) Pop() error {
+	return nil
+}
+
+func (rs *ProvedReceiptReminderStorage) PopTo(index uint32) error {
+	return nil
+}
+
+// Push add new item into storage
+func (rs *ProvedReceiptReminderStorage) Push(item interface{}) error {
 	var (
 		height        uint32
 		provedReceipt ProvedReceiptReminderObject
 		ok            bool
 	)
-	if height, ok = key.(uint32); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
-	}
 
 	if provedReceipt, ok = item.(ProvedReceiptReminderObject); !ok {
 		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ValueMustBe:PublishedReceipt")
@@ -46,71 +53,67 @@ func (rs *ProvedReceiptReminderStorage) SetItem(key, item interface{}) error {
 	defer rs.Unlock()
 	if len(rs.reminders) >= rs.limit {
 		if len(rs.reminders) != 0 {
-			var minHeight uint32 = math.MaxUint32
-			for height := range rs.reminders {
-				if height < minHeight {
-					minHeight = height
-				}
-			}
-			delete(rs.reminders, minHeight)
+			rs.reminders = rs.reminders[1:] // remove first (oldest) cache to make room for new batches
 		}
 	}
 	rs.reminders[height] = provedReceipt
 	return nil
 }
 
-// SetItems is not needed in proved receipt reminder
-func (rs *ProvedReceiptReminderStorage) SetItems(_ interface{}) error {
+func (rs *ProvedReceiptReminderStorage) GetTop(item interface{}) error {
+	rs.RLock()
+	defer rs.RUnlock()
+	topIndex := len(rs.reminders)
+	if topIndex == 0 {
+		return blocker.NewBlocker(blocker.CacheEmpty, "ProvedReceiptReminderStorage:Empty")
+	}
+	reminderCopy, ok := item.(*ProvedReceiptReminderObject)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNot:storage.ProvedReceiptReminderObject")
+	}
+	*reminderCopy = rs.reminders[topIndex-1]
 	return nil
 }
 
-func (rs *ProvedReceiptReminderStorage) GetItem(key, item interface{}) error {
+func (rs *ProvedReceiptReminderStorage) GetAtIndex(index uint32, item interface{}) error {
 	rs.RLock()
 	defer rs.RUnlock()
-
+	if int(index) >= len(rs.reminders) {
+		return blocker.NewBlocker(
+			blocker.NotFound,
+			fmt.Sprintf(
+				"ProvedReceiptReminderStorage:GetAtIndex:IndexOutOfRange:have= %d - requested= %d",
+				len(rs.reminders),
+				index,
+			),
+		)
+	}
 	var (
-		height        uint32
 		provedReceipt *ProvedReceiptReminderObject
 		ok            bool
 	)
-	if height, ok = key.(uint32); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
-	}
 
 	if provedReceipt, ok = item.(*ProvedReceiptReminderObject); !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ValueMustBe:*storage.ProvedReceiptReminderObject")
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"ProvedReceiptReminder:GetAtIndex:ValueMustBe:*storage.ProvedReceiptReminderObject",
+		)
 	}
-	*provedReceipt = rs.reminders[height]
+	*provedReceipt = rs.reminders[index]
 	return nil
 }
 
-func (rs *ProvedReceiptReminderStorage) GetAllItems(items interface{}) error {
+func (rs *ProvedReceiptReminderStorage) GetAll(items interface{}) error {
 	rs.RLock()
 	defer rs.RUnlock()
 
-	if k, ok := items.(*map[uint32]ProvedReceiptReminderObject); ok {
+	if k, ok := items.(*[]ProvedReceiptReminderObject); ok {
 		*k = rs.reminders
 		return nil
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:ItemsMustBe(*map[uint32]ProvedReceiptReminderObject)")
-}
-
-func (rs *ProvedReceiptReminderStorage) GetTotalItems() int {
-	rs.Lock()
-	var totalItems = len(rs.reminders)
-	rs.Unlock()
-	return totalItems
-}
-
-func (rs *ProvedReceiptReminderStorage) RemoveItem(key interface{}) error {
-	rs.Lock()
-	defer rs.Unlock()
-
-	if k, ok := key.(uint32); ok {
-		delete(rs.reminders, k)
-		return nil
-	}
-	return blocker.NewBlocker(blocker.ValidationErr, "ProvedReceiptReminder:KeyMustBeUINT32")
+	return blocker.NewBlocker(blocker.ValidationErr,
+		"ProvedReceiptReminder:GetAll:ItemsMustBe(*[]ProvedReceiptReminderObject)",
+	)
 }
 
 func (rs *ProvedReceiptReminderStorage) GetSize() int64 {
@@ -124,10 +127,10 @@ func (rs *ProvedReceiptReminderStorage) GetSize() int64 {
 	return int64(rsBytes.Len())
 }
 
-func (rs *ProvedReceiptReminderStorage) ClearCache() error {
+func (rs *ProvedReceiptReminderStorage) Clear() error {
 	rs.Lock()
 	defer rs.Unlock()
 
-	rs.reminders = make(map[uint32]ProvedReceiptReminderObject)
+	rs.reminders = make([]ProvedReceiptReminderObject, 0)
 	return nil
 }

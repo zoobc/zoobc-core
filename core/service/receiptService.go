@@ -71,7 +71,7 @@ type (
 		ReceiptUtil                  coreUtil.ReceiptUtilInterface
 		MainBlockStateStorage        storage.CacheStorageInterface
 		ScrambleNodeService          ScrambleNodeServiceInterface
-		ProvedReceiptReminderStorage storage.CacheStorageInterface
+		ProvedReceiptReminderStorage storage.CacheStackStorageInterface
 		ReceiptPoolCacheStorage      storage.CacheStorageInterface
 		ReceiptBatchStorage          storage.CacheStackStorageInterface
 		MainBlocksStorage            storage.CacheStackStorageInterface
@@ -92,10 +92,10 @@ func NewReceiptService(
 	signature crypto.SignatureInterface,
 	publishedReceiptQuery query.PublishedReceiptQueryInterface,
 	receiptUtil coreUtil.ReceiptUtilInterface,
-	mainBlockStateStorage, provedReceiptReminderStorage, receiptPoolCacheStorage storage.CacheStorageInterface,
+	mainBlockStateStorage, receiptPoolCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 	nodeConfigurationService NodeConfigurationServiceInterface,
-	mainBlocksStorage, receiptBatchStorage storage.CacheStackStorageInterface,
+	mainBlocksStorage, receiptBatchStorage, provedReceiptReminderStorage storage.CacheStackStorageInterface,
 	randomNumberGenerator *crypto.RandomNumberGenerator,
 ) *ReceiptService {
 	return &ReceiptService{
@@ -214,10 +214,10 @@ func (rs *ReceiptService) getProvedReceipts(
 	// choose proved receipts
 	var (
 		result                 = make([]*model.PublishedReceipt, 0)
-		provedReceiptReminders = make(map[uint32]storage.ProvedReceiptReminderObject)
+		provedReceiptReminders = make([]storage.ProvedReceiptReminderObject, 0)
 		err                    error
 	)
-	err = rs.ProvedReceiptReminderStorage.GetAllItems(&provedReceiptReminders)
+	err = rs.ProvedReceiptReminderStorage.GetAll(&provedReceiptReminders)
 	fmt.Printf("getProvedReceipt: err: %v\tcount: %v\n", err, len(provedReceiptReminders))
 
 	if err != nil {
@@ -256,7 +256,7 @@ func (rs *ReceiptService) getProvedReceipts(
 	}
 	// fetch proved reminders
 	var count int
-	for height, provedReceiptRO := range provedReceiptReminders {
+	for _, provedReceiptRO := range provedReceiptReminders {
 		count++
 		// generate random number (consensus safe) as to which receipt to pick
 		itemIndexRandomNumber := rng.Next()
@@ -264,27 +264,19 @@ func (rs *ReceiptService) getProvedReceipts(
 		// if provedReceiptRO.MerkleRoot = []byte{} / empty bytes, then it means we are in the scramble at the height
 		// but not getting reference receipt published, so skipped
 		if len(provedReceiptRO.MerkleRoot) == 0 {
-			fmt.Printf("filling empty proved receipt at height: %d index: %d\n", height, count-1)
+			fmt.Printf("filling empty proved receipt at height: %d count: %d\n",
+				provedReceiptRO.ReferenceBlockHeight, count-1)
 			// keep filling to proved receipt list even if we don't have it, this is to keep the rng in consensus
 			// to the receipt list index
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		fmt.Printf("filling filled proved receipt at height: %d index: %d\n", height, count-1)
-
-		// fetch block+txs at provedReceiptRO height
-		// TODO: this should be get block by hash
-		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(
-			height-constant.MaxReceiptBatchCacheRound-1,
-			rs.QueryExecutor,
-			rs.BlockQuery,
-			rs.MainBlocksStorage,
+		fmt.Printf("filling filled proved receipt at height: %d index: %d\n",
+			provedReceiptRO.ReferenceBlockHeight,
+			count-1,
 		)
-		if err != nil {
-			result = append(result, emptyProvedReceipt)
-			continue
-		}
-		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockID(blockAtHeight.ID)
+
+		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockHash(provedReceiptRO.ReferenceBlockHash)
 		if err != nil {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -295,7 +287,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			itemHash []byte
 		)
 		if itemIndex == 0 {
-			itemHash = previousBlock.GetBlockHash()
+			itemHash = provedReceiptRO.ReferenceBlockHash
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
@@ -307,13 +299,12 @@ func (rs *ReceiptService) getProvedReceipts(
 					hex.EncodeToString(provedReceiptRO.MerkleRoot),
 					hex.EncodeToString(itemHash),
 				)
-
 			}
 			fmt.Printf("%v", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		scrambleAtHeight, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(height)
+		scrambleAtHeight, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(provedReceiptRO.ReferenceBlockHeight)
 		if err != nil {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -668,7 +659,7 @@ func (rs *ReceiptService) ClearCache() {
 	fmt.Printf("\n\n\nclear cache\n\n")
 	_ = rs.ReceiptPoolCacheStorage.ClearCache()
 	_ = rs.ReceiptBatchStorage.Clear()
-	_ = rs.ProvedReceiptReminderStorage.ClearCache()
+	_ = rs.ProvedReceiptReminderStorage.Clear()
 }
 
 func (rs *ReceiptService) GetMerkleRootFromReceiptIntermediateHash(

@@ -55,12 +55,12 @@ var (
 	dbInstance                                                             *database.SqliteDB
 	db                                                                     *sql.DB
 	nodeShardStorage, mainBlockStateStorage, spineBlockStateStorage        storage.CacheStorageInterface
-	nextNodeAdmissionStorage, mempoolStorage, provedReceiptReminderStorage storage.CacheStorageInterface
+	nextNodeAdmissionStorage, mempoolStorage                               storage.CacheStorageInterface
 	mempoolBackupStorage, batchReceiptCacheStorage                         storage.CacheStorageInterface
 	activeNodeRegistryCacheStorage, pendingNodeRegistryCacheStorage        storage.CacheStorageInterface
 	nodeAddressInfoStorage                                                 storage.CacheStorageInterface
 	scrambleNodeStorage, mainBlocksStorage, spineBlocksStorage             storage.CacheStackStorageInterface
-	receiptBatchStorage                                                    storage.CacheStackStorageInterface
+	receiptBatchStorage, provedReceiptReminderStorage                      storage.CacheStackStorageInterface
 	blockStateStorages                                                     = make(map[int32]storage.CacheStorageInterface)
 	snapshotChunkUtil                                                      util.ChunkUtilInterface
 	p2pServiceInstance                                                     p2p.Peer2PeerServiceInterface
@@ -469,12 +469,12 @@ func initiateMainInstance() {
 		query.NewPublishedReceiptQuery(),
 		receiptUtil,
 		mainBlockStateStorage,
-		provedReceiptReminderStorage,
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		nodeConfigurationService,
 		mainBlocksStorage,
 		receiptBatchStorage,
+		provedReceiptReminderStorage,
 		crypto.NewRandomNumberGenerator(),
 	)
 
