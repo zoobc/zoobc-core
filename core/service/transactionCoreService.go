@@ -16,6 +16,7 @@ type (
 	TransactionCoreServiceInterface interface {
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
+		GetTransactionsByBlockHash(blockHash []byte) ([]*model.Transaction, error)
 		ValidateTransaction(txAction transaction.TypeAction, useTX bool) error
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
@@ -157,6 +158,27 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 			transactionsMap[escrow.ID].Escrow = escrow
 		}
 	}
+	return transactions, nil
+}
+
+// GetTransactionsByBlockID get transactions of the block
+func (tg *TransactionCoreService) GetTransactionsByBlockHash(blockHash []byte) ([]*model.Transaction, error) {
+	var (
+		transactions []*model.Transaction
+		err          error
+	)
+
+	// get transaction of the block
+	transactionQ, transactionArg := tg.TransactionQuery.GetTransactionsByBlockHash(blockHash)
+	rows, err := tg.QueryExecutor.ExecuteSelect(transactionQ, false, transactionArg...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	defer rows.Close()
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+
 	return transactions, nil
 }
 

@@ -15,6 +15,7 @@ type (
 		GetTransaction(id int64) string
 		GetTransactionsByIds(txIds []int64) (str string, args []interface{})
 		GetTransactionsByBlockID(blockID int64) (str string, args []interface{})
+		GetTransactionsByBlockHash(blockHash []byte) (str string, args []interface{})
 		ExtractModel(tx *model.Transaction) []interface{}
 		BuildModel(txs []*model.Transaction, rows *sql.Rows) ([]*model.Transaction, error)
 		Scan(tx *model.Transaction, row *sql.Row) error
@@ -80,6 +81,12 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_id = ? AND multisig_child = false "+
 		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
 	return query, []interface{}{blockID}
+}
+
+func (tq *TransactionQuery) GetTransactionsByBlockHash(blockHash []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s INNER JOIN main_block mb WHERE mb.block_hash = ? AND multisig_child = false "+
+		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
+	return query, []interface{}{blockHash}
 }
 
 func (tq *TransactionQuery) GetTransactionsByIds(txIds []int64) (str string, args []interface{}) {
