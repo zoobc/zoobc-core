@@ -565,6 +565,9 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	}
 	err = mps.MempoolCacheStorage.RemoveItem(expiredMempoolIDs)
 	if err != nil {
+		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			mps.Logger.Error(rollbackErr.Error())
+		}
 		initMempoolErr := mps.InitMempoolTransaction()
 		if initMempoolErr != nil {
 			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
@@ -665,6 +668,10 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
+		rollbackErr := mps.QueryExecutor.RollbackTx()
+		if rollbackErr != nil {
+			mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
+		}
 		initMempoolErr := mps.InitMempoolTransaction()
 		if initMempoolErr != nil {
 			mps.Logger.Warnf("[BackupMempools] Ini Mempools failed - %v", initMempoolErr)

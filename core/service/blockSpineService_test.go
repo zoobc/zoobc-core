@@ -16,6 +16,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -1398,6 +1399,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		MainBlockService          BlockServiceInterface
 	}
@@ -1437,6 +1439,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlocksStorage:           storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MainBlockService:        &mockAddGenesisBlockMainBlockServiceSuccess{},
 			},
@@ -1458,6 +1461,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				BlockStateStorage:         tt.fields.BlockStateStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				MainBlockService:          tt.fields.MainBlockService,
+				BlocksStorage:             tt.fields.BlocksStorage,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -2725,6 +2729,9 @@ type (
 	mockSpinePopOffBlockBlockStateStorageSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockSpinePopOffBlockBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 	mockSpinePopOffBlockBlockStateStorageFail struct {
 		storage.CacheStorageInterface
 	}
@@ -2742,6 +2749,31 @@ func (*mockSpinePopOffBlockBlockStateStorageSuccess) SetItem(lastChange, item in
 
 func (*mockSpinePopOffBlockBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
 	return errors.New("mockedError")
+}
+
+func (mockSpinePopOffBlockBlocksStorageSuccess) Pop() error {
+	return nil
+}
+
+func (mockSpinePopOffBlockBlocksStorageSuccess) Push(interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) PopTo(uint32) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetAll(interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetAtIndex(uint32, interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetTop(interface{}) error {
+	return nil
+}
+
+// Clear clean up the whole stack and reinitialize with new array
+func (mockSpinePopOffBlockBlocksStorageSuccess) Clear() error {
+	return nil
 }
 
 func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
@@ -2872,6 +2904,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -2982,6 +3015,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
+				BlocksStorage:             &mockSpinePopOffBlockBlocksStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3012,6 +3046,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
 				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
+				BlocksStorage:             &mockSpinePopOffBlockBlocksStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3034,6 +3069,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

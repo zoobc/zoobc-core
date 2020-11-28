@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"math/big"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -599,6 +600,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// sort blocksmiths for current block
 		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
 		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("PushBlock:CalculateCumulativeDifficulty error: %v", err))
 			return blocker.NewBlocker(
 				blocker.BlockErr,
 				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
@@ -647,6 +649,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// adjust fee if end of fee-vote period
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("PushBlock:GetCurrentPhase error: %v", err))
 		return err
 	}
 
@@ -661,16 +664,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			)
 			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
 			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			defer rows.Close()
 			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			for _, vote := range queryResult {
@@ -745,12 +751,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.UpdateLastBlockCache(nil)
 	}
 	// cache last block into blocks cache storage
-	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-		Timestamp: block.GetTimestamp(),
-		Height:    block.Height,
-		BlockHash: block.BlockHash,
-		ID:        block.ID,
-	})
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
 	if err != nil {
 		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
 		_ = bs.InitializeBlocksCache()
@@ -1187,12 +1188,9 @@ func (bs *BlockService) InitializeBlocksCache() error {
 		return err
 	}
 	for i := 0; i < len(blocks); i++ {
-		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-			Timestamp: blocks[i].GetTimestamp(),
-			Height:    blocks[i].Height,
-			BlockHash: blocks[i].BlockHash,
-			ID:        blocks[i].ID,
-		})
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
 		if err != nil {
 			return err
 		}
@@ -1515,12 +1513,9 @@ func (bs *BlockService) ReceiveBlock(
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
-	var (
-		// publishedReceipts []*model.PublishedReceipt
-		err error
-	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	// make sure this block contains all its attributes (transaction, receipts)
+	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
