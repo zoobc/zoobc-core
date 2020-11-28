@@ -41,7 +41,6 @@ func (rs *ProvedReceiptReminderStorage) PopTo(index uint32) error {
 // Push add new item into storage
 func (rs *ProvedReceiptReminderStorage) Push(item interface{}) error {
 	var (
-		height        uint32
 		provedReceipt ProvedReceiptReminderObject
 		ok            bool
 	)
@@ -56,7 +55,7 @@ func (rs *ProvedReceiptReminderStorage) Push(item interface{}) error {
 			rs.reminders = rs.reminders[1:] // remove first (oldest) cache to make room for new batches
 		}
 	}
-	rs.reminders[height] = provedReceipt
+	rs.reminders = append(rs.reminders, provedReceipt)
 	return nil
 }
 
