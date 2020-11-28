@@ -84,8 +84,14 @@ func (tq *TransactionQuery) GetTransactionsByBlockID(blockID int64) (str string,
 }
 
 func (tq *TransactionQuery) GetTransactionsByBlockHash(blockHash []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s INNER JOIN main_block mb WHERE mb.block_hash = ? AND multisig_child = false "+
-		"ORDER BY transaction_index ASC", strings.Join(tq.Fields, ", "), tq.getTableName())
+	var aliasedFields = make([]string, len(tq.Fields))
+	for i := 0; i < len(tq.Fields); i++ {
+		aliasedFields[i] = fmt.Sprintf("%s.%s", "tx", tq.Fields[i])
+	}
+	query := fmt.Sprintf(
+		"SELECT %s FROM %s tx INNER JOIN main_block mb WHERE mb.block_hash = ? AND tx.multisig_child = false "+
+			"ORDER BY tx.transaction_index ASC", strings.Join(aliasedFields, ", "), tq.getTableName(),
+	)
 	return query, []interface{}{blockHash}
 }
 
