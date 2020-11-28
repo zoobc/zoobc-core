@@ -109,7 +109,8 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		// check if block.Blocksmith has me as priority peer
 		if _, ok := blocksmithPriority[fmt.Sprintf("%d", hostID)]; ok {
 			var provedReceiptReminder storage.ProvedReceiptReminderObject
-			if bytes.Equal(rc.GetReceipt().GetRecipientPublicKey(), hostPublicKey) {
+			if rc.GetReceipt().GetRMRLinked() != nil &&
+				bytes.Equal(rc.GetReceipt().GetRecipientPublicKey(), hostPublicKey) {
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
 				provedReceiptReminder = storage.ProvedReceiptReminderObject{
 					MerkleRoot:           rc.GetReceipt().RMRLinked,
