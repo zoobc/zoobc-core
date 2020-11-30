@@ -242,21 +242,29 @@ func (ts *TransactionService) PostTransaction(
 	//  when the node is too busy due to high number of goroutines,
 	//  the network can regulate itself without leading to blockchain splits or hard forks
 	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
-	if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
-		switch limitLevel {
-		case constant.FeedbackLimitHigh:
-			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+		if limitLevel == constant.FeedbackLimitHigh {
+			ts.Logger.Error("Tx dropped due to high cpu usage")
 			monitoring.IncreaseTxFiltered()
-			return nil, status.Error(codes.Internal, "TooManyTps")
-		case constant.FeedbackLimitMedium:
-			if tpsReceived > 1 {
-				ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
-				monitoring.IncreaseTxFiltered()
-				return nil, status.Error(codes.Internal, "TooManyTps")
-			}
+			return nil, status.Error(codes.Unavailable, "Service is currently not available")
 		}
 	}
-	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinGoroutineSamples); limitReached {
+	// STEF removing goroutine limit (only considering CPU usage)
+	// if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
+	// 	switch limitLevel {
+	// 	case constant.FeedbackLimitHigh:
+	// 		ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 		monitoring.IncreaseTxFiltered()
+	// 		return nil, status.Error(codes.Internal, "TooManyTps")
+	// 	case constant.FeedbackLimitMedium:
+	// 		if tpsReceived > 1 {
+	// 			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 			monitoring.IncreaseTxFiltered()
+	// 			return nil, status.Error(codes.Internal, "TooManyTps")
+	// 		}
+	// 	}
+	// }
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
 		switch limitLevel {
 		case constant.FeedbackLimitHigh:
 			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")

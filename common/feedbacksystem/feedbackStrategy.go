@@ -11,7 +11,7 @@ type (
 		StartSampling(samplingInterval time.Duration)
 		IsGoroutineLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		IsP2PRequestLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
-		IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
+		IsCPULimitReached(sampleTime time.Duration) (bool, constant.FeedbackLimitLevel)
 		IsMemoryLimitReached(numSamples int) (bool, constant.FeedbackLimitLevel)
 		GetSuggestedActions() map[constant.FeedbackAction]bool
 		SetFeedbackVar(k string, v interface{})
