@@ -246,7 +246,7 @@ func (ts *TransactionService) PostTransaction(
 		if limitLevel == constant.FeedbackLimitHigh {
 			ts.Logger.Error("Tx dropped due to high cpu usage")
 			monitoring.IncreaseTxFiltered()
-			return nil, status.Error(codes.Internal, "NodeIsBusy")
+			return nil, status.Error(codes.Unavailable, "Service is currently not available")
 		}
 	}
 	// STEF removing goroutine limit (only considering CPU usage)
