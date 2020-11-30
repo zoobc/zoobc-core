@@ -3,9 +3,10 @@ package service
 import (
 	"context"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -106,6 +107,9 @@ func (*mockPeerExplorerStrategySuccess) GetResolvedPeers() map[string]*model.Pee
 }
 func (*mockPeerExplorerStrategySuccess) AddToUnresolvedPeers(newNodes []*model.Node, toForce bool) error {
 	return nil
+}
+func (*mockPeerExplorerStrategySuccess) GetPriorityPeers() map[string]*model.Peer {
+	return mockPeers
 }
 
 func (*mockPeerExplorerStrategyValidateRequestFail) ValidateRequest(ctx context.Context) bool {
@@ -1152,7 +1156,11 @@ func (*mockSendBlockBlockServiceReceiveBlockFail) GetLastBlock() (*model.Block, 
 	return &mockBlock, nil
 }
 func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(
-	[]byte, *model.Block, *model.Block, string, *model.Peer,
+	[]byte,
+	*model.Block, *model.Block,
+	string,
+	*model.Peer,
+	bool,
 ) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
@@ -1161,7 +1169,10 @@ func (*mockSendBlockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
 func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(
-	[]byte, *model.Block, *model.Block, string, *model.Peer,
+	[]byte,
+	*model.Block, *model.Block,
+	string, *model.Peer,
+	bool,
 ) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},
@@ -1276,7 +1287,7 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "waantSuccess",
+			name: "wantSuccess",
 			fields: fields{
 				PeerExplorer: &mockPeerExplorerStrategySuccess{},
 				BlockServices: map[int32]coreService.BlockServiceInterface{

@@ -1,16 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -422,7 +422,10 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		var md, _ = metadata.FromIncomingContext(ctx)
+		var (
+			md, _           = metadata.FromIncomingContext(ctx)
+			generateReceipt bool
+		)
 		if len(md) == 0 {
 			return nil, status.Error(
 				codes.InvalidArgument,
@@ -450,15 +453,16 @@ func (ps *P2PServerService) SendBlock(
 				"failGetLastBlock",
 			)
 		}
-		receipt, err := blockService.ReceiveBlock(
-			senderPublicKey,
-			lastBlock,
-			block,
-			ps.NodeSecretPhrase,
-			peer,
-		)
+
+		for _, p := range ps.PeerExplorer.GetPriorityPeers() {
+			if bytes.Equal(p.GetInfo().GetPublicKey(), senderPublicKey) {
+				generateReceipt = true
+			}
+		}
+
+		receipt, err := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, generateReceipt)
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 		return &model.SendBlockResponse{
 			Receipt: receipt,
