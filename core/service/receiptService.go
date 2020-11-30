@@ -264,19 +264,22 @@ func (rs *ReceiptService) getProvedReceipts(
 		// if provedReceiptRO.MerkleRoot = []byte{} / empty bytes, then it means we are in the scramble at the height
 		// but not getting reference receipt published, so skipped
 		if len(provedReceiptRO.MerkleRoot) == 0 {
-			fmt.Printf("filling empty proved receipt at height: %d count: %d\n",
-				provedReceiptRO.ReferenceBlockHeight, count-1)
 			// keep filling to proved receipt list even if we don't have it, this is to keep the rng in consensus
 			// to the receipt list index
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		fmt.Printf("filling filled proved receipt at height: %d index: %d\n",
-			provedReceiptRO.ReferenceBlockHeight,
-			count-1,
+		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(
+			provedReceiptRO.ReferenceBlockHeight-1,
+			rs.QueryExecutor,
+			rs.BlockQuery,
+			rs.MainBlocksStorage,
 		)
-
-		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockHash(provedReceiptRO.ReferenceBlockHash)
+		if err != nil {
+			result = append(result, emptyProvedReceipt)
+			continue
+		}
+		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockHeight(blockAtHeight.Height)
 		if err != nil {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -287,7 +290,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			itemHash []byte
 		)
 		if itemIndex == 0 {
-			itemHash = provedReceiptRO.ReferenceBlockHash
+			itemHash = blockAtHeight.BlockHash
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
@@ -295,7 +298,8 @@ func (rs *ReceiptService) getProvedReceipts(
 		if err != nil || len(merkleItems) == 0 {
 			// log error
 			if err == nil {
-				fmt.Printf("no receipt with root:datum hash: %v:%v\n",
+				fmt.Printf(
+					"no receipt with root:datum hash: %v:%v\n",
 					hex.EncodeToString(provedReceiptRO.MerkleRoot),
 					hex.EncodeToString(itemHash),
 				)
@@ -316,8 +320,6 @@ func (rs *ReceiptService) getProvedReceipts(
 			continue
 		}
 		receiverIndex := rng.ConvertRandomNumberToIndex(leafIndexRandomNumber, int64(len(sortedPriorityAtHeight)))
-		fmt.Printf("proved-select:receiverIndex: %d\n", receiverIndex)
-		fmt.Printf("merkleItems count: %d\n", len(merkleItems))
 		if int(receiverIndex) >= len(merkleItems) {
 			result = append(result, emptyProvedReceipt)
 			continue
@@ -326,35 +328,25 @@ func (rs *ReceiptService) getProvedReceipts(
 
 		tree, err := fetchMerkleTree(provedReceiptRO.MerkleRoot)
 		if err != nil {
-			fmt.Printf("fetchMerkleTree ERROR: %v\n\n\n\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		fmt.Printf("merkle tree: %v\n\n\n", tree)
 		intermediateHashes := rs.getReceiptIntermediateHash(
 			*leaf.GetReceipt(),
 			int32(receiverIndex),
 			provedReceiptRO.MerkleRoot,
 			tree,
 		)
-
-		fmt.Printf("\n\n\nprovedReceipt\nintermediateHashes:%v\nleaf: %v\ntree: %v\n\n", intermediateHashes, leaf, tree)
-
 		pReceipt := &model.PublishedReceipt{
 			Receipt:                   leaf.GetReceipt(),
 			IntermediateHashes:        intermediateHashes,
 			BlockHeight:               previousBlock.GetHeight() + 1,
-			BatchReferenceBlockHeight: leaf.GetReceipt().GetReferenceBlockHeight(),
+			BatchReferenceBlockHeight: provedReceiptRO.ReferenceBlockHeight,
 			ReceiptIndex:              uint32(receiverIndex),
 			PublishedIndex:            uint32(len(result)),
 			PublishedReceiptType:      model.PublishedReceiptType_ProvedReceipt,
 		}
 		result = append(result, pReceipt)
-	}
-	// clear proved receipt reminders
-	if err != nil {
-		// log error
-		fmt.Printf("SelectReceipts:ProvedReceiptReminderStorage.Clear() err: %v", err)
 	}
 	return result, nil
 }

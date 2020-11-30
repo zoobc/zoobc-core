@@ -113,9 +113,9 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 				bytes.Equal(rc.GetReceipt().GetRecipientPublicKey(), hostPublicKey) {
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
 				provedReceiptReminder = storage.ProvedReceiptReminderObject{
-					MerkleRoot:           rc.GetReceipt().RMRLinked,
-					ReferenceBlockHash:   block.GetBlockHash(),
-					ReferenceBlockHeight: block.GetHeight(),
+					MerkleRoot:           rc.GetReceipt().GetRMRLinked(),
+					ReferenceBlockHash:   rc.GetReceipt().GetReferenceBlockHash(),
+					ReferenceBlockHeight: rc.GetReceipt().GetReferenceBlockHeight(),
 				}
 			} else {
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
@@ -153,11 +153,16 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 
 		// validation...
 		// fetch block+txs at provedReceiptRO height
-		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(rc.GetBlockHeight(), ps.QueryExecutor, ps.BlockQuery, ps.BlocksStorage)
+		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(
+			rc.GetReceipt().GetReferenceBlockHeight(),
+			ps.QueryExecutor,
+			ps.BlockQuery,
+			ps.BlocksStorage,
+		)
 		if err != nil {
 			return linkedCount, err
 		}
-		txsAtHeight, err := ps.TransactionCoreService.GetTransactionsByBlockID(blockAtHeight.ID)
+		txsAtHeight, err := ps.TransactionCoreService.GetTransactionsByBlockHeight(blockAtHeight.Height)
 		if err != nil {
 			return linkedCount, err
 		}
