@@ -27,6 +27,7 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
+	priorityStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	"golang.org/x/crypto/sha3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -90,6 +91,7 @@ type (
 		BlocksStorage               storage.CacheStackStorageInterface
 		BlockchainStatusService     BlockchainStatusServiceInterface
 		ScrambleNodeService         ScrambleNodeServiceInterface
+		PriorityStrategy            priorityStrategy.PriorityStrategy
 	}
 )
 
@@ -1453,19 +1455,28 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
-	// generate receipt and return as response
-	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
-		bs.Chaintype, block.GetBlockHash(),
-		&lastBlockCacheFormat,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeBlock,
-	)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+
+	// Need to check if the sender is on the priority list,
+	// And no need to send a receipt if not in
+	priorityList := bs.PriorityStrategy.GetPriorityPeers()
+	for _, priority := range priorityList {
+		if bytes.Equal(senderPublicKey, priority.GetInfo().GetPublicKey()) {
+			lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
+			receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
+				bs.Chaintype,
+				block.GetBlockHash(),
+				&lastBlockCacheFormat,
+				senderPublicKey,
+				nodeSecretPhrase,
+				constant.ReceiptDatumTypeBlock,
+			)
+			if err != nil {
+				return nil, status.Error(codes.Internal, err.Error())
+			}
+			return receipt, nil
+		}
 	}
-	return receipt, nil
+	return nil, nil
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
