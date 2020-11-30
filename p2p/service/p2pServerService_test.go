@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -62,6 +63,7 @@ type (
 		coreService.NodeAddressInfoService
 	}
 	mockPeerExplorerStrategySuccess struct {
+		Want bool
 		strategy.PriorityStrategy
 	}
 	mockPeerExplorerStrategyValidateRequestFail struct {
@@ -110,6 +112,9 @@ func (*mockPeerExplorerStrategySuccess) AddToUnresolvedPeers(newNodes []*model.N
 }
 func (*mockPeerExplorerStrategySuccess) GetPriorityPeers() map[string]*model.Peer {
 	return mockPeers
+}
+func (m *mockPeerExplorerStrategySuccess) ValidatePriorityPeer(*model.ScrambledNodes, *model.Node, *model.Node) bool {
+	return m.Want
 }
 
 func (*mockPeerExplorerStrategyValidateRequestFail) ValidateRequest(ctx context.Context) bool {
@@ -1179,6 +1184,20 @@ func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(
 	}, nil
 }
 
+type (
+	mockScrambleNodeCache struct {
+		wantErr bool
+		storage.ScrambleCacheStackStorage
+	}
+)
+
+func (m *mockScrambleNodeCache) GetTop(interface{}) error {
+	if m.wantErr {
+		return fmt.Errorf("wantErr")
+	}
+	return nil
+}
+
 func TestP2PServerService_SendBlock(t *testing.T) {
 	var (
 		mockMetaData      = map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(&mockNode)}
@@ -1190,12 +1209,14 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		mockContextPeerFail       = metadata.NewIncomingContext(context.Background(), mockHeaderContextPeerFail)
 	)
 	type fields struct {
-		FileService      coreService.FileServiceInterface
-		PeerExplorer     strategy.PeerExplorerStrategyInterface
-		BlockServices    map[int32]coreService.BlockServiceInterface
-		MempoolServices  map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase string
-		Observer         *observer.Observer
+		FileService       coreService.FileServiceInterface
+		PeerExplorer      strategy.PeerExplorerStrategyInterface
+		BlockServices     map[int32]coreService.BlockServiceInterface
+		MempoolServices   map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase  string
+		Observer          *observer.Observer
+		ScrambleNodeCache storage.CacheStackStorageInterface
+		NodeConfiguration coreService.NodeConfigurationServiceInterface
 	}
 	type args struct {
 		ctx             context.Context
@@ -1278,6 +1299,7 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceReceiveBlockFail{},
 				},
+				ScrambleNodeCache: &mockScrambleNodeCache{wantErr: true},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1293,6 +1315,8 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceSuccess{},
 				},
+				ScrambleNodeCache: &mockScrambleNodeCache{},
+				NodeConfiguration: &mockNodeConfigurationService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1307,12 +1331,14 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &P2PServerService{
-				FileService:      tt.fields.FileService,
-				PeerExplorer:     tt.fields.PeerExplorer,
-				BlockServices:    tt.fields.BlockServices,
-				MempoolServices:  tt.fields.MempoolServices,
-				NodeSecretPhrase: tt.fields.NodeSecretPhrase,
-				Observer:         tt.fields.Observer,
+				FileService:              tt.fields.FileService,
+				PeerExplorer:             tt.fields.PeerExplorer,
+				BlockServices:            tt.fields.BlockServices,
+				MempoolServices:          tt.fields.MempoolServices,
+				NodeSecretPhrase:         tt.fields.NodeSecretPhrase,
+				Observer:                 tt.fields.Observer,
+				ScrambleNodeCache:        tt.fields.ScrambleNodeCache,
+				NodeConfigurationService: tt.fields.NodeConfiguration,
 			}
 			got, err := ps.SendBlock(tt.args.ctx, tt.args.chainType, tt.args.block, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {

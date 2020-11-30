@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -11,6 +10,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -90,6 +90,7 @@ type (
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
 		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeCache        storage.CacheStackStorageInterface
 	}
 )
 
@@ -423,22 +424,31 @@ func (ps *P2PServerService) SendBlock(
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var (
-			md, _           = metadata.FromIncomingContext(ctx)
-			generateReceipt bool
+			md, _ = metadata.FromIncomingContext(ctx)
+			err   error
 		)
+
 		if len(md) == 0 {
 			return nil, status.Error(
 				codes.InvalidArgument,
 				"InvalidContext",
 			)
 		}
+
 		var (
-			fullAddress = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-			peer, err   = p2pUtil.ParsePeer(fullAddress)
+			fullAddress     = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
+			scrambleNodes   model.ScrambledNodes
+			requester       *model.Node
+			peer            *model.Peer
+			generateReceipt bool
 		)
+
+		peer, err = p2pUtil.ParsePeer(fullAddress)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
 		}
+		requester = p2pUtil.GetNodeInfo(fullAddress)
+
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
 			return nil, status.Error(
@@ -454,12 +464,12 @@ func (ps *P2PServerService) SendBlock(
 			)
 		}
 
-		for _, p := range ps.PeerExplorer.GetPriorityPeers() {
-			if bytes.Equal(p.GetInfo().GetPublicKey(), senderPublicKey) {
-				generateReceipt = true
-			}
+		err = ps.ScrambleNodeCache.GetTop(&scrambleNodes)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
 		}
 
+		generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, ps.NodeConfigurationService.GetHost().GetInfo(), requester)
 		receipt, err := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, generateReceipt)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
