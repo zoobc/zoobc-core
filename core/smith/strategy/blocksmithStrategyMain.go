@@ -269,6 +269,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 			}
 		}
 	}
+	// todo: andy-shi88 there is an unknown error here
 	return errors.New(fmt.Sprintf("IsBlockValid:Failed-InvalidSmithingTime"))
 }
 
