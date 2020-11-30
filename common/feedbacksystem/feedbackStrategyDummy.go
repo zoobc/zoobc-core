@@ -2,7 +2,11 @@ package feedbacksystem
 
 import (
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -31,6 +35,31 @@ func NewDummyFeedbackStrategy() *DummyFeedbackStrategy {
 }
 
 func (dfs *DummyFeedbackStrategy) StartSampling(samplingInterval time.Duration) {
+	tickerResetPerSecondVars := time.NewTicker(time.Second)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for {
+		select {
+		case <-tickerResetPerSecondVars.C:
+			// Reset feedback variables that are sampled 'per second'
+			func() {
+				if tpsReceivedTmp := dfs.GetFeedbackVar("tpsReceivedTmp"); tpsReceivedTmp != nil {
+					dfs.SetFeedbackVar("tpsReceived", tpsReceivedTmp)
+					monitoring.SetTpsReceived(tpsReceivedTmp.(int))
+				}
+				if tpsProcessedTmp := dfs.GetFeedbackVar("tpsProcessedTmp"); tpsProcessedTmp != nil {
+					dfs.SetFeedbackVar("tpsProcessed", tpsProcessedTmp)
+					monitoring.SetTpsProcessed(tpsProcessedTmp.(int))
+				}
+				// Reset the temporary tps received/processed every second
+				dfs.SetFeedbackVar("tpsReceivedTmp", 0)
+				dfs.SetFeedbackVar("tpsProcessedTmp", 0)
+			}()
+		case <-sigs:
+			tickerResetPerSecondVars.Stop()
+			return
+		}
+	}
 }
 
 func (dfs *DummyFeedbackStrategy) GetSuggestedActions() map[constant.FeedbackAction]bool {
@@ -45,7 +74,7 @@ func (dfs *DummyFeedbackStrategy) IsP2PRequestLimitReached(numSamples int) (bool
 	return false, constant.FeedbackLimitNone
 }
 
-func (dfs *DummyFeedbackStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
+func (dfs *DummyFeedbackStrategy) IsCPULimitReached(sampleTime time.Duration) (bool, constant.FeedbackLimitLevel) {
 	return false, constant.FeedbackLimitNone
 }
 

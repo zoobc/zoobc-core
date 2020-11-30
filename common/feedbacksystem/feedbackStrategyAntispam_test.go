@@ -312,6 +312,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 		FeedbackVars                map[string]interface{}
 		FeedbackVarsLock            sync.RWMutex
 		Logger                      *log.Logger
+		P2PRequestsLimit            int
+		CPULimit                    int
 	}
 	type args struct {
 		numSamples int
@@ -330,6 +332,7 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					10,
 					10,
 				},
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 3,
@@ -348,6 +351,7 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					30,
 					30,
 				},
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 4,
@@ -363,7 +367,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					constant.P2PRequestHardLimit,
 					constant.P2PRequestHardLimit + 100,
 				},
-				Logger: log.New(),
+				Logger:           log.New(),
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 3,
@@ -378,7 +383,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					constant.P2PRequestHardLimit * constant.FeedbackLimitHighPerc / 100,
 					constant.P2PRequestHardLimit * constant.FeedbackLimitHighPerc / 100,
 				},
-				Logger: log.New(),
+				Logger:           log.New(),
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 2,
@@ -393,7 +399,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					constant.P2PRequestHardLimit * constant.FeedbackLimitMediumPerc / 100,
 					constant.P2PRequestHardLimit * constant.FeedbackLimitMediumPerc / 100,
 				},
-				Logger: log.New(),
+				Logger:           log.New(),
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 2,
@@ -408,7 +415,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 					constant.P2PRequestHardLimit * constant.FeedbackLimitLowPerc / 100,
 					constant.P2PRequestHardLimit * constant.FeedbackLimitLowPerc / 100,
 				},
-				Logger: log.New(),
+				Logger:           log.New(),
+				P2PRequestsLimit: constant.P2PRequestHardLimit,
 			},
 			args: args{
 				numSamples: 2,
@@ -428,6 +436,8 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 				FeedbackVars:                tt.fields.FeedbackVars,
 				FeedbackVarsLock:            tt.fields.FeedbackVarsLock,
 				Logger:                      tt.fields.Logger,
+				P2PRequestLimit:             tt.fields.P2PRequestsLimit,
+				CPUPercentageLimit:          tt.fields.CPULimit,
 			}
 			gotLimitReached, gotLimitLevel := ass.IsP2PRequestLimitReached(tt.args.numSamples)
 			if gotLimitReached != tt.wantLimitReached {
@@ -471,12 +481,14 @@ func TestNewAntiSpamStrategy(t *testing.T) {
 					"P2PIncomingRequests": 0,
 					"P2POutgoingRequests": 0,
 				},
+				CPUPercentageLimit: 10,
+				P2PRequestLimit:    11,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewAntiSpamStrategy(tt.args.logger); !reflect.DeepEqual(got, tt.want) {
+			if got := NewAntiSpamStrategy(tt.args.logger, 10, 11); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewAntiSpamStrategy() = %v, want %v", got, tt.want)
 			}
 		})
