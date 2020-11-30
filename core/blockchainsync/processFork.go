@@ -312,6 +312,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 			tx, err = fp.TransactionUtil.ParseTransactionBytes(mempools[mempoolID], true)
 			if err != nil {
 				fp.Logger.Warnf(err.Error())
+				return
 			}
 
 			err = fp.MempoolService.ValidateMempoolTransaction(tx)
