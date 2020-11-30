@@ -264,8 +264,8 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			// undo spendable balance when add mempool fail
 			errUndo := fp.TransactionCorService.UndoApplyUnconfirmedTransaction(txType)
 			if errUndo != nil {
-				fp.Logger.Warnf("ProcessLater:UndoApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
-				// rollback DB when fail undo
+				fp.Logger.Warnf("ProcessLater:UndoApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), errUndo.Error())
+				// rollback DB when fail undo spendable balance
 				return fp.QueryExecutor.RollbackTx()
 			}
 			fp.Logger.Warnf("ProcessLater:AddMempoolFail - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
