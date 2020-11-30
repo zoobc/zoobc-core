@@ -154,7 +154,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		// validation...
 		// fetch block+txs at provedReceiptRO height
 		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(
-			rc.GetReceipt().GetReferenceBlockHeight(),
+			rc.GetBatchReferenceBlockHeight()-1,
 			ps.QueryExecutor,
 			ps.BlockQuery,
 			ps.BlocksStorage,
@@ -172,7 +172,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 			itemHash []byte
 		)
 		if itemIndex == 0 {
-			itemHash = previousBlock.GetBlockHash()
+			itemHash = blockAtHeight.BlockHash
 		} else {
 			itemHash = txsAtHeight[itemIndex-1].TransactionHash
 		}
@@ -180,7 +180,22 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 			// node does not publish the expected receipt, stop receipt validation, block has invalid proved receipt
 			return 0, blocker.NewBlocker(blocker.ValidationErr, "ProcessPublishReceipt:InvalidReceiptHashPublished")
 		}
-		recipientIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, 0)
+		scrambleAtHeight, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(rc.GetBatchReferenceBlockHeight())
+		if err != nil {
+			return 0, blocker.NewBlocker(
+				blocker.AppErr,
+				fmt.Sprintf("ProcessPublishReceipt:GetScrambleNodesByHeight-%v", err),
+			)
+		}
+		_, sortedPriorityAtHeight, err := util2.GetPriorityPeersByNodeID(blocksmithNodeRegistry.GetNodeID(), scrambleAtHeight)
+		if err != nil {
+			fmt.Printf("%v", err)
+			return 0, blocker.NewBlocker(
+				blocker.AppErr,
+				fmt.Sprintf("ProcessPublishReceipt:GetPriorityPeersByNodeID-%v", err),
+			)
+		}
+		recipientIndex := rng.ConvertRandomNumberToIndex(leafRandomNumber, int64(len(sortedPriorityAtHeight)))
 		if int(recipientIndex) >= len(blocksmithSortedPriority) {
 			return 0, blocker.NewBlocker(
 				blocker.ValidationErr,
@@ -213,9 +228,11 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		}
 		// calculate rc+intermediateHash merkle root, and validate if is in `published_receipt.rmr_linked`
 		calculatedMerkleRoot, err := ps.ReceiptService.GetMerkleRootFromReceiptIntermediateHash(rc.GetReceipt(), rc.GetIntermediateHashes())
-		fmt.Printf("calculated merkle root: %s\n", hex.EncodeToString(calculatedMerkleRoot))
 		// check if calculated merkle root in `published_receipt.rmr_linked`
-		// todo
+		_, err = ps.PublishedReceiptUtil.GetPublishedReceiptByLinkedRMR(calculatedMerkleRoot)
+		if err != nil {
+			return 0, err
+		}
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,
 		// it's different with receiptIndex which is used to validate merkle root.
