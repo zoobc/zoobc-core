@@ -159,6 +159,7 @@ func TestNewP2PServerService(t *testing.T) {
 		nodeSecretPhrase        string
 		observer                *observer.Observer
 		feedbackStrategy        feedbacksystem.FeedbackStrategyInterface
+		ScrambleCacheStorage    storage.CacheStackStorageInterface
 	}
 	tests := []struct {
 		name string
@@ -187,13 +188,18 @@ func TestNewP2PServerService(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewP2PServerService(tt.args.nodeRegistrationService, tt.args.fileService, nil,
-				nil, tt.args.peerExplorer,
+			if got := NewP2PServerService(
+				tt.args.nodeRegistrationService,
+				tt.args.fileService,
+				nil,
+				nil,
+				tt.args.peerExplorer,
 				tt.args.blockServices,
 				tt.args.mempoolServices,
 				tt.args.nodeSecretPhrase,
 				tt.args.observer,
 				tt.args.feedbackStrategy,
+				tt.args.ScrambleCacheStorage,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}

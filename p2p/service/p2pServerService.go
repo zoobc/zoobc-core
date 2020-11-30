@@ -9,7 +9,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
@@ -106,6 +105,7 @@ func NewP2PServerService(
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeCache storage.CacheStackStorageInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -118,6 +118,7 @@ func NewP2PServerService(
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
 		FeedbackStrategy:         feedbackStrategy,
+		ScrambleNodeCache:        scrambleNodeCache,
 	}
 }
 
@@ -469,7 +470,7 @@ func (ps *P2PServerService) SendBlock(
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 
-		generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, ps.NodeConfigurationService.GetHost().GetInfo(), requester)
+		generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
 		receipt, err := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, generateReceipt)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
