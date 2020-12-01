@@ -40,10 +40,10 @@ type (
 			isGenerateReceipt bool,
 		) (*model.Receipt, error)
 		ReceivedBlockTransactions(
-			senderPublicKey []byte,
-			receivedTxBytes [][]byte,
-			lastBlockCacheFromat *storage.BlockCacheObject,
+			senderPublicKey []byte, receivedTxBytes [][]byte,
+			lastBlockCacheFormat *storage.BlockCacheObject,
 			nodeSecretPhrase string,
+			isGenerateReceipt bool,
 		) ([]*model.Receipt, error)
 		DeleteExpiredMempoolTransactions() error
 		GetMempoolTransactionsWantToBackup(height uint32) ([]*model.Transaction, error)
@@ -470,17 +470,17 @@ func (mps *MempoolService) ProcessReceivedTransaction(
 
 // ReceivedBlockTransactions
 func (mps *MempoolService) ReceivedBlockTransactions(
-	senderPublicKey []byte,
-	receivedTxBytes [][]byte,
-	lastBlockCacheFromat *storage.BlockCacheObject,
+	senderPublicKey []byte, receivedTxBytes [][]byte,
+	lastBlockCacheFormat *storage.BlockCacheObject,
 	nodeSecretPhrase string,
+	isGenerateReceipt bool,
 ) ([]*model.Receipt, error) {
 	var (
 		batchReceiptArray    []*model.Receipt
 		receivedTransactions []*model.Transaction
 	)
 	for _, txBytes := range receivedTxBytes {
-		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlockCacheFromat, nodeSecretPhrase, false)
+		batchReceipt, receivedTx, err := mps.ProcessReceivedTransaction(senderPublicKey, txBytes, lastBlockCacheFormat, nodeSecretPhrase, isGenerateReceipt)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
