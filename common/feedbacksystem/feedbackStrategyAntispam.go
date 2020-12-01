@@ -17,7 +17,7 @@ type (
 	// AntiSpamStrategy implements an anti spam filter and it is used to reduce or inhibit number of api requests when the app
 	// reaches some hard limits on concurrent processes, memory and/or cpu
 	AntiSpamStrategy struct {
-		CpuPercentageSamples []float64
+		CPUPercentageSamples []float64
 		MemUsageSamples      []float64
 		GoRoutineSamples     []int
 		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
@@ -43,7 +43,7 @@ func NewAntiSpamStrategy(
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
 		Logger:                      logger,
-		CpuPercentageSamples:        make([]float64, 0, constant.FeedbackTotalSamples),
+		CPUPercentageSamples:        make([]float64, 0, constant.FeedbackTotalSamples),
 		MemUsageSamples:             make([]float64, 0, constant.FeedbackTotalSamples),
 		GoRoutineSamples:            make([]int, 0, constant.FeedbackTotalSamples),
 		RunningServerP2PAPIRequests: make([]int, 0, constant.FeedbackTotalSamples),
@@ -79,10 +79,10 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 		case <-ticker.C:
 			go func() {
 				cpuPercentage, vm, _ := util.GetHwStats(samplingInterval)
-				if len(ass.CpuPercentageSamples) >= constant.FeedbackTotalSamples {
-					ass.CpuPercentageSamples = append(ass.CpuPercentageSamples[1:], cpuPercentage)
+				if len(ass.CPUPercentageSamples) >= constant.FeedbackTotalSamples {
+					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples[1:], cpuPercentage)
 				} else {
-					ass.CpuPercentageSamples = append(ass.CpuPercentageSamples, cpuPercentage)
+					ass.CPUPercentageSamples = append(ass.CPUPercentageSamples, cpuPercentage)
 				}
 				if len(ass.MemUsageSamples) >= constant.FeedbackTotalSamples {
 					ass.MemUsageSamples = append(ass.MemUsageSamples[1:], vm.UsedPercent)
@@ -220,14 +220,14 @@ func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (limitReached boo
 	var (
 		avg, sumCPUSamples,
 		avgCPUSamples int
-		numQueuedCPUSamples = len(ass.CpuPercentageSamples)
+		numQueuedCPUSamples = len(ass.CPUPercentageSamples)
 	)
 	if numQueuedCPUSamples < numSamples {
 		// if numQueuedSamplesOutGoing < numSamples || numQueuedCPUSamples < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
 	for n := 1; n <= numSamples; n++ {
-		sumCPUSamples += int(ass.CpuPercentageSamples[len(ass.CpuPercentageSamples)-n])
+		sumCPUSamples += int(ass.CPUPercentageSamples[len(ass.CPUPercentageSamples)-n])
 	}
 	avgCPUSamples = sumCPUSamples / numSamples
 	switch avg = avgCPUSamples; {
