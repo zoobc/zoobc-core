@@ -494,3 +494,151 @@ func TestNewAntiSpamStrategy(t *testing.T) {
 		})
 	}
 }
+
+func TestAntiSpamStrategy_IsCPULimitReached(t *testing.T) {
+	type fields struct {
+		CPUPercentageSamples        []float64
+		MemUsageSamples             []float64
+		GoRoutineSamples            []int
+		RunningCliP2PAPIRequests    []int
+		RunningServerP2PAPIRequests []int
+		FeedbackVars                map[string]interface{}
+		FeedbackVarsLock            sync.RWMutex
+		CPUPercentageLimit          int
+		P2PRequestLimit             int
+		Logger                      *log.Logger
+	}
+	type args struct {
+		numSamples int
+	}
+	tests := []struct {
+		name             string
+		fields           fields
+		args             args
+		wantLimitReached bool
+		wantLimitLevel   constant.FeedbackLimitLevel
+	}{
+		{
+			name: "IsP2PRequestLimitReached:success-{notEnoughSamples}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					10,
+					10,
+				},
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 3,
+			},
+			wantLimitLevel:   constant.FeedbackLimitNone,
+			wantLimitReached: false,
+		},
+		{
+			name: "IsP2PRequestLimitReached:success-{noLimitReached}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					10,
+					10,
+					20,
+					20,
+					30,
+					30,
+				},
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 4,
+			},
+			wantLimitLevel:   constant.FeedbackLimitNone,
+			wantLimitReached: false,
+		},
+		{
+			name: "IsP2PRequestLimitReached:success-{criticalLimitReached}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					constant.FeedbackLimitCPUPercentage,
+					constant.FeedbackLimitCPUPercentage,
+					constant.FeedbackLimitCPUPercentage + 2,
+				},
+				Logger:             log.New(),
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 3,
+			},
+			wantLimitLevel:   constant.FeedbackLimitCritical,
+			wantLimitReached: true,
+		},
+		{
+			name: "IsP2PRequestLimitReached:success-{highLimitReached}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitHighPerc / 100,
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitHighPerc / 100,
+				},
+				Logger:             log.New(),
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 2,
+			},
+			wantLimitLevel:   constant.FeedbackLimitHigh,
+			wantLimitReached: true,
+		},
+		{
+			name: "IsP2PRequestLimitReached:success-{mediumLimitReached}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitMediumPerc / 100,
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitMediumPerc / 100,
+				},
+				Logger:             log.New(),
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 2,
+			},
+			wantLimitLevel:   constant.FeedbackLimitMedium,
+			wantLimitReached: true,
+		},
+		{
+			name: "IsP2PRequestLimitReached:success-{mediumLimitReached}",
+			fields: fields{
+				CPUPercentageSamples: []float64{
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitLowPerc / 100,
+					constant.FeedbackLimitCPUPercentage * constant.FeedbackLimitLowPerc / 100,
+				},
+				Logger:             log.New(),
+				CPUPercentageLimit: constant.FeedbackLimitCPUPercentage,
+			},
+			args: args{
+				numSamples: 2,
+			},
+			wantLimitLevel:   constant.FeedbackLimitLow,
+			wantLimitReached: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ass := &AntiSpamStrategy{
+				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				MemUsageSamples:             tt.fields.MemUsageSamples,
+				GoRoutineSamples:            tt.fields.GoRoutineSamples,
+				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
+				RunningServerP2PAPIRequests: tt.fields.RunningServerP2PAPIRequests,
+				FeedbackVars:                tt.fields.FeedbackVars,
+				FeedbackVarsLock:            tt.fields.FeedbackVarsLock,
+				CPUPercentageLimit:          tt.fields.CPUPercentageLimit,
+				P2PRequestLimit:             tt.fields.P2PRequestLimit,
+				Logger:                      tt.fields.Logger,
+			}
+			gotLimitReached, gotLimitLevel := ass.IsCPULimitReached(tt.args.numSamples)
+			if gotLimitReached != tt.wantLimitReached {
+				t.Errorf("IsCPULimitReached() gotLimitReached = %v, want %v", gotLimitReached, tt.wantLimitReached)
+			}
+			if gotLimitLevel != tt.wantLimitLevel {
+				t.Errorf("IsCPULimitReached() gotLimitLevel = %v, want %v", gotLimitLevel, tt.wantLimitLevel)
+			}
+		})
+	}
+}

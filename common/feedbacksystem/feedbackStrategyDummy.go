@@ -74,7 +74,7 @@ func (dfs *DummyFeedbackStrategy) IsP2PRequestLimitReached(numSamples int) (bool
 	return false, constant.FeedbackLimitNone
 }
 
-func (dfs *DummyFeedbackStrategy) IsCPULimitReached(sampleTime time.Duration) (bool, constant.FeedbackLimitLevel) {
+func (dfs *DummyFeedbackStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
 	return false, constant.FeedbackLimitNone
 }
 

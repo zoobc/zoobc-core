@@ -1,7 +1,6 @@
 package feedbacksystem
 
 import (
-	"github.com/shirou/gopsutil/cpu"
 	"os"
 	"os/signal"
 	"sync"
@@ -21,6 +20,7 @@ type (
 		CPUPercentageSamples []float64
 		MemUsageSamples      []float64
 		GoRoutineSamples     []int
+		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
 		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
 		RunningCliP2PAPIRequests []int
 		// RunningServerP2PAPIRequests number of running server p2p api requests (incoming p2p requests)
@@ -216,12 +216,21 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 }
 
 // IsCPULimitReached to be implemented
-func (ass *AntiSpamStrategy) IsCPULimitReached(sampleTime time.Duration) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
-	CPUPercentage, err := cpu.Percent(sampleTime, false)
-	if err != nil {
+func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
+	var (
+		avg, sumCPUSamples,
+		avgCPUSamples int
+		numQueuedCPUSamples = len(ass.CPUPercentageSamples)
+	)
+	if numQueuedCPUSamples < numSamples {
+		// if numQueuedSamplesOutGoing < numSamples || numQueuedCPUSamples < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
-	switch avg := int(CPUPercentage[0]); {
+	for n := 1; n <= numSamples; n++ {
+		sumCPUSamples += int(ass.CPUPercentageSamples[len(ass.CPUPercentageSamples)-n])
+	}
+	avgCPUSamples = sumCPUSamples / numSamples
+	switch avg = avgCPUSamples; {
 	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitCriticalPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitCritical
