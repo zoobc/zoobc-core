@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 
@@ -1877,7 +1878,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				),
 				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
-				BlocksStorage:             storage.NewBlocksStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},

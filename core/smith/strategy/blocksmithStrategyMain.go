@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/util"
 	"math"
 	"math/big"
 	"time"
@@ -16,6 +14,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
@@ -34,7 +34,7 @@ type (
 		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
 		BlockQuery                     query.BlockQueryInterface
 		QueryExecutor                  query.ExecutorInterface
-		BlockCacheStorage              storage.CacheStackStorageInterface
+		BlocksCacheStorage             storage.CacheStackStorageInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
@@ -50,7 +50,7 @@ func NewBlocksmithStrategyMain(
 	activeNodeRegistryCacheStorage storage.CacheStorageInterface,
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
-	blockCacheStorage storage.CacheStackStorageInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
 	queryExecutor query.ExecutorInterface,
 	rng *crypto.RandomNumberGenerator,
 	chaintype chaintype.ChainType,
@@ -63,7 +63,7 @@ func NewBlocksmithStrategyMain(
 		QueryExecutor:                  queryExecutor,
 		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
 		BlockQuery:                     blockQuery,
-		BlockCacheStorage:              blockCacheStorage,
+		BlocksCacheStorage:             blocksCacheStorage,
 		me:                             Candidate{},
 		candidates:                     make([]Candidate, 0),
 		rng:                            rng,
@@ -81,6 +81,7 @@ func (bss *BlocksmithStrategyMain) WillSmith(prevBlock *model.Block) (int64, err
 		bss.lastBlockHash = prevBlock.BlockHash
 		bss.candidates = []Candidate{}
 		bss.me = Candidate{}
+		monitoring.SetBlockchainSmithIndex(bss.Chaintype, -1)
 		err = bss.rng.Reset(constant.BlocksmithSelectionSeedPrefix, prevBlock.BlockSeed)
 		if err != nil {
 			return blocksmithIndex, err
@@ -116,30 +117,10 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 		// no need to estimate persist time if previous block is genesis
 		return lastBlock.GetTimestamp(), nil
 	}
-	previousLastBlock, err := func(lastBlock *model.Block) (*model.Block, error) {
-		// get previous.height - 1 block to estimate persist time
-		previousLastBlockObj, err := util.GetBlockByHeightUseBlocksCache(
-			lastBlock.GetHeight()-1,
-			bss.QueryExecutor,
-			bss.BlockQuery,
-			bss.BlockCacheStorage,
-		)
-		if err != nil {
-			return nil, err
-		}
-		return &model.Block{
-			ID:        previousLastBlockObj.ID,
-			Height:    previousLastBlockObj.Height,
-			Timestamp: previousLastBlockObj.Timestamp,
-			BlockHash: previousLastBlockObj.BlockHash,
-		}, nil
-	}(lastBlock)
-
 	if err != nil {
 		return lastBlock.GetTimestamp(), err
 	}
-	firstBlocksmithExpiryTime := previousLastBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod() +
-		bss.Chaintype.GetBlocksmithBlockCreationTime() +
+	blockToleranceTime := bss.Chaintype.GetBlocksmithBlockCreationTime() +
 		bss.Chaintype.GetBlocksmithNetworkTolerance()
 
 	qry := bss.SkippedBlocksmithQuery.GetNumberOfSkippedBlocksmithsByBlockHeight(lastBlock.GetHeight())
@@ -158,7 +139,7 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 	}
 
 	if numberOfSkippedBlocksmith > 0 {
-		result = firstBlocksmithExpiryTime + (int64(numberOfSkippedBlocksmith-1) * bss.Chaintype.GetBlocksmithTimeGap())
+		result = lastBlock.GetTimestamp() + blockToleranceTime - int64(numberOfSkippedBlocksmith)*bss.Chaintype.GetBlocksmithTimeGap()
 	} else {
 		result = lastBlock.GetTimestamp()
 	}
@@ -219,6 +200,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 		}
 		if bytes.Equal(candidate.Blocksmith.NodePublicKey, bss.CurrentNodePublicKey) {
 			// set self as candidate if found same node public key
+			monitoring.SetBlockchainSmithIndex(bss.Chaintype, candidate.Index)
 			bss.me = candidate
 		}
 		bss.candidates = append(bss.candidates, candidate)
