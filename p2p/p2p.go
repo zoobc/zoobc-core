@@ -2,9 +2,12 @@ package p2p
 
 import (
 	"encoding/base64"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"math/rand"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/storage"
+
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -41,6 +44,7 @@ type (
 			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
 			feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+			scrambleNodeCache storage.CacheStackStorageInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -110,6 +114,7 @@ func (s *Peer2PeerService) StartP2P(
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
 	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeCache storage.CacheStackStorageInterface,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
@@ -123,6 +128,7 @@ func (s *Peer2PeerService) StartP2P(
 		nodeSecretPhrase,
 		observer,
 		feedbackStrategy,
+		scrambleNodeCache,
 	)
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request

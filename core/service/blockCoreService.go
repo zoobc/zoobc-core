@@ -50,6 +50,7 @@ type (
 			lastBlock, block *model.Block,
 			nodeSecretPhrase string,
 			peer *model.Peer,
+			generateReceipt bool,
 		) (*model.Receipt, error)
 		PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error)
 		GetBlocksmithStrategy() strategy.BlocksmithStrategyInterface

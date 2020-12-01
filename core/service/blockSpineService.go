@@ -839,12 +839,7 @@ func (bs *BlockSpineService) CheckGenesis() (bool, error) {
 // ReceiveBlock handle the block received from connected peers
 // argument lastBlock is the lastblock in this node
 // argument block is the in coming block from peer
-func (bs *BlockSpineService) ReceiveBlock(
-	senderPublicKey []byte,
-	lastBlock, block *model.Block,
-	nodeSecretPhrase string,
-	peer *model.Peer,
-) (*model.Receipt, error) {
+func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Block, _ string, _ *model.Peer, _ bool) (*model.Receipt, error) {
 	var (
 		err error
 	)

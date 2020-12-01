@@ -199,7 +199,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	}
 }
 
-// GetPriorityPeers, to get a list peer should connect if host in scramble node
+// GetPriorityPeers To get a list peer should connect if host in scramble node
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	var (
 		priorityPeers = make(map[string]*model.Peer)
