@@ -44,7 +44,7 @@ func TestAntiSpamStrategy_DecrementVarCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -96,7 +96,7 @@ func TestAntiSpamStrategy_GetFeedbackVar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -148,7 +148,7 @@ func TestAntiSpamStrategy_IncrementVarCount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -282,7 +282,7 @@ func TestAntiSpamStrategy_IsGoroutineLimitReached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -428,7 +428,7 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -436,7 +436,7 @@ func TestAntiSpamStrategy_IsP2PRequestLimitReached(t *testing.T) {
 				FeedbackVars:                tt.fields.FeedbackVars,
 				FeedbackVarsLock:            tt.fields.FeedbackVarsLock,
 				Logger:                      tt.fields.Logger,
-				P2PRequestLimit:             tt.fields.P2PRequestsLimit,
+				P2pRequestLimit:             tt.fields.P2PRequestsLimit,
 				CPUPercentageLimit:          tt.fields.CPULimit,
 			}
 			gotLimitReached, gotLimitLevel := ass.IsP2PRequestLimitReached(tt.args.numSamples)
@@ -466,7 +466,7 @@ func TestNewAntiSpamStrategy(t *testing.T) {
 			},
 			want: &AntiSpamStrategy{
 				Logger:                      nil,
-				CPUPercentageSamples:        make([]float64, 0, constant.FeedbackTotalSamples),
+				CpuPercentageSamples:        make([]float64, 0, constant.FeedbackTotalSamples),
 				MemUsageSamples:             make([]float64, 0, constant.FeedbackTotalSamples),
 				GoRoutineSamples:            make([]int, 0, constant.FeedbackTotalSamples),
 				RunningServerP2PAPIRequests: make([]int, 0, constant.FeedbackTotalSamples),
@@ -482,7 +482,7 @@ func TestNewAntiSpamStrategy(t *testing.T) {
 					"P2POutgoingRequests": 0,
 				},
 				CPUPercentageLimit: 10,
-				P2PRequestLimit:    11,
+				P2pRequestLimit:    11,
 			},
 		},
 	}
@@ -621,7 +621,7 @@ func TestAntiSpamStrategy_IsCPULimitReached(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ass := &AntiSpamStrategy{
-				CPUPercentageSamples:        tt.fields.CPUPercentageSamples,
+				CpuPercentageSamples:        tt.fields.CPUPercentageSamples,
 				MemUsageSamples:             tt.fields.MemUsageSamples,
 				GoRoutineSamples:            tt.fields.GoRoutineSamples,
 				RunningCliP2PAPIRequests:    tt.fields.RunningCliP2PAPIRequests,
@@ -629,7 +629,7 @@ func TestAntiSpamStrategy_IsCPULimitReached(t *testing.T) {
 				FeedbackVars:                tt.fields.FeedbackVars,
 				FeedbackVarsLock:            tt.fields.FeedbackVarsLock,
 				CPUPercentageLimit:          tt.fields.CPUPercentageLimit,
-				P2PRequestLimit:             tt.fields.P2PRequestLimit,
+				P2pRequestLimit:             tt.fields.P2PRequestLimit,
 				Logger:                      tt.fields.Logger,
 			}
 			gotLimitReached, gotLimitLevel := ass.IsCPULimitReached(tt.args.numSamples)
