@@ -494,7 +494,7 @@ func (ps *P2PServerService) SendTransaction(
 	// TODO: uncomment here to restore anti-spam filters for incoming p2p transactions (tx broadcast by others)
 	// note: this had lead to the network falling out of sync because many nodes have different mempool,
 	// so if we want to re-enable the behavior, we have to tune it so that tx are filtered only when strictly required
-	// if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
 	// 	if limitLevel == constant.FeedbackLimitCritical {
 	// 		monitoring.IncreaseP2PTxFilteredIncoming()
 	// 		return nil, status.Error(codes.Internal, "NodeIsBusy")

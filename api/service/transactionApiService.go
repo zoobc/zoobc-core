@@ -242,7 +242,7 @@ func (ts *TransactionService) PostTransaction(
 	//  when the node is too busy due to high number of goroutines,
 	//  the network can regulate itself without leading to blockchain splits or hard forks
 	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
-	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
 		if limitLevel == constant.FeedbackLimitHigh {
 			ts.Logger.Error("Tx dropped due to high cpu usage")
 			monitoring.IncreaseTxFiltered()
