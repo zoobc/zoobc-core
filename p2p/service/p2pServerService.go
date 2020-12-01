@@ -596,12 +596,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 
 		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
 		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
-			return mempoolService.ReceivedBlockTransactions(
-				senderPublicKey,
-				transactionsBytes,
-				lastBlockCacheFormat,
-				ps.NodeSecretPhrase,
-			)
+			return mempoolService.ReceivedBlockTransactions(senderPublicKey, transactionsBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, false)
 		})
 
 		if err != nil {
