@@ -17,8 +17,7 @@ import (
 
 // EstoniaEidAccountType the default account type
 type EstoniaEidAccountType struct {
-	privateKey, publicKey, fullAddress []byte
-	publicKeyString, encodedAddress    string
+	publicKey, fullAddress []byte
 }
 
 func (acc *EstoniaEidAccountType) SetAccountPublicKey(accountPublicKey []byte) {
@@ -96,10 +95,7 @@ func (acc *EstoniaEidAccountType) GetAccountPublicKeyString() (string, error) {
 }
 
 func (acc *EstoniaEidAccountType) GetAccountPrivateKey() ([]byte, error) {
-	if len(acc.privateKey) == 0 {
-		return nil, blocker.NewBlocker(blocker.AppErr, "AccountNotGenerated")
-	}
-	return acc.privateKey, nil
+	return nil, nil
 }
 
 func (acc *EstoniaEidAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
@@ -120,16 +116,16 @@ func (acc *EstoniaEidAccountType) VerifySignature(payload, signature, accountAdd
 
 // source: https://github.com/warner/python-ecdsa/blob/master/src/ecdsa/util.py (sigdecode_string)
 // return: r, s, error
-func (acc *EstoniaEidAccountType) decodeSignatureNIST384RS(signature []byte) (*big.Int, *big.Int, error) {
-	// curveOrder := "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643"
+func (acc *EstoniaEidAccountType) decodeSignatureNIST384RS(signature []byte) (r, s *big.Int, err error) {
+	// curveOrder "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643"
 	curveOrderLen := 48
 	if len(signature) != curveOrderLen*2 {
-		return nil, nil, errors.New(fmt.Sprintf("error signature length: %d", len(signature)))
+		return nil, nil, fmt.Errorf("error signature length: %d", len(signature))
 	}
 	rBytes := signature[:48]
 	sBytes := signature[48:]
-	r := new(big.Int).SetBytes(rBytes)
-	s := new(big.Int).SetBytes(sBytes)
+	r = new(big.Int).SetBytes(rBytes)
+	s = new(big.Int).SetBytes(sBytes)
 	return r, s, nil
 }
 
