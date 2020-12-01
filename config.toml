@@ -3,7 +3,9 @@ apiReqTimeoutSec = 2
 apiRPCPort = 7000
 # to show usefull information on terminal/cli. The logOnCli must be false
 cliMonitoring = true
-antispamfilter = true
+antiSpamFilter = true
+antiSpamP2PRequestLimit=150
+antiSpamCPULimitPercentage=75
 cpuProfilingPort = 6060
 dbName = "zoobc.db"
 # Available log level: info, warn, error, fatal, panic

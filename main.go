@@ -265,6 +265,8 @@ func initiateMainInstance() {
 	if config.AntiSpamFilter {
 		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
 			loggerCoreService,
+			config.AntiSpamCPULimitPercentage,
+			config.AntiSpamP2PRequestLimit,
 		)
 	} else {
 		// no filtering: turn antispam filter off
@@ -772,6 +774,7 @@ func startServices() {
 		nodeAddressInfoService,
 		observerInstance,
 		feedbackStrategy,
+		scrambleNodeStorage,
 	)
 	api.Start(
 		queryExecutor,
