@@ -601,6 +601,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 				transactionsBytes,
 				lastBlockCacheFormat,
 				ps.NodeSecretPhrase,
+				isGenerate,
 			)
 		})
 
