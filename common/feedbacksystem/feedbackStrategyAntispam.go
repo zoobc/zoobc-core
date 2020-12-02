@@ -7,7 +7,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shirou/gopsutil/cpu"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -22,6 +21,7 @@ type (
 		MemUsageSamples      []float64
 		GoRoutineSamples     []int
 		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
+		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
 		RunningCliP2PAPIRequests []int
 		// RunningServerP2PAPIRequests number of running server p2p api requests (incoming p2p requests)
 		RunningServerP2PAPIRequests []int
@@ -30,7 +30,7 @@ type (
 		FeedbackVars       map[string]interface{}
 		FeedbackVarsLock   sync.RWMutex
 		CPUPercentageLimit int
-		P2PRequestLimit    int
+		P2pRequestLimit    int
 		Logger             *log.Logger
 	}
 )
@@ -38,7 +38,7 @@ type (
 // NewAntiSpamStrategy initialize system internal variables
 func NewAntiSpamStrategy(
 	logger *log.Logger,
-	cpuPercentageLimit int,
+	cpuPercentageLimit,
 	p2pRequestLimit int,
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
@@ -59,7 +59,7 @@ func NewAntiSpamStrategy(
 			"P2POutgoingRequests": 0,
 		},
 		CPUPercentageLimit: cpuPercentageLimit,
-		P2PRequestLimit:    p2pRequestLimit,
+		P2pRequestLimit:    p2pRequestLimit,
 	}
 }
 
@@ -193,19 +193,19 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 	}
 	avgIncoming = sumIncoming / numSamples
 	switch avg = avgIncoming; {
-	case avg >= ass.P2PRequestLimit*constant.FeedbackLimitCriticalPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitCriticalPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitCritical
 		ass.Logger.Errorf("P2PRequests level critical! average count for last %d samples is %d", numSamples, avg)
-	case avg >= ass.P2PRequestLimit*constant.FeedbackLimitHighPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitHighPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitHigh
 		ass.Logger.Errorf("P2PRequests level high! average count for last %d samples is %d", numSamples, avg)
-	case avg >= ass.P2PRequestLimit*constant.FeedbackLimitMediumPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitMediumPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitMedium
 		ass.Logger.Infof("P2PRequests level medium! average count for last %d samples is %d", numSamples, avg)
-	case avg >= ass.P2PRequestLimit*constant.FeedbackLimitLowPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitLowPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitLow
 	default:
@@ -216,12 +216,21 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 }
 
 // IsCPULimitReached to be implemented
-func (ass *AntiSpamStrategy) IsCPULimitReached(sampleTime time.Duration) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
-	CPUPercentage, err := cpu.Percent(sampleTime, false)
-	if err != nil {
+func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
+	var (
+		avg, sumCPUSamples,
+		avgCPUSamples int
+		numQueuedCPUSamples = len(ass.CPUPercentageSamples)
+	)
+	if numQueuedCPUSamples < numSamples {
+		// if numQueuedSamplesOutGoing < numSamples || numQueuedCPUSamples < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
-	switch avg := int(CPUPercentage[0]); {
+	for n := 1; n <= numSamples; n++ {
+		sumCPUSamples += int(ass.CPUPercentageSamples[len(ass.CPUPercentageSamples)-n])
+	}
+	avgCPUSamples = sumCPUSamples / numSamples
+	switch avg = avgCPUSamples; {
 	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitCriticalPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitCritical

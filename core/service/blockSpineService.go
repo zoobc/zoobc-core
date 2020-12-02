@@ -1076,10 +1076,8 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		// - clean snapshot data
 		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				bs.Logger.Warn(rollbackErr)
-			}
+			bs.Logger.Warn(err)
+			return
 		}
 		for _, manifest := range poppedManifests {
 			// ignore error, file deletion can fail
