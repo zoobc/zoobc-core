@@ -257,6 +257,8 @@ func initiateMainInstance() {
 	if config.AntiSpamFilter {
 		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
 			loggerCoreService,
+			config.AntiSpamCPULimitPercentage,
+			config.AntiSpamP2PRequestLimit,
 		)
 	} else {
 		// no filtering: turn antispam filter off
@@ -298,8 +300,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -635,6 +637,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*
@@ -764,6 +767,7 @@ func startServices() {
 		nodeAddressInfoService,
 		observerInstance,
 		feedbackStrategy,
+		scrambleNodeStorage,
 	)
 	api.Start(
 		queryExecutor,
