@@ -94,6 +94,7 @@ func (acc *EstoniaEidAccountType) GetAccountPublicKeyString() (string, error) {
 	return acc.GetEncodedAddress()
 }
 
+// GetAccountPrivateKey: we don't store neither generate private key of this account type as the private key resides in the eID
 func (acc *EstoniaEidAccountType) GetAccountPrivateKey() ([]byte, error) {
 	return nil, nil
 }
