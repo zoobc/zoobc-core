@@ -98,6 +98,8 @@ func (acc *EstoniaEidAccountType) GetAccountPrivateKey() ([]byte, error) {
 	return nil, nil
 }
 
+// Sign: this account type and signature comes only from Estonia eID and we don't have private key of the accounts
+// so we don't sign sign for this type of account.
 func (acc *EstoniaEidAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
 	return []byte{}, nil
 }
@@ -114,8 +116,8 @@ func (acc *EstoniaEidAccountType) VerifySignature(payload, signature, accountAdd
 	return nil
 }
 
+// decodeSignatureNIST384RS: decode signature to R and S component
 // source: https://github.com/warner/python-ecdsa/blob/master/src/ecdsa/util.py (sigdecode_string)
-// return: r, s, error
 func (acc *EstoniaEidAccountType) decodeSignatureNIST384RS(signature []byte) (r, s *big.Int, err error) {
 	// curveOrder "39402006196394479212279040100143613805079739270465446667946905279627659399113263569398956308152294913554433653942643"
 	curveOrderLen := 48
@@ -129,6 +131,7 @@ func (acc *EstoniaEidAccountType) decodeSignatureNIST384RS(signature []byte) (r,
 	return r, s, nil
 }
 
+// loadPublicKeyFromDer loads public key from DER byte data
 func (acc *EstoniaEidAccountType) loadPublicKeyFromDer(publicKeyBytes []byte) (publicKey ecdsa.PublicKey) {
 	curve := elliptic.P384()
 	publicKey.Curve = curve
