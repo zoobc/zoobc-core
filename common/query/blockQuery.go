@@ -3,6 +3,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -19,6 +20,7 @@ type (
 		GetGenesisBlock() string
 		GetBlockByID(id int64) string
 		GetBlockByHeight(height uint32) string
+		GetBlockByReceiptMerkleRoot(merkleRoot []byte) (string, []interface{})
 		GetBlockFromHeight(startHeight, limit uint32) string
 		GetBlockFromTimestamp(startTimestamp int64, limit uint32) string
 		InsertBlock(block *model.Block) (str string, args []interface{})
@@ -146,6 +148,20 @@ func (bq *BlockQuery) GetBlockByID(id int64) string {
 // GetBlockByHeight returns query string to get block by height
 func (bq *BlockQuery) GetBlockByHeight(height uint32) string {
 	return fmt.Sprintf("SELECT %s FROM %s WHERE height = %d", strings.Join(bq.Fields, ", "), bq.getTableName(), height)
+}
+
+// GetBlockByHeight returns query string to get block by height
+func (bq *BlockQuery) GetBlockByReceiptMerkleRoot(merkleRoot []byte) (string, []interface{}) {
+	aliasedFields := make([]string, len(bq.Fields))
+	for i, field := range bq.Fields {
+		aliasedFields[i] = fmt.Sprintf("bl.%s", field)
+	}
+	return fmt.Sprintf("SELECT %s FROM %s bl INNER JOIN batch_receipt br ON "+
+			"br.datum_hash = bl.block_hash WHERE br.datum_type = %d AND br.rmr = ? LIMIT 1",
+			strings.Join(aliasedFields, ", "), bq.getTableName(), constant.ReceiptDatumTypeBlock),
+		[]interface{}{
+			merkleRoot,
+		}
 }
 
 // GetBlockFromHeight returns query string to get blocks from a certain height

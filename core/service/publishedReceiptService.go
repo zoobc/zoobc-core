@@ -72,8 +72,9 @@ func NewPublishedReceiptService(
 // queryExecutor.Begin() is called before calling this function.
 func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block *model.Block) (int, error) {
 	var (
-		linkedCount int
-		err         error
+		linkedCount           int
+		err                   error
+		provedReceiptReminder storage.ProvedReceiptReminderObject
 	)
 	if block.GetHeight() < constant.MaxReceiptBatchCacheRound {
 		return linkedCount, err
@@ -98,6 +99,12 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		fmt.Printf("non-critical-error: %v", err)
 	}
 	hostPublicKey := ps.NodeConfigurationService.GetNodePublicKey()
+	if _, ok := blocksmithPriority[fmt.Sprintf("%d", hostID)]; ok {
+		// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
+		provedReceiptReminder = storage.ProvedReceiptReminderObject{
+			MerkleRoot: make([]byte, 0),
+		}
+	}
 	for index, rc := range block.GetFreeReceipts() {
 		// validate sender and recipient of receipt
 		rcCopy := *rc
@@ -108,24 +115,15 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 
 		// check if block.Blocksmith has me as priority peer
 		if _, ok := blocksmithPriority[fmt.Sprintf("%d", hostID)]; ok {
-			var provedReceiptReminder storage.ProvedReceiptReminderObject
 			if rc.GetReceipt().GetRMRLinked() != nil &&
 				bytes.Equal(rc.GetReceipt().GetRecipientPublicKey(), hostPublicKey) {
+				rcCopy := *rc
 				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
 				provedReceiptReminder = storage.ProvedReceiptReminderObject{
-					MerkleRoot:           rc.GetReceipt().GetRMRLinked(),
-					ReferenceBlockHash:   rc.GetReceipt().GetReferenceBlockHash(),
-					ReferenceBlockHeight: rc.GetReceipt().GetReferenceBlockHeight(),
+					MerkleRoot:           rcCopy.GetReceipt().GetRMRLinked(),
+					ReferenceBlockHash:   rcCopy.GetReceipt().GetReferenceBlockHash(),
+					ReferenceBlockHeight: rcCopy.GetReceipt().GetReferenceBlockHeight(),
 				}
-			} else {
-				// insert empty bytes as merkle tree to indicate that node was in priority but not having its receipt published
-				provedReceiptReminder = storage.ProvedReceiptReminderObject{
-					MerkleRoot: make([]byte, 0),
-				}
-			}
-			err := ps.ProvedReceiptReminderStorage.Push(provedReceiptReminder)
-			if err != nil {
-				return linkedCount, err
 			}
 		}
 		// store in database
@@ -137,6 +135,10 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 			return 0, err
 		}
 	}
+	err = ps.ProvedReceiptReminderStorage.Push(provedReceiptReminder)
+	if err != nil {
+		return linkedCount, err
+	}
 	rng := crypto.NewRandomNumberGenerator()
 	rng.Reset(constant.BlocksmithSelectionProvedReceiptSeedPrefix, block.GetBlockSeed())
 	for index, rc := range block.GetProvedReceipts() {
@@ -146,15 +148,14 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 		rcCopy := *rc
 		if ps.ReceiptService.IsProvedReceiptEmpty(rc) {
 			// node doesn't publish receipt for this slot, skipping
-			fmt.Printf("empty proved at index: %d\n", index)
+			// todo: how to validate it on -download block- if we don't store empty PR in database?
 			continue
 		}
-		fmt.Printf("NON-empty proved at index: %d\n", index)
 
 		// validation...
 		// fetch block+txs at provedReceiptRO height
 		blockAtHeight, err := util3.GetBlockByHeightUseBlocksCache(
-			rc.GetBatchReferenceBlockHeight()-1,
+			rc.GetBatchReferenceBlockHeight(),
 			ps.QueryExecutor,
 			ps.BlockQuery,
 			ps.BlocksStorage,
@@ -180,7 +181,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(previousBlock, block
 			// node does not publish the expected receipt, stop receipt validation, block has invalid proved receipt
 			return 0, blocker.NewBlocker(blocker.ValidationErr, "ProcessPublishReceipt:InvalidReceiptHashPublished")
 		}
-		scrambleAtHeight, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(rc.GetBatchReferenceBlockHeight())
+		scrambleAtHeight, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(blockAtHeight.Height)
 		if err != nil {
 			return 0, blocker.NewBlocker(
 				blocker.AppErr,

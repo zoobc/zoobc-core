@@ -269,6 +269,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
+
 		blockAtHeight, err := util.GetBlockByHeightUseBlocksCache(
 			provedReceiptRO.ReferenceBlockHeight-1,
 			rs.QueryExecutor,
@@ -276,11 +277,13 @@ func (rs *ReceiptService) getProvedReceipts(
 			rs.MainBlocksStorage,
 		)
 		if err != nil {
+			fmt.Printf("erorr: getblockByMerkleRoot: %v\n\n\n\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockHeight(blockAtHeight.Height)
+		txsAtHeight, err := rs.TransactionCoreService.GetTransactionsByBlockHeight(provedReceiptRO.ReferenceBlockHeight)
 		if err != nil {
+			fmt.Printf("erorr: GetTransactionsByBlockHeight: %v\n\n\n\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
@@ -308,8 +311,9 @@ func (rs *ReceiptService) getProvedReceipts(
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
-		scrambleAtHeight, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(provedReceiptRO.ReferenceBlockHeight)
+		scrambleAtHeight, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(blockAtHeight.Height)
 		if err != nil {
+			fmt.Printf("erorr: GetScrambleNodesByHeight: %v\n\n\n\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
@@ -321,6 +325,10 @@ func (rs *ReceiptService) getProvedReceipts(
 		}
 		receiverIndex := rng.ConvertRandomNumberToIndex(leafIndexRandomNumber, int64(len(sortedPriorityAtHeight)))
 		if int(receiverIndex) >= len(merkleItems) {
+			fmt.Printf("erorr: ConvertRandomNumberToIndex: receiverIndex > merkleItems %v > %v\n\n\n\n",
+				receiverIndex, len(merkleItems),
+			)
+
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
@@ -328,6 +336,7 @@ func (rs *ReceiptService) getProvedReceipts(
 
 		tree, err := fetchMerkleTree(provedReceiptRO.MerkleRoot)
 		if err != nil {
+			fmt.Printf("err: fetchMerkleTree: %v\n", err)
 			result = append(result, emptyProvedReceipt)
 			continue
 		}
@@ -341,7 +350,7 @@ func (rs *ReceiptService) getProvedReceipts(
 			Receipt:                   leaf.GetReceipt(),
 			IntermediateHashes:        intermediateHashes,
 			BlockHeight:               previousBlock.GetHeight() + 1,
-			BatchReferenceBlockHeight: provedReceiptRO.ReferenceBlockHeight,
+			BatchReferenceBlockHeight: blockAtHeight.Height,
 			ReceiptIndex:              uint32(receiverIndex),
 			PublishedIndex:            uint32(len(result)),
 			PublishedReceiptType:      model.PublishedReceiptType_ProvedReceipt,
@@ -648,7 +657,6 @@ func (*ReceiptService) IsProvedReceiptEmpty(receipt *model.PublishedReceipt) boo
 }
 
 func (rs *ReceiptService) ClearCache() {
-	fmt.Printf("\n\n\nclear cache\n\n")
 	_ = rs.ReceiptPoolCacheStorage.ClearCache()
 	_ = rs.ReceiptBatchStorage.Clear()
 	_ = rs.ProvedReceiptReminderStorage.Clear()

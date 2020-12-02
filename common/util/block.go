@@ -113,6 +113,31 @@ func GetBlockByHeight(
 	return &block, nil
 }
 
+func GetBlockByMerkleRoot(
+	merkleRoot []byte,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) (*model.Block, error) {
+	var (
+		block model.Block
+		row   *sql.Row
+		err   error
+	)
+	qry, args := blockQuery.GetBlockByReceiptMerkleRoot(merkleRoot)
+	row, err = queryExecutor.ExecuteSelectRow(qry, false, args...)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = blockQuery.Scan(&block, row)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "BlockScanErr, "+err.Error())
+		}
+		return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
+	}
+	return &block, nil
+}
+
 func GetBlockByHeightUseBlocksCache(
 	height uint32,
 	queryExecutor query.ExecutorInterface,

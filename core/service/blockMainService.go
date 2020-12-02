@@ -1415,6 +1415,8 @@ func (bs *BlockService) ReceiveBlock(
 	nodeSecretPhrase string,
 	peer *model.Peer,
 ) (*model.Receipt, error) {
+	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlock)
+	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlock)
 	var err error
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
@@ -1434,14 +1436,13 @@ func (bs *BlockService) ReceiveBlock(
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
 		// generate receipt and return as response
-		lastBlockCacheFormat := &storage.BlockCacheObject{
-			ID:        lastBlock.ID,
-			Height:    lastBlock.Height,
-			BlockHash: lastBlock.BlockHash,
+		previousLastBlockCacheFormat, err := bs.GetBlockByHeightCacheFormat(lastBlock.GetHeight() - 1)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "DuplicateBlock_ServerFailToGetBlockAtHeight: %d", lastBlock.GetHeight()-1)
 		}
 		receipt, err := bs.ReceiptService.GenerateReceipt(
 			bs.Chaintype, block.GetBlockHash(),
-			lastBlockCacheFormat,
+			previousLastBlockCacheFormat,
 			senderPublicKey,
 			nodeSecretPhrase,
 			constant.ReceiptDatumTypeBlock,
@@ -1610,8 +1611,6 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 
 // ProcessCompletedBlock to process block that already having all needed transactions
 func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
-	bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
-	defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
@@ -1748,6 +1747,9 @@ func (bs *BlockService) ProcessQueueBlock(block *model.Block, peer *model.Peer) 
 func (bs *BlockService) ReceivedValidatedBlockTransactionsListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(transactionsInterface interface{}, args ...interface{}) {
+			bs.ChainWriteLock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
+			defer bs.ChainWriteUnlock(constant.BlockchainStatusReceivingBlockProcessCompletedBlock)
+
 			transactions, ok := transactionsInterface.([]*model.Transaction)
 			if !ok {
 				bs.Logger.Fatalln("transactions casting failures in ReceivedValidatedBlockTransactionsListener")
