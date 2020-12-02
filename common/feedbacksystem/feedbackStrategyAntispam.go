@@ -1,13 +1,13 @@
 package feedbacksystem
 
 import (
-	"github.com/shirou/gopsutil/cpu"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 	"time"
 
+	"github.com/shirou/gopsutil/cpu"
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -38,8 +38,8 @@ type (
 // NewAntiSpamStrategy initialize system internal variables
 func NewAntiSpamStrategy(
 	logger *log.Logger,
-	CPUPercentageLimit int,
-	P2PRequestLimit int,
+	cpuPercentageLimit int,
+	p2pRequestLimit int,
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
 		Logger:                      logger,
@@ -58,8 +58,8 @@ func NewAntiSpamStrategy(
 			"P2PIncomingRequests": 0,
 			"P2POutgoingRequests": 0,
 		},
-		CPUPercentageLimit: CPUPercentageLimit,
-		P2PRequestLimit:    P2PRequestLimit,
+		CPUPercentageLimit: cpuPercentageLimit,
+		P2PRequestLimit:    p2pRequestLimit,
 	}
 }
 
