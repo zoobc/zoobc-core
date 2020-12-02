@@ -412,6 +412,20 @@ func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*mod
 	return &block, nil
 }
 
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockSpineService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
+}
+
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
 // Note: this only returns main block data, it doesn't populate attached data (spinePublicKeys)
 func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error) {

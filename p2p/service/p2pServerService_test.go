@@ -7,12 +7,12 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/storage"
+	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
 	"github.com/zoobc/zoobc-core/p2p/strategy"
@@ -563,17 +563,21 @@ func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetLastBlockCacheForma
 		BlockHash: mockBlock.BlockHash,
 	}, nil
 }
-func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+
+func (mockF *mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	var wantedBlock model.Block
 	switch id {
 	case mockGetCommonMilestoneBlockIDsSameLastBlockID:
-		return &mockBlock, nil
+		wantedBlock = mockBlock
 	case mockGetCommonMilestoneBlockIDsLastMilestoneBlockID:
-		return &mockGetCommonMilestoneBlockIDsLastMilestoneBlock, nil
+		wantedBlock = mockGetCommonMilestoneBlockIDsLastMilestoneBlock
 	case mockGetCommonMilestoneBlockIDsLastMilestoneBlockIDSuccessByHeight:
-		return &mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight, nil
+		wantedBlock = mockGetCommonMilestoneBlockIDsLastMilestoneBlockSuccessByHeight
 	default:
 		return nil, errors.New("mock Error")
 	}
+	convertedBlock := util.BlockConvertToCacheFormat(&wantedBlock)
+	return &convertedBlock, nil
 }
 
 func (*mockGetCommonMilestoneBlockIDsBlockServiceSuccess) GetBlockByHeightCacheFormat(blockHeight uint32) (*storage.BlockCacheObject, error) {
@@ -818,13 +822,13 @@ var (
 	}
 )
 
-func (*mockGetNextBlockIDsBlockServiceGetBlockByIDFail) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
+func (*mockGetNextBlockIDsBlockServiceGetBlockByIDFail) GetBlockByIDCacheFromat(id int64) (*model.Block, error) {
 	return nil, errors.New("mock Error")
 }
 
-func (*mockGetNextBlockIDsBlockServiceGetBlocksFromHeightFail) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	return &mockGetNextBlockIDsSuccess, nil
-
+func (*mockGetNextBlockIDsBlockServiceGetBlocksFromHeightFail) GetBlockByIDCacheFromat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlock := util.BlockConvertToCacheFormat(&mockGetNextBlockIDsSuccess)
+	return &convertedBlock, nil
 }
 func (*mockGetNextBlockIDsBlockServiceGetBlocksFromHeightFail) GetBlocksFromHeight(
 	startHeight, limit uint32,
@@ -833,8 +837,9 @@ func (*mockGetNextBlockIDsBlockServiceGetBlocksFromHeightFail) GetBlocksFromHeig
 	return nil, errors.New("mock Error")
 }
 
-func (*mockGetNextBlockIDsBlockServiceSuccess) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	return &mockGetNextBlockIDsSuccess, nil
+func (*mockGetNextBlockIDsBlockServiceSuccess) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlock := util.BlockConvertToCacheFormat(&mockGetNextBlockIDsSuccess)
+	return &convertedBlock, nil
 }
 
 func (*mockGetNextBlockIDsBlockServiceSuccess) GetBlocksFromHeight(
