@@ -49,6 +49,21 @@ curl -X PUT \
 # Update Consul KV {{.nomadJobName}}/default/config/wellknownPeers
 curl -X PUT \
 -H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "true" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/default/config/antiSpamFilter"
+
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "150" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/default/config/antiSpamP2PRequestLimit"
+
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
+-d "50" \
+"${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/default/config/antiSpamCPULimitPercentage"
+
+curl -X PUT \
+-H "X-Consul-Token: ${CONSUL_HTTP_TOKEN}" \
 -d "{{.wellKnownPeers}}" \
 "${CONSUL_HTTP_ADDR}/v1/kv/global/{{.nomadJobName}}/default/config/wellknownPeers"
 

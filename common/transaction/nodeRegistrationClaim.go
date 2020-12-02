@@ -305,9 +305,6 @@ func (tx *ClaimNodeRegistration) EscrowValidate(dbTX bool) error {
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.Escrow.GetCommission() <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
-	}
 
 	err = tx.Validate(dbTX)
 	if err != nil {
