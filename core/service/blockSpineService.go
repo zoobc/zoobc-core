@@ -438,33 +438,17 @@ func (bs *BlockSpineService) ProcessSkippedBlocksmiths(previousBlock, block *mod
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err := bs.PopulateBlockData(&block)
+		err := bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 	}
-	return &block, nil
+	return block, nil
 }
 
 // GetBlockByID return a block by its ID using cache format
