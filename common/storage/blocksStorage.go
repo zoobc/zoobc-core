@@ -18,6 +18,7 @@ type (
 		itemLimit       int
 		lastBlockHeight uint32
 		blocks          []BlockCacheObject
+		blocksMapID     map[int64]*int
 	}
 	// BlockCacheObject represent selected field from model.Block want to cache
 	BlockCacheObject struct {
@@ -33,11 +34,25 @@ func NewBlocksStorage(metricLabel monitoring.CacheStorageType) *BlocksStorage {
 		metricLabel: metricLabel,
 		itemLimit:   int(constant.MaxBlocksCacheStorage),
 		blocks:      make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
+		blocksMapID: make(map[int64]*int, constant.MinRollbackBlocks),
 	}
 }
 
 func (b *BlocksStorage) Pop() error {
-	return nil
+	if len(b.blocks) > 0 {
+		b.Lock()
+		defer b.Unlock()
+
+		lastBlocksIndex := len(b.blocks) - 1
+		delete(b.blocksMapID, b.blocks[lastBlocksIndex].ID)
+		b.blocks = b.blocks[:lastBlocksIndex]
+		return nil
+	}
+	if monitoring.IsMonitoringActive() {
+		monitoring.SetCacheStorageMetrics(b.metricLabel, float64(b.size()))
+	}
+	// no more to pop
+	return blocker.NewBlocker(blocker.ValidationErr, "StackEmpty")
 }
 
 // Push add new item into list & remove the oldest one if needed
@@ -50,11 +65,16 @@ func (b *BlocksStorage) Push(item interface{}) error {
 	defer b.Unlock()
 	if len(b.blocks) >= b.itemLimit {
 		if len(b.blocks) != 0 {
-			b.blocks = b.blocks[1:] // remove first (oldest) cache to make room for new block
+			// remove first (oldest) cache to make room for new block
+			delete(b.blocksMapID, b.blocks[0].ID)
+			b.blocks = b.blocks[1:]
+
 		}
 	}
 	b.blocks = append(b.blocks, b.copy(blockCacheObjectCopy))
 	b.lastBlockHeight = blockCacheObjectCopy.Height
+	newIndexBlock := len(b.blocks) - 1
+	b.blocksMapID[blockCacheObjectCopy.ID] = &newIndexBlock
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(b.metricLabel, float64(b.size()))
 	}
@@ -76,6 +96,10 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 	)
 	b.Lock()
 	defer b.Unlock()
+	// delete on blocksMapID
+	for i := lastIndex; i > heightIndex; i-- {
+		delete(b.blocksMapID, b.blocks[i].ID)
+	}
 	b.blocks = b.blocks[:heightIndex+1]
 	b.lastBlockHeight = height
 	if monitoring.IsMonitoringActive() {
@@ -169,4 +193,61 @@ func (b *BlocksStorage) copy(blockCacheObject BlockCacheObject) (blockCacheObjec
 		BlockHash: blockHash,
 	}
 	return blockCacheObjectCopy
+}
+
+// CacheStorageInterface implementation
+
+// SetItem not implementaed, set intem already implement in push CacheStackStorageInterface
+func (b *BlocksStorage) SetItem(key, item interface{}) error {
+	return blocker.NewBlocker(blocker.AppErr, "NotImplemented")
+}
+
+// SetItem not implementaed, set intem already implement in push CacheStackStorageInterface
+func (b *BlocksStorage) SetItems(item interface{}) error {
+	return blocker.NewBlocker(blocker.AppErr, "NotImplemented")
+}
+
+// GetItem take variable and assign implementation stored item to it
+func (b *BlocksStorage) GetItem(key, item interface{}) error {
+	b.RLock()
+	defer b.RUnlock()
+	blockID, ok := key.(int64)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNotInt64")
+	}
+	blockCacheObjCopy, ok := item.(*BlockCacheObject)
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemIsNotBlockCacheObject")
+	}
+	index := b.blocksMapID[blockID]
+	if index == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemNotFound")
+	}
+	*blockCacheObjCopy = b.copy(b.blocks[*index])
+	return nil
+}
+
+// GetAllItems fetch all cached items
+func (b *BlocksStorage) GetAllItems(item interface{}) error {
+	return b.GetAll(item)
+}
+
+// GetTotalItems fetch the number of total cached items
+func (b *BlocksStorage) GetTotalItems() int {
+	return len(b.blocks)
+}
+
+// RemoveItem not implementaed, set intem already implement in Pop CacheStackStorageInterface
+func (b *BlocksStorage) RemoveItem(key interface{}) error {
+	return blocker.NewBlocker(blocker.AppErr, "NotImplemented")
+}
+
+// GetSize return the size of storage in number of `byte`
+func (b *BlocksStorage) GetSize() int64 {
+	return int64(b.size())
+}
+
+// ClearCache empty the storage item
+func (b *BlocksStorage) ClearCache() error {
+	return b.Clear()
 }

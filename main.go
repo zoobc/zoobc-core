@@ -182,6 +182,14 @@ func initiateMainInstance() {
 				log.Error(err)
 				os.Exit(1)
 			}
+		case 3:
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			estoniaEidAccountType.SetAccountPublicKey(accType.GetAccountPublicKey())
+			encodedAccountAddress, err = estoniaEidAccountType.GetEncodedAddress()
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
 		default:
 			log.Error("Invalid Owner Account Type")
 			os.Exit(1)
