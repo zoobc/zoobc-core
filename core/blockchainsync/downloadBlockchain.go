@@ -456,7 +456,7 @@ func (bd *BlockchainDownloader) getPeerCommonBlockID(peer *model.Peer) (int64, e
 				return blockID, nil
 			}
 			errCasted := err.(blocker.Blocker)
-			if errCasted.Type != blocker.BlockNotFoundErr || errCasted.Type != blocker.DBRowNotFound {
+			if errCasted.Type != blocker.BlockNotFoundErr {
 				return 0, err
 			}
 			lastMilestoneBlockID = blockID
