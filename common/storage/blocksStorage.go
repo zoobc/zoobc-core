@@ -225,6 +225,9 @@ func (b *BlocksStorage) GetItem(key, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemNotFound")
 	}
 	*blockCacheObjCopy = b.copy(b.blocks[*index])
+	if len(blockCacheObjCopy.BlockHash) == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemNotFound")
+	}
 	return nil
 }
 
