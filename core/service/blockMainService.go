@@ -1423,7 +1423,6 @@ func (bs *BlockService) ReceiveBlock(
 	}
 
 	// check if received the exact same block as current node's last block
-	// FIXME: Need to check if the sender was not generated receipt or not
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
 		if generateReceipt {
 			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
