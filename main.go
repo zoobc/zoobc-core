@@ -182,6 +182,14 @@ func initiateMainInstance() {
 				log.Error(err)
 				os.Exit(1)
 			}
+		case 3:
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			estoniaEidAccountType.SetAccountPublicKey(accType.GetAccountPublicKey())
+			encodedAccountAddress, err = estoniaEidAccountType.GetEncodedAddress()
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
 		default:
 			log.Error("Invalid Owner Account Type")
 			os.Exit(1)
@@ -433,7 +441,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewBlockQuery(mainchain),
 		mainBlocksStorage,
 		queryExecutor,
@@ -444,7 +452,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		query.NewBlockQuery(spinechain),
 		spineBlocksStorage,
 		queryExecutor,
@@ -529,7 +537,7 @@ func initiateMainInstance() {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -577,7 +585,7 @@ func initiateMainInstance() {
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
 		query.NewMultiSignatureParticipantQuery(),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
@@ -625,6 +633,7 @@ func initiateMainInstance() {
 		spinechain,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		crypto.NewSignature(),
 		observerInstance,
 		blocksmithStrategySpine,

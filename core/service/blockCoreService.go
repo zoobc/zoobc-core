@@ -28,6 +28,7 @@ type (
 		GetPayloadHashAndLength(block *model.Block) (payloadHash []byte, payloadLength uint32, err error)
 		PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error
 		GetBlockByID(id int64, withAttachedData bool) (*model.Block, error)
+		GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error)
 		GetBlockByHeight(uint32) (*model.Block, error)
 		GetBlockByHeightCacheFormat(uint32) (*storage.BlockCacheObject, error)
 		GetBlocksFromHeight(startHeight, limit uint32, withAttachedData bool) ([]*model.Block, error)
