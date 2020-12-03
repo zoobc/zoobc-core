@@ -590,6 +590,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		&chaintype.SpineChain{},
 		nil,
 		nil,
+		query.NewSkippedBlocksmithQuery(&chaintype.SpineChain{}),
 		nil,
 		nil,
 		nil,
