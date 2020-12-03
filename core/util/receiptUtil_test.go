@@ -7,6 +7,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 )
 
@@ -74,10 +75,14 @@ func TestGetNumberOfMaxReceipts(t *testing.T) {
 }
 
 func TestGenerateBatchReceipt(t *testing.T) {
-	mockReceipt1.DatumHash, _ = util.GetBlockHash(mockBlock, &chaintype.MainChain{})
+	mockGenerateBatchReceiptBlock := &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		BlockHash: mockReceipt1.ReferenceBlockHash,
+	}
 	type args struct {
 		ct                 chaintype.ChainType
-		referenceBlock     *model.Block
+		referenceBlock     *storage.BlockCacheObject
 		senderPublicKey    []byte
 		recipientPublicKey []byte
 		datumHash          []byte
@@ -93,7 +98,7 @@ func TestGenerateBatchReceipt(t *testing.T) {
 			name: "GenerateReceipt : success",
 			args: args{
 				ct:                 &chaintype.MainChain{},
-				referenceBlock:     mockBlock,
+				referenceBlock:     mockGenerateBatchReceiptBlock,
 				senderPublicKey:    mockReceipt1.SenderPublicKey,
 				recipientPublicKey: mockReceipt1.RecipientPublicKey,
 				datumHash:          mockReceipt1.DatumHash,

@@ -2,11 +2,15 @@ package service
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -34,6 +38,8 @@ type (
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
+		Logger             *log.Logger
 	}
 )
 
@@ -47,6 +53,8 @@ func NewTransactionService(
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
 	transactionUtil transaction.UtilInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	logger *log.Logger,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -56,6 +64,8 @@ func NewTransactionService(
 			MempoolService:     mempoolService,
 			Observer:           observer,
 			TransactionUtil:    transactionUtil,
+			FeedbackStrategy:   feedbackStrategy,
+			Logger:             logger,
 		}
 	}
 	return transactionServiceInstance
@@ -220,7 +230,55 @@ func (ts *TransactionService) PostTransaction(
 		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
+		tpsProcessed,
+		tpsReceived int
 	)
+
+	// Set txReceived (transactions to be processed received by clients since last node run)
+	ts.FeedbackStrategy.IncrementVarCount("txReceived")
+	monitoring.IncreaseTxReceived()
+
+	// TODO: this is an example to prove that, by limiting number of tx per second
+	//  when the node is too busy due to high number of goroutines,
+	//  the network can regulate itself without leading to blockchain splits or hard forks
+	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitHigh {
+			ts.Logger.Error("Tx dropped due to high cpu usage")
+			monitoring.IncreaseTxFiltered()
+			return nil, status.Error(codes.Unavailable, "Service is currently not available")
+		}
+	}
+	// STEF removing goroutine limit (only considering CPU usage)
+	// if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
+	// 	switch limitLevel {
+	// 	case constant.FeedbackLimitHigh:
+	// 		ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 		monitoring.IncreaseTxFiltered()
+	// 		return nil, status.Error(codes.Internal, "TooManyTps")
+	// 	case constant.FeedbackLimitMedium:
+	// 		if tpsReceived > 1 {
+	// 			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 			monitoring.IncreaseTxFiltered()
+	// 			return nil, status.Error(codes.Internal, "TooManyTps")
+	// 		}
+	// 	}
+	// }
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
+		switch limitLevel {
+		case constant.FeedbackLimitHigh:
+			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+			monitoring.IncreaseTxFiltered()
+			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+		case constant.FeedbackLimitMedium:
+			if tpsReceived > 2 {
+				ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+				monitoring.IncreaseTxFiltered()
+				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+			}
+		}
+	}
+
 	// get unsigned bytes
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
@@ -268,6 +326,15 @@ func (ts *TransactionService) PostTransaction(
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// Set tpsProcessed (transactions per seconds already processed received by clients).
+	// Note: these are the ones that produce network traffic because they must be broadcast to peers
+	tpsProcessed = ts.FeedbackStrategy.IncrementVarCount("tpsProcessedTmp").(int)
+	monitoring.SetTpsProcessed(tpsProcessed)
+
+	// Set txProcessed (transactions already processed received by clients since last node run).
+	ts.FeedbackStrategy.IncrementVarCount("txProcessed")
+	monitoring.IncreaseTxProcessed()
 
 	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction

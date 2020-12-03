@@ -165,6 +165,13 @@ func (n *NodeRegistryCacheStorage) GetAllItems(item interface{}) error {
 	return nil
 }
 
+func (n *NodeRegistryCacheStorage) GetTotalItems() int {
+	n.RLock()
+	var totalItems = len(n.transactionalNodeRegistries)
+	n.RUnlock()
+	return totalItems
+}
+
 func (n *NodeRegistryCacheStorage) RemoveItem(idx interface{}) error {
 	n.Lock()
 	defer n.Unlock()

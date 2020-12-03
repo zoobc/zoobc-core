@@ -130,9 +130,7 @@ func GetBlockByHeightUseBlocksCache(
 	if err != nil {
 		return nil, err
 	}
-	blockCacheObject.BlockHash = block.BlockHash
-	blockCacheObject.Height = block.Height
-	blockCacheObject.ID = block.ID
+	blockCacheObject = BlockConvertToCacheFormat(block)
 	return &blockCacheObject, nil
 }
 
@@ -151,4 +149,15 @@ func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
 	buffer.Write(ConvertUint32ToBytes(uint32(spinePublicKey.PublicKeyAction)))
 	buffer.Write(ConvertUint32ToBytes(spinePublicKey.Height))
 	return buffer.Bytes()
+}
+
+func BlockConvertToCacheFormat(block *model.Block) storage.BlockCacheObject {
+	var bHash = make([]byte, len(block.BlockHash))
+	copy(bHash, block.BlockHash)
+	return storage.BlockCacheObject{
+		ID:        block.ID,
+		Height:    block.Height,
+		Timestamp: block.Timestamp,
+		BlockHash: bHash,
+	}
 }

@@ -3,7 +3,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = -4620779650541659224
+	MainchainGenesisBlockID int64 = -2063153343787796346
 )
 
 type (
@@ -35,6 +35,17 @@ var (
 	MainchainGenesisBlockSeed     = make([]byte, 64)
 	MainchainGenesisNodePublicKey = make([]byte, 32)
 	GenesisConfig                 = []GenesisConfigEntry{
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5",
+			AccountBalance:     1000000000000000,
+			// ZNK_BH4CS7LI_GSCZDUTT_N7B5CJI4_UQZ76HHK_MPQODMWA_P3RMYIY5_AMCEACOH
+			NodePublicKey: []byte{9, 248, 41, 125, 104, 52, 133, 145, 210, 115, 111, 195, 209, 37, 28, 164, 51, 255, 28,
+				234, 99, 224, 225, 178, 192, 126, 226, 204, 35, 29, 3, 4},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "Wallet testing account",
+		},
 		{
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_ZAEKK3W3_2JB4I7OK_L7CIULF5_LWITNN4M_LHUHOE7T_H7LEJ76H_7C5MOE47",
