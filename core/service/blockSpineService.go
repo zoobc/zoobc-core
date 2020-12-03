@@ -36,21 +36,22 @@ type (
 
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype                 chaintype.ChainType
-		QueryExecutor             query.ExecutorInterface
-		BlockQuery                query.BlockQueryInterface
-		Signature                 crypto.SignatureInterface
-		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
-		Observer                  *observer.Observer
-		Logger                    *log.Logger
-		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlocksmithService         BlocksmithServiceInterface
-		SnapshotMainBlockService  SnapshotBlockServiceInterface
-		BlockStateStorage         storage.CacheStorageInterface
-		BlocksStorage             storage.CacheStackStorageInterface
-		BlockchainStatusService   BlockchainStatusServiceInterface
-		MainBlockService          BlockServiceInterface
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		SpineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		SpinePublicKeyService       BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService   SpineBlockManifestServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		SnapshotMainBlockService    SnapshotBlockServiceInterface
+		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		MainBlockService            BlockServiceInterface
 	}
 )
 
@@ -58,6 +59,7 @@ func NewBlockSpineService(
 	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	spineBlockQuery query.BlockQueryInterface,
+	spineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
@@ -72,14 +74,15 @@ func NewBlockSpineService(
 	blocksStorage storage.CacheStackStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:             ct,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            spineBlockQuery,
-		Signature:             signature,
-		BlocksmithStrategy:    blocksmithStrategy,
-		Observer:              obsr,
-		Logger:                logger,
-		SpinePublicKeyService: spinePublicKeyService,
+		Chaintype:                   ct,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  spineBlockQuery,
+		SpineSkippedBlocksmithQuery: spineSkippedBlocksmithQuery,
+		Signature:                   signature,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		SpinePublicKeyService:       spinePublicKeyService,
 		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
@@ -351,6 +354,16 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 			return err
 		}
 	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
 
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -377,6 +390,48 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 
 	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
+	return nil
+}
+
+func (bs *BlockSpineService) ProcessSkippedBlocksmiths(previousBlock, block *model.Block) error {
+	var (
+		skippedBlocksmiths []*model.SkippedBlocksmith
+		err                error
+	)
+	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
+	if err != nil {
+		return err
+	}
+	blocksBlocksmithsLength := len(blocksBlocksmiths)
+	if blocksBlocksmithsLength < 1 {
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf(
+			"updatePopScore- chaintype: %s -BlocksmithStrategy-NoBlocksmithFound",
+			bs.Chaintype.GetName(),
+		))
+	}
+	// insert skipped blocksmith to database
+	for i := 0; i < blocksBlocksmithsLength-1; i++ {
+		skippedBlocksmith := &model.SkippedBlocksmith{
+			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
+			POPChange:           constant.ParticipationScorePunishAmount,
+			BlockHeight:         block.Height,
+			BlocksmithIndex:     int32(i),
+		}
+		// punish score
+		skippedBlocksmiths = append(skippedBlocksmiths, skippedBlocksmith)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		skippedBlocksmithSnapshotImportQuery := bs.SpineSkippedBlocksmithQuery.(query.SnapshotQuery)
+		// use import snapshot to account for huge skipped blocksmith when blockchain resume from a long pause (several months)
+		q, err := skippedBlocksmithSnapshotImportQuery.ImportSnapshot(skippedBlocksmiths)
+		if err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.ExecuteTransactions(q)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
