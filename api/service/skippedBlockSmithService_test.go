@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	chaintype2 "github.com/zoobc/zoobc-core/common/chaintype"
 	"reflect"
 	"testing"
 
@@ -24,11 +25,11 @@ func TestNewSkippedBlockSmithService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				skippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
+				skippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(&chaintype2.MainChain{}),
 				queryExecutor:          &query.Executor{},
 			},
 			want: &SkippedBlockSmithService{
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(&chaintype2.MainChain{}),
 				QueryExecutor:          &query.Executor{},
 			},
 		},
@@ -62,7 +63,7 @@ func (*mockGetSkippedBlockSmithsSelectFail) ExecuteSelectRow(query string, tx bo
 func (*mockGetSkippedBlockSmithsSelectSuccess) ExecuteSelect(string, bool, ...interface{}) (*sql.Rows, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
-	mockRows := mock.NewRows(query.NewSkippedBlocksmithQuery().Fields)
+	mockRows := mock.NewRows(query.NewSkippedBlocksmithQuery(&chaintype2.MainChain{}).Fields)
 	mockRows.AddRow(
 		[]byte{1},
 		1,
@@ -97,7 +98,7 @@ func TestSkippedBlockSmithService_GetSkippedBlockSmiths(t *testing.T) {
 			name: "wantFail:",
 			fields: fields{
 				QueryExecutor:          &mockGetSkippedBlockSmithsSelectFail{},
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(&chaintype2.MainChain{}),
 			},
 			args: args{
 				req: &model.GetSkippedBlocksmithsRequest{
@@ -112,7 +113,7 @@ func TestSkippedBlockSmithService_GetSkippedBlockSmiths(t *testing.T) {
 			name: "WantSuccess",
 			fields: fields{
 				QueryExecutor:          &mockGetSkippedBlockSmithsSelectSuccess{},
-				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(),
+				SkippedBlocksmithQuery: query.NewSkippedBlocksmithQuery(&chaintype2.MainChain{}),
 			},
 			args: args{
 				req: &model.GetSkippedBlocksmithsRequest{

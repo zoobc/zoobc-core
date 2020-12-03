@@ -6,9 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,16 +15,18 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/zoobc/zoobc-core/common/monitoring"
-
 	"github.com/spf13/cobra"
 	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -591,6 +590,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		&chaintype.SpineChain{},
 		nil,
 		nil,
+		query.NewSkippedBlocksmithQuery(&chaintype.SpineChain{}),
 		nil,
 		nil,
 		nil,
@@ -602,6 +602,7 @@ func getGenesisBlockID(genesisEntries []genesisEntry) (mainBlockID, spineBlockID
 		nil,
 		nil,
 		bs,
+		nil,
 	)
 	spine, err := sb.GenerateGenesisBlock(genesisConfig)
 	if err != nil {

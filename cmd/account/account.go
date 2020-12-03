@@ -145,6 +145,12 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 			if err != nil {
 				panic(err)
 			}
+		case int32(model.AccountType_EstoniaEidAccountType):
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			accPubKey, err = estoniaEidAccountType.DecodePublicKeyFromAddress(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
 		}
 		accType, err := accounttype.NewAccountType(accountTypeInt, accPubKey)
 		if err != nil {

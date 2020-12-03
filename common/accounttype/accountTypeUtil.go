@@ -24,6 +24,8 @@ func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountTypeInterface, e
 		acc = &EmptyAccountType{}
 	case int32(model.AccountType_MultiSignatureAccountType):
 		acc = &MultiSignatureAccountType{}
+	case int32(model.AccountType_EstoniaEidAccountType):
+		acc = &EstoniaEidAccountType{}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}
