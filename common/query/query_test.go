@@ -28,7 +28,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewAccountBalanceQuery(),
 				NewAccountDatasetsQuery(),
 				NewMempoolQuery(mainchain),
-				NewSkippedBlocksmithQuery(),
+				NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 				NewParticipationScoreQuery(),
 				NewPublishedReceiptQuery(),
 				NewAccountLedgerQuery(),

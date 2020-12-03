@@ -113,6 +113,7 @@ func GetBlockByHeight(
 	return &block, nil
 }
 
+// GetBlockByHeight get block at the height provided & returned in cache format
 func GetBlockByHeightUseBlocksCache(
 	height uint32,
 	queryExecutor query.ExecutorInterface,
@@ -127,6 +128,53 @@ func GetBlockByHeightUseBlocksCache(
 		return &blockCacheObject, nil
 	}
 	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
+	if err != nil {
+		return nil, err
+	}
+	blockCacheObject = BlockConvertToCacheFormat(block)
+	return &blockCacheObject, nil
+}
+
+// GetBlockByID get block at the ID provided
+func GetBlockByID(
+	id int64,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) (*model.Block, error) {
+	if id == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "BlockIDZeroNotFound")
+	}
+	var (
+		block    model.Block
+		row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByID(id), false)
+	)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	if err = blockQuery.Scan(&block, row); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "BlockByIDScanErr, ", err.Error())
+		}
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "BlockNotFound")
+	}
+	return &block, nil
+}
+
+// GetBlockByID get block at the ID provided & returned in cache format
+func GetBlockByIDUseBlocksCache(
+	id int64,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	blocksCacheStorage storage.CacheStorageInterface,
+) (*storage.BlockCacheObject, error) {
+	var (
+		blockCacheObject storage.BlockCacheObject
+		err              = blocksCacheStorage.GetItem(id, &blockCacheObject)
+	)
+	if err == nil {
+		return &blockCacheObject, nil
+	}
+	block, err := GetBlockByID(id, queryExecutor, blockQuery)
 	if err != nil {
 		return nil, err
 	}

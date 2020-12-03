@@ -38,8 +38,8 @@ type (
 // NewAntiSpamStrategy initialize system internal variables
 func NewAntiSpamStrategy(
 	logger *log.Logger,
-	CPUPercentageLimit,
-	P2PRequestLimit int,
+	cpuPercentageLimit,
+	p2pRequestLimit int,
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
 		Logger:                      logger,
@@ -58,8 +58,8 @@ func NewAntiSpamStrategy(
 			"P2PIncomingRequests": 0,
 			"P2POutgoingRequests": 0,
 		},
-		CPUPercentageLimit: CPUPercentageLimit,
-		P2pRequestLimit:    P2PRequestLimit,
+		CPUPercentageLimit: cpuPercentageLimit,
+		P2pRequestLimit:    p2pRequestLimit,
 	}
 }
 
