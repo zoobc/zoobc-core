@@ -155,7 +155,7 @@ func GetBlockByID(
 		if err != sql.ErrNoRows {
 			return nil, blocker.NewBlocker(blocker.DBErr, "BlockByIDScanErr, ", err.Error())
 		}
-		return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "BlockNotFound")
 	}
 	return &block, nil
 }
