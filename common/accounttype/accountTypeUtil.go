@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -21,6 +22,8 @@ func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountTypeInterface, e
 		acc = &BTCAccountType{}
 	case int32(model.AccountType_EmptyAccountType):
 		acc = &EmptyAccountType{}
+	case int32(model.AccountType_EstoniaEidAccountType):
+		acc = &EstoniaEidAccountType{}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}
