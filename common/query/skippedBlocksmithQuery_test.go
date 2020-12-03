@@ -19,7 +19,7 @@ var (
 )
 
 func TestSkippedBlocksmithQuery_SelectDataForSnapshot(t *testing.T) {
-	qry := NewSkippedBlocksmithQuery()
+	qry := NewSkippedBlocksmithQuery(&chaintype.MainChain{})
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -65,7 +65,7 @@ func TestSkippedBlocksmithQuery_SelectDataForSnapshot(t *testing.T) {
 }
 
 func TestSkippedBlocksmithQuery_TrimDataBeforeSnapshot(t *testing.T) {
-	qry := NewSkippedBlocksmithQuery()
+	qry := NewSkippedBlocksmithQuery(&chaintype.MainChain{})
 	type fields struct {
 		Fields    []string
 		TableName string
@@ -127,14 +127,14 @@ func TestSkippedBlocksmithQuery_InsertSkippedBlocksmiths(t *testing.T) {
 	}{
 		{
 			name:   "WantSuccess",
-			fields: fields(*NewSkippedBlocksmithQuery()),
+			fields: fields(*NewSkippedBlocksmithQuery(&chaintype.MainChain{})),
 			args: args{
 				skippedBlocksmiths: []*model.SkippedBlocksmith{
 					mockSkippedBlocksmith,
 				},
 			},
 			wantStr:  "INSERT INTO skipped_blocksmith (blocksmith_public_key, pop_change, block_height, blocksmith_index) VALUES (?, ?, ?, ?)",
-			wantArgs: NewSkippedBlocksmithQuery().ExtractModel(mockSkippedBlocksmith),
+			wantArgs: NewSkippedBlocksmithQuery(&chaintype.MainChain{}).ExtractModel(mockSkippedBlocksmith),
 		},
 	}
 	for _, tt := range tests {

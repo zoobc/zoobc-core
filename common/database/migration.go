@@ -187,6 +187,14 @@ func (m *Migration) Init() error {
 			)
 			`,
 			`
+			CREATE TABLE IF NOT EXISTS "spine_skipped_blocksmith" (
+				"blocksmith_public_key" BLOB,
+				"pop_change" INTEGER,
+				"block_height" INTEGER,
+				"blocksmith_index" INTEGER
+			)
+			`,
+			`
 			ALTER TABLE "mempool"
 				ADD COLUMN "block_height" INTEGER AFTER "id"
 			`,
@@ -308,6 +316,9 @@ func (m *Migration) Init() error {
 			`,
 			`
 			CREATE INDEX "skipped_blocksmith_block_height_idx" ON "skipped_blocksmith" ("block_height")
+			`,
+			`
+			CREATE INDEX "spine_skipped_blocksmith_block_height_idx" ON "spine_skipped_blocksmith" ("block_height")
 			`,
 			`
 			CREATE INDEX "published_receipt_block_height_idx" ON "published_receipt" ("block_height")

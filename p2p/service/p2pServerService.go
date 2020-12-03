@@ -291,7 +291,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
 
-		if _, err := blockService.GetBlockByID(lastBlockID, false); err == nil {
+		if _, err := blockService.GetBlockByIDCacheFormat(lastBlockID); err == nil {
 			preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 				BlockIds: []int64{lastBlockID},
 			}
@@ -304,12 +304,12 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		// if not, send (assumed) milestoneBlock of the host
 		limit := constant.CommonMilestoneBlockIdsLimit
 		if lastMilestoneBlockID != 0 {
-			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID, false)
+			lastMilestoneBlock, err := blockService.GetBlockByIDCacheFormat(lastMilestoneBlockID)
 			// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			height = lastMilestoneBlock.GetHeight()
+			height = lastMilestoneBlock.Height
 			jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
 		} else if lastBlockID != 0 {
 			// TODO: analyze difference of height jump
@@ -361,7 +361,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 			limit = reqLimit
 		}
 
-		foundBlock, err := blockService.GetBlockByID(reqBlockID, false)
+		foundBlock, err := blockService.GetBlockByIDCacheFormat(reqBlockID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
