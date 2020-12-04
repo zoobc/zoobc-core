@@ -423,6 +423,14 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptRecipientPublicKeySize",
 		)
 	}
+	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptSignatureSize",
+		)
+	}
+
 	unsignedBytes := rs.ReceiptUtil.GetUnsignedReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,
