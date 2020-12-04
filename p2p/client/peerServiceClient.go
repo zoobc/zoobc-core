@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"golang.org/x/crypto/ed25519"
 	"math"
 	"sync"
 	"time"
@@ -565,12 +564,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 
 	// continue even though some receipts are failing
 	for _, receipt := range response.GetReceipts() {
-		if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
-			psc.Logger.Warnf("[SendBlockTransactions:MaliciousReceipt] - %d is %s",
-				len(receipt.GetRecipientPublicKey()),
-				"InvalidReceiptRecipientPublicKeySize",
-				)
-		}
+
 		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, receipt.GetDatumHash())
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
