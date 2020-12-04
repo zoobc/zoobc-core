@@ -491,7 +491,9 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) (err e
 		&pendingTransaction,
 	)
 	if err != nil {
-		return err
+		if errType, ok := err.(blocker.Blocker); !ok || errType.Type != blocker.MultiSignatureNotComplete {
+			return err
+		}
 	}
 	// every element in txs will have all three optional field filled, to avoid infinite recursive calls.
 	for _, pendingSignature := range pendingSignatures {

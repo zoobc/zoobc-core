@@ -645,7 +645,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 
 	// Make sure parts is not nil
 	if multiSignatureInfo == nil || pendingTransaction == nil {
-		return fmt.Errorf("NotComplete")
+		return blocker.NewBlocker(blocker.MultiSignatureNotComplete, "NotComplete")
 	}
 
 	// Check signatures already complete
@@ -670,7 +670,7 @@ func (mtu *MultisigTransactionUtil) CheckMultisigComplete(
 			}
 		}
 		if count < mi.GetMinimumSignatures() {
-			return fmt.Errorf("NotComplete")
+			return blocker.NewBlocker(blocker.MultiSignatureNotComplete, "NotComplete")
 		}
 	}
 
