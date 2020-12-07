@@ -29,6 +29,7 @@ type (
 func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 	derivedQuery = []DerivedQuery{
 		NewBlockQuery(ct),
+		NewSkippedBlocksmithQuery(ct),
 	}
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -38,7 +39,6 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewAccountBalanceQuery(),
 			NewAccountDatasetsQuery(),
 			NewMempoolQuery(ct),
-			NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 			NewParticipationScoreQuery(),
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
