@@ -659,7 +659,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				return err
 			}
 		}
-		if body.GetMultiSignatureInfo() != nil {
+		if body.GetMultiSignatureInfo() == nil {
 			err = tx.MultisignatureInfoHelper.GetMultisigInfoByAddress(body.MultiSignatureInfo, pendingTX.GetSenderAddress(), tx.Height)
 			if err != nil && err != sql.ErrNoRows {
 				return err
@@ -678,7 +678,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 			)
 		}
 
-		if !bytes.Equal(txHash[:], body.GetSignatureInfo().GetTransactionHash()) {
+		if len(body.GetUnsignedTransactionBytes()) != 0 && (!bytes.Equal(txHash[:], body.GetSignatureInfo().GetTransactionHash())) {
 			return blocker.NewBlocker(blocker.ValidationErr, "TransactionHashNotMatch")
 		}
 

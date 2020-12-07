@@ -1479,6 +1479,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				MultisigUtil:             &mockMultiSigTransactionUtil{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,
@@ -1497,6 +1498,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperErrorPendingTransaction{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,
@@ -1515,6 +1517,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperNoPendingTransaction{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,

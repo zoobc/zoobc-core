@@ -691,6 +691,11 @@ func (mtu *MultisigTransactionUtil) ParseSignatureInfoBytesAsCandidates(
 
 	asMultiSigInfo = util.ConvertBytesToUint32(key[prev:][:constant.AccountAddressTypeLength])
 	if model.AccountType(asMultiSigInfo) == model.AccountType_MultiSignatureAccountType {
+
+		if len(*multiSignaturesInfo) == int(constant.MaxAllowedMultiSignatureTransactions) {
+			return fmt.Errorf("MaxAllowedNestedMultiSignatureOffChainExceeded")
+		}
+
 		prev += constant.AccountAddressTypeLength
 		var (
 			multiSignatureInfo model.MultiSignatureInfo
