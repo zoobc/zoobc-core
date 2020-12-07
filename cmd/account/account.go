@@ -334,17 +334,17 @@ DELETE FROM account_address;
 
 // GenerateMultiSignatureAccount to generate address for multi signature transaction
 func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
-	var (
-		multisigFullAccountAddresses [][]byte
-	)
-	for _, accAddrHex := range multisigAddressesHex {
-		decodedAddr, err := hex.DecodeString(accAddrHex)
-		if err != nil {
-			panic(err)
-		}
-		multisigFullAccountAddresses = append(multisigFullAccountAddresses, decodedAddr)
-	}
 	return func(cmd *cobra.Command, args []string) {
+		var (
+			multisigFullAccountAddresses [][]byte
+		)
+		for _, accAddrHex := range multisigAddressesHex {
+			decodedAddr, err := hex.DecodeString(accAddrHex)
+			if err != nil {
+				panic(err)
+			}
+			multisigFullAccountAddresses = append(multisigFullAccountAddresses, decodedAddr)
+		}
 		info := &model.MultiSignatureInfo{
 			MinimumSignatures: multisigMinimSigs,
 			Nonce:             multiSigNonce,
