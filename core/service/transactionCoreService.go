@@ -16,7 +16,7 @@ type (
 	TransactionCoreServiceInterface interface {
 		GetTransactionsByIds(transactionIds []int64) ([]*model.Transaction, error)
 		GetTransactionsByBlockID(blockID int64) ([]*model.Transaction, error)
-		ValidateTransaction(txAction transaction.TypeAction, useTX bool) error
+		ValidateTransaction(txAction transaction.TypeAction, useTX, checkOnSpendableBalance bool) error
 		ApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
@@ -307,13 +307,13 @@ func (tg *TransactionCoreService) CompletePassedLiquidPayment(block *model.Block
 	return nil
 }
 
-func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {
+func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX, checkOnSpendableBalance bool) error {
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:
-		return escrowAction.EscrowValidate(useTX)
+		return escrowAction.EscrowValidate(useTX, checkOnSpendableBalance)
 	default:
-		return txAction.Validate(useTX)
+		return txAction.Validate(useTX, checkOnSpendableBalance)
 	}
 }
 

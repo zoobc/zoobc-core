@@ -279,7 +279,7 @@ func (mps *MempoolService) ValidateMempoolTransaction(mpTx *model.Transaction) e
 		return blocker.NewBlocker(blocker.ValidationErr, errVal.Error())
 	}
 
-	err = mps.TransactionCoreService.ValidateTransaction(txType, false)
+	err = mps.TransactionCoreService.ValidateTransaction(txType, false, true)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 	}

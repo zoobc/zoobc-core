@@ -41,7 +41,7 @@ type (
 )
 
 // Validate for validating the transaction concerned
-func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
+func (tx *FeeVoteRevealTransaction) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		feeVotePhase model.FeeVotePhase
 		recentBlock  model.Block
@@ -143,8 +143,12 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 		return err
 	}
 	// check existing & balance account sender
-
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee)
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -394,7 +398,7 @@ func (tx *FeeVoteRevealTransaction) EscrowUndoApplyUnconfirmed() error {
 	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 }
 
-func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
+func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx, checkOnSpendableBalance bool) (err error) {
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
@@ -402,13 +406,18 @@ func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
 
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
 
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
 	var enough bool
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

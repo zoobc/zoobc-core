@@ -150,6 +150,10 @@ func (*mockAccountBalanceValidateSendMoneySuccess) Scan(accountBalance *model.Ac
 }
 
 func TestSendMoney_Validate(t *testing.T) {
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	type fields struct {
 		Body                 *model.SendMoneyTransactionBody
 		SenderAddress        []byte
@@ -163,6 +167,7 @@ func TestSendMoney_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -173,6 +178,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -184,6 +190,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				RecipientAddress:     nil,
 				RecipientAccountType: 0,
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -199,6 +206,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				RecipientAccountType: 0,
 				RecipientAddress:     recipientAddress1,
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -214,6 +222,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				RecipientAccountType: 0,
 				RecipientAddress:     recipientAddress1,
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -230,6 +239,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				QueryExecutor:        &mockQueryExecutorValidateSendMoneyHasEscrow{},
 				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 	}
@@ -243,7 +253,7 @@ func TestSendMoney_Validate(t *testing.T) {
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("SendMoney.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err := mock.ExpectationsWereMet(); err != nil {
@@ -873,7 +883,8 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 	}
 
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -889,6 +900,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				},
 				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -901,6 +913,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 					Commission: 1,
 				},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -914,6 +927,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 					ApproverAddress: senderAddress2,
 				},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -930,6 +944,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				QueryExecutor: &mockExecutorEscrowValidateInvalidBlockHeight{},
 				BlockQuery:    &mockBlockQueryInvalidBlockHeight{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -947,6 +962,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				QueryExecutor: &mockExecutorEscrowValidateValid{},
 				BlockQuery:    &mockBlockQueryValidBlockHeight{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -969,6 +985,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 			},
+			args: args{dbTx: false, checkOnSpendableBalance: true},
 		},
 	}
 	for _, tt := range tests {
@@ -986,7 +1003,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 				BlockQuery:           tt.fields.BlockQuery,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.EscrowValidate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.EscrowValidate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("EscrowValidate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -574,7 +574,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		QueryExecutor              query.ExecutorInterface
 	}
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -601,7 +602,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				QueryExecutor: &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -614,7 +616,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeScaleService: &mockFeeScaleServiceValidateFail{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -627,7 +630,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeScaleService: &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -641,7 +645,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -655,7 +660,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateDuplicated{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -670,7 +676,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFail{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -685,7 +692,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -700,7 +708,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				NodeRegistrationQuery:      &mockNodeRegistrationQueryFeeVoteCommitValidateFailErrNoRow{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -716,7 +725,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:       &mockAccountBalanceHelperFeeVoteCommitValidateFail{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -733,7 +743,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -750,7 +761,8 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
 			},
 			args: args{
-				dbTx: false,
+				dbTx:                    false,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: false,
 		},
@@ -770,7 +782,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:       tt.fields.AccountBalanceHelper,
 				QueryExecutor:              tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("FeeVoteCommitTransaction.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

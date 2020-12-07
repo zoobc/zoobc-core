@@ -383,6 +383,10 @@ func (*executorRemoveAccountDatasetValidateFail) ExecuteSelectRow(qStr string, _
 
 func TestRemoveAccountDataset_Validate(t *testing.T) {
 	mockRemoveAccountDatasetTransactionBody, _ := GetFixturesForRemoveAccountDataset()
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 
 	type fields struct {
 		Body                 *model.RemoveAccountDatasetTransactionBody
@@ -397,6 +401,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -410,6 +415,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        &executorRemoveAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -423,6 +429,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        &executorRemoveAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -435,6 +442,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorRemoveAccountDatasetValidateFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 	}
@@ -450,7 +458,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveAccountDataset.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

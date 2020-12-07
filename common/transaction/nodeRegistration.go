@@ -203,7 +203,7 @@ func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *NodeRegistration) Validate(dbTx bool) error {
+func (tx *NodeRegistration) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		nodeRegByNodePub, nodeRegByAccAddress model.NodeRegistration
 		row                                   *sql.Row
@@ -228,7 +228,13 @@ func (tx *NodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check balance
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee)
+	}
+
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -401,7 +407,7 @@ func (tx *NodeRegistration) Escrowable() (EscrowTypeAction, bool) {
 }
 
 // EscrowValidate special validation for escrow's transaction
-func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
+func (tx *NodeRegistration) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		err    error
 		enough bool
@@ -413,13 +419,18 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
 	}
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
 
 	// check balance
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Body.GetLockedBalance()+tx.Fee+tx.Escrow.GetCommission())
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

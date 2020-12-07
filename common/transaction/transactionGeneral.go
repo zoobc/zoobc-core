@@ -55,7 +55,8 @@ type (
 			multisigInfo *model.MultiSignatureInfo,
 			senderAddress, unsignedTxBytes []byte,
 			blockHeight uint32,
-			dbTx bool,
+			dbTx,
+			checkOnSpendableBalance bool,
 		) error
 		ValidateMultisignatureInfo(info *model.MultiSignatureInfo) error
 		ValidateSignatureInfo(
@@ -494,7 +495,8 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 	multisigInfo *model.MultiSignatureInfo,
 	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
-	dbTx bool,
+	dbTx,
+	checkOnSpendableBalance bool,
 ) error {
 	var (
 		pendingTx     model.PendingTransaction
@@ -540,7 +542,7 @@ func (mtu *MultisigTransactionUtil) ValidatePendingTransactionBytes(
 		)
 	}
 
-	err = innerTa.Validate(dbTx)
+	err = innerTa.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,

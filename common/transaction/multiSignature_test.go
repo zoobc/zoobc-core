@@ -3,11 +3,11 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -1254,7 +1254,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxFail) ValidatePend
 	multisigInfo *model.MultiSignatureInfo,
 	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
-	dbTx bool,
+	dbTx, checkOnSpendableBalance bool,
 ) error {
 	return errors.New("mockedError")
 }
@@ -1267,7 +1267,7 @@ func (*mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSig
 	multisigInfo *model.MultiSignatureInfo,
 	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
-	dbTx bool,
+	dbTx, checkOnSpendableBalance bool,
 ) error {
 	*multisigInfo = model.MultiSignatureInfo{
 		Addresses: make([][]byte, 2),
@@ -1289,7 +1289,7 @@ func (*mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessPendingT
 	multisigInfo *model.MultiSignatureInfo,
 	senderAddress, unsignedTxBytes []byte,
 	blockHeight uint32,
-	dbTx bool,
+	dbTx, checkOnSpendableBalance bool,
 ) error {
 	return errors.New("mockedError")
 }
@@ -1310,6 +1310,11 @@ func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccoun
 ) error {
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
 	return nil
+}
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) HasEnoughSpendableBalance(
+	dbTX bool, address []byte, compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
 }
 
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
@@ -1332,7 +1337,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		TransactionHelper        TransactionHelperInterface
 	}
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -1350,7 +1356,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1367,7 +1374,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1384,7 +1392,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1402,7 +1411,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1419,7 +1429,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1437,7 +1448,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1455,7 +1467,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1473,7 +1486,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1492,7 +1506,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1511,7 +1526,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: true,
 		},
@@ -1531,7 +1547,8 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
 			},
 			args: args{
-				dbTx: true,
+				dbTx:                    true,
+				checkOnSpendableBalance: true,
 			},
 			wantErr: false,
 		},
@@ -1556,7 +1573,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
 				TransactionHelper:        tt.fields.TransactionHelper,
 			}
-			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

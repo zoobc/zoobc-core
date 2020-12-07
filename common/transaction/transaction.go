@@ -22,7 +22,7 @@ type (
 		ApplyUnconfirmed() error
 		UndoApplyUnconfirmed() error
 		// Validate dbTx specify whether validation should read from transaction state or db state
-		Validate(dbTx bool) error
+		Validate(dbTx, checkOnSpendableBalance bool) error
 		GetMinimumFee() (int64, error)
 		GetAmount() int64
 		GetSize() (uint32, error)

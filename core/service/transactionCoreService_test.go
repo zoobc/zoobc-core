@@ -716,7 +716,7 @@ type mockValidateTransactionEscrowValidate struct {
 	transaction.EscrowTypeAction
 }
 
-func (*mockValidateTransactionEscrowValidate) EscrowValidate(dbTx bool) error {
+func (*mockValidateTransactionEscrowValidate) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 	return nil
 }
 
@@ -736,7 +736,7 @@ func (*mockValidateTransactionEscrowableFalse) Escrowable() (transaction.EscrowT
 	return nil, false
 }
 
-func (*mockValidateTransactionEscrowableFalse) Validate(dbTx bool) error {
+func (*mockValidateTransactionEscrowableFalse) Validate(dbTx, checkOnSpendableBalance bool) error {
 	return nil
 }
 
@@ -747,8 +747,9 @@ func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
-		txAction transaction.TypeAction
-		useTX    bool
+		txAction                transaction.TypeAction
+		useTX                   bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -760,14 +761,16 @@ func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
 		{
 			name: "ValidateTransaction:EscrowableTrue",
 			args: args{
-				txAction: &mockValidateTransactionEscrowableTrue{},
+				txAction:                &mockValidateTransactionEscrowableTrue{},
+				checkOnSpendableBalance: true,
 			},
 			wantErr: false,
 		},
 		{
 			name: "ValidateTransaction:EscrowableFalse",
 			args: args{
-				txAction: &mockValidateTransactionEscrowableFalse{},
+				txAction:                &mockValidateTransactionEscrowableFalse{},
+				checkOnSpendableBalance: true,
 			},
 			wantErr: false,
 		},
@@ -779,7 +782,7 @@ func TestTransactionCoreService_ValidateTransaction(t *testing.T) {
 				EscrowTransactionQuery: tt.fields.EscrowTransactionQuery,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tg.ValidateTransaction(tt.args.txAction, tt.args.useTX); (err != nil) != tt.wantErr {
+			if err := tg.ValidateTransaction(tt.args.txAction, tt.args.useTX, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("TransactionCoreService.ValidateTransaction() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

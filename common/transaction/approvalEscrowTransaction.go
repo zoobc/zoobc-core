@@ -36,7 +36,7 @@ type (
 		EscrowApplyConfirmed(blockTimestamp int64) error
 		EscrowApplyUnconfirmed() error
 		EscrowUndoApplyUnconfirmed() error
-		EscrowValidate(dbTx bool) error
+		EscrowValidate(dbTx, checkOnSpendableBalance bool) error
 		// EscrowApproval handle approval an escrow transaction, execute tasks that was skipped on EscrowApplyConfirmed.
 		EscrowApproval(
 			blockTimestamp int64,
@@ -125,7 +125,7 @@ func (tx *ApprovalEscrowTransaction) ParseBodyBytes(
 Validate is func that for validating to Transaction type.
 Check transaction fields, spendable balance and more
 */
-func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
+func (tx *ApprovalEscrowTransaction) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		err    error
 		enough bool
@@ -135,8 +135,12 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		return err
 	}
 	// check existing account & balance
-
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee)
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -295,7 +299,7 @@ func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 }
 
 // EscrowValidate special validation for escrow's transaction
-func (tx *ApprovalEscrowTransaction) EscrowValidate(dbTx bool) error {
+func (tx *ApprovalEscrowTransaction) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 
 	return nil
 }

@@ -31,7 +31,7 @@ func (tx *TXEmpty) ApplyUnconfirmed() error {
 func (tx *TXEmpty) UndoApplyUnconfirmed() error {
 	return nil
 }
-func (tx *TXEmpty) Validate(bool) error {
+func (tx *TXEmpty) Validate(bool, bool) error {
 	return nil
 }
 

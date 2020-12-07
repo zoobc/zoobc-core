@@ -511,12 +511,11 @@ func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 }
 
 // Validate dbTx specify whether validation should read from transaction state or db state
-func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
+func (tx *MultiSignatureTransaction) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		body                  = tx.Body
 		multisigInfoAddresses = make(map[string]bool)
 		err                   error
-		accountBalance        model.AccountBalance
 	)
 	if body.MultiSignatureInfo == nil && body.SignatureInfo == nil && body.UnsignedTransactionBytes == nil {
 		return blocker.NewBlocker(
@@ -526,12 +525,17 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	err = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, tx.SenderAddress, dbTx)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	var enough bool
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee)
+	}
 	if err != nil {
 		return err
 	}
-
-	if accountBalance.SpendableBalance < tx.Fee {
+	if !enough {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"UserBalanceNotEnough",
@@ -557,6 +561,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				body.UnsignedTransactionBytes,
 				tx.Height,
 				dbTx,
+				checkOnSpendableBalance,
 			)
 			if err != nil {
 				return err
@@ -585,6 +590,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				body.UnsignedTransactionBytes,
 				tx.Height,
 				dbTx,
+				checkOnSpendableBalance,
 			)
 			if err != nil {
 				return err
@@ -838,7 +844,7 @@ func (tx *MultiSignatureTransaction) EscrowUndoApplyUnconfirmed() error {
 	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 }
 
-func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
+func (tx *MultiSignatureTransaction) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 
 	var (
 		err    error
@@ -853,12 +859,16 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
 	}
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
-
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

@@ -286,7 +286,7 @@ var (
 func (*mockTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
-func (*mockTypeAction) Validate(bool) error {
+func (*mockTypeAction) Validate(bool, bool) error {
 	return nil
 }
 func (*mockTypeAction) GetAmount() int64 {

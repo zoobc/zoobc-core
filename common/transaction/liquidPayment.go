@@ -90,7 +90,7 @@ func (tx *LiquidPaymentTransaction) UndoApplyUnconfirmed() (err error) {
 	return nil
 }
 
-func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
+func (tx *LiquidPaymentTransaction) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		err    error
 		enough bool
@@ -107,7 +107,12 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Body.GetAmount()+tx.Fee)
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -296,7 +301,7 @@ func (tx *LiquidPaymentTransaction) EscrowUndoApplyUnconfirmed() (err error) {
 	return nil
 }
 
-func (tx *LiquidPaymentTransaction) EscrowValidate(dbTx bool) (err error) {
+func (tx *LiquidPaymentTransaction) EscrowValidate(dbTx, checkOnSpendableBalance bool) (err error) {
 	var enough bool
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
@@ -304,15 +309,25 @@ func (tx *LiquidPaymentTransaction) EscrowValidate(dbTx bool) (err error) {
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(
-		dbTx,
-		tx.SenderAddress,
-		tx.Body.GetAmount()+tx.Fee+tx.Escrow.GetCommission(),
-	)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(
+			dbTx,
+			tx.SenderAddress,
+			tx.Body.GetAmount()+tx.Fee+tx.Escrow.GetCommission(),
+		)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(
+			dbTx,
+			tx.SenderAddress,
+			tx.Body.GetAmount()+tx.Fee+tx.Escrow.GetCommission(),
+		)
+	}
+
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
