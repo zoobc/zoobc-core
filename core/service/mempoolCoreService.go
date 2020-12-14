@@ -484,7 +484,9 @@ func (mps *MempoolService) ReceivedBlockTransactions(
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
-		batchReceiptArray = append(batchReceiptArray, batchReceipt)
+		if isGenerateReceipt {
+			batchReceiptArray = append(batchReceiptArray, batchReceipt)
+		}
 		if receivedTx == nil {
 			continue
 		}

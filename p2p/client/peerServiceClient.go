@@ -564,6 +564,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 
 	// continue even though some receipts are failing
 	for _, receipt := range response.GetReceipts() {
+
 		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, receipt.GetDatumHash())
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
