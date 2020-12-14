@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"os"
 	"path/filepath"
 
@@ -41,7 +42,9 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	viper.SetDefault("logOnCli", false)
 	viper.SetDefault("cliMonitoring", true)
 	viper.SetDefault("maxAPIRequestPerSecond", 10)
-	viper.SetDefault("antiSpamFilter", true)
+	viper.SetDefault("antiSpamFilter", false)
+	viper.SetDefault("antiSpamP2PRequestLimit", constant.P2PRequestHardLimit)
+	viper.SetDefault("antiSpamCPULimitPercentage", constant.FeedbackLimitCPUPercentage)
 
 	viper.SetEnvPrefix("zoobc") // will be uppercased automatically
 	viper.AutomaticEnv()        // value will be read each time it is accessed
