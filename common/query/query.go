@@ -29,6 +29,7 @@ type (
 func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 	derivedQuery = []DerivedQuery{
 		NewBlockQuery(ct),
+		NewSkippedBlocksmithQuery(ct),
 	}
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -38,7 +39,6 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewAccountBalanceQuery(),
 			NewAccountDatasetsQuery(),
 			NewMempoolQuery(ct),
-			NewSkippedBlocksmithQuery(),
 			NewParticipationScoreQuery(),
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
@@ -80,7 +80,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"pendingTransaction":       NewPendingTransactionQuery(),
 			"pendingSignature":         NewPendingSignatureQuery(),
 			"multisignatureInfo":       NewMultisignatureInfoQuery(),
-			"skippedBlocksmith":        NewSkippedBlocksmithQuery(),
+			"skippedBlocksmith":        NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 			"feeScale":                 NewFeeScaleQuery(),
 			"feeVoteCommit":            NewFeeVoteCommitmentVoteQuery(),
 			"feeVoteReveal":            NewFeeVoteRevealVoteQuery(),

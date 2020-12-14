@@ -30,7 +30,11 @@ type (
 )
 
 // NewSkippedBlocksmithQuery will create a new SkippedBlocksmithQuery instance
-func NewSkippedBlocksmithQuery() *SkippedBlocksmithQuery {
+func NewSkippedBlocksmithQuery(ct chaintype.ChainType) *SkippedBlocksmithQuery {
+	var tableName = "skipped_blocksmith"
+	if chaintype.IsSpineChain(ct) {
+		tableName = "spine_skipped_blocksmith"
+	}
 	return &SkippedBlocksmithQuery{
 		Fields: []string{
 			"blocksmith_public_key",
@@ -38,7 +42,7 @@ func NewSkippedBlocksmithQuery() *SkippedBlocksmithQuery {
 			"block_height",
 			"blocksmith_index",
 		},
-		TableName: "skipped_blocksmith",
+		TableName: tableName,
 	}
 }
 
