@@ -36,20 +36,22 @@ type (
 
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype                 chaintype.ChainType
-		QueryExecutor             query.ExecutorInterface
-		BlockQuery                query.BlockQueryInterface
-		Signature                 crypto.SignatureInterface
-		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
-		Observer                  *observer.Observer
-		Logger                    *log.Logger
-		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlocksmithService         BlocksmithServiceInterface
-		SnapshotMainBlockService  SnapshotBlockServiceInterface
-		BlockStateStorage         storage.CacheStorageInterface
-		BlockchainStatusService   BlockchainStatusServiceInterface
-		MainBlockService          BlockServiceInterface
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		SpineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		SpinePublicKeyService       BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService   SpineBlockManifestServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		SnapshotMainBlockService    SnapshotBlockServiceInterface
+		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		MainBlockService            BlockServiceInterface
 	}
 )
 
@@ -57,6 +59,7 @@ func NewBlockSpineService(
 	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	spineBlockQuery query.BlockQueryInterface,
+	spineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
@@ -68,16 +71,18 @@ func NewBlockSpineService(
 	blockchainStatusService BlockchainStatusServiceInterface,
 	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
 	mainBlockService BlockServiceInterface,
+	blocksStorage storage.CacheStackStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:             ct,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            spineBlockQuery,
-		Signature:             signature,
-		BlocksmithStrategy:    blocksmithStrategy,
-		Observer:              obsr,
-		Logger:                logger,
-		SpinePublicKeyService: spinePublicKeyService,
+		Chaintype:                   ct,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  spineBlockQuery,
+		SpineSkippedBlocksmithQuery: spineSkippedBlocksmithQuery,
+		Signature:                   signature,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		SpinePublicKeyService:       spinePublicKeyService,
 		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
@@ -87,6 +92,7 @@ func NewBlockSpineService(
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
 		BlockStateStorage:        blockStateStorage,
+		BlocksStorage:            blocksStorage,
 		BlockchainStatusService:  blockchainStatusService,
 		MainBlockService:         mainBlockService,
 	}
@@ -348,6 +354,16 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 			return err
 		}
 	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
 
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -358,6 +374,12 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	err = bs.UpdateLastBlockCache(block)
 	if err != nil {
 		return err
+	}
+	// cache last block into blocks cache storage
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
+	if err != nil {
+		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
+		_ = bs.InitializeBlocksCache()
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// broadcast block
@@ -371,36 +393,76 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	return nil
 }
 
+func (bs *BlockSpineService) ProcessSkippedBlocksmiths(previousBlock, block *model.Block) error {
+	var (
+		skippedBlocksmiths []*model.SkippedBlocksmith
+		err                error
+	)
+	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
+	if err != nil {
+		return err
+	}
+	blocksBlocksmithsLength := len(blocksBlocksmiths)
+	if blocksBlocksmithsLength < 1 {
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf(
+			"updatePopScore- chaintype: %s -BlocksmithStrategy-NoBlocksmithFound",
+			bs.Chaintype.GetName(),
+		))
+	}
+	// insert skipped blocksmith to database
+	for i := 0; i < blocksBlocksmithsLength-1; i++ {
+		skippedBlocksmith := &model.SkippedBlocksmith{
+			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
+			POPChange:           constant.ParticipationScorePunishAmount,
+			BlockHeight:         block.Height,
+			BlocksmithIndex:     int32(i),
+		}
+		// punish score
+		skippedBlocksmiths = append(skippedBlocksmiths, skippedBlocksmith)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		skippedBlocksmithSnapshotImportQuery := bs.SpineSkippedBlocksmithQuery.(query.SnapshotQuery)
+		// use import snapshot to account for huge skipped blocksmith when blockchain resume from a long pause (several months)
+		q, err := skippedBlocksmithSnapshotImportQuery.ImportSnapshot(skippedBlocksmiths)
+		if err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.ExecuteTransactions(q)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err := bs.PopulateBlockData(&block)
+		err := bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockSpineService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -444,13 +506,14 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 }
 
 func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
-	// TODO: implement blocks storage cache
-	block, err := bs.GetLastBlock()
+	var (
+		lastBlock storage.BlockCacheObject
+		err       = bs.BlocksStorage.GetTop(&lastBlock)
+	)
 	if err != nil {
 		return nil, err
 	}
-	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
-	return &blockCacheFormat, nil
+	return &lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
@@ -477,13 +540,12 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 }
 
 func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
-	// TODO: implement blocks storage cache
-	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
-	return &blockCacheFormat, nil
+	return commonUtils.GetBlockByHeightUseBlocksCache(
+		height,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		bs.BlocksStorage,
+	)
 }
 
 // GetGenesisBlock return the genesis block
@@ -568,6 +630,33 @@ func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
 }
 
 func (bs *BlockSpineService) InitializeBlocksCache() error {
+	var err = bs.BlocksStorage.Clear()
+	if err != nil {
+		return err
+	}
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	var firstBlocksHeightCache uint32 = 0
+	if lastBlock.Height > constant.MaxBlocksCacheStorage {
+		firstBlocksHeightCache = lastBlock.Height - constant.MaxBlocksCacheStorage
+	}
+	var (
+		blocks []*model.Block
+	)
+	blocks, err = bs.GetBlocksFromHeight(firstBlocksHeightCache, constant.MaxBlocksCacheStorage, false)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(blocks); i++ {
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -803,12 +892,7 @@ func (bs *BlockSpineService) CheckGenesis() (bool, error) {
 // ReceiveBlock handle the block received from connected peers
 // argument lastBlock is the lastblock in this node
 // argument block is the in coming block from peer
-func (bs *BlockSpineService) ReceiveBlock(
-	senderPublicKey []byte,
-	lastBlock, block *model.Block,
-	nodeSecretPhrase string,
-	peer *model.Peer,
-) (*model.Receipt, error) {
+func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Block, _ string, _ *model.Peer, _ bool) (*model.Receipt, error) {
 	var (
 		err error
 	)
@@ -1021,16 +1105,18 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return nil, err
 	}
+	err = bs.BlocksStorage.PopTo(commonBlock.Height)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 		// post rollback action:
 		// - clean snapshot data
 		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				bs.Logger.Warn(rollbackErr)
-			}
+			bs.Logger.Warn(err)
+			return
 		}
 		for _, manifest := range poppedManifests {
 			// ignore error, file deletion can fail

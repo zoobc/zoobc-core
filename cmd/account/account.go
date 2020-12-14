@@ -3,6 +3,8 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/accounttype"
@@ -12,7 +14,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
-	"log"
 )
 
 type (
@@ -141,6 +142,12 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 		case int32(model.AccountType_BTCAccountType):
 			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
+			if err != nil {
+				panic(err)
+			}
+		case int32(model.AccountType_EstoniaEidAccountType):
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			accPubKey, err = estoniaEidAccountType.DecodePublicKeyFromAddress(encodedAccountAddress)
 			if err != nil {
 				panic(err)
 			}

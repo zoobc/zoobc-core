@@ -3,16 +3,14 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
-	"math"
-	"net/http"
-	"reflect"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"math"
+	"net/http"
 )
 
 var (
@@ -36,7 +34,8 @@ var (
 	txReceived                         prometheus.Gauge
 	txProcessed                        prometheus.Gauge
 	txFiltered                         prometheus.Gauge
-	P2PTxFiltered                      prometheus.Gauge
+	P2PTxFilteredIncoming              prometheus.Gauge
+	P2PTxFilteredOutgoing              prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
@@ -252,11 +251,17 @@ func SetMonitoringActive(isActive bool) {
 	})
 	prometheus.MustRegister(txFiltered)
 
-	P2PTxFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "zoobc_p2p_tx_filtered",
+	P2PTxFilteredIncoming = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered_incoming",
 		Help: "Transactions broadcast by other nodes filtered by anti-spam strategy",
 	})
-	prometheus.MustRegister(P2PTxFiltered)
+	prometheus.MustRegister(P2PTxFilteredIncoming)
+
+	P2PTxFilteredOutgoing = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered_outgoing",
+		Help: "Transactions broadcast to other nodes filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(P2PTxFilteredOutgoing)
 
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
@@ -484,20 +489,12 @@ func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
-func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
+func SetNodeScore(score int64) {
 	if !isMonitoringActive {
 		return
 	}
 
-	var scoreInt64 int64
-	for _, blockSmith := range activeBlocksmiths {
-		if reflect.DeepEqual(blockSmith.NodePublicKey, nodePublicKey) {
-			scoreInt64 = blockSmith.Score.Int64()
-			break
-		}
-	}
-
-	nodeScore.Set(float64(scoreInt64))
+	nodeScore.Set(float64(score))
 }
 
 func SetTpsReceived(tps int) {
@@ -535,11 +532,18 @@ func IncreaseTxFiltered() {
 	txFiltered.Inc()
 }
 
-func IncreaseP2PTxFiltered() {
+func IncreaseP2PTxFilteredIncoming() {
 	if !isMonitoringActive {
 		return
 	}
-	P2PTxFiltered.Inc()
+	P2PTxFilteredIncoming.Inc()
+}
+
+func IncreaseP2PTxFilteredOutgoing() {
+	if !isMonitoringActive {
+		return
+	}
+	P2PTxFilteredOutgoing.Inc()
 }
 
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
@@ -675,7 +679,8 @@ var (
 	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
 	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
 	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
-	TypeBlocksCacheStorage          CacheStorageType = "blocks_cache_object"
+	TypeMainBlocksCacheStorage      CacheStorageType = "main_blocks_cache_object"
+	TypeSpineBlocksCacheStorage     CacheStorageType = "spine_blocks_cache_object"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {

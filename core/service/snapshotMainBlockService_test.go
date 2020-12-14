@@ -964,7 +964,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingSignatureQuery:          query.NewPendingSignatureQuery(),
 				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
 				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
-				SkippedBlocksmithQuery:         query.NewSkippedBlocksmithQuery(),
+				SkippedBlocksmithQuery:         query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 				FeeScaleQuery:                  query.NewFeeScaleQuery(),
 				FeeVoteCommitmentVoteQuery:     query.NewFeeVoteCommitmentVoteQuery(),
 				FeeVoteRevealVoteQuery:         query.NewFeeVoteRevealVoteQuery(),
