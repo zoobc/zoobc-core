@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -31,6 +30,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -182,6 +182,14 @@ func initiateMainInstance() {
 				log.Error(err)
 				os.Exit(1)
 			}
+		case 3:
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			estoniaEidAccountType.SetAccountPublicKey(accType.GetAccountPublicKey())
+			encodedAccountAddress, err = estoniaEidAccountType.GetEncodedAddress()
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
 		default:
 			log.Error("Invalid Owner Account Type")
 			os.Exit(1)
@@ -257,6 +265,8 @@ func initiateMainInstance() {
 	if config.AntiSpamFilter {
 		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
 			loggerCoreService,
+			config.AntiSpamCPULimitPercentage,
+			config.AntiSpamP2PRequestLimit,
 		)
 	} else {
 		// no filtering: turn antispam filter off
@@ -298,8 +308,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -431,7 +441,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewBlockQuery(mainchain),
 		mainBlocksStorage,
 		queryExecutor,
@@ -442,7 +452,7 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		query.NewBlockQuery(spinechain),
 		spineBlocksStorage,
 		queryExecutor,
@@ -527,7 +537,7 @@ func initiateMainInstance() {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -575,7 +585,7 @@ func initiateMainInstance() {
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
 		query.NewMultiSignatureParticipantQuery(),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
@@ -623,6 +633,7 @@ func initiateMainInstance() {
 		spinechain,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		crypto.NewSignature(),
 		observerInstance,
 		blocksmithStrategySpine,
@@ -634,6 +645,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*
@@ -763,6 +775,7 @@ func startServices() {
 		nodeAddressInfoService,
 		observerInstance,
 		feedbackStrategy,
+		scrambleNodeStorage,
 	)
 	api.Start(
 		queryExecutor,

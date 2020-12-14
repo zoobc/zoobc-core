@@ -882,6 +882,7 @@ func TestMempoolService_ProcessReceivedTransaction(t *testing.T) {
 				tt.args.receivedTxBytes,
 				tt.args.lastBlock,
 				tt.args.nodeSecretPhrase,
+				false,
 			)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessReceivedTransaction() error = %v, wantErr %v", err, tt.want.err)

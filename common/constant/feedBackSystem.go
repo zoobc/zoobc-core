@@ -23,14 +23,18 @@ const (
 	FeedbackSamplingInterval = 2 * time.Second
 	// FeedbackThreadInterval interval between a new feedback sampling is triggered (must be higher than FeedbackSamplingInterval)
 	FeedbackThreadInterval = 4 * time.Second
-	// FeedbackMinGoroutineSamples min number of samples to calculate average of goroutine currently spawned
-	FeedbackMinGoroutineSamples = 4
+	// FeedbackMinSamples min number of samples to calculate average of a FeedbackVar (eg. goroutines or P2PRequests) currently spawned
+	FeedbackMinSamples = 4
+	// FeedbackCPUMinSamples CPU usage sampling time interval
+	FeedbackCPUMinSamples = 4
 	// FeedbackTotalSamples total number of samples kept im memory
 	FeedbackTotalSamples = 50
 	// GoRoutineHardLimit max number of concurrent goroutine allowed
-	GoRoutineHardLimit = 800
-	// P2PRequestHardLimit max number of opened (running) P2P api requests, both incoming (server) and outgoing (client)
-	P2PRequestHardLimit = 350
+	GoRoutineHardLimit = 700
+	// P2PRequestHardLimit max number of opened (running) incoming P2P api requests (tx broadcast by other peers)
+	P2PRequestHardLimit = 1000
+	// FeedbackLimitCPUPercentage max CPU percentage, sampled in FeedbackCPUMinSamples to trigger anti-spam filter
+	FeedbackLimitCPUPercentage = 98
 
 	FeedbackLimitNone FeedbackLimitLevel = iota
 	FeedbackLimitLow

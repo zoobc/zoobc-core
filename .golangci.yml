@@ -78,6 +78,9 @@ run:
 
 issues:
     exclude-rules:
+        - text: "captLocal:"
+          linters:
+              - gocritic
         - text: "G401: Use of weak cryptographic primitive"
           linters:
               - gosec
