@@ -83,6 +83,8 @@ func (b *BlocksStorage) Push(item interface{}) error {
 
 // PopTo pop the cache blocks from the provided height to the last height
 func (b *BlocksStorage) PopTo(height uint32) error {
+	b.Lock()
+	defer b.Unlock()
 	if height > b.lastBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "HeightOutOfRange")
 	}
@@ -94,8 +96,6 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 		lastIndex   = len(b.blocks) - 1
 		heightIndex = lastIndex - rangePop
 	)
-	b.Lock()
-	defer b.Unlock()
 	// delete on blocksMapID
 	for i := lastIndex; i > heightIndex; i-- {
 		delete(b.blocksMapID, b.blocks[i].ID)
@@ -164,6 +164,7 @@ func (b *BlocksStorage) Clear() error {
 	defer b.RUnlock()
 	b.blocks = make([]BlockCacheObject, 0, b.itemLimit)
 	b.lastBlockHeight = 0
+	b.blocksMapID = make(map[int64]*int, b.itemLimit)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(b.metricLabel, 0)
 	}
@@ -224,6 +225,9 @@ func (b *BlocksStorage) GetItem(key, item interface{}) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "ItemNotFound")
 	}
 	*blockCacheObjCopy = b.copy(b.blocks[*index])
+	if len(blockCacheObjCopy.BlockHash) == 0 {
+		return blocker.NewBlocker(blocker.ValidationErr, "ItemNotFound")
+	}
 	return nil
 }
 
