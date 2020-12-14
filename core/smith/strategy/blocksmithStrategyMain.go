@@ -113,12 +113,9 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 		err                       error
 	)
 
-	if lastBlock.GetHeight() < 1 || bss.Chaintype.GetTypeInt() == (&chaintype.SpineChain{}).GetTypeInt() {
+	if lastBlock.GetHeight() < 1 {
 		// no need to estimate persist time if previous block is genesis
 		return lastBlock.GetTimestamp(), nil
-	}
-	if err != nil {
-		return lastBlock.GetTimestamp(), err
 	}
 	blockToleranceTime := bss.Chaintype.GetBlocksmithBlockCreationTime() +
 		bss.Chaintype.GetBlocksmithNetworkTolerance()
