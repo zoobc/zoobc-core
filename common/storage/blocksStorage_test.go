@@ -684,9 +684,9 @@ func TestNewBlocksStorage(t *testing.T) {
 	}{
 		{
 			name: "TestNewBlocksStorage:Success",
-			args: args{metricLabel: monitoring.TypeMainBlocksCacheStorage},
+			args: args{metricLabel: monitoring.TypeSpineBlocksCacheStorage},
 			want: &BlocksStorage{
-				metricLabel: monitoring.TypeMainBlocksCacheStorage,
+				metricLabel: monitoring.TypeSpineBlocksCacheStorage,
 				itemLimit:   int(constant.MaxBlocksCacheStorage),
 				blocks:      make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
 				blocksMapID: make(map[int64]*int, constant.MinRollbackBlocks),
