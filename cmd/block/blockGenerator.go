@@ -2,6 +2,8 @@ package block
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -21,8 +23,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"strings"
-	"time"
 )
 
 type (
@@ -127,7 +127,7 @@ func initialize(
 		MempoolCacheStorage: mempoolStorage,
 	}
 	blockStorage := storage.NewBlockStateStorage()
-	blocksStorage := storage.NewBlocksStorage()
+	blocksStorage := storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
 	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
@@ -196,7 +196,7 @@ func initialize(
 		log.New(),
 		nil,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.MainChain{}),
 		nil,
 		queryExecutor,
@@ -218,7 +218,7 @@ func initialize(
 		query.NewBlockQuery(chainType),
 		query.NewMempoolQuery(chainType),
 		query.NewTransactionQuery(chainType),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,

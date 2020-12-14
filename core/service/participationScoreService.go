@@ -8,7 +8,6 @@ import (
 
 type (
 	ParticipationScoreServiceInterface interface {
-		GetParticipationScore(nodePublicKey []byte) (int64, error)
 		GetLatestParticipationScoreByNodeID(nodeID int64) (*model.ParticipationScore, error)
 		GetParticipationScoreByBlockHeightRange(fromBlockHeight, toBlockHeight uint32) ([]*model.ParticipationScore, error)
 	}
@@ -27,25 +26,6 @@ func NewParticipationScoreService(
 		ParticipationScoreQuery: participationScoreQuery,
 		QueryExecutor:           queryExecutor,
 	}
-}
-
-// GetParticipationScore handle received block from another node
-func (pss *ParticipationScoreService) GetParticipationScore(nodePublicKey []byte) (int64, error) {
-	var (
-		participationScores []*model.ParticipationScore
-	)
-	participationScoreQ, args := pss.ParticipationScoreQuery.GetParticipationScoreByNodePublicKey(nodePublicKey)
-	rows, err := pss.QueryExecutor.ExecuteSelect(participationScoreQ, false, args...)
-	if err != nil {
-		return 0, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-	participationScores, err = pss.ParticipationScoreQuery.BuildModel(participationScores, rows)
-	// if there aren't participation scores for this address/node, return 0
-	if (err != nil) || len(participationScores) == 0 {
-		return 0, nil
-	}
-	return participationScores[0].Score, nil
 }
 
 // GetParticipationScoreByNodeID get latest participation score of a node

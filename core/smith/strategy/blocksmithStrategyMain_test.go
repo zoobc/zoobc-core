@@ -262,6 +262,21 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
 					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
 				},
+				{
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+				},
+				{
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+				},
+				{
+					NodeID:        mockNodeRegistries[3].Node.NodeID,
+					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
+					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+				},
 			},
 			wantErr: false,
 		},

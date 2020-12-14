@@ -5,6 +5,10 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/storage"
+
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -39,6 +43,8 @@ type (
 			nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
+			feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+			scrambleNodeCache storage.CacheStackStorageInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -66,6 +72,7 @@ type (
 		FileService              coreService.FileServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 )
 
@@ -78,6 +85,7 @@ func NewP2PService(
 	fileService coreService.FileServiceInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) (Peer2PeerServiceInterface, error) {
 	return &Peer2PeerService{
 		PeerServiceClient:        peerServiceClient,
@@ -87,6 +95,7 @@ func NewP2PService(
 		FileService:              fileService,
 		NodeRegistrationService:  nodeRegistrationService,
 		NodeConfigurationService: nodeConfigurationService,
+		FeedbackStrategy:         feedbackStrategy,
 	}, nil
 }
 
@@ -104,6 +113,8 @@ func (s *Peer2PeerService) StartP2P(
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeCache storage.CacheStackStorageInterface,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
@@ -116,6 +127,8 @@ func (s *Peer2PeerService) StartP2P(
 		mempoolServices,
 		nodeSecretPhrase,
 		observer,
+		feedbackStrategy,
+		scrambleNodeCache,
 	)
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request
@@ -135,6 +148,7 @@ func (s *Peer2PeerService) StartP2P(
 
 		service.RegisterP2PCommunicationServer(grpcServer, handler.NewP2PServerHandler(
 			p2pServerService,
+			feedbackStrategy,
 		))
 		if err := grpcServer.Serve(p2pUtil.ServerListener(int(s.NodeConfigurationService.GetHost().GetInfo().GetPort()))); err != nil {
 			s.Logger.Fatal(err.Error())
@@ -203,6 +217,28 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 				chainType chaintype.ChainType
 				ok        bool
 			)
+
+			// TODO: uncomment here to restore anti-spam filters for outgoing p2p transactions (to be broadcast to peers)
+			// note: this had lead to the network falling out of sync because many nodes have different mempool,
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUSampleTime); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitCritical {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitHigh {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
+			// if limitReached, limitLevel := s.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
+			// 	if limitLevel == constant.FeedbackLimitCritical {
+			// 		monitoring.IncreaseP2PTxFilteredOutgoing()
+			// 		return
+			// 	}
+			// }
+
 			t, ok = transactionBytes.([]byte)
 			if !ok {
 				s.Logger.Fatalln("transactionBytes casting failures in SendTransactionListener")

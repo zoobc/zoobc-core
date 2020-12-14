@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"html/template"
 	"net"
 	"net/http"
@@ -49,6 +50,7 @@ func startGrpcServer(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(grpcMiddleware.ChainUnaryServer(
@@ -91,6 +93,8 @@ func startGrpcServer(
 			mempoolService,
 			observer.NewObserver(),
 			transactionUtil,
+			feedbackStrategy,
+			logger,
 		),
 	})
 	// Set GRPC handler for Transactions requests
@@ -171,7 +175,7 @@ func startGrpcServer(
 	// Set GRPC handler for skipped block smith
 	rpcService.RegisterSkippedBlockSmithsServiceServer(grpcServer, &handler.SkippedBlockSmithHandler{
 		Service: service.NewSkippedBlockSmithService(
-			query.NewSkippedBlocksmithQuery(),
+			query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 			queryExecutor,
 		),
 	})
@@ -249,6 +253,7 @@ func Start(
 	apiCertFile, apiKeyFile string,
 	maxAPIRequestPerSecond uint32,
 	nodePublicKey []byte,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 ) {
 	startGrpcServer(
 		queryExecutor,
@@ -269,5 +274,6 @@ func Start(
 		apiCertFile, apiKeyFile,
 		maxAPIRequestPerSecond,
 		nodePublicKey,
+		feedbackStrategy,
 	)
 }

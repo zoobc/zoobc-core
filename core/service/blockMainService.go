@@ -2,7 +2,6 @@ package service
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -400,14 +399,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				blocker.BlockErr, "DuplicateBlockPool",
 			)
 		}
-
-		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr,
-				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
-			)
-		}
 	}
 
 	// start db transaction here
@@ -449,12 +440,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return blocker.NewBlocker(blocker.BlockErr, err.Error())
 	}
 
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
-	}
 	var transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
@@ -553,12 +538,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// - Block reward
 	// - Admit/Expel nodes to/from registry
 	// - Build scrambled node registry
-	if block.Height > 0 {
+	if block.Height > 1 {
 		// this is to manage the edge case when the blocksmith array has not been initialized yet:
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
-
 		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
 			bs.queryAndCacheRollbackProcess("")
@@ -605,6 +589,24 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			}
 		}
 	}
+
+	if block.Height > 0 {
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			bs.queryAndCacheRollbackProcess(fmt.Sprintf("PushBlock:CalculateCumulativeDifficulty error: %v", err))
+			return blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
+			)
+		}
+	}
+
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		bs.queryAndCacheRollbackProcess("")
+		return err
+	}
 	// nodeRegistryProcess precess to admit & expel node registry
 	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
 	if err != nil {
@@ -629,6 +631,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// adjust fee if end of fee-vote period
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
+		bs.queryAndCacheRollbackProcess(fmt.Sprintf("PushBlock:GetCurrentPhase error: %v", err))
 		return err
 	}
 
@@ -643,16 +646,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			)
 			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
 			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			defer rows.Close()
 			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
 			if err != nil {
+				bs.queryAndCacheRollbackProcess(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			for _, vote := range queryResult {
@@ -727,12 +733,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.UpdateLastBlockCache(nil)
 	}
 	// cache last block into blocks cache storage
-	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-		Timestamp: block.GetTimestamp(),
-		Height:    block.Height,
-		BlockHash: block.BlockHash,
-		ID:        block.ID,
-	})
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
 	if err != nil {
 		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
 		_ = bs.InitializeBlocksCache()
@@ -950,32 +951,31 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err = bs.PopulateBlockData(&block)
+		err = bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -1167,12 +1167,9 @@ func (bs *BlockService) InitializeBlocksCache() error {
 		return err
 	}
 	for i := 0; i < len(blocks); i++ {
-		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-			Timestamp: blocks[i].GetTimestamp(),
-			Height:    blocks[i].Height,
-			BlockHash: blocks[i].BlockHash,
-			ID:        blocks[i].ID,
-		})
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
 		if err != nil {
 			return err
 		}
@@ -1401,8 +1398,13 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 	peer *model.Peer,
+	generateReceipt bool,
 ) (*model.Receipt, error) {
-	var err error
+	var (
+		lastBlockCacheFormat = commonUtils.BlockConvertToCacheFormat(lastBlock)
+		receipt              *model.Receipt
+		err                  error
+	)
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1420,6 +1422,25 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		if generateReceipt {
+			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
+				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
+					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+						bs.Chaintype,
+						block.GetBlockHash(),
+						&lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeTransaction,
+					)
+					if err != nil {
+						return nil, err
+					}
+					return receipt, nil
+				}
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
 
@@ -1454,32 +1475,30 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCacheFormat := &storage.BlockCacheObject{
-		ID:        lastBlock.ID,
-		Height:    lastBlock.Height,
-		BlockHash: lastBlock.BlockHash,
+
+	// Need to check if the sender is on the priority list,
+	// And no need to send a receipt if not in
+	if generateReceipt {
+		receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+			bs.Chaintype,
+			block.GetBlockHash(),
+			&lastBlockCacheFormat,
+			senderPublicKey,
+			nodeSecretPhrase,
+			constant.ReceiptDatumTypeBlock,
+		)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return receipt, nil
 	}
-	// generate receipt and return as response
-	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
-		bs.Chaintype, block.GetBlockHash(),
-		lastBlockCacheFormat,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeBlock,
-	)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return receipt, nil
+	return nil, nil
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
-	var (
-		publishedReceipts []*model.PublishedReceipt
-		err               error
-	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	// make sure this block contains all its attributes (transaction, receipts)
+	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
 		return nil, err
 	}
@@ -1496,31 +1515,18 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
-	block := lastBlock
-
-	// TODO:
-	// Need to refactor this codes with better solution in the future
-	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
+	var (
+		poppedBlocks []*model.Block
+		block        = lastBlock
+	)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
 		poppedBlocks = append(poppedBlocks, block)
+		// make sure this block contains all its attributes (transaction, receipts)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		block.PublishedReceipts = publishedReceipts
 	}
-
 	// Backup existing transactions from mempool before rollback
 	// note: rollback process do inside Backup Mempools func
 	err = bs.MempoolService.BackupMempools(commonBlock)
