@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 func TestBlocksStorage_Clear(t *testing.T) {
@@ -365,7 +366,7 @@ func TestBlocksStorage_Pop(t *testing.T) {
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks:          []BlockCacheObject{{}},
 			},
 			wantErr: false,
 		},
@@ -480,9 +481,11 @@ func TestBlocksStorage_PopTo(t *testing.T) {
 func TestBlocksStorage_Push(t *testing.T) {
 	type fields struct {
 		RWMutex         sync.RWMutex
+		metricLabel     monitoring.CacheStorageType
 		itemLimit       int
 		lastBlockHeight uint32
 		blocks          []BlockCacheObject
+		blocksMapID     map[int64]*int
 	}
 	type args struct {
 		item interface{}
@@ -499,14 +502,16 @@ func TestBlocksStorage_Push(t *testing.T) {
 				RWMutex:         sync.RWMutex{},
 				itemLimit:       0,
 				lastBlockHeight: 0,
-				blocks:          nil,
+				blocks:          []BlockCacheObject{{}},
+				metricLabel:     monitoring.TypeMainBlocksCacheStorage,
+				blocksMapID:     map[int64]*int{},
 			},
 			args: args{
 				item: BlockCacheObject{
 					ID:        0,
 					Height:    0,
 					Timestamp: 0,
-					BlockHash: nil,
+					BlockHash: make([]byte, 0),
 				},
 			},
 			wantErr: false,
@@ -528,6 +533,7 @@ func TestBlocksStorage_Push(t *testing.T) {
 			name: "TestBlocksStorage_Push:Success:RemoveFirstCache",
 			fields: fields{
 				RWMutex:         sync.RWMutex{},
+				metricLabel:     monitoring.TypeMainBlocksCacheStorage,
 				itemLimit:       0,
 				lastBlockHeight: 0,
 				blocks: []BlockCacheObject{
@@ -544,6 +550,7 @@ func TestBlocksStorage_Push(t *testing.T) {
 						BlockHash: nil,
 					},
 				},
+				blocksMapID: map[int64]*int{},
 			},
 			args: args{
 				item: BlockCacheObject{
@@ -560,9 +567,11 @@ func TestBlocksStorage_Push(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			b := &BlocksStorage{
 				RWMutex:         tt.fields.RWMutex,
+				metricLabel:     tt.fields.metricLabel,
 				itemLimit:       tt.fields.itemLimit,
 				lastBlockHeight: tt.fields.lastBlockHeight,
 				blocks:          tt.fields.blocks,
+				blocksMapID:     tt.fields.blocksMapID,
 			}
 			if err := b.Push(tt.args.item); (err != nil) != tt.wantErr {
 				t.Errorf("Push() error = %v, wantErr %v", err, tt.wantErr)
@@ -665,22 +674,28 @@ func TestBlocksStorage_size(t *testing.T) {
 }
 
 func TestNewBlocksStorage(t *testing.T) {
+	type args struct {
+		metricLabel monitoring.CacheStorageType
+	}
 	tests := []struct {
 		name string
+		args args
 		want *BlocksStorage
 	}{
 		{
 			name: "TestNewBlocksStorage:Success",
+			args: args{metricLabel: monitoring.TypeMainBlocksCacheStorage},
 			want: &BlocksStorage{
-				itemLimit:       int(constant.MaxBlocksCacheStorage),
-				lastBlockHeight: 0,
-				blocks:          make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
+				metricLabel: monitoring.TypeMainBlocksCacheStorage,
+				itemLimit:   int(constant.MaxBlocksCacheStorage),
+				blocks:      make([]BlockCacheObject, 0, constant.MinRollbackBlocks),
+				blocksMapID: make(map[int64]*int, constant.MinRollbackBlocks),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlocksStorage(); !reflect.DeepEqual(got, tt.want) {
+			if got := NewBlocksStorage(tt.args.metricLabel); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksStorage() = %v, want %v", got, tt.want)
 			}
 		})
