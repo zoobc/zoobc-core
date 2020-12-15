@@ -38,7 +38,6 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewAccountBalanceQuery(),
 			NewAccountDatasetsQuery(),
 			NewMempoolQuery(ct),
-			NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 			NewParticipationScoreQuery(),
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
@@ -57,8 +56,8 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
 		spinechainDerivedQuery := []DerivedQuery{
-			NewSpinePublicKeyQuery(),
-			NewSpineBlockManifestQuery(),
+			NewBlockQuery(ct),
+			NewSkippedBlocksmithQuery(ct),
 		}
 		derivedQuery = append(derivedQuery, spinechainDerivedQuery...)
 	}
