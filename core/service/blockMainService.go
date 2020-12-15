@@ -1400,7 +1400,11 @@ func (bs *BlockService) ReceiveBlock(
 	peer *model.Peer,
 	generateReceipt bool,
 ) (*model.Receipt, error) {
-	var err error
+	var (
+		lastBlockCacheFormat = commonUtils.BlockConvertToCacheFormat(lastBlock)
+		receipt              *model.Receipt
+		err                  error
+	)
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1418,6 +1422,25 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		if generateReceipt {
+			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
+				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
+					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+						bs.Chaintype,
+						block.GetBlockHash(),
+						&lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeTransaction,
+					)
+					if err != nil {
+						return nil, err
+					}
+					return receipt, nil
+				}
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
 
@@ -1456,8 +1479,7 @@ func (bs *BlockService) ReceiveBlock(
 	// Need to check if the sender is on the priority list,
 	// And no need to send a receipt if not in
 	if generateReceipt {
-		lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
-		receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
+		receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
 			bs.Chaintype,
 			block.GetBlockHash(),
 			&lastBlockCacheFormat,
