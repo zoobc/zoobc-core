@@ -701,6 +701,8 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 			}
 			addresses = append(addresses, address)
 		}
+		// MultisigAddress is not provided because that data is not present in the body bytes.
+		// It always matches with the sender of the multisig transaction, so external application can get that data from the sender data
 		multisigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignatures,
 			Nonce:             int64(nonce),
