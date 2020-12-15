@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"database/sql"
 
-	"github.com/mohae/deepcopy"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -17,13 +17,10 @@ import (
 // note: the block must be signed, otherwise this function returns an error
 func GetBlockHash(block *model.Block, ct chaintype.ChainType) ([]byte, error) {
 	var (
-		digest     = sha3.New256()
-		cloneBlock = deepcopy.Copy(*block).(model.Block)
+		digest = sha3.New256()
 	)
-
-	cloneBlock.BlockHash = nil
 	// TODO: this error should be managed. for now we leave it because it causes a cascade of failures in unit tests..
-	blockByte, _ := GetBlockByte(&cloneBlock, true, ct)
+	blockByte, _ := GetBlockByte(block, true, ct)
 	_, err := digest.Write(blockByte)
 	if err != nil {
 		return nil, err
@@ -102,7 +99,6 @@ func GetBlockByHeight(
 		row   *sql.Row
 		err   error
 	)
-
 	row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(height), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -110,11 +106,80 @@ func GetBlockByHeight(
 	err = blockQuery.Scan(&block, row)
 	if err != nil {
 		if err != sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.DBErr, "failed build block into block model")
+			return nil, blocker.NewBlocker(blocker.DBErr, "BlockScanErr, ", err.Error())
 		}
 		return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
 	}
 	return &block, nil
+}
+
+// GetBlockByHeight get block at the height provided & returned in cache format
+func GetBlockByHeightUseBlocksCache(
+	height uint32,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
+) (*storage.BlockCacheObject, error) {
+	var (
+		blockCacheObject storage.BlockCacheObject
+		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
+	)
+	if err == nil {
+		return &blockCacheObject, nil
+	}
+	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
+	if err != nil {
+		return nil, err
+	}
+	blockCacheObject = BlockConvertToCacheFormat(block)
+	return &blockCacheObject, nil
+}
+
+// GetBlockByID get block at the ID provided
+func GetBlockByID(
+	id int64,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+) (*model.Block, error) {
+	if id == 0 {
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "BlockIDZeroNotFound")
+	}
+	var (
+		block    model.Block
+		row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByID(id), false)
+	)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	if err = blockQuery.Scan(&block, row); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, blocker.NewBlocker(blocker.DBErr, "BlockByIDScanErr, ", err.Error())
+		}
+		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "BlockNotFound")
+	}
+	return &block, nil
+}
+
+// GetBlockByID get block at the ID provided & returned in cache format
+func GetBlockByIDUseBlocksCache(
+	id int64,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	blocksCacheStorage storage.CacheStorageInterface,
+) (*storage.BlockCacheObject, error) {
+	var (
+		blockCacheObject storage.BlockCacheObject
+		err              = blocksCacheStorage.GetItem(id, &blockCacheObject)
+	)
+	if err == nil {
+		return &blockCacheObject, nil
+	}
+	block, err := GetBlockByID(id, queryExecutor, blockQuery)
+	if err != nil {
+		return nil, err
+	}
+	blockCacheObject = BlockConvertToCacheFormat(block)
+	return &blockCacheObject, nil
 }
 
 func GetMinRollbackHeight(currentHeight uint32) uint32 {
@@ -132,4 +197,15 @@ func GetSpinePublicKeyBytes(spinePublicKey *model.SpinePublicKey) []byte {
 	buffer.Write(ConvertUint32ToBytes(uint32(spinePublicKey.PublicKeyAction)))
 	buffer.Write(ConvertUint32ToBytes(spinePublicKey.Height))
 	return buffer.Bytes()
+}
+
+func BlockConvertToCacheFormat(block *model.Block) storage.BlockCacheObject {
+	var bHash = make([]byte, len(block.BlockHash))
+	copy(bHash, block.BlockHash)
+	return storage.BlockCacheObject{
+		ID:        block.ID,
+		Height:    block.Height,
+		Timestamp: block.Timestamp,
+		BlockHash: bHash,
+	}
 }

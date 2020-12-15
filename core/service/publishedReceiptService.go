@@ -39,7 +39,7 @@ func NewPublishedReceiptService(
 	}
 }
 
-// ProcessPublishedReceipt takes published receipts in a block and validate them, this function will run in a db transaction
+// ProcessPublishedReceipts takes published receipts in a block and validate them, this function will run in a db transaction
 // so ensure queryExecutor.Begin() is called before calling this function.
 func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
 	var (
@@ -48,14 +48,14 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) 
 	)
 	for index, rc := range block.GetPublishedReceipts() {
 		// validate sender and recipient of receipt
-		err = ps.ReceiptService.ValidateReceipt(rc.BatchReceipt)
+		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt())
 		if err != nil {
 			return 0, err
 		}
 		// check if linked
 		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
 			merkle := &commonUtils.MerkleRoot{}
-			rcByte := ps.ReceiptUtil.GetSignedBatchReceiptBytes(rc.BatchReceipt)
+			rcByte := ps.ReceiptUtil.GetSignedReceiptBytes(rc.GetReceipt())
 			rcHash := sha3.Sum256(rcByte)
 			root, err := merkle.GetMerkleRootFromIntermediateHashes(
 				rcHash[:],

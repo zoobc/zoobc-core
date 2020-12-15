@@ -12,6 +12,7 @@ import (
 
 type (
 	SkippedBlocksmithQueryInterface interface {
+		GetNumberOfSkippedBlocksmithsByBlockHeight(blockHeight uint32) (qStr string)
 		GetSkippedBlocksmithsByBlockHeight(blockHeight uint32) (qStr string)
 		InsertSkippedBlocksmith(skippedBlocksmith *model.SkippedBlocksmith) (qStr string, args []interface{})
 		InsertSkippedBlocksmiths(skippedBlockSmiths []*model.SkippedBlocksmith) (str string, args []interface{})
@@ -29,7 +30,11 @@ type (
 )
 
 // NewSkippedBlocksmithQuery will create a new SkippedBlocksmithQuery instance
-func NewSkippedBlocksmithQuery() *SkippedBlocksmithQuery {
+func NewSkippedBlocksmithQuery(ct chaintype.ChainType) *SkippedBlocksmithQuery {
+	var tableName = "skipped_blocksmith"
+	if chaintype.IsSpineChain(ct) {
+		tableName = "spine_skipped_blocksmith"
+	}
 	return &SkippedBlocksmithQuery{
 		Fields: []string{
 			"blocksmith_public_key",
@@ -37,7 +42,7 @@ func NewSkippedBlocksmithQuery() *SkippedBlocksmithQuery {
 			"block_height",
 			"blocksmith_index",
 		},
-		TableName: "skipped_blocksmith",
+		TableName: tableName,
 	}
 }
 
@@ -49,6 +54,14 @@ func (sbq *SkippedBlocksmithQuery) GetSkippedBlocksmithsByBlockHeight(blockHeigh
 	return fmt.Sprintf(
 		"SELECT %s FROM %s WHERE block_height = %d",
 		strings.Join(sbq.Fields, ", "),
+		sbq.getTableName(),
+		blockHeight,
+	)
+}
+
+func (sbq *SkippedBlocksmithQuery) GetNumberOfSkippedBlocksmithsByBlockHeight(blockHeight uint32) string {
+	return fmt.Sprintf(
+		"SELECT COUNT(*) FROM %s WHERE block_height = %d",
 		sbq.getTableName(),
 		blockHeight,
 	)

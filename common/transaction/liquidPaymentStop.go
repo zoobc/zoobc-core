@@ -18,17 +18,19 @@ type (
 	LiquidPaymentStopTransaction struct {
 		ID                            int64
 		Fee                           int64
-		SenderAddress                 string
-		RecipientAddress              string
+		SenderAddress                 []byte
+		RecipientAddress              []byte
 		Height                        uint32
 		Body                          *model.LiquidPaymentStopTransactionBody
+		Escrow                        *model.Escrow
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		AccountLedgerHelper           AccountLedgerHelperInterface
 		NormalFee                     fee.FeeModelInterface
+		EscrowFee                     fee.FeeModelInterface
 		TypeActionSwitcher            TypeActionSwitcher
+		EscrowQuery                   query.EscrowTransactionQueryInterface
 	}
 )
 
@@ -43,27 +45,22 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 
 	// update sender
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress, -tx.Fee, tx.Height)
-	if err != nil {
-		return err
-	}
-
-	// sender ledger
-	err = tx.AccountLedgerHelper.InsertLedgerEntry(&model.AccountLedger{
-		AccountAddress: tx.SenderAddress,
-		BalanceChange:  -(tx.Fee),
-		TransactionID:  tx.ID,
-		BlockHeight:    tx.Height,
-		EventType:      model.EventType_EventLiquidPaymentStopTransaction,
-		Timestamp:      uint64(blockTimestamp),
-	})
+		tx.SenderAddress,
+		-tx.Fee,
+		model.EventType_EventLiquidPaymentStopTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
 	if err != nil {
 		return err
 	}
 
 	// processing the liquid payment transaction
-	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID,
-		model.LiquidPaymentStatus_LiquidPaymentPending)
+	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(
+		tx.Body.TransactionID,
+		model.LiquidPaymentStatus_LiquidPaymentPending,
+	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(liquidPaymentQ, true, liquidPaymentArgs...)
 	if err != nil {
 		return err
@@ -111,7 +108,7 @@ func (tx *LiquidPaymentStopTransaction) ApplyConfirmed(blockTimestamp int64) err
 }
 
 func (tx *LiquidPaymentStopTransaction) ApplyUnconfirmed() error {
-	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(tx.Fee))
 	if err != nil {
 		return err
 	}
@@ -119,7 +116,7 @@ func (tx *LiquidPaymentStopTransaction) ApplyUnconfirmed() error {
 }
 
 func (tx *LiquidPaymentStopTransaction) UndoApplyUnconfirmed() error {
-	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
 	if err != nil {
 		return err
 	}
@@ -128,12 +125,12 @@ func (tx *LiquidPaymentStopTransaction) UndoApplyUnconfirmed() error {
 
 func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 	var (
-		row            *sql.Row
-		err            error
-		liquidPayment  model.LiquidPayment
-		accountBalance model.AccountBalance
+		row           *sql.Row
+		err           error
+		liquidPayment model.LiquidPayment
+		enough        bool
 	)
-	if tx.SenderAddress == "" {
+	if tx.SenderAddress == nil {
 		return errors.New("transaction must have a valid sender account id")
 	}
 
@@ -141,8 +138,10 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		return errors.New("transaction must have a valid transaction id")
 	}
 
-	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(tx.Body.TransactionID,
-		model.LiquidPaymentStatus_LiquidPaymentPending)
+	liquidPaymentQ, liquidPaymentArgs := tx.LiquidPaymentTransactionQuery.GetPendingLiquidPaymentTransactionByID(
+		tx.Body.TransactionID,
+		model.LiquidPaymentStatus_LiquidPaymentPending,
+	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(liquidPaymentQ, dbTx, liquidPaymentArgs...)
 	if err != nil {
 		return err
@@ -155,7 +154,7 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		return err
 	}
 
-	if liquidPayment.SenderAddress != tx.SenderAddress && liquidPayment.RecipientAddress != tx.SenderAddress {
+	if !bytes.Equal(liquidPayment.SenderAddress, tx.SenderAddress) && !bytes.Equal(liquidPayment.RecipientAddress, tx.SenderAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "Only sender or recipient of the payment can stop the payment")
 	}
 
@@ -164,37 +163,42 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	err = tx.AccountBalanceHelper.GetBalanceByAccountID(&accountBalance, tx.SenderAddress, dbTx)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
 	if err != nil {
-		return err
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 	}
-
-	if accountBalance.SpendableBalance < tx.Fee {
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"UserBalanceNotEnough",
-		)
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
 	}
-
 	return nil
 }
 
 func (tx *LiquidPaymentStopTransaction) GetMinimumFee() (int64, error) {
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, nil)
+	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	}
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
 }
 
 func (tx *LiquidPaymentStopTransaction) GetAmount() int64 {
 	return tx.Fee
 }
 
-func (tx *LiquidPaymentStopTransaction) GetSize() uint32 {
+func (tx *LiquidPaymentStopTransaction) GetSize() (uint32, error) {
 	// only TransactionID
-	return constant.TransactionID
+	return constant.TransactionID, nil
 }
 
 func (tx *LiquidPaymentStopTransaction) ParseBodyBytes(txBodyBytes []byte) (model.TransactionBodyInterface, error) {
 	// validate the body bytes is correct
-	_, err := util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(tx.GetSize()))
+	txSize, err := tx.GetSize()
+	if err != nil {
+		return nil, err
+	}
+	_, err = util.ReadTransactionBytes(bytes.NewBuffer(txBodyBytes), int(txSize))
 	if err != nil {
 		return nil, err
 	}
@@ -206,10 +210,10 @@ func (tx *LiquidPaymentStopTransaction) ParseBodyBytes(txBodyBytes []byte) (mode
 	}, nil
 }
 
-func (tx *LiquidPaymentStopTransaction) GetBodyBytes() []byte {
+func (tx *LiquidPaymentStopTransaction) GetBodyBytes() ([]byte, error) {
 	buffer := bytes.NewBuffer([]byte{})
 	buffer.Write(util.ConvertUint64ToBytes(uint64(tx.Body.TransactionID)))
-	return buffer.Bytes()
+	return buffer.Bytes(), nil
 }
 
 func (tx *LiquidPaymentStopTransaction) GetTransactionBody(transaction *model.Transaction) {
@@ -228,5 +232,144 @@ func (tx *LiquidPaymentStopTransaction) SkipMempoolTransaction(
 }
 
 func (tx *LiquidPaymentStopTransaction) Escrowable() (EscrowTypeAction, bool) {
+	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+		tx.Escrow = &model.Escrow{
+			ID:              tx.ID,
+			SenderAddress:   tx.SenderAddress,
+			ApproverAddress: tx.Escrow.GetApproverAddress(),
+			Commission:      tx.Escrow.GetCommission(),
+			Timeout:         tx.Escrow.GetTimeout(),
+			Status:          tx.Escrow.GetStatus(),
+			BlockHeight:     tx.Height,
+			Latest:          true,
+			Instruction:     tx.Escrow.GetInstruction(),
+		}
+		return EscrowTypeAction(tx), true
+	}
 	return nil, false
+}
+
+func (tx *LiquidPaymentStopTransaction) EscrowApplyConfirmed(blockTimestamp int64) (err error) {
+	err = tx.AccountBalanceHelper.AddAccountBalance(
+		tx.SenderAddress,
+		-(tx.Fee + tx.Escrow.GetCommission()),
+		model.EventType_EventEscrowedTransaction,
+		tx.Height,
+		tx.ID,
+		uint64(blockTimestamp),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *LiquidPaymentStopTransaction) EscrowApplyUnconfirmed() error {
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(
+		tx.SenderAddress,
+		-(tx.Fee + tx.Escrow.GetCommission()),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *LiquidPaymentStopTransaction) EscrowUndoApplyUnconfirmed() error {
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (tx *LiquidPaymentStopTransaction) EscrowValidate(dbTx bool) (err error) {
+	var enough bool
+
+	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	}
+	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
+		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
+	}
+
+	err = tx.Validate(dbTx)
+	if err != nil {
+		return err
+	}
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return err
+		}
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
+	}
+	if !enough {
+		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotEnough")
+	}
+	return nil
+}
+
+func (tx *LiquidPaymentStopTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
+
+	switch txBody.GetApproval() {
+	case model.EscrowApproval_Approve:
+		tx.Escrow.Status = model.EscrowStatus_Approved
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Fee,
+			model.EventType_EventEscrowedTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+		err = tx.ApplyConfirmed(blockTimestamp)
+		if err != nil {
+			return err
+		}
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	case model.EscrowApproval_Reject:
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.Escrow.GetApproverAddress(),
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	default:
+		err = tx.AccountBalanceHelper.AddAccountBalance(
+			tx.SenderAddress,
+			tx.Escrow.GetCommission(),
+			model.EventType_EventApprovalEscrowTransaction,
+			tx.Height,
+			tx.ID,
+			uint64(blockTimestamp),
+		)
+		if err != nil {
+			return err
+		}
+	}
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
+	if err != nil {
+		return err
+	}
+	return nil
 }

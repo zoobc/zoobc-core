@@ -11,6 +11,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/core/service"
+	"github.com/zoobc/zoobc-core/core/smith/strategy"
 )
 
 type (
@@ -28,7 +29,9 @@ type (
 		ChainType               chaintype.ChainType
 		Generator               *model.Blocksmith
 		BlockService            service.BlockServiceInterface
+		BlockSmithStrategy      strategy.BlocksmithStrategyInterface
 		LastBlockID             int64
+		LastBlocksmithIndex     int64
 		Logger                  *log.Logger
 		smithError              error
 		BlockchainStatusService service.BlockchainStatusServiceInterface
@@ -48,6 +51,7 @@ func NewBlockchainProcessor(
 	logger *log.Logger,
 	blockchainStatusService service.BlockchainStatusServiceInterface,
 	nodeRegistrationService service.NodeRegistrationServiceInterface,
+	blockSmithStrategy strategy.BlocksmithStrategyInterface,
 ) *BlockchainProcessor {
 	return &BlockchainProcessor{
 		ChainType:               ct,
@@ -56,6 +60,8 @@ func NewBlockchainProcessor(
 		Logger:                  logger,
 		BlockchainStatusService: blockchainStatusService,
 		NodeRegistrationService: nodeRegistrationService,
+		BlockSmithStrategy:      blockSmithStrategy,
+		LastBlocksmithIndex:     -1,
 	}
 }
 
@@ -90,10 +96,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 		// simulating real condition, calculating the smith time of current last block
 		if lastBlock.GetID() != bp.LastBlockID {
 			bp.LastBlockID = lastBlock.GetID()
-			err = bp.BlockService.GetBlocksmithStrategy().CalculateScore(bp.Generator, 1)
-			if err != nil {
-				return err
-			}
+			// todo: renew fake smithing code - it's outdated due to several iteration on smithing alg
 		}
 		// speed up the virtual time if smith time has not reach the needed smithing maximum time
 		for timeNow < lastBlock.GetTimestamp()+ct.GetSmithingPeriod() {
@@ -119,7 +122,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.ValidateSpineBlockErr
 			}
-			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
+			bp.Logger.Warnf("FakeSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), previousBlock.GetID()))
 			return err
 		}
 		// if validated push
@@ -129,7 +132,7 @@ func (bp *BlockchainProcessor) FakeSmithing(numberOfBlocks int, fromGenesis bool
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.PushSpineBlockErr
 			}
-			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, previousBlock))
+			bp.Logger.Errorf("FakeSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), previousBlock.GetID()))
 			return err
 		}
 	}
@@ -160,21 +163,23 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 		return blocker.NewBlocker(
 			blocker.SmithingErr, "genesis block has not been applied")
 	}
-	// todo: move this piece of code to service layer
-	// caching: only calculate smith time once per new block
-	bp.LastBlockID, blocksmithIndex, err = bp.BlockService.WillSmith(
-		bp.Generator, bp.LastBlockID,
-	)
+	blocksmithIndex, err = bp.BlockSmithStrategy.WillSmith(lastBlock)
 	if err != nil {
 		return err
 	}
+	if bp.LastBlockID == lastBlock.GetID() && bp.LastBlocksmithIndex == blocksmithIndex {
+		return nil
+	}
+	bp.LastBlockID = lastBlock.GetID()
+	bp.LastBlocksmithIndex = blocksmithIndex
 	timestamp := time.Now().Unix()
 	block, err := bp.BlockService.GenerateBlock(
 		lastBlock,
 		bp.Generator.SecretPhrase,
 		timestamp,
-		blocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
+		bp.LastBlocksmithIndex >= constant.EmptyBlockSkippedBlocksmithLimit,
 	)
+
 	if err != nil {
 		return err
 	}
@@ -187,18 +192,19 @@ func (bp *BlockchainProcessor) StartSmithing() error {
 			if chaintype.IsSpineChain(bp.ChainType) {
 				blockerUsed = blocker.ValidateSpineBlockErr
 			}
-			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+			bp.Logger.Warnf("StartSmithing: %v\n", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		}
 		return err
 	}
 	// if validated push
 	err = bp.BlockService.PushBlock(lastBlock, block, true, false)
+
 	if err != nil {
 		blockerUsed := blocker.PushMainBlockErr
 		if chaintype.IsSpineChain(bp.ChainType) {
 			blockerUsed = blocker.PushSpineBlockErr
 		}
-		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block, lastBlock))
+		bp.Logger.Errorf("StartSmithing pushBlock fail: %v", blocker.NewBlocker(blockerUsed, err.Error(), block.GetID(), lastBlock.GetID()))
 		return err
 	}
 	return nil

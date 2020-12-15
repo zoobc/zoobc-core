@@ -3,22 +3,22 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"math"
 	"sync"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/util"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/interceptor"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"google.golang.org/grpc"
@@ -30,7 +30,7 @@ type (
 	// PeerServiceClientInterface acts as interface for PeerServiceClient
 	PeerServiceClientInterface interface {
 		GetNodeAddressesInfo(destPeer *model.Peer, nodeRegistrations []*model.NodeRegistration) (*model.GetNodeAddressesInfoResponse, error)
-		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error)
+		SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error)
 		GetNodeProofOfOrigin(destPeer *model.Peer) (*model.ProofOfOrigin, error)
 		GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error)
 		GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error)
@@ -52,7 +52,7 @@ type (
 		) error
 		RequestBlockTransactions(
 			destPeer *model.Peer,
-			transactonIDs []int64,
+			transactionIDs []int64,
 			chainType chaintype.ChainType,
 			blockID int64,
 		) error
@@ -71,8 +71,7 @@ type (
 		Dialer                   Dialer
 		Logger                   *log.Logger
 		QueryExecutor            query.ExecutorInterface
-		NodeReceiptQuery         query.NodeReceiptQueryInterface
-		BatchReceiptQuery        query.BatchReceiptQueryInterface
+		NodeReceiptQuery         query.BatchReceiptQueryInterface
 		MerkleTreeQuery          query.MerkleTreeQueryInterface
 		ReceiptService           coreService.ReceiptServiceInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
@@ -81,6 +80,7 @@ type (
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
 		NodeAuthValidation       auth.NodeAuthValidationInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -89,14 +89,14 @@ type (
 // NewPeerServiceClient to get instance of singleton peer service, this should only be instantiated from main.go
 func NewPeerServiceClient(
 	queryExecutor query.ExecutorInterface,
-	nodeReceiptQuery query.NodeReceiptQueryInterface,
+	nodeReceiptQuery query.BatchReceiptQueryInterface,
 	nodePublicKey []byte,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
-	batchReceiptQuery query.BatchReceiptQueryInterface,
 	merkleTreeQuery query.MerkleTreeQueryInterface,
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAuthValidation auth.NodeAuthValidationInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log
@@ -121,7 +121,6 @@ func NewPeerServiceClient(
 		},
 		QueryExecutor:            queryExecutor,
 		NodeReceiptQuery:         nodeReceiptQuery,
-		BatchReceiptQuery:        batchReceiptQuery,
 		MerkleTreeQuery:          merkleTreeQuery,
 		ReceiptService:           receiptService,
 		NodeRegistrationService:  nodeRegistrationService,
@@ -130,6 +129,7 @@ func NewPeerServiceClient(
 		NodeConfigurationService: nodeConfigurationService,
 		PeerConnections:          make(map[string]*grpc.ClientConn),
 		NodeAuthValidation:       nodeAuthValidation,
+		FeedbackStrategy:         feedbackStrategy,
 	}
 }
 
@@ -210,6 +210,8 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
@@ -219,14 +221,14 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
 		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
-		nodeIDs        []int64
+		nodeIDs        = make([]int64, len(nodeRegistrations))
 	)
 	defer func() {
 		cancelReq()
 	}()
 
-	for _, nr := range nodeRegistrations {
-		nodeIDs = append(nodeIDs, nr.NodeID)
+	for i, nr := range nodeRegistrations {
+		nodeIDs[i] = nr.NodeID
 	}
 
 	// context still not use ctx := cs.buildContext()
@@ -253,6 +255,8 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
@@ -282,6 +286,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -309,6 +315,8 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 ) (*model.ProofOfOrigin, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	if destPeer.Info.GetID() == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
@@ -357,9 +365,16 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 }
 
 // SendNodeAddressInfo sends a nodeAddressInfo to other node (to populate the network)
-func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) (*model.Empty, error) {
+func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) (*model.Empty, error) {
+
+	if len(nodeAddressInfos) == 0 {
+		return &model.Empty{}, nil
+	}
+
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -373,7 +388,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 		cancelReq()
 	}()
 	res, err := p2pClient.SendNodeAddressInfo(ctx, &model.SendNodeAddressInfoRequest{
-		NodeAddressInfoMessage: nodeAddressInfo,
+		NodeAddressInfoMessage: nodeAddressInfos,
 	})
 	if err != nil {
 		return nil, err
@@ -386,6 +401,8 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendPeersClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendPeersClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -415,6 +432,8 @@ func (psc *PeerServiceClient) SendBlock(
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendBlockClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendBlockClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -436,16 +455,25 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipt == nil {
+	if response == nil || response.GetReceipt() == nil {
 		return err
 	}
+
 	// validate receipt before storing
-	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetReceipt().GetDatumHash())
 	if err != nil {
 		return err
 	}
-	err = psc.storeReceipt(response.BatchReceipt)
-	return err
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
+	if err != nil {
+		return err
+	}
+
+	return psc.ReceiptService.StoreReceipt(
+		response.GetReceipt(),
+		response.GetReceipt().GetSenderPublicKey(),
+		&chaintype.MainChain{},
+	)
 }
 
 // SendTransaction send transaction to selected peer
@@ -456,6 +484,8 @@ func (psc *PeerServiceClient) SendTransaction(
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -478,15 +508,23 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipt == nil {
+	if response == nil || response.GetReceipt() == nil {
 		return nil
 	}
-	err = psc.ReceiptService.ValidateReceipt(response.BatchReceipt)
+
+	err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, response.GetReceipt().GetDatumHash())
 	if err != nil {
 		return err
 	}
-	err = psc.storeReceipt(response.BatchReceipt)
-	return err
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
+	if err != nil {
+		return err
+	}
+	return psc.ReceiptService.StoreReceipt(
+		response.GetReceipt(),
+		response.GetReceipt().GetSenderPublicKey(),
+		&chaintype.MainChain{},
+	)
 }
 
 // SendBlockTransactions sends transactions required by a block requested by the peer
@@ -507,6 +545,10 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	defer func() {
 		cancelReq()
 	}()
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	response, err = p2pClient.SendBlockTransactions(ctx, &model.SendBlockTransactionsRequest{
 		SenderPublicKey:   psc.NodePublicKey,
@@ -516,26 +558,44 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	if err != nil {
 		return err
 	}
-	if response == nil || response.BatchReceipts == nil || len(response.BatchReceipts) == 0 {
+	if response == nil || response.GetReceipts() == nil || len(response.GetReceipts()) == 0 {
 		return nil
 	}
 
-	for _, batchReceipt := range response.BatchReceipts {
-		// continue even though some receipts are failing
-		_ = psc.ReceiptService.ValidateReceipt(batchReceipt)
-		_ = psc.storeReceipt(batchReceipt)
+	// continue even though some receipts are failing
+	for _, receipt := range response.GetReceipts() {
+
+		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, receipt.GetDatumHash())
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
+			continue
+		}
+		err = psc.ReceiptService.ValidateReceipt(receipt)
+		if err != nil {
+			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
+			continue
+		}
+		if e := psc.ReceiptService.StoreReceipt(
+			receipt,
+			receipt.GetSenderPublicKey(),
+			&chaintype.MainChain{},
+		); e != nil {
+			psc.Logger.Warnf("SendBlockTransactions: %s", e.Error())
+		}
 	}
 	return err
 }
 
 func (psc *PeerServiceClient) RequestBlockTransactions(
 	destPeer *model.Peer,
-	transactonIDs []int64,
+	transactionIDs []int64,
 	chainType chaintype.ChainType,
 	blockID int64,
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -549,7 +609,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 		cancelReq()
 	}()
 	_, err = p2pClient.RequestBlockTransactions(ctx, &model.RequestBlockTransactionsRequest{
-		TransactionIDs: transactonIDs,
+		TransactionIDs: transactionIDs,
 		ChainType:      chainType.GetTypeInt(),
 		BlockID:        blockID,
 	})
@@ -566,6 +626,8 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -595,6 +657,8 @@ func (psc *PeerServiceClient) GetCumulativeDifficulty(
 ) (*model.GetCumulativeDifficultyResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -626,6 +690,8 @@ func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -660,6 +726,8 @@ func (psc *PeerServiceClient) GetNextBlockIDs(
 ) (*model.BlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -694,6 +762,8 @@ func (psc *PeerServiceClient) GetNextBlocks(
 ) (*model.BlocksData, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -720,22 +790,4 @@ func (psc *PeerServiceClient) GetNextBlocks(
 		return nil, err
 	}
 	return res, err
-}
-
-// storeReceipt function will decide to storing receipt into node_receipt or batch_receipt
-// and will generate _merkle_root_
-func (psc *PeerServiceClient) storeReceipt(batchReceipt *model.BatchReceipt) error {
-	var (
-		err error
-	)
-
-	psc.Logger.Info("Insert Batch Receipt")
-	insertBatchReceiptQ, argsInsertBatchReceiptQ := psc.BatchReceiptQuery.InsertBatchReceipt(batchReceipt)
-	_, err = psc.QueryExecutor.ExecuteStatement(insertBatchReceiptQ, argsInsertBatchReceiptQ...)
-	if err != nil {
-		return err
-	}
-
-	monitoring.IncrementReceiptCounter()
-	return nil
 }

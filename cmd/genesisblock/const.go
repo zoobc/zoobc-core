@@ -1,6 +1,8 @@
 package genesisblock
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+)
 
 var (
 	genesisCmd = &cobra.Command{
@@ -50,12 +52,12 @@ type (
 		LockedBalance      int64
 		ParticipationScore int64
 		Smithing           bool
+		Message            string
 	}
 	clusterConfigEntry struct {
 		NodePublicKey  string `json:"NodePublicKey"`
 		NodeSeed       string `json:"NodeSeed"`
 		AccountAddress string `json:"AccountAddress"`
-		NodeAddress    string `json:"MyAddress,omitempty"`
 		Smithing       bool   `json:"Smithing,omitempty"`
 	}
 	accountNodeEntry struct {

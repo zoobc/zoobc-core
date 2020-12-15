@@ -10,14 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-
-	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/p2p/client"
@@ -32,6 +32,7 @@ type (
 		NodeConfigurationService coreService.NodeConfigurationServiceInterface
 		PeerServiceClient        client.PeerServiceClientInterface
 		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
 		BlockMainService         coreService.BlockServiceInterface
 		ResolvedPeersLock        sync.RWMutex
 		UnresolvedPeersLock      sync.RWMutex
@@ -41,6 +42,7 @@ type (
 		Logger                   *log.Logger
 		PeerStrategyHelper       PeerStrategyHelperInterface
 		Signature                crypto.SignatureInterface
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 		// PendingNodeAddresses map containing node full address -> timestamp of last time the node tried to connect to that address
 		NodeAddressesLastTryConnect     map[string]int64
 		NodeAddressesLastTryConnectLock sync.RWMutex
@@ -50,24 +52,28 @@ type (
 func NewPriorityStrategy(
 	peerServiceClient client.PeerServiceClientInterface,
 	nodeRegistrationService coreService.NodeRegistrationServiceInterface,
+	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	blockMainService coreService.BlockServiceInterface,
 	logger *log.Logger,
 	peerStrategyHelper PeerStrategyHelperInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	blockchainStatusService coreService.BlockchainStatusServiceInterface,
 	signature crypto.SignatureInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 ) *PriorityStrategy {
 	return &PriorityStrategy{
 		BlockchainStatusService:     blockchainStatusService,
 		NodeConfigurationService:    nodeConfigurationService,
 		PeerServiceClient:           peerServiceClient,
 		NodeRegistrationService:     nodeRegistrationService,
+		NodeAddressInfoService:      nodeAddressInfoService,
 		BlockMainService:            blockMainService,
 		MaxUnresolvedPeers:          constant.MaxUnresolvedPeers,
 		MaxResolvedPeers:            constant.MaxResolvedPeers,
 		Logger:                      logger,
 		PeerStrategyHelper:          peerStrategyHelper,
 		Signature:                   signature,
+		ScrambleNodeService:         scrambleNodeService,
 		NodeAddressesLastTryConnect: map[string]int64{},
 	}
 }
@@ -116,12 +122,10 @@ func (ps *PriorityStrategy) GetPriorityPeersByFullAddress(priorityPeers map[stri
 
 func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	var (
+		err                          error
 		i                            int
 		unresolvedPriorityPeersCount int
 		resolvedPriorityPeersCount   int
-		unresolvedPeers              = ps.GetUnresolvedPeers()
-		resolvedPeers                = ps.GetResolvedPeers()
-		blacklistedPeers             = ps.GetBlacklistedPeers()
 		exceedMaxUnresolvedPeers     = ps.GetExceedMaxUnresolvedPeers() - 1
 		priorityPeers                = ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 		hostModelPeer                = &model.Peer{
@@ -135,12 +139,22 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			break
 		}
 		priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
-		if unresolvedPeers[priorityNodeAddress] == nil &&
-			resolvedPeers[priorityNodeAddress] == nil &&
-			blacklistedPeers[priorityNodeAddress] == nil &&
+		// remove from blacklisted peers if in black listed peers
+		if ps.GetBlacklistedPeerByAddressPort(priorityNodeAddress) != nil {
+			err = ps.RemoveBlacklistedPeer(peer)
+			if err != nil {
+				ps.Logger.Errorf("FailedRemovePriorityBlacklistedPeer")
+				continue
+			}
+		}
+		// adding priority peer into unresolved peer list
+		if ps.GetUnresolvedPeerByAddressPort(priorityNodeAddress) == nil &&
+			ps.GetResolvedPeerByAddressPort(priorityNodeAddress) == nil &&
 			hostAddress != priorityNodeAddress {
-
-			newPeer := *peer
+			var (
+				newPeer         = *peer
+				unresolvedPeers = ps.GetUnresolvedPeers()
+			)
 
 			// removing non priority peers and replacing if no space
 			if exceedMaxUnresolvedPeers >= 0 {
@@ -159,7 +173,7 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 			}
 
 			// add the priority peers to unresolvedPeers
-			err := ps.AddToUnresolvedPeer(&newPeer)
+			err = ps.AddToUnresolvedPeer(&newPeer)
 			if err != nil {
 				ps.Logger.Error(err)
 			}
@@ -172,10 +186,10 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	if monitoring.IsMonitoringActive() {
 		for _, peer := range priorityPeers {
 			priorityNodeAddress := p2pUtil.GetFullAddressPeer(peer)
-			if unresolvedPeers[priorityNodeAddress] != nil {
+			if ps.GetUnresolvedPeerByAddressPort(priorityNodeAddress) != nil {
 				unresolvedPriorityPeersCount++
 			}
-			if resolvedPeers[priorityNodeAddress] != nil {
+			if ps.GetResolvedPeerByAddressPort(priorityNodeAddress) != nil {
 				resolvedPriorityPeersCount++
 			}
 		}
@@ -185,17 +199,17 @@ func (ps *PriorityStrategy) ConnectPriorityPeersGradually() {
 	}
 }
 
-// GetPriorityPeers, to get a list peer should connect if host in scramble node
+// GetPriorityPeers To get a list peer should connect if host in scramble node
 func (ps *PriorityStrategy) GetPriorityPeers() map[string]*model.Peer {
 	var (
 		priorityPeers = make(map[string]*model.Peer)
 		host          = ps.NodeConfigurationService.GetHost()
 	)
-	lastBlock, err := ps.BlockMainService.GetLastBlock()
+	lastBlock, err := ps.BlockMainService.GetLastBlockCacheFormat()
 	if err != nil {
 		return priorityPeers
 	}
-	scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+	scrambledNodes, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlock.Height)
 	if err != nil {
 		return priorityPeers
 	}
@@ -232,7 +246,7 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 	var nodeID = node.GetID()
 	if nodeID == 0 {
 		if node.Address != "" && node.Port != 0 {
-			nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(node.Address, node.Port,
+			nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(node.Address, node.Port,
 				[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending,
 					model.NodeAddressStatus_NodeAddressConfirmed})
 			if err != nil || len(nais) == 0 {
@@ -243,6 +257,10 @@ func (ps *PriorityStrategy) ValidateScrambleNode(scrambledNodes *model.Scrambled
 				if scrambledNodes.IndexNodes[naiIDStr] != nil {
 					if ps.NodeConfigurationService.GetHost().GetInfo().GetAddress() == node.Address &&
 						ps.NodeConfigurationService.GetHost().GetInfo().GetPort() == node.Port { // only reset host.NodeID if nai is host
+						if nai.GetNodeID() == 0 {
+							ps.Logger.Errorf("AddressInfoService return ID 0 for %v:%v", node.Address, node.Port)
+							continue
+						}
 						ps.NodeConfigurationService.SetHostID(nai.GetNodeID())
 					}
 					return true
@@ -302,12 +320,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 			}
 
 			// get scramble node
-			lastBlock, err := ps.BlockMainService.GetLastBlock()
+			lastBlock, err := ps.BlockMainService.GetLastBlockCacheFormat()
 			if err != nil {
 				ps.Logger.Errorf("ValidateRequestFailGetLastBlock: %v", err)
 				return false
 			}
-			scrambledNodes, err := ps.NodeRegistrationService.GetScrambleNodesByHeight(lastBlock.Height)
+			scrambledNodes, err := ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlock.Height)
 			if err != nil {
 				ps.Logger.Errorf("FailGetScrambleNodesByHeight: %v", err)
 				return false
@@ -319,36 +337,33 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				var (
 					fullAddress         = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
 					nodeRequester       = p2pUtil.GetNodeInfo(fullAddress)
-					resolvedPeers       = ps.GetResolvedPeers()
-					unresolvedPeers     = ps.GetUnresolvedPeers()
-					blacklistedPeers    = ps.GetBlacklistedPeers()
 					isAddedToUnresolved = false
 				)
 
-				if unresolvedPeers[fullAddress] == nil && blacklistedPeers[fullAddress] == nil {
-					if len(unresolvedPeers) < int(constant.MaxUnresolvedPeers) {
+				if ps.GetResolvedPeerByAddressPort(fullAddress) == nil &&
+					ps.GetUnresolvedPeerByAddressPort(fullAddress) == nil &&
+					ps.GetBlacklistedPeerByAddressPort(fullAddress) == nil {
+
+					if ps.GetTotalUnresolvedPeers() < constant.MaxUnresolvedPeers {
 						if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
 							ps.Logger.Error(err.Error())
 						} else {
 							isAddedToUnresolved = true
 						}
 					} else {
-						for _, peer := range unresolvedPeers {
-							// add peer requester into unresolved and remove the old one in unresolved peers
-							// removing one of unresolved peers will do when already stayed more than max stayed
-							// and not priority peers
-							if peer.UnresolvingTime >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
-								!ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), peer.GetInfo()) {
-								if err = ps.RemoveUnresolvedPeer(peer); err == nil {
-									if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
-										ps.Logger.Error(err.Error())
-										break
-									}
-									isAddedToUnresolved = true
-									break
+						// add peer requester into unresolved and remove the old one in unresolved peers
+						// removing one of unresolved peers will do when already stayed more than max stayed
+						// and not priority peers
+						peer := ps.GetReplaceableUnresolvedPeer(scrambledNodes)
+						if peer != nil {
+							if err = ps.RemoveUnresolvedPeer(peer); err == nil {
+								if err = ps.AddToUnresolvedPeer(&model.Peer{Info: nodeRequester}); err != nil {
+									ps.Logger.Error(err.Error())
 								}
+								isAddedToUnresolved = true
 							}
 						}
+
 					}
 				}
 
@@ -357,11 +372,12 @@ func (ps *PriorityStrategy) ValidateRequest(ctx context.Context) bool {
 				// Or requester is in resolved peers of host
 				// Or requester is in unresolved peers of host And not in blacklisted peer
 				// Or requester added into unresolved peers
-				return ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, host.GetInfo()) ||
-					ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), nodeRequester) ||
-					(resolvedPeers[fullAddress] != nil) ||
-					(unresolvedPeers[fullAddress] != nil) ||
-					isAddedToUnresolved
+				return isAddedToUnresolved ||
+					(ps.GetResolvedPeerByAddressPort(fullAddress) != nil) ||
+					(ps.GetUnresolvedPeerByAddressPort(fullAddress) != nil) ||
+					ps.ValidatePriorityPeer(scrambledNodes, nodeRequester, host.GetInfo()) ||
+					ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), nodeRequester)
+
 			}
 			return true
 		}
@@ -389,6 +405,7 @@ func (ps *PriorityStrategy) ResolvePeersThread() {
 			go ps.resolvePendingAddresses()
 		case <-sigs:
 			ticker.Stop()
+			ticker1.Stop()
 			return
 		}
 	}
@@ -399,14 +416,13 @@ func (ps *PriorityStrategy) ResolvePeers() {
 	exceedMaxResolvedPeers := ps.GetExceedMaxResolvedPeers()
 	priorityPeers := ps.GetPriorityPeersByFullAddress(ps.GetPriorityPeers())
 	resolvedPeers := ps.GetResolvedPeers()
-	unresolvedPeers := ps.GetUnresolvedPeers()
 	var (
 		removedResolvedPeers    int32
 		priorityUnresolvedPeers = make(map[string]*model.Peer)
 	)
 
 	// collecting unresolved peers that are priority
-	for _, unresolvedPeer := range unresolvedPeers {
+	for _, unresolvedPeer := range ps.GetUnresolvedPeers() {
 		fullAddr := p2pUtil.GetFullAddressPeer(unresolvedPeer)
 		if priorityPeers[fullAddr] != nil {
 			// remove unresolved priority peers when already in resolved peers
@@ -492,7 +508,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 
 	// if peer nodeID = 0, check if the address is a pending  node address info
 	if peerNodeID == 0 {
-		nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+		nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
 			destPeerInfo.GetAddress(),
 			destPeerInfo.GetPort(),
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
@@ -513,20 +529,21 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 
 	// only validate priority peers addresses (the ones with nodeID)
 	if peerNodeID != 0 {
-		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-			[]int64{peerNodeID},
+		if pendingAddressesInfo, errNodeAddressInfo = ps.NodeAddressInfoService.GetAddressInfoByNodeID(
+			peerNodeID,
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending},
 		); errNodeAddressInfo == nil {
 			if len(pendingAddressesInfo) > 0 {
 				// validate node address by asking a proof of origin to destPeer and if valid, confirm address info in db
 				poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(destPeer)
 				if errPoorig == nil && poorig != nil {
-					if errNodeAddressInfo = ps.NodeRegistrationService.ConfirmPendingNodeAddress(
-						pendingAddressesInfo[0]); errNodeAddressInfo == nil {
+					if errNodeAddressInfo = ps.NodeAddressInfoService.ConfirmNodeAddressInfo(
+						pendingAddressesInfo[0],
+					); errNodeAddressInfo == nil {
 						destPeer.Info.AddressStatus = model.NodeAddressStatus_NodeAddressConfirmed
 					}
-				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeRegistrationService.GetNodeAddressesInfoFromDb(
-					[]int64{pendingAddressesInfo[0].GetNodeID()},
+				} else if confirmedAddressesInfo, errNodeAddressInfo = ps.NodeAddressInfoService.GetAddressInfoByNodeID(
+					pendingAddressesInfo[0].GetNodeID(),
 					[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
 				); errNodeAddressInfo == nil && len(confirmedAddressesInfo) > 0 {
 					nai := confirmedAddressesInfo[0]
@@ -541,7 +558,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 					poorig, errPoorig = ps.PeerServiceClient.GetNodeProofOfOrigin(tmpDestPeer)
 					if errPoorig == nil && poorig != nil {
 						// previous confirmed address is re-confirmed and pending address failed validation, so remove pending address
-						_ = ps.NodeRegistrationService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
+						_ = ps.NodeAddressInfoService.DeletePendingNodeAddressInfo(pendingAddressesInfo[0].GetNodeID())
 						// remove also unresolved peer who failed validation and change it with the new, confirmed, peer
 						_ = ps.RemoveUnresolvedPeer(destPeer)
 						destPeer = tmpDestPeer
@@ -590,7 +607,7 @@ func (ps *PriorityStrategy) resolvePeer(destPeer *model.Peer, wantToKeep bool) {
 // resolvePendingAddresses get the list of pending addresses and resolve them
 func (ps *PriorityStrategy) resolvePendingAddresses() {
 	// get all pending nodeAddressInfo
-	nais, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{},
+	nais, err := ps.NodeAddressInfoService.GetAddressInfoByStatus(
 		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending})
 	if err != nil {
 		return
@@ -618,7 +635,7 @@ func (ps *PriorityStrategy) resolvePendingAddresses() {
 				}
 				// delete expired pending node addresses
 				if time.Now().Unix() > ps.NodeAddressesLastTryConnect[fullAddress]+constant.UnresolvedPendingPeerExpirationTimeOffset {
-					if err := ps.NodeRegistrationService.DeletePendingNodeAddressInfo(nai.GetNodeID()); err != nil {
+					if err := ps.NodeAddressInfoService.DeletePendingNodeAddressInfo(nai.GetNodeID()); err != nil {
 						ps.Logger.Errorf("cannot delete pending address for node %d", nai.GetNodeID())
 						return
 					}
@@ -632,7 +649,7 @@ func (ps *PriorityStrategy) resolvePendingAddresses() {
 					return
 				}
 			}
-			if errNodeAddressInfo := ps.NodeRegistrationService.ConfirmPendingNodeAddress(nai); errNodeAddressInfo != nil {
+			if errNodeAddressInfo := ps.NodeAddressInfoService.ConfirmNodeAddressInfo(nai); errNodeAddressInfo != nil {
 				ps.Logger.Error(errNodeAddressInfo)
 				return
 			}
@@ -776,38 +793,46 @@ func (ps *PriorityStrategy) UpdateNodeAddressThread() {
 
 func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 	ps.rndDelay()
-	// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
-	// to have as many priority peers as possible to download the bc from
-	if err := ps.getRegistryAndSyncAddressInfoTable(); err != nil {
-		ps.Logger.Error(err)
-	}
-
 	var (
 		// first sync cycle: wait until the blockchain is fully downloaded, then sync
 		bootstrapTicker = time.NewTicker(time.Duration(constant.ResolvePeersGap*2) * time.Second)
+		// make sure to not trigger the second ticker until the first cycle is concluded
+		sigs = make(chan os.Signal, 1)
+		// first sync error (before first download finish)
+		syncErr error
+	)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	for syncErr != nil && !ps.BlockchainStatusService.IsFirstDownloadFinished(&chaintype.MainChain{}) {
+		// sync the registry with nodeAddressInfo from p2p network as soon as node starts,
+		// to have as many priority peers as possible to download the bc from
+		syncErr = ps.getRegistryAndSyncAddressInfoTable()
+		select {
+		case <-bootstrapTicker.C:
+			continue
+		case <-sigs:
+			bootstrapTicker.Stop()
+			return
+		}
+	}
+	bootstrapTicker.Stop()
+	// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have
+	// all updated addresses note: when bc is full downloaded the node should be able to validate all address
+	// info messages
+	var (
 		// second sync life cycle: after first cycle is complete,
 		// sync every hour to make sure node has an updated address info table
 		ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute)
 	)
-	// make sure to not trigger the second ticker until the first cycle is concluded
-	ticker.Stop()
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	for {
-		// wait until bc has finished downloading and sync nodeAddressInfo table again, to make sure we have all updated addresses
-		// note: when bc is full downloaded the node should be able to validate all address info messages
 		err := ps.getRegistryAndSyncAddressInfoTable()
-		if err == nil && ps.BlockchainStatusService.IsFirstDownloadFinished((&chaintype.MainChain{})) {
-			bootstrapTicker.Stop()
-			ticker = time.NewTicker(time.Duration(constant.SyncNodeAddressGap) * time.Minute) // todo:andy-shi88 revert this later
+		if err != nil {
+			ps.Logger.Errorf("syncNodeAddressFail: %v - [non-blocking]", err)
 		}
 		select {
-		case <-bootstrapTicker.C:
-			continue
 		case <-ticker.C:
 			continue
 		case <-sigs:
-			bootstrapTicker.Stop()
+			ticker.Stop()
 			return
 		}
 	}
@@ -815,7 +840,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTableThread() {
 
 // getRegistryAndSyncAddressInfoTable synchronize node address info table with the network
 func (ps *PriorityStrategy) getRegistryAndSyncAddressInfoTable() error {
-	if nodeRegistry, err := ps.NodeRegistrationService.GetRegisteredNodes(); err != nil {
+	if nodeRegistry, err := ps.NodeRegistrationService.GetActiveRegisteredNodes(); err != nil {
 		return err
 	} else if _, err := ps.SyncNodeAddressInfoTable(nodeRegistry); err != nil {
 		return err
@@ -870,18 +895,36 @@ func (ps *PriorityStrategy) GetResolvedPeers() map[string]*model.Peer {
 	return newResolvedPeers
 }
 
+func (ps *PriorityStrategy) GetResolvedPeerByAddressPort(addressPort string) (peer *model.Peer) {
+	ps.ResolvedPeersLock.RLock()
+	if ps.NodeConfigurationService.GetHost() != nil {
+		peer = ps.NodeConfigurationService.GetHost().ResolvedPeers[addressPort]
+	}
+	ps.ResolvedPeersLock.RUnlock()
+	return
+}
+
+func (ps *PriorityStrategy) GetTotalResolvedPeers() (totalResolvedPeers int32) {
+	ps.ResolvedPeersLock.RLock()
+	totalResolvedPeers = int32(len(ps.NodeConfigurationService.GetHost().ResolvedPeers))
+	ps.ResolvedPeersLock.RUnlock()
+	return
+}
+
 // GetAnyResolvedPeer Get any random resolved peer
 func (ps *PriorityStrategy) GetAnyResolvedPeer() *model.Peer {
-	resolvedPeers := ps.GetResolvedPeers()
-	if len(resolvedPeers) < 1 {
+	ps.ResolvedPeersLock.RLock()
+	defer ps.ResolvedPeersLock.RUnlock()
+	var lengthResolvoedPeers = len(ps.NodeConfigurationService.GetHost().ResolvedPeers)
+	if lengthResolvoedPeers < 1 {
 		return nil
 	}
 	randomIdx := int(util.GetSecureRandom())
 	if randomIdx != 0 {
-		randomIdx %= len(resolvedPeers)
+		randomIdx %= lengthResolvoedPeers
 	}
 	idx := 0
-	for _, peer := range resolvedPeers {
+	for _, peer := range ps.NodeConfigurationService.GetHost().ResolvedPeers {
 		if idx == randomIdx {
 			return peer
 		}
@@ -947,36 +990,65 @@ func (ps *PriorityStrategy) GetUnresolvedPeers() map[string]*model.Peer {
 
 	// Add known peers into unresolved peer list if the unresolved peers is empty
 	if len(host.UnresolvedPeers) == 0 {
-		// putting this initialization in a condition to prevent unneeded lock of resolvedPeers and blacklistedPeers
-		var (
-			resolvedPeers    = ps.GetResolvedPeers()
-			blacklistedPeers = ps.GetBlacklistedPeers()
-			hostAddressPeer  = &model.Peer{
-				Info: host.Info,
-			}
-			hostAddress = p2pUtil.GetFullAddressPeer(hostAddressPeer)
-			counter     int32
-		)
-
-		for key, peer := range host.GetKnownPeers() {
-			if counter >= constant.MaxUnresolvedPeers {
-				break
-			}
-			peerAddress := p2pUtil.GetFullAddressPeer(peer)
-			if resolvedPeers[peerAddress] == nil &&
-				blacklistedPeers[peerAddress] == nil &&
-				peerAddress != hostAddress {
-				newPeer := *peer
-				host.UnresolvedPeers[key] = &newPeer
-			}
-			counter++
-		}
+		ps.intilizeUnresolvedPeersFromWellKnown()
 	}
 
 	for key, UnresolvedPeer := range host.UnresolvedPeers {
 		newUnresolvedPeers[key] = UnresolvedPeer
 	}
 	return newUnresolvedPeers
+}
+
+// intilizeUnresolvedPeersFromWellKnown add well know
+func (ps *PriorityStrategy) intilizeUnresolvedPeersFromWellKnown() {
+	// putting this initialization in a condition to prevent unneeded lock of resolvedPeers and blacklistedPeers
+	var (
+		blacklistedPeers = ps.GetBlacklistedPeers()
+		host             = ps.NodeConfigurationService.GetHost()
+		hostAddressPeer  = &model.Peer{
+			Info: host.Info,
+		}
+		hostAddress = p2pUtil.GetFullAddressPeer(hostAddressPeer)
+		counter     int32
+	)
+
+	for key, peer := range host.GetKnownPeers() {
+		if counter >= constant.MaxUnresolvedPeers {
+			break
+		}
+		peerAddress := p2pUtil.GetFullAddressPeer(peer)
+		if ps.GetResolvedPeerByAddressPort(peerAddress) == nil &&
+			blacklistedPeers[peerAddress] == nil &&
+			peerAddress != hostAddress {
+			newPeer := *peer
+			host.UnresolvedPeers[key] = &newPeer
+		}
+		counter++
+	}
+}
+
+// GetUnresolvedPeerByAddressPort to get unresolved peer by full address port peer
+func (ps *PriorityStrategy) GetUnresolvedPeerByAddressPort(addressPort string) (peer *model.Peer) {
+	ps.UnresolvedPeersLock.RLock()
+	if ps.NodeConfigurationService.GetHost() != nil {
+		if len(ps.NodeConfigurationService.GetHost().UnresolvedPeers) == 0 {
+			ps.intilizeUnresolvedPeersFromWellKnown()
+		}
+		peer = ps.NodeConfigurationService.GetHost().UnresolvedPeers[addressPort]
+	}
+	ps.UnresolvedPeersLock.RUnlock()
+	return
+}
+
+// GetTotalUnresolvedPeers to get a number of unresloved peers
+func (ps *PriorityStrategy) GetTotalUnresolvedPeers() (totalUnresolvedPeers int32) {
+	ps.UnresolvedPeersLock.RLock()
+	if len(ps.NodeConfigurationService.GetHost().UnresolvedPeers) == 0 {
+		ps.intilizeUnresolvedPeersFromWellKnown()
+	}
+	totalUnresolvedPeers = int32(len(ps.NodeConfigurationService.GetHost().UnresolvedPeers))
+	ps.UnresolvedPeersLock.RUnlock()
+	return
 }
 
 // GetAnyUnresolvedPeer Get any unresolved peer
@@ -996,6 +1068,20 @@ func (ps *PriorityStrategy) GetAnyUnresolvedPeer() *model.Peer {
 	return nil
 }
 
+func (ps *PriorityStrategy) GetReplaceableUnresolvedPeer(scrambledNodes *model.ScrambledNodes) *model.Peer {
+	ps.UnresolvedPeersLock.RLock()
+	defer ps.UnresolvedPeersLock.RUnlock()
+	host := ps.NodeConfigurationService.GetHost()
+
+	for _, peer := range ps.NodeConfigurationService.GetHost().UnresolvedPeers {
+		if (time.Now().Unix()-peer.UnresolvingTime) >= constant.PriorityStrategyMaxStayedInUnresolvedPeers &&
+			!ps.ValidatePriorityPeer(scrambledNodes, host.GetInfo(), peer.GetInfo()) {
+			return peer
+		}
+	}
+	return nil
+}
+
 // AddToUnresolvedPeer to add a peer into unresolved peer
 func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 	if peer == nil {
@@ -1003,15 +1089,14 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 	}
 	var (
 		host             = ps.NodeConfigurationService.GetHost()
-		resolvedPeers    = ps.GetResolvedPeers()
 		blacklistedPeers = ps.GetBlacklistedPeers()
 		peerAddress      = p2pUtil.GetFullAddressPeer(peer)
 		hostAddressInfo  = &model.Peer{
 			Info: host.Info,
 		}
-		hostAddress = p2pUtil.GetFullAddressPeer(hostAddressInfo)
+		hostAddress       = p2pUtil.GetFullAddressPeer(hostAddressInfo)
+		isInResolvedPeers = ps.GetResolvedPeerByAddressPort(peerAddress) != nil
 	)
-	_, isInResolvedPeers := resolvedPeers[peerAddress]
 	_, isInBlacklistedPeers := blacklistedPeers[peerAddress]
 	if peerAddress == hostAddress || isInResolvedPeers || isInBlacklistedPeers {
 		return nil
@@ -1025,7 +1110,7 @@ func (ps *PriorityStrategy) AddToUnresolvedPeer(peer *model.Peer) error {
 	peer.UnresolvingTime = time.Now().UTC().Unix()
 	// in case it doesn't have a nodeID, check if this unresolved peer is in address info table and assign proper id and address status
 	if peer.GetInfo() != nil && peer.Info.ID == 0 {
-		if nais, err := ps.NodeRegistrationService.GetNodeAddressInfoFromDbByAddressPort(
+		if nais, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
 			peer.Info.Address,
 			peer.Info.Port,
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressPending, model.NodeAddressStatus_NodeAddressConfirmed},
@@ -1063,19 +1148,15 @@ func (ps *PriorityStrategy) AddToUnresolvedPeers(newNodes []*model.Node, toForce
 	}
 	var (
 		peersAdded      int32
-		unresolvedPeers = ps.GetUnresolvedPeers()
-		resolvedPeers   = ps.GetResolvedPeers()
-		hostAddress     = &model.Peer{
-			Info: ps.NodeConfigurationService.GetHost().Info,
-		}
+		hostAddressPort = p2pUtil.GetFullAddress(ps.NodeConfigurationService.GetHost().Info)
 	)
 	for _, node := range newNodes {
 		peer := &model.Peer{
 			Info: node,
 		}
-		if unresolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
-			resolvedPeers[p2pUtil.GetFullAddressPeer(peer)] == nil &&
-			p2pUtil.GetFullAddressPeer(hostAddress) != p2pUtil.GetFullAddressPeer(peer) {
+		if ps.GetUnresolvedPeerByAddressPort(p2pUtil.GetFullAddressPeer(peer)) == nil &&
+			ps.GetResolvedPeerByAddressPort(p2pUtil.GetFullAddressPeer(peer)) == nil &&
+			hostAddressPort != p2pUtil.GetFullAddressPeer(peer) {
 			if err := ps.AddToUnresolvedPeer(peer); err != nil {
 				ps.Logger.Error(err.Error())
 			}
@@ -1121,6 +1202,16 @@ func (ps *PriorityStrategy) GetBlacklistedPeers() map[string]*model.Peer {
 		newBlacklistedPeers[key] = resolvedPeer
 	}
 	return newBlacklistedPeers
+}
+
+// GetBlacklistedPeerByAddressPort to get blacklisted peer by full address port peer
+func (ps *PriorityStrategy) GetBlacklistedPeerByAddressPort(addressPort string) (peer *model.Peer) {
+	ps.BlacklistedPeersLock.RLock()
+	if ps.NodeConfigurationService.GetHost() != nil {
+		peer = ps.NodeConfigurationService.GetHost().BlacklistedPeers[addressPort]
+	}
+	ps.BlacklistedPeersLock.RUnlock()
+	return
 }
 
 // AddToBlacklistedPeer to add a peer into blacklisted peer
@@ -1183,12 +1274,12 @@ func (ps *PriorityStrategy) GetAnyKnownPeer() *model.Peer {
 
 // GetExceedMaxUnresolvedPeers returns number of peers exceeding max number of the unresolved peers
 func (ps *PriorityStrategy) GetExceedMaxUnresolvedPeers() int32 {
-	return int32(len(ps.GetUnresolvedPeers())) - ps.MaxUnresolvedPeers + 1
+	return ps.GetTotalUnresolvedPeers() - ps.MaxUnresolvedPeers + 1
 }
 
 // GetExceedMaxResolvedPeers returns number of peers exceeding max number of the resolved peers
 func (ps *PriorityStrategy) GetExceedMaxResolvedPeers() int32 {
-	return int32(len(ps.GetResolvedPeers())) - ps.MaxResolvedPeers + 1
+	return ps.GetTotalResolvedPeers() - ps.MaxResolvedPeers + 1
 }
 
 // PeerBlacklist process adding peer into blacklist
@@ -1240,7 +1331,7 @@ func (ps *PriorityStrategy) DisconnectPeer(peer *model.Peer) {
 // SyncNodeAddressInfoTable synchronize node_address_info table by downloading and merging all addresses from peers
 // Note: the node will try to rebroadcast every node address that is updated (new or updated version of an existing one)
 func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.NodeRegistration) (map[int64]*model.NodeAddressInfo, error) {
-	resolvedPeers := ps.NodeConfigurationService.GetHost().GetResolvedPeers()
+	resolvedPeers := ps.GetResolvedPeers()
 	if len(resolvedPeers) < 1 {
 		return nil, blocker.NewBlocker(blocker.AppErr, "SyncNodeAddressInfoTable: No resolved peers found")
 	}
@@ -1253,20 +1344,16 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 		curNodeRegistration    *model.NodeRegistration
 		err                    error
 	)
-
-	// Copy map to not interfere with original
-	peers := make(map[string]*model.Peer)
-	for key, value := range resolvedPeers {
-		peers[key] = value
+	nodeID, err := ps.NodeConfigurationService.GetHostID()
+	if err != nil {
+		return nil, err
 	}
-
 	// if current node is registered, broadcast it back to its peers, in case they don't know its address
-	if curNodeRegistration, err = ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(ps.NodeConfigurationService.
-		GetNodePublicKey()); err != nil {
+	if curNodeRegistration, err = ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(nodeID); err != nil {
 		return nil, err
 	} else if curNodeRegistration != nil {
 		// node own address is always 'confirmed'
-		if myAddressesInfo, err := ps.NodeRegistrationService.GetNodeAddressesInfoFromDb([]int64{curNodeRegistration.GetNodeID()},
+		if myAddressesInfo, err := ps.NodeAddressInfoService.GetAddressInfoByNodeID(curNodeRegistration.GetNodeID(),
 			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed}); err != nil {
 			return nil, err
 		} else if len(myAddressesInfo) > 0 {
@@ -1277,15 +1364,14 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 			// try generating a new node address info, update node db and broadcast the address
 			if myPort, err := ps.NodeConfigurationService.GetMyPeerPort(); err == nil {
 				if err = ps.UpdateOwnNodeAddressInfo(myAddress, myPort, true); err != nil {
-					ps.Logger.Errorf("Cannot update own address info. "+
-						"Other nodes might not be able to add it to their priority peers: %s", err)
+					ps.Logger.Errorf("Cannot update own address info. Err: %v", err)
 				}
 			}
 		}
 	}
 
-	for len(peers) > 0 && !finished {
-		peer := ps.PeerStrategyHelper.GetRandomPeerWithoutRepetition(peers, mutex)
+	for len(resolvedPeers) > 0 && !finished {
+		peer := ps.PeerStrategyHelper.GetRandomPeerWithoutRepetition(resolvedPeers, mutex)
 		res, err := ps.PeerServiceClient.GetNodeAddressesInfo(peer, nodeRegistrations)
 		if err != nil {
 			ps.Logger.Warn(err)
@@ -1313,7 +1399,7 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 				}
 			}
 
-			if alreadyUpdated, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil || alreadyUpdated {
+			if alreadyUpdated, err := ps.NodeAddressInfoService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil || alreadyUpdated {
 				continue
 			}
 
@@ -1321,48 +1407,68 @@ func (ps *PriorityStrategy) SyncNodeAddressInfoTable(nodeRegistrations []*model.
 			curNodeAddressInfo, ok := nodeAddressesInfo[nodeAddressInfo.NodeID]
 			if !ok || (ok && curNodeAddressInfo.BlockHeight < nodeAddressInfo.BlockHeight) {
 				nodeAddressesInfo[nodeAddressInfo.NodeID] = nodeAddressInfo
-				if err := ps.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
-					ps.Logger.Error(err)
-				}
+
 			}
 		}
 
 		if syncMyAddressWithPeers && !myAddressFound {
-			go ps.sendAddressInfoToPeer(peer, myAddressInfo)
+			go ps.sendAddressInfoToPeer(peer, []*model.NodeAddressInfo{myAddressInfo})
 		}
 		// all address info have been fetched
 		if len(nodeAddressesInfo) == len(nodeRegistrations) {
 			finished = true
 		}
 	}
+	nodeAddressesInfoArr := make([]*model.NodeAddressInfo, len(nodeAddressesInfo))
+	var i = 0
+	for _, nodeAddressInfo := range nodeAddressesInfo {
+		nodeAddressesInfoArr[i] = nodeAddressInfo
+		i++
+	}
+	if err := ps.ReceiveNodeAddressInfo(nodeAddressesInfoArr); err != nil {
+		ps.Logger.Error(err)
+	}
 	return nodeAddressesInfo, nil
 }
 
 // ReceiveNodeAddressInfo receive a node address info from a peer and save it to db
-func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+func (ps *PriorityStrategy) ReceiveNodeAddressInfo(nodeAddressInfo []*model.NodeAddressInfo) error {
 	// skip if received address is own address
 	myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
 	myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
-	if errAddr == nil &&
-		errPort == nil &&
-		nodeAddressInfo.GetAddress() == myAddress &&
-		nodeAddressInfo.GetPort() == myPort {
-		return nil
-	}
 
-	nodeRegistry, err := ps.NodeRegistrationService.GetNodeRegistrationByNodeID(nodeAddressInfo.NodeID)
-	if err != nil {
-		return err
-	}
-	if nodeRegistry.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
-		// add it to nodeAddressInfo table
-		if updated, _ := ps.NodeRegistrationService.UpdateNodeAddressInfo(nodeAddressInfo, model.NodeAddressStatus_NodeAddressPending); updated {
-			// re-broadcast updated node address info
-			for _, peer := range ps.GetResolvedPeers() {
-				go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
+	var (
+		nodeAddressInfosToBroadcast = make([]*model.NodeAddressInfo, 0)
+	)
+	for _, info := range nodeAddressInfo {
+		if errAddr == nil &&
+			errPort == nil &&
+			info.GetAddress() == myAddress &&
+			info.GetPort() == myPort {
+			continue
+		}
+		// check if received node is in active registered node (status = model.NodeRegistrationState_NodeRegistered)
+		_, err := ps.NodeRegistrationService.GetActiveNodeRegistrationByNodeID(info.NodeID)
+		if err != nil {
+			castedBlocker := err.(blocker.Blocker)
+			if castedBlocker.Type == blocker.NotFound {
+				return nil
 			}
+			ps.Logger.Errorf("ReceiveNodeAddressInfo-Err: nodeID: %d - %v", info.NodeID, err)
+			continue
+		}
+		// add it to nodeAddressInfo table
+		if updated, _ := ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(info, model.NodeAddressStatus_NodeAddressPending); updated {
+			nodeAddressInfosToBroadcast = append(nodeAddressInfosToBroadcast, info)
 		}
 	}
+	if len(nodeAddressInfosToBroadcast) > 0 {
+		// re-broadcast updated node address info
+		for _, peer := range ps.GetResolvedPeers() {
+			go ps.sendAddressInfoToPeer(peer, nodeAddressInfosToBroadcast)
+		}
+	}
+
 	// do not add to address info if still in queue or node got deleted
 	return nil
 }
@@ -1380,7 +1486,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		updated          bool
 		nodeAddressInfo  *model.NodeAddressInfo
 		nodeSecretPhrase = ps.NodeConfigurationService.GetNodeSecretPhrase()
-		nodePublicKey    = crypto.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
+		nodePublicKey    = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase)
 		resolvedPeers    = ps.GetResolvedPeers()
 		hostInfo         = ps.GetHostInfo()
 	)
@@ -1390,7 +1496,13 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 	}
 	nr, err := ps.NodeRegistrationService.GetNodeRegistrationByNodePublicKey(nodePublicKey)
 	if nr != nil && err == nil {
-		if nodeAddressInfo, err = ps.NodeRegistrationService.GenerateNodeAddressInfo(
+		if nr.GetNodeID() == 0 {
+			return blocker.NewBlocker(
+				blocker.P2PPeerError,
+				"NodeRegistrationService return OwnNodeID 0",
+			)
+		}
+		if nodeAddressInfo, err = ps.NodeAddressInfoService.GenerateNodeAddressInfo(
 			nr.GetNodeID(),
 			nodeAddress,
 			port,
@@ -1400,13 +1512,14 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 		// set status to 'confirmed' when updating own address
 		if nr.GetRegistrationStatus() == uint32(model.NodeRegistrationState_NodeRegistered) {
 			// only update own address info table if node is registered (out of queue or not removed)
-			updated, err = ps.NodeRegistrationService.UpdateNodeAddressInfo(
+			updated, err = ps.NodeAddressInfoService.UpdateOrInsertAddressInfo(
 				nodeAddressInfo,
 				model.NodeAddressStatus_NodeAddressConfirmed,
 			)
 			if err != nil {
 				ps.Logger.Warnf("cannot update nodeAddressInfo: %s", err)
 			}
+			ps.NodeConfigurationService.SetHostID(nr.GetNodeID())
 		}
 
 		// broadcast, wether or not node is in queue
@@ -1418,7 +1531,7 @@ func (ps *PriorityStrategy) UpdateOwnNodeAddressInfo(nodeAddress string, port ui
 						nodeAddress, port))
 			}
 			for _, peer := range resolvedPeers {
-				go ps.sendAddressInfoToPeer(peer, nodeAddressInfo)
+				go ps.sendAddressInfoToPeer(peer, []*model.NodeAddressInfo{nodeAddressInfo})
 			}
 		}
 	}
@@ -1449,20 +1562,26 @@ func (ps *PriorityStrategy) rndDelay() {
 	time.Sleep(time.Duration(rndTimer) * time.Millisecond)
 }
 
-func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressInfo *model.NodeAddressInfo) {
-	ps.rndDelay()
+func (ps *PriorityStrategy) sendAddressInfoToPeer(peer *model.Peer, nodeAddressInfos []*model.NodeAddressInfo) {
+	var (
+		addressInfosToBroadcast = make([]*model.NodeAddressInfo, 0)
+	)
 	peerInfo := peer.GetInfo()
 	// don't broadcast to peer with same address to be broadcast
-	if peerInfo.Address == nodeAddressInfo.Address && peerInfo.Port == nodeAddressInfo.Port {
-		return
+	for _, info := range nodeAddressInfos {
+		if peerInfo.Address == info.Address && peerInfo.Port == info.Port {
+			continue
+		}
+		addressInfosToBroadcast = append(addressInfosToBroadcast, info)
+		ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
+			info.Address,
+			info.Port,
+			peerInfo.Address,
+			peerInfo.Port,
+			time.Now().Unix())
 	}
-	ps.Logger.Debugf("Broadcasting node addresses %s:%d to %s:%d. timestamp: %d",
-		nodeAddressInfo.Address,
-		nodeAddressInfo.Port,
-		peerInfo.Address,
-		peerInfo.Port,
-		time.Now().Unix())
-	if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, nodeAddressInfo); err != nil {
+
+	if _, err := ps.PeerServiceClient.SendNodeAddressInfo(peer, addressInfosToBroadcast); err != nil {
 		ps.Logger.Warnf("Cannot send node address info message to peer %s:%d. Error: %s",
 			peer.Info.Address,
 			peer.Info.Port,

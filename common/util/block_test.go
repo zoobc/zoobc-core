@@ -179,6 +179,9 @@ func (*mockExecutorGetLastBlockSuccess) ExecuteSelectRow(qStr string, tx bool, a
 		mockBlockData.GetTotalFee(),
 		mockBlockData.GetTotalCoinBase(),
 		mockBlockData.GetVersion(),
+		mockBlockData.GetMerkleRoot(),
+		mockBlockData.GetMerkleTree(),
+		mockBlockData.GetReferenceBlockHeight(),
 	)
 	mock.ExpectQuery("").WillReturnRows(mockRows)
 	return db.QueryRow(""), nil
@@ -308,6 +311,9 @@ func (*mockedQueryExecutorGetBlockByHeightSuccess) ExecuteSelectRow(qe string, _
 			mockBlockData.GetTotalFee(),
 			mockBlockData.GetTotalCoinBase(),
 			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
 		))
 	return db.QueryRow(qe), nil
 }

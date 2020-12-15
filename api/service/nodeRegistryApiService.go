@@ -124,7 +124,9 @@ func (ns NodeRegistryService) GetNodeRegistrationsByNodePublicKeys(params *model
 	for _, npk := range params.NodePublicKeys {
 		publicKeyInterfaces = append(publicKeyInterfaces, npk)
 	}
-	caseQuery.Where(caseQuery.In("node_public_key", publicKeyInterfaces...))
+	if len(publicKeyInterfaces) > 0 {
+		caseQuery.Where(caseQuery.In("node_public_key", publicKeyInterfaces...))
+	}
 	caseQuery.And(caseQuery.Equal("latest", 1))
 	caseQuery.OrderBy("height", model.OrderBy_DESC)
 
@@ -164,7 +166,7 @@ func (ns NodeRegistryService) GetNodeRegistration(
 	if len(params.GetNodePublicKey()) != 0 {
 		caseQuery.And(caseQuery.Equal("node_public_key", params.GetNodePublicKey()))
 	}
-	if params.GetAccountAddress() != "" {
+	if params.GetAccountAddress() != nil {
 		caseQuery.And(caseQuery.Equal("account_address", params.GetAccountAddress()))
 	}
 	if params.GetRegistrationHeight() != 0 {

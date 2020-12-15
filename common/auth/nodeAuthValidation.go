@@ -2,11 +2,11 @@ package auth
 
 import (
 	"bytes"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -49,7 +49,7 @@ func (nav *NodeAuthValidation) ValidateProofOfOwnership(
 	blockQuery query.BlockQueryInterface,
 ) error {
 
-	if !(&crypto.Signature{}).VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
+	if !nav.Signature.VerifyNodeSignature(poown.MessageBytes, poown.Signature, nodePublicKey) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
 	}
 

@@ -1,8 +1,11 @@
 package transaction
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -38,7 +41,7 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address string
+		address []byte
 		amount  int64
 	}
 	tests := []struct {
@@ -82,10 +85,11 @@ func TestAccountBalanceHelper_AddAccountSpendableBalance(t *testing.T) {
 func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 	type fields struct {
 		AccountBalanceQuery query.AccountBalanceQueryInterface
+		AccountLedgerQuery  query.AccountLedgerQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
 	type args struct {
-		address     string
+		address     []byte
 		amount      int64
 		blockHeight uint32
 	}
@@ -99,6 +103,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 			name: "executorError",
 			fields: fields{
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				QueryExecutor:       &mockAccountBalanceHelperExecutorAddSpendableFail{},
 			},
 			args:    args{},
@@ -108,6 +113,7 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 			name: "executeSuccess",
 			fields: fields{
 				AccountBalanceQuery: query.NewAccountBalanceQuery(),
+				AccountLedgerQuery:  query.NewAccountLedgerQuery(),
 				QueryExecutor:       &mockAccountBalanceHelperExecutorAddSpendableSuccess{},
 			},
 			args:    args{},
@@ -118,11 +124,48 @@ func TestAccountBalanceHelper_AddAccountBalance(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			abh := &AccountBalanceHelper{
 				AccountBalanceQuery: tt.fields.AccountBalanceQuery,
+				AccountLedgerQuery:  tt.fields.AccountLedgerQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
-			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, tt.args.blockHeight); (err != nil) != tt.wantErr {
+			if err := abh.AddAccountBalance(tt.args.address, tt.args.amount, 0, tt.args.blockHeight, 0, 0); (err != nil) != tt.wantErr {
 				t.Errorf("AddAccountBalance() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
+}
+
+type (
+	mockAccountBalanceHelperSuccess struct {
+		AccountBalanceHelper
+	}
+	mockAccountBalanceHelperFail struct {
+		AccountBalanceHelper
+	}
+)
+
+func (*mockAccountBalanceHelperSuccess) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return nil
+}
+func (*mockAccountBalanceHelperSuccess) HasEnoughSpendableBalance(
+	dbTX bool, address []byte, compareBalance int64,
+) (enough bool, err error) {
+	return true, nil
+}
+func (*mockAccountBalanceHelperFail) AddAccountSpendableBalance(address []byte, amount int64) error {
+	return sql.ErrTxDone
+}
+func (*mockAccountBalanceHelperFail) HasEnoughSpendableBalance(
+	dbTX bool, address []byte, compareBalance int64,
+) (enough bool, err error) {
+	return false, nil
+}
+func (*mockAccountBalanceHelperSuccess) AddAccountBalance(
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return nil
+}
+func (*mockAccountBalanceHelperFail) AddAccountBalance(
+	address []byte, amount int64, event model.EventType, blockHeight uint32, transactionID int64, blockTimestamp uint64,
+) error {
+	return sql.ErrTxDone
 }

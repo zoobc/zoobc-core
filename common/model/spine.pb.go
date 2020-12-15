@@ -131,7 +131,9 @@ func init() {
 	proto.RegisterType((*SpinePublicKey)(nil), "model.SpinePublicKey")
 }
 
-func init() { proto.RegisterFile("model/spine.proto", fileDescriptor_59a5e7c6458ac090) }
+func init() {
+	proto.RegisterFile("model/spine.proto", fileDescriptor_59a5e7c6458ac090)
+}
 
 var fileDescriptor_59a5e7c6458ac090 = []byte{
 	// 259 bytes of a gzipped FileDescriptorProto

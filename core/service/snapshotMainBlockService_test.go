@@ -331,7 +331,7 @@ var (
 		IntermediateHashes: make([]byte, 32),
 		PublishedIndex:     100,
 		ReceiptIndex:       10,
-		BatchReceipt:       &model.BatchReceipt{},
+		Receipt:            &model.Receipt{},
 	}
 	escrowTx1 = &model.Escrow{
 		BlockHeight:      1,
@@ -358,8 +358,8 @@ var (
 		Height:    1440,
 		Timestamp: 15875392,
 	}
-	snapshotFullHash = []byte{141, 108, 162, 113, 168, 69, 83, 100, 83, 167, 225, 67, 240, 162, 177, 107, 15, 176, 114, 95, 93, 82, 146, 39,
-		154, 181, 125, 197, 96, 41, 158, 247}
+	snapshotFullHash = []byte{24, 221, 153, 30, 107, 6, 128, 163, 98, 204, 96, 191, 126, 13, 184, 12, 200, 188, 39, 15,
+		65, 111, 26, 6, 181, 130, 90, 175, 180, 57, 152, 169}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
 		188, 144, 9, 73, 75, 6, 1, 1, 1,
@@ -452,13 +452,56 @@ func (mct *mockChainType) GetSnapshotGenerationTimeout() time.Duration {
 	return mct.SnapshotGenerationTimeout
 }
 
-func (*mockSnapshotQueryExecutor) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+func (*mockSnapshotQueryExecutor) ExecuteSelect(qry string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		return nil, err
 	}
-	mock.ExpectQuery("").
-		WillReturnRows(sqlmock.NewRows([]string{"ID"}))
+	switch qry {
+	// special case for multisig info because it has custom logic to be tested
+	case "SELECT multisig_address, minimum_signatures, nonce, block_height, latest FROM multisignature_info " +
+		"WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) " +
+		"FROM multisignature_info t2 WHERE t2.block_height >= 0 AND t2.block_height <= 720 AND t2.block_height != 0 " +
+		"GROUP BY t2.multisig_address) ORDER BY block_height":
+		mock.ExpectQuery("").
+			WillReturnRows(sqlmock.NewRows(query.NewMultiSignatureParticipantQuery().Fields).
+				AddRow(
+					address1,
+					2,
+					1,
+					10,
+					true,
+				).
+				AddRow(
+					address2,
+					3,
+					2,
+					11,
+					true,
+				))
+	case "SELECT multisig_address,account_address,account_address_index,latest,block_height " +
+		"FROM multisignature_participant WHERE multisig_address = ? AND block_height >= ? AND block_height <= ? " +
+		"ORDER BY account_address_index":
+		mock.ExpectQuery("").
+			WillReturnRows(sqlmock.NewRows(query.NewMultiSignatureParticipantQuery().Fields).
+				AddRow(
+					address1,
+					address2,
+					0,
+					true,
+					10,
+				).
+				AddRow(
+					address1,
+					address3,
+					0,
+					true,
+					10,
+				))
+	default:
+		mock.ExpectQuery("").
+			WillReturnRows(sqlmock.NewRows([]string{"ID"}))
+	}
 	return db.Query("")
 }
 
@@ -505,6 +548,10 @@ func (*mockBlockMainServiceSuccess) UpdateLastBlockCache(block *model.Block) err
 	return nil
 }
 
+func (*mockBlockMainServiceSuccess) InitializeBlocksCache() error {
+	return nil
+}
+
 func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
 	mockedBlock := transaction.GetFixturesForBlock(100, 123456789)
 	return mockedBlock, nil
@@ -512,30 +559,31 @@ func (*mockBlockMainServiceSuccess) GetLastBlock() (*model.Block, error) {
 
 func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 	type fields struct {
-		SnapshotPath                  string
-		chainType                     chaintype.ChainType
-		Logger                        *log.Logger
-		SnapshotBasicChunkStrategy    SnapshotChunkStrategyInterface
-		QueryExecutor                 query.ExecutorInterface
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		NodeRegistrationQuery         query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery       query.ParticipationScoreQueryInterface
-		AccountDatasetQuery           query.AccountDatasetQueryInterface
-		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery         query.PublishedReceiptQueryInterface
-		PendingTransactionQuery       query.PendingTransactionQueryInterface
-		PendingSignatureQuery         query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
-		FeeScaleQuery                 query.FeeScaleQueryInterface
-		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
-		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
-		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
-		BlockQuery                    query.BlockQueryInterface
-		SnapshotQueries               map[string]query.SnapshotQuery
-		BlocksmithSafeQuery           map[string]bool
-		DerivedQueries                []query.DerivedQuery
+		SnapshotPath                   string
+		chainType                      chaintype.ChainType
+		Logger                         *log.Logger
+		SnapshotBasicChunkStrategy     SnapshotChunkStrategyInterface
+		QueryExecutor                  query.ExecutorInterface
+		AccountBalanceQuery            query.AccountBalanceQueryInterface
+		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery        query.ParticipationScoreQueryInterface
+		AccountDatasetQuery            query.AccountDatasetQueryInterface
+		EscrowTransactionQuery         query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery          query.PublishedReceiptQueryInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
+		FeeScaleQuery                  query.FeeScaleQueryInterface
+		FeeVoteCommitmentVoteQuery     query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
+		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		BlockQuery                     query.BlockQueryInterface
+		SnapshotQueries                map[string]query.SnapshotQuery
+		BlocksmithSafeQuery            map[string]bool
+		DerivedQueries                 []query.DerivedQuery
 	}
 	type args struct {
 		block *model.Block
@@ -559,26 +607,27 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 1 * time.Second,
 				},
-				QueryExecutor:                 &mockSnapshotQueryExecutor{success: true},
-				AccountBalanceQuery:           &mockSnapshotAccountBalanceQuery{success: true},
-				NodeRegistrationQuery:         &mockSnapshotNodeRegistrationQuery{success: true},
-				ParticipationScoreQuery:       &mockSnapshotParticipationScoreQuery{success: true},
-				AccountDatasetQuery:           &mockSnapshotAccountDatasetQuery{success: true},
-				EscrowTransactionQuery:        &mockSnapshotEscrowTransactionQuery{success: true},
-				PublishedReceiptQuery:         &mockSnapshotPublishedReceiptQuery{success: true},
-				PendingTransactionQuery:       &mockSnapshotPendingTransactionQuery{success: true},
-				PendingSignatureQuery:         &mockSnapshotPendingSignatureQuery{success: true},
-				MultisignatureInfoQuery:       &mockSnapshotMultisignatureInfoQuery{success: true},
-				SkippedBlocksmithQuery:        &mockSkippedBlocksmithQuery{success: true},
-				BlockQuery:                    &mockSnapshotBlockQuery{success: true},
-				FeeScaleQuery:                 &mockSnapshotFeeScaleQuery{success: true},
-				FeeVoteCommitmentVoteQuery:    &mockSnapshotFeeVoteCommitmentQuery{success: true},
-				FeeVoteRevealVoteQuery:        &mockSnapshotFeeVoteRevealQuery{success: true},
-				LiquidPaymentTransactionQuery: &mockSnapshotLiquidPaymentTransactionQuery{success: true},
-				NodeAdmissionTimestampQuery:   &mockSnapshotNodeAdmissionTimestampQuery{success: true},
-				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
-				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
-				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
+				QueryExecutor:                  &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:            &mockSnapshotAccountBalanceQuery{success: true},
+				NodeRegistrationQuery:          &mockSnapshotNodeRegistrationQuery{success: true},
+				ParticipationScoreQuery:        &mockSnapshotParticipationScoreQuery{success: true},
+				AccountDatasetQuery:            &mockSnapshotAccountDatasetQuery{success: true},
+				EscrowTransactionQuery:         &mockSnapshotEscrowTransactionQuery{success: true},
+				PublishedReceiptQuery:          &mockSnapshotPublishedReceiptQuery{success: true},
+				PendingTransactionQuery:        &mockSnapshotPendingTransactionQuery{success: true},
+				PendingSignatureQuery:          &mockSnapshotPendingSignatureQuery{success: true},
+				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
+				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
+				SkippedBlocksmithQuery:         &mockSkippedBlocksmithQuery{success: true},
+				BlockQuery:                     &mockSnapshotBlockQuery{success: true},
+				FeeScaleQuery:                  &mockSnapshotFeeScaleQuery{success: true},
+				FeeVoteCommitmentVoteQuery:     &mockSnapshotFeeVoteCommitmentQuery{success: true},
+				FeeVoteRevealVoteQuery:         &mockSnapshotFeeVoteRevealQuery{success: true},
+				LiquidPaymentTransactionQuery:  &mockSnapshotLiquidPaymentTransactionQuery{success: true},
+				NodeAdmissionTimestampQuery:    &mockSnapshotNodeAdmissionTimestampQuery{success: true},
+				SnapshotQueries:                query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:            query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:                 query.GetDerivedQuery(chaintype.GetChainType(0)),
 			},
 			args: args{
 				block: blockForSnapshot1,
@@ -599,30 +648,31 @@ func TestSnapshotMainBlockService_NewSnapshotFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				SnapshotPath:                  tt.fields.SnapshotPath,
-				chainType:                     tt.fields.chainType,
-				Logger:                        tt.fields.Logger,
-				SnapshotBasicChunkStrategy:    tt.fields.SnapshotBasicChunkStrategy,
-				QueryExecutor:                 tt.fields.QueryExecutor,
-				AccountBalanceQuery:           tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:         tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:       tt.fields.ParticipationScoreQuery,
-				AccountDatasetQuery:           tt.fields.AccountDatasetQuery,
-				EscrowTransactionQuery:        tt.fields.EscrowTransactionQuery,
-				PublishedReceiptQuery:         tt.fields.PublishedReceiptQuery,
-				PendingTransactionQuery:       tt.fields.PendingTransactionQuery,
-				PendingSignatureQuery:         tt.fields.PendingSignatureQuery,
-				MultisignatureInfoQuery:       tt.fields.MultisignatureInfoQuery,
-				SkippedBlocksmithQuery:        tt.fields.SkippedBlocksmithQuery,
-				BlockQuery:                    tt.fields.BlockQuery,
-				SnapshotQueries:               tt.fields.SnapshotQueries,
-				BlocksmithSafeQuery:           tt.fields.BlocksmithSafeQuery,
-				FeeScaleQuery:                 tt.fields.FeeScaleQuery,
-				FeeVoteCommitmentVoteQuery:    tt.fields.FeeVoteCommitmentVoteQuery,
-				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
-				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
-				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
-				DerivedQueries:                tt.fields.DerivedQueries,
+				SnapshotPath:                   tt.fields.SnapshotPath,
+				chainType:                      tt.fields.chainType,
+				Logger:                         tt.fields.Logger,
+				SnapshotBasicChunkStrategy:     tt.fields.SnapshotBasicChunkStrategy,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				AccountBalanceQuery:            tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:          tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:        tt.fields.ParticipationScoreQuery,
+				AccountDatasetQuery:            tt.fields.AccountDatasetQuery,
+				EscrowTransactionQuery:         tt.fields.EscrowTransactionQuery,
+				PublishedReceiptQuery:          tt.fields.PublishedReceiptQuery,
+				PendingTransactionQuery:        tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:          tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:        tt.fields.MultisignatureInfoQuery,
+				MultisignatureParticipantQuery: tt.fields.MultiSignatureParticipantQuery,
+				SkippedBlocksmithQuery:         tt.fields.SkippedBlocksmithQuery,
+				BlockQuery:                     tt.fields.BlockQuery,
+				SnapshotQueries:                tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:            tt.fields.BlocksmithSafeQuery,
+				FeeScaleQuery:                  tt.fields.FeeScaleQuery,
+				FeeVoteCommitmentVoteQuery:     tt.fields.FeeVoteCommitmentVoteQuery,
+				FeeVoteRevealVoteQuery:         tt.fields.FeeVoteRevealVoteQuery,
+				LiquidPaymentTransactionQuery:  tt.fields.LiquidPaymentTransactionQuery,
+				NodeAdmissionTimestampQuery:    tt.fields.NodeAdmissionTimestampQuery,
+				DerivedQueries:                 tt.fields.DerivedQueries,
 			}
 			got, err := ss.NewSnapshotFile(tt.args.block)
 			if err != nil {
@@ -835,43 +885,56 @@ type (
 	mockImportSnapshotFileNodeRegistrationServiceSuccess struct {
 		NodeRegistrationServiceInterface
 	}
+	mockScrambleNodeServiceInitSuccess struct {
+		ScrambleNodeService
+	}
 )
+
+func (*mockScrambleNodeServiceInitSuccess) InitializeScrambleCache(lastBlockHeight uint32) error {
+	return nil
+}
 
 func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) UpdateNextNodeAdmissionCache(
 	newNextNodeAdmission *model.NodeAdmissionTimestamp) error {
 	return nil
 }
 
+func (*mockImportSnapshotFileNodeRegistrationServiceSuccess) InitializeCache() error {
+	return nil
+}
+
 func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 	type fields struct {
-		SnapshotPath                  string
-		chainType                     chaintype.ChainType
-		Logger                        *log.Logger
-		SnapshotBasicChunkStrategy    SnapshotChunkStrategyInterface
-		QueryExecutor                 query.ExecutorInterface
-		AccountBalanceQuery           query.AccountBalanceQueryInterface
-		NodeRegistrationQuery         query.NodeRegistrationQueryInterface
-		ParticipationScoreQuery       query.ParticipationScoreQueryInterface
-		AccountDatasetQuery           query.AccountDatasetQueryInterface
-		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
-		PublishedReceiptQuery         query.PublishedReceiptQueryInterface
-		PendingTransactionQuery       query.PendingTransactionQueryInterface
-		PendingSignatureQuery         query.PendingSignatureQueryInterface
-		MultisignatureInfoQuery       query.MultisignatureInfoQueryInterface
-		SkippedBlocksmithQuery        query.SkippedBlocksmithQueryInterface
-		FeeScaleQuery                 query.FeeScaleQueryInterface
-		FeeVoteCommitmentVoteQuery    query.FeeVoteCommitmentVoteQueryInterface
-		FeeVoteRevealVoteQuery        query.FeeVoteRevealVoteQueryInterface
-		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
-		NodeAdmissionTimestampQuery   query.NodeAdmissionTimestampQueryInterface
-		BlockQuery                    query.BlockQueryInterface
-		SnapshotQueries               map[string]query.SnapshotQuery
-		BlocksmithSafeQuery           map[string]bool
-		DerivedQueries                []query.DerivedQuery
-		TransactionUtil               transaction.UtilInterface
-		TypeActionSwitcher            transaction.TypeActionSwitcher
-		BlockMainService              BlockServiceInterface
-		NodeRegistrationService       NodeRegistrationServiceInterface
+		SnapshotPath                   string
+		chainType                      chaintype.ChainType
+		Logger                         *log.Logger
+		SnapshotBasicChunkStrategy     SnapshotChunkStrategyInterface
+		QueryExecutor                  query.ExecutorInterface
+		AccountBalanceQuery            query.AccountBalanceQueryInterface
+		NodeRegistrationQuery          query.NodeRegistrationQueryInterface
+		ParticipationScoreQuery        query.ParticipationScoreQueryInterface
+		AccountDatasetQuery            query.AccountDatasetQueryInterface
+		EscrowTransactionQuery         query.EscrowTransactionQueryInterface
+		PublishedReceiptQuery          query.PublishedReceiptQueryInterface
+		PendingTransactionQuery        query.PendingTransactionQueryInterface
+		PendingSignatureQuery          query.PendingSignatureQueryInterface
+		MultisignatureInfoQuery        query.MultisignatureInfoQueryInterface
+		MultiSignatureParticipantQuery query.MultiSignatureParticipantQueryInterface
+		SkippedBlocksmithQuery         query.SkippedBlocksmithQueryInterface
+		FeeScaleQuery                  query.FeeScaleQueryInterface
+		FeeVoteCommitmentVoteQuery     query.FeeVoteCommitmentVoteQueryInterface
+		FeeVoteRevealVoteQuery         query.FeeVoteRevealVoteQueryInterface
+		LiquidPaymentTransactionQuery  query.LiquidPaymentTransactionQueryInterface
+		NodeAdmissionTimestampQuery    query.NodeAdmissionTimestampQueryInterface
+		BlockQuery                     query.BlockQueryInterface
+		SnapshotQueries                map[string]query.SnapshotQuery
+		BlocksmithSafeQuery            map[string]bool
+		DerivedQueries                 []query.DerivedQuery
+		TransactionUtil                transaction.UtilInterface
+		TypeActionSwitcher             transaction.TypeActionSwitcher
+		BlockMainService               BlockServiceInterface
+		NodeRegistrationService        NodeRegistrationServiceInterface
+		ScrambleNodeService            ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name    string
@@ -890,66 +953,70 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				chainType: &mockChainType{
 					SnapshotGenerationTimeout: 10,
 				},
-				QueryExecutor:                 &mockSnapshotQueryExecutor{success: true},
-				AccountBalanceQuery:           query.NewAccountBalanceQuery(),
-				NodeRegistrationQuery:         query.NewNodeRegistrationQuery(),
-				ParticipationScoreQuery:       query.NewParticipationScoreQuery(),
-				AccountDatasetQuery:           query.NewAccountDatasetsQuery(),
-				EscrowTransactionQuery:        query.NewEscrowTransactionQuery(),
-				PublishedReceiptQuery:         query.NewPublishedReceiptQuery(),
-				PendingTransactionQuery:       query.NewPendingTransactionQuery(),
-				PendingSignatureQuery:         query.NewPendingSignatureQuery(),
-				MultisignatureInfoQuery:       query.NewMultisignatureInfoQuery(),
-				SkippedBlocksmithQuery:        query.NewSkippedBlocksmithQuery(),
-				FeeScaleQuery:                 query.NewFeeScaleQuery(),
-				FeeVoteCommitmentVoteQuery:    query.NewFeeVoteCommitmentVoteQuery(),
-				FeeVoteRevealVoteQuery:        query.NewFeeVoteRevealVoteQuery(),
-				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				BlockQuery:                    query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeAdmissionTimestampQuery:   query.NewNodeAdmissionTimestampQuery(),
-				SnapshotQueries:               query.GetSnapshotQuery(chaintype.GetChainType(0)),
-				BlocksmithSafeQuery:           query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
-				DerivedQueries:                query.GetDerivedQuery(chaintype.GetChainType(0)),
-				TransactionUtil:               &transaction.Util{},
+				QueryExecutor:                  &mockSnapshotQueryExecutor{success: true},
+				AccountBalanceQuery:            query.NewAccountBalanceQuery(),
+				NodeRegistrationQuery:          query.NewNodeRegistrationQuery(),
+				ParticipationScoreQuery:        query.NewParticipationScoreQuery(),
+				AccountDatasetQuery:            query.NewAccountDatasetsQuery(),
+				EscrowTransactionQuery:         query.NewEscrowTransactionQuery(),
+				PublishedReceiptQuery:          query.NewPublishedReceiptQuery(),
+				PendingTransactionQuery:        query.NewPendingTransactionQuery(),
+				PendingSignatureQuery:          query.NewPendingSignatureQuery(),
+				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
+				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
+				SkippedBlocksmithQuery:         query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
+				FeeScaleQuery:                  query.NewFeeScaleQuery(),
+				FeeVoteCommitmentVoteQuery:     query.NewFeeVoteCommitmentVoteQuery(),
+				FeeVoteRevealVoteQuery:         query.NewFeeVoteRevealVoteQuery(),
+				LiquidPaymentTransactionQuery:  query.NewLiquidPaymentTransactionQuery(),
+				BlockQuery:                     query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeAdmissionTimestampQuery:    query.NewNodeAdmissionTimestampQuery(),
+				SnapshotQueries:                query.GetSnapshotQuery(chaintype.GetChainType(0)),
+				BlocksmithSafeQuery:            query.GetBlocksmithSafeQuery(chaintype.GetChainType(0)),
+				DerivedQueries:                 query.GetDerivedQuery(chaintype.GetChainType(0)),
+				TransactionUtil:                &transaction.Util{},
 				TypeActionSwitcher: &transaction.TypeSwitcher{
 					Executor: &mockSnapshotQueryExecutor{success: true},
 				},
 				BlockMainService:        &mockBlockMainServiceSuccess{},
 				NodeRegistrationService: &mockImportSnapshotFileNodeRegistrationServiceSuccess{},
+				ScrambleNodeService:     &mockScrambleNodeServiceInitSuccess{},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ss := &SnapshotMainBlockService{
-				SnapshotPath:                  tt.fields.SnapshotPath,
-				chainType:                     tt.fields.chainType,
-				Logger:                        tt.fields.Logger,
-				SnapshotBasicChunkStrategy:    tt.fields.SnapshotBasicChunkStrategy,
-				QueryExecutor:                 tt.fields.QueryExecutor,
-				AccountBalanceQuery:           tt.fields.AccountBalanceQuery,
-				NodeRegistrationQuery:         tt.fields.NodeRegistrationQuery,
-				ParticipationScoreQuery:       tt.fields.ParticipationScoreQuery,
-				AccountDatasetQuery:           tt.fields.AccountDatasetQuery,
-				EscrowTransactionQuery:        tt.fields.EscrowTransactionQuery,
-				PublishedReceiptQuery:         tt.fields.PublishedReceiptQuery,
-				PendingTransactionQuery:       tt.fields.PendingTransactionQuery,
-				PendingSignatureQuery:         tt.fields.PendingSignatureQuery,
-				MultisignatureInfoQuery:       tt.fields.MultisignatureInfoQuery,
-				SkippedBlocksmithQuery:        tt.fields.SkippedBlocksmithQuery,
-				FeeScaleQuery:                 tt.fields.FeeScaleQuery,
-				FeeVoteCommitmentVoteQuery:    tt.fields.FeeVoteCommitmentVoteQuery,
-				FeeVoteRevealVoteQuery:        tt.fields.FeeVoteRevealVoteQuery,
-				LiquidPaymentTransactionQuery: tt.fields.LiquidPaymentTransactionQuery,
-				BlockQuery:                    tt.fields.BlockQuery,
-				NodeAdmissionTimestampQuery:   tt.fields.NodeAdmissionTimestampQuery,
-				SnapshotQueries:               tt.fields.SnapshotQueries,
-				BlocksmithSafeQuery:           tt.fields.BlocksmithSafeQuery,
-				DerivedQueries:                tt.fields.DerivedQueries,
-				TransactionUtil:               tt.fields.TransactionUtil,
-				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
-				BlockMainService:              tt.fields.BlockMainService,
-				NodeRegistrationService:       tt.fields.NodeRegistrationService,
+				SnapshotPath:                   tt.fields.SnapshotPath,
+				chainType:                      tt.fields.chainType,
+				Logger:                         tt.fields.Logger,
+				SnapshotBasicChunkStrategy:     tt.fields.SnapshotBasicChunkStrategy,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				AccountBalanceQuery:            tt.fields.AccountBalanceQuery,
+				NodeRegistrationQuery:          tt.fields.NodeRegistrationQuery,
+				ParticipationScoreQuery:        tt.fields.ParticipationScoreQuery,
+				AccountDatasetQuery:            tt.fields.AccountDatasetQuery,
+				EscrowTransactionQuery:         tt.fields.EscrowTransactionQuery,
+				PublishedReceiptQuery:          tt.fields.PublishedReceiptQuery,
+				PendingTransactionQuery:        tt.fields.PendingTransactionQuery,
+				PendingSignatureQuery:          tt.fields.PendingSignatureQuery,
+				MultisignatureInfoQuery:        tt.fields.MultisignatureInfoQuery,
+				MultisignatureParticipantQuery: tt.fields.MultiSignatureParticipantQuery,
+				SkippedBlocksmithQuery:         tt.fields.SkippedBlocksmithQuery,
+				FeeScaleQuery:                  tt.fields.FeeScaleQuery,
+				FeeVoteCommitmentVoteQuery:     tt.fields.FeeVoteCommitmentVoteQuery,
+				FeeVoteRevealVoteQuery:         tt.fields.FeeVoteRevealVoteQuery,
+				LiquidPaymentTransactionQuery:  tt.fields.LiquidPaymentTransactionQuery,
+				BlockQuery:                     tt.fields.BlockQuery,
+				NodeAdmissionTimestampQuery:    tt.fields.NodeAdmissionTimestampQuery,
+				SnapshotQueries:                tt.fields.SnapshotQueries,
+				BlocksmithSafeQuery:            tt.fields.BlocksmithSafeQuery,
+				DerivedQueries:                 tt.fields.DerivedQueries,
+				TransactionUtil:                tt.fields.TransactionUtil,
+				TypeActionSwitcher:             tt.fields.TypeActionSwitcher,
+				BlockMainService:               tt.fields.BlockMainService,
+				NodeRegistrationService:        tt.fields.NodeRegistrationService,
+				ScrambleNodeService:            tt.fields.ScrambleNodeService,
 			}
 			snapshotFileInfo, err := ss.NewSnapshotFile(blockForSnapshot1)
 			if err != nil {

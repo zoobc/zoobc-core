@@ -21,7 +21,6 @@ type (
 		UndoApplyUnconfirmedTransaction(txAction transaction.TypeAction) error
 		ApplyConfirmedTransaction(txAction transaction.TypeAction, blockTimestamp int64) error
 		ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error
-		ExpiringPendingTransactions(blockHeight uint32, useTX bool) error
 		CompletePassedLiquidPayment(block *model.Block) error
 	}
 
@@ -32,7 +31,6 @@ type (
 		TransactionUtil               transaction.UtilInterface
 		TransactionQuery              query.TransactionQueryInterface
 		EscrowTransactionQuery        query.EscrowTransactionQueryInterface
-		PendingTransactionQuery       query.PendingTransactionQueryInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 	}
 )
@@ -44,7 +42,6 @@ func NewTransactionCoreService(
 	transactionUtil transaction.UtilInterface,
 	transactionQuery query.TransactionQueryInterface,
 	escrowTransactionQuery query.EscrowTransactionQueryInterface,
-	pendingTransactionQuery query.PendingTransactionQueryInterface,
 	liquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface,
 ) TransactionCoreServiceInterface {
 	return &TransactionCoreService{
@@ -54,7 +51,6 @@ func NewTransactionCoreService(
 		TransactionUtil:               transactionUtil,
 		TransactionQuery:              transactionQuery,
 		EscrowTransactionQuery:        escrowTransactionQuery,
-		PendingTransactionQuery:       pendingTransactionQuery,
 		LiquidPaymentTransactionQuery: liquidPaymentTransactionQuery,
 	}
 }
@@ -249,101 +245,9 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 
 			err = tg.QueryExecutor.CommitTx()
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
-				}
 				return err
 			}
 		}
-	}
-	return nil
-}
-
-// ExpiringPendingTransactions will set status to be expired caused by current block height
-func (tg *TransactionCoreService) ExpiringPendingTransactions(blockHeight uint32, useTX bool) error {
-	var (
-		pendingTransactions []*model.PendingTransaction
-		innerTransaction    *model.Transaction
-		typeAction          transaction.TypeAction
-		rows                *sql.Rows
-		err                 error
-	)
-
-	err = func() error {
-		qy, qArgs := tg.PendingTransactionQuery.GetPendingTransactionsExpireByHeight(blockHeight)
-		rows, err = tg.QueryExecutor.ExecuteSelect(qy, useTX, qArgs...)
-		if err != nil {
-			return err
-		}
-		defer rows.Close()
-
-		pendingTransactions, err = tg.PendingTransactionQuery.BuildModel(pendingTransactions, rows)
-		if err != nil {
-			return err
-		}
-		return nil
-	}()
-	if err != nil {
-		return err
-	}
-
-	if len(pendingTransactions) > 0 {
-		if !useTX {
-			err = tg.QueryExecutor.BeginTx()
-			if err != nil {
-				return err
-			}
-		}
-		for _, pendingTransaction := range pendingTransactions {
-
-			/**
-			SET PendingTransaction
-			1. block height = current block height
-			2. status = expired
-			*/
-			nPendingTransaction := pendingTransaction
-			nPendingTransaction.BlockHeight = blockHeight
-			nPendingTransaction.Status = model.PendingTransactionStatus_PendingTransactionExpired
-			q := tg.PendingTransactionQuery.InsertPendingTransaction(nPendingTransaction)
-			err = tg.QueryExecutor.ExecuteTransactions(q)
-			if err != nil {
-				break
-			}
-			// Do UndoApplyConfirmed
-			innerTransaction, err = tg.TransactionUtil.ParseTransactionBytes(nPendingTransaction.GetTransactionBytes(), false)
-			if err != nil {
-				break
-			}
-			typeAction, err = tg.TypeActionSwitcher.GetTransactionType(innerTransaction)
-			if err != nil {
-				break
-			}
-			err = typeAction.UndoApplyUnconfirmed()
-			if err != nil {
-				break
-			}
-		}
-
-		if !useTX {
-			/*
-				Check the latest error is not nil, otherwise need to aborting the whole query transactions safety with rollBack.
-				And automatically unlock mutex
-			*/
-			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
-				}
-				return err
-			}
-			err = tg.QueryExecutor.CommitTx()
-			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
-					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
-				}
-				return err
-			}
-		}
-		return err
 	}
 	return nil
 }
@@ -404,7 +308,6 @@ func (tg *TransactionCoreService) CompletePassedLiquidPayment(block *model.Block
 }
 
 func (tg *TransactionCoreService) ValidateTransaction(txAction transaction.TypeAction, useTX bool) error {
-
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:

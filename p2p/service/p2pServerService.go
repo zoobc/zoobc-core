@@ -3,10 +3,13 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -85,6 +88,8 @@ type (
 		MempoolServices          map[int32]coreService.MempoolServiceInterface
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeCache        storage.CacheStackStorageInterface
 	}
 )
 
@@ -99,6 +104,8 @@ func NewP2PServerService(
 	mempoolServices map[int32]coreService.MempoolServiceInterface,
 	nodeSecretPhrase string,
 	observer *observer.Observer,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeCache storage.CacheStackStorageInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -110,6 +117,8 @@ func NewP2PServerService(
 		MempoolServices:          mempoolServices,
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
+		FeedbackStrategy:         feedbackStrategy,
+		ScrambleNodeCache:        scrambleNodeCache,
 	}
 }
 
@@ -118,7 +127,7 @@ func NewP2PServerService(
 // 'confirmed' addresses will be preferred over 'pending' when a node has both versions, when retrieving addresses from a peer
 func (ps *P2PServerService) GetNodeAddressesInfo(
 	ctx context.Context,
-	req *model.GetNodeAddressesInfoRequest,
+	_ *model.GetNodeAddressesInfoRequest,
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		if nodeAddressesInfo, err := ps.NodeAddressInfoService.GetAddressInfoTableWithConsolidatedAddresses(
@@ -133,36 +142,41 @@ func (ps *P2PServerService) GetNodeAddressesInfo(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
-// SendNodeAddressesInfo receives a node address info from a peer
+// SendNodeAddressInfo receives a node address info from a peer
 func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
 	var (
 		nodeAddressInfo = req.NodeAddressInfoMessage
 	)
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		// if node receives own address don't do anything
+		var nodeAddressInfosToReceive = make([]*model.NodeAddressInfo, 0)
 		myAddress, errAddr := ps.NodeConfigurationService.GetMyAddress()
 		myPort, errPort := ps.NodeConfigurationService.GetMyPeerPort()
-		if errAddr == nil && errPort == nil && myAddress == nodeAddressInfo.GetAddress() && myPort == nodeAddressInfo.GetPort() {
-			return &model.Empty{}, nil
-		}
-		// validate node address info message and signature
-		if alreadyUpdated, err := ps.NodeRegistrationService.ValidateNodeAddressInfo(nodeAddressInfo); err != nil {
-			// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
-			//  or address is already in db or peer sent an old, but valid addressinfo)
-			// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
-			// errorMsg := err.Error()
-			// errCasted, ok := err.(blocker.Blocker)
-			// if ok {
-			// 	errorMsg = errCasted.Message
-			// }
-			// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
-			// 	// blacklist peer!
-			// }
-		} else if !alreadyUpdated {
-			if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfo); err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
+		for _, info := range nodeAddressInfo {
+			if errAddr == nil && errPort == nil && myAddress == info.GetAddress() && myPort == info.GetPort() {
+				return &model.Empty{}, nil
+			}
+			// validate node address info message and signature
+			if alreadyUpdated, err := ps.NodeAddressInfoService.ValidateNodeAddressInfo(info); err != nil {
+				// TODO: blacklist peers that send invalid data (unless failed validation is because this node doesn't exist in nodeRegistry,
+				//  or address is already in db or peer sent an old, but valid addressinfo)
+				// if validation failed because we already have this address in db, don't return errors (that behavior could be exploited)
+				// errorMsg := err.Error()
+				// errCasted, ok := err.(blocker.Blocker)
+				// if ok {
+				// 	errorMsg = errCasted.Message
+				// }
+				// if errorMsg != "NodeIDNotFound" && errorMsg != "AddressAlreadyUpdatedForNode" && errorMsg != "OutdatedNodeAddressInfo" {
+				// 	// blacklist peer!
+				// }
+			} else if !alreadyUpdated {
+				nodeAddressInfosToReceive = append(nodeAddressInfosToReceive, info)
 			}
 		}
+		if err := ps.PeerExplorer.ReceiveNodeAddressInfo(nodeAddressInfosToReceive); err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
 		return &model.Empty{}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -178,7 +192,7 @@ func (ps *P2PServerService) GetNodeProofOfOrigin(ctx context.Context, req *model
 }
 
 // GetPeerInfo responds to the request of peers a node info
-func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
+func (ps *P2PServerService) GetPeerInfo(ctx context.Context, _ *model.GetPeerInfoRequest) (*model.GetPeerInfoResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		return &model.GetPeerInfoResponse{
 			HostInfo: ps.PeerExplorer.GetHostInfo(),
@@ -188,7 +202,7 @@ func (ps *P2PServerService) GetPeerInfo(ctx context.Context, req *model.GetPeerI
 }
 
 // GetMorePeers contains info other peers
-func (ps *P2PServerService) GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error) {
+func (ps *P2PServerService) GetMorePeers(ctx context.Context, _ *model.Empty) ([]*model.Node, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var nodes []*model.Node
 		// only sends the connected (resolved) peers
@@ -270,14 +284,14 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		if lastBlockID == 0 && lastMilestoneBlockID == 0 {
 			return nil, status.Error(codes.InvalidArgument, "either LastBlockID or LastMilestoneBlockID has to be supplied")
 		}
-		myLastBlock, err := blockService.GetLastBlock()
+		myLastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil || myLastBlock == nil {
-			return nil, status.Error(codes.Internal, "failedGetLastBlock")
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failGetLastBlockErr: %v", err))
 		}
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
 
-		if _, err := blockService.GetBlockByID(lastBlockID, false); err == nil {
+		if _, err := blockService.GetBlockByIDCacheFormat(lastBlockID); err == nil {
 			preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 				BlockIds: []int64{lastBlockID},
 			}
@@ -290,12 +304,12 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		// if not, send (assumed) milestoneBlock of the host
 		limit := constant.CommonMilestoneBlockIdsLimit
 		if lastMilestoneBlockID != 0 {
-			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID, false)
+			lastMilestoneBlock, err := blockService.GetBlockByIDCacheFormat(lastMilestoneBlockID)
 			// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
-			height = lastMilestoneBlock.GetHeight()
+			height = lastMilestoneBlock.Height
 			jump = util.MinUint32(constant.SafeBlockGap, util.MaxUint32(myBlockchainHeight, 1))
 		} else if lastBlockID != 0 {
 			// TODO: analyze difference of height jump
@@ -305,7 +319,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 
 	LoopBlocks:
 		for ; limit > 0; limit-- {
-			block, err := blockService.GetBlockByHeight(height)
+			block, err := blockService.GetBlockByHeightCacheFormat(height)
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
 			}
@@ -347,7 +361,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 			limit = reqLimit
 		}
 
-		foundBlock, err := blockService.GetBlockByID(reqBlockID, false)
+		foundBlock, err := blockService.GetBlockByIDCacheFormat(reqBlockID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -382,13 +396,11 @@ func (ps *P2PServerService) GetNextBlocks(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		blockService.ChainWriteLock(constant.BlockchainSendingBlocks)
-		defer blockService.ChainWriteUnlock(constant.BlockchainSendingBlocks)
-		block, err := blockService.GetBlockByID(blockID, false)
+		commonBlock, err := blockService.GetBlockByID(blockID, false)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		blocks, err := blockService.GetBlocksFromHeight(block.Height, uint32(len(blockIDList)), true)
+		blocks, err := blockService.GetBlocksFromHeight(commonBlock.Height, uint32(len(blockIDList)), true)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
@@ -396,10 +408,6 @@ func (ps *P2PServerService) GetNextBlocks(
 		for idx, block := range blocks {
 			if block.ID != blockIDList[idx] {
 				break
-			}
-			err = blockService.PopulateBlockData(block)
-			if err != nil {
-				return nil, status.Error(codes.Internal, err.Error())
 			}
 			blocksMessage = append(blocksMessage, block)
 		}
@@ -416,20 +424,31 @@ func (ps *P2PServerService) SendBlock(
 	senderPublicKey []byte,
 ) (*model.SendBlockResponse, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
-		var md, _ = metadata.FromIncomingContext(ctx)
+		var (
+			md, _ = metadata.FromIncomingContext(ctx)
+			err   error
+		)
+
 		if len(md) == 0 {
 			return nil, status.Error(
 				codes.InvalidArgument,
 				"InvalidContext",
 			)
 		}
+
 		var (
 			fullAddress = md.Get(p2pUtil.DefaultConnectionMetadata)[0]
-			peer, err   = p2pUtil.ParsePeer(fullAddress)
+			requester   *model.Node
+			peer        *model.Peer
+			receipts    []*model.Receipt
 		)
+
+		peer, err = p2pUtil.ParsePeer(fullAddress)
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
 		}
+		requester = p2pUtil.GetNodeInfo(fullAddress)
+
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
 			return nil, status.Error(
@@ -444,18 +463,22 @@ func (ps *P2PServerService) SendBlock(
 				"failGetLastBlock",
 			)
 		}
-		batchReceipt, err := blockService.ReceiveBlock(
-			senderPublicKey,
-			lastBlock,
-			block,
-			ps.NodeSecretPhrase,
-			peer,
-		)
+
+		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
+			receipt, e := blockService.ReceiveBlock(senderPublicKey, lastBlock, block, ps.NodeSecretPhrase, peer, isGenerate)
+			if e != nil {
+				return []*model.Receipt{}, e
+			}
+			return []*model.Receipt{
+				receipt,
+			}, nil
+		})
 		if err != nil {
-			return nil, err
+			return nil, status.Error(codes.Internal, err.Error())
 		}
+
 		return &model.SendBlockResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipts[0],
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -468,6 +491,28 @@ func (ps *P2PServerService) SendTransaction(
 	transactionBytes,
 	senderPublicKey []byte,
 ) (*model.SendTransactionResponse, error) {
+	// TODO: uncomment here to restore anti-spam filters for incoming p2p transactions (tx broadcast by others)
+	// note: this had lead to the network falling out of sync because many nodes have different mempool,
+	// so if we want to re-enable the behavior, we have to tune it so that tx are filtered only when strictly required
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitCritical {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "NodeIsBusy")
+	// 	}
+	// }
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitHigh {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "NodeIsBusy")
+	// 	}
+	// }
+	// if limitReached, limitLevel := ps.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
+	// 	if limitLevel == constant.FeedbackLimitCritical {
+	// 		monitoring.IncreaseP2PTxFilteredIncoming()
+	// 		return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+	// 	}
+	// }
+
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var blockService = ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
@@ -476,11 +521,11 @@ func (ps *P2PServerService) SendTransaction(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -490,17 +535,25 @@ func (ps *P2PServerService) SendTransaction(
 				"mempoolServiceNotFoundByThisChainType",
 			)
 		}
-		batchReceipt, err := mempoolService.ReceivedTransaction(
-			senderPublicKey,
-			transactionBytes,
-			lastBlock,
-			ps.NodeSecretPhrase,
+		var (
+			md, _     = metadata.FromIncomingContext(ctx)
+			requester *model.Node
+			receipts  []*model.Receipt
 		)
+
+		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
+			receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, isGenerate)
+			if e != nil {
+				return []*model.Receipt{}, e
+			}
+			return []*model.Receipt{receipt}, nil
+		})
 		if err != nil {
 			return nil, err
 		}
 		return &model.SendTransactionResponse{
-			BatchReceipt: batchReceipt,
+			Receipt: receipts[0],
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -521,11 +574,11 @@ func (ps *P2PServerService) SendBlockTransactions(
 				"blockServiceNotFoundByThisChainType",
 			)
 		}
-		lastBlock, err := blockService.GetLastBlock()
+		lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
 		if err != nil {
 			return nil, status.Error(
 				codes.Internal,
-				"failGetLastBlock",
+				fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
 			)
 		}
 		var mempoolService = ps.MempoolServices[chainType.GetTypeInt()]
@@ -535,17 +588,28 @@ func (ps *P2PServerService) SendBlockTransactions(
 				"mempoolServiceNotFoundByThisChainType",
 			)
 		}
-		batchReceipts, err := mempoolService.ReceivedBlockTransactions(
-			senderPublicKey,
-			transactionsBytes,
-			lastBlock,
-			ps.NodeSecretPhrase,
+		var (
+			md, _     = metadata.FromIncomingContext(ctx)
+			requester *model.Node
+			receipts  []*model.Receipt
 		)
+
+		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
+			return mempoolService.ReceivedBlockTransactions(
+				senderPublicKey,
+				transactionsBytes,
+				lastBlockCacheFormat,
+				ps.NodeSecretPhrase,
+				isGenerate,
+			)
+		})
+
 		if err != nil {
 			return nil, err
 		}
 		return &model.SendBlockTransactionsResponse{
-			BatchReceipts: batchReceipts,
+			Receipts: receipts,
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
@@ -603,4 +667,21 @@ func (ps *P2PServerService) RequestDownloadFile(
 		return res, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) needToGenerateReceipt(
+	requester *model.Node,
+	process func(isGenerate bool) ([]*model.Receipt, error),
+) (receipts []*model.Receipt, err error) {
+	var (
+		scrambleNodes   model.ScrambledNodes
+		generateReceipt bool
+	)
+
+	err = ps.ScrambleNodeCache.GetTop(&scrambleNodes)
+	if err != nil {
+		return []*model.Receipt{}, err
+	}
+	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
+	return process(generateReceipt)
 }

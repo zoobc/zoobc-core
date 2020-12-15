@@ -23,12 +23,12 @@ func TestGetDerivedQuery(t *testing.T) {
 			args: args{chainType: mainchain},
 			want: []DerivedQuery{
 				NewBlockQuery(mainchain),
+				NewSkippedBlocksmithQuery(mainchain),
 				NewTransactionQuery(mainchain),
 				NewNodeRegistrationQuery(),
 				NewAccountBalanceQuery(),
 				NewAccountDatasetsQuery(),
 				NewMempoolQuery(mainchain),
-				NewSkippedBlocksmithQuery(),
 				NewParticipationScoreQuery(),
 				NewPublishedReceiptQuery(),
 				NewAccountLedgerQuery(),
@@ -41,6 +41,8 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewFeeVoteRevealVoteQuery(),
 				NewNodeAdmissionTimestampQuery(),
 				NewMultiSignatureParticipantQuery(),
+				NewBatchReceiptQuery(),
+				NewMerkleTreeQuery(),
 			},
 		},
 		{
@@ -48,6 +50,7 @@ func TestGetDerivedQuery(t *testing.T) {
 			args: args{chainType: spinechain},
 			want: []DerivedQuery{
 				NewBlockQuery(spinechain),
+				NewSkippedBlocksmithQuery(spinechain),
 				NewSpinePublicKeyQuery(),
 				NewSpineBlockManifestQuery(),
 			},

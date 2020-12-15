@@ -109,7 +109,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 			want: [][]interface{}{
 				append([]interface{}{"UPDATE node_address_info SET address = ?, " +
 					"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
-					" node_id = ?"},
+					" node_id = ? AND status = ?"},
 					"192.168.1.2",
 					uint32(8080),
 					uint32(100),
@@ -118,6 +118,7 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
 					model.NodeAddressStatus_NodeAddressConfirmed,
 					int64(111),
+					model.NodeAddressStatus_NodeAddressConfirmed,
 				),
 			},
 		},

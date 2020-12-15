@@ -35,7 +35,7 @@ var (
 )
 
 func (*nodeAdminCoreServiceMocked) GenerateProofOfOwnership(
-	nodeAdminAccountAddress string) (*model.ProofOfOwnership, error) {
+	nodeAdminAccountAddress []byte) (*model.ProofOfOwnership, error) {
 	return nodeAdminAPIServicePoown, nil
 }
 

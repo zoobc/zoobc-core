@@ -3,17 +3,19 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 2691561785456797616
+	MainchainGenesisBlockID int64 = -1038631452146672847
 )
 
 type (
 	GenesisConfigEntry struct {
+		AccountAddressType int32
 		AccountAddress     string
 		AccountBalance     int64
 		NodePublicKey      []byte
 		NodeAddress        string
 		LockedBalance      int64
 		ParticipationScore int64
+		Message            string
 	}
 )
 
@@ -26,10 +28,11 @@ var (
 	MainchainGenesisTransactionSignature = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 	MainchainGenesisBlockTimestamp = int64(1604826000)
-	MainchainGenesisAccountAddress = "ZBC_AQTEH7K4_L45WJPLL_HCEC65ZH_7XC5N3XD_YNKPHK45_POH7PQME_AFAFBDWM"
-	MainchainGenesisBlockSeed      = make([]byte, 64)
-	MainchainGenesisNodePublicKey  = make([]byte, 32)
-	GenesisConfig                  = []GenesisConfigEntry{
+	MainchainGenesisAccountAddress = []byte{0, 0, 0, 0, 4, 38, 67, 253, 92, 95, 59, 100, 189, 107, 56, 136, 47, 119, 39, 253, 197, 214,
+		238, 227, 195, 84, 243, 171, 157, 123, 143, 247, 193, 132, 1, 64}
+	MainchainGenesisBlockSeed     = make([]byte, 64)
+	MainchainGenesisNodePublicKey = make([]byte, 32)
+	GenesisConfig                 = []GenesisConfigEntry{
 		{
 			AccountAddress: "ZBC_NAEHMNH4_KZ7MYXOX_LART23J5_Q7IMEGMF_XCMBJOFA_HW23YCYZ_L53ZVB3R",
 			AccountBalance: 0,
@@ -37,6 +40,7 @@ var (
 				201, 102, 126, 185, 235, 197, 243, 64, 27, 128, 136, 31, 18},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fifer",
 		},
 		{
 			AccountAddress: "ZBC_KW63H76Y_4SBBLCU4_5N3UAWCC_MUNHLDHX_K7NGQ6DK_YGQ6ODGB_LBQXQPOT",
@@ -45,6 +49,7 @@ var (
 				48, 91, 87, 19, 114, 227, 250, 234, 252, 8, 162, 197, 61},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Fiddler",
 		},
 		{
 			AccountAddress: "ZBC_ATKWX6EQ_66UQNX54_7TYNXKHX_LVMSTN42_GFUFRP66_PPC72P2T_GRO5OFMK",
@@ -149,6 +154,7 @@ var (
 				18, 34, 133, 70, 169, 79, 215, 125, 60, 96, 204, 230, 110},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
+			Message:            "Practical",
 		},
 	}
 )

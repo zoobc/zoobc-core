@@ -1,9 +1,10 @@
 package query
 
 import (
+	"math"
+
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"math"
 )
 
 type (
@@ -28,6 +29,7 @@ type (
 func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 	derivedQuery = []DerivedQuery{
 		NewBlockQuery(ct),
+		NewSkippedBlocksmithQuery(ct),
 	}
 	switch ct.(type) {
 	case *chaintype.MainChain:
@@ -37,7 +39,6 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewAccountBalanceQuery(),
 			NewAccountDatasetsQuery(),
 			NewMempoolQuery(ct),
-			NewSkippedBlocksmithQuery(),
 			NewParticipationScoreQuery(),
 			NewPublishedReceiptQuery(),
 			NewAccountLedgerQuery(),
@@ -50,6 +51,8 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewFeeVoteRevealVoteQuery(),
 			NewNodeAdmissionTimestampQuery(),
 			NewMultiSignatureParticipantQuery(),
+			NewBatchReceiptQuery(),
+			NewMerkleTreeQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
 	case *chaintype.SpineChain:
@@ -77,7 +80,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"pendingTransaction":       NewPendingTransactionQuery(),
 			"pendingSignature":         NewPendingSignatureQuery(),
 			"multisignatureInfo":       NewMultisignatureInfoQuery(),
-			"skippedBlocksmith":        NewSkippedBlocksmithQuery(),
+			"skippedBlocksmith":        NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 			"feeScale":                 NewFeeScaleQuery(),
 			"feeVoteCommit":            NewFeeVoteCommitmentVoteQuery(),
 			"feeVoteReveal":            NewFeeVoteRevealVoteQuery(),
@@ -111,7 +114,7 @@ func GetPruneQuery(ct chaintype.ChainType) (pruneQuery []PruneQuery) {
 	switch ct.(type) {
 	case *chaintype.MainChain:
 		pruneQuery = []PruneQuery{
-			NewNodeReceiptQuery(),
+			NewBatchReceiptQuery(),
 			NewMerkleTreeQuery(),
 		}
 	default:
