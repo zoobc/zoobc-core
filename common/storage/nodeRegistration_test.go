@@ -488,7 +488,7 @@ func TestNodeRegistryCacheStorage_GetSize(t *testing.T) {
 				metricLabel:                 "",
 				sortItems:                   nil,
 			},
-			want: 556,
+			want: 539,
 		},
 	}
 	for _, tt := range tests {
@@ -1235,7 +1235,7 @@ func TestNodeRegistryCacheStorage_size(t *testing.T) {
 				metricLabel:                 "",
 				sortItems:                   nil,
 			},
-			want: 556,
+			want: 539,
 		},
 	}
 	for _, tt := range tests {
