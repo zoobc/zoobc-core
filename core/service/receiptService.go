@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -415,6 +416,21 @@ func (rs *ReceiptService) ValidateReceipt(
 		blockAtHeight *storage.BlockCacheObject
 		err           error
 	)
+	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptRecipientPublicKeySize",
+		)
+	}
+	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptSignatureSize",
+		)
+	}
+
 	unsignedBytes := rs.ReceiptUtil.GetUnsignedReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,
