@@ -3,6 +3,7 @@ package transaction
 import (
 	"bytes"
 	"database/sql"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 
 	"github.com/zoobc/zoobc-core/common/auth"
@@ -303,9 +304,6 @@ func (tx *ClaimNodeRegistration) EscrowValidate(dbTX bool) error {
 
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
-	}
-	if tx.Escrow.GetCommission() <= 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "CommissionNotEnough")
 	}
 	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")

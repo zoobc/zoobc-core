@@ -21,20 +21,25 @@ type (
 		MemUsageSamples      []float64
 		GoRoutineSamples     []int
 		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
+		// RunningCliP2PAPIRequests number of running client p2p api requests (outgoing p2p requests)
 		RunningCliP2PAPIRequests []int
 		// RunningServerP2PAPIRequests number of running server p2p api requests (incoming p2p requests)
 		RunningServerP2PAPIRequests []int
 		// FeedbackVars variables relative to feedback system that can be used by the service where AntiSpamStrategy is injected into and/or
 		// for internal calculations
-		FeedbackVars     map[string]interface{}
-		FeedbackVarsLock sync.RWMutex
-		Logger           *log.Logger
+		FeedbackVars       map[string]interface{}
+		FeedbackVarsLock   sync.RWMutex
+		CPUPercentageLimit int
+		P2pRequestLimit    int
+		Logger             *log.Logger
 	}
 )
 
 // NewAntiSpamStrategy initialize system internal variables
 func NewAntiSpamStrategy(
 	logger *log.Logger,
+	cpuPercentageLimit,
+	p2pRequestLimit int,
 ) *AntiSpamStrategy {
 	return &AntiSpamStrategy{
 		Logger:                      logger,
@@ -53,6 +58,8 @@ func NewAntiSpamStrategy(
 			"P2PIncomingRequests": 0,
 			"P2POutgoingRequests": 0,
 		},
+		CPUPercentageLimit: cpuPercentageLimit,
+		P2pRequestLimit:    p2pRequestLimit,
 	}
 }
 
@@ -124,6 +131,7 @@ func (ass *AntiSpamStrategy) StartSampling(samplingInterval time.Duration) {
 			}()
 		case <-sigs:
 			ticker.Stop()
+			tickerResetPerSecondVars.Stop()
 			ass.Logger.Info("resourceSampling thread stopped")
 			return
 		}
@@ -166,13 +174,12 @@ func (ass *AntiSpamStrategy) IsGoroutineLimitReached(numSamples int) (limitReach
 	return limitReached, limitLevel
 }
 
+// IsP2PRequestLimitReached check if P2P requests limit has been reached
+// As of now we only check for incoming P2P transactions (transactions broadcast by other peers)
 func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
 	var (
 		avg, sumIncoming,
-		avgOutgoing, avgIncoming int
-		// STEF test limiting by only considering incoming p2p requests (other nodes spamming)
-		// sumOutgoing int
-		// numQueuedSamplesOutGoing = len(ass.RunningCliP2PAPIRequests)
+		avgIncoming int
 		numQueuedSamplesIncoming = len(ass.RunningServerP2PAPIRequests)
 	)
 
@@ -181,29 +188,24 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 		// if numQueuedSamplesOutGoing < numSamples || numQueuedSamplesIncoming < numSamples {
 		return false, constant.FeedbackLimitNone
 	}
-	// STEF test limiting by only considering incoming p2p requests (other nodes spamming)
-	// for n := 1; n <= numSamples; n++ {
-	// 	sumOutgoing += ass.RunningCliP2PAPIRequests[len(ass.RunningCliP2PAPIRequests)-n]
-	// }
-	// avgOutgoing = sumOutgoing / numSamples
 	for n := 1; n <= numSamples; n++ {
 		sumIncoming += ass.RunningServerP2PAPIRequests[len(ass.RunningServerP2PAPIRequests)-n]
 	}
 	avgIncoming = sumIncoming / numSamples
-	switch avg = avgOutgoing + avgIncoming; {
-	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitCriticalPerc/100:
+	switch avg = avgIncoming; {
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitCriticalPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitCritical
 		ass.Logger.Errorf("P2PRequests level critical! average count for last %d samples is %d", numSamples, avg)
-	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitHighPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitHighPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitHigh
 		ass.Logger.Errorf("P2PRequests level high! average count for last %d samples is %d", numSamples, avg)
-	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitMediumPerc/100:
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitMediumPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitMedium
-		ass.Logger.Errorf("P2PRequests level medium! average count for last %d samples is %d", numSamples, avg)
-	case avg >= constant.P2PRequestHardLimit*constant.FeedbackLimitLowPerc/100:
+		ass.Logger.Infof("P2PRequests level medium! average count for last %d samples is %d", numSamples, avg)
+	case avg >= ass.P2pRequestLimit*constant.FeedbackLimitLowPerc/100:
 		limitReached = true
 		limitLevel = constant.FeedbackLimitLow
 	default:
@@ -214,8 +216,40 @@ func (ass *AntiSpamStrategy) IsP2PRequestLimitReached(numSamples int) (limitReac
 }
 
 // IsCPULimitReached to be implemented
-func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (bool, constant.FeedbackLimitLevel) {
-	panic("implement me")
+func (ass *AntiSpamStrategy) IsCPULimitReached(numSamples int) (limitReached bool, limitLevel constant.FeedbackLimitLevel) {
+	var (
+		avg, sumCPUSamples,
+		avgCPUSamples int
+		numQueuedCPUSamples = len(ass.CPUPercentageSamples)
+	)
+	if numQueuedCPUSamples < numSamples {
+		// if numQueuedSamplesOutGoing < numSamples || numQueuedCPUSamples < numSamples {
+		return false, constant.FeedbackLimitNone
+	}
+	for n := 1; n <= numSamples; n++ {
+		sumCPUSamples += int(ass.CPUPercentageSamples[len(ass.CPUPercentageSamples)-n])
+	}
+	avgCPUSamples = sumCPUSamples / numSamples
+	switch avg = avgCPUSamples; {
+	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitCriticalPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitCritical
+		ass.Logger.Errorf("CPU usage level critical! %d%%", avg)
+	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitHighPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitHigh
+		ass.Logger.Errorf("CPU usage level high! %d%%", avg)
+	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitMediumPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitMedium
+		ass.Logger.Infof("CPU usage level medium!%d%%", avg)
+	case avg >= ass.CPUPercentageLimit*constant.FeedbackLimitLowPerc/100:
+		limitReached = true
+		limitLevel = constant.FeedbackLimitLow
+	default:
+		limitLevel = constant.FeedbackLimitNone
+	}
+	return limitReached, limitLevel
 }
 
 // IsMemoryLimitReached to be implemented

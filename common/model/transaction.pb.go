@@ -1760,7 +1760,9 @@ func init() {
 	proto.RegisterType((*GetTransactionMinimumFeeResponse)(nil), "model.GetTransactionMinimumFeeResponse")
 }
 
-func init() { proto.RegisterFile("model/transaction.proto", fileDescriptor_8333001f09b34082) }
+func init() {
+	proto.RegisterFile("model/transaction.proto", fileDescriptor_8333001f09b34082)
+}
 
 var fileDescriptor_8333001f09b34082 = []byte{
 	// 1635 bytes of a gzipped FileDescriptorProto
