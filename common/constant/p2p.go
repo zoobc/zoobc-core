@@ -20,7 +20,7 @@ const (
 	// UpdateNodeAddressGap, interval in seconds of peer thread to update and broadcast node dynamic address
 	UpdateNodeAddressGap uint = 120
 	// SyncNodeAddressGap, interval in minutes of peer thread to sync node address info table
-	SyncNodeAddressGap uint = 30 // every 30 min
+	SyncNodeAddressGap uint = 1 // every 30 min
 	// ScrambleNodesSafeHeight height before which scramble nodes are always recalculated (
 	// this is to allow first nodes that bootstrap the network to update their priority peers till every node has exchanged all peer
 	// node addresses)
