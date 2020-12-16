@@ -1400,8 +1400,13 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 	peer *model.Peer,
+	generateReceipt bool,
 ) (*model.Receipt, error) {
-	var err error
+	var (
+		lastBlockCacheFormat = commonUtils.BlockConvertToCacheFormat(lastBlock)
+		receipt              *model.Receipt
+		err                  error
+	)
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1419,6 +1424,25 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		if generateReceipt {
+			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
+				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
+					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+						bs.Chaintype,
+						block.GetBlockHash(),
+						&lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeTransaction,
+					)
+					if err != nil {
+						return nil, err
+					}
+					return receipt, nil
+				}
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
 
@@ -1453,19 +1477,24 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
-	// generate receipt and return as response
-	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
-		bs.Chaintype, block.GetBlockHash(),
-		&lastBlockCacheFormat,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeBlock,
-	)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+
+	// Need to check if the sender is on the priority list,
+	// And no need to send a receipt if not in
+	if generateReceipt {
+		receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+			bs.Chaintype,
+			block.GetBlockHash(),
+			&lastBlockCacheFormat,
+			senderPublicKey,
+			nodeSecretPhrase,
+			constant.ReceiptDatumTypeBlock,
+		)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return receipt, nil
 	}
-	return receipt, nil
+	return nil, nil
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {

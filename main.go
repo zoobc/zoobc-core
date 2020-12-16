@@ -623,6 +623,7 @@ func initiateMainInstance() {
 		spinechain,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		crypto.NewSignature(),
 		observerInstance,
 		blocksmithStrategySpine,
