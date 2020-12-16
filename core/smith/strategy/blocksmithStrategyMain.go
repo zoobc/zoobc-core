@@ -166,6 +166,9 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 }
 
 func (bss *BlocksmithStrategyMain) convertRandomNumberToIndex(randNumber, activeNodeRegistryCount int64) int {
+	if activeNodeRegistryCount == 0 {
+		activeNodeRegistryCount = 1
+	}
 	rd := randNumber / activeNodeRegistryCount
 	mult := rd * activeNodeRegistryCount
 	rem := randNumber - mult
