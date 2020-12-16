@@ -7,7 +7,6 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 )
 
 type (
@@ -53,9 +52,10 @@ func (b *BlocksStorage) Push(item interface{}) error {
 	}
 	b.blocks = append(b.blocks, b.copy(blockCacheObjectCopy))
 	b.lastBlockHeight = blockCacheObjectCopy.Height
-	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
-	}
+	// STEF
+	// if monitoring.IsMonitoringActive() {
+	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
+	// }
 	return nil
 }
 
@@ -76,9 +76,10 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 	defer b.Unlock()
 	b.blocks = b.blocks[:heightIndex+1]
 	b.lastBlockHeight = height
-	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
-	}
+	// STEF
+	// if monitoring.IsMonitoringActive() {
+	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
+	// }
 	return nil
 }
 
@@ -138,9 +139,10 @@ func (b *BlocksStorage) Clear() error {
 	defer b.RUnlock()
 	b.blocks = make([]BlockCacheObject, 0, b.itemLimit)
 	b.lastBlockHeight = 0
-	if monitoring.IsMonitoringActive() {
-		monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, 0)
-	}
+	// STEF
+	// if monitoring.IsMonitoringActive() {
+	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, 0)
+	// }
 	return nil
 }
 
