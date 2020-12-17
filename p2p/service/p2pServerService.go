@@ -139,7 +139,7 @@ func (ps *P2PServerService) GetNodeAddressesInfo(
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
 }
 
-// SendNodeAddressesInfo receives a node address info from a peer
+// SendNodeAddressInfo receives a node address info from a peer
 func (ps *P2PServerService) SendNodeAddressInfo(ctx context.Context, req *model.SendNodeAddressInfoRequest) (*model.Empty, error) {
 	var (
 		nodeAddressInfo = req.NodeAddressInfoMessage

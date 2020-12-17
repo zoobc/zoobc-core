@@ -113,6 +113,28 @@ func GetBlockByHeight(
 	return &block, nil
 }
 
+// GetBlockByHeight get block at the height provided & returned in cache format
+func GetBlockByHeightUseBlocksCache(
+	height uint32,
+	queryExecutor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	blocksCacheStorage storage.CacheStackStorageInterface,
+) (*storage.BlockCacheObject, error) {
+	var (
+		blockCacheObject storage.BlockCacheObject
+		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
+	)
+	if err == nil {
+		return &blockCacheObject, nil
+	}
+	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
+	if err != nil {
+		return nil, err
+	}
+	blockCacheObject = BlockConvertToCacheFormat(block)
+	return &blockCacheObject, nil
+}
+
 // GetBlockByID get block at the ID provided
 func GetBlockByID(
 	id int64,
@@ -138,20 +160,21 @@ func GetBlockByID(
 	return &block, nil
 }
 
-func GetBlockByHeightUseBlocksCache(
-	height uint32,
+// GetBlockByID get block at the ID provided & returned in cache format
+func GetBlockByIDUseBlocksCache(
+	id int64,
 	queryExecutor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
-	blocksCacheStorage storage.CacheStackStorageInterface,
+	blocksCacheStorage storage.CacheStorageInterface,
 ) (*storage.BlockCacheObject, error) {
 	var (
 		blockCacheObject storage.BlockCacheObject
-		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
+		err              = blocksCacheStorage.GetItem(id, &blockCacheObject)
 	)
 	if err == nil {
 		return &blockCacheObject, nil
 	}
-	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
+	block, err := GetBlockByID(id, queryExecutor, blockQuery)
 	if err != nil {
 		return nil, err
 	}
