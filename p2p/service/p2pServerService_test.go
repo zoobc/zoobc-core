@@ -86,7 +86,17 @@ type (
 	mockNodeConfigurationService struct {
 		coreService.NodeConfigurationServiceInterface
 	}
+
+	mockScrambleNodeService struct {
+		coreService.ScrambleNodeServiceInterface
+	}
 )
+
+func (*mockScrambleNodeService) GetScrambleNodesByHeight(
+	uint32,
+) (*model.ScrambledNodes, error) {
+	return &model.ScrambledNodes{}, nil
+}
 
 func (mockNais *p2pSrvMockNodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
 	preferredStatus model.NodeAddressStatus,
@@ -164,6 +174,7 @@ func TestNewP2PServerService(t *testing.T) {
 		observer                *observer.Observer
 		feedbackStrategy        feedbacksystem.FeedbackStrategyInterface
 		ScrambleCacheStorage    storage.CacheStackStorageInterface
+		ScrambleNodeService     coreService.ScrambleNodeServiceInterface
 	}
 	tests := []struct {
 		name string
@@ -181,12 +192,14 @@ func TestNewP2PServerService(t *testing.T) {
 				nodeSecretPhrase:        "",
 				observer:                nil,
 				feedbackStrategy:        &feedbacksystem.DummyFeedbackStrategy{},
+				ScrambleNodeService:     &mockScrambleNodeService{},
 			},
 			want: &P2PServerService{
-				BlockServices:    make(map[int32]coreService.BlockServiceInterface),
-				MempoolServices:  make(map[int32]coreService.MempoolServiceInterface),
-				NodeSecretPhrase: "",
-				FeedbackStrategy: &feedbacksystem.DummyFeedbackStrategy{},
+				BlockServices:       make(map[int32]coreService.BlockServiceInterface),
+				MempoolServices:     make(map[int32]coreService.MempoolServiceInterface),
+				NodeSecretPhrase:    "",
+				FeedbackStrategy:    &feedbacksystem.DummyFeedbackStrategy{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 		},
 	}
@@ -203,6 +216,7 @@ func TestNewP2PServerService(t *testing.T) {
 				tt.args.nodeSecretPhrase,
 				tt.args.observer,
 				tt.args.feedbackStrategy,
+				tt.args.ScrambleNodeService,
 			); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewP2PServerService() = %v, want %v", got, tt.want)
 			}
@@ -1217,6 +1231,14 @@ func (*mockSendBlockBlockServiceGetLastBlockFail) GetLastBlock() (*model.Block, 
 func (*mockSendBlockBlockServiceReceiveBlockFail) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
 }
+func (*mockSendBlockBlockServiceReceiveBlockFail) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		Timestamp: mockBlock.Timestamp,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
+}
 func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(
 	[]byte,
 	*model.Block, *model.Block,
@@ -1229,6 +1251,14 @@ func (*mockSendBlockBlockServiceReceiveBlockFail) ReceiveBlock(
 
 func (*mockSendBlockBlockServiceSuccess) GetLastBlock() (*model.Block, error) {
 	return &mockBlock, nil
+}
+func (*mockSendBlockBlockServiceSuccess) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	return &storage.BlockCacheObject{
+		ID:        mockBlock.ID,
+		Height:    mockBlock.Height,
+		Timestamp: mockBlock.Timestamp,
+		BlockHash: mockBlock.BlockHash,
+	}, nil
 }
 func (*mockSendBlockBlockServiceSuccess) ReceiveBlock(
 	[]byte,
@@ -1266,14 +1296,15 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		mockContextPeerFail       = metadata.NewIncomingContext(context.Background(), mockHeaderContextPeerFail)
 	)
 	type fields struct {
-		FileService       coreService.FileServiceInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		BlockServices     map[int32]coreService.BlockServiceInterface
-		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase  string
-		Observer          *observer.Observer
-		ScrambleNodeCache storage.CacheStackStorageInterface
-		NodeConfiguration coreService.NodeConfigurationServiceInterface
+		FileService         coreService.FileServiceInterface
+		PeerExplorer        strategy.PeerExplorerStrategyInterface
+		BlockServices       map[int32]coreService.BlockServiceInterface
+		MempoolServices     map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase    string
+		Observer            *observer.Observer
+		ScrambleNodeCache   storage.CacheStackStorageInterface
+		NodeConfiguration   coreService.NodeConfigurationServiceInterface
+		ScrambleNodeService coreService.ScrambleNodeServiceInterface
 	}
 	type args struct {
 		ctx             context.Context
@@ -1356,8 +1387,9 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceReceiveBlockFail{},
 				},
-				ScrambleNodeCache: &mockScrambleNodeCache{wantErr: true},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				ScrambleNodeCache:   &mockScrambleNodeCache{wantErr: true},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1373,8 +1405,9 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceSuccess{},
 				},
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				ScrambleNodeCache:   &mockScrambleNodeCache{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1396,6 +1429,7 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				NodeSecretPhrase:         tt.fields.NodeSecretPhrase,
 				Observer:                 tt.fields.Observer,
 				NodeConfigurationService: tt.fields.NodeConfiguration,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 			}
 			got, err := ps.SendBlock(tt.args.ctx, tt.args.chainType, tt.args.block, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {
@@ -1456,15 +1490,16 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 	)
 
 	type fields struct {
-		FileService       coreService.FileServiceInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		BlockServices     map[int32]coreService.BlockServiceInterface
-		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase  string
-		Observer          *observer.Observer
-		FeedbackStrategy  feedbacksystem.FeedbackStrategyInterface
-		ScrambleNodeCache storage.CacheStackStorageInterface
-		NodeConfiguration coreService.NodeConfigurationServiceInterface
+		FileService         coreService.FileServiceInterface
+		PeerExplorer        strategy.PeerExplorerStrategyInterface
+		BlockServices       map[int32]coreService.BlockServiceInterface
+		MempoolServices     map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase    string
+		Observer            *observer.Observer
+		FeedbackStrategy    feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeCache   storage.CacheStackStorageInterface
+		NodeConfiguration   coreService.NodeConfigurationServiceInterface
+		ScrambleNodeService coreService.ScrambleNodeServiceInterface
 	}
 	type args struct {
 		ctx              context.Context
@@ -1546,9 +1581,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceReceivedTransactionFail{},
 				},
-				FeedbackStrategy:  feedbacksystem.NewDummyFeedbackStrategy(),
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				FeedbackStrategy:    feedbacksystem.NewDummyFeedbackStrategy(),
+				ScrambleNodeCache:   &mockScrambleNodeCache{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1567,9 +1603,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceSuccess{},
 				},
-				FeedbackStrategy:  feedbacksystem.NewDummyFeedbackStrategy(),
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				FeedbackStrategy:    feedbacksystem.NewDummyFeedbackStrategy(),
+				ScrambleNodeCache:   &mockScrambleNodeCache{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1592,6 +1629,7 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				Observer:                 tt.fields.Observer,
 				FeedbackStrategy:         tt.fields.FeedbackStrategy,
 				NodeConfigurationService: tt.fields.NodeConfiguration,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 			}
 			got, err := ps.SendTransaction(tt.args.ctx, tt.args.chainType, tt.args.transactionBytes, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {
@@ -1650,14 +1688,15 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 	)
 
 	type fields struct {
-		FileService        coreService.FileServiceInterface
-		PeerExplorer       strategy.PeerExplorerStrategyInterface
-		BlockServices      map[int32]coreService.BlockServiceInterface
-		MempoolServices    map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase   string
-		Observer           *observer.Observer
-		ScrambleNodesCache storage.CacheStackStorageInterface
-		NodeConfiguration  coreService.NodeConfigurationServiceInterface
+		FileService         coreService.FileServiceInterface
+		PeerExplorer        strategy.PeerExplorerStrategyInterface
+		BlockServices       map[int32]coreService.BlockServiceInterface
+		MempoolServices     map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase    string
+		Observer            *observer.Observer
+		ScrambleNodesCache  storage.CacheStackStorageInterface
+		NodeConfiguration   coreService.NodeConfigurationServiceInterface
+		ScrambleNodeService coreService.ScrambleNodeServiceInterface
 	}
 	type args struct {
 		ctx               context.Context
@@ -1735,8 +1774,9 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionsMempoolServiceReceivedTransactionsFail{},
 				},
-				ScrambleNodesCache: &mockScrambleNodeCache{},
-				NodeConfiguration:  &mockNodeConfigurationService{},
+				ScrambleNodesCache:  &mockScrambleNodeCache{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1755,8 +1795,9 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionsMempoolServiceSuccess{},
 				},
-				ScrambleNodesCache: &mockScrambleNodeCache{},
-				NodeConfiguration:  &mockNodeConfigurationService{},
+				ScrambleNodesCache:  &mockScrambleNodeCache{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+				ScrambleNodeService: &mockScrambleNodeService{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1780,6 +1821,7 @@ func TestP2PServerService_SendBlockTransactions(t *testing.T) {
 				NodeSecretPhrase:         tt.fields.NodeSecretPhrase,
 				Observer:                 tt.fields.Observer,
 				NodeConfigurationService: tt.fields.NodeConfiguration,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
 			}
 			got, err := ps.SendBlockTransactions(tt.args.ctx, tt.args.chainType, tt.args.transactionsBytes, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {
