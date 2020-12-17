@@ -199,7 +199,7 @@ func (ps *P2PServerService) GetPeerInfo(ctx context.Context, _ *model.GetPeerInf
 }
 
 // GetMorePeers contains info other peers
-func (ps *P2PServerService) GetMorePeers(ctx context.Context, req *model.Empty) ([]*model.Node, error) {
+func (ps *P2PServerService) GetMorePeers(ctx context.Context, _ *model.Empty) ([]*model.Node, error) {
 	if ps.PeerExplorer.ValidateRequest(ctx) {
 		var nodes []*model.Node
 		// only sends the connected (resolved) peers
@@ -283,7 +283,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		}
 		myLastBlock, err := blockService.GetLastBlockCacheFormat()
 		if err != nil || myLastBlock == nil {
-			return nil, status.Error(codes.Internal, fmt.Sprintf("failGetLastBlockErr: %v", err.Error()))
+			return nil, status.Error(codes.Internal, fmt.Sprintf("failGetLastBlockErr: %v", err))
 		}
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
@@ -540,7 +540,7 @@ func (ps *P2PServerService) SendTransaction(
 
 		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
 		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
-			receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase)
+			receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, isGenerate)
 			if e != nil {
 				return []*model.Receipt{}, e
 			}
@@ -598,6 +598,7 @@ func (ps *P2PServerService) SendBlockTransactions(
 				transactionsBytes,
 				lastBlockCacheFormat,
 				ps.NodeSecretPhrase,
+				isGenerate,
 			)
 		})
 
