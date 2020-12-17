@@ -138,3 +138,15 @@ func (b *BlocksStorage) copy(blockCacheObject BlockCacheObject) (blockCacheObjec
 	copy(blockCacheObjectCopy.BlockHash, blockCacheObject.BlockHash)
 	return blockCacheObjectCopy
 }
+
+// size unused for now
+// func (b *BlocksStorage) size() int {
+// 	var (
+// 		blocksBytes bytes.Buffer
+// 		enc         = gob.NewEncoder(&blocksBytes)
+// 	)
+// 	_ = enc.Encode(b.blocks)
+// 	_ = enc.Encode(b.itemLimit)
+// 	_ = enc.Encode(b.lastBlockHeight)
+// 	return blocksBytes.Len()
+// }
