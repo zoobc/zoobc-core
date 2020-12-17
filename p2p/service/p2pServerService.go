@@ -89,6 +89,7 @@ type (
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
 		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
 	}
 )
 
@@ -104,6 +105,7 @@ func NewP2PServerService(
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -116,6 +118,7 @@ func NewP2PServerService(
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
 		FeedbackStrategy:         feedbackStrategy,
+		ScrambleNodeService:      scrambleNodeService,
 	}
 }
 
@@ -671,11 +674,18 @@ func (ps *P2PServerService) needToGenerateReceipt(
 	process func(isGenerate bool) ([]*model.Receipt, error),
 ) (receipts []*model.Receipt, err error) {
 	var (
-		scrambleNodes   model.ScrambledNodes
+		scrambleNodes   *model.ScrambledNodes
 		generateReceipt bool
+		blockService    = ps.BlockServices[(&chaintype.MainChain{}).GetTypeInt()]
 	)
+	if blockService == nil {
+		return nil, status.Error(
+			codes.InvalidArgument,
+			"blockServiceNotFoundByThisChainType",
+		)
+	}
 
-	// STEF new logic for minimizing receipts generation and broadcast: generate (
+	// STEF new logic for minimizing receipts generation and broadcast using scramble node cache: generate (
 	// and broadcast) a receipts only for blocks coming from node's priority peers at the block's height (one of the scramble nodes)
 	// note: this behavior is temporary mocked because we are not implementing ScrambleNodeCache at the moment
 	//
@@ -683,6 +693,21 @@ func (ps *P2PServerService) needToGenerateReceipt(
 	// if err != nil {
 	// 	return []*model.Receipt{}, err
 	// }
-	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
+
+	lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal,
+			fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
+		)
+	}
+	scrambleNodes, err = ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlockCacheFormat.Height)
+	if err != nil {
+		return nil, status.Error(
+			codes.Internal,
+			fmt.Sprintf("failGetScrambleNodes: %v", err.Error()),
+		)
+	}
+	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
 	return process(generateReceipt)
 }

@@ -41,6 +41,7 @@ type (
 			nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 			observer *observer.Observer,
 			feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+			scrambleNodeService coreService.ScrambleNodeServiceInterface,
 		)
 		// exposed api list
 		GetHostInfo() *model.Host
@@ -110,6 +111,7 @@ func (s *Peer2PeerService) StartP2P(
 	nodeAddressInfoService coreService.NodeAddressInfoServiceInterface,
 	observer *observer.Observer,
 	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	scrambleNodeService coreService.ScrambleNodeServiceInterface,
 ) {
 	// peer to peer service layer | under p2p handler
 	p2pServerService := p2pService.NewP2PServerService(
@@ -123,6 +125,7 @@ func (s *Peer2PeerService) StartP2P(
 		nodeSecretPhrase,
 		observer,
 		feedbackStrategy,
+		scrambleNodeService,
 	)
 	// start listening on peer port
 	go func() { // register handlers and listening to incoming p2p request

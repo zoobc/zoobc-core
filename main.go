@@ -766,6 +766,7 @@ func startServices() {
 		nodeAddressInfoService,
 		observerInstance,
 		feedbackStrategy,
+		scrambleNodeService,
 	)
 	api.Start(
 		queryExecutor,
