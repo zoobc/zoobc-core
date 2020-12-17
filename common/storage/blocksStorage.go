@@ -1,8 +1,6 @@
 package storage
 
 import (
-	"bytes"
-	"encoding/gob"
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -52,10 +50,6 @@ func (b *BlocksStorage) Push(item interface{}) error {
 	}
 	b.blocks = append(b.blocks, b.copy(blockCacheObjectCopy))
 	b.lastBlockHeight = blockCacheObjectCopy.Height
-	// STEF
-	// if monitoring.IsMonitoringActive() {
-	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
-	// }
 	return nil
 }
 
@@ -76,10 +70,6 @@ func (b *BlocksStorage) PopTo(height uint32) error {
 	defer b.Unlock()
 	b.blocks = b.blocks[:heightIndex+1]
 	b.lastBlockHeight = height
-	// STEF
-	// if monitoring.IsMonitoringActive() {
-	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, float64(b.size()))
-	// }
 	return nil
 }
 
@@ -139,22 +129,7 @@ func (b *BlocksStorage) Clear() error {
 	defer b.RUnlock()
 	b.blocks = make([]BlockCacheObject, 0, b.itemLimit)
 	b.lastBlockHeight = 0
-	// STEF
-	// if monitoring.IsMonitoringActive() {
-	// 	monitoring.SetCacheStorageMetrics(monitoring.TypeBlocksCacheStorage, 0)
-	// }
 	return nil
-}
-
-func (b *BlocksStorage) size() int {
-	var (
-		blocksBytes bytes.Buffer
-		enc         = gob.NewEncoder(&blocksBytes)
-	)
-	_ = enc.Encode(b.blocks)
-	_ = enc.Encode(b.itemLimit)
-	_ = enc.Encode(b.lastBlockHeight)
-	return blocksBytes.Len()
 }
 
 func (b *BlocksStorage) copy(blockCacheObject BlockCacheObject) (blockCacheObjectCopy BlockCacheObject) {
