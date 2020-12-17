@@ -1435,13 +1435,13 @@ func (*mockSendTransactionBlockServiceSuccess) GetLastBlockCacheFormat() (*stora
 	}, nil
 }
 func (*mockSendTransactionMempoolServiceReceivedTransactionFail) ReceivedTransaction(
-	[]byte, []byte, *storage.BlockCacheObject, string,
+	[]byte, []byte, *storage.BlockCacheObject, string, bool,
 ) (*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 
 func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
-	[]byte, []byte, *storage.BlockCacheObject, string,
+	[]byte, []byte, *storage.BlockCacheObject, string, bool,
 ) (*model.Receipt, error) {
 	return &model.Receipt{
 		SenderPublicKey: []byte{1},
@@ -1631,12 +1631,12 @@ func (*mockSendTransactionsBlockServiceSuccess) GetLastBlockCacheFormat() (*stor
 	}, nil
 }
 func (*mockSendTransactionsMempoolServiceReceivedTransactionsFail) ReceivedBlockTransactions(
-	[]byte, [][]byte, *storage.BlockCacheObject, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string, bool,
 ) ([]*model.Receipt, error) {
 	return nil, errors.New("mock Error")
 }
 func (*mockSendTransactionsMempoolServiceSuccess) ReceivedBlockTransactions(
-	[]byte, [][]byte, *storage.BlockCacheObject, string,
+	[]byte, [][]byte, *storage.BlockCacheObject, string, bool,
 ) ([]*model.Receipt, error) {
 	return []*model.Receipt{{
 		SenderPublicKey: []byte{1},
