@@ -78,6 +78,9 @@ run:
 
 issues:
     exclude-rules:
+        - text: "`derivate` is a misspelling of `derivative`"
+          linters:
+              - misspell
         - text: "captLocal:"
           linters:
               - gocritic
