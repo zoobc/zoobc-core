@@ -458,7 +458,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	// always rollback if exiting function without explicitly commit the db transaction, that way it is impossible for
 	// the transaction to leak.
 	// Rollback is effectively a no-op if the transaction has already been rolled back or committed
-	defer bs.QueryExecutor.RollbackTx() // nolint: errcheck
+	defer func() {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+	}()
+
 	err = bs.NodeRegistrationService.BeginCacheTransaction()
 	if err != nil {
 		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))

@@ -375,7 +375,12 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	if err != nil {
 		return err
 	}
-	defer bs.QueryExecutor.RollbackTx() // nolint: errcheck
+	defer func() {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Error(rollbackErr.Error())
+		}
+	}()
+
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
