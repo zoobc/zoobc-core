@@ -455,6 +455,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if err != nil {
 		return err
 	}
+	// always rollback if exiting function without explicitly commit the db transaction, that way it is impossible for
+	// the transaction to leak.
+	// Rollback is effectively a no-op if the transaction has already been rolled back or committed
+	defer bs.QueryExecutor.RollbackTx()
 	err = bs.NodeRegistrationService.BeginCacheTransaction()
 	if err != nil {
 		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))
@@ -568,6 +572,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					}
 					err = json.Unmarshal(blockBytes, &blockToBroadcast)
 					if err != nil {
+						bs.queryAndCacheRollbackProcess("")
 						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
 					}
 					// add transactionIDs and remove transaction before broadcast
@@ -685,6 +690,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	if adjust {
+		// TODO: move this anonymous function in a separate method for better code readability and testability
 		// fetch vote-reveals
 		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
 			var (
