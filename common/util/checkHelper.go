@@ -65,7 +65,7 @@ func ValidateIP4(ipAddress string) bool {
 	return re.MatchString(ipAddress)
 }
 
-// IsBytesEmpty returns check result whther the bytes are empty
+// IsBytesEmpty returns check result whether the bytes are empty
 func IsBytesEmpty(bytesToCheck []byte) bool {
 	if bytesToCheck == nil {
 		return true

@@ -427,7 +427,7 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 
 		// return error if the the dataset `AccountDatasetEscrowApproval` is satisfied but the approver is not himself
 		if !bytes.Equal(tx.Escrow.GetApproverAddress(), tx.GetRecipientAccountAddress()) {
-			return fmt.Errorf("The escrow approver should be the account himself")
+			return fmt.Errorf("the escrow approver should be the account himself")
 		}
 	}
 
