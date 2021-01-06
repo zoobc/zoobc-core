@@ -1691,10 +1691,12 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
-		bs.Logger.Errorf(
-			"ProcessCompletedBlock2 push Block fail: %v",
-			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
-		)
+		if err.Error() != "DuplicateBlock" {
+			bs.Logger.Errorf(
+				"ProcessCompletedBlock2 push Block fail: %v",
+				blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
+			)
+		}
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
