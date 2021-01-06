@@ -49,15 +49,18 @@
 // shall be included in all copies or substantial portions of the Software.
 package constant
 
-import "time"
-
 var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
-	SQLMaxIdleConnections = 10
+	SQLMaxIdleConnections = 1
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
-	SQLMaxConnectionLifetime = 10 * time.Minute
+	// Setting it to 0 means that there is no maximum lifetime and the connection is reused forever (which is the default behavior).
+	SQLMaxConnectionLifetime = 0
+	// SQLMaxConnectionLifetime = 5 * time.Minute
+
 	// SQLMaxOpenConnetion represent the number of maximum open connetion to the database
-	SQLMaxOpenConnetion = 10
+	// Setting it to 1 'disables' the connection pool which could lead to db lock when in a multithreaded application (
+	// such as in a go application extensively using goroutines)
+	SQLMaxOpenConnetion = 1
 	// SQLiteLimitVariableNumber equivalent to SQLITE_LIMIT_VARIABLE_NUMBER from sqlite
 	SQLiteLimitVariableNumber = 999
 )

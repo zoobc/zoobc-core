@@ -144,6 +144,7 @@ func (db *SqliteDB) OpenDB(
 	conn.SetMaxIdleConns(maximumIdleConnections)
 	// SetConnMaxLifetime used to controlling the lifecycle of connections,
 	// Will be useful when maintaining idle connetions in low traffic
+	// Setting it to 0 means that there is no maximum lifetime and the connection is reused forever (which is the default behavior).
 	conn.SetConnMaxLifetime(maximumLifetimeConnection)
 	// SetMaxOpenConns the maximum number of open connections to the database
 	// to prevent unable open database file
