@@ -57,7 +57,7 @@ var (
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
 	SQLMaxConnectionLifetime = 30 * time.Minute
 	// SQLMaxOpenConnetion represent the number of maximum open connetion to the database
-	SQLMaxOpenConnetion = 50
+	SQLMaxOpenConnetion = 5
 	// SQLiteLimitVariableNumber equivalent to SQLITE_LIMIT_VARIABLE_NUMBER from sqlite
 	SQLiteLimitVariableNumber = 999
 )

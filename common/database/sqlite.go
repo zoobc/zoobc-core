@@ -134,7 +134,7 @@ func (db *SqliteDB) OpenDB(
 
 	// _mutex parameter for setup threading mode in mattn/go-sqlite3
 	// no = SQLITE_OPEN_NOMUTEX, full = SQLITE_OPEN_FULLMUTEX
-	conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=no", absPath))
+	conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=no&cache=private&mode=rwc&journal_mode=WAL", absPath))
 
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err
@@ -144,8 +144,7 @@ func (db *SqliteDB) OpenDB(
 	conn.SetMaxIdleConns(maximumIdleConnections)
 	// SetConnMaxLifetime used to controlling the lifecycle of connections,
 	// Will be useful when maintaining idle connetions in low traffic
-	// todo: andy-shi88 experiment with sql configuration for debugging cpu spike - remove this later
-	conn.SetConnMaxLifetime(0)
+	conn.SetConnMaxLifetime(maximumLifetimeConnection)
 	// SetMaxOpenConns the maximum number of open connections to the database
 	// to prevent unable open database file
 	conn.SetMaxOpenConns(maximumOpenConnection)
