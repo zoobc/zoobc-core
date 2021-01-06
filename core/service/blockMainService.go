@@ -518,7 +518,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 
 		if block.Height > 0 {
-			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
+			err = bs.TransactionCoreService.ValidateTransaction(txType, true, false)
 			if err != nil {
 				bs.queryAndCacheRollbackProcess("")
 				return err

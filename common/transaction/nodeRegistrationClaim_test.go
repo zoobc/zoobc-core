@@ -242,7 +242,10 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		Poown:         poown,
 		NodePublicKey: []byte{1, 1, 1, 1},
 	}
-
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	type fields struct {
 		Body                  *model.ClaimNodeRegistrationTransactionBody
 		Fee                   int64
@@ -257,6 +260,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 		errText string
 	}{
@@ -265,6 +269,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body: txBodyWithoutPoown,
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: "ValidationErr: PoownRequired",
 		},
@@ -274,6 +279,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				Body:      txBodyWithPoown,
 				AuthPoown: &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: "MockedError",
 		},
@@ -285,6 +291,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorValidateFailClaimNRNodeNotRegistered{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyNotRegistered").Error(),
 		},
@@ -296,6 +303,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorValidateFailClaimNRNodeAlreadyDeleted{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: blocker.NewBlocker(blocker.ValidationErr, "NodeAlreadyClaimedOrDeleted").Error(),
 		},
@@ -309,6 +317,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         &mockExecutorValidateSuccessClaimNR{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperClaimNRValidateFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: "ValidationErr: BalanceNotEnough",
 		},
@@ -322,6 +331,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         &mockExecutorValidateSuccessClaimNR{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperClaimNRValidateNotEnoughSpendable{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 			errText: blocker.NewBlocker(blocker.ValidationErr, "BalanceNotEnough").Error(),
 		},
@@ -350,7 +360,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			err := tx.Validate(false)
+			err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance)
 			if err != nil {
 				if !tt.wantErr {
 					t.Errorf("NodeAuthValidation.ValidateProofOfOwnership() error = %v, wantErr %v", err, tt.wantErr)

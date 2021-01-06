@@ -426,9 +426,14 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
 	}
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -442,6 +447,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -454,6 +460,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailGetRNode{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -466,6 +473,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -478,6 +486,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -491,6 +500,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -504,6 +514,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 	}
@@ -518,7 +529,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("RemoveNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -287,7 +287,8 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 		AccountBalanceHelper AccountBalanceHelperInterface
 	}
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -309,7 +310,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 				QueryExecutor: &mockQueryExecutorValidateNotFound{},
 				EscrowQuery:   query.NewEscrowTransactionQuery(),
 			},
-			args:    args{dbTx: false},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -327,7 +328,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 				EscrowQuery:      query.NewEscrowTransactionQuery(),
 				TransactionQuery: nil,
 			},
-			args:    args{dbTx: false},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -345,7 +346,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: &mockAccountApprovalEscrowTransactionAccountBalanceHelperAccountBalanceNotFound{},
 			},
-			args:    args{dbTx: false},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -363,7 +364,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: &mockAccountBalanceApprovalEscrowTransactionAccountBalanceHelperWantSuccess{},
 			},
-			args: args{dbTx: false},
+			args: args{dbTx: false, checkOnSpendableBalance: true},
 		},
 	}
 	for _, tt := range tests {
@@ -381,7 +382,7 @@ func TestApprovalEscrowTransaction_Validate(t *testing.T) {
 				TypeActionSwitcher:   tt.fields.TypeActionSwitcher,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

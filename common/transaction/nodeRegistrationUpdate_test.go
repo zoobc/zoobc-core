@@ -425,6 +425,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		Poown:         poown,
 		LockedBalance: int64(100000),
 	}
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
 		Fee                   int64
@@ -439,6 +443,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -446,6 +451,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 			fields: fields{
 				Body: txBodyWithoutPoown,
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -454,6 +460,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				Body:      txBodyInvalidPoown,
 				AuthPoown: &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -466,6 +473,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -478,6 +486,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -490,6 +499,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -502,6 +512,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -515,6 +526,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -527,6 +539,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &mockAuthPoown{success: true},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -540,6 +553,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -553,6 +567,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRValidateSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 	}
@@ -569,7 +584,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateNodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

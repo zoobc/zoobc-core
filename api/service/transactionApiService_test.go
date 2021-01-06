@@ -54,17 +54,17 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -144,15 +144,15 @@ func (*mockTypeSwitcherSuccess) GetTransactionType(tx *model.Transaction) (trans
 	return &mockTxTypeSuccess{}, nil
 }
 
-func (*mockTxTypeValidateFail) Validate(bool) error {
+func (*mockTxTypeValidateFail) Validate(bool, bool) error {
 	return errors.New("mockError:validateFail")
 }
 
-func (*mockTxTypeApplyUnconfirmedFail) Validate(bool) error {
+func (*mockTxTypeApplyUnconfirmedFail) Validate(bool, bool) error {
 	return nil
 }
 
-func (*mockTxTypeSuccess) Validate(bool) error {
+func (*mockTxTypeSuccess) Validate(bool, bool) error {
 	return nil
 }
 

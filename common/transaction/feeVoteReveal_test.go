@@ -53,11 +53,12 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -258,7 +259,8 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		QueryExecutor          query.ExecutorInterface
 	}
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -273,6 +275,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				Timestamp:       12345678,
 				FeeScaleService: &mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -293,6 +296,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -314,6 +318,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -335,6 +340,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealTXValidateSuccess{},
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateNotFound{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -357,6 +363,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeVoteCommitVoteQuery: &mockCommitmentVoteQueryFeeVoteRevealTXValidateFound{},
 				NodeRegistrationQuery:  &mockNodeRegistrationQueryFeeVoteRevealTXValidateNotFound{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -380,6 +387,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				FeeVoteRevealVoteQuery: &mockVoteRevealQueryFeeVoteRevealTXValidateFound{},
 				NodeRegistrationQuery:  &mockNodeRegistrationQueryFeeVoteRevealTXValidateFound{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -404,6 +412,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				NodeRegistrationQuery:  &mockNodeRegistrationQueryFeeVoteRevealTXValidateFound{},
 				AccountBalanceHelper:   &mockAccountBalanceHelperValidateSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 	}
@@ -425,7 +434,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 				AccountBalanceHelper:   tt.fields.AccountBalanceHelper,
 				QueryExecutor:          tt.fields.QueryExecutor,
 			}
-			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

@@ -1117,6 +1117,10 @@ func TestNodeRegistration_Validate(t *testing.T) {
 		NodePublicKey: nodePubKey1,
 	}
 	bodyWithoutPoown := &model.NodeRegistrationTransactionBody{}
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	type fields struct {
 		Body                  *model.NodeRegistrationTransactionBody
 		Fee                   int64
@@ -1131,6 +1135,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -1142,6 +1147,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:     &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -1153,6 +1159,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:     &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1164,6 +1171,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:     &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1176,6 +1184,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:     &mockAuthPoown{success: false},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1189,6 +1198,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:            &mockAuthPoown{success: true},
 				AccountBalanceHelper: &mockAccountBalanceHelperNRFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1207,6 +1217,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:            &mockAuthPoown{success: true},
 				AccountBalanceHelper: &mockAccountBalanceHelperNRFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1222,6 +1233,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperNRSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1237,6 +1249,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperNRSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1252,6 +1265,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperNRSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -1267,6 +1281,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperNRSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -1282,6 +1297,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             &mockAuthPoown{success: true},
 				AccountBalanceHelper:  &mockAccountBalanceHelperNRSuccess{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 	}
@@ -1298,7 +1314,7 @@ func TestNodeRegistration_Validate(t *testing.T) {
 				AuthPoown:             tt.fields.AuthPoown,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("NodeRegistration.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

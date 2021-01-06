@@ -439,9 +439,14 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
 	}
+	type args struct {
+		dbTx                    bool
+		checkOnSpendableBalance bool
+	}
 	tests := []struct {
 		name    string
 		fields  fields
+		args    args
 		wantErr bool
 	}{
 		{
@@ -453,6 +458,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        &executorSetupAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -468,6 +474,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorSetupAccountDatasetValidateAlreadyExists{},
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -484,6 +491,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        &executorSetupAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
 			},
+			args: args{dbTx: false, checkOnSpendableBalance: true},
 		},
 	}
 	for _, tt := range tests {
@@ -498,7 +506,7 @@ func TestSetupAccountDataset_Validate(t *testing.T) {
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
 			}
-			if err := tx.Validate(false); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("SetupAccountDataset.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

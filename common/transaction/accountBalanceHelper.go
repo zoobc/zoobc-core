@@ -67,6 +67,7 @@ type (
 			blockTimestamp uint64) error
 		GetBalanceByAccountAddress(accountBalance *model.AccountBalance, address []byte, dbTx bool) error
 		HasEnoughSpendableBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error)
+		HasEnoughBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error)
 	}
 	// AccountBalanceHelper fields for AccountBalanceHelperInterface for transaction helper
 	AccountBalanceHelper struct {
@@ -189,4 +190,20 @@ func (abh *AccountBalanceHelper) HasEnoughSpendableBalance(dbTX bool, address []
 	}
 	abh.accountBalance = accountBalance
 	return accountBalance.GetSpendableBalance() >= compareBalance, nil
+}
+
+// check if account has enough balance
+func (abh *AccountBalanceHelper) HasEnoughBalance(dbTX bool, address []byte, compareBalance int64) (enough bool, err error) {
+	if bytes.Equal(abh.accountBalance.GetAccountAddress(), address) {
+		return abh.accountBalance.GetBalance() >= compareBalance, nil
+	}
+	var (
+		accountBalance model.AccountBalance
+	)
+	err = abh.GetBalanceByAccountAddress(&accountBalance, address, dbTX)
+	if err != nil {
+		return false, err
+	}
+	abh.accountBalance = accountBalance
+	return accountBalance.GetBalance() >= compareBalance, nil
 }

@@ -230,7 +230,7 @@ func (*mockSpineNodeRegistrationServiceFail) GetBlockHeightToBuildScrambleNodes(
 func (*mockSpineTypeAction) ApplyConfirmed(int64) error {
 	return nil
 }
-func (*mockSpineTypeAction) Validate(bool) error {
+func (*mockSpineTypeAction) Validate(bool, bool) error {
 	return nil
 }
 func (*mockSpineTypeAction) GetAmount() int64 {

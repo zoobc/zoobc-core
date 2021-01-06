@@ -269,7 +269,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 }
 
 // Validate validate node registration transaction and tx body
-func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
+func (tx *UpdateNodeRegistration) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		err                    error
 		enough                 bool
@@ -333,7 +333,13 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check aalance
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
+	}
+
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -457,7 +463,7 @@ func (tx *UpdateNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
 }
 
 // EscrowValidate validate node registration transaction and tx body
-func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
+func (tx *UpdateNodeRegistration) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		effectiveBalanceToLock int64
 		err                    error
@@ -472,7 +478,7 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
 
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
@@ -487,8 +493,12 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "SenderAccountNotNodeOwner")
 	}
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
-
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission()+effectiveBalanceToLock)
+	// checkOnSpendableBalance will check to the spendable balance of the sender otherwise will check the actual balance
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission()+effectiveBalanceToLock)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission()+effectiveBalanceToLock)
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

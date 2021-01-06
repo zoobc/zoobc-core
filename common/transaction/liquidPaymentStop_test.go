@@ -633,7 +633,8 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		TypeActionSwitcher            TypeActionSwitcher
 	}
 	type args struct {
-		dbTx bool
+		dbTx                    bool
+		checkOnSpendableBalance bool
 	}
 	tests := []struct {
 		name    string
@@ -660,6 +661,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -681,6 +683,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -702,6 +705,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -723,6 +727,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -747,6 +752,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -771,6 +777,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				),
 				NormalFee: fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: true,
 		},
 		{
@@ -791,6 +798,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -811,6 +819,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 		{
@@ -831,6 +840,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				AccountBalanceHelper: &mockAccountBalanceHelperLiquidPaymentStopValidateSuccess{},
 				NormalFee:            fee.NewBlockLifeTimeFeeModel(1, 2),
 			},
+			args:    args{dbTx: false, checkOnSpendableBalance: true},
 			wantErr: false,
 		},
 	}
@@ -850,7 +860,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 				NormalFee:                     tt.fields.NormalFee,
 				TypeActionSwitcher:            tt.fields.TypeActionSwitcher,
 			}
-			if err := tx.Validate(tt.args.dbTx); (err != nil) != tt.wantErr {
+			if err := tx.Validate(tt.args.dbTx, tt.args.checkOnSpendableBalance); (err != nil) != tt.wantErr {
 				t.Errorf("LiquidPaymentStop.Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

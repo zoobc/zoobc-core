@@ -157,7 +157,7 @@ That specs:
 	- Checking the expiration time
 	- Checking Spendable Balance sender
 */
-func (tx *SetupAccountDataset) Validate(dbTx bool) error {
+func (tx *SetupAccountDataset) Validate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		accountDataset model.AccountDataset
 		row            *sql.Row
@@ -197,10 +197,16 @@ func (tx *SetupAccountDataset) Validate(dbTx bool) error {
 	}
 
 	// check account balance sender
-	enough, e := tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
-	if e != nil {
-		if e != sql.ErrNoRows {
-			return blocker.NewBlocker(blocker.ValidationErr, e.Error())
+	var enough bool
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee)
+	}
+
+	if err != nil {
+		if err != sql.ErrNoRows {
+			return blocker.NewBlocker(blocker.ValidationErr, err.Error())
 		}
 		return blocker.NewBlocker(blocker.ValidationErr, "AccountBalanceNotFound")
 	}
@@ -317,7 +323,7 @@ func (tx *SetupAccountDataset) Escrowable() (EscrowTypeAction, bool) {
 /*
 EscrowValidate is func that for validating to Transaction SetupAccountDataset type.
 */
-func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
+func (tx *SetupAccountDataset) EscrowValidate(dbTx, checkOnSpendableBalance bool) error {
 	var (
 		err    error
 		enough bool
@@ -330,12 +336,16 @@ func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
 	}
 
-	err = tx.Validate(dbTx)
+	err = tx.Validate(dbTx, checkOnSpendableBalance)
 	if err != nil {
 		return err
 	}
 	// Need to check also spendable balance has enough again: plus commission
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	if checkOnSpendableBalance {
+		enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	} else {
+		enough, err = tx.AccountBalanceHelper.HasEnoughBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	}
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.ValidationErr, err.Error())
