@@ -1691,7 +1691,8 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	}
 	err = bs.PushBlock(lastBlock, block, true, false)
 	if err != nil {
-		if err.Error() != "DuplicateBlock" {
+		castedErr := err.(blocker.Blocker)
+		if castedErr.Type != blocker.BlockErr || (castedErr.Type == blocker.BlockErr && castedErr.Message != "DuplicateBlock") {
 			bs.Logger.Errorf(
 				"ProcessCompletedBlock2 push Block fail: %v",
 				blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
