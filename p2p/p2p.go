@@ -249,11 +249,7 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			for _, peer := range peers {
 				go func(p *model.Peer) {
 					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
-						castedErr := err.(blocker.Blocker)
-						if castedErr.Type != blocker.BlockErr ||
-							(castedErr.Type == blocker.BlockErr && castedErr.Message != "DuplicateBlock") {
-							s.Logger.Errorf("SendBlockListener: %s", err)
-						}
+						s.Logger.Infof("SendBlockListener: %s", err)
 					}
 				}(peer)
 			}
