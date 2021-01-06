@@ -54,6 +54,7 @@ import (
 	"reflect"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -95,7 +96,7 @@ func (*mockQueryExecutorGetEscrowTransactionsSuccess) ExecuteSelect(qStr string,
 		escrowTxApproverAddress1,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
@@ -157,7 +158,7 @@ func TestEscrowTransactionService_GetEscrowTransactions(t *testing.T) {
 						ApproverAddress:  escrowTxApproverAddress1,
 						Amount:           10,
 						Commission:       1,
-						Timeout:          120,
+						Timeout:          time.Now().Unix(),
 						Status:           model.EscrowStatus_Approved,
 						Latest:           true,
 					},
@@ -198,7 +199,7 @@ func (*mockExecutorGetEscrow) ExecuteSelectRow(string, bool, ...interface{}) (*s
 		escrowTxApproverAddress1,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
@@ -240,7 +241,7 @@ func Test_escrowTransactionService_GetEscrowTransaction(t *testing.T) {
 				ApproverAddress:  escrowTxApproverAddress1,
 				Amount:           10,
 				Commission:       1,
-				Timeout:          120,
+				Timeout:          time.Now().Unix(),
 				Status:           model.EscrowStatus_Approved,
 				Latest:           true,
 			},

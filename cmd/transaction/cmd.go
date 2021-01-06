@@ -52,10 +52,11 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"path"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -169,7 +170,7 @@ func init() {
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
 	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
 	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
-	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
+	sendMoneyCmd.Flags().Int64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout which is timestamp unix format")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
 	sendMoneyCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
 
