@@ -134,7 +134,8 @@ func (db *SqliteDB) OpenDB(
 
 	// _mutex parameter for setup threading mode in mattn/go-sqlite3
 	// no = SQLITE_OPEN_NOMUTEX, full = SQLITE_OPEN_FULLMUTEX
-	conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=no&cache=shared&mode=rwc&_journal_mode=WAL", absPath))
+	// conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=no&cache=shared&mode=rwc&_journal_mode=WAL", absPath))
+	conn, err = sql.Open("sqlite3", fmt.Sprintf("%s?_mutex=full&cache=shared&mode=rwc&_journal_mode=WAL", absPath))
 
 	if _, ok := err.(sqlite3.Error); ok {
 		return nil, err
