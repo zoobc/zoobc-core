@@ -52,13 +52,13 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -101,6 +101,28 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	}
 	txActiveNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
 	txPendingNodeRegistryCache := fixtureTransactionalCache(&mockNodeRegistryCacheSuccess{})
+
+	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
+		Body: feeVoteRevealBody,
+	}).GetBodyBytes()
+
+	// Atomic TX
+	_, innerTX := GetFixtureForSpecificTransaction(
+		0, 123456789,
+		senderAddress1, nil,
+		8, model.TransactionType_SendMoneyTransaction,
+		&model.SendMoneyTransactionBody{
+			Amount: 10,
+		},
+		false, false,
+	)
+	atomicBody, atomicBodyBytes := GetFixtureForAtomicTransaction(
+		map[string][][]byte{
+			senderAddress1PassPhrase: {
+				innerTX,
+			},
+		},
+	)
 	type fields struct {
 		Executor                   query.ExecutorInterface
 		NodeAuthValidation         auth.NodeAuthValidationInterface
@@ -113,10 +135,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	type args struct {
 		tx *model.Transaction
 	}
-
-	txBodyBytes1, _ := (&FeeVoteRevealTransaction{
-		Body: feeVoteRevealBody,
-	}).GetBodyBytes()
 
 	tests := []struct {
 		name   string
@@ -601,6 +619,41 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
+			},
+		},
+		{
+			name: "Want:AtomicTransaction",
+			fields: fields{
+				Executor: &query.Executor{},
+			},
+			args: args{
+				tx: &model.Transaction{
+					Height:               5,
+					SenderAccountAddress: senderAddress1,
+					TransactionBody:      atomicBody,
+					TransactionType:      binary.LittleEndian.Uint32([]byte{8, 0, 0, 0}),
+					TransactionBodyBytes: atomicBodyBytes,
+				},
+			},
+			want: &AtomicTransaction{
+				ID:                     0,
+				SenderAddress:          senderAddress1,
+				Body:                   atomicBody,
+				Height:                 5,
+				QueryExecutor:          &query.Executor{},
+				AccountBalanceHelper:   accountBalanceHelper,
+				AtomicTransactionQuery: query.NewAtomicTransactionQuery(),
+				TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
+				TypeActionSwitcher: &TypeSwitcher{
+					Executor: &query.Executor{},
+				},
+				EscrowFee: fee.NewBlockLifeTimeFeeModel(
+					10, fee.SendMoneyFeeConstant,
+				),
+				NormalFee:       fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				EscrowQuery:     query.NewEscrowTransactionQuery(),
+				Signature:       crypto.NewSignature(),
+				TransactionUtil: &Util{},
 			},
 		},
 	}

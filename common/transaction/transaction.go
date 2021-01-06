@@ -510,6 +510,33 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
+	case 8:
+		transactionBody, err = (&AtomicTransaction{
+			TransactionUtil: transactionUtil,
+		}).ParseBodyBytes(tx.GetTransactionBodyBytes())
+		if err != nil {
+			return nil, err
+		}
+		return &AtomicTransaction{
+			ID:                     tx.GetID(),
+			Fee:                    tx.GetFee(),
+			SenderAddress:          tx.GetSenderAccountAddress(),
+			Height:                 tx.GetHeight(),
+			Body:                   transactionBody.(*model.AtomicTransactionBody),
+			AtomicTransactionQuery: query.NewAtomicTransactionQuery(),
+			Escrow:                 tx.GetEscrow(),
+			EscrowQuery:            query.NewEscrowTransactionQuery(),
+			QueryExecutor:          ts.Executor,
+			TransactionQuery:       query.NewTransactionQuery(&chaintype.MainChain{}),
+			TypeActionSwitcher:     ts,
+			AccountBalanceHelper:   accountBalanceHelper,
+			EscrowFee: fee.NewBlockLifeTimeFeeModel(
+				10, fee.SendMoneyFeeConstant,
+			),
+			NormalFee:       fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+			TransactionUtil: transactionUtil,
+			Signature:       crypto.NewSignature(),
+		}, nil
 	default:
 		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("transaction type is not valid: %v", buf[0]))
 	}

@@ -126,7 +126,7 @@ func TestGetTransaction(t *testing.T) {
 			want: "SELECT id, block_id, block_height, sender_account_address, " +
 				"recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, " +
-				"transaction_index, multisig_child, message from \"transaction\"" +
+				"transaction_index, child_type, message from \"transaction\"" +
 				" WHERE id = 1",
 		},
 	}
@@ -250,11 +250,11 @@ func TestTransactionQuery_GetTransactionsByBlockID(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{blockID: int64(1)},
-			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? AND multisig_child = false"+
+			wantStr: fmt.Sprintf("SELECT %s FROM \"transaction\" WHERE block_id = ? AND child_type = ?"+
 				" ORDER BY transaction_index ASC",
 				strings.Join(mockTransactionQuery.Fields, ", "),
 			),
-			wantArgs: []interface{}{int64(1)},
+			wantArgs: []interface{}{int64(1), uint32(model.TransactionChildType_NoneChild)},
 		},
 	}
 	for _, tt := range tests {
@@ -298,8 +298,9 @@ func TestTransactionQuery_GetTransactionsByIds(t *testing.T) {
 			args:   args{txIds: []int64{1, 2, 3, 4}},
 			wantStr: "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
 				"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, " +
-				"multisig_child, message FROM \"transaction\" WHERE multisig_child = false AND id IN(?, ?, ?, ?)",
+				"child_type, message FROM \"transaction\" WHERE child_type = ? AND id IN(?, ?, ?, ?)",
 			wantArgs: []interface{}{
+				uint32(model.TransactionChildType_NoneChild),
 				int64(1),
 				int64(2),
 				int64(3),
@@ -349,7 +350,7 @@ func (*mockQueryExecutorBuildModel) ExecuteSelect(query string, tx bool, args ..
 			make([]byte, 68),
 			1,
 			1,
-			false,
+			model.TransactionChildType_NoneChild,
 			[]byte{1, 2, 3},
 		),
 	)
@@ -422,8 +423,8 @@ func (*mockRowTransactionQueryScan) ExecuteSelectRow(qStr string, args ...interf
 			make([]byte, 68),
 			1,
 			1,
-			false,
-			"",
+			model.TransactionChildType_MultiSignatureChild,
+			[]byte{},
 		),
 	)
 	return db.QueryRow("")

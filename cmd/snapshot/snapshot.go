@@ -52,11 +52,8 @@ package snapshot
 import (
 	"crypto/sha256"
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math/rand"
 	"os"
-
-	"github.com/zoobc/zoobc-core/common/util"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -64,11 +61,13 @@ import (
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
+	"github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	"golang.org/x/crypto/sha3"
 )
@@ -152,6 +151,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewFeeVoteRevealVoteQuery(),
 			query.NewLiquidPaymentTransactionQuery(),
 			query.NewNodeAdmissionTimestampQuery(),
+			query.NewAtomicTransactionQuery(),
 			query.NewBlockQuery(mainChain),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),
@@ -387,6 +387,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			query.NewFeeVoteRevealVoteQuery(),
 			query.NewLiquidPaymentTransactionQuery(),
 			query.NewNodeAdmissionTimestampQuery(),
+			query.NewAtomicTransactionQuery(),
 			query.NewBlockQuery(mainChain),
 			query.GetSnapshotQuery(mainChain),
 			query.GetBlocksmithSafeQuery(mainChain),

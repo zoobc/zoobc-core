@@ -246,7 +246,7 @@ func (ts *TransactionService) GetTransactions(
 			&tx.Signature,
 			&tx.Version,
 			&tx.TransactionIndex,
-			&tx.MultisigChild,
+			&tx.ChildType,
 			&tx.Message,
 		)
 		if err != nil {

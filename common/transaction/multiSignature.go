@@ -502,7 +502,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		}
 
 		// save multisig_child transaction
-		utx.MultisigChild = true
+		utx.ChildType = model.TransactionChildType_MultiSignatureChild
 		utx.BlockID = tx.BlockID
 		err = tx.TransactionHelper.InsertTransaction(utx)
 		if err != nil {

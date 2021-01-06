@@ -91,6 +91,7 @@ func TestGetDerivedQuery(t *testing.T) {
 				NewNodeAdmissionTimestampQuery(),
 				NewMultiSignatureParticipantQuery(),
 				NewBatchReceiptQuery(),
+				NewAtomicTransactionQuery(),
 				NewMerkleTreeQuery(),
 			},
 		},

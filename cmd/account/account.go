@@ -90,11 +90,11 @@ private key both in bytes and hex representation + the secret phrase
 		Use:   "ed25519",
 		Short: "Generate account using ed25519 algorithm. This is the default zoobc account",
 	}
-	bitcoinAccuntCmd = &cobra.Command{
+	bitcoinAccountCmd = &cobra.Command{
 		Use:   "bitcoin",
 		Short: "Generate account based on Bitcoin signature that using Elliptic Curve Digital Signature Algorithm",
 	}
-	convAccuntToHexCmd = &cobra.Command{
+	convAccountToHexCmd = &cobra.Command{
 		Use:   "hexconv",
 		Short: "Convert a given (encoded/string) account address to hex format",
 	}
@@ -122,21 +122,21 @@ func init() {
 	ed25519AccountCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
 	ed25519AccountCmd.Flags().BoolVar(&ed25519UseSlip10, "use-slip10", false, "use slip10 to generate ed25519 private key")
 	// bitcoin
-	bitcoinAccuntCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
-	bitcoinAccuntCmd.Flags().Int32Var(
+	bitcoinAccountCmd.Flags().StringVar(&seed, "seed", "", "Seed that is used to generate the account")
+	bitcoinAccountCmd.Flags().Int32Var(
 		&bitcoinPrivateKeyLength,
 		"private-key-length",
 		int32(model.PrivateKeyBytesLength_PrivateKey256Bits),
 		"The length of private key Bitcoin want to generate. supported format are 32, 48 & 64 length",
 	)
-	convAccuntToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
+	convAccountToHexCmd.Flags().StringVar(&encodedAccountAddress, "encodedAccountAddress", "",
 		"formatted/encoded account address. eg. ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML")
-	convAccuntToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
+	convAccountToHexCmd.Flags().Int32Var(&accountTypeInt, "accountType", 0, "Account type num: 0=default, 1=btc, etc..")
 	convHexAccountToEncodedCmd.Flags().StringVar(&hexAccountAddress, "hexAccountAddress", "",
-		"full accound address in hex format: eg. 00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01")
+		"full account address in hex format: eg. 00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01")
 	generateAccountAddressTableCmd.Flags().StringVar(&dbPath, "dbPath", "../resource",
 		"folder path to zoobc.db, relative to cmd root path. if none provided, resource folder will be targeted")
-	bitcoinAccuntCmd.Flags().Int32Var(
+	bitcoinAccountCmd.Flags().Int32Var(
 		&bitcoinPublicKeyFormat,
 		"public-key-format",
 		int32(model.BitcoinPublicKeyFormat_PublicKeyFormatCompressed),
@@ -160,10 +160,10 @@ func Commands() *cobra.Command {
 	}
 	ed25519AccountCmd.Run = accountGeneratorInstance.GenerateEd25519Account()
 	accountCmd.AddCommand(ed25519AccountCmd)
-	bitcoinAccuntCmd.Run = accountGeneratorInstance.GenerateBitcoinAccount()
-	accountCmd.AddCommand(bitcoinAccuntCmd)
-	convAccuntToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
-	accountCmd.AddCommand(convAccuntToHexCmd)
+	bitcoinAccountCmd.Run = accountGeneratorInstance.GenerateBitcoinAccount()
+	accountCmd.AddCommand(bitcoinAccountCmd)
+	convAccountToHexCmd.Run = accountGeneratorInstance.ConvertEncodedAccountAddressToHex()
+	accountCmd.AddCommand(convAccountToHexCmd)
 	convHexAccountToEncodedCmd.Run = accountGeneratorInstance.ConvertHexAccountToEncoded()
 	accountCmd.AddCommand(convHexAccountToEncodedCmd)
 	generateAccountAddressTableCmd.Run = accountGeneratorInstance.GenerateAccountAddressTable()
@@ -174,7 +174,7 @@ func Commands() *cobra.Command {
 
 }
 
-// GenerateMultiSignatureAccount to generate address for multi signature transaction
+// ConvertEncodedAccountAddressToHex to generate address for multi signature transaction
 func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
 		var (

@@ -53,17 +53,17 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
+	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -288,7 +288,7 @@ func GenerateBasicTransaction(
 	message string,
 ) *model.Transaction {
 	if senderAccountAddressHex == "" && senderSeed != "" {
-		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		accountType := &accounttype.ZbcAccountType{}
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
@@ -300,10 +300,17 @@ func GenerateBasicTransaction(
 			if err != nil {
 				panic(err.Error())
 			}
-			senderAccountAddressHex, err = signaturetype.NewEd25519Signature().GetAddressFromPublicKey(constant.PrefixZoobcDefaultAccount, bb)
-			if err != nil {
-				panic(err.Error())
+
+			accType, e := accounttype.NewAccountType(accountType.GetTypeInt(), bb)
+			if e != nil {
+				panic(e)
 			}
+			senderBytes, e := accType.GetAccountAddress()
+			if e != nil {
+				panic(e)
+			}
+			senderAccountAddressHex = hex.EncodeToString(senderBytes)
+
 		case model.SignatureType_BitcoinSignature:
 			var (
 				bitcoinSig  = signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
@@ -417,7 +424,9 @@ func GenerateSignedTxBytes(
 	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
-	if senderSeed == "" {
+	wantToSign, _ := optionalSignParams[0].(bool)
+
+	if senderSeed == "" || !wantToSign {
 		return unsignedTxBytes
 	}
 	txBytesHash := sha3.Sum256(unsignedTxBytes)
@@ -650,7 +659,7 @@ func GenerateTxLiquidPayment(tx *model.Transaction, sendAmount int64, completeMi
 	return tx
 }
 
-// GenerateTxLiquidPaymentStop return liquid payment stop transaction based on provided basic transaction & ammunt
+// GenerateTxLiquidPaymentStop return liquid payment stop transaction based on provided basic transaction & amount
 func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *model.Transaction {
 	txBody := &model.LiquidPaymentStopTransactionBody{
 		TransactionID: transactionID,
@@ -664,5 +673,81 @@ func GenerateTxLiquidPaymentStop(tx *model.Transaction, transactionID int64) *mo
 	}).GetBodyBytes()
 	tx.TransactionBodyBytes = txBodyBytes
 	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	return tx
+}
+
+// GenerateAtomic return atomic transaction based on provided basic transaction
+func GenerateAtomic(tx *model.Transaction, innerCount uint32) *model.Transaction {
+	var (
+		unsignedTXBytes      = make([][]byte, 0)
+		hashTransactions     = make([]byte, 0)
+		unsignedTransactions = make([]*model.Transaction, 0)
+		err                  error
+	)
+
+	for i := 0; i < int(innerCount); i++ {
+		var (
+			senderHex = hex.EncodeToString(tx.GetSenderAccountAddress())
+		)
+
+		innerTX := GenerateBasicTransaction(
+			senderHex,
+			senderSeed,
+			version,
+			timestamp,
+			fee,
+			recipientAccountAddressHex,
+			message,
+		)
+		innerTX = GenerateTxSendMoney(innerTX, 10)
+		unsignedTransactions = append(unsignedTransactions, innerTX)
+
+		senderAccountType := getAccountTypeFromAccountHex(hex.EncodeToString(innerTX.GetSenderAccountAddress())).GetTypeInt()
+		unsignedBytes := GenerateSignedTxBytes(innerTX, senderSeed, senderAccountType, false)
+		unsignedTXBytes = append(unsignedTXBytes, unsignedBytes)
+
+		txBytesHash := sha3.Sum256(unsignedBytes)
+		hashTransactions = append(hashTransactions, txBytesHash[:]...)
+
+		innerTX.Signature, err = signature.Sign(
+			txBytesHash[:],
+			model.AccountType(senderAccountType),
+			senderSeed,
+			true,
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	var (
+		signatures = make(map[string][]byte)
+		signTX     []byte
+	)
+	for _, unsignedTX := range unsignedTransactions {
+		signTX, err = signature.Sign(
+			hashTransactions,
+			model.AccountType(getAccountTypeFromAccountHex(hex.EncodeToString(unsignedTX.GetSenderAccountAddress())).GetTypeInt()),
+			senderSeed,
+			true,
+		)
+		if err != nil {
+			panic(err)
+		}
+		signatures[hex.EncodeToString(unsignedTX.GetSenderAccountAddress())] = signTX
+	}
+
+	txBody := &model.AtomicTransactionBody{
+		UnsignedTransactionBytes: unsignedTXBytes,
+		Signatures:               signatures,
+	}
+	txBodyBytes, _ := (&transaction.AtomicTransaction{
+		Body: txBody,
+	}).GetBodyBytes()
+
+	tx.TransactionBodyBytes = txBodyBytes
+	tx.TransactionBodyLength = uint32(len(txBodyBytes))
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["atomic"])
+
 	return tx
 }

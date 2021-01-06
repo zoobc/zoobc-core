@@ -640,6 +640,7 @@ func initiateMainInstance() {
 		query.NewFeeVoteRevealVoteQuery(),
 		query.NewLiquidPaymentTransactionQuery(),
 		query.NewNodeAdmissionTimestampQuery(),
+		query.NewAtomicTransactionQuery(),
 		query.NewBlockQuery(mainchain),
 		query.GetSnapshotQuery(mainchain),
 		query.GetBlocksmithSafeQuery(mainchain),

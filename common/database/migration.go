@@ -355,7 +355,7 @@ func (m *Migration) Init() error {
 			`,
 			`
 			ALTER TABLE "transaction"
-				ADD COLUMN "multisig_child" INTEGER DEFAULT 0
+				ADD COLUMN "child_type" INTEGER DEFAULT 0 -- indicate transaction is a child of transaction
 			`,
 			`
 			CREATE INDEX "node_registry_height_idx" ON "node_registry" ("height")
@@ -536,6 +536,25 @@ func (m *Migration) Init() error {
 			`
 			ALTER TABLE "transaction"
 				ADD COLUMN "message" BLOB
+			`,
+			`CREATE TABLE IF NOT EXISTS "atomic_transaction" (
+				"id"                    INTEGER,                    -- relative to transaction.id
+				"transaction_id"        INTEGER,                    -- relative to transaction.id which is the wrapper transaction
+				"sender_address"	    BLOB,	                    -- account address
+				"block_height"	        INTEGER,				    -- reference block height
+				"unsigned_transaction"  BLOB,                       -- one if unsigned transaction bytes has included
+				"signature"             BLOB,                       -- combined unsigned transaction bytes collection hash signature
+				"atomic_index"                 INTEGER,             -- position/index on wrapper unsigned transaction collection
+				PRIMARY KEY("id","sender_address")		            -- primary key
+			)`,
+			`
+			CREATE INDEX "transaction_id_idx" ON "atomic_transaction" ("transaction_id")
+			`,
+			`
+			CREATE INDEX "sender_address_idx" ON "atomic_transaction" ("sender_address")
+			`,
+			`
+			CREATE INDEX "block_height_idx" ON "atomic_transaction" ("block_height")
 			`,
 		}
 		return nil

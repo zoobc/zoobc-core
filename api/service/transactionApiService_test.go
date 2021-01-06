@@ -54,17 +54,17 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -659,7 +659,7 @@ func (*mockQueryGetTransactionsSuccess) ExecuteSelect(qStr string, tx bool, args
 				[]byte{0, 0, 0, 0, 0, 0, 0},
 				1,
 				1,
-				false,
+				model.TransactionChildType_MultiSignatureChild,
 				[]byte{1, 2, 3},
 			),
 		)
@@ -758,7 +758,7 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 						Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 						Version:                 1,
 						TransactionIndex:        1,
-						MultisigChild:           false,
+						ChildType:               model.TransactionChildType_MultiSignatureChild,
 						Message:                 []byte{1, 2, 3},
 					},
 				},
@@ -836,7 +836,7 @@ func (*mockQueryGetTransactionSuccess) ExecuteSelectRow(qstr string, tx bool, ar
 				8,
 				[]byte{1, 2, 3, 4, 5, 6, 7, 8},
 				[]byte{0, 0, 0, 0, 0, 0, 0}, 1, 1,
-				false,
+				model.TransactionChildType_MultiSignatureChild,
 				"",
 			),
 	)
@@ -916,7 +916,7 @@ func TestTransactionService_GetTransaction(t *testing.T) {
 				Signature:               []byte{0, 0, 0, 0, 0, 0, 0},
 				Version:                 1,
 				TransactionIndex:        1,
-				MultisigChild:           false,
+				ChildType:               model.TransactionChildType_MultiSignatureChild,
 				Message:                 []byte{},
 			},
 		},

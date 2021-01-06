@@ -101,6 +101,7 @@ func GetDerivedQuery(ct chaintype.ChainType) (derivedQuery []DerivedQuery) {
 			NewNodeAdmissionTimestampQuery(),
 			NewMultiSignatureParticipantQuery(),
 			NewBatchReceiptQuery(),
+			NewAtomicTransactionQuery(),
 			NewMerkleTreeQuery(),
 		}
 		derivedQuery = append(derivedQuery, mainchainDerivedQuery...)
@@ -135,6 +136,7 @@ func GetSnapshotQuery(ct chaintype.ChainType) (snapshotQuery map[string]Snapshot
 			"feeVoteReveal":            NewFeeVoteRevealVoteQuery(),
 			"liquidPaymentTransaction": NewLiquidPaymentTransactionQuery(),
 			"nodeAdmissionTimestamp":   NewNodeAdmissionTimestampQuery(),
+			"atomicTransaction":        NewAtomicTransactionQuery(),
 		}
 	default:
 		snapshotQuery = map[string]SnapshotQuery{}
