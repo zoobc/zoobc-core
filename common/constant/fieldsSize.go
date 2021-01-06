@@ -82,22 +82,28 @@ var (
 	EscrowID                    uint32 = 8
 	EscrowApprovalBytesLength          = EscrowApproval + EscrowID
 	EscrowInstructionLength     uint32 = 4
-	MultisigFieldLength         uint32 = 4
+	/*
+		MultiSignatureTransaction part size
+	*/
+
+	MultisigFieldLength uint32 = 4
 	// MultiSigFieldMissing indicate fields is missing, no need to read the bytes
 	MultiSigFieldMissing uint32
 	// MultiSigFieldPresent indicate fields is present, parse the byte accordingly
-	MultiSigFieldPresent           uint32 = 1
-	MultiSigAddressLength          uint32 = 4
-	MultiSigSignatureLength        uint32 = 4
-	MultiSigSignatureAddressLength uint32 = 4
-	MultiSigNumberOfAddress        uint32 = 4
-	MultiSigNumberOfSignatures     uint32 = 4
-	MultiSigUnsignedTxBytesLength  uint32 = 4
-	MultiSigInfoSize               uint32 = 4
-	MultiSigInfoSignatureInfoSize  uint32 = 4
-	MultiSigInfoNonce              uint32 = 8
-	MultiSigInfoMinSignature       uint32 = 4
-	MultiSigTransactionHash        uint32 = 32
+	MultiSigFieldPresent                  uint32 = 1
+	MultiSigAddressLength                 uint32 = 4
+	MultiSigSignatureLength               uint32 = 4
+	MultiSigSignatureAddressLength        uint32 = 4
+	MultiSigNumberOfAddress               uint32 = 4
+	MultiSigNumberOfSignatures            uint32 = 4
+	MultiSigUnsignedTxBytesLength         uint32 = 4
+	MultiSigInfoSize                      uint32 = 4
+	MultiSigInfoSignatureInfoSize         uint32 = 4
+	MultiSigInfoNonce                     uint32 = 8
+	MultiSigInfoMinSignature              uint32 = 4
+	MultiSigTransactionHash               uint32 = 32
+	MultiSignatureOffchainSignatureLength uint32 = 4
+	MaxAllowedMultiSignatureTransactions  uint32 = 3
 
 	// FeeVote part
 	FeeVote              uint32 = 8

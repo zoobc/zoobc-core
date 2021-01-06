@@ -71,6 +71,8 @@ func NewAccountType(accTypeInt int32, accPubKey []byte) (AccountTypeInterface, e
 		acc = &BTCAccountType{}
 	case int32(model.AccountType_EmptyAccountType):
 		acc = &EmptyAccountType{}
+	case int32(model.AccountType_MultiSignatureAccountType):
+		acc = &MultiSignatureAccountType{}
 	case int32(model.AccountType_EstoniaEidAccountType):
 		acc = &EstoniaEidAccountType{}
 	default:
@@ -116,6 +118,7 @@ func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress
 	var (
 		accPubKey []byte
 		err       error
+		accType   AccountTypeInterface
 	)
 	switch accTypeInt {
 	case int32(model.AccountType_ZbcAccountType):
@@ -124,29 +127,44 @@ func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress
 		if err != nil {
 			return nil, err
 		}
+		accType, err = NewAccountType(int32(model.AccountType_ZbcAccountType), accPubKey)
+		if err != nil {
+			return nil, err
+		}
+
 	case int32(model.AccountType_BTCAccountType):
 		// TODO: not implemented yet!
 		return nil, errors.New("parsing encoded BTC accounts is not implemented yet")
+	case int32(model.AccountType_MultiSignatureAccountType):
+		accPubKey = make([]byte, 32)
+		err = address.DecodeZbcID(encodedAccountAddress, accPubKey)
+		if err != nil {
+			return nil, err
+		}
+		accType, err = NewAccountType(int32(model.AccountType_MultiSignatureAccountType), accPubKey)
+		if err != nil {
+			return nil, err
+		}
+
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}
-	accType, err := NewAccountType(int32(model.AccountType_ZbcAccountType), accPubKey)
-	if err != nil {
-		return nil, err
-	}
+
 	return accType.GetAccountAddress()
 }
 
 // GetAccountTypes returns all AccountTypeInterface (useful for loops)
 func GetAccountTypes() map[uint32]AccountTypeInterface {
 	var (
-		zbcAccount   = &ZbcAccountType{}
-		dummyAccount = &BTCAccountType{}
-		emptyAccount = &EmptyAccountType{}
+		zbcAccount                = &ZbcAccountType{}
+		dummyAccount              = &BTCAccountType{}
+		emptyAccount              = &EmptyAccountType{}
+		multiSignatureAccountType = &MultiSignatureAccountType{}
 	)
 	return map[uint32]AccountTypeInterface{
-		uint32(zbcAccount.GetTypeInt()):   zbcAccount,
-		uint32(dummyAccount.GetTypeInt()): dummyAccount,
-		uint32(emptyAccount.GetTypeInt()): dummyAccount,
+		uint32(zbcAccount.GetTypeInt()):                zbcAccount,
+		uint32(dummyAccount.GetTypeInt()):              dummyAccount,
+		uint32(emptyAccount.GetTypeInt()):              dummyAccount,
+		uint32(multiSignatureAccountType.GetTypeInt()): multiSignatureAccountType,
 	}
 }

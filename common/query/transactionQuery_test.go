@@ -204,7 +204,7 @@ func TestTransactionQuery_InsertTransaction(t *testing.T) {
 			name:   "wantSuccess",
 			fields: fields(*mockTransactionQuery),
 			args:   args{tx: mockTransaction},
-			wantStr: fmt.Sprintf("INSERT INTO \"transaction\" (%s) VALUES(?%s)",
+			wantStr: fmt.Sprintf("INSERT OR REPLACE INTO \"transaction\" (%s) VALUES(?%s)",
 				strings.Join(mockTransactionQuery.Fields, ", "),
 				strings.Repeat(", ?", len(mockTransactionQuery.Fields)-1),
 			),

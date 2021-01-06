@@ -52,9 +52,11 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -417,6 +419,7 @@ func (*multisignatureInfoHelperGetPendingSignatureByTransactionHashExecutorSucce
 	pendingSignatureQuery := query.NewPendingSignatureQuery()
 	mock.ExpectQuery("").WillReturnRows(sqlmock.NewRows(pendingSignatureQuery.Fields).AddRow(
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].TransactionHash,
+		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].GetMultiSignatureAddress(),
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].AccountAddress,
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].Signature,
 		mockGetPendingSignatureByTransactionHashSuccessPendingSignatures[0].BlockHeight,
@@ -1208,7 +1211,7 @@ type (
 	mockMultisignatureValidateMultisigInfoExist struct {
 		MultisignatureInfoHelperInterface
 	}
-	mockValidateMultisigUtilValidateSignatureInfoSucess struct {
+	mockValidateMultisigUtilValidateSignatureInfoSuccess struct {
 		MultisigTransactionUtilInterface
 	}
 
@@ -1221,9 +1224,12 @@ var (
 	mockFeeMultisignatureValidate int64 = 10
 )
 
-func (*mockValidateMultisigUtilValidateSignatureInfoSucess) ValidateSignatureInfo(
+func (*mockValidateMultisigUtilValidateSignatureInfoSuccess) ValidateSignatureInfo(
 	signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 ) error {
+	return nil
+}
+func (*mockValidateMultisigUtilValidateSignatureInfoSuccess) ValidateMultisignatureInfo(info *model.MultiSignatureInfo) error {
 	return nil
 }
 
@@ -1360,6 +1366,42 @@ func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccoun
 	accountBalance.SpendableBalance = mockFeeMultisignatureValidate + 1
 	return nil
 }
+func (*mockAccountBalanceHelperMultisignatureValidateSuccess) HasEnoughSpendableBalance(bool, []byte, int64) (enough bool, err error) {
+	return true, nil
+}
+
+type (
+	mockMultiSignatureInfoHelper struct {
+		wantErr bool
+		MultisignatureInfoHelper
+	}
+	mockMultiSigTransactionUtil struct {
+		wantErr bool
+		MultisigTransactionUtil
+	}
+)
+
+func (m *mockMultiSignatureInfoHelper) GetMultisigInfoByAddress(*model.MultiSignatureInfo, []byte, uint32) error {
+	if m.wantErr {
+		return fmt.Errorf("wantErr")
+	}
+	return nil
+}
+func (m *mockMultiSigTransactionUtil) ValidatePendingTransactionBytes(
+	UtilInterface,
+	TypeActionSwitcher,
+	MultisignatureInfoHelperInterface,
+	PendingTransactionHelperInterface,
+	*model.MultiSignatureInfo,
+	[]byte, []byte,
+	uint32,
+	bool,
+) error {
+	if m.wantErr {
+		return fmt.Errorf("wantErr")
+	}
+	return nil
+}
 
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
@@ -1447,8 +1489,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 					UnsignedTransactionBytes: nil,
 					SignatureInfo:            &model.SignatureInfo{},
 				},
-				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
-				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisigUtil:             &mockMultisignatureValidateMultisigUtilValidateMultisigInfoSuccessSignatureInfoFail{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{},
 			},
 			args: args{
 				dbTx: true,
@@ -1482,8 +1525,10 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 					UnsignedTransactionBytes: make([]byte, 32),
 					SignatureInfo:            &model.SignatureInfo{},
 				},
-				MultisigUtil:         &mockMultisignatureValidateMultisigUtilValidatePendingTxSuccessValidateSignatureInfoFail{},
-				AccountBalanceHelper: &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisigUtil:             &mockMultiSigTransactionUtil{},
+				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,
@@ -1502,6 +1547,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperErrorPendingTransaction{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,
@@ -1520,6 +1566,7 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				},
 				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperNoPendingTransaction{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
+				MultisignatureInfoHelper: &mockMultiSignatureInfoHelper{wantErr: false},
 			},
 			args: args{
 				dbTx: true,
@@ -1563,26 +1610,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 				dbTx: true,
 			},
 			wantErr: true,
-		},
-		{
-			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
-				"get multisigInfo exist - ValidateSignatureSuccess",
-			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
-				Body: &model.MultiSignatureTransactionBody{
-					MultiSignatureInfo:       nil,
-					UnsignedTransactionBytes: nil,
-					SignatureInfo:            &model.SignatureInfo{},
-				},
-				PendingTransactionHelper: &mockMultisignatureValidateMultisigUtilPendingTransactionHelperPendingTransactionExist{},
-				MultisignatureInfoHelper: &mockMultisignatureValidateMultisigInfoExist{},
-				MultisigUtil:             &mockValidateMultisigUtilValidateSignatureInfoSucess{},
-				AccountBalanceHelper:     &mockAccountBalanceHelperMultisignatureValidateSuccess{},
-			},
-			args: args{
-				dbTx: true,
-			},
-			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

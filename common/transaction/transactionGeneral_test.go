@@ -751,14 +751,14 @@ func TestUtil_GenerateMultiSigAddress(t *testing.T) {
 					approverAddress1,
 				},
 			}},
-			want: []byte{0, 0, 0, 0, 156, 245, 22, 64, 141, 106, 136, 228, 125, 30, 62, 62, 38, 92, 203, 116, 9, 51, 188, 100, 158, 147, 219, 171, 75,
-				7, 219, 56, 28, 223, 180, 47},
+			want: []byte{3, 0, 0, 0, 143, 70, 49, 231, 175, 140, 145, 82, 26, 254, 199, 159, 195, 7, 0, 29, 153, 30, 170,
+				86, 163, 39, 238, 220, 171, 121, 149, 186, 76, 187, 11, 76},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tu := &Util{}
-			got, err := tu.GenerateMultiSigAddress(tt.args.info)
+			_, got, err := tu.GenerateMultiSigAddress(tt.args.info)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GenerateMultiSigAddress() error = %v, wantErr %v", err, tt.wantErr)
 				return

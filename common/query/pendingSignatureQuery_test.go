@@ -75,6 +75,7 @@ func TestNewPendingSignatureQuery(t *testing.T) {
 			want: &PendingSignatureQuery{
 				Fields: []string{
 					"transaction_hash",
+					"multisig_address",
 					"account_address",
 					"signature",
 					"block_height",
@@ -109,6 +110,7 @@ func getPendingSignatureQueryBuildModelRowsSuccess() *sql.Rows {
 	mockRow := sqlmock.NewRows(mockPendingSignatureQueryIntance.Fields)
 	mockRow.AddRow(
 		make([]byte, 32),
+		[]byte{},
 		pendingSigAccountAddress1,
 		make([]byte, 64),
 		uint32(10),
@@ -162,11 +164,12 @@ func TestPendingSignatureQuery_BuildModel(t *testing.T) {
 			},
 			want: []*model.PendingSignature{
 				{
-					TransactionHash: make([]byte, 32),
-					AccountAddress:  pendingSigAccountAddress1,
-					Signature:       make([]byte, 64),
-					BlockHeight:     10,
-					Latest:          true,
+					TransactionHash:       make([]byte, 32),
+					MultiSignatureAddress: []byte{},
+					AccountAddress:        pendingSigAccountAddress1,
+					Signature:             make([]byte, 64),
+					BlockHeight:           10,
+					Latest:                true,
 				},
 			},
 			wantErr: false,
@@ -224,6 +227,7 @@ func TestPendingSignatureQuery_ExtractModel(t *testing.T) {
 			},
 			want: []interface{}{
 				&mockExtractModelPendingSig.TransactionHash,
+				&mockExtractModelPendingSig.MultiSignatureAddress,
 				&mockExtractModelPendingSig.AccountAddress,
 				&mockExtractModelPendingSig.Signature,
 				&mockExtractModelPendingSig.BlockHeight,
@@ -271,7 +275,7 @@ func TestPendingSignatureQuery_GetPendingSignatureByHash(t *testing.T) {
 				currentHeight: 0,
 				limit:         constant.MinRollbackBlocks,
 			},
-			wantStr: "SELECT transaction_hash, account_address, signature, block_height, latest FROM " +
+			wantStr: "SELECT transaction_hash, multisig_address, account_address, signature, block_height, latest FROM " +
 				"pending_signature WHERE transaction_hash = ? AND block_height >= ? AND latest = true",
 			wantArgs: []interface{}{
 				make([]byte, 32),
@@ -333,8 +337,8 @@ func TestPendingSignatureQuery_InsertPendingSignature(t *testing.T) {
 				pendingSig: mockInsertPendingSignaturePendingSig,
 			},
 			want: [][]interface{}{
-				append([]interface{}{"INSERT OR REPLACE INTO pending_signature (transaction_hash, account_address, " +
-					"signature, block_height, latest) VALUES(? , ? , ? , ? , ? )"},
+				append([]interface{}{"INSERT OR REPLACE INTO pending_signature (transaction_hash, multisig_address, account_address, " +
+					"signature, block_height, latest) VALUES(? , ? , ? , ? , ? , ? )"},
 					mockPendingSignatureQueryIntance.ExtractModel(mockInsertPendingSignaturePendingSig)...),
 				{
 					"UPDATE pending_signature SET latest = false WHERE account_address = ? AND transaction_hash = " +
@@ -352,7 +356,7 @@ func TestPendingSignatureQuery_InsertPendingSignature(t *testing.T) {
 			}
 			got := psq.InsertPendingSignature(tt.args.pendingSig)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("InsertPendingSignature() gotArgs = %v, want %v", got, tt.want)
+				t.Errorf("InsertPendingSignature() gotArgs = \n%v, want \n%v", got, tt.want)
 			}
 		})
 	}
@@ -424,6 +428,7 @@ func getMockScanRowSuccess() *sql.Row {
 	mockRow := sqlmock.NewRows(mockPendingSignatureQueryIntance.Fields)
 	mockRow.AddRow(
 		make([]byte, 32),
+		[]byte{},
 		"account_address",
 		make([]byte, 64),
 		uint32(10),
@@ -547,7 +552,7 @@ func TestPendingSignatureQuery_SelectDataForSnapshot(t *testing.T) {
 				fromHeight: 1,
 				toHeight:   10,
 			},
-			want: "SELECT transaction_hash,account_address,signature,block_height,latest FROM pending_signature WHERE (account_address, " +
+			want: "SELECT transaction_hash,multisig_address,account_address,signature,block_height,latest FROM pending_signature WHERE (account_address, " +
 				"transaction_hash, block_height) IN (SELECT t2.account_address, t2.transaction_hash, " +
 				"MAX(t2.block_height) FROM pending_signature as t2 WHERE t2.block_height >= 1 AND t2.block_height <= 10 AND t2.block_height != 0 " +
 				"GROUP BY t2.account_address, t2.transaction_hash) ORDER BY block_height",
@@ -630,7 +635,8 @@ func TestPendingSignatureQuery_InsertPendingSignatures(t *testing.T) {
 					mockInsertPendingSignaturePendingSig,
 				},
 			},
-			wantStr:  "INSERT INTO pending_signature (transaction_hash, account_address, signature, block_height, latest) VALUES (?, ?, ?, ?, ?)",
+			wantStr: "INSERT INTO pending_signature (transaction_hash, multisig_address, account_address, signature, " +
+				"block_height, latest) VALUES (?, ?, ?, ?, ?, ?)",
 			wantArgs: NewPendingSignatureQuery().ExtractModel(mockInsertPendingSignaturePendingSig),
 		},
 	}
@@ -642,7 +648,7 @@ func TestPendingSignatureQuery_InsertPendingSignatures(t *testing.T) {
 			}
 			gotStr, gotArgs := psq.InsertPendingSignatures(tt.args.pendingSigs)
 			if gotStr != tt.wantStr {
-				t.Errorf("InsertPendingSignatures() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("InsertPendingSignatures() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("InsertPendingSignatures() gotArgs = %v, want %v", gotArgs, tt.wantArgs)

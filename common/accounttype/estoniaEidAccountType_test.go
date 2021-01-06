@@ -148,7 +148,7 @@ func TestEstoniaEidAccountType_GetTypeInt(t *testing.T) {
 	}{
 		{
 			name: "success",
-			want: 3,
+			want: 4,
 		},
 	}
 	for _, tt := range tests {

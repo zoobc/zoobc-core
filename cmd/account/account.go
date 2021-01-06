@@ -383,28 +383,50 @@ DELETE FROM account_address;
 
 // GenerateMultiSignatureAccount to generate address for multi signature transaction
 func (gc *GeneratorCommands) GenerateMultiSignatureAccount() RunCommand {
-	var (
-		multisigFullAccountAddresses [][]byte
-	)
-	for _, accAddrHex := range multisigAddressesHex {
-		decodedAddr, err := hex.DecodeString(accAddrHex)
-		if err != nil {
-			panic(err)
-		}
-		multisigFullAccountAddresses = append(multisigFullAccountAddresses, decodedAddr)
-	}
 	return func(cmd *cobra.Command, args []string) {
+		var (
+			multisigFullAccountAddresses [][]byte
+		)
+		for _, accAddrHex := range multisigAddressesHex {
+			decodedAddr, err := hex.DecodeString(accAddrHex)
+			if err != nil {
+				panic(err)
+			}
+			multisigFullAccountAddresses = append(multisigFullAccountAddresses, decodedAddr)
+		}
 		info := &model.MultiSignatureInfo{
 			MinimumSignatures: multisigMinimSigs,
 			Nonce:             multiSigNonce,
 			Addresses:         multisigFullAccountAddresses,
 		}
-		address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
+		multiSignatureHash, address, err := gc.TransactionUtil.GenerateMultiSigAddress(info)
 		if err != nil {
-			fmt.Println(err.Error())
-		} else {
-			fmt.Println(address)
+			log.Fatal(err)
+
 		}
+
+		var (
+			accType       accounttype.AccountTypeInterface
+			encodedFormat string
+		)
+		accType, err = accounttype.NewAccountTypeFromAccount(address)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		encodedFormat, err = accType.GetAccountPublicKeyString()
+		if err != nil {
+			log.Fatal(err)
+		}
+		PrintAccount(
+			accType,
+			"",
+			"",
+			encodedFormat,
+			[]byte{},
+			multiSignatureHash,
+			address,
+		)
 	}
 }
 
