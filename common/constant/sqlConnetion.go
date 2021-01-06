@@ -49,12 +49,14 @@
 // shall be included in all copies or substantial portions of the Software.
 package constant
 
+import "time"
+
 var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
 	SQLMaxIdleConnections = 1
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
 	// Setting it to 0 means that there is no maximum lifetime and the connection is reused forever (which is the default behavior).
-	SQLMaxConnectionLifetime = 0
+	SQLMaxConnectionLifetime = 0 * time.Minute
 	// SQLMaxConnectionLifetime = 5 * time.Minute
 
 	// SQLMaxOpenConnetion represent the number of maximum open connetion to the database
