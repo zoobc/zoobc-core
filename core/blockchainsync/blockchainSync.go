@@ -209,7 +209,7 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 12)
 				if err != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 13)
-					bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
+					bss.Logger.Errorf("\nfailed to ProcessFork: %v\n\n", err) //STEF was Warnf
 					break
 				}
 			}
