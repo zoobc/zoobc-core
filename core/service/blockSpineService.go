@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -36,21 +85,22 @@ type (
 
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype                 chaintype.ChainType
-		QueryExecutor             query.ExecutorInterface
-		BlockQuery                query.BlockQueryInterface
-		Signature                 crypto.SignatureInterface
-		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
-		Observer                  *observer.Observer
-		Logger                    *log.Logger
-		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlocksmithService         BlocksmithServiceInterface
-		SnapshotMainBlockService  SnapshotBlockServiceInterface
-		BlockStateStorage         storage.CacheStorageInterface
-		BlocksStorage             storage.CacheStackStorageInterface
-		BlockchainStatusService   BlockchainStatusServiceInterface
-		MainBlockService          BlockServiceInterface
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		SpineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		SpinePublicKeyService       BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService   SpineBlockManifestServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		SnapshotMainBlockService    SnapshotBlockServiceInterface
+		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		MainBlockService            BlockServiceInterface
 	}
 )
 
@@ -58,6 +108,7 @@ func NewBlockSpineService(
 	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	spineBlockQuery query.BlockQueryInterface,
+	spineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
@@ -72,14 +123,15 @@ func NewBlockSpineService(
 	blocksStorage storage.CacheStackStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:             ct,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            spineBlockQuery,
-		Signature:             signature,
-		BlocksmithStrategy:    blocksmithStrategy,
-		Observer:              obsr,
-		Logger:                logger,
-		SpinePublicKeyService: spinePublicKeyService,
+		Chaintype:                   ct,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  spineBlockQuery,
+		SpineSkippedBlocksmithQuery: spineSkippedBlocksmithQuery,
+		Signature:                   signature,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		SpinePublicKeyService:       spinePublicKeyService,
 		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
@@ -351,6 +403,16 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 			return err
 		}
 	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			bs.Logger.Error(err.Error())
+			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				bs.Logger.Error(rollbackErr.Error())
+			}
+			return err
+		}
+	}
 
 	err = bs.QueryExecutor.CommitTx()
 	if err != nil { // commit automatically unlock executor and close tx
@@ -380,36 +442,76 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	return nil
 }
 
+func (bs *BlockSpineService) ProcessSkippedBlocksmiths(previousBlock, block *model.Block) error {
+	var (
+		skippedBlocksmiths []*model.SkippedBlocksmith
+		err                error
+	)
+	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
+	if err != nil {
+		return err
+	}
+	blocksBlocksmithsLength := len(blocksBlocksmiths)
+	if blocksBlocksmithsLength < 1 {
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf(
+			"updatePopScore- chaintype: %s -BlocksmithStrategy-NoBlocksmithFound",
+			bs.Chaintype.GetName(),
+		))
+	}
+	// insert skipped blocksmith to database
+	for i := 0; i < blocksBlocksmithsLength-1; i++ {
+		skippedBlocksmith := &model.SkippedBlocksmith{
+			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
+			POPChange:           constant.ParticipationScorePunishAmount,
+			BlockHeight:         block.Height,
+			BlocksmithIndex:     int32(i),
+		}
+		// punish score
+		skippedBlocksmiths = append(skippedBlocksmiths, skippedBlocksmith)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		skippedBlocksmithSnapshotImportQuery := bs.SpineSkippedBlocksmithQuery.(query.SnapshotQuery)
+		// use import snapshot to account for huge skipped blocksmith when blockchain resume from a long pause (several months)
+		q, err := skippedBlocksmithSnapshotImportQuery.ImportSnapshot(skippedBlocksmiths)
+		if err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.ExecuteTransactions(q)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err := bs.PopulateBlockData(&block)
+		err := bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockSpineService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -1062,10 +1164,8 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		// - clean snapshot data
 		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				bs.Logger.Warn(rollbackErr)
-			}
+			bs.Logger.Warn(err)
+			return
 		}
 		for _, manifest := range poppedManifests {
 			// ignore error, file deletion can fail

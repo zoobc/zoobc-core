@@ -1,8 +1,56 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -952,32 +1000,31 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err = bs.PopulateBlockData(&block)
+		err = bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -1402,7 +1449,11 @@ func (bs *BlockService) ReceiveBlock(
 	peer *model.Peer,
 	generateReceipt bool,
 ) (*model.Receipt, error) {
-	var err error
+	var (
+		lastBlockCacheFormat = commonUtils.BlockConvertToCacheFormat(lastBlock)
+		receipt              *model.Receipt
+		err                  error
+	)
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1420,6 +1471,25 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		if generateReceipt {
+			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
+				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
+					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+						bs.Chaintype,
+						block.GetBlockHash(),
+						&lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeTransaction,
+					)
+					if err != nil {
+						return nil, err
+					}
+					return receipt, nil
+				}
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
 
@@ -1458,8 +1528,7 @@ func (bs *BlockService) ReceiveBlock(
 	// Need to check if the sender is on the priority list,
 	// And no need to send a receipt if not in
 	if generateReceipt {
-		lastBlockCacheFormat := commonUtils.BlockConvertToCacheFormat(lastBlock)
-		receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
+		receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
 			bs.Chaintype,
 			block.GetBlockHash(),
 			&lastBlockCacheFormat,
