@@ -568,6 +568,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					}
 					err = json.Unmarshal(blockBytes, &blockToBroadcast)
 					if err != nil {
+						bs.queryAndCacheRollbackProcess("")
 						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
 					}
 					// add transactionIDs and remove transaction before broadcast
@@ -685,6 +686,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	if adjust {
+		// TODO: move this anonymous function in a separate method for better code readability and testability
 		// fetch vote-reveals
 		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
 			var (

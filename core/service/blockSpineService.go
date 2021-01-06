@@ -375,6 +375,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	if err != nil {
 		return err
 	}
+
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
