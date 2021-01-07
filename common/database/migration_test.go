@@ -212,7 +212,7 @@ func TestMigration_Apply(t *testing.T) {
 				},
 				CurrentVersion: &currentVersion,
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock},
+					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
 				},
 			},
 			wantErr: false,
@@ -229,7 +229,7 @@ func TestMigration_Apply(t *testing.T) {
 					);`,
 				},
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock},
+					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
 				},
 			},
 			wantErr: false,
