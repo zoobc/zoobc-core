@@ -52,7 +52,6 @@ package service
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -633,7 +632,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 			Latest:      true,
 		})
 		if err != nil {
-			err = errors.New(fmt.Sprintf("initFeeScale:rollback-error: %s", err.Error()))
+			err = fmt.Errorf("initFeeScale:rollback-error: %s", err.Error())
 			return err, nil, nil
 		}
 	}
@@ -641,7 +640,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 	// adjust fee if end of fee-vote period
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("PushBlock:GetCurrentPhase error: %v", err))
+		err = fmt.Errorf("PushBlock:GetCurrentPhase error: %v", err)
 		return err, nil, nil
 	}
 
@@ -657,19 +656,19 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 			)
 			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
 			if err != nil {
-				err = errors.New(fmt.Sprintf("AdjustFeeError: %v", err))
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
 			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
 			if err != nil {
-				err = errors.New(fmt.Sprintf("AdjustFeeError: %v", err))
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			defer rows.Close()
 			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
 			if err != nil {
-				err = errors.New(fmt.Sprintf("AdjustFeeError: %v", err))
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			for _, vote := range queryResult {
@@ -679,7 +678,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 		}()
 
 		if err != nil {
-			err = errors.New(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
+			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
 			return err, nil, nil
 		}
 		// select vote
@@ -692,7 +691,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 		})
 
 		if err != nil {
-			err = errors.New(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
+			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
 			return err, nil, nil
 		}
 	}
@@ -704,14 +703,14 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
 			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
 			if err != nil {
-				err = errors.New(fmt.Sprintf("PruneDataRollbackErr: %v", err))
+				err = fmt.Errorf(fmt.Sprintf("PruneDataRollbackErr: %v", err))
 				return err, nil, nil
 			}
 		}
 	}
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
-			err = errors.New(fmt.Sprintf("RemoveMempoolTransactionsRollbackErr: %v", err))
+			err = fmt.Errorf(fmt.Sprintf("RemoveMempoolTransactionsRollbackErr: %v", err))
 			// reset mempool cache
 			initMempoolErr := bs.MempoolService.InitMempoolTransaction()
 			if initMempoolErr != nil {
@@ -721,7 +720,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 		}
 	}
 
-	return
+	return nil, nodeAdmissionTimestamp, transactionIDs
 }
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
@@ -1287,7 +1286,7 @@ func (bs *BlockService) GenerateBlock(
 	if !empty {
 		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, newBlockHeight)
 		if err != nil {
-			return nil, errors.New("MempoolReadError")
+			return nil, fmt.Errorf("MempoolReadError")
 		}
 		// select transactions from mempool to be added to the block
 		for _, tx := range sortedTransactions {
