@@ -52,6 +52,7 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -259,7 +260,7 @@ func (gc *GeneratorCommands) GenerateAccountAddressTable() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
 		var (
 			dB, err                    = helper.GetSqliteDB(dbPath, "zoobc.db")
-			queryExecutor              = query.NewQueryExecutor(dB)
+			queryExecutor              = query.NewQueryExecutor(dB, queue.NewPriorityPreferenceLock())
 			accountBalanceQuery        = query.NewAccountBalanceQuery()
 			selectAllAccountBalanceQry = fmt.Sprintf("SELECT DISTINCT account_address FROM %s",
 				accountBalanceQuery.TableName)

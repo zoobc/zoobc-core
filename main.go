@@ -55,6 +55,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -342,7 +343,7 @@ func initiateMainInstance() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()

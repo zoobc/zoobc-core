@@ -54,6 +54,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"reflect"
 	"regexp"
 	"testing"
@@ -536,13 +537,13 @@ func TestNewBlockService(t *testing.T) {
 		{
 			name: "NewBlockService:InitiateBlockServiceInstance",
 			args: args{
-				queryExecutor: query.NewQueryExecutor(db),
+				queryExecutor: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				blockCoreServices: map[int32]coreService.BlockServiceInterface{
 					0: &coreService.BlockService{},
 				},
 			},
 			want: &BlockService{
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				BlockCoreServices: map[int32]coreService.BlockServiceInterface{
 					0: &coreService.BlockService{},
 				},

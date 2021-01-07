@@ -51,6 +51,7 @@ package database
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"regexp"
 	"testing"
 
@@ -111,7 +112,7 @@ func TestMigration_Init(t *testing.T) {
 						"created_date" TIMESTAMP NOT NULL
 					);`,
 				},
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 			wantErr: false,
 		},
@@ -163,7 +164,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorVersionNil) BeginTx() error {
+func (*mockQueryExecutorVersionNil) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {

@@ -56,6 +56,7 @@ import (
 	"errors"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
@@ -214,11 +215,11 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool,
 	return db.QueryRow(""), nil
 }
 
-func (*mockTransactionExecutorFailBeginTx) BeginTx() error {
+func (*mockTransactionExecutorFailBeginTx) BeginTx(params ...int) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorSuccess) BeginTx() error {
+func (*mockTransactionExecutorSuccess) BeginTx(params ...int) error {
 	return nil
 }
 
@@ -257,7 +258,7 @@ func TestNewTransactionService(t *testing.T) {
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
 			want: &TransactionService{
-				Query:           query.NewQueryExecutor(db),
+				Query:           query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				TransactionUtil: transactionUtil,
 			},
 		},
@@ -265,7 +266,7 @@ func TestNewTransactionService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewTransactionService(
-				query.NewQueryExecutor(db),
+				query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				nil,
 				nil,
 				nil,
@@ -293,7 +294,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx() error {

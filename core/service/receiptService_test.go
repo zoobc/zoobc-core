@@ -927,7 +927,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) CommitTx() error {
@@ -962,7 +962,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelect(
 ) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx(params ...int) error {
 	return errors.New("mockError:BeginTxFail")
 }
 
@@ -1025,7 +1025,7 @@ type (
 	}
 )
 
-func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx() error {
+func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx() error {

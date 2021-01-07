@@ -404,7 +404,7 @@ func (*mockQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...inter
 func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
 }
-func (*mockQueryExecutorFail) BeginTx() error { return nil }
+func (*mockQueryExecutorFail) BeginTx(params ...int) error { return nil }
 
 func (*mockQueryExecutorFail) RollbackTx() error { return nil }
 
@@ -421,7 +421,7 @@ func (*mockQueryExecutorFail) ExecuteSelectRow(qStr string, tx bool, args ...int
 func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
 
 // mockQueryExecutorSuccess
-func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
+func (*mockQueryExecutorSuccess) BeginTx(params ...int) error { return nil }
 
 func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
 
@@ -1785,9 +1785,9 @@ type (
 	}
 )
 
-func (*mockAddGenesisExecutor) BeginTx() error    { return nil }
-func (*mockAddGenesisExecutor) RollbackTx() error { return nil }
-func (*mockAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockAddGenesisExecutor) BeginTx(params ...int) error { return nil }
+func (*mockAddGenesisExecutor) RollbackTx() error           { return nil }
+func (*mockAddGenesisExecutor) CommitTx() error             { return nil }
 func (*mockAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
@@ -3081,7 +3081,7 @@ type (
 	}
 )
 
-func (*mockPopOffToBlockReturnCommonBlock) BeginTx() error {
+func (*mockPopOffToBlockReturnCommonBlock) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockPopOffToBlockReturnCommonBlock) CommitTx() error {
@@ -3123,13 +3123,13 @@ func (*mockPopOffToBlockReturnCommonBlock) ExecuteSelect(qSrt string, tx bool, a
 func (*mockPopOffToBlockReturnCommonBlock) ExecuteTransaction(query string, args ...interface{}) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnBeginTxFunc) BeginTx() error {
+func (*mockPopOffToBlockReturnBeginTxFunc) BeginTx(params ...int) error {
 	return errors.New("i want this")
 }
 func (*mockPopOffToBlockReturnBeginTxFunc) CommitTx() error {
 	return nil
 }
-func (*mockPopOffToBlockReturnWantFailOnCommit) BeginTx() error {
+func (*mockPopOffToBlockReturnWantFailOnCommit) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockPopOffToBlockReturnWantFailOnCommit) CommitTx() error {
@@ -3152,7 +3152,7 @@ func (*mockPopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, tx bo
 	return db.Query("")
 
 }
-func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx() error {
+func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx() error {
@@ -3399,7 +3399,7 @@ func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*mod
 	return nil, errors.New("mockError")
 }
 
-func (*mockExecutorBlockPopSuccess) BeginTx() error {
+func (*mockExecutorBlockPopSuccess) BeginTx(params ...int) error {
 	return nil
 }
 
@@ -3565,7 +3565,7 @@ type (
 	}
 )
 
-func (*mockedExecutorPopOffToBlockSuccessPopping) BeginTx() error {
+func (*mockedExecutorPopOffToBlockSuccessPopping) BeginTx(params ...int) error {
 	return nil
 }
 

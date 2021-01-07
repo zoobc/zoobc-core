@@ -54,6 +54,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
@@ -153,7 +154,7 @@ func GetProofOfOwnerShip(
 	if err != nil {
 		panic(fmt.Sprintf("OpenDB err: %s", err.Error()))
 	}
-	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB), query.NewBlockQuery(chaintype.GetChainType(0)))
+	lastBlock, err := util.GetLastBlock(query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock()), query.NewBlockQuery(chaintype.GetChainType(0)))
 	if err != nil {
 		panic(err)
 	}

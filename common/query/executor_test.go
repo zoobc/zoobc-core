@@ -52,6 +52,7 @@ package query
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"reflect"
 	"regexp"
 	"testing"
@@ -68,7 +69,8 @@ func TestExecutor_Execute(t *testing.T) {
 
 	mock.ExpectExec("insert into product_viewers").WillReturnResult(sqlmock.NewResult(1, 1))
 	type fields struct {
-		Db *sql.DB
+		Db   *sql.DB
+		Lock queue.PriorityLock
 	}
 	type args struct {
 		query string
@@ -82,7 +84,7 @@ func TestExecutor_Execute(t *testing.T) {
 	}{
 		{
 			name:   "wantSuccess",
-			fields: fields{db},
+			fields: fields{db, queue.NewPriorityPreferenceLock()},
 			args: args{
 				query: "insert into product_viewers (user_id, product_id) values (2, 3)",
 			},
@@ -91,7 +93,7 @@ func TestExecutor_Execute(t *testing.T) {
 		},
 		{
 			name:   "wantError",
-			fields: fields{db},
+			fields: fields{db, queue.NewPriorityPreferenceLock()},
 			args: args{
 				query: "insert wrong query into product_viewers (user_id, product_id) values (2, 3)",
 			},
@@ -102,7 +104,8 @@ func TestExecutor_Execute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			qe := &Executor{
-				Db: tt.fields.Db,
+				Db:   tt.fields.Db,
+				Lock: tt.fields.Lock,
 			}
 			_, err := qe.Execute(tt.args.query)
 			if (err != nil) != tt.wantErr {
@@ -377,7 +380,7 @@ func TestNewQueryExecutor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewQueryExecutor(tt.args.db); !reflect.DeepEqual(got, tt.want) {
+			if got := NewQueryExecutor(tt.args.db, queue.NewPriorityPreferenceLock()); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewQueryExecutor() = %v, want %v", got, tt.want)
 			}
 		})
@@ -388,7 +391,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:fail-{prepareFail}", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail prepare").WillReturnError(errors.New("mockError:prepareFail"))
 		_ = executor.BeginTx()
@@ -400,7 +403,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:fail-{execFail}", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail exec")
 		mock.ExpectExec("fail exec").WillReturnError(errors.New("mockError:execFail"))
@@ -413,7 +416,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 	t.Run("ExecuteTransaction:success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
-		executor := NewQueryExecutor(db)
+		executor := NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("success")
 		mock.ExpectExec("success").WillReturnResult(sqlmock.NewResult(1, 1))

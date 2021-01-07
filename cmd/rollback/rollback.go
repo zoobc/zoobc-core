@@ -52,6 +52,7 @@ package rollback
 import (
 	"fmt"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -114,7 +115,7 @@ func rollbackBlockChain() RunCommand {
 			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
 			blockQuery      = query.NewBlockQuery(chaintypeRollback)
 			dB, err         = helper.GetSqliteDB(dBPath, dBName)
-			queryExecutor   = query.NewQueryExecutor(dB)
+			queryExecutor   = query.NewQueryExecutor(dB, queue.NewPriorityPreferenceLock())
 			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
 			lastBlock       model.Block
 		)

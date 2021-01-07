@@ -283,7 +283,7 @@ func (*mockNaiStorageFailRemoveItem) RemoveItem(idx interface{}) error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorSuccess) BeginTx() error {
+func (*mockNaiQueryExecutorSuccess) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockNaiQueryExecutorSuccess) RollbackTx() error {
@@ -293,18 +293,18 @@ func (*mockNaiQueryExecutorSuccess) CommitTx() error {
 	return nil
 }
 
-func (*mockNaiQueryExecutorFailBeginTx) BeginTx() error {
+func (*mockNaiQueryExecutorFailBeginTx) BeginTx(params ...int) error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailRollbackTx) BeginTx() error {
+func (*mockNaiQueryExecutorFailRollbackTx) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockNaiQueryExecutorFailRollbackTx) RollbackTx() error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailCommitTx) BeginTx() error {
+func (*mockNaiQueryExecutorFailCommitTx) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockNaiQueryExecutorFailCommitTx) RollbackTx() error {
@@ -537,7 +537,7 @@ func (*mockNaiQueryExecutorFailScan) Scan(block *model.Block, row *sql.Row) erro
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailExecuteTransactions) BeginTx() error {
+func (*mockNaiQueryExecutorFailExecuteTransactions) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockNaiQueryExecutorFailExecuteTransactions) RollbackTx() error {
@@ -663,7 +663,7 @@ func (*mockNaiQueryExecutorFailRollbackTx) ExecuteSelect(query string, tx bool, 
 func (*mockNaiQueryExecutorFailExecuteSelect) ExecuteTransaction(string, ...interface{}) error {
 	return errors.New("error")
 }
-func (*mockNaiQueryExecutorFailExecuteSelect) BeginTx() error {
+func (*mockNaiQueryExecutorFailExecuteSelect) BeginTx(params ...int) error {
 	return nil
 }
 func (*mockNaiQueryExecutorFailExecuteSelect) RollbackTx() error {
