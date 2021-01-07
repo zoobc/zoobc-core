@@ -239,7 +239,7 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 
 	if len(escrows) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx()
+			err = tg.QueryExecutor.BeginTx(false)
 			if err != nil {
 				return err
 			}
@@ -286,13 +286,13 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 				And automatically unlock mutex
 			*/
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
 
-			err = tg.QueryExecutor.CommitTx()
+			err = tg.QueryExecutor.CommitTx(false)
 			if err != nil {
 				return err
 			}

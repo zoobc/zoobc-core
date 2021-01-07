@@ -371,7 +371,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
@@ -388,7 +388,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
 	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
 		bs.Logger.Error(err.Error())
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
@@ -398,7 +398,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	for _, spineBlockManifest := range block.SpineBlockManifests {
 		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
 			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
@@ -408,14 +408,14 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
 		if err != nil {
 			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 				bs.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
 	}
 
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(false)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -1128,7 +1128,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -1137,14 +1137,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
+			rollbackErr := bs.QueryExecutor.RollbackTx(false)
 			if rollbackErr != nil {
 				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
 			}
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(false)
 	if err != nil {
 		return nil, err
 	}

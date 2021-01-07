@@ -281,7 +281,7 @@ func TestExecutor_BeginTx(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		mock.ExpectBegin().WillReturnError(errors.New("mockError:beginFail"))
 		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
-		err := executor.BeginTx()
+		err := executor.BeginTx(false)
 		if err == nil {
 			t.Errorf("begin tx should fail:begin fail")
 		}
@@ -290,7 +290,7 @@ func TestExecutor_BeginTx(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		mock.ExpectBegin()
 		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
-		err := executor.BeginTx()
+		err := executor.BeginTx(false)
 		if err != nil {
 			t.Errorf("begin tx should not fail")
 		}
@@ -307,8 +307,8 @@ func TestExecutor_CommitTx(t *testing.T) {
 			Db:   db,
 			Lock: queue.NewPriorityPreferenceLock(),
 		}
-		_ = executor.BeginTx()
-		err := executor.CommitTx()
+		_ = executor.BeginTx(false)
+		err := executor.CommitTx(false)
 		if err == nil {
 			t.Errorf("commit tx should fail : commit fail")
 		}
@@ -322,8 +322,8 @@ func TestExecutor_CommitTx(t *testing.T) {
 			Db:   db,
 			Lock: queue.NewPriorityPreferenceLock(),
 		}
-		_ = executor.BeginTx()
-		err := executor.CommitTx()
+		_ = executor.BeginTx(false)
+		err := executor.CommitTx(false)
 		if err != nil {
 			t.Errorf("commit tx should not return error")
 		}
@@ -340,8 +340,8 @@ func TestExecutor_RollbackTx(t *testing.T) {
 			Db:   db,
 			Lock: queue.NewPriorityPreferenceLock(),
 		}
-		_ = executor.BeginTx()
-		err := executor.RollbackTx()
+		_ = executor.BeginTx(false)
+		err := executor.RollbackTx(false)
 		if err == nil {
 			t.Errorf("rollback should return error")
 		}
@@ -355,8 +355,8 @@ func TestExecutor_RollbackTx(t *testing.T) {
 			Db:   db,
 			Lock: queue.NewPriorityPreferenceLock(),
 		}
-		_ = executor.BeginTx()
-		err := executor.RollbackTx()
+		_ = executor.BeginTx(false)
+		err := executor.RollbackTx(false)
 		if err != nil {
 			t.Errorf("rollback should not return error")
 		}
@@ -401,7 +401,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		executor := NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail prepare").WillReturnError(errors.New("mockError:prepareFail"))
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransaction("fail prepare")
 		if err == nil {
 			t.Error("prepare should have failed the whole function")
@@ -414,7 +414,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectPrepare("fail exec")
 		mock.ExpectExec("fail exec").WillReturnError(errors.New("mockError:execFail"))
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransaction("fail exec")
 		if err == nil {
 			t.Error("exec should have failed the whole function")
@@ -427,7 +427,7 @@ func TestExecutor_ExecuteTransaction(t *testing.T) {
 		mock.ExpectBegin()
 		mock.ExpectPrepare("success")
 		mock.ExpectExec("success").WillReturnResult(sqlmock.NewResult(1, 1))
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransaction("success")
 		if err != nil {
 			t.Errorf("function should return nil if prepare and exec success\nreturned: %v instead", err)
@@ -449,7 +449,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 		}
 		// test error prepare
 		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransactions(queries)
 		if err == nil {
 			t.Error("should return error if prepare fail")
@@ -473,7 +473,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 		})
 		// test error prepare
 		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransactions(queries)
 		if err != nil {
 			t.Errorf("transaction should have been committed without error: %v", err)
@@ -496,7 +496,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 		})
 		// test error prepare
 		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
-		_ = executor.BeginTx()
+		_ = executor.BeginTx(false)
 		err := executor.ExecuteTransactions(queries)
 		if err == nil {
 			t.Error("should return error if exec fail")

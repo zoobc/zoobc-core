@@ -433,13 +433,13 @@ type (
 	}
 )
 
-func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx(params ...int) error {
+func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorExpiringEscrowSuccess) CommitTx() error {
+func (*mockQueryExecutorExpiringEscrowSuccess) CommitTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorExpiringEscrowSuccess) RollbackTx() error {
+func (*mockQueryExecutorExpiringEscrowSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {

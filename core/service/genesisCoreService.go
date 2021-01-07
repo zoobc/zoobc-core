@@ -231,21 +231,21 @@ func AddGenesisNextNodeAdmission(
 		}
 		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
 	)
-	err = executor.BeginTx()
+	err = executor.BeginTx(false)
 	if err != nil {
 		return err
 	}
 	err = executor.ExecuteTransactions(insertQueries)
 	if err != nil {
 
-		rollbackErr := executor.RollbackTx()
+		rollbackErr := executor.RollbackTx(false)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
 
 	}
-	err = executor.CommitTx()
+	err = executor.CommitTx(false)
 	if err != nil {
 		return err
 	}
@@ -276,7 +276,7 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 		err            error
 	)
 
-	err = executor.BeginTx()
+	err = executor.BeginTx(false)
 	if err != nil {
 		return err
 	}
@@ -286,13 +286,13 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 	)
 	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		rollbackErr := executor.RollbackTx()
+		rollbackErr := executor.RollbackTx(false)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
-	err = executor.CommitTx()
+	err = executor.CommitTx(false)
 	if err != nil {
 		return err
 	}

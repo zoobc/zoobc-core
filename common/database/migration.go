@@ -561,13 +561,13 @@ func (m *Migration) Apply() error {
 
 	for v, qStr := range migrations {
 		version := v
-		err = m.Query.BeginTx()
+		err = m.Query.BeginTx(false)
 		if err != nil {
 			return err
 		}
 		err = m.Query.ExecuteTransaction(qStr)
 		if err != nil {
-			rollbackErr := m.Query.RollbackTx()
+			rollbackErr := m.Query.RollbackTx(false)
 			if rollbackErr != nil {
 				log.Errorln(rollbackErr.Error())
 			}
@@ -597,7 +597,7 @@ func (m *Migration) Apply() error {
 			}
 		}
 
-		err = m.Query.CommitTx()
+		err = m.Query.CommitTx(false)
 		if err != nil {
 			return err
 		}

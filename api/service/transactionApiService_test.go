@@ -215,19 +215,19 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool,
 	return db.QueryRow(""), nil
 }
 
-func (*mockTransactionExecutorFailBeginTx) BeginTx(params ...int) error {
+func (*mockTransactionExecutorFailBeginTx) BeginTx(bool) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorSuccess) BeginTx(params ...int) error {
+func (*mockTransactionExecutorSuccess) BeginTx(bool) error {
 	return nil
 }
 
-func (*mockTransactionExecutorSuccess) CommitTx() error {
+func (*mockTransactionExecutorSuccess) CommitTx(bool) error {
 	return nil
 }
 
-func (*mockTransactionExecutorSuccess) RollbackTx() error {
+func (*mockTransactionExecutorSuccess) RollbackTx(bool) error {
 	return nil
 }
 
@@ -235,11 +235,11 @@ func (*mockTransactionExecutorSuccess) ExecuteTransaction(qStr string, args ...i
 	return nil
 }
 
-func (*mockTransactionExecutorRollbackFail) RollbackTx() error {
+func (*mockTransactionExecutorRollbackFail) RollbackTx(bool) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorCommitFail) CommitTx() error {
+func (*mockTransactionExecutorCommitFail) CommitTx(bool) error {
 	return errors.New("mockedError")
 }
 
@@ -294,13 +294,13 @@ type (
 	}
 )
 
-func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(params ...int) error {
+func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorPostApprovalEscrowTX) RollbackTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) RollbackTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorPostApprovalEscrowTX) ExecuteTransaction(query string, args ...interface{}) error {

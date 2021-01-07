@@ -927,13 +927,13 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx(params ...int) error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) CommitTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) CommitTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) RollbackTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteTransactions(
@@ -962,14 +962,14 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelect(
 ) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx(params ...int) error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx(bool) error {
 	return errors.New("mockError:BeginTxFail")
 }
 
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) CommitTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) CommitTx(bool) error {
 	return errors.New("mockError:CommitTxFail")
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) RollbackTx() error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) RollbackTx(bool) error {
 	return errors.New("mockError:RollbackTxFail")
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteTransactions(queries [][]interface{}) error {
@@ -1025,16 +1025,16 @@ type (
 	}
 )
 
-func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx(params ...int) error {
+func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx(bool) error {
 	return nil
 }
-func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx() error {
+func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx(bool) error {
 	return nil
 }
 func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
-func (*mockExecutorPruningNodeReceiptsSuccess) RollbackTx() error {
+func (*mockExecutorPruningNodeReceiptsSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockExecutorPruningNodeReceiptsSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {

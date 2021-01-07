@@ -279,7 +279,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		txBytes []byte
 		txType  transaction.TypeAction
 	)
-	err = fp.QueryExecutor.BeginTx()
+	err = fp.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return err
 	}
@@ -315,13 +315,13 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			if errUndo != nil {
 				fp.Logger.Warnf("ProcessLater:UndoApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), errUndo.Error())
 				// rollback DB when fail undo spendable balance
-				return fp.QueryExecutor.RollbackTx()
+				return fp.QueryExecutor.RollbackTx(false)
 			}
 			fp.Logger.Warnf("ProcessLater:AddMempoolFail - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
 			continue
 		}
 	}
-	err = fp.QueryExecutor.CommitTx()
+	err = fp.QueryExecutor.CommitTx(false)
 	return err
 }
 
@@ -342,7 +342,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		return err
 	}
 	// Apply Unconfirmed
-	err = fp.QueryExecutor.BeginTx()
+	err = fp.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return err
 	}
@@ -397,10 +397,10 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}(id, &err)
 		// rollback DB when undo spendable balance fail
 		if err != nil {
-			return fp.QueryExecutor.RollbackTx()
+			return fp.QueryExecutor.RollbackTx(false)
 		}
 
 	}
-	err = fp.QueryExecutor.CommitTx()
+	err = fp.QueryExecutor.CommitTx(false)
 	return err
 }

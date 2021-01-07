@@ -451,7 +451,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return err
 	}
@@ -761,7 +761,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}
 	}
 
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(false)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -833,7 +833,7 @@ func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
 	if err != nil {
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
 	}
-	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+	if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
 	}
 }

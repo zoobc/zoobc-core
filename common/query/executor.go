@@ -60,7 +60,7 @@ import (
 type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
-		BeginTx(params ...int) error //STEF to test only, change with proper function param when done
+		BeginTx(highPriorityLock bool) error //STEF to test only, change with proper function param when done
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
@@ -69,15 +69,16 @@ type (
 		ExecuteTransactions(queries [][]interface{}) error
 		// CommitTx commit on every transaction stacked in Executor.Tx
 		// note: rollback is called in this function if commit fail, to avoid locking complication
-		CommitTx() error
-		RollbackTx() error
+		CommitTx(highPriorityLock bool) error
+		RollbackTx(highPriorityLock bool) error
 	}
 
 	// Executor struct
 	Executor struct {
-		Db   *sql.DB
-		Lock queue.PriorityLock // mutex should only lock tx
-		Tx   *sql.Tx
+		Db                 *sql.DB
+		Lock               queue.PriorityLock // mutex should only lock tx
+		Tx                 *sql.Tx
+		isHighPriorityLock bool
 	}
 )
 
@@ -93,8 +94,12 @@ func NewQueryExecutor(db *sql.DB, lock queue.PriorityLock) *Executor {
 BeginTx begin database transaction and assign it to the Executor.Tx
 lock the struct on begin
 */
-func (qe *Executor) BeginTx(params ...int) error {
-	qe.Lock.Lock()
+func (qe *Executor) BeginTx(highPriorityLock bool) error {
+	if highPriorityLock {
+		qe.Lock.HighPriorityLock()
+	} else {
+		qe.Lock.Lock()
+	}
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
 
@@ -247,13 +252,16 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 
 // CommitTx commit on every transaction stacked in Executor.Tx
 // note: rollback is called in this function if commit fail, to avoid locking complication
-func (qe *Executor) CommitTx() error {
+func (qe *Executor) CommitTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	err := qe.Tx.Commit()
 	defer func() {
 		qe.Tx = nil
-		qe.Lock.Unlock() // either success or not struct access should be unlocked once done
-
+		if highPriorityLock {
+			qe.Lock.HighPriorityUnlock()
+		} else {
+			qe.Lock.Unlock()
+		}
 	}()
 	if err != nil {
 		var errRollback = qe.Tx.Rollback()
@@ -269,12 +277,16 @@ func (qe *Executor) CommitTx() error {
 }
 
 // RollbackTx rollback and unlock executor in case any single tx fail
-func (qe *Executor) RollbackTx() error {
+func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	var err = qe.Tx.Rollback()
 	defer func() {
 		qe.Tx = nil
-		qe.Lock.Unlock()
+		if highPriorityLock {
+			qe.Lock.HighPriorityUnlock()
+		} else {
+			qe.Lock.Unlock()
+		}
 	}()
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())

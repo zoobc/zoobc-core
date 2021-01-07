@@ -121,7 +121,7 @@ func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uin
 
 	if len(pendingTransactions) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx()
+			err = tg.QueryExecutor.BeginTx(false)
 			if err != nil {
 				return err
 			}
@@ -162,14 +162,14 @@ func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uin
 				And automatically unlock mutex
 			*/
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
-			err = tg.QueryExecutor.CommitTx()
+			err = tg.QueryExecutor.CommitTx(false)
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err

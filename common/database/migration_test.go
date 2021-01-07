@@ -164,7 +164,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorVersionNil) BeginTx(params ...int) error {
+func (*mockQueryExecutorVersionNil) BeginTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -179,7 +179,7 @@ func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...inte
 	_, err = stmt.Exec(args...)
 	return err
 }
-func (*mockQueryExecutorVersionNil) CommitTx() error {
+func (*mockQueryExecutorVersionNil) CommitTx(bool) error {
 	return nil
 }
 func TestMigration_Apply(t *testing.T) {
