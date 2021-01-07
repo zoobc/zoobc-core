@@ -423,6 +423,7 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 	return nil
 }
 
+// ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
 func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broadcast, persist bool, round int64) (err error, nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64) {
 	var (
 		mempoolMap storage.MempoolMap
@@ -517,7 +518,6 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 			// check if current block is in pushable window
 			err = bs.BlocksmithStrategy.CanPersistBlock(previousBlock, block, time.Now().Unix())
 			if err != nil {
-				tempErr := err
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, round)
 				if broadcast {
@@ -542,7 +542,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broa
 					blockToBroadcast.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
 				}
-				return tempErr, nil, nil
+				return blocker.NewBlocker(blocker.IgnoredError, "No op error"), nil, nil
 			}
 			// if canPersistBlock return true ignore the passed `persist` flag
 		}
@@ -759,7 +759,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 
 	if err != nil {
 		bs.queryAndCacheRollbackProcess(err.Error())
-		return err
+		if castedError, ok := err.(blocker.Blocker); !ok || castedError.Type != blocker.IgnoredError {
+			return err
+		}
+		return nil
 	}
 
 	err = bs.QueryExecutor.CommitTx()
