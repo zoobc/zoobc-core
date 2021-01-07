@@ -426,19 +426,18 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 func (bs *BlockService) ProcessPushBlock(previousBlock,
 	block *model.Block,
 	broadcast, persist bool,
-	round int64) (err error, nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64) {
-	var (
-		mempoolMap storage.MempoolMap
-	)
+	round int64) (nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64, err error) {
+	var mempoolMap storage.MempoolMap
+
 	err = bs.NodeRegistrationService.BeginCacheTransaction()
 	if err != nil {
 		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))
-		return err, nil, nil
+		return nil, nil, err
 	}
 	err = bs.NodeAddressInfoService.BeginCacheTransaction()
 	if err != nil {
 		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("NodeAddressInfoCacheBeginTransaction - %s", err.Error()))
-		return err, nil, nil
+		return nil, nil, err
 	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
@@ -447,12 +446,12 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
 		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("ExpiringEscrowTransactionsErr - %s", err.Error()))
-		return err, nil, nil
+		return nil, nil, err
 	}
 	err = bs.PendingTransactionService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
 		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("ExpiringPendingTransactionsErr - %s", err.Error()))
-		return err, nil, nil
+		return nil, nil, err
 	}
 
 	/*
@@ -461,13 +460,13 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
 		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("CompletePassedLiquidPaymentErr - %s", err.Error()))
-		return err, nil, nil
+		return nil, nil, err
 	}
 
 	transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
-		return err, nil, nil
+		return nil, nil, err
 	}
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
@@ -479,20 +478,20 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		// validate tx here
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			return err, nil, nil
+			return nil, nil, err
 		}
 		// check if is in mempool : if yes, undo unconfirmed
 		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
-				return err, nil, nil
+				return nil, nil, err
 			}
 		}
 
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
-				return err, nil, nil
+				return nil, nil, err
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
@@ -501,16 +500,16 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 			if err != nil {
-				return err, nil, nil
+				return nil, nil, err
 			}
 		} else {
-			return err, nil, nil
+			return nil, nil, err
 		}
 	}
 
 	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {
-		return err, nil, nil
+		return nil, nil, err
 	}
 
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
@@ -532,19 +531,19 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 
 					if err != nil {
 						err = blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
-						return err, nil, nil
+						return nil, nil, err
 					}
 					err = json.Unmarshal(blockBytes, &blockToBroadcast)
 					if err != nil {
 						err = blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
-						return err, nil, nil
+						return nil, nil, err
 					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
 					blockToBroadcast.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
 				}
-				return blocker.NewBlocker(blocker.IgnoredError, "No op error"), nil, nil
+				return nil, nil, blocker.NewBlocker(blocker.IgnoredError, "No op error")
 			}
 			// if canPersistBlock return true ignore the passed `persist` flag
 		}
@@ -564,7 +563,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
 			err = blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
-			return err, nil, nil
+			return nil, nil, err
 		}
 
 		popScore, err := commonUtils.CalculateParticipationScore(
@@ -573,11 +572,11 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
 		)
 		if err != nil {
-			return err, nil, nil
+			return nil, nil, err
 		}
 		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
-			return err, nil, nil
+			return nil, nil, err
 		}
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
@@ -590,7 +589,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			previousBlock,
 		)
 		if err != nil {
-			return err, nil, nil
+			return nil, nil, err
 		}
 		if totalReward > 0 {
 			if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
@@ -599,7 +598,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 				block.GetTimestamp(),
 				block.Height,
 			); err != nil {
-				return err, nil, nil
+				return nil, nil, err
 			}
 		}
 	}
@@ -611,19 +610,19 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 				blocker.BlockErr,
 				fmt.Sprintf("PushBlock:CalculateCumulativeDifficultyError:%v", err),
 			)
-			return err, nil, nil
+			return nil, nil, err
 		}
 	}
 
 	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
 	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		return err, nil, nil
+		return nil, nil, err
 	}
 	// nodeRegistryProcess precess to admit & expel node registry
 	nodeAdmissionTimestamp, err = bs.nodeRegistryProcess(block)
 	if err != nil {
-		return err, nil, nil
+		return nil, nil, err
 	}
 
 	// if genesis
@@ -636,7 +635,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		})
 		if err != nil {
 			err = fmt.Errorf("initFeeScale:rollback-error: %s", err.Error())
-			return err, nil, nil
+			return nil, nil, err
 		}
 	}
 
@@ -644,7 +643,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
 		err = fmt.Errorf("PushBlock:GetCurrentPhase error: %v", err)
-		return err, nil, nil
+		return nil, nil, err
 	}
 
 	if adjust {
@@ -682,7 +681,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 
 		if err != nil {
 			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
-			return err, nil, nil
+			return nil, nil, err
 		}
 		// select vote
 		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
@@ -695,7 +694,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 
 		if err != nil {
 			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
-			return err, nil, nil
+			return nil, nil, err
 		}
 	}
 
@@ -707,7 +706,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
 			if err != nil {
 				err = fmt.Errorf(fmt.Sprintf("PruneDataRollbackErr: %v", err))
-				return err, nil, nil
+				return nil, nil, err
 			}
 		}
 	}
@@ -719,11 +718,11 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			if initMempoolErr != nil {
 				bs.Logger.Errorf(initMempoolErr.Error())
 			}
-			return err, nil, nil
+			return nil, nil, err
 		}
 	}
 
-	return nil, nodeAdmissionTimestamp, transactionIDs
+	return nodeAdmissionTimestamp, transactionIDs, nil
 }
 
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
@@ -757,7 +756,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		return err
 	}
 
-	err, nodeAdmissionTimestamp, transactionIDs := bs.ProcessPushBlock(previousBlock, block, broadcast, persist, round)
+	nodeAdmissionTimestamp, transactionIDs, err := bs.ProcessPushBlock(previousBlock, block, broadcast, persist, round)
 
 	if err != nil {
 		bs.queryAndCacheRollbackProcess(err.Error())
