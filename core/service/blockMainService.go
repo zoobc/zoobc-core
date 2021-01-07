@@ -423,7 +423,10 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 }
 
 // ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
-func (bs *BlockService) ProcessPushBlock(previousBlock, block *model.Block, broadcast, persist bool, round int64) (err error, nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64) {
+func (bs *BlockService) ProcessPushBlock(previousBlock,
+	block *model.Block,
+	broadcast, persist bool,
+	round int64) (err error, nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64) {
 	var (
 		mempoolMap storage.MempoolMap
 	)
