@@ -55,7 +55,6 @@ import (
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -374,9 +373,7 @@ func (tx *FeeVoteCommitTransaction) EscrowValidate(dbTx bool) (err error) {
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
-	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
-		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutLimitExceeded")
-	}
+
 	err = tx.Validate(dbTx)
 	if err != nil {
 		return err

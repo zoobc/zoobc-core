@@ -58,6 +58,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/monitoring"
@@ -686,7 +687,7 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			"BCZKLvgUYZ1KKx-jtF9KoJskjVPvB9jpIjfzzI6zDW0J",
 			int64(10),
 			int64(1),
-			uint64(120),
+			time.Now().Unix(),
 			model.EscrowStatus_Approved,
 			uint32(0),
 			true,
