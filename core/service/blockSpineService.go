@@ -357,11 +357,41 @@ func (bs *BlockSpineService) validateBlockHeight(block *model.Block) error {
 	return nil
 }
 
+// ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
+func (bs *BlockSpineService) ProcessPushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
+	var err error
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		return err
+	}
+
+	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
+	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
+		return err
+	}
+
+	// if present, add new spine block manifests into spineBlockManifest table
+	for _, spineBlockManifest := range block.SpineBlockManifests {
+		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
+			return err
+		}
+	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		err              error
+		highPriorityLock = true
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -371,51 +401,21 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx(false)
+	err = bs.QueryExecutor.BeginTx(highPriorityLock)
 	if err != nil {
 		return err
 	}
 
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	err = bs.ProcessPushBlock(previousBlock, block, broadcast, persist)
 	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
-		return err
-	}
-
-	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
-	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
 		bs.Logger.Error(err.Error())
-		if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(highPriorityLock); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 
-	// if present, add new spine block manifests into spineBlockManifest table
-	for _, spineBlockManifest := range block.SpineBlockManifests {
-		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
-	if block.GetHeight() > 1 {
-		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
-		if err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
-
-	err = bs.QueryExecutor.CommitTx(false)
+	err = bs.QueryExecutor.CommitTx(highPriorityLock)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -1093,7 +1093,8 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		err error
+		err              error
+		highPriorityLock = true
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1128,7 +1129,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx(false)
+	err = bs.QueryExecutor.BeginTx(highPriorityLock)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -1137,14 +1138,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx(false)
+			rollbackErr := bs.QueryExecutor.RollbackTx(highPriorityLock)
 			if rollbackErr != nil {
 				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
 			}
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx(false)
+	err = bs.QueryExecutor.CommitTx(highPriorityLock)
 	if err != nil {
 		return nil, err
 	}
