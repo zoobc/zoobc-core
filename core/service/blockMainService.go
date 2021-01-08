@@ -759,7 +759,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	nodeAdmissionTimestamp, transactionIDs, err := bs.ProcessPushBlock(previousBlock, block, broadcast, persist, round)
 
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(err.Error())
+		bs.queryAndCacheRollbackProcess(err.Error(), false)
 		if castedError, ok := err.(blocker.Blocker); !ok || castedError.Type != blocker.IgnoredError {
 			return err
 		}
@@ -805,7 +805,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
+			bs.queryAndCacheRollbackProcess("", true)
 			return err
 		}
 	}
@@ -829,7 +829,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 }
 
 // queryAndCacheRollbackProcess process to rollback database & cache after failed execute query
-func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
+func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, cacheOnly bool) {
 	// clear all cache in transactional list
 	var err = bs.NodeAddressInfoService.RollbackCacheTransaction()
 	if err != nil {
@@ -839,8 +839,10 @@ func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
 	if err != nil {
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
 	}
-	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
+	if !cacheOnly {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
+		}
 	}
 }
 
