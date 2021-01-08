@@ -50,6 +50,7 @@
 package blockchainsync
 
 import (
+	"os"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -127,13 +128,31 @@ func (bss *BlockchainSyncService) GetMoreBlocksThread() {
 		bss.Logger.Info("getMoreBlocksThread stopped")
 	}()
 
+	sigs := make(chan os.Signal, 1)
+	getMoreBlocksReturned := make(chan bool, 1)
 	for {
-		bss.getMoreBlocks()
-		time.Sleep(constant.GetMoreBlocksDelay * time.Second)
+		go func() {
+			if err := bss.getMoreBlocks(); err != nil {
+				bss.Logger.Error(err)
+			}
+			getMoreBlocksReturned <- true
+		}()
+
+		timeout := time.After(constant.GetMoreBlocksTimeout)
+		// Listen on our channel AND a timeout channel - which ever happens first.
+		select {
+		case <-sigs:
+			return
+		case <-timeout:
+			bss.Logger.Error("getMoreBlocks timed out")
+		case <-getMoreBlocksReturned:
+		}
+		// extra delay between function calls
+		time.Sleep(constant.GetMoreBlocksDelay)
 	}
 }
 
-func (bss *BlockchainSyncService) getMoreBlocks() {
+func (bss *BlockchainSyncService) getMoreBlocks() error {
 	// Pausing another process when they are using blockService.ChainWriteLock()
 	bss.BlockService.ChainWriteLock(constant.BlockchainStatusSyncingBlock)
 	defer bss.BlockService.ChainWriteUnlock(constant.BlockchainStatusSyncingBlock)
@@ -280,4 +299,5 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 
 		lastBlock = newLastBlock
 	}
+	return err
 }
