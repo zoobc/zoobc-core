@@ -25,7 +25,7 @@ import (
 var mockData []string
 var logger = log.New(os.Stdout, "", 0)
 
-func lowPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuration, holdDuration time.Duration) {
+func lowPriorityRoutine(idx int, wg sync.WaitGroup, l sync.Locker, sleepDuration, holdDuration time.Duration) {
 	wg.Add(1)
 	defer wg.Done()
 	if sleepDuration > 0 {
