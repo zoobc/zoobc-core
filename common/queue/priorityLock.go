@@ -26,8 +26,10 @@ type PriorityLock interface {
 
 // PriorityPreferenceLock implements a simple triple-mutex priority lock
 // patterns are like:
-//   Low Priority would do: lock lowPriorityMutex, wait for high priority groups, lock nextToAccess, lock dataMutex, unlock nextToAccess, do stuff, unlock dataMutex, unlock lowPriorityMutex
-//   High Priority would do: increment high priority waiting, lock nextToAccess, lock dataMutex, unlock nextToAccess, do stuff, unlock dataMutex, decrement high priority waiting
+//   Low Priority would do: lock lowPriorityMutex, wait for high priority groups, lock nextToAccess, lock dataMutex, unlock nextToAccess,
+//   do stuff, unlock dataMutex, unlock lowPriorityMutex
+//   High Priority would do: increment high priority waiting, lock nextToAccess, lock dataMutex, unlock nextToAccess, do stuff,
+//   unlock dataMutex, decrement high priority waiting
 type PriorityPreferenceLock struct {
 	dataMutex           sync.Mutex
 	nextToAccess        sync.Mutex

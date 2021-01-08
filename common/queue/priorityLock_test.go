@@ -25,7 +25,7 @@ import (
 var mockData []string
 var logger = log.New(os.Stdout, "", 0)
 
-func lowPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuration time.Duration, holdDuration time.Duration) {
+func lowPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuration, holdDuration time.Duration) {
 	wg.Add(1)
 	defer wg.Done()
 	if sleepDuration > 0 {
@@ -42,7 +42,7 @@ func lowPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuratio
 	logger.Println(fmt.Sprintf("[%d] [idx:%d] Releasing low priority lock", time.Now().UnixNano(), idx))
 }
 
-func highPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuration time.Duration, holdDuration time.Duration) {
+func highPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDuration, holdDuration time.Duration) {
 	wg.Add(1)
 	defer wg.Done()
 	if sleepDuration > 0 {
@@ -111,7 +111,7 @@ func TestPriorityPreferenceLock(t *testing.T) {
 		// all unlocked, continue
 		time.Sleep(time.Millisecond * 100) // allow logs to flush
 	case <-time.After(time.Second * 10):
-		t.Fatal("Did not complete locking simulation withing timeout")
+		t.Fatal("Did not complete locking simulation within timeout")
 	}
 
 	// check all data operations succeeded

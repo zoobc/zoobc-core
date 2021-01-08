@@ -60,7 +60,7 @@ import (
 type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
-		BeginTx(highPriorityLock bool) error //STEF to test only, change with proper function param when done
+		BeginTx(highPriorityLock bool) error
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
@@ -75,10 +75,9 @@ type (
 
 	// Executor struct
 	Executor struct {
-		Db                 *sql.DB
-		Lock               queue.PriorityLock // mutex should only lock tx
-		Tx                 *sql.Tx
-		isHighPriorityLock bool
+		Db   *sql.DB
+		Lock queue.PriorityLock // mutex should only lock tx
+		Tx   *sql.Tx
 	}
 )
 

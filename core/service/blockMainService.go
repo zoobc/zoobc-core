@@ -830,7 +830,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 }
 
 // queryAndCacheRollbackProcess process to rollback database & cache after failed execute query
-func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, highPriorityLock bool, cacheOnly bool) {
+func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, highPriorityLock, cacheOnly bool) {
 	// clear all cache in transactional list
 	var err = bs.NodeAddressInfoService.RollbackCacheTransaction()
 	if err != nil {
