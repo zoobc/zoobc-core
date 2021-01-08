@@ -306,9 +306,9 @@ func (*mockSpineQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...
 func (*mockSpineQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
 }
-func (*mockSpineQueryExecutorFail) BeginTx() error { return nil }
+func (*mockSpineQueryExecutorFail) BeginTx(bool) error { return nil }
 
-func (*mockSpineQueryExecutorFail) RollbackTx() error { return nil }
+func (*mockSpineQueryExecutorFail) RollbackTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockSpineError:deleteMempoolFail")
@@ -320,12 +320,14 @@ func (*mockSpineQueryExecutorFail) ExecuteSelectRow(qStr string, tx bool, args .
 	mockSpine.ExpectQuery(qStr).WillReturnRows(mockSpineRows)
 	return db.QueryRow(qStr), nil
 }
-func (*mockSpineQueryExecutorFail) CommitTx() error { return errors.New("mockSpineError:commitFail") }
+func (*mockSpineQueryExecutorFail) CommitTx(bool) error {
+	return errors.New("mockSpineError:commitFail")
+}
 
 // mockSpineQueryExecutorSuccess
-func (*mockSpineQueryExecutorSuccess) BeginTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) BeginTx(bool) error { return nil }
 
-func (*mockSpineQueryExecutorSuccess) RollbackTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) RollbackTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
@@ -333,7 +335,7 @@ func (*mockSpineQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...in
 func (*mockSpineQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
-func (*mockSpineQueryExecutorSuccess) CommitTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) CommitTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mockSpine, _ := sqlmock.New()
@@ -1411,9 +1413,9 @@ type (
 	}
 )
 
-func (*mockSpineAddGenesisExecutor) BeginTx() error    { return nil }
-func (*mockSpineAddGenesisExecutor) RollbackTx() error { return nil }
-func (*mockSpineAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockSpineAddGenesisExecutor) BeginTx(bool) error    { return nil }
+func (*mockSpineAddGenesisExecutor) RollbackTx(bool) error { return nil }
+func (*mockSpineAddGenesisExecutor) CommitTx(bool) error   { return nil }
 func (*mockSpineAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
@@ -2394,10 +2396,10 @@ type (
 	}
 )
 
-func (*mockSpinePopOffToBlockReturnCommonBlock) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnCommonBlock) BeginTx(bool) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnCommonBlock) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnCommonBlock) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteTransactions(queries [][]interface{}) error {
@@ -2436,16 +2438,16 @@ func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteSelect(qSrt string, tx bo
 func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteTransaction(query string, args ...interface{}) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnBeginTxFunc) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnBeginTxFunc) BeginTx(bool) error {
 	return errors.New("i want this")
 }
-func (*mockSpinePopOffToBlockReturnBeginTxFunc) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnBeginTxFunc) CommitTx(bool) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnCommit) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnCommit) BeginTx(bool) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnCommit) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnCommit) CommitTx(bool) error {
 	return errors.New("i want this")
 }
 func (*mockSpinePopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -2465,16 +2467,16 @@ func (*mockSpinePopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, 
 	return db.Query("")
 
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx(bool) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) ExecuteTransactions(queries [][]interface{}) error {
 	return errors.New("i want this")
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx(bool) error {
 	return nil
 }
 
@@ -2684,18 +2686,18 @@ func (*mockSpineReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([
 	return nil, errors.New("mockSpineError")
 }
 
-func (*mockSpineExecutorBlockPopSuccess) BeginTx() error {
+func (*mockSpineExecutorBlockPopSuccess) BeginTx(bool) error {
 	return nil
 }
 
-func (*mockSpineExecutorBlockPopSuccess) CommitTx() error {
+func (*mockSpineExecutorBlockPopSuccess) CommitTx(bool) error {
 	return nil
 }
 
 func (*mockSpineExecutorBlockPopSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
-func (*mockSpineExecutorBlockPopSuccess) RollbackTx() error {
+func (*mockSpineExecutorBlockPopSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -2882,17 +2884,17 @@ func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockMa
 	return make([]*model.SpineBlockManifest, 0), nil
 }
 
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) BeginTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) BeginTx(bool) error {
 	return nil
 }
 
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) CommitTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) RollbackTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) RollbackTx(bool) error {
 	return nil
 }
 

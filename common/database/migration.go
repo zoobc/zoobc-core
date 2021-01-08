@@ -551,8 +551,9 @@ And this will create migration table included version of migration
 func (m *Migration) Apply() error {
 
 	var (
-		migrations = m.Versions
-		err        error
+		migrations       = m.Versions
+		err              error
+		highPriorityLock = true
 	)
 
 	if m.CurrentVersion != nil {
@@ -561,13 +562,13 @@ func (m *Migration) Apply() error {
 
 	for v, qStr := range migrations {
 		version := v
-		err = m.Query.BeginTx()
+		err = m.Query.BeginTx(highPriorityLock)
 		if err != nil {
 			return err
 		}
 		err = m.Query.ExecuteTransaction(qStr)
 		if err != nil {
-			rollbackErr := m.Query.RollbackTx()
+			rollbackErr := m.Query.RollbackTx(highPriorityLock)
 			if rollbackErr != nil {
 				log.Errorln(rollbackErr.Error())
 			}
@@ -597,7 +598,7 @@ func (m *Migration) Apply() error {
 			}
 		}
 
-		err = m.Query.CommitTx()
+		err = m.Query.CommitTx(highPriorityLock)
 		if err != nil {
 			return err
 		}
