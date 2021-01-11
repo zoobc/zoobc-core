@@ -103,7 +103,11 @@ func (qe *Executor) BeginTx(highPriorityLock bool) error {
 	tx, err := qe.Db.Begin()
 
 	if err != nil {
-		qe.Lock.Unlock()
+		if highPriorityLock {
+			qe.Lock.HighPriorityUnlock()
+		} else {
+			qe.Lock.Unlock()
+		}
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	qe.Tx = tx
