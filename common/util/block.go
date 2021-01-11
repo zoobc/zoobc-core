@@ -173,9 +173,9 @@ func GetBlockByHeightUseBlocksCache(
 		blockCacheObject storage.BlockCacheObject
 		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
 	)
-	if err == nil {
-		return &blockCacheObject, nil
-	}
+	// if err == nil {
+	// 	return &blockCacheObject, nil
+	// }
 	block, err := GetBlockByHeight(height, queryExecutor, blockQuery)
 	if err != nil {
 		return nil, err
@@ -220,9 +220,9 @@ func GetBlockByIDUseBlocksCache(
 		blockCacheObject storage.BlockCacheObject
 		err              = blocksCacheStorage.GetItem(id, &blockCacheObject)
 	)
-	if err == nil {
-		return &blockCacheObject, nil
-	}
+	// if err == nil {
+	// 	return &blockCacheObject, nil
+	// }
 	block, err := GetBlockByID(id, queryExecutor, blockQuery)
 	if err != nil {
 		return nil, err
