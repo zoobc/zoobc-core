@@ -97,6 +97,28 @@ var (
 		PayloadHash:         []byte{},
 		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
 	}
+	mockSpineBlockData1 = model.Block{
+		ID:        -1701929749060110283,
+		BlockHash: make([]byte, 32),
+		PreviousBlockHash: []byte{204, 131, 181, 204, 170, 112, 249, 115, 172, 193, 120, 7, 166, 200, 160, 138, 32, 0, 163, 161,
+			45, 128, 173, 123, 252, 203, 199, 224, 249, 124, 168, 41},
+		Height:    1,
+		Timestamp: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:         0,
+		TotalFee:            0,
+		TotalCoinBase:       0,
+		Version:             0,
+		PayloadLength:       1,
+		PayloadHash:         []byte{},
+		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
+		SpinePublicKeys:     []*model.SpinePublicKey{mockSpinePublicKey},
+	}
 	mockSpinePublicKey = &model.SpinePublicKey{
 		NodeID:          1,
 		NodePublicKey:   nrsNodePubKey1,
@@ -875,7 +897,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateStorage:         &mockSpineBlockStateStorageSuccess{},
 			},
-			want:    &mockSpineBlockData,
+			want:    &mockSpineBlockData1,
 			wantErr: false,
 		},
 		{
@@ -2642,6 +2664,11 @@ func (*mockSpineExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, 
 
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	switch qStr {
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM spine_block":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnError(
+			errors.New("MockErr"))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
