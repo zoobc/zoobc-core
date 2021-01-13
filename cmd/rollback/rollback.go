@@ -52,6 +52,7 @@ package rollback
 import (
 	"fmt"
 	"github.com/zoobc/zoobc-core/cmd/helper"
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -114,7 +115,7 @@ func rollbackBlockChain() RunCommand {
 			derivedQueries  = query.GetDerivedQuery(chaintypeRollback)
 			blockQuery      = query.NewBlockQuery(chaintypeRollback)
 			dB, err         = helper.GetSqliteDB(dBPath, dBName)
-			queryExecutor   = query.NewQueryExecutor(dB)
+			queryExecutor   = query.NewQueryExecutor(dB, queue.NewPriorityPreferenceLock())
 			rowLastBlock, _ = queryExecutor.ExecuteSelectRow(blockQuery.GetLastBlock(), false)
 			lastBlock       model.Block
 		)
@@ -135,7 +136,7 @@ func rollbackBlockChain() RunCommand {
 			return
 		}
 
-		err = queryExecutor.BeginTx()
+		err = queryExecutor.BeginTx(false)
 		if err != nil {
 			fmt.Println("Failed begin Tx Err: ", err.Error())
 			return
@@ -147,14 +148,14 @@ func rollbackBlockChain() RunCommand {
 			if err != nil {
 				fmt.Println(key)
 				fmt.Println("Failed execute rollback queries, ", err.Error())
-				err = queryExecutor.RollbackTx()
+				err = queryExecutor.RollbackTx(false)
 				if err != nil {
 					fmt.Println("Failed to run RollbackTX DB")
 				}
 				return
 			}
 		}
-		err = queryExecutor.CommitTx()
+		err = queryExecutor.CommitTx(false)
 		if err != nil {
 			fmt.Println("Failed to run CommitTx DB, err : ", err.Error())
 			return
