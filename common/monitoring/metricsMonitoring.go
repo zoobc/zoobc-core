@@ -52,14 +52,15 @@ package monitoring
 import (
 	"database/sql"
 	"fmt"
+	"math"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"math"
-	"net/http"
 )
 
 var (
@@ -256,7 +257,7 @@ func SetMonitoringActive(isActive bool) {
 	dbLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_db_lock",
 		Help: "db lock counter",
-	}, []string{"chaintype", "db_type"})
+	}, []string{"lock_type"})
 	prometheus.MustRegister(dbLockGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -534,9 +535,7 @@ func IncrementDbLockCounter(priorityLock int) {
 		return
 	}
 
-	var (
-		name string
-	)
+	var name string
 	if priorityLock > 0 {
 		name = "highPriority"
 	} else {
@@ -550,9 +549,7 @@ func DecrementDbLockCounter(priorityLock int) {
 		return
 	}
 
-	var (
-		name string
-	)
+	var name string
 	if priorityLock > 0 {
 		name = "highPriority"
 	} else {
