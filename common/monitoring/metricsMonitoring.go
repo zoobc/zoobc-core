@@ -86,6 +86,7 @@ var (
 	P2PTxFilteredIncoming              prometheus.Gauge
 	P2PTxFilteredOutgoing              prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
+	dbLockGaugeVector                  *prometheus.GaugeVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
 	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
@@ -251,6 +252,12 @@ func SetMonitoringActive(isActive bool) {
 		Help: "Status lock counter",
 	}, []string{"chaintype", "status_type"})
 	prometheus.MustRegister(statusLockGaugeVector)
+
+	dbLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_lock",
+		Help: "db lock counter",
+	}, []string{"chaintype", "db_type"})
+	prometheus.MustRegister(dbLockGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_status",
@@ -520,6 +527,38 @@ func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock in
 	}
 
 	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
+}
+
+func IncrementDbLockCounter(priorityLock int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	var (
+		name string
+	)
+	if priorityLock > 0 {
+		name = "highPriority"
+	} else {
+		name = "lowPriority"
+	}
+	dbLockGaugeVector.WithLabelValues(name).Inc()
+}
+
+func DecrementDbLockCounter(priorityLock int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	var (
+		name string
+	)
+	if priorityLock > 0 {
+		name = "highPriority"
+	} else {
+		name = "lowPriority"
+	}
+	dbLockGaugeVector.WithLabelValues(name).Dec()
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {

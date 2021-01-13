@@ -14,6 +14,7 @@
 package queue
 
 import (
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"sync"
 )
 
@@ -52,12 +53,14 @@ func (lock *PriorityPreferenceLock) Lock() {
 	lock.nextToAccess.Lock()
 	lock.dataMutex.Lock()
 	lock.nextToAccess.Unlock()
+	monitoring.IncrementDbLockCounter(0)
 }
 
 // Unlock will unlock the low-priority lock
 func (lock *PriorityPreferenceLock) Unlock() {
 	lock.dataMutex.Unlock()
 	lock.lowPriorityMutex.Unlock()
+	monitoring.DecrementDbLockCounter(0)
 }
 
 // HighPriorityLock will acquire a high-priority lock
@@ -67,10 +70,12 @@ func (lock *PriorityPreferenceLock) HighPriorityLock() {
 	lock.nextToAccess.Lock()
 	lock.dataMutex.Lock()
 	lock.nextToAccess.Unlock()
+	monitoring.IncrementDbLockCounter(1)
 }
 
 // HighPriorityUnlock will unlock the high-priority lock
 func (lock *PriorityPreferenceLock) HighPriorityUnlock() {
 	lock.dataMutex.Unlock()
 	lock.highPriorityWaiting.Done()
+	monitoring.DecrementDbLockCounter(0)
 }
