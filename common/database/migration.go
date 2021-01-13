@@ -578,9 +578,6 @@ func (m *Migration) Apply() error {
 			*m.CurrentVersion++
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"
 				SET "version" = ?, "created_date" = datetime('now');`, m.CurrentVersion)
-			if err != nil {
-				return err
-			}
 		} else {
 			m.CurrentVersion = &version // should 0 value not nil anymore
 			err = m.Query.ExecuteTransaction(`
@@ -593,9 +590,13 @@ func (m *Migration) Apply() error {
 					datetime('now')
 				);
 			`)
-			if err != nil {
-				return err
+		}
+		if err != nil {
+			rollbackErr := m.Query.RollbackTx(highPriorityLock)
+			if rollbackErr != nil {
+				log.Errorln(rollbackErr.Error())
 			}
+			return err
 		}
 
 		err = m.Query.CommitTx(highPriorityLock)

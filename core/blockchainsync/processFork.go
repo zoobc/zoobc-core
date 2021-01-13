@@ -291,7 +291,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			fp.Logger.Warnf("ProcessLater:GetTransactionType - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
 			continue
 		}
-		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, highPriorityLock)
+		txBytes, err = fp.TransactionUtil.GetTransactionBytes(tx, true)
 
 		if err != nil {
 			fp.Logger.Warnf("ProcessLater:GetTransactionBytes - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
@@ -322,7 +322,8 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			continue
 		}
 	}
-	err = fp.QueryExecutor.CommitTx(highPriorityLock)
+	return fp.QueryExecutor.CommitTx(highPriorityLock)
+
 	return err
 }
 
