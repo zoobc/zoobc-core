@@ -52,6 +52,7 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"reflect"
 	"regexp"
 	"strings"
@@ -80,10 +81,10 @@ func TestNewNodeRegistryService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				queryExecutor: query.NewQueryExecutor(db),
+				queryExecutor: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 			want: &NodeRegistryService{
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 		},
 	}

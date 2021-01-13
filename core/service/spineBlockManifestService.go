@@ -239,16 +239,16 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 		return nil, err
 	}
 	spineBlockManifest.ID = megablockID
-	if err := ss.QueryExecutor.BeginTx(); err != nil {
+	if err := ss.QueryExecutor.BeginTx(false); err != nil {
 		return nil, err
 	}
 	if err := ss.InsertSpineBlockManifest(spineBlockManifest); err != nil {
-		if rollbackErr := ss.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := ss.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			ss.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
-	err = ss.QueryExecutor.CommitTx()
+	err = ss.QueryExecutor.CommitTx(false)
 	if err != nil {
 		return nil, err
 	}

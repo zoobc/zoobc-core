@@ -52,6 +52,7 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"os"
 	"path"
 	"time"
@@ -587,7 +588,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		}
 
 		lastBlock, err := commonUtil.GetLastBlock(
-			query.NewQueryExecutor(sqliteDB),
+			query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock()),
 			query.NewBlockQuery(&chaintype.MainChain{}),
 		)
 		if err != nil {
@@ -666,7 +667,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 				logrus.Errorf("Getting last block failed: %s", err.Error())
 				os.Exit(1)
 			}
-			row, err = query.NewQueryExecutor(sqliteDB).ExecuteSelectRow(
+			row, err = query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock()).ExecuteSelectRow(
 				blockQuery.GetBlockByHeight(recentBlockHeight),
 				false,
 			)

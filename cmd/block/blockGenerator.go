@@ -51,6 +51,7 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"strings"
 	"time"
 
@@ -167,7 +168,7 @@ func initialize(
 	if err != nil {
 		panic(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 	mempoolStorage := storage.NewMempoolStorage()
 
 	actionSwitcher := &transaction.TypeSwitcher{

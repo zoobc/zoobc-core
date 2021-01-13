@@ -53,6 +53,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"math/rand"
 	"os"
 
@@ -125,7 +126,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor = query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock())
 		mempoolStorage := storage.NewMempoolStorage()
 		nodeAuthValidation := auth.NewNodeAuthValidation(signature)
 		snapshotMainService := service.NewSnapshotMainBlockService(
@@ -224,7 +225,7 @@ func newSnapshotProcess() func(ccmd *cobra.Command, args []string) {
 				logger.Errorf("Snapshot Failed: %s", err.Error())
 				os.Exit(0)
 			}
-			executor = query.NewQueryExecutor(sqliteDB)
+			executor = query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock())
 			migration := database.Migration{
 				Query: executor,
 			}
@@ -313,7 +314,7 @@ func storingPayloadProcess() func(ccmd *cobra.Command, args []string) {
 			new(codec.CborHandle),
 			snapshotFile,
 		)
-		executor = query.NewQueryExecutor(sqliteDB)
+		executor = query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock())
 		typeSwitcher := &transaction.TypeSwitcher{
 			Executor:            executor,
 			NodeAuthValidation:  nodeAuthValidationService,

@@ -334,21 +334,21 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		err                      error
 	)
 	// NOTE: this is temporary solution, should be enhace after implement new receipt logic
-	err = rs.QueryExecutor.BeginTx()
+	err = rs.QueryExecutor.BeginTx(false)
 	if err != nil {
 		return err
 	}
 
 	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
 	if err != nil {
-		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
 		return err
 	}
 
 	if len(receiptsCached) < int(constant.ReceiptBatchMaximum) {
-		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
 		return nil
@@ -377,7 +377,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 	_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
 	if err != nil {
-		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
 		return err
@@ -397,7 +397,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	}
 	err = rs.MainBlockStateStorage.GetItem(nil, &block)
 	if err != nil {
-		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
 		return err
@@ -412,12 +412,12 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 
 	err = rs.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		if rollbackErr := rs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(false); rollbackErr != nil {
 			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
 		return err
 	}
-	err = rs.QueryExecutor.CommitTx()
+	err = rs.QueryExecutor.CommitTx(false)
 	if err != nil {
 		return err
 	}
