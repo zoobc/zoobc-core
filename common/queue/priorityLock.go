@@ -77,5 +77,5 @@ func (lock *PriorityPreferenceLock) HighPriorityLock() {
 func (lock *PriorityPreferenceLock) HighPriorityUnlock() {
 	lock.dataMutex.Unlock()
 	lock.highPriorityWaiting.Done()
-	monitoring.DecrementDbLockCounter(0)
+	monitoring.DecrementDbLockCounter(1)
 }
