@@ -323,8 +323,6 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		}
 	}
 	return fp.QueryExecutor.CommitTx(highPriorityLock)
-
-	return err
 }
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
