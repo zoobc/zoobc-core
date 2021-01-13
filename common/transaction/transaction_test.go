@@ -231,8 +231,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
 				EscrowQuery:             query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper:    accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				PendingNodeRegistryCache: txPendingNodeRegistryCache,
@@ -268,8 +268,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				AuthPoown:             &auth.NodeAuthValidation{},
 				EscrowQuery:           query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				ActiveNodeRegistrationCache:  txActiveNodeRegistryCache,
@@ -303,8 +303,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
 				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery:              query.NewEscrowTransactionQuery(),
@@ -341,8 +341,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
 				AuthPoown:             &auth.NodeAuthValidation{},
 				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery:             query.NewEscrowTransactionQuery(),
@@ -374,8 +374,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
@@ -406,8 +406,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
@@ -443,8 +443,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Executor: &query.Executor{},
 				},
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			},
@@ -485,8 +485,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
@@ -530,8 +530,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					&mockMainBlockStateStorageSuccess{},
 					&query.Executor{},
 				),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
@@ -561,8 +561,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				QueryExecutor:                 &query.Executor{},
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),
@@ -596,8 +596,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TypeActionSwitcher: &TypeSwitcher{
 					Executor: &query.Executor{},
 				},
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
 				),
 				NormalFee:   fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				EscrowQuery: query.NewEscrowTransactionQuery(),

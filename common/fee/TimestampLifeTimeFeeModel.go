@@ -49,10 +49,42 @@
 // shall be included in all copies or substantial portions of the Software.
 package fee
 
-import "github.com/zoobc/zoobc-core/common/model"
+import (
+	"errors"
+	"math"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/model"
+)
 
 type (
-	FeeModelInterface interface {
-		CalculateTxMinimumFee(txBody model.TransactionBodyInterface, tx *model.Transaction) (int64, error)
+	// TimestampLifeTimeFeeModel will calculate the transaction fee based on expected lifetime on the chain in timestamp
+	TimestampLifeTimeFeeModel struct {
+		hoursPeriod       int64
+		feePerBlockPeriod int64
 	}
 )
+
+func NewTimestampLifeTimeFeeModel(
+	hoursPeriod, feePerBlockPeriod int64,
+) *TimestampLifeTimeFeeModel {
+	return &TimestampLifeTimeFeeModel{
+		hoursPeriod:       hoursPeriod,
+		feePerBlockPeriod: feePerBlockPeriod,
+	}
+}
+
+func (tlt *TimestampLifeTimeFeeModel) CalculateTxMinimumFee(
+	txBody model.TransactionBodyInterface, tx *model.Transaction,
+) (int64, error) {
+	escrowTimeout := time.Unix(tx.Escrow.Timeout, 0)
+	txTimestamp := time.Unix(tx.Timestamp, 0)
+	hoursDifference := txTimestamp.Sub(escrowTimeout).Hours()
+	if hoursDifference < 0 {
+		return 0, errors.New("PassedEscrowTimeout")
+	}
+
+	// increment fee by feePerBlockPeriod every 24 hours
+	fee := int64(math.Ceil(hoursDifference/float64(tlt.hoursPeriod))) * tlt.feePerBlockPeriod
+	return fee, nil
+}

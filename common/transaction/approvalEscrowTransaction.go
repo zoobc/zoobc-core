@@ -64,12 +64,8 @@ import (
 type (
 	// ApprovalEscrowTransaction field
 	ApprovalEscrowTransaction struct {
-		ID                   int64
-		Fee                  int64
-		SenderAddress        []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		Body                 *model.ApprovalEscrowTransactionBody
-		Escrow               *model.Escrow
 		BlockQuery           query.BlockQueryInterface
 		EscrowQuery          query.EscrowTransactionQueryInterface
 		QueryExecutor        query.ExecutorInterface
@@ -116,10 +112,10 @@ func (*ApprovalEscrowTransaction) GetSize() (uint32, error) {
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
 }
 
 // GetAmount return Amount from TransactionBody
@@ -179,13 +175,13 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	err = tx.checkEscrowValidity(dbTx, tx.Height)
+	err = tx.checkEscrowValidity(dbTx, tx.TransactionObject.Height)
 	if err != nil {
 		return err
 	}
 	// check existing account & balance
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -229,7 +225,7 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 	}
 
 	// Check sender, should be approver address
-	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.SenderAddress) {
+	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.TransactionObject.SenderAccountAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSenderAddress")
 	}
 
@@ -244,14 +240,14 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 ApplyUnconfirmed exec before Confirmed
 */
 func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 }
 
 /*
 UndoApplyUnconfirmed func exec before confirmed
 */
 func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 }
 
 /*
@@ -298,7 +294,7 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		return blocker.NewBlocker(blocker.AppErr, "TransactionNotFound")
 
 	}
-	transaction.Height = tx.Height
+	transaction.Height = tx.TransactionObject.Height
 	transaction.Escrow = &latestEscrow
 
 	txType, err = tx.TypeActionSwitcher.GetTransactionType(&transaction)
@@ -318,11 +314,11 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 
 	// Update sender
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-tx.Fee,
+		tx.TransactionObject.SenderAccountAddress,
+		-tx.TransactionObject.Fee,
 		model.EventType_EventApprovalEscrowTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -337,7 +333,7 @@ Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 
-	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false
