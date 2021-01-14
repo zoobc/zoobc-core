@@ -1260,6 +1260,7 @@ func init() {
 }
 
 func main() {
+	runtime.SetMutexProfileFraction(5)
 
 	var god = goDaemon{}
 
