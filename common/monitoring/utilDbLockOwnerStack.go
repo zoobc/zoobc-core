@@ -41,15 +41,11 @@ var (
 func startDBLockOwnerMetricsLoggingRoutine() {
 	ticker := time.NewTicker(1 * time.Second)
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				logProcessOwnerQueue(0)
-				logProcessOwnerQueue(1)
-			}
+		for range ticker.C {
+			logProcessOwnerQueue(0)
+			logProcessOwnerQueue(1)
 		}
 	}()
-
 }
 
 func getDbLockType(priorityLock int) string {
