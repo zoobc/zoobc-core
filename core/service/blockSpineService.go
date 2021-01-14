@@ -401,7 +401,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx(highPriorityLock)
+	err = bs.QueryExecutor.BeginTx(highPriorityLock, monitoring.SpinePushBlockOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -1135,7 +1135,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx(highPriorityLock)
+	err = bs.QueryExecutor.BeginTx(highPriorityLock, monitoring.SpinePopOffToBlockOwnerProcess)
 	if err != nil {
 		return []*model.Block{}, err
 	}

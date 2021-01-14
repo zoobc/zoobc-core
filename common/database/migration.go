@@ -54,6 +54,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -562,7 +563,7 @@ func (m *Migration) Apply() error {
 
 	for v, qStr := range migrations {
 		version := v
-		err = m.Query.BeginTx(highPriorityLock)
+		err = m.Query.BeginTx(highPriorityLock, monitoring.MigrationApplyOwnerProcess)
 		if err != nil {
 			return err
 		}

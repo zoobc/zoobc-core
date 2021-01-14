@@ -428,7 +428,7 @@ func (mps *MempoolService) ReceivedTransaction(
 	if receivedTx == nil {
 		return receipt, nil
 	}
-	err = mps.QueryExecutor.BeginTx(false)
+	err = mps.QueryExecutor.BeginTx(false, monitoring.ReceivedTransactionOwnerProcess)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -582,7 +582,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	if len(cachedTxs) == 0 {
 		return nil
 	}
-	err = mps.QueryExecutor.BeginTx(false)
+	err = mps.QueryExecutor.BeginTx(false, monitoring.DeleteExpiredMempoolTransactionsOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -655,10 +655,10 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
-		mempoolsBackup        []*model.Transaction
-		err                   error
-		backupMempools        = make(map[int64][]byte)
-		dbTransactionPriority = true
+		mempoolsBackup              []*model.Transaction
+		err                         error
+		backupMempools              = make(map[int64][]byte)
+		isDbTransactionHighPriority = true
 	)
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 301)
@@ -672,7 +672,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 303)
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 304)
-	err = mps.QueryExecutor.BeginTx(dbTransactionPriority)
+	err = mps.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.BackupMempoolsOwnerProcess)
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 305)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 306)
@@ -690,7 +690,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 309)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 310)
-			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 311)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 312)
@@ -704,7 +704,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 315)
-			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 316)
 				mps.Logger.Warnf("[BackupMempools] UndoApplyUnconfirmed failed - %v", rollbackErr)
@@ -717,7 +717,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		mempoolByte, err = mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 319)
-			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 320)
 				mps.Logger.Warnf("[BackupMempools] GetTransactionBytes failed - %v", rollbackErr)
@@ -736,7 +736,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 324)
-			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 325)
 				mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
@@ -750,7 +750,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 328)
-		rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
+		rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 329)
 			mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
@@ -765,7 +765,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		return err
 	}
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 333)
-	err = mps.QueryExecutor.CommitTx(dbTransactionPriority)
+	err = mps.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 334)
 		return err

@@ -280,7 +280,7 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 		txType           transaction.TypeAction
 		highPriorityLock = true
 	)
-	err = fp.QueryExecutor.BeginTx(highPriorityLock)
+	err = fp.QueryExecutor.BeginTx(highPriorityLock, monitoring.ProcessMempoolLaterOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -343,7 +343,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		return err
 	}
 	// Apply Unconfirmed
-	err = fp.QueryExecutor.BeginTx(highPriorityLock)
+	err = fp.QueryExecutor.BeginTx(highPriorityLock, monitoring.RestoreMempoolsBackupOwnerProcess)
 	if err != nil {
 		return err
 	}

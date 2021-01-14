@@ -52,6 +52,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -231,7 +232,7 @@ func AddGenesisNextNodeAdmission(
 		}
 		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
 	)
-	err = executor.BeginTx(false)
+	err = executor.BeginTx(false, monitoring.AddGenesisNextNodeAdmissionOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -276,7 +277,7 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 		err            error
 	)
 
-	err = executor.BeginTx(false)
+	err = executor.BeginTx(false, monitoring.AddGenesisAccountOwnerProcess)
 	if err != nil {
 		return err
 	}

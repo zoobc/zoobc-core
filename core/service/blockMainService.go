@@ -752,7 +752,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx(highPriorityLock)
+	err = bs.QueryExecutor.BeginTx(highPriorityLock, monitoring.MainPushBlockOwnerProcess)
 	if err != nil {
 		return err
 	}
