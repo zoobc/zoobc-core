@@ -388,18 +388,8 @@ func (nru *NodeAddressInfoService) CountRegistredNodeAddressWithAddressInfo() (i
 }
 
 func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx(false, monitoring.InsertAddressInfoOwnerProcess)
-	if err != nil {
-		return err
-	}
 	qry, args := nru.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx(false)
-		nru.Logger.Error(errRollback)
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx(false)
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args...)
 	if err != nil {
 		return err
 	}
