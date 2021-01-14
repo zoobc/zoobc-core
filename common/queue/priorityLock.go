@@ -36,12 +36,12 @@ type PriorityPreferenceLock struct {
 	dataMutex           sync.Mutex
 	nextToAccess        sync.Mutex
 	lowPriorityMutex    sync.Mutex
-	highPriorityWaiting sync.WaitGroup
+	highPriorityWaiting *UnrestrictiveWaitGroup
 }
 
 func NewPriorityPreferenceLock() *PriorityPreferenceLock {
 	lock := PriorityPreferenceLock{
-		highPriorityWaiting: sync.WaitGroup{},
+		highPriorityWaiting: &UnrestrictiveWaitGroup{},
 	}
 
 	return &lock
@@ -80,4 +80,33 @@ func (lock *PriorityPreferenceLock) HighPriorityUnlock() {
 	lock.dataMutex.Unlock()
 	lock.highPriorityWaiting.Done()
 	monitoring.DecrementDbLockCounter(1)
+}
+
+// UnrestrictiveWaitGroup
+// Substitution of sync.WaitGroup that doesn't allow adding more item while the wait has started
+type UnrestrictiveWaitGroup struct {
+	counter int64
+	sync.Mutex
+}
+
+func (uwg *UnrestrictiveWaitGroup) Add(additional int64) {
+	uwg.Lock()
+	defer uwg.Unlock()
+	uwg.counter += additional
+}
+
+func (uwg *UnrestrictiveWaitGroup) Done() {
+	uwg.Lock()
+	defer uwg.Unlock()
+	uwg.counter--
+}
+
+func (uwg *UnrestrictiveWaitGroup) Wait() {
+	for {
+		uwg.Lock()
+		if uwg.counter == 0 {
+			break
+		}
+		uwg.Unlock()
+	}
 }
