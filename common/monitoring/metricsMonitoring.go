@@ -575,6 +575,13 @@ func IncrementDbLockCounter(priorityLock, processOwner int) {
 		return
 	}
 
+	var name string
+	if priorityLock > 0 {
+		name = "highPriority"
+	} else {
+		name = "lowPriority"
+	}
+
 	// to note down the locking
 	processOwnerQueueMutex.Lock()
 	defer processOwnerQueueMutex.Unlock()
@@ -582,12 +589,6 @@ func IncrementDbLockCounter(priorityLock, processOwner int) {
 		processOwnerQueue = append(processOwnerQueue, processOwner)
 	}
 
-	var name string
-	if priorityLock > 0 {
-		name = "highPriority"
-	} else {
-		name = "lowPriority"
-	}
 	dbLockGaugeVector.WithLabelValues(name).Inc()
 }
 
@@ -596,18 +597,20 @@ func DecrementDbLockCounter(priorityLock int) {
 		return
 	}
 
-	processOwnerQueueMutex.Lock()
-	defer processOwnerQueueMutex.Unlock()
-	if len(processOwnerQueue) < limitProcessOwnerQueue {
-		processOwnerQueue = processOwnerQueue[1:]
-	}
-
 	var name string
 	if priorityLock > 0 {
 		name = "highPriority"
 	} else {
 		name = "lowPriority"
 	}
+
+	processOwnerQueueMutex.Lock()
+	defer processOwnerQueueMutex.Unlock()
+
+	if len(processOwnerQueue) < limitProcessOwnerQueue {
+		processOwnerQueue = processOwnerQueue[1:]
+	}
+
 	dbLockGaugeVector.WithLabelValues(name).Dec()
 	if len(processOwnerQueue) == 0 {
 		SetDbLockBlockingOwner(priorityLock, -1)
