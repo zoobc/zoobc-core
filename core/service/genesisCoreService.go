@@ -230,23 +230,24 @@ func AddGenesisNextNodeAdmission(
 			BlockHeight: 0,
 			Latest:      true,
 		}
-		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+		insertQueries               = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+		isDbTransactionHighPriority = false
 	)
-	err = executor.BeginTx(false, monitoring.AddGenesisNextNodeAdmissionOwnerProcess)
+	err = executor.BeginTx(isDbTransactionHighPriority, monitoring.AddGenesisNextNodeAdmissionOwnerProcess)
 	if err != nil {
 		return err
 	}
 	err = executor.ExecuteTransactions(insertQueries)
 	if err != nil {
 
-		rollbackErr := executor.RollbackTx(false)
+		rollbackErr := executor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
 
 	}
-	err = executor.CommitTx(false)
+	err = executor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
