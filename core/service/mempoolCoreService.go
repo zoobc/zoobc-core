@@ -625,6 +625,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		if initMempoolErr != nil {
 			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
 		}
+		return err
 	}
 	err = mps.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
