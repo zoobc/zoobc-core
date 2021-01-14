@@ -568,11 +568,12 @@ func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (
-		qStr              string
-		expirationTime    = time.Now().Add(-constant.MempoolExpiration).Unix()
-		err               error
-		cachedTxs         = make(storage.MempoolMap)
-		expiredMempoolIDs []int64
+		qStr                        string
+		expirationTime              = time.Now().Add(-constant.MempoolExpiration).Unix()
+		err                         error
+		cachedTxs                   = make(storage.MempoolMap)
+		expiredMempoolIDs           []int64
+		isDbTransactionHighPriority = false
 	)
 	err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
 	if err != nil {
@@ -581,7 +582,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	if len(cachedTxs) == 0 {
 		return nil
 	}
-	err = mps.QueryExecutor.BeginTx(false, monitoring.DeleteExpiredMempoolTransactionsOwnerProcess)
+	err = mps.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.DeleteExpiredMempoolTransactionsOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -592,14 +593,14 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		tx := memObj.Tx
 		action, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(action)
 		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
 			}
 			return err
@@ -610,14 +611,14 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
-		if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+		if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 	err = mps.MempoolCacheStorage.RemoveItem(expiredMempoolIDs)
 	if err != nil {
-		if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+		if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
 		initMempoolErr := mps.InitMempoolTransaction()
@@ -625,7 +626,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
 		}
 	}
-	err = mps.QueryExecutor.CommitTx(false)
+	err = mps.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}

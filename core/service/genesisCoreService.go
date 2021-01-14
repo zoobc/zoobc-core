@@ -274,11 +274,12 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 		genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs = query.NewAccountBalanceQuery().InsertAccountBalance(
 			&genesisAccountBalance)
 
-		genesisQueries [][]interface{}
-		err            error
+		genesisQueries              [][]interface{}
+		err                         error
+		isDbTransactionHighPriority = false
 	)
 
-	err = executor.BeginTx(false, monitoring.AddGenesisAccountOwnerProcess)
+	err = executor.BeginTx(isDbTransactionHighPriority, monitoring.AddGenesisAccountOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -288,13 +289,13 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 	)
 	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		rollbackErr := executor.RollbackTx(false)
+		rollbackErr := executor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
-	err = executor.CommitTx(false)
+	err = executor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
