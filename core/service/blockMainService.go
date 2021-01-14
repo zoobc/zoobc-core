@@ -1566,13 +1566,13 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// make sure this block contains all its attributes (transaction, receipts)
 	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 151)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 201)
 		return nil, err
 	}
 	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 152)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 202)
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return nil, nil
@@ -1580,7 +1580,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 
 	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 151)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 201)
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
@@ -1588,9 +1588,9 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		poppedBlocks []*model.Block
 		block        = lastBlock
 	)
-	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 151)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 201)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 152)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 202)
 		poppedBlocks = append(poppedBlocks, block)
 		// make sure this block contains all its attributes (transaction, receipts)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
@@ -1600,10 +1600,10 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	}
 	// Backup existing transactions from mempool before rollback
 	// note: rollback process do inside Backup Mempools func
-	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 153)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 203)
 	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 154)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 204)
 		return nil, err
 	}
 
@@ -1611,20 +1611,20 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(nil)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 155)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 205)
 		return nil, err
 	}
-	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 156)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 206)
 	err = bs.BlocksStorage.PopTo(commonBlock.Height)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 157)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 207)
 		return nil, err
 	}
 	// update cache next node admission timestamp after rollback
-	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 158)
+	monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 208)
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 159)
+		monitoring.IncrementMainchainDownloadCycleDebugger(bs.Chaintype, 209)
 		return nil, err
 	}
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables

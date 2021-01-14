@@ -199,7 +199,8 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 10)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 11)
-				bss.Logger.Warnf("ChainSync: failed to DownloadFromPeer: %v\n\n", err)
+				bss.Logger.Errorf("ChainSync: failed to DownloadFromPeer: %v\n\n", err)
+
 				break
 			}
 
@@ -209,7 +210,8 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 12)
 				if err != nil {
 					monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 13)
-					bss.Logger.Warnf("\nfailed to ProcessFork: %v\n\n", err)
+					bss.Logger.Errorf("\nfailed to ProcessFork: %v\n\n", err) //STEF was Warnf
+
 					break
 				}
 			}
@@ -248,14 +250,16 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 21)
 			if err != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 22)
-				bss.Logger.Warnf("\nfailed to getMoreBlocks: %v\n\n", err)
+				bss.Logger.Errorf("\nfailed to getMoreBlocks: %v\n\n", err)
+
 				break
 			}
 
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 23)
 			if lastBlock.ID == newLastBlock.ID {
 				monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 24)
-				bss.Logger.Info("Did not accept peers's blocks, back to our own fork")
+				bss.Logger.Errorf("Did not accept peers's blocks, back to our own fork")
+
 				break
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(bss.ChainType, 25)
