@@ -54,7 +54,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -136,14 +135,6 @@ const (
 	P2pGetNextBlockIDsClient             = "P2pGetNextBlockIDsClient"
 	P2pGetNextBlocksClient               = "P2pGetNextBlocksClient"
 	P2pRequestFileDownloadClient         = "P2pRequestFileDownloadClient"
-)
-
-// setting a big number to avoid losing count of important process
-const limitProcessOwnerQueue = 10000000
-
-var (
-	processOwnerQueue      = []int{}
-	processOwnerQueueMutex sync.Mutex
 )
 
 const (
@@ -432,6 +423,8 @@ func SetMonitoringActive(isActive bool) {
 		Help: "Cache storage usage in bytes",
 	}, []string{"cache_type"})
 	prometheus.MustRegister(cacheStorageGaugeVector)
+
+	startDBLockOwnerMetricsLoggingRoutine()
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -575,26 +568,14 @@ func IncrementDbLockCounter(priorityLock, processOwner int) {
 		return
 	}
 
-	var name string
-	if priorityLock > 0 {
-		name = "highPriority"
-	} else {
-		name = "lowPriority"
-	}
+	name := getDbLockType(priorityLock)
 
 	// to note down the locking
 	processOwnerQueueMutex.Lock()
 	defer processOwnerQueueMutex.Unlock()
-	if len(processOwnerQueue) < limitProcessOwnerQueue {
-		processOwnerQueue = append(processOwnerQueue, processOwner)
-	}
 
+	updateProcessOwnerQueue(priorityLock, processOwner)
 	dbLockGaugeVector.WithLabelValues(name).Inc()
-	if len(processOwnerQueue) == 0 {
-		SetDbLockBlockingOwner(name, -1)
-	} else {
-		SetDbLockBlockingOwner(name, processOwnerQueue[0])
-	}
 }
 
 func DecrementDbLockCounter(priorityLock int) {
@@ -602,26 +583,15 @@ func DecrementDbLockCounter(priorityLock int) {
 		return
 	}
 
-	var name string
-	if priorityLock > 0 {
-		name = "highPriority"
-	} else {
-		name = "lowPriority"
-	}
+	name := getDbLockType(priorityLock)
 
 	processOwnerQueueMutex.Lock()
 	defer processOwnerQueueMutex.Unlock()
 
-	if len(processOwnerQueue) < limitProcessOwnerQueue {
-		processOwnerQueue = processOwnerQueue[1:]
-	}
+	popProcessOwnerQueue(priorityLock)
 
 	dbLockGaugeVector.WithLabelValues(name).Dec()
-	if len(processOwnerQueue) == 0 {
-		SetDbLockBlockingOwner(name, -1)
-	} else {
-		SetDbLockBlockingOwner(name, processOwnerQueue[0])
-	}
+	logProcessOwnerQueue(priorityLock)
 }
 
 func SetDbLockBlockingOwner(name string, processOwner int) {
