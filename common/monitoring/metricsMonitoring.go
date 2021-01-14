@@ -137,30 +137,6 @@ const (
 	P2pRequestFileDownloadClient         = "P2pRequestFileDownloadClient"
 )
 
-const (
-	MigrationApplyOwnerProcess                   = 1
-	AddGenesisNextNodeAdmissionOwnerProcess      = 2
-	AddGenesisAccountOwnerProcess                = 3
-	MainPushBlockOwnerProcess                    = 4
-	SpinePushBlockOwnerProcess                   = 5
-	SpinePopOffToBlockOwnerProcess               = 6
-	BackupMempoolsOwnerProcess                   = 7
-	ProcessMempoolLaterOwnerProcess              = 8
-	PostTransactionServiceOwnerProcess           = 9
-	RestoreMempoolsBackupOwnerProcess            = 10
-	ReceivedTransactionOwnerProcess              = 11
-	DeleteExpiredMempoolTransactionsOwnerProcess = 12
-	InsertAddressInfoOwnerProcess                = 13
-	UpdateAddrressInfoOwnerProcess               = 14
-	ConfirmNodeAddressInfoOwnerProcess           = 15
-	DeletePendingNodeAddressInfoOwnerProcess     = 16
-	ExpiringPendingTransactionsOwnerProcess      = 17
-	GenerateReceiptsMerkleRootOwnerProcess       = 18
-	InsertSnapshotPayloadToDBOwnerProcess        = 19
-	CreateSpineBlockManifestOwnerProcess         = 20
-	ExpiringEscrowTransactionsOwnerProcess       = 21
-)
-
 var (
 	// todo: andy-shi88 reporting data, tidy this up to let cliMonitor, prometheus, and status to fetch from single source
 	lastMainBlock, lastSpineBlock            model.Block

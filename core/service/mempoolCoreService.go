@@ -410,9 +410,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	isGenerateReceipt bool,
 ) (*model.Receipt, error) {
 	var (
-		err        error
-		receivedTx *model.Transaction
-		receipt    *model.Receipt
+		err                  error
+		receivedTx           *model.Transaction
+		receipt              *model.Receipt
+		isHighPriorityDbLock = false
 	)
 	receipt, receivedTx, err = mps.ProcessReceivedTransaction(
 		senderPublicKey,
@@ -428,35 +429,33 @@ func (mps *MempoolService) ReceivedTransaction(
 	if receivedTx == nil {
 		return receipt, nil
 	}
-	err = mps.QueryExecutor.BeginTx(false, monitoring.ReceivedTransactionOwnerProcess)
+	err = mps.QueryExecutor.BeginTx(isHighPriorityDbLock, monitoring.ReceivedTransactionOwnerProcess)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+	err = func() error {
+		txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+		if err != nil {
+			return err
+		}
+		err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
+		if err != nil {
+			return err
+		}
+		// Store to Mempool Transaction
+		if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
-		rollbackErr := mps.QueryExecutor.RollbackTx(false)
+		rollbackErr := mps.QueryExecutor.RollbackTx(isHighPriorityDbLock)
 		if rollbackErr != nil {
 			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
 		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
-	if err != nil {
-		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	// Store to Mempool Transaction
-	if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
-		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	err = mps.QueryExecutor.CommitTx(false)
+	err = mps.QueryExecutor.CommitTx(isHighPriorityDbLock)
 	if err != nil {
 		mps.Logger.Warnf("error committing db transaction: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
