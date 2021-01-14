@@ -96,18 +96,18 @@ lock the struct on begin
 */
 func (qe *Executor) BeginTx(highPriorityLock bool, ownerProcess int) error {
 	if highPriorityLock {
-		// qe.Lock.HighPriorityLock(ownerProcess)
+		qe.Lock.HighPriorityLock(ownerProcess)
 	} else {
-		// qe.Lock.Lock(ownerProcess)
+		qe.Lock.Lock(ownerProcess)
 	}
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
 
 	if err != nil {
 		if highPriorityLock {
-			// qe.Lock.HighPriorityUnlock()
+			qe.Lock.HighPriorityUnlock()
 		} else {
-			// qe.Lock.Unlock()
+			qe.Lock.Unlock()
 		}
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
@@ -257,9 +257,9 @@ func (qe *Executor) CommitTx(highPriorityLock bool) error {
 	defer func() {
 		qe.Tx = nil
 		if highPriorityLock {
-			// qe.Lock.HighPriorityUnlock()
+			qe.Lock.HighPriorityUnlock()
 		} else {
-			// qe.Lock.Unlock()
+			qe.Lock.Unlock()
 		}
 	}()
 	err := qe.Tx.Commit()
@@ -282,9 +282,9 @@ func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 	defer func() {
 		qe.Tx = nil
 		if highPriorityLock {
-			// qe.Lock.HighPriorityUnlock()
+			qe.Lock.HighPriorityUnlock()
 		} else {
-			// qe.Lock.Unlock()
+			qe.Lock.Unlock()
 		}
 	}()
 	var err = qe.Tx.Rollback()
