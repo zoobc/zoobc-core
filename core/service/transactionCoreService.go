@@ -57,6 +57,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
@@ -239,7 +240,7 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 
 	if len(escrows) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx(false)
+			err = tg.QueryExecutor.BeginTx(false, monitoring.ExpiringEscrowTransactionsOwnerProcess)
 			if err != nil {
 				return err
 			}

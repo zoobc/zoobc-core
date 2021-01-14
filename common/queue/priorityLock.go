@@ -20,9 +20,9 @@ import (
 )
 
 type PriorityLock interface {
-	Lock()
+	Lock(ownerProcess int)
 	Unlock()
-	HighPriorityLock()
+	HighPriorityLock(ownerProcess int)
 	HighPriorityUnlock()
 }
 
@@ -49,8 +49,8 @@ func NewPriorityPreferenceLock() *PriorityPreferenceLock {
 
 // Lock will acquire a low-priority lock
 // it must wait until both low priority and all high priority lock holders are released.
-func (lock *PriorityPreferenceLock) Lock() {
-	monitoring.IncrementDbLockCounter(0)
+func (lock *PriorityPreferenceLock) Lock(ownerProcess int) {
+	monitoring.IncrementDbLockCounter(0, ownerProcess)
 	lock.lowPriorityMutex.Lock()
 	lock.highPriorityWaiting.Wait()
 	lock.nextToAccess.Lock()
@@ -67,8 +67,8 @@ func (lock *PriorityPreferenceLock) Unlock() {
 
 // HighPriorityLock will acquire a high-priority lock
 // it must still wait until a low-priority lock has been released and then potentially other high priority lock contenders.
-func (lock *PriorityPreferenceLock) HighPriorityLock() {
-	monitoring.IncrementDbLockCounter(1)
+func (lock *PriorityPreferenceLock) HighPriorityLock(ownerProcess int) {
+	monitoring.IncrementDbLockCounter(1, ownerProcess)
 	lock.highPriorityWaiting.Add(1)
 	lock.nextToAccess.Lock()
 	lock.dataMutex.Lock()

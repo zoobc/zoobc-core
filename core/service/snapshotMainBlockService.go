@@ -520,7 +520,7 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		}
 	}
-	err := ss.QueryExecutor.BeginTx(false)
+	err := ss.QueryExecutor.BeginTx(false, monitoring.InsertSnapshotPayloadToDBOwnerProcess)
 	if err != nil {
 		return err
 	}

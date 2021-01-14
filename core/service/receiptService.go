@@ -54,15 +54,17 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"golang.org/x/crypto/ed25519"
 	"sort"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -334,7 +336,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		err                      error
 	)
 	// NOTE: this is temporary solution, should be enhace after implement new receipt logic
-	err = rs.QueryExecutor.BeginTx(false)
+	err = rs.QueryExecutor.BeginTx(false, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
 	if err != nil {
 		return err
 	}

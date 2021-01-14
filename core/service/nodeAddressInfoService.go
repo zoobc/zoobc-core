@@ -388,7 +388,7 @@ func (nru *NodeAddressInfoService) CountRegistredNodeAddressWithAddressInfo() (i
 }
 
 func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx(false)
+	var err = nru.QueryExecutor.BeginTx(false, monitoring.InsertAddressInfoOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -412,7 +412,7 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx(false)
+	var err = nru.QueryExecutor.BeginTx(false, monitoring.UpdateAddrressInfoOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -442,7 +442,7 @@ func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo
 	pendingNodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	var (
 		queries = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-		err     = nru.QueryExecutor.BeginTx(false)
+		err     = nru.QueryExecutor.BeginTx(false, monitoring.ConfirmNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
@@ -498,7 +498,7 @@ func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) er
 			nodeAddressInfoStatuses,
 		)
 		// start db transaction here
-		err = nru.QueryExecutor.BeginTx(false)
+		err = nru.QueryExecutor.BeginTx(false, monitoring.DeletePendingNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err

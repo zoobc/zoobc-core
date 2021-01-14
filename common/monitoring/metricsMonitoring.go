@@ -54,6 +54,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -88,6 +89,7 @@ var (
 	P2PTxFilteredOutgoing              prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	dbLockGaugeVector                  *prometheus.GaugeVec
+	dbLockBlockingOwnerGaugeVector     *prometheus.GaugeVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
 	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
@@ -134,6 +136,38 @@ const (
 	P2pGetNextBlockIDsClient             = "P2pGetNextBlockIDsClient"
 	P2pGetNextBlocksClient               = "P2pGetNextBlocksClient"
 	P2pRequestFileDownloadClient         = "P2pRequestFileDownloadClient"
+)
+
+// setting a big number to avoid losing count of important process
+const limitProcessOwnerQueue = 10000000
+
+var (
+	processOwnerQueue      = []int{}
+	processOwnerQueueMutex sync.Mutex
+)
+
+const (
+	MigrationApplyOwnerProcess                   = 1
+	AddGenesisNextNodeAdmissionOwnerProcess      = 2
+	AddGenesisAccountOwnerProcess                = 3
+	MainPushBlockOwnerProcess                    = 4
+	SpinePushBlockOwnerProcess                   = 5
+	SpinePopOffToBlockOwnerProcess               = 6
+	BackupMempoolsOwnerProcess                   = 7
+	ProcessMempoolLaterOwnerProcess              = 8
+	PostTransactionServiceOwnerProcess           = 9
+	RestoreMempoolsBackupOwnerProcess            = 10
+	ReceivedTransactionOwnerProcess              = 11
+	DeleteExpiredMempoolTransactionsOwnerProcess = 12
+	InsertAddressInfoOwnerProcess                = 13
+	UpdateAddrressInfoOwnerProcess               = 14
+	ConfirmNodeAddressInfoOwnerProcess           = 15
+	DeletePendingNodeAddressInfoOwnerProcess     = 16
+	ExpiringPendingTransactionsOwnerProcess      = 17
+	GenerateReceiptsMerkleRootOwnerProcess       = 18
+	InsertSnapshotPayloadToDBOwnerProcess        = 19
+	CreateSpineBlockManifestOwnerProcess         = 20
+	ExpiringEscrowTransactionsOwnerProcess       = 21
 )
 
 var (
@@ -259,6 +293,12 @@ func SetMonitoringActive(isActive bool) {
 		Help: "db lock counter",
 	}, []string{"lock_type"})
 	prometheus.MustRegister(dbLockGaugeVector)
+
+	dbLockBlockingOwnerGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_lock_blocking_owner",
+		Help: "db lock counter",
+	}, []string{"lock_type"})
+	prometheus.MustRegister(dbLockBlockingOwnerGaugeVector)
 
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_status",
@@ -530,10 +570,17 @@ func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock in
 	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
-func IncrementDbLockCounter(priorityLock int) {
+func IncrementDbLockCounter(priorityLock, processOwner int) {
 	if !isMonitoringActive {
 		return
 	}
+
+	// to note down the locking
+	processOwnerQueueMutex.Lock()
+	if len(processOwnerQueue) < limitProcessOwnerQueue {
+		processOwnerQueue = append(processOwnerQueue, processOwner)
+	}
+	processOwnerQueueMutex.Unlock()
 
 	var name string
 	if priorityLock > 0 {
@@ -549,6 +596,12 @@ func DecrementDbLockCounter(priorityLock int) {
 		return
 	}
 
+	processOwnerQueueMutex.Lock()
+	if len(processOwnerQueue) < limitProcessOwnerQueue {
+		processOwnerQueue = processOwnerQueue[1:]
+	}
+	processOwnerQueueMutex.Unlock()
+
 	var name string
 	if priorityLock > 0 {
 		name = "highPriority"
@@ -556,6 +609,26 @@ func DecrementDbLockCounter(priorityLock int) {
 		name = "lowPriority"
 	}
 	dbLockGaugeVector.WithLabelValues(name).Dec()
+	if len(processOwnerQueue) == 0 {
+		SetDbLockBlockingOwner(priorityLock, -1)
+	} else {
+		SetDbLockBlockingOwner(priorityLock, processOwnerQueue[0])
+	}
+}
+
+func SetDbLockBlockingOwner(priorityLock, processOwner int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	var name string
+	if priorityLock > 0 {
+		name = "highPriority"
+	} else {
+		name = "lowPriority"
+	}
+
+	dbLockBlockingOwnerGaugeVector.WithLabelValues(name).Set(float64(processOwner))
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {

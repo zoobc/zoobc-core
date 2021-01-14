@@ -54,6 +54,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
@@ -121,7 +122,7 @@ func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uin
 
 	if len(pendingTransactions) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx(false)
+			err = tg.QueryExecutor.BeginTx(false, monitoring.ExpiringPendingTransactionsOwnerProcess)
 			if err != nil {
 				return err
 			}

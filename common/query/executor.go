@@ -52,6 +52,7 @@ package query
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/queue"
@@ -60,7 +61,7 @@ import (
 type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
-		BeginTx(highPriorityLock bool) error
+		BeginTx(highPriorityLock bool, ownerProcess int) error
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
@@ -93,11 +94,11 @@ func NewQueryExecutor(db *sql.DB, lock queue.PriorityLock) *Executor {
 BeginTx begin database transaction and assign it to the Executor.Tx
 lock the struct on begin
 */
-func (qe *Executor) BeginTx(highPriorityLock bool) error {
+func (qe *Executor) BeginTx(highPriorityLock bool, ownerProcess int) error {
 	if highPriorityLock {
-		qe.Lock.HighPriorityLock()
+		qe.Lock.HighPriorityLock(ownerProcess)
 	} else {
-		qe.Lock.Lock()
+		qe.Lock.Lock(ownerProcess)
 	}
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
@@ -120,8 +121,6 @@ return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) Execute(query string) (sql.Result, error) {
-	qe.Lock.Lock()
-	defer qe.Lock.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	result, err := qe.Db.Exec(query)
 
@@ -137,8 +136,6 @@ return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
-	qe.Lock.Lock()
-	defer qe.Lock.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	stmt, err := qe.Db.Prepare(query)
 

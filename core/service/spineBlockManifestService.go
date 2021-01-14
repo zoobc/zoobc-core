@@ -57,6 +57,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -239,7 +240,7 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 		return nil, err
 	}
 	spineBlockManifest.ID = megablockID
-	if err := ss.QueryExecutor.BeginTx(false); err != nil {
+	if err := ss.QueryExecutor.BeginTx(false, monitoring.CreateSpineBlockManifestOwnerProcess); err != nil {
 		return nil, err
 	}
 	if err := ss.InsertSpineBlockManifest(spineBlockManifest); err != nil {
