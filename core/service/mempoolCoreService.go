@@ -413,7 +413,7 @@ func (mps *MempoolService) ReceivedTransaction(
 		err                  error
 		receivedTx           *model.Transaction
 		receipt              *model.Receipt
-		isHighPriorityDbLock = false
+		isHighPriorityDbLock = true
 	)
 	receipt, receivedTx, err = mps.ProcessReceivedTransaction(
 		senderPublicKey,
