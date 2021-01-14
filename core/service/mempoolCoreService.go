@@ -655,9 +655,10 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
-		mempoolsBackup []*model.Transaction
-		err            error
-		backupMempools = make(map[int64][]byte)
+		mempoolsBackup        []*model.Transaction
+		err                   error
+		backupMempools        = make(map[int64][]byte)
+		dbTransactionPriority = true
 	)
 
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 301)
@@ -671,7 +672,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 303)
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 304)
-	err = mps.QueryExecutor.BeginTx(false)
+	err = mps.QueryExecutor.BeginTx(dbTransactionPriority)
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 305)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 306)
@@ -689,7 +690,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 309)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 310)
-			rollbackErr := mps.QueryExecutor.RollbackTx(false)
+			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 311)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 312)
@@ -703,7 +704,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 315)
-			rollbackErr := mps.QueryExecutor.RollbackTx(false)
+			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 316)
 				mps.Logger.Warnf("[BackupMempools] UndoApplyUnconfirmed failed - %v", rollbackErr)
@@ -716,7 +717,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		mempoolByte, err = mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 319)
-			rollbackErr := mps.QueryExecutor.RollbackTx(false)
+			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 320)
 				mps.Logger.Warnf("[BackupMempools] GetTransactionBytes failed - %v", rollbackErr)
@@ -735,7 +736,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 324)
-			rollbackErr := mps.QueryExecutor.RollbackTx(false)
+			rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
 			if rollbackErr != nil {
 				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 325)
 				mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
@@ -749,7 +750,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 328)
-		rollbackErr := mps.QueryExecutor.RollbackTx(false)
+		rollbackErr := mps.QueryExecutor.RollbackTx(dbTransactionPriority)
 		if rollbackErr != nil {
 			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 329)
 			mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
@@ -764,7 +765,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		return err
 	}
 	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 333)
-	err = mps.QueryExecutor.CommitTx(false)
+	err = mps.QueryExecutor.CommitTx(dbTransactionPriority)
 	if err != nil {
 		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 334)
 		return err
