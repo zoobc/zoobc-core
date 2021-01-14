@@ -98,12 +98,16 @@ func logProcessOwnerQueue(priorityLock int) {
 	if priorityLock > 0 {
 		if len(processOwnerQueueHighPriority) == 0 {
 			SetDbLockBlockingOwner(name, -1)
+		} else if processOwnerQueueHighPriority[0] == 11 {
+
 		} else {
 			SetDbLockBlockingOwner(name, processOwnerQueueHighPriority[0])
 		}
 	} else {
 		if len(processOwnerQueueLowPriority) == 0 {
 			SetDbLockBlockingOwner(name, -1)
+		} else if processOwnerQueueHighPriority[0] == 11 {
+
 		} else {
 			SetDbLockBlockingOwner(name, processOwnerQueueLowPriority[0])
 		}
