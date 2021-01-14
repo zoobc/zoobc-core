@@ -402,23 +402,8 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var (
-		isDbTransactionHighPriority = false
-		err                         = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.UpdateAddrressInfoOwnerProcess)
-	)
-	if err != nil {
-		return err
-	}
-	qryArgs := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
-		if errRollback != nil {
-			nru.Logger.Error(errRollback)
-		}
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
+	qry, args := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args)
 	if err != nil {
 		return err
 	}

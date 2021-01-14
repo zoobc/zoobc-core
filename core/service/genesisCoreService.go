@@ -239,13 +239,11 @@ func AddGenesisNextNodeAdmission(
 	}
 	err = executor.ExecuteTransactions(insertQueries)
 	if err != nil {
-
 		rollbackErr := executor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
-
 	}
 	err = executor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
