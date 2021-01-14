@@ -552,9 +552,9 @@ And this will create migration table included version of migration
 func (m *Migration) Apply() error {
 
 	var (
-		migrations       = m.Versions
-		err              error
-		highPriorityLock = true
+		migrations                  = m.Versions
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 
 	if m.CurrentVersion != nil {
@@ -563,13 +563,13 @@ func (m *Migration) Apply() error {
 
 	for v, qStr := range migrations {
 		version := v
-		err = m.Query.BeginTx(highPriorityLock, monitoring.MigrationApplyOwnerProcess)
+		err = m.Query.BeginTx(isDbTransactionHighPriority, monitoring.MigrationApplyOwnerProcess)
 		if err != nil {
 			return err
 		}
 		err = m.Query.ExecuteTransaction(qStr)
 		if err != nil {
-			rollbackErr := m.Query.RollbackTx(highPriorityLock)
+			rollbackErr := m.Query.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				log.Errorln(rollbackErr.Error())
 			}
@@ -593,14 +593,14 @@ func (m *Migration) Apply() error {
 			`)
 		}
 		if err != nil {
-			rollbackErr := m.Query.RollbackTx(highPriorityLock)
+			rollbackErr := m.Query.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				log.Errorln(rollbackErr.Error())
 			}
 			return err
 		}
 
-		err = m.Query.CommitTx(highPriorityLock)
+		err = m.Query.CommitTx(isDbTransactionHighPriority)
 		if err != nil {
 			return err
 		}

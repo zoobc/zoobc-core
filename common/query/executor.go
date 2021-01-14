@@ -254,7 +254,6 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 // note: rollback is called in this function if commit fail, to avoid locking complication
 func (qe *Executor) CommitTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
-	err := qe.Tx.Commit()
 	defer func() {
 		qe.Tx = nil
 		if highPriorityLock {
@@ -263,6 +262,7 @@ func (qe *Executor) CommitTx(highPriorityLock bool) error {
 			qe.Lock.Unlock()
 		}
 	}()
+	err := qe.Tx.Commit()
 	if err != nil {
 		var errRollback = qe.Tx.Rollback()
 		if errRollback != nil {
@@ -279,7 +279,6 @@ func (qe *Executor) CommitTx(highPriorityLock bool) error {
 // RollbackTx rollback and unlock executor in case any single tx fail
 func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
-	var err = qe.Tx.Rollback()
 	defer func() {
 		qe.Tx = nil
 		if highPriorityLock {
@@ -288,6 +287,7 @@ func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 			qe.Lock.Unlock()
 		}
 	}()
+	var err = qe.Tx.Rollback()
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

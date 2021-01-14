@@ -402,20 +402,23 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx(false, monitoring.UpdateAddrressInfoOwnerProcess)
+	var (
+		isDbTransactionHighPriority = false
+		err                         = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.UpdateAddrressInfoOwnerProcess)
+	)
 	if err != nil {
 		return err
 	}
 	qryArgs := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
 	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
 	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx(false)
+		errRollback := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if errRollback != nil {
 			nru.Logger.Error(errRollback)
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx(false)
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -431,21 +434,22 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	pendingNodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	var (
-		queries = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-		err     = nru.QueryExecutor.BeginTx(false, monitoring.ConfirmNodeAddressInfoOwnerProcess)
+		isDbTransactionHighPriority = false
+		queries                     = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
+		err                         = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ConfirmNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		rollbackErr := nru.QueryExecutor.RollbackTx(false)
+		rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx(false)
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -487,20 +491,21 @@ func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) er
 			nodeID,
 			nodeAddressInfoStatuses,
 		)
+		isDbTransactionHighPriority = false
 		// start db transaction here
-		err = nru.QueryExecutor.BeginTx(false, monitoring.DeletePendingNodeAddressInfoOwnerProcess)
+		err = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.DeletePendingNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
-		if rollbackErr := nru.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+		if rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			nru.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx(false)
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
