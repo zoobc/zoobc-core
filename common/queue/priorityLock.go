@@ -36,12 +36,12 @@ type PriorityPreferenceLock struct {
 	dataMutex           sync.Mutex
 	nextToAccess        sync.Mutex
 	lowPriorityMutex    sync.Mutex
-	highPriorityWaiting *UnrestrictiveWaitGroup
+	highPriorityWaiting sync.WaitGroup
 }
 
 func NewPriorityPreferenceLock() *PriorityPreferenceLock {
 	lock := PriorityPreferenceLock{
-		highPriorityWaiting: &UnrestrictiveWaitGroup{},
+		highPriorityWaiting: sync.WaitGroup{},
 	}
 
 	return &lock
