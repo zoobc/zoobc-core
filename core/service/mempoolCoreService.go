@@ -443,7 +443,7 @@ func (mps *MempoolService) ReceivedTransaction(
 			return err
 		}
 
-		// Store the transaction to Mempool Transaction
+		// Store the transaction to Mempool
 		if err := mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
 			return err
 		}
