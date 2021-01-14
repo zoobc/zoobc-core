@@ -61,6 +61,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -659,86 +660,123 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		backupMempools = make(map[int64][]byte)
 	)
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 301)
 	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
 	if err != nil {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 302)
 		return err
 	}
 	mps.Logger.Warnf("mempool tx want to backup %d in total at block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 303)
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 304)
 	err = mps.QueryExecutor.BeginTx(false)
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 305)
 	if err != nil {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 306)
 		return err
 	}
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 307)
 	for _, mempoolTx := range mempoolsBackup {
 		var (
 			txType      transaction.TypeAction
 			mempoolByte []byte
 		)
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 308)
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(mempoolTx)
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 309)
 		if err != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 310)
 			rollbackErr := mps.QueryExecutor.RollbackTx(false)
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 311)
 			if rollbackErr != nil {
+				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 312)
 				mps.Logger.Warnf("[BackupMempools] GetTransactionType failed - %v", rollbackErr)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 313)
 			return err
 		}
 
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 314)
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 315)
 			rollbackErr := mps.QueryExecutor.RollbackTx(false)
 			if rollbackErr != nil {
+				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 316)
 				mps.Logger.Warnf("[BackupMempools] UndoApplyUnconfirmed failed - %v", rollbackErr)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 317)
 			return err
 		}
 
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 318)
 		mempoolByte, err = mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 319)
 			rollbackErr := mps.QueryExecutor.RollbackTx(false)
 			if rollbackErr != nil {
+				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 320)
 				mps.Logger.Warnf("[BackupMempools] GetTransactionBytes failed - %v", rollbackErr)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 321)
 			return err
 		}
 
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 322)
 		backupMempools[mempoolTx.GetID()] = mempoolByte
 	}
 
 	for _, dQuery := range derivedQueries {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 323)
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 324)
 			rollbackErr := mps.QueryExecutor.RollbackTx(false)
 			if rollbackErr != nil {
+				monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 325)
 				mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 326)
 			return err
 		}
 	}
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 327)
 	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 328)
 		rollbackErr := mps.QueryExecutor.RollbackTx(false)
 		if rollbackErr != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 329)
 			mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
 		}
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 330)
 		initMempoolErr := mps.InitMempoolTransaction()
 		if initMempoolErr != nil {
+			monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 331)
 			mps.Logger.Warnf("[BackupMempools] Ini Mempools failed - %v", initMempoolErr)
 		}
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 332)
 		return err
 	}
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 333)
 	err = mps.QueryExecutor.CommitTx(false)
 	if err != nil {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 334)
 		return err
 	}
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 335)
 	err = mps.MempoolBackupStorage.SetItems(backupMempools)
 	if err != nil {
+		monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 336)
 		return err
 	}
 
+	monitoring.IncrementMainchainDownloadCycleDebugger(mps.Chaintype, 337)
 	return nil
 }
