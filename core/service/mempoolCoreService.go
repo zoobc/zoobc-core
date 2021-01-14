@@ -438,12 +438,11 @@ func (mps *MempoolService) ReceivedTransaction(
 		if err != nil {
 			return err
 		}
-		err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
-		if err != nil {
+		if err := mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType); err != nil {
 			return err
 		}
 		// Store to Mempool Transaction
-		if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
+		if err := mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
 			return err
 		}
 		return nil
