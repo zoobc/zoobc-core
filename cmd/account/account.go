@@ -52,8 +52,9 @@ package account
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"log"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
@@ -283,7 +284,7 @@ DELETE FROM account_address;
 			return
 		}
 
-		err = queryExecutor.BeginTx(false)
+		err = queryExecutor.BeginTx(false, 0)
 		if err != nil {
 			log.Fatal("Failed begin Tx Err: ", err.Error())
 			return
