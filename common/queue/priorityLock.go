@@ -52,7 +52,7 @@ func NewPriorityPreferenceLock() *PriorityPreferenceLock {
 func (lock *PriorityPreferenceLock) Lock(ownerProcess int) {
 	monitoring.IncrementDbLockCounter(0, ownerProcess)
 	lock.lowPriorityMutex.Lock()
-	// lock.highPriorityWaiting.Wait()
+	lock.highPriorityWaiting.Wait()
 	lock.nextToAccess.Lock()
 	lock.dataMutex.Lock()
 	lock.nextToAccess.Unlock()
@@ -69,7 +69,7 @@ func (lock *PriorityPreferenceLock) Unlock() {
 // it must still wait until a low-priority lock has been released and then potentially other high priority lock contenders.
 func (lock *PriorityPreferenceLock) HighPriorityLock(ownerProcess int) {
 	monitoring.IncrementDbLockCounter(1, ownerProcess)
-	// lock.highPriorityWaiting.Add(1)
+	lock.highPriorityWaiting.Add(1)
 	lock.nextToAccess.Lock()
 	lock.dataMutex.Lock()
 	lock.nextToAccess.Unlock()
