@@ -54,12 +54,13 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"reflect"
+	"testing"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/queue"
 	"github.com/zoobc/zoobc-core/common/storage"
-	"reflect"
-	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
@@ -215,11 +216,11 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool,
 	return db.QueryRow(""), nil
 }
 
-func (*mockTransactionExecutorFailBeginTx) BeginTx(bool) error {
+func (*mockTransactionExecutorFailBeginTx) BeginTx(bool, int) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorSuccess) BeginTx(bool) error {
+func (*mockTransactionExecutorSuccess) BeginTx(bool, int) error {
 	return nil
 }
 
@@ -294,7 +295,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(bool) error {
+func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx(bool) error {

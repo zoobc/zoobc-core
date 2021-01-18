@@ -226,7 +226,7 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransacti
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx(bool) error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx(bool, int) error {
 	return nil
 }
 

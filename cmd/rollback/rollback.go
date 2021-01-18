@@ -51,6 +51,7 @@ package rollback
 
 import (
 	"fmt"
+
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/queue"
 
@@ -136,7 +137,7 @@ func rollbackBlockChain() RunCommand {
 			return
 		}
 
-		err = queryExecutor.BeginTx(false)
+		err = queryExecutor.BeginTx(false, 0)
 		if err != nil {
 			fmt.Println("Failed begin Tx Err: ", err.Error())
 			return
