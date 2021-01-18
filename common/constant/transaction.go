@@ -53,7 +53,7 @@ import "time"
 
 var (
 	MaxMessageLength                     = 256
-	MaxNumberOfTransactionsInBlock       = 330
+	MaxNumberOfTransactionsInBlock       = 500
 	MinTransactionSizeInBlock            = 176
 	MaxPayloadLengthInBlock              = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
 	TransactionExpirationOffset    int64 = 3600 // 3600 seconds

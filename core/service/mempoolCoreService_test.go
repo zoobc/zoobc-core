@@ -446,10 +446,10 @@ type (
 	}
 )
 
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) BeginTx() error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) BeginTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) CommitTx() error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) CommitTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteTransaction(string, ...interface{}) error {
@@ -471,13 +471,13 @@ func (*mockQueryExecutorDeleteExpiredMempoolTransactionsEmpty) ExecuteSelect(str
 }
 
 // Not Empty mempool
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) BeginTx() error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) BeginTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx() error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) CommitTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorDeleteExpiredMempoolTransactions) RollbackTx() error {
+func (*mockQueryExecutorDeleteExpiredMempoolTransactions) RollbackTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorDeleteExpiredMempoolTransactions) ExecuteTransaction(string, ...interface{}) error {
@@ -1021,10 +1021,10 @@ func (*mockMempoolQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, arg
 	mock.ExpectQuery("").WillReturnRows(mockedRow)
 	return db.QueryRow(""), nil
 }
-func (*mockMempoolQueryExecutorSuccess) BeginTx() error {
+func (*mockMempoolQueryExecutorSuccess) BeginTx(bool) error {
 	return nil
 }
-func (*mockMempoolQueryExecutorSuccess) CommitTx() error {
+func (*mockMempoolQueryExecutorSuccess) CommitTx(bool) error {
 	return nil
 }
 

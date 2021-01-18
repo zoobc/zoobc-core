@@ -51,6 +51,7 @@ package database
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"regexp"
 	"testing"
 
@@ -111,7 +112,7 @@ func TestMigration_Init(t *testing.T) {
 						"created_date" TIMESTAMP NOT NULL
 					);`,
 				},
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 			wantErr: false,
 		},
@@ -163,7 +164,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorVersionNil) BeginTx() error {
+func (*mockQueryExecutorVersionNil) BeginTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -178,7 +179,7 @@ func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...inte
 	_, err = stmt.Exec(args...)
 	return err
 }
-func (*mockQueryExecutorVersionNil) CommitTx() error {
+func (*mockQueryExecutorVersionNil) CommitTx(bool) error {
 	return nil
 }
 func TestMigration_Apply(t *testing.T) {
@@ -211,7 +212,7 @@ func TestMigration_Apply(t *testing.T) {
 				},
 				CurrentVersion: &currentVersion,
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock},
+					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
 				},
 			},
 			wantErr: false,
@@ -228,7 +229,7 @@ func TestMigration_Apply(t *testing.T) {
 					);`,
 				},
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock},
+					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
 				},
 			},
 			wantErr: false,

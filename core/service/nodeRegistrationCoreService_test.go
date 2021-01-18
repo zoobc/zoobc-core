@@ -333,11 +333,11 @@ func (*nrsMockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{})
 	return nil
 }
 
-func (*nrsMockQueryExecutorSuccess) BeginTx() error { return nil }
+func (*nrsMockQueryExecutorSuccess) BeginTx(bool) error { return nil }
 
-func (*nrsMockQueryExecutorSuccess) RollbackTx() error { return nil }
+func (*nrsMockQueryExecutorSuccess) RollbackTx(bool) error { return nil }
 
-func (*nrsMockQueryExecutorSuccess) CommitTx() error { return nil }
+func (*nrsMockQueryExecutorSuccess) CommitTx(bool) error { return nil }
 
 type (
 	mockNodeRegistryCacheSelectNodesToBeAdmittedSuccess struct {
