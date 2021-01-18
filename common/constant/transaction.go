@@ -52,7 +52,8 @@ package constant
 import "time"
 
 var (
-	MaxMessageLength                     = 256
+	MaxMessageLength                     = 64000  // 64kb
+	MaxMessageLengthEscrow               = 128000 // 128kb
 	MaxNumberOfTransactionsInBlock       = 500
 	MinTransactionSizeInBlock            = 176
 	MaxPayloadLengthInBlock              = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
