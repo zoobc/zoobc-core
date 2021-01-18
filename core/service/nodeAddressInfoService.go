@@ -51,6 +51,7 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -402,6 +403,9 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
+	if nodeAddressInfo == nil {
+		return errors.New("invalid nodeaddressinfo")
+	}
 	qry, args := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
 	_, err := nru.QueryExecutor.ExecuteStatement(qry, args)
 	if err != nil {

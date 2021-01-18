@@ -2237,43 +2237,6 @@ func TestNodeAddressInfoService_UpdateAddrressInfo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "UpdateAddressInfo:FailBeginTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailBeginTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: nil,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailRollbackTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailRollbackTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-				Logger:                 log.New(),
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailCommitTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailCommitTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
-		},
-		{
 			name: "InsertAddressInfo:FailSetItem",
 			fields: fields{
 				QueryExecutor:          &mockNaiQueryExecutorSuccess{},

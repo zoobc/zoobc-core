@@ -105,8 +105,7 @@ func TestExecutor_Execute(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			qe := &Executor{
-				Db:   tt.fields.Db,
-				Lock: tt.fields.Lock,
+				Db: tt.fields.Db,
 			}
 			_, err := qe.Execute(tt.args.query)
 			if (err != nil) != tt.wantErr {
@@ -197,7 +196,7 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		mock.ExpectPrepare("insert into").WillReturnError(errors.New("mockError"))
 
 		// test error prepare
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err == nil {
 			t.Error("should return error if prepare fail")
@@ -207,7 +206,7 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnError(errors.New("mockError"))
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err == nil {
 			t.Error("should return error if exec fail")
@@ -217,7 +216,7 @@ func TestExecutor_ExecuteStatement(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		defer db.Close()
 		mock.ExpectPrepare("insert into").ExpectExec().WithArgs(1, []byte{1, 2, 34}).WillReturnResult(sqlmock.NewResult(1, 1))
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_, err := executor.ExecuteStatement("insert into blocks(id, blocksmith_id) values(?, ?)", 1, []byte{1, 2, 34})
 		if err != nil {
 			t.Error("should return error if exec fail")
@@ -281,7 +280,7 @@ func TestExecutor_BeginTx(t *testing.T) {
 	t.Run("fail:beginFail", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		mock.ExpectBegin().WillReturnError(errors.New("mockError:beginFail"))
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		err := executor.BeginTx(false, 0)
 		if err == nil {
 			t.Errorf("begin tx should fail:begin fail")
@@ -290,7 +289,7 @@ func TestExecutor_BeginTx(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		db, mock, _ := sqlmock.New()
 		mock.ExpectBegin()
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		err := executor.BeginTx(false, 0)
 		if err != nil {
 			t.Errorf("begin tx should not fail")
@@ -305,8 +304,7 @@ func TestExecutor_CommitTx(t *testing.T) {
 		mock.ExpectCommit().WillReturnError(errors.New("mockError:commitFail"))
 
 		executor := Executor{
-			Db:   db,
-			Lock: queue.NewPriorityPreferenceLock(),
+			Db: db,
 		}
 		_ = executor.BeginTx(false, 0)
 		err := executor.CommitTx(false)
@@ -320,8 +318,7 @@ func TestExecutor_CommitTx(t *testing.T) {
 		mock.ExpectCommit()
 
 		executor := Executor{
-			Db:   db,
-			Lock: queue.NewPriorityPreferenceLock(),
+			Db: db,
 		}
 		_ = executor.BeginTx(false, 0)
 		err := executor.CommitTx(false)
@@ -338,8 +335,7 @@ func TestExecutor_RollbackTx(t *testing.T) {
 		mock.ExpectRollback().WillReturnError(errors.New("mockError:rollbackFail"))
 
 		executor := Executor{
-			Db:   db,
-			Lock: queue.NewPriorityPreferenceLock(),
+			Db: db,
 		}
 		_ = executor.BeginTx(false, 0)
 		err := executor.RollbackTx(false)
@@ -353,8 +349,7 @@ func TestExecutor_RollbackTx(t *testing.T) {
 		mock.ExpectRollback()
 
 		executor := Executor{
-			Db:   db,
-			Lock: queue.NewPriorityPreferenceLock(),
+			Db: db,
 		}
 		_ = executor.BeginTx(false, 0)
 		err := executor.RollbackTx(false)
@@ -377,12 +372,10 @@ func TestNewQueryExecutor(t *testing.T) {
 		{
 			name: "NewQueryExecutor:success",
 			args: args{
-				db:   nil,
-				lock: queue.NewPriorityPreferenceLock(),
+				db: nil,
 			},
 			want: &Executor{
-				Db:   nil,
-				Lock: queue.NewPriorityPreferenceLock(),
+				Db: nil,
 			},
 		},
 	}
@@ -449,7 +442,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 			},
 		}
 		// test error prepare
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_ = executor.BeginTx(false, 0)
 		err := executor.ExecuteTransactions(queries)
 		if err == nil {
@@ -473,7 +466,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 			insertBlockQuery, 1, []byte{1, 2, 14},
 		})
 		// test error prepare
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_ = executor.BeginTx(false, 0)
 		err := executor.ExecuteTransactions(queries)
 		if err != nil {
@@ -496,7 +489,7 @@ func TestExecutor_ExecuteTransactions(t *testing.T) {
 			insertBlockQuery, 1, []byte{1, 2, 14},
 		})
 		// test error prepare
-		executor := Executor{Db: db, Lock: queue.NewPriorityPreferenceLock()}
+		executor := Executor{Db: db}
 		_ = executor.BeginTx(false, 0)
 		err := executor.ExecuteTransactions(queries)
 		if err == nil {
