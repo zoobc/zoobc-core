@@ -114,7 +114,7 @@ func (paq *NodeAddressInfoQuery) InsertNodeAddressInfo(peerAddress *model.NodeAd
 }
 
 // UpdateNodeAddressInfo returns a slice of queries/query parameters containing the update query to be executed.
-func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) (string, []interface{}) {
+func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) (qry string, args []interface{}) {
 	qryUpdate := fmt.Sprintf(
 		"UPDATE %s SET"+
 			" address = ?,"+
