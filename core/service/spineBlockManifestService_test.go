@@ -87,14 +87,14 @@ func (*mockSpineBlockManifestServiceQueryExecutor) ExecuteTransactions(queries [
 	return nil
 }
 
-func (*mockSpineBlockManifestServiceQueryExecutor) BeginTx() error {
+func (*mockSpineBlockManifestServiceQueryExecutor) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockSpineBlockManifestServiceQueryExecutor) RollbackTx() error {
+func (*mockSpineBlockManifestServiceQueryExecutor) RollbackTx(bool) error {
 	return nil
 }
-func (*mockSpineBlockManifestServiceQueryExecutor) CommitTx() error {
+func (*mockSpineBlockManifestServiceQueryExecutor) CommitTx(bool) error {
 	return nil
 }
 

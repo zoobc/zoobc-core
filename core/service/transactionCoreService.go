@@ -57,6 +57,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
@@ -214,13 +215,14 @@ func (tg *TransactionCoreService) GetTransactionsByBlockID(blockID int64) ([]*mo
 // query lock from outside (PushBlock)
 func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32, blockTimestamp int64, useTX bool) error {
 	var (
-		escrows []*model.Escrow
-		rows    *sql.Rows
-		err     error
+		escrows                     []*model.Escrow
+		rows                        *sql.Rows
+		err                         error
+		isDbTransactionHighPriority = false
 	)
 
 	err = func() error {
-		escrowQ := tg.EscrowTransactionQuery.GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight)
+		escrowQ := tg.EscrowTransactionQuery.GetExpiredEscrowTransactionsAtCurrentBlock(blockTimestamp)
 		rows, err = tg.QueryExecutor.ExecuteSelect(escrowQ, useTX)
 		if err != nil {
 			return err
@@ -239,7 +241,7 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 
 	if len(escrows) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx()
+			err = tg.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ExpiringEscrowTransactionsOwnerProcess)
 			if err != nil {
 				return err
 			}
@@ -286,13 +288,13 @@ func (tg *TransactionCoreService) ExpiringEscrowTransactions(blockHeight uint32,
 				And automatically unlock mutex
 			*/
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(); rollbackErr != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
 
-			err = tg.QueryExecutor.CommitTx()
+			err = tg.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 			if err != nil {
 				return err
 			}

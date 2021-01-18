@@ -51,6 +51,10 @@ package block
 
 import (
 	"fmt"
+	"strings"
+	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -70,8 +74,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
-	"strings"
-	"time"
 )
 
 type (
@@ -167,7 +169,7 @@ func initialize(
 	if err != nil {
 		panic(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 	mempoolStorage := storage.NewMempoolStorage()
 
 	actionSwitcher := &transaction.TypeSwitcher{

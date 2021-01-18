@@ -54,6 +54,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/zoobc/zoobc-core/common/queue"
+
 	"github.com/spf13/cobra"
 	"github.com/zoobc/zoobc-core/cmd/helper"
 	"github.com/zoobc/zoobc-core/common/accounttype"
@@ -259,7 +261,7 @@ func (gc *GeneratorCommands) GenerateAccountAddressTable() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
 		var (
 			dB, err                    = helper.GetSqliteDB(dbPath, "zoobc.db")
-			queryExecutor              = query.NewQueryExecutor(dB)
+			queryExecutor              = query.NewQueryExecutor(dB, queue.NewPriorityPreferenceLock())
 			accountBalanceQuery        = query.NewAccountBalanceQuery()
 			selectAllAccountBalanceQry = fmt.Sprintf("SELECT DISTINCT account_address FROM %s",
 				accountBalanceQuery.TableName)
@@ -282,7 +284,7 @@ DELETE FROM account_address;
 			return
 		}
 
-		err = queryExecutor.BeginTx()
+		err = queryExecutor.BeginTx(false, 0)
 		if err != nil {
 			log.Fatal("Failed begin Tx Err: ", err.Error())
 			return
@@ -291,7 +293,7 @@ DELETE FROM account_address;
 		// create account_address table if doesn't exist
 		err = queryExecutor.ExecuteTransaction(createAccountAddressTableQry)
 		if err != nil {
-			err = queryExecutor.RollbackTx()
+			err = queryExecutor.RollbackTx(false)
 			if err != nil {
 				log.Fatal("Failed to run RollbackTX DB")
 			}
@@ -301,7 +303,7 @@ DELETE FROM account_address;
 		// select all (unique) account balances from account_balance table
 		accountBalanceRows, err := queryExecutor.ExecuteSelect(selectAllAccountBalanceQry, true)
 		if err != nil {
-			err = queryExecutor.RollbackTx()
+			err = queryExecutor.RollbackTx(false)
 			if err != nil {
 				log.Fatal("Failed to run RollbackTX DB")
 			}
@@ -318,7 +320,7 @@ DELETE FROM account_address;
 				&accountBalance.AccountAddress,
 			)
 			if err != nil {
-				err = queryExecutor.RollbackTx()
+				err = queryExecutor.RollbackTx(false)
 				if err != nil {
 					log.Fatal("Failed to run RollbackTX DB")
 				}
@@ -327,7 +329,7 @@ DELETE FROM account_address;
 			}
 			accType, err := accounttype.NewAccountTypeFromAccount(accountBalance.GetAccountAddress())
 			if err != nil {
-				err = queryExecutor.RollbackTx()
+				err = queryExecutor.RollbackTx(false)
 				if err != nil {
 					log.Fatal("Failed to run RollbackTX DB")
 				}
@@ -336,7 +338,7 @@ DELETE FROM account_address;
 			}
 			encodedAccountAddress, err = accType.GetEncodedAddress()
 			if err != nil {
-				err = queryExecutor.RollbackTx()
+				err = queryExecutor.RollbackTx(false)
 				if err != nil {
 					log.Fatal("Failed to run RollbackTX DB")
 				}
@@ -345,7 +347,7 @@ DELETE FROM account_address;
 			}
 			fullAddress, err := accType.GetAccountAddress()
 			if err != nil {
-				err = queryExecutor.RollbackTx()
+				err = queryExecutor.RollbackTx(false)
 				if err != nil {
 					log.Fatal("Failed to run RollbackTX DB")
 				}
@@ -366,14 +368,14 @@ DELETE FROM account_address;
 		err = queryExecutor.ExecuteTransactions(insertQueries)
 		if err != nil {
 			fmt.Println("Failed execute insert queries, ", err.Error())
-			err = queryExecutor.RollbackTx()
+			err = queryExecutor.RollbackTx(false)
 			if err != nil {
 				log.Fatal("Failed to run RollbackTX DB")
 			}
 			log.Fatal(err)
 			return
 		}
-		err = queryExecutor.CommitTx()
+		err = queryExecutor.CommitTx(false)
 		if err != nil {
 			log.Fatal("Failed to run CommitTx DB, err : ", err.Error())
 		}

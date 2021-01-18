@@ -55,9 +55,13 @@ var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
 	SQLMaxIdleConnections = 20
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
-	SQLMaxConnectionLifetime = 30 * time.Minute
+	// Setting it to 0 means that there is no maximum lifetime and the connection is reused forever (which is the default behavior).
+	SQLMaxConnectionLifetime = 10 * time.Second
+
 	// SQLMaxOpenConnetion represent the number of maximum open connetion to the database
-	SQLMaxOpenConnetion = 100
+	// Setting it to 1 'disables' the connection pool which could lead to db lock when in a multithreaded application (
+	// such as in a go application extensively using goroutines)
+	SQLMaxOpenConnetion = 500
 	// SQLiteLimitVariableNumber equivalent to SQLITE_LIMIT_VARIABLE_NUMBER from sqlite
 	SQLiteLimitVariableNumber = 999
 )

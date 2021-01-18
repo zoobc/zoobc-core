@@ -55,9 +55,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"log"
 	"os"
@@ -66,6 +63,10 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/common/monitoring"
 
@@ -77,6 +78,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -352,7 +354,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	queryExecutor := query.NewQueryExecutor(db)
+	queryExecutor := query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 	accountBalanceQuery := query.NewAccountBalanceQuery()
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	participationScoreQuery := query.NewParticipationScoreQuery()

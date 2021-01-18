@@ -275,11 +275,12 @@ func (fp *ForkingProcessor) ProcessFork(forkBlocks []*model.Block, commonBlock *
 
 func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 	var (
-		err     error
-		txBytes []byte
-		txType  transaction.TypeAction
+		err                         error
+		txBytes                     []byte
+		txType                      transaction.TypeAction
+		isDbTransactionHighPriority = true
 	)
-	err = fp.QueryExecutor.BeginTx()
+	err = fp.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ProcessMempoolLaterOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -315,14 +316,13 @@ func (fp *ForkingProcessor) ProcessLater(txs []*model.Transaction) error {
 			if errUndo != nil {
 				fp.Logger.Warnf("ProcessLater:UndoApplyUnconfirmedTransaction - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), errUndo.Error())
 				// rollback DB when fail undo spendable balance
-				return fp.QueryExecutor.RollbackTx()
+				return fp.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			}
 			fp.Logger.Warnf("ProcessLater:AddMempoolFail - tx.Height: %d - txID: %d - %s", tx.GetHeight(), tx.GetID(), err.Error())
 			continue
 		}
 	}
-	err = fp.QueryExecutor.CommitTx()
-	return err
+	return fp.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 }
 
 func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
@@ -333,8 +333,9 @@ func (fp *ForkingProcessor) ScheduleScan(height uint32, validate bool) {
 func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 
 	var (
-		err      error
-		mempools map[int64][]byte
+		err                         error
+		mempools                    map[int64][]byte
+		isDbTransactionHighPriority = true
 	)
 
 	err = fp.MempoolBackupStorage.GetAllItems(&mempools)
@@ -342,7 +343,7 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		return err
 	}
 	// Apply Unconfirmed
-	err = fp.QueryExecutor.BeginTx()
+	err = fp.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.RestoreMempoolsBackupOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -397,10 +398,10 @@ func (fp *ForkingProcessor) restoreMempoolsBackup() error {
 		}(id, &err)
 		// rollback DB when undo spendable balance fail
 		if err != nil {
-			return fp.QueryExecutor.RollbackTx()
+			return fp.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		}
 
 	}
-	err = fp.QueryExecutor.CommitTx()
+	err = fp.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	return err
 }
