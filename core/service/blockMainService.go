@@ -729,10 +729,10 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err              error
-		round            int64
-		start            = time.Now()
-		highPriorityLock = true
+		err                         error
+		round                       int64
+		start                       = time.Now()
+		isDbTransactionHighPriority = true
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -752,7 +752,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	}
 
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx(highPriorityLock)
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.MainPushBlockOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -760,14 +760,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	nodeAdmissionTimestamp, transactionIDs, err := bs.ProcessPushBlock(previousBlock, block, broadcast, persist, round)
 
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(err.Error(), highPriorityLock, false)
+		bs.queryAndCacheRollbackProcess(err.Error(), isDbTransactionHighPriority, false)
 		if castedError, ok := err.(blocker.Blocker); !ok || castedError.Type != blocker.IgnoredError {
 			return err
 		}
 		return nil
 	}
 
-	err = bs.QueryExecutor.CommitTx(highPriorityLock)
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -806,7 +806,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("", highPriorityLock, true)
+			bs.queryAndCacheRollbackProcess("", isDbTransactionHighPriority, true)
 			return err
 		}
 	}
@@ -830,7 +830,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 }
 
 // queryAndCacheRollbackProcess process to rollback database & cache after failed execute query
-func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, highPriorityLock, cacheOnly bool) {
+func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, isDbTransactionHighPriority, cacheOnly bool) {
 	// clear all cache in transactional list
 	var err = bs.NodeAddressInfoService.RollbackCacheTransaction()
 	if err != nil {
@@ -841,7 +841,7 @@ func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, hi
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
 	}
 	if !cacheOnly {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(highPriorityLock); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
 		}
 	}
@@ -1567,11 +1567,13 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// make sure this block contains all its attributes (transaction, receipts)
 	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
+
 		return nil, err
 	}
 	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
+
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return nil, nil
@@ -1579,6 +1581,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 
 	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
+
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
@@ -1587,6 +1590,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		block        = lastBlock
 	)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
+
 		poppedBlocks = append(poppedBlocks, block)
 		// make sure this block contains all its attributes (transaction, receipts)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
@@ -1598,6 +1602,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// note: rollback process do inside Backup Mempools func
 	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -1605,15 +1610,18 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(nil)
 	if err != nil {
+
 		return nil, err
 	}
 	err = bs.BlocksStorage.PopTo(commonBlock.Height)
 	if err != nil {
+
 		return nil, err
 	}
 	// update cache next node admission timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
+
 		return nil, err
 	}
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
@@ -1625,6 +1633,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// remove peer memoization
 	err = bs.ScrambleNodeService.PopOffScrambleToHeight(commonBlock.Height)
 	if err != nil {
+
 		return nil, err
 	}
 	/*
@@ -1636,10 +1645,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()
 	if err != nil {
+
 		return nil, err
 	}
 	// Need to sort ascending since was descended in above by Height
 	sort.Slice(poppedBlocks, func(i, j int) bool {
+
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
 	})
 
