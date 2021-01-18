@@ -226,11 +226,11 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransacti
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx() error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx(bool) error {
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) CommitTx() error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) CommitTx(bool) error {
 	return nil
 }
 

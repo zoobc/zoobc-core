@@ -33,6 +33,9 @@ dist/
 local.preRegisteredNodes.json
 core/service/testdata/snapshots/
 _*
+resource/templates/alpha*
+resource/templates/beta*
+resource/templates/certificates*
 
 *.db-shm
 *.db-wal

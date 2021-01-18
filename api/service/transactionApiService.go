@@ -342,7 +342,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
-	err = ts.Query.BeginTx()
+	err = ts.Query.BeginTx(false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -356,7 +356,7 @@ func (ts *TransactionService) PostTransaction(
 		err = txType.ApplyUnconfirmed()
 	}
 	if err != nil {
-		errRollback := ts.Query.RollbackTx()
+		errRollback := ts.Query.RollbackTx(false)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
@@ -365,13 +365,13 @@ func (ts *TransactionService) PostTransaction(
 	// Save to mempool
 	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
-		errRollback := ts.Query.RollbackTx()
+		errRollback := ts.Query.RollbackTx(false)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = ts.Query.CommitTx()
+	err = ts.Query.CommitTx(false)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

@@ -55,6 +55,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -163,6 +164,7 @@ var (
 	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
 	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
 	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
+	priorityPreferenceLock                                                 queue.PriorityLock
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -342,7 +344,7 @@ func initiateMainInstance() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, priorityPreferenceLock)
 
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
@@ -1254,6 +1256,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
 	rootCmd.PersistentFlags().StringVar(&flagResourcePath, "resource-path", "", "Resource path location")
 	config = model.NewConfig()
+	priorityPreferenceLock = queue.NewPriorityPreferenceLock()
 }
 
 func main() {

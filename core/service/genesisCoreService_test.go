@@ -51,6 +51,7 @@ package service
 
 import (
 	"errors"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -91,7 +92,8 @@ func TestAddGenesisAccount(t *testing.T) {
 		mock.ExpectCommit()
 		err := AddGenesisAccount(&mockExecutorAddGenesisAccountSuccess{
 			query.Executor{
-				Db: db,
+				Db:   db,
+				Lock: queue.NewPriorityPreferenceLock(),
 			},
 		})
 		if err != nil {
@@ -105,7 +107,8 @@ func TestAddGenesisAccount(t *testing.T) {
 		mock.ExpectRollback()
 		err := AddGenesisAccount(&mockExecutorAddGenesisAccountFailExecuteTransactions{
 			query.Executor{
-				Db: db,
+				Db:   db,
+				Lock: queue.NewPriorityPreferenceLock(),
 			},
 		})
 		if err == nil {
@@ -120,7 +123,8 @@ func TestAddGenesisAccount(t *testing.T) {
 		mock.ExpectRollback()
 		err := AddGenesisAccount(&mockExecutorAddGenesisAccountCommitFail{
 			query.Executor{
-				Db: db,
+				Db:   db,
+				Lock: queue.NewPriorityPreferenceLock(),
 			},
 		})
 		if err == nil {
