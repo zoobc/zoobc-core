@@ -52,6 +52,8 @@ package query
 import (
 	"database/sql"
 	"fmt"
+	"sync"
+
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/queue"
@@ -60,7 +62,7 @@ import (
 type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
-		BeginTx(highPriorityLock bool) error
+		BeginTx(highPriorityLock bool, ownerProcess int) error
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
@@ -75,17 +77,16 @@ type (
 
 	// Executor struct
 	Executor struct {
-		Db   *sql.DB
-		Lock queue.PriorityLock // mutex should only lock tx
-		Tx   *sql.Tx
+		Db           *sql.DB
+		sync.RWMutex // mutex should only lock tx
+		Tx           *sql.Tx
 	}
 )
 
 // NewQueryExecutor create new query executor instance
-func NewQueryExecutor(db *sql.DB, lock queue.PriorityLock) *Executor {
+func NewQueryExecutor(db *sql.DB, pL queue.PriorityLock) *Executor {
 	return &Executor{
-		Db:   db,
-		Lock: lock,
+		Db: db,
 	}
 }
 
@@ -93,21 +94,13 @@ func NewQueryExecutor(db *sql.DB, lock queue.PriorityLock) *Executor {
 BeginTx begin database transaction and assign it to the Executor.Tx
 lock the struct on begin
 */
-func (qe *Executor) BeginTx(highPriorityLock bool) error {
-	if highPriorityLock {
-		qe.Lock.HighPriorityLock()
-	} else {
-		qe.Lock.Lock()
-	}
+func (qe *Executor) BeginTx(highPriorityLock bool, ownerProcess int) error {
+	qe.Lock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
 
 	if err != nil {
-		if highPriorityLock {
-			qe.Lock.HighPriorityUnlock()
-		} else {
-			qe.Lock.Unlock()
-		}
+		qe.Unlock()
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	qe.Tx = tx
@@ -120,8 +113,8 @@ return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) Execute(query string) (sql.Result, error) {
-	qe.Lock.Lock()
-	defer qe.Lock.Unlock()
+	qe.Lock()
+	defer qe.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	result, err := qe.Db.Exec(query)
 
@@ -137,8 +130,8 @@ return error if query not executed successfully
 error will be nil otherwise.
 */
 func (qe *Executor) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
-	qe.Lock.Lock()
-	defer qe.Lock.Unlock()
+	qe.Lock()
+	defer qe.Unlock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	stmt, err := qe.Db.Prepare(query)
 
@@ -260,11 +253,8 @@ func (qe *Executor) CommitTx(highPriorityLock bool) error {
 	err := qe.Tx.Commit()
 	defer func() {
 		qe.Tx = nil
-		if highPriorityLock {
-			qe.Lock.HighPriorityUnlock()
-		} else {
-			qe.Lock.Unlock()
-		}
+		qe.Unlock() // either success or not struct access should be unlocked once done
+
 	}()
 	if err != nil {
 		var errRollback = qe.Tx.Rollback()
@@ -285,11 +275,7 @@ func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 	var err = qe.Tx.Rollback()
 	defer func() {
 		qe.Tx = nil
-		if highPriorityLock {
-			qe.Lock.HighPriorityUnlock()
-		} else {
-			qe.Lock.Unlock()
-		}
+		qe.Unlock()
 	}()
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())

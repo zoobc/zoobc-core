@@ -914,7 +914,7 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 	}
 }
 
-func (*mockSnapshotQueryExecutor) BeginTx(bool) error {
+func (*mockSnapshotQueryExecutor) BeginTx(bool, int) error {
 	return nil
 }
 

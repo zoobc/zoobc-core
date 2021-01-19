@@ -25,14 +25,14 @@ import (
 var mockData []string
 var logger = log.New(os.Stdout, "", 0)
 
-func lowPriorityRoutine(idx int, wg sync.WaitGroup, l sync.Locker, sleepDuration, holdDuration time.Duration) {
+func lowPriorityRoutine(idx int, wg sync.WaitGroup, l *PriorityPreferenceLock, sleepDuration, holdDuration time.Duration) {
 	wg.Add(1)
 	defer wg.Done()
 	if sleepDuration > 0 {
 		time.Sleep(sleepDuration)
 	}
 
-	l.Lock()
+	l.Lock(0)
 	defer l.Unlock()
 	logger.Println(fmt.Sprintf("[%d] [idx:%d] Acquired low priority lock", time.Now().UnixNano(), idx))
 	mockData = append(mockData, "lo")
@@ -49,7 +49,7 @@ func highPriorityRoutine(idx int, wg sync.WaitGroup, l PriorityLock, sleepDurati
 		time.Sleep(sleepDuration)
 	}
 
-	l.HighPriorityLock()
+	l.HighPriorityLock(0)
 	defer l.HighPriorityUnlock()
 	mockData = append(mockData, "hi")
 	logger.Println(fmt.Sprintf("[%d] [idx:%d] Acquired high priority lock", time.Now().UnixNano(), idx))
