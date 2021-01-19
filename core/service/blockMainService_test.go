@@ -61,6 +61,7 @@ import (
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 
@@ -1927,7 +1928,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				),
 				PublishedReceiptService:   &mockAddGenesisPublishedReceiptServiceSuccess{},
 				BlockStateStorage:         storage.NewBlockStateStorage(),
-				BlocksStorage:             storage.NewBlocksStorage(),
+				BlocksStorage:             storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage),
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
@@ -2965,7 +2966,7 @@ func TestBlockService_GenerateGenesisBlock(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    7825804377911541955,
+			want:    -8020119135376074617,
 		},
 	}
 	for _, tt := range tests {

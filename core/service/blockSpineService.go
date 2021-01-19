@@ -120,6 +120,7 @@ func NewBlockSpineService(
 	blockchainStatusService BlockchainStatusServiceInterface,
 	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
 	mainBlockService BlockServiceInterface,
+	blocksStorage storage.CacheStackStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
 		Chaintype:                   ct,
@@ -140,6 +141,7 @@ func NewBlockSpineService(
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
 		BlockStateStorage:        blockStateStorage,
+		BlocksStorage:            blocksStorage,
 		BlockchainStatusService:  blockchainStatusService,
 		MainBlockService:         mainBlockService,
 	}
@@ -423,6 +425,12 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	if err != nil {
 		return err
 	}
+	// cache last block into blocks cache storage
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
+	if err != nil {
+		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
+		_ = bs.InitializeBlocksCache()
+	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// broadcast block
 	if broadcast {
@@ -554,13 +562,14 @@ func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 }
 
 func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
-	// TODO: implement blocks storage cache
-	block, err := bs.GetLastBlock()
+	var (
+		lastBlock storage.BlockCacheObject
+		err       = bs.BlocksStorage.GetTop(&lastBlock)
+	)
 	if err != nil {
 		return nil, err
 	}
-	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
-	return &blockCacheFormat, nil
+	return &lastBlock, nil
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
@@ -587,13 +596,12 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 }
 
 func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
-	// TODO: implement blocks storage cache
-	block, err := commonUtils.GetBlockByHeight(height, bs.QueryExecutor, bs.BlockQuery)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	blockCacheFormat := commonUtils.BlockConvertToCacheFormat(block)
-	return &blockCacheFormat, nil
+	return commonUtils.GetBlockByHeightUseBlocksCache(
+		height,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		bs.BlocksStorage,
+	)
 }
 
 // GetGenesisBlock return the genesis block
@@ -678,6 +686,33 @@ func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
 }
 
 func (bs *BlockSpineService) InitializeBlocksCache() error {
+	var err = bs.BlocksStorage.Clear()
+	if err != nil {
+		return err
+	}
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	var firstBlocksHeightCache uint32 = 0
+	if lastBlock.Height > constant.MaxBlocksCacheStorage {
+		firstBlocksHeightCache = lastBlock.Height - constant.MaxBlocksCacheStorage
+	}
+	var (
+		blocks []*model.Block
+	)
+	blocks, err = bs.GetBlocksFromHeight(firstBlocksHeightCache, constant.MaxBlocksCacheStorage, false)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(blocks); i++ {
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -1124,6 +1159,10 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	// cache last block state.
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(nil)
+	if err != nil {
+		return nil, err
+	}
+	err = bs.BlocksStorage.PopTo(commonBlock.Height)
 	if err != nil {
 		return nil, err
 	}

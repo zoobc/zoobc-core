@@ -1,23 +1,29 @@
-antispamcpulimitpercentage = 75
-antispamfilter = true
-antispamp2prequestlimit = 150
-apihttpport = 7001
-apireqtimeoutsec = 2
-apirpcport = 7000
-climonitoring = true
-cpuprofilingport = 6060
-dbname = "zoobc.db"
-loglevels = ["fatal","error","panic"]
-logoncli = false
-maxapirequestpersecond = 10
-monitoringport = 9090
-myaddress = "127.0.0.1"
-nodekeyfile = "node_keys.json"
-owneraccountaddress = "000000002f714c0ee3b1469902bd56f1fd444c32e0fdeae880eb7718c34fc4694a4aed55"
-peerport = 8001
-proofofownershipreqtimeoutsec = 2
-resourcepath = "/home/demo/go/src/github.com/zoobc/zoobc-core/resource"
+apiHTTPPort = 7001
+apiReqTimeoutSec = 2
+apiRPCPort = 7000
+# to show usefull information on terminal/cli. The logOnCli must be false
+cliMonitoring = true
+antiSpamFilter = true
+antiSpamP2PRequestLimit=150
+antiSpamCPULimitPercentage=75
+cpuProfilingPort = 6060
+dbName = "zoobc.db"
+# Available log level: info, warn, error, fatal, panic
+logLevels = ["fatal","error","panic"]
+# to show all log on terminal/cli that recoreded in .log/log_files
+logOnCli = false
+maxAPIRequestPerSecond = 10
+monitoringPort = 9090
+myAddress = "127.0.0.1"
+nodeKeyFile = "node_keys.json"
+ownerAccountAddress = "000000002f714c0ee3b1469902bd56f1fd444c32e0fdeae880eb7718c34fc4694a4aed55"
+peerPort = 8001
+proofOfOwnershipReqTimeoutSec = 2
+resourcePath = "resource"
 smithing = true
-snapshotpath = "/home/demo/go/src/github.com/zoobc/zoobc-core/resource/snapshots"
-walletcertfilename = "wallet.zbc"
-wellknownpeers = ["127.0.0.1:8002"]
+snapshotPath = "resource/snapshots"
+walletCertFileName = "wallet.zbc"
+wellknownPeers = ["127.0.0.1:8002"]
+
+#apiCertFile="./resource/network.crt"
+#apiKeyFile="./resource/network.key"

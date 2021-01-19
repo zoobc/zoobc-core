@@ -54,11 +54,11 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreService "github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/observer"
@@ -138,7 +138,7 @@ type (
 		NodeSecretPhrase         string
 		Observer                 *observer.Observer
 		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
-		ScrambleNodeService      coreService.ScrambleNodeServiceInterface
+		ScrambleNodeCache        storage.CacheStackStorageInterface
 	}
 )
 
@@ -154,7 +154,7 @@ func NewP2PServerService(
 	nodeSecretPhrase string,
 	observer *observer.Observer,
 	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
-	scrambleNodeService coreService.ScrambleNodeServiceInterface,
+	scrambleNodeCache storage.CacheStackStorageInterface,
 ) *P2PServerService {
 	return &P2PServerService{
 		NodeRegistrationService:  nodeRegistrationService,
@@ -167,7 +167,7 @@ func NewP2PServerService(
 		NodeSecretPhrase:         nodeSecretPhrase,
 		Observer:                 observer,
 		FeedbackStrategy:         feedbackStrategy,
-		ScrambleNodeService:      scrambleNodeService,
+		ScrambleNodeCache:        scrambleNodeCache,
 	}
 }
 
@@ -340,7 +340,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		myLastBlockID := myLastBlock.ID
 		myBlockchainHeight := myLastBlock.Height
 
-		if _, err := blockService.GetBlockByID(lastBlockID, false); err == nil {
+		if _, err := blockService.GetBlockByIDCacheFormat(lastBlockID); err == nil {
 			preparedResponse := &model.GetCommonMilestoneBlockIdsResponse{
 				BlockIds: []int64{lastBlockID},
 			}
@@ -353,7 +353,7 @@ func (ps P2PServerService) GetCommonMilestoneBlockIDs(
 		// if not, send (assumed) milestoneBlock of the host
 		limit := constant.CommonMilestoneBlockIdsLimit
 		if lastMilestoneBlockID != 0 {
-			lastMilestoneBlock, err := blockService.GetBlockByID(lastMilestoneBlockID, false)
+			lastMilestoneBlock, err := blockService.GetBlockByIDCacheFormat(lastMilestoneBlockID)
 			// this error is handled because when lastMilestoneBlockID is provided, it was expected to be the one returned from this node
 			if err != nil {
 				return nil, status.Error(codes.Internal, err.Error())
@@ -410,7 +410,7 @@ func (ps *P2PServerService) GetNextBlockIDs(
 			limit = reqLimit
 		}
 
-		foundBlock, err := blockService.GetBlockByID(reqBlockID, false)
+		foundBlock, err := blockService.GetBlockByIDCacheFormat(reqBlockID)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -723,40 +723,14 @@ func (ps *P2PServerService) needToGenerateReceipt(
 	process func(isGenerate bool) ([]*model.Receipt, error),
 ) (receipts []*model.Receipt, err error) {
 	var (
-		scrambleNodes   *model.ScrambledNodes
+		scrambleNodes   model.ScrambledNodes
 		generateReceipt bool
-		blockService    = ps.BlockServices[(&chaintype.MainChain{}).GetTypeInt()]
 	)
-	if blockService == nil {
-		return nil, status.Error(
-			codes.InvalidArgument,
-			"blockServiceNotFoundByThisChainType",
-		)
-	}
 
-	// STEF new logic for minimizing receipts generation and broadcast using scramble node cache: generate (
-	// and broadcast) a receipts only for blocks coming from node's priority peers at the block's height (one of the scramble nodes)
-	// note: this behavior is temporary mocked because we are not implementing ScrambleNodeCache at the moment
-	//
-	// err = ps.ScrambleNodeCache.GetTop(&scrambleNodes)
-	// if err != nil {
-	// 	return []*model.Receipt{}, err
-	// }
-
-	lastBlockCacheFormat, err := blockService.GetLastBlockCacheFormat()
+	err = ps.ScrambleNodeCache.GetTop(&scrambleNodes)
 	if err != nil {
-		return nil, status.Error(
-			codes.Internal,
-			fmt.Sprintf("failGetLastBlockErr: %v", err.Error()),
-		)
+		return []*model.Receipt{}, err
 	}
-	scrambleNodes, err = ps.ScrambleNodeService.GetScrambleNodesByHeight(lastBlockCacheFormat.Height)
-	if err != nil {
-		return nil, status.Error(
-			codes.Internal,
-			fmt.Sprintf("failGetScrambleNodes: %v", err.Error()),
-		)
-	}
-	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
+	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
 	return process(generateReceipt)
 }

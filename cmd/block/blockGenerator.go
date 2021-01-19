@@ -51,10 +51,9 @@ package block
 
 import (
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"strings"
 	"time"
-
-	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -178,7 +177,7 @@ func initialize(
 		MempoolCacheStorage: mempoolStorage,
 	}
 	blockStorage := storage.NewBlockStateStorage()
-	blocksStorage := storage.NewBlocksStorage()
+	blocksStorage := storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
 	nodeAddressInfoStorage := storage.NewNodeAddressInfoStorage()
 	receiptService := service.NewReceiptService(
 		query.NewBatchReceiptQuery(),

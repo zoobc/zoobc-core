@@ -53,7 +53,6 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/query"
 	"math"
 	"math/big"
 	"time"
@@ -65,6 +64,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
@@ -193,9 +193,6 @@ func (bss *BlocksmithStrategyMain) estimatePreviousBlockPersistTime(lastBlock *m
 }
 
 func (bss *BlocksmithStrategyMain) convertRandomNumberToIndex(randNumber, activeNodeRegistryCount int64) int {
-	if activeNodeRegistryCount == 0 {
-		activeNodeRegistryCount = 1
-	}
 	rd := randNumber / activeNodeRegistryCount
 	mult := rd * activeNodeRegistryCount
 	rem := randNumber - mult

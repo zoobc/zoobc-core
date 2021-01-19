@@ -55,6 +55,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -64,8 +65,6 @@ import (
 	"sort"
 	"syscall"
 	"time"
-
-	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -234,6 +233,14 @@ func initiateMainInstance() {
 				log.Error(err)
 				os.Exit(1)
 			}
+		case 3:
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			estoniaEidAccountType.SetAccountPublicKey(accType.GetAccountPublicKey())
+			encodedAccountAddress, err = estoniaEidAccountType.GetEncodedAddress()
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
 		default:
 			log.Error("Invalid Owner Account Type")
 			os.Exit(1)
@@ -352,8 +359,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -689,6 +696,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*
@@ -818,7 +826,7 @@ func startServices() {
 		nodeAddressInfoService,
 		observerInstance,
 		feedbackStrategy,
-		scrambleNodeService,
+		scrambleNodeStorage,
 	)
 	api.Start(
 		queryExecutor,
@@ -1252,6 +1260,7 @@ func init() {
 }
 
 func main() {
+	runtime.SetMutexProfileFraction(5)
 
 	var god = goDaemon{}
 
