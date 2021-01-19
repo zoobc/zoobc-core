@@ -333,7 +333,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{})
 	return nil
 }
 
-func (*nrsMockQueryExecutorSuccess) BeginTx(bool) error { return nil }
+func (*nrsMockQueryExecutorSuccess) BeginTx(bool, int) error { return nil }
 
 func (*nrsMockQueryExecutorSuccess) RollbackTx(bool) error { return nil }
 

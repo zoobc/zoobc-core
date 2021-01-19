@@ -57,6 +57,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/util"
 	"golang.org/x/crypto/sha3"
@@ -215,7 +216,8 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 	mbType model.SpineBlockManifestType) (*model.SpineBlockManifest,
 	error) {
 	var (
-		megablockFileHashes = make([]byte, 0)
+		megablockFileHashes         = make([]byte, 0)
+		isDbTransactionHighPriority = false
 	)
 
 	// build the spineBlockManifest's payload (ordered sequence of file hashes been referenced by the spineBlockManifest)
@@ -239,16 +241,16 @@ func (ss *SpineBlockManifestService) CreateSpineBlockManifest(fullFileHash []byt
 		return nil, err
 	}
 	spineBlockManifest.ID = megablockID
-	if err := ss.QueryExecutor.BeginTx(false); err != nil {
+	if err := ss.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.CreateSpineBlockManifestOwnerProcess); err != nil {
 		return nil, err
 	}
 	if err := ss.InsertSpineBlockManifest(spineBlockManifest); err != nil {
-		if rollbackErr := ss.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+		if rollbackErr := ss.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			ss.Logger.Error(rollbackErr.Error())
 		}
 		return nil, err
 	}
-	err = ss.QueryExecutor.CommitTx(false)
+	err = ss.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, err
 	}

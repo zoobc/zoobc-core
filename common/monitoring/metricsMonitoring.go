@@ -88,6 +88,7 @@ var (
 	P2PTxFilteredOutgoing              prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
 	dbLockGaugeVector                  *prometheus.GaugeVec
+	dbLockBlockingOwnerGaugeVector     *prometheus.GaugeVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
 	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
@@ -260,6 +261,12 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"lock_type"})
 	prometheus.MustRegister(dbLockGaugeVector)
 
+	dbLockBlockingOwnerGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_lock_blocking_owner",
+		Help: "db lock counter",
+	}, []string{"lock_type"})
+	prometheus.MustRegister(dbLockBlockingOwnerGaugeVector)
+
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_status",
 		Help: "Blockchain status",
@@ -392,6 +399,8 @@ func SetMonitoringActive(isActive bool) {
 		Help: "Cache storage usage in bytes",
 	}, []string{"cache_type"})
 	prometheus.MustRegister(cacheStorageGaugeVector)
+
+	startDBLockOwnerMetricsLoggingRoutine()
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -530,17 +539,18 @@ func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock in
 	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
-func IncrementDbLockCounter(priorityLock int) {
+func IncrementDbLockCounter(priorityLock, processOwner int) {
 	if !isMonitoringActive {
 		return
 	}
 
-	var name string
-	if priorityLock > 0 {
-		name = "highPriority"
-	} else {
-		name = "lowPriority"
-	}
+	name := getDbLockType(priorityLock)
+
+	// to note down the locking
+	processOwnerQueueMutex.Lock()
+	defer processOwnerQueueMutex.Unlock()
+
+	updateProcessOwnerQueue(priorityLock, processOwner)
 	dbLockGaugeVector.WithLabelValues(name).Inc()
 }
 
@@ -549,13 +559,23 @@ func DecrementDbLockCounter(priorityLock int) {
 		return
 	}
 
-	var name string
-	if priorityLock > 0 {
-		name = "highPriority"
-	} else {
-		name = "lowPriority"
-	}
+	name := getDbLockType(priorityLock)
+
+	processOwnerQueueMutex.Lock()
+	defer processOwnerQueueMutex.Unlock()
+
+	popProcessOwnerQueue(priorityLock)
+
 	dbLockGaugeVector.WithLabelValues(name).Dec()
+	logProcessOwnerQueue(priorityLock)
+}
+
+func SetDbLockBlockingOwner(name string, processOwner int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	dbLockBlockingOwnerGaugeVector.WithLabelValues(name).Set(float64(processOwner))
 }
 
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {

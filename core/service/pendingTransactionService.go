@@ -54,6 +54,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 )
@@ -94,11 +95,12 @@ func NewPendingTransactionService(
 // ExpiringPendingTransactions will set status to be expired caused by current block height
 func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uint32, useTX bool) error {
 	var (
-		pendingTransactions []*model.PendingTransaction
-		innerTransaction    *model.Transaction
-		typeAction          transaction.TypeAction
-		rows                *sql.Rows
-		err                 error
+		pendingTransactions         []*model.PendingTransaction
+		innerTransaction            *model.Transaction
+		typeAction                  transaction.TypeAction
+		rows                        *sql.Rows
+		err                         error
+		isDbTransactionHighPriority = false
 	)
 
 	err = func() error {
@@ -121,7 +123,7 @@ func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uin
 
 	if len(pendingTransactions) > 0 {
 		if !useTX {
-			err = tg.QueryExecutor.BeginTx(false)
+			err = tg.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ExpiringPendingTransactionsOwnerProcess)
 			if err != nil {
 				return err
 			}
@@ -162,16 +164,13 @@ func (tg *PendingTransactionService) ExpiringPendingTransactions(blockHeight uin
 				And automatically unlock mutex
 			*/
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(false); rollbackErr != nil {
+				if rollbackErr := tg.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
 				}
 				return err
 			}
-			err = tg.QueryExecutor.CommitTx(false)
+			err = tg.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 			if err != nil {
-				if rollbackErr := tg.QueryExecutor.RollbackTx(false); rollbackErr != nil {
-					tg.Log.Errorf("Rollback fail: %s", rollbackErr.Error())
-				}
 				return err
 			}
 		}
