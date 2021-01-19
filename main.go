@@ -54,6 +54,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
@@ -92,7 +93,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
-	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -162,8 +162,8 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
 	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
-	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
-	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
+	blocksmithStrategyMain                                                 blockSmithStrategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                blockSmithStrategy.BlocksmithStrategyInterface
 	priorityPreferenceLock                                                 queue.PriorityLock
 )
 var (
@@ -196,7 +196,7 @@ func initiateMainInstance() {
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
