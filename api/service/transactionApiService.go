@@ -201,6 +201,12 @@ func (ts *TransactionService) GetTransactions(
 	}
 	selectQuery, args = caseQuery.Build()
 
+	fromBlock := params.GetFromBlock()
+	toBlock := params.GetToBlock()
+	if fromBlock > 0 {
+		caseQuery.And(caseQuery.Between("height", fromBlock, toBlock))
+	}
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rowCount, err = ts.Query.ExecuteSelectRow(countQuery, false, args...)

@@ -54,12 +54,13 @@ package service
 import (
 	"database/sql"
 	"errors"
+	"reflect"
+	"testing"
+
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/queue"
 	"github.com/zoobc/zoobc-core/common/storage"
-	"reflect"
-	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
@@ -733,6 +734,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
+					FromBlock: 1,
+					ToBlock:   1,
 					Pagination: &model.Pagination{
 						Limit: 1,
 						Page:  0,
