@@ -58,6 +58,8 @@ import (
 	"math"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/zoobc/zoobc-core/common/accounttype"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -424,14 +426,19 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 	}
 
 	unsignedTransactionBytes, err := u.GetTransactionBytes(tx, false)
+	log.Println("UNSIGN: ", unsignedTransactionBytes)
 	if err != nil {
 		return err
 	}
 	// verify the signature of the transaction
 	if verifySignature {
 		txBytesHash := sha3.Sum256(unsignedTransactionBytes)
+		log.Println("Payload:: ", txBytesHash[:])
+		log.Println("Signaturee:: ", tx.Signature)
+		log.Println("SenderAddress::: ", tx.SenderAccountAddress)
 		err = crypto.NewSignature().VerifySignature(txBytesHash[:], tx.Signature, tx.SenderAccountAddress)
 		if err != nil {
+			log.Println("DORRRR")
 			return err
 		}
 	}

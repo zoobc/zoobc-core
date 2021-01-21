@@ -53,11 +53,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -278,6 +279,27 @@ func getAccountTypeFromAccountHex(senderAccountAddressHex string) accounttype.Ac
 	}
 	return accountType
 }
+func getAccountTypeFromEncodedAccount(senderAccountAddressHex string) accounttype.AccountTypeInterface {
+	zbcPrefix := []byte{0, 0, 0, 0}
+	ed25519 := signaturetype.NewEd25519Signature()
+	accountAddress, err := ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddressHex)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed GetPublicKey",
+			err.Error(),
+		))
+	}
+	accountAddress = append(zbcPrefix, accountAddress...)
+
+	accountType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeAccountTypeFromAddress",
+			err.Error(),
+		))
+	}
+	return accountType
+}
 
 // GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
@@ -334,13 +356,30 @@ func GenerateBasicTransaction(
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
-	decodedSenderAddress, err := hex.DecodeString(senderAccountAddressHex)
-	if err != nil {
-		panic(err)
-	}
-	decodedRecipientAddress, err := hex.DecodeString(recipientAccountAddressHex)
-	if err != nil {
-		panic(err)
+	var decodedSenderAddress, decodedRecipientAddress []byte
+	var err error
+	if strings.Contains(senderAccountAddressHex, "0000") {
+		decodedSenderAddress, err = hex.DecodeString(senderAccountAddressHex)
+		if err != nil {
+			panic(err)
+		}
+		decodedRecipientAddress, err = hex.DecodeString(recipientAccountAddressHex)
+		if err != nil {
+			panic(err)
+		}
+	} else if strings.Contains(senderAccountAddressHex, "ZBC") {
+		zbcPrefix := []byte{0, 0, 0, 0}
+		ed25519 := signaturetype.NewEd25519Signature()
+		decodedSenderAddress, err = ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddressHex)
+		if err != nil {
+			panic(err)
+		}
+		decodedSenderAddress = append(zbcPrefix, decodedSenderAddress...)
+		decodedRecipientAddress, err = ed25519.GetPublicKeyFromEncodedAddress(recipientAccountAddressHex)
+		if err != nil {
+			panic(err)
+		}
+		decodedRecipientAddress = append(zbcPrefix, decodedRecipientAddress...)
 	}
 	return &model.Transaction{
 		Version:                 version,
@@ -421,12 +460,14 @@ func GenerateSignedTxBytes(
 		return unsignedTxBytes
 	}
 	txBytesHash := sha3.Sum256(unsignedTxBytes)
+	log.Println("TXBYTEHASHHH: ", txBytesHash)
 	tx.Signature, err = signature.Sign(
 		txBytesHash[:],
 		model.AccountType(accountTypeInt),
 		senderSeed,
 		optionalSignParams...,
 	)
+	log.Println("TxSignature:", tx.Signature)
 	if err != nil {
 		log.Fatalf("fail get sign tx: %s", err)
 	}
@@ -434,6 +475,7 @@ func GenerateSignedTxBytes(
 	if err != nil {
 		log.Fatalf("fail get get signed transactionBytes: %s", err)
 	}
+	log.Println("SIGNEDTXBYTESSS: ", signedTxBytes)
 	return signedTxBytes
 }
 

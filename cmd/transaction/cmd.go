@@ -54,6 +54,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/zoobc/zoobc-core/common/signaturetype"
@@ -168,7 +169,7 @@ func init() {
 		SendMoney Command
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
-	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
+	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
 	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
 	sendMoneyCmd.Flags().Int64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout which is timestamp unix format")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
@@ -321,7 +322,12 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		var senderAccountType int32
+		if strings.Contains(senderAddressHex, "0000") {
+			senderAccountType = getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		} else if strings.Contains(senderAddressHex, "ZBC") {
+			senderAccountType = getAccountTypeFromEncodedAccount(senderAddressHex).GetTypeInt()
+		}
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
