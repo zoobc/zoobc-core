@@ -203,7 +203,12 @@ func (ts *TransactionService) GetTransactions(
 
 	fromBlock := params.GetFromBlock()
 	toBlock := params.GetToBlock()
-	if fromBlock >= 0 && fromBlock <= toBlock {
+
+	if fromBlock < toBlock {
+		return nil, status.Error(codes.Internal, "FromBlock height cannot excedd toBlock height")
+	}
+
+	if toBlock != 0 && fromBlock <= toBlock {
 		caseQuery.And(caseQuery.Between("height", fromBlock, toBlock))
 	}
 
