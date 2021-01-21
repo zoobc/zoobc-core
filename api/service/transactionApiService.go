@@ -292,6 +292,7 @@ func (ts *TransactionService) PostTransaction(
 		err     error
 		tpsProcessed,
 		tpsReceived int
+		isDbTransactionHighPriority = false
 	)
 
 	// Set txReceived (transactions to be processed received by clients since last node run)
@@ -353,7 +354,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
-	err = ts.Query.BeginTx(false)
+	err = ts.Query.BeginTx(isDbTransactionHighPriority, monitoring.PostTransactionServiceOwnerProcess)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -367,7 +368,7 @@ func (ts *TransactionService) PostTransaction(
 		err = txType.ApplyUnconfirmed()
 	}
 	if err != nil {
-		errRollback := ts.Query.RollbackTx(false)
+		errRollback := ts.Query.RollbackTx(isDbTransactionHighPriority)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
@@ -376,13 +377,13 @@ func (ts *TransactionService) PostTransaction(
 	// Save to mempool
 	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
-		errRollback := ts.Query.RollbackTx(false)
+		errRollback := ts.Query.RollbackTx(isDbTransactionHighPriority)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = ts.Query.CommitTx(false)
+	err = ts.Query.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

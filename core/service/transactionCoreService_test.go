@@ -433,7 +433,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx(bool) error {
+func (*mockQueryExecutorExpiringEscrowSuccess) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockQueryExecutorExpiringEscrowSuccess) CommitTx(bool) error {

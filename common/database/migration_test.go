@@ -51,9 +51,10 @@ package database
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -164,7 +165,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorVersionNil) BeginTx(bool) error {
+func (*mockQueryExecutorVersionNil) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -212,7 +213,7 @@ func TestMigration_Apply(t *testing.T) {
 				},
 				CurrentVersion: &currentVersion,
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
+					query.Executor{Db: dbMock},
 				},
 			},
 			wantErr: false,
@@ -229,7 +230,7 @@ func TestMigration_Apply(t *testing.T) {
 					);`,
 				},
 				Query: &mockQueryExecutorVersionNil{
-					query.Executor{Db: dbMock, Lock: queue.NewPriorityPreferenceLock()},
+					query.Executor{Db: dbMock},
 				},
 			},
 			wantErr: false,

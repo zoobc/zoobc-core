@@ -55,11 +55,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -927,7 +928,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 	return db.QueryRow(qStr), nil
 }
 
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx(bool) error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) CommitTx(bool) error {
@@ -962,7 +963,7 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) ExecuteSelect(
 ) (*sql.Rows, error) {
 	return nil, errors.New("mockError:executeSelectFail")
 }
-func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx(bool) error {
+func (*mockQueryExecutorGenerateReceiptsMerkleRootSelectFail) BeginTx(bool, int) error {
 	return errors.New("mockError:BeginTxFail")
 }
 
@@ -1025,7 +1026,7 @@ type (
 	}
 )
 
-func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx(bool) error {
+func (*mockExecutorPruningNodeReceiptsSuccess) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockExecutorPruningNodeReceiptsSuccess) CommitTx(bool) error {
