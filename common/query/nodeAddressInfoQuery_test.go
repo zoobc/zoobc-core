@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package query
 
 import (
@@ -86,7 +135,8 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   [][]interface{}
+		want   string
+		want2  []interface{}
 	}{
 		{
 			name: "UpdateNodeAddressInfo:success",
@@ -106,20 +156,19 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
-			want: [][]interface{}{
-				append([]interface{}{"UPDATE node_address_info SET address = ?, " +
-					"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
-					" node_id = ? AND status = ?"},
-					"192.168.1.2",
-					uint32(8080),
-					uint32(100),
-					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-					model.NodeAddressStatus_NodeAddressConfirmed,
-					int64(111),
-					model.NodeAddressStatus_NodeAddressConfirmed,
-				),
+			want: "UPDATE node_address_info SET address = ?, " +
+				"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
+				" node_id = ? AND status = ?",
+			want2: []interface{}{
+				"192.168.1.2",
+				uint32(8080),
+				uint32(100),
+				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				int64(111),
+				model.NodeAddressStatus_NodeAddressConfirmed,
 			},
 		},
 	}
@@ -129,8 +178,12 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := paq.UpdateNodeAddressInfo(tt.args.peerAddress); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got, tt.want)
+			got1, got2 := paq.UpdateNodeAddressInfo(tt.args.peerAddress)
+			if got1 != tt.want {
+				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got1, tt.want)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got2, tt.want2)
 			}
 		})
 	}

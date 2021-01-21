@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -308,11 +357,41 @@ func (bs *BlockSpineService) validateBlockHeight(block *model.Block) error {
 	return nil
 }
 
+// ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
+func (bs *BlockSpineService) ProcessPushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
+	var err error
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		return err
+	}
+
+	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
+	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
+		return err
+	}
+
+	// if present, add new spine block manifests into spineBlockManifest table
+	for _, spineBlockManifest := range block.SpineBlockManifests {
+		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
+			return err
+		}
+	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -322,50 +401,21 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePushBlockOwnerProcess)
 	if err != nil {
-		return err
-	}
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
 		return err
 	}
 
-	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
-	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
+	err = bs.ProcessPushBlock(previousBlock, block, broadcast, persist)
+	if err != nil {
 		bs.Logger.Error(err.Error())
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 
-	// if present, add new spine block manifests into spineBlockManifest table
-	for _, spineBlockManifest := range block.SpineBlockManifests {
-		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
-	if block.GetHeight() > 1 {
-		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
-		if err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
-
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -496,13 +546,19 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, with
 // GetLastBlock return the last pushed block
 func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
+		lastBlock *model.Block
+		err       error
 	)
+
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, err
 	}
-	return &lastBlock, nil
+	return lastBlock, nil
 }
 
 func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
@@ -1043,7 +1099,8 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1078,7 +1135,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePopOffToBlockOwnerProcess)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -1087,14 +1144,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
+			rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
 			}
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, err
 	}

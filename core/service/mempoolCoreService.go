@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -12,6 +61,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -360,9 +410,10 @@ func (mps *MempoolService) ReceivedTransaction(
 	isGenerateReceipt bool,
 ) (*model.Receipt, error) {
 	var (
-		err        error
-		receivedTx *model.Transaction
-		receipt    *model.Receipt
+		err                  error
+		receivedTx           *model.Transaction
+		receipt              *model.Receipt
+		isHighPriorityDbLock = false
 	)
 	receipt, receivedTx, err = mps.ProcessReceivedTransaction(
 		senderPublicKey,
@@ -378,35 +429,34 @@ func (mps *MempoolService) ReceivedTransaction(
 	if receivedTx == nil {
 		return receipt, nil
 	}
-	err = mps.QueryExecutor.BeginTx()
+	err = mps.QueryExecutor.BeginTx(isHighPriorityDbLock, monitoring.ReceivedTransactionOwnerProcess)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+	err = func() error {
+		txType, err := mps.ActionTypeSwitcher.GetTransactionType(receivedTx)
+		if err != nil {
+			return err
+		}
+
+		if err := mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType); err != nil {
+			return err
+		}
+
+		// Store the transaction to Mempool
+		if err := mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
+			return err
+		}
+		return nil
+	}()
 	if err != nil {
-		rollbackErr := mps.QueryExecutor.RollbackTx()
+		rollbackErr := mps.QueryExecutor.RollbackTx(isHighPriorityDbLock)
 		if rollbackErr != nil {
 			mps.Logger.Warnf("rollbackErr:ReceivedTransaction - %v", rollbackErr)
 		}
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	err = mps.TransactionCoreService.ApplyUnconfirmedTransaction(txType)
-	if err != nil {
-		mps.Logger.Infof("fail ApplyUnconfirmed tx: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	// Store to Mempool Transaction
-	if err = mps.AddMempoolTransaction(receivedTx, receivedTxBytes); err != nil {
-		mps.Logger.Infof("error AddMempoolTransaction: %v\n", err)
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			mps.Logger.Error(rollbackErr.Error())
-		}
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-	err = mps.QueryExecutor.CommitTx()
+	err = mps.QueryExecutor.CommitTx(isHighPriorityDbLock)
 	if err != nil {
 		mps.Logger.Warnf("error committing db transaction: %v", err)
 		return nil, status.Error(codes.Internal, err.Error())
@@ -519,11 +569,12 @@ func sortFeePerByteThenTimestampThenID(memTxs []storage.MempoolCacheObject) {
 // which is the mempool transaction has been hit expiration time
 func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	var (
-		qStr              string
-		expirationTime    = time.Now().Add(-constant.MempoolExpiration).Unix()
-		err               error
-		cachedTxs         = make(storage.MempoolMap)
-		expiredMempoolIDs []int64
+		qStr                        string
+		expirationTime              = time.Now().Add(-constant.MempoolExpiration).Unix()
+		err                         error
+		cachedTxs                   = make(storage.MempoolMap)
+		expiredMempoolIDs           []int64
+		isDbTransactionHighPriority = false
 	)
 	err = mps.MempoolCacheStorage.GetAllItems(cachedTxs)
 	if err != nil {
@@ -532,7 +583,7 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	if len(cachedTxs) == 0 {
 		return nil
 	}
-	err = mps.QueryExecutor.BeginTx()
+	err = mps.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.DeleteExpiredMempoolTransactionsOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -543,14 +594,14 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 		tx := memObj.Tx
 		action, err := mps.ActionTypeSwitcher.GetTransactionType(&tx)
 		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
 			}
 			return err
 		}
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(action)
 		if err != nil {
-			if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+			if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 				mps.Logger.Error(rollbackErr.Error())
 			}
 			return err
@@ -561,22 +612,23 @@ func (mps *MempoolService) DeleteExpiredMempoolTransactions() error {
 	qStr = mps.MempoolQuery.DeleteExpiredMempoolTransactions(expirationTime)
 	err = mps.QueryExecutor.ExecuteTransaction(qStr)
 	if err != nil {
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 	err = mps.MempoolCacheStorage.RemoveItem(expiredMempoolIDs)
 	if err != nil {
-		if rollbackErr := mps.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			mps.Logger.Error(rollbackErr.Error())
 		}
 		initMempoolErr := mps.InitMempoolTransaction()
 		if initMempoolErr != nil {
 			mps.Logger.Warnf("BackupMempoolsErr - InitMempoolErr - %v", initMempoolErr)
 		}
+		return err
 	}
-	err = mps.QueryExecutor.CommitTx()
+	err = mps.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -605,9 +657,10 @@ func (mps *MempoolService) GetMempoolTransactionsWantToBackup(height uint32) ([]
 func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	var (
-		mempoolsBackup []*model.Transaction
-		err            error
-		backupMempools = make(map[int64][]byte)
+		mempoolsBackup              []*model.Transaction
+		err                         error
+		backupMempools              = make(map[int64][]byte)
+		isDbTransactionHighPriority = true
 	)
 
 	mempoolsBackup, err = mps.GetMempoolTransactionsWantToBackup(commonBlock.Height)
@@ -617,7 +670,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 	mps.Logger.Warnf("mempool tx want to backup %d in total at block_height %d", len(mempoolsBackup), commonBlock.GetHeight())
 
 	derivedQueries := query.GetDerivedQuery(mps.Chaintype)
-	err = mps.QueryExecutor.BeginTx()
+	err = mps.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.BackupMempoolsOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -629,7 +682,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		)
 		txType, err = mps.ActionTypeSwitcher.GetTransactionType(mempoolTx)
 		if err != nil {
-			rollbackErr := mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				mps.Logger.Warnf("[BackupMempools] GetTransactionType failed - %v", rollbackErr)
 			}
@@ -638,7 +691,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 		err = mps.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 		if err != nil {
-			rollbackErr := mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				mps.Logger.Warnf("[BackupMempools] UndoApplyUnconfirmed failed - %v", rollbackErr)
 			}
@@ -647,7 +700,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 		mempoolByte, err = mps.TransactionUtil.GetTransactionBytes(mempoolTx, true)
 		if err != nil {
-			rollbackErr := mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				mps.Logger.Warnf("[BackupMempools] GetTransactionBytes failed - %v", rollbackErr)
 			}
@@ -661,7 +714,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = mps.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := mps.QueryExecutor.RollbackTx()
+			rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
 			}
@@ -671,7 +724,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 
 	err = mps.RemoveMempoolTransactions(mempoolsBackup)
 	if err != nil {
-		rollbackErr := mps.QueryExecutor.RollbackTx()
+		rollbackErr := mps.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			mps.Logger.Warnf("[BackupMempools] Rollback ExecuteTransactions failed - %v", rollbackErr)
 		}
@@ -681,7 +734,7 @@ func (mps *MempoolService) BackupMempools(commonBlock *model.Block) error {
 		}
 		return err
 	}
-	err = mps.QueryExecutor.CommitTx()
+	err = mps.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
