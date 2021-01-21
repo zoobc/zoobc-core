@@ -112,7 +112,7 @@ func (*ApprovalEscrowTransaction) GetSize() (uint32, error) {
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
@@ -333,7 +333,7 @@ Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
 
-	if tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false

@@ -163,8 +163,8 @@ func (*mockLiquidPaymentTransactionQueryFail) Scan(liquidPayment *model.LiquidPa
 }
 
 func (m *mockLiquidPaymentTransactionQuerySuccess) Scan(liquidPayment *model.LiquidPayment, row *sql.Row) error {
-	liquidPayment.SenderAddress = m.Sender
-	liquidPayment.RecipientAddress = m.Recipient
+	liquidPayment.SenderAccountAddress = m.Sender
+	liquidPayment.RecipientAccountAddress = m.Recipient
 	liquidPayment.Status = m.Status
 	return nil
 }
@@ -193,11 +193,7 @@ func (m *mockLiquidPaymentTransaction) CompletePayment(blockHeight uint32, block
 
 func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -397,11 +393,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -419,11 +411,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 
 func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -440,11 +428,13 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantError:executor_returns_error",
 			fields: fields{
-				ID:               10,
-				Fee:              10,
-				SenderAddress:    liquidPayStopAddress1,
-				RecipientAddress: liquidPayStopAddress2,
-				Height:           10,
+				TransactionObject: &model.Transaction{
+					ID:                      10,
+					Fee:                     10,
+					SenderAccountAddress:    liquidPayStopAddress1,
+					RecipientAccountAddress: liquidPayStopAddress2,
+					Height:                  10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -462,11 +452,13 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:               10,
-				Fee:              10,
-				SenderAddress:    liquidPayStopAddress1,
-				RecipientAddress: liquidPayStopAddress2,
-				Height:           10,
+				TransactionObject: &model.Transaction{
+					ID:                      10,
+					Fee:                     10,
+					SenderAccountAddress:    liquidPayStopAddress1,
+					RecipientAccountAddress: liquidPayStopAddress2,
+					Height:                  10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -485,11 +477,7 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -507,11 +495,7 @@ func TestLiquidPaymentStop_ApplyUnconfirmed(t *testing.T) {
 
 func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -528,11 +512,13 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantError:executor_returns_error",
 			fields: fields{
-				ID:               10,
-				Fee:              10,
-				SenderAddress:    liquidPayStopAddress1,
-				RecipientAddress: liquidPayStopAddress2,
-				Height:           10,
+				TransactionObject: &model.Transaction{
+					ID:                      10,
+					Fee:                     10,
+					SenderAccountAddress:    liquidPayStopAddress1,
+					RecipientAccountAddress: liquidPayStopAddress2,
+					Height:                  10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -550,11 +536,13 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				ID:               10,
-				Fee:              10,
-				SenderAddress:    liquidPayStopAddress1,
-				RecipientAddress: liquidPayStopAddress2,
-				Height:           10,
+				TransactionObject: &model.Transaction{
+					ID:                      10,
+					Fee:                     10,
+					SenderAccountAddress:    liquidPayStopAddress1,
+					RecipientAccountAddress: liquidPayStopAddress2,
+					Height:                  10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -573,11 +561,7 @@ func TestLiquidPaymentStop_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -619,11 +603,7 @@ func (*mockAccountBalanceHelperLiquidPaymentStopValidateSuccess) GetBalanceByAcc
 
 func TestLiquidPaymentStop_Validate(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -644,10 +624,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:sender_address_is_empty",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: nil,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: nil,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -665,10 +647,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:transactionID_is_empty",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 0,
 				},
@@ -686,10 +670,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:select_LiquidPaymentTransactionQuery_executor_error",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -707,10 +693,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:select_liquid_payment_scan_error",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -728,10 +716,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:transaction_sender_dont_match_with_sender_and_recipient",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: liquidPayStopAddress3,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: liquidPayStopAddress3,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -752,10 +742,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantError:status_is_not_pending",
 			fields: fields{
-				ID:            10,
-				Fee:           10,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  10,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -776,10 +768,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantSuccess:sender_match_sender",
 			fields: fields{
-				ID:            10,
-				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  mockFeeLiquidPaymentStopValidate,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -796,10 +790,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantSuccess:sender_match_sender",
 			fields: fields{
-				ID:            10,
-				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  mockFeeLiquidPaymentStopValidate,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -816,10 +812,12 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 		{
 			name: "wantSuccess:sender_match_recipient",
 			fields: fields{
-				ID:            10,
-				Fee:           mockFeeLiquidPaymentStopValidate,
-				SenderAddress: liquidPayStopAddress1,
-				Height:        10,
+				TransactionObject: &model.Transaction{
+					ID:                   10,
+					Fee:                  mockFeeLiquidPaymentStopValidate,
+					SenderAccountAddress: liquidPayStopAddress1,
+					Height:               10,
+				},
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 123,
 				},
@@ -837,11 +835,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -859,11 +853,7 @@ func TestLiquidPaymentStop_Validate(t *testing.T) {
 
 func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -880,7 +870,9 @@ func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
-				Fee: 100,
+				TransactionObject: &model.Transaction{
+					Fee: 100,
+				},
 			},
 			want: 100,
 		},
@@ -888,11 +880,7 @@ func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -910,11 +898,7 @@ func TestLiquidPaymentStop_GetAmount(t *testing.T) {
 
 func TestLiquidPaymentStop_GetSize(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -936,11 +920,7 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -958,11 +938,7 @@ func TestLiquidPaymentStop_GetSize(t *testing.T) {
 
 func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -984,12 +960,14 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 		{
 			name: "wantErr:ParseBodyBytes - error (no amount)",
 			fields: fields{
-				Body:             nil,
-				Fee:              0,
-				SenderAddress:    nil,
-				RecipientAddress: nil,
-				Height:           0,
-				QueryExecutor:    nil,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                     0,
+					SenderAccountAddress:    nil,
+					RecipientAccountAddress: nil,
+					Height:                  0,
+				},
+				QueryExecutor: nil,
 			},
 			args:    args{txBodyBytes: []byte{}},
 			want:    nil,
@@ -998,12 +976,14 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 		{
 			name: "wantErr:ParseBodyBytes - error (wrong amount bytes lengths)",
 			fields: fields{
-				Body:             nil,
-				Fee:              0,
-				SenderAddress:    nil,
-				RecipientAddress: nil,
-				Height:           0,
-				QueryExecutor:    nil,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                     0,
+					SenderAccountAddress:    nil,
+					RecipientAccountAddress: nil,
+					Height:                  0,
+				},
+				QueryExecutor: nil,
 			},
 			args:    args{txBodyBytes: []byte{1, 2}},
 			want:    nil,
@@ -1012,12 +992,14 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 		{
 			name: "wantSuccess:ParseBodyBytes - success",
 			fields: fields{
-				Body:             nil,
-				Fee:              0,
-				SenderAddress:    nil,
-				RecipientAddress: nil,
-				Height:           0,
-				QueryExecutor:    nil,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                     0,
+					SenderAccountAddress:    nil,
+					RecipientAccountAddress: nil,
+					Height:                  0,
+				},
+				QueryExecutor: nil,
 			},
 			args: args{txBodyBytes: []byte{1, 0, 0, 0, 0, 0, 0, 0}},
 			want: &model.LiquidPaymentStopTransactionBody{
@@ -1029,11 +1011,7 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -1056,11 +1034,7 @@ func TestLiquidPaymentStop_ParseBodyBytes(t *testing.T) {
 
 func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -1080,11 +1054,13 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 				Body: &model.LiquidPaymentStopTransactionBody{
 					TransactionID: 1000,
 				},
-				Fee:              0,
-				SenderAddress:    nil,
-				RecipientAddress: nil,
-				Height:           0,
-				QueryExecutor:    nil,
+				TransactionObject: &model.Transaction{
+					Fee:                     0,
+					SenderAccountAddress:    nil,
+					RecipientAccountAddress: nil,
+					Height:                  0,
+				},
+				QueryExecutor: nil,
 			},
 			want: []byte{
 				232, 3, 0, 0, 0, 0, 0, 0,
@@ -1094,11 +1070,7 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -1116,11 +1088,7 @@ func TestLiquidPaymentStop_GetBodyBytes(t *testing.T) {
 
 func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -1152,11 +1120,7 @@ func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -1172,11 +1136,7 @@ func TestLiquidPaymentStop_GetTransactionBody(t *testing.T) {
 
 func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -1205,11 +1165,7 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
@@ -1232,11 +1188,7 @@ func TestLiquidPaymentStop_SkipMempoolTransaction(t *testing.T) {
 
 func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 	type fields struct {
-		ID                            int64
-		Fee                           int64
-		SenderAddress                 []byte
-		RecipientAddress              []byte
-		Height                        uint32
+		TransactionObject             *model.Transaction
 		Body                          *model.LiquidPaymentStopTransactionBody
 		QueryExecutor                 query.ExecutorInterface
 		TransactionQuery              query.TransactionQueryInterface
@@ -1259,11 +1211,7 @@ func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &LiquidPaymentStopTransaction{
-				ID:                            tt.fields.ID,
-				Fee:                           tt.fields.Fee,
-				SenderAddress:                 tt.fields.SenderAddress,
-				RecipientAddress:              tt.fields.RecipientAddress,
-				Height:                        tt.fields.Height,
+				TransactionObject:             tt.fields.TransactionObject,
 				Body:                          tt.fields.Body,
 				QueryExecutor:                 tt.fields.QueryExecutor,
 				TransactionQuery:              tt.fields.TransactionQuery,
