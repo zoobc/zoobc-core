@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 4273275803922203799
+	MainchainGenesisBlockID int64 = 1100567042419727522
 )
 
 type (
@@ -89,44 +89,11 @@ var (
 	GenesisConfig                 = []GenesisConfigEntry{
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_F5YUYDXD_WFDJSAV5_K3Y72RCM_GLQP32XI_QDVXOGGD_J7CGSSSK_5VKR7YML",
-			AccountBalance:     0,
-			// ZNK_TE5DFSAH_HVWOLTBQ_Y6IRKY35_JMYS25TB_3NIPF5DE_Q2IPMJMQ_2WDWZB5Q
-			NodePublicKey: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49, 45, 118,
-				97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "",
-		},
-		{
-			AccountAddressType: 0,
-			AccountAddress:     "ZBC_EEX2EIIS_UFQI5SRU_4UGYMSXA_RDSKDNAF_P2A7M5PC_CXWCMZZX_SNPIQ2SW",
-			AccountBalance:     0,
-			// ZNK_AAHANWVK_GY6DEASC_QJ36F236_ZMCQZGGC_VKJCWP7A_MV77CPUY_XP7XERUV
-			NodePublicKey: []byte{0, 14, 6, 218, 170, 54, 60, 50, 2, 66, 130, 119, 226, 235, 126, 203, 5, 12, 152,
-				194, 170, 146, 43, 63, 224, 101, 127, 241, 62, 152, 187, 255},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "",
-		},
-		{
-			AccountAddressType: 0,
-			AccountAddress:     "ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU",
-			AccountBalance:     0,
-			// ZNK_LMSOIRTF_L25PNOQE_J2HK3IV3_VXFFD424_RV4JJXBJ_UDIF5LVG_H3HZ477D
-			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
-				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
-			LockedBalance:      0,
-			ParticipationScore: GenesisParticipationScore,
-			Message:            "",
-		},
-		{
-			AccountAddressType: 0,
 			AccountAddress:     "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5",
 			AccountBalance:     0,
-			// ZNK_JFDDEEHK_AEZFLAFE_OEH37EJ3_SHRJGVS6_W2IS5RQY_R2XU7CEU_UTGTEUW2
-			NodePublicKey: []byte{73, 70, 50, 16, 234, 1, 50, 85, 128, 164, 113, 15, 191, 145, 59, 145, 226, 147, 86,
-				94, 182, 145, 46, 198, 24, 142, 175, 79, 136, 148, 164, 205},
+			// ZNK_OT7INXI2_Z4AMRMPM_JBHRRNYT_HRMAL5AU_WT6JRVZG_UTDCON47_I65JXGDC
+			NodePublicKey: []byte{116, 254, 134, 221, 26, 207, 0, 200, 177, 236, 72, 79, 24, 183, 19, 60, 88, 5, 244,
+				20, 180, 252, 152, 215, 38, 164, 198, 39, 55, 159, 71, 186},
 			LockedBalance:      0,
 			ParticipationScore: 500000000000000000,
 			Message:            "",
@@ -135,9 +102,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_QFVW5OWQ_3PQMBDOX_4XJXZ4PL_SH7FBFKN_LVUOVPSO_22BHUQTZ_EA2CF7LQ",
 			AccountBalance:     0,
-			// ZNK_5G2IQ2GN_JIMM34TX_TOUHBDVN_MDHXZCPV_U2QYJGVZ_PDB46N6L_6RDCZMRN
-			NodePublicKey: []byte{233, 180, 136, 104, 205, 74, 24, 205, 242, 119, 155, 168, 112, 142, 173, 96, 207, 124, 137,
-				245, 166, 161, 132, 154, 185, 120, 195, 207, 55, 203, 244, 70},
+			// ZNK_AYRFBAZT_S4GQA53V_TLCUV2ZD_LAUFAB4A_4NO466U5_DGS4X4ZN_HOBODSRU
+			NodePublicKey: []byte{6, 34, 80, 131, 51, 151, 13, 0, 119, 117, 154, 197, 74, 235, 35, 88, 40, 80, 7,
+				128, 227, 93, 207, 122, 157, 25, 165, 203, 243, 45, 59, 130},
 			LockedBalance:      0,
 			ParticipationScore: 500000000000000000,
 			Message:            "",
@@ -146,9 +113,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_MVSCRODC_M7MPBOZJ_EGEVP7OS_5LNMXF7A_5NWKQRPV_EZ26CEKD_MWLMFXVK",
 			AccountBalance:     0,
-			// ZNK_DDVKEGRN_HM6FTIIM_FFGT4CNR_T32PMQ6E_HMLUOOZR_ABCUOHV2_S76C6CYM
-			NodePublicKey: []byte{24, 234, 162, 26, 45, 59, 60, 89, 161, 12, 41, 77, 62, 9, 177, 158, 244, 246, 67,
-				196, 59, 23, 71, 59, 49, 0, 69, 71, 30, 186, 151, 252},
+			// ZNK_J4F2MA6O_KM4QWOVE_4XRLYELM_IE57WOBA_C7JOK4ZX_ZLRCIWBC_RJS4SUYR
+			NodePublicKey: []byte{79, 11, 166, 3, 206, 83, 57, 11, 58, 164, 229, 226, 188, 17, 108, 65, 59, 251, 56,
+				32, 23, 210, 229, 115, 55, 202, 226, 36, 88, 34, 138, 101},
 			LockedBalance:      0,
 			ParticipationScore: 500000000000000000,
 			Message:            "",
