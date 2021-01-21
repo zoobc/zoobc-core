@@ -203,7 +203,7 @@ func (ts *TransactionService) GetTransactions(
 
 	fromBlock := params.GetFromBlock()
 	toBlock := params.GetToBlock()
-	if fromBlock > 0 {
+	if fromBlock >= 0 && fromBlock <= toBlock {
 		caseQuery.And(caseQuery.Between("height", fromBlock, toBlock))
 	}
 
