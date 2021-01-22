@@ -204,8 +204,8 @@ func (ts *TransactionService) GetTransactions(
 	fromBlock := params.GetFromBlock()
 	toBlock := params.GetToBlock()
 
-	if fromBlock < toBlock {
-		return nil, status.Error(codes.Internal, "FromBlock height cannot excedd toBlock height")
+	if fromBlock > toBlock {
+		return nil, status.Error(codes.Internal, "FromBlock height cannot exceed toBlock height")
 	}
 
 	if toBlock != 0 && fromBlock <= toBlock {
