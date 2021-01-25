@@ -67,7 +67,6 @@ linters:
         - gochecknoinits
         - gocognit
         - ineffassign
-        - gofumpt
         - gci
         - godot
         - forbidigo
