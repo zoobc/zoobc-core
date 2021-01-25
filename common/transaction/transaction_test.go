@@ -52,14 +52,14 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
+	"encoding/json"
 	"reflect"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -96,7 +96,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 	liquidPaymentBody, liquidPaymentBytes := GetFixturesForLiquidPaymentTransaction()
 	liquidPaymentStopBody, liquidPaymentStopBytes := GetFixturesForLiquidPaymentStopTransaction()
 	accountBalanceHelper := NewAccountBalanceHelper(&query.Executor{}, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
-	// cache mock
+	// // cache mock
 	fixtureTransactionalCache := func(cache interface{}) storage.TransactionalCache {
 		return cache.(storage.TransactionalCache)
 	}
@@ -149,16 +149,23 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  0,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
+					TransactionBodyBytes:    util.ConvertUint64ToBytes(10),
+					TransactionType:         binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
+					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
+						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+							Amount: 10,
+						},
+					},
 				},
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
 				QueryExecutor: &query.Executor{},
 				EscrowQuery:   query.NewEscrowTransactionQuery(),
-				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, constant.OneZBC/100,
-				),
+				// BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				// EscrowFee: fee.NewBlockLifeTimeFeeModel(
+				// 	10, constant.OneZBC/100,
+				// ),
 				NormalFee:            fee.NewConstantFeeModel(constant.OneZBC / 100),
 				AccountBalanceHelper: accountBalanceHelper,
 			},
@@ -227,6 +234,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               0,
 					SenderAccountAddress: senderAddress1,
+					TransactionBodyBytes: nodeRegistrationBodyBytes,
+					TransactionBody: &model.Transaction_NodeRegistrationTransactionBody{
+						NodeRegistrationTransactionBody: nodeRegistrationBody,
+					},
+					TransactionType: 2,
 				},
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
@@ -268,6 +280,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               0,
 					SenderAccountAddress: senderAddress1,
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 1, 0, 0}),
+					TransactionBodyBytes: updateNodeRegistrationBodyBytes,
+					TransactionBody: &model.Transaction_UpdateNodeRegistrationTransactionBody{
+						UpdateNodeRegistrationTransactionBody: updateNodeRegistrationBody,
+					},
 				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -307,6 +324,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				Body: removeNodeRegistrationBody,
 				TransactionObject: &model.Transaction{
 					SenderAccountAddress: senderAddress1,
+					TransactionBody: &model.Transaction_RemoveNodeRegistrationTransactionBody{
+						RemoveNodeRegistrationTransactionBody: removeNodeRegistrationBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 2, 0, 0}),
+					TransactionBodyBytes: removeNodeRegistrationBodyBytes,
 				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -346,6 +368,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               0,
 					SenderAccountAddress: senderAddress1,
+					TransactionBody: &model.Transaction_ClaimNodeRegistrationTransactionBody{
+						ClaimNodeRegistrationTransactionBody: claimNodeRegistrationBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{2, 3, 0, 0}),
+					TransactionBodyBytes: claimNodeRegistrationBodyBytes,
 				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -383,6 +410,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               5,
 					SenderAccountAddress: senderAddress2,
+					TransactionBody: &model.Transaction_SetupAccountDatasetTransactionBody{
+						SetupAccountDatasetTransactionBody: mockSetupAccountDatasetBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{3, 0, 0, 0}),
+					TransactionBodyBytes: mockBytesSetupAccountDataset,
 				},
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
@@ -417,6 +449,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  5,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
+					TransactionBody: &model.Transaction_RemoveAccountDatasetTransactionBody{
+						RemoveAccountDatasetTransactionBody: mockRemoveAccountDatasetBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{3, 1, 0, 0}),
+					TransactionBodyBytes: mockBytesRemoveAccountDataset,
 				},
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
@@ -450,6 +487,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					ID:                   0,
 					SenderAccountAddress: senderAddress1,
 					Height:               5,
+					TransactionBody: &model.Transaction_ApprovalEscrowTransactionBody{
+						ApprovalEscrowTransactionBody: approvalEscrowBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{4, 0, 0, 0}),
+					TransactionBodyBytes: approvalEscrowBytes,
 				},
 				Body:             approvalEscrowBody,
 				QueryExecutor:    &query.Executor{},
@@ -493,6 +535,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               5,
 					SenderAccountAddress: senderAddress1,
+					TransactionBody: &model.Transaction_FeeVoteCommitTransactionBody{
+						FeeVoteCommitTransactionBody: feeVoteCommitTransactionBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 0, 0, 0}),
+					TransactionBodyBytes: feeVoteCommitTransactionBodyBytes,
 				},
 				QueryExecutor:              &query.Executor{},
 				AccountBalanceHelper:       accountBalanceHelper,
@@ -538,6 +585,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Height:               5,
 					SenderAccountAddress: senderAddress1,
+					TransactionBody: &model.Transaction_FeeVoteRevealTransactionBody{
+						FeeVoteRevealTransactionBody: feeVoteRevealBody,
+					},
+					TransactionType:      binary.LittleEndian.Uint32([]byte{7, 1, 0, 0}),
+					TransactionBodyBytes: txBodyBytes1,
 				},
 				QueryExecutor:          &query.Executor{},
 				AccountBalanceHelper:   accountBalanceHelper,
@@ -579,6 +631,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					SenderAccountAddress:    mockTxSenderAccountAddress,
 					RecipientAccountAddress: mockTxRecipientAccountAddress,
 					Height:                  5,
+					TransactionBody:         liquidPaymentBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 0, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentBytes,
 				},
 				Body:                          liquidPaymentBody,
 				QueryExecutor:                 &query.Executor{},
@@ -612,6 +667,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					SenderAccountAddress:    mockTxSenderAccountAddress,
 					RecipientAccountAddress: mockTxRecipientAccountAddress,
 					Height:                  5,
+					TransactionBody:         liquidPaymentStopBody,
+					TransactionType:         binary.LittleEndian.Uint32([]byte{6, 1, 0, 0}),
+					TransactionBodyBytes:    liquidPaymentStopBytes,
 				},
 				Body:                          liquidPaymentStopBody,
 				QueryExecutor:                 &query.Executor{},
@@ -641,6 +699,9 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				FeeScaleService:            tt.fields.FeeScaleService,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
+				j, _ := json.MarshalIndent(got, "", "  ")
+				j2, _ := json.MarshalIndent(tt.want, "", "  ")
+				t.Errorf("TypeSwitcher.GetTransactionType() = \n%s, want \n%s", j, j2)
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)
 			}
 		})

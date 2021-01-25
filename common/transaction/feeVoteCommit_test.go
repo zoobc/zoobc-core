@@ -675,6 +675,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetVoteCommitByAccountAddressAndHeight",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateFail{},
 				BlockQuery:                 &mockBlockQueryGetLastBlockFeeVoteCommitValidateSuccess{},
@@ -689,6 +690,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:DuplicatedVote",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateDupicated{},
 				FeeScaleService:            &mockFeeScaleServiceValidateSuccess{},
@@ -703,6 +705,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddress",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -718,6 +721,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -733,6 +737,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetNodeRegistrationByAccountAddressNoRow",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -748,6 +753,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetAccountBalanceByAccountAddress",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
 				BlockQuery:                 &mockBlockQueryGetBlockHeightFeeVoteCommitValidateSuccess{},
@@ -764,6 +770,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantFail:scan_GetAccountBalanceByAccountAddressNotEnoughSpendable",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -780,6 +787,7 @@ func TestFeeVoteCommitTransaction_Validate(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				Body:                       mockFeeVoteCommitTxBody,
 				QueryExecutor:              &mockQueryExecutorFeeVoteCommitValidateSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQueryValidateSuccess{},
@@ -1025,10 +1033,12 @@ func TestFeeVoteCommitTransaction_Escrowable(t *testing.T) {
 		want1  bool
 	}{
 		{
-			name:   "wantSucess",
-			fields: fields{},
-			want:   nil,
-			want1:  false,
+			name: "wantSucess",
+			fields: fields{
+				TransactionObject: &model.Transaction{},
+			},
+			want:  nil,
+			want1: false,
 		},
 	}
 	for _, tt := range tests {
@@ -1164,7 +1174,8 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "wantDuplicate:onMempool",
 			fields: fields{
-				FeeScaleService: &mockFeeScaleServiceSkipMempoolSuccess{},
+				TransactionObject: &model.Transaction{},
+				FeeScaleService:   &mockFeeScaleServiceSkipMempoolSuccess{},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -1180,6 +1191,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "wantFail:checkPreviousVote",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				FeeScaleService:            &mockFeeScaleServiceSkipMempoolSuccess{},
 				QueryExecutor:              &mockQueryExecutorSkipMempoolSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQuerySkipMempoolFail{},
@@ -1193,6 +1205,7 @@ func TestFeeVoteCommitTransaction_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
+				TransactionObject:          &model.Transaction{},
 				FeeScaleService:            &mockFeeScaleServiceSkipMempoolSuccess{},
 				QueryExecutor:              &mockQueryExecutorSkipMempoolSuccess{},
 				FeeVoteCommitmentVoteQuery: &mockFeeVoteCommitmentVoteQuerySkipMempoolSuccess{},

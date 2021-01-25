@@ -261,7 +261,8 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{PoownRequired}",
 			fields: fields{
-				Body: txBodyWithoutPoown,
+				TransactionObject: &model.Transaction{},
+				Body:              txBodyWithoutPoown,
 			},
 			wantErr: true,
 			errText: "ValidationErr: PoownRequired",
@@ -269,8 +270,9 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{InvalidPoown}",
 			fields: fields{
-				Body:      txBodyWithPoown,
-				AuthPoown: &mockAuthPoown{success: false},
+				TransactionObject: &model.Transaction{},
+				Body:              txBodyWithPoown,
+				AuthPoown:         &mockAuthPoown{success: false},
 			},
 			wantErr: true,
 			errText: "MockedError",
@@ -278,6 +280,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{ClaimedNodeNotRegistered}",
 			fields: fields{
+				TransactionObject:     &model.Transaction{},
 				Body:                  txBodyWithPoown,
 				AuthPoown:             &mockAuthPoown{success: true},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -289,6 +292,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{ClaimedNodeAlreadyClaimedOrDeleted}",
 			fields: fields{
+				TransactionObject:     &model.Transaction{},
 				Body:                  txBodyWithPoown,
 				AuthPoown:             &mockAuthPoown{success: true},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
@@ -330,6 +334,7 @@ func TestClaimNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success",
 			fields: fields{
+				TransactionObject:     &model.Transaction{},
 				Body:                  txBodyFull,
 				AuthPoown:             &mockAuthPoown{success: true},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),

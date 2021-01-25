@@ -342,7 +342,7 @@ func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 
 // GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)

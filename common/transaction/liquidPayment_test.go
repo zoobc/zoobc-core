@@ -1078,6 +1078,9 @@ func TestLiquidPayment_Escrowable(t *testing.T) {
 	}{
 		{
 			name: "wantNonEscrowable",
+			fields: fields{
+				TransactionObject: &model.Transaction{},
+			},
 			want: nil,
 		},
 	}

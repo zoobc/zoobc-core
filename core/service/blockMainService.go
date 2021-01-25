@@ -480,6 +480,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		if err != nil {
 			return nil, nil, err
 		}
+
 		// check if is in mempool : if yes, undo unconfirmed
 		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)

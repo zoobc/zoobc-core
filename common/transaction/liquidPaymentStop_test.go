@@ -214,6 +214,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteTransactions_error_balances",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorSetupLiquidPaymentStopFail{},
 					query.NewAccountBalanceQuery(),
@@ -226,6 +227,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetPendingLiquidPaymentTransactionByID",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -242,6 +244,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_LiquidPaymentTransactionQuery",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -258,6 +261,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSelectRow_error_GetTransaction",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -275,6 +279,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:Scan_error_GetTransaction",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -292,6 +297,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:GetTransactionType_error",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -312,6 +318,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:casting_error_liquidPaymentTransaction",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -332,6 +339,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:CompletePayment_error",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -354,6 +362,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess:status_is_already_completed",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -371,6 +380,7 @@ func TestLiquidPaymentStop_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantSuccess",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				AccountBalanceHelper: NewAccountBalanceHelper(
 					&executorLiquidPaymentStopApplyConfirmed{},
 					query.NewAccountBalanceQuery(),
@@ -1205,6 +1215,9 @@ func TestLiquidPaymentStop_Escrowable(t *testing.T) {
 	}{
 		{
 			name: "wantNonEscrowable",
+			fields: fields{
+				TransactionObject: &model.Transaction{},
+			},
 			want: nil,
 		},
 	}

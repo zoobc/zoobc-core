@@ -480,6 +480,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 			},
 		},
@@ -526,6 +527,7 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 			},
 		},
@@ -576,6 +578,7 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:      &model.Transaction{},
 				AccountBalanceHelper:   &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess{},

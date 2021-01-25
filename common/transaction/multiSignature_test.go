@@ -1683,6 +1683,7 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed - AddAccountSpendableBalance fail",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceFail{},
 			},
 			wantErr: true,
@@ -1690,6 +1691,7 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed - AddAccountSpendableBalance success",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 0),
@@ -1700,6 +1702,7 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed - AddAccountSpendableBalance success, UndoPendingTransactionFail",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 32),
@@ -1711,6 +1714,7 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed - AddAccountSpendableBalance success, UndoPendingTransactionSuccess",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceSuccess{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 32),
@@ -1785,6 +1789,7 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed - AddAccountSpendableBalance-Fail",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperAddAccountSpendableBalanceFail{},
 			},
 			wantErr: true,
@@ -1792,6 +1797,7 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed - AddAccountSpendableBalance-Success",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 0),
 				},
@@ -1802,6 +1808,7 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed - ApplyUnconfirmedPendingTransactionFail",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 32),
 				},
@@ -1813,6 +1820,7 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed - ApplyUnconfirmedPendingTransactionSuccess",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				Body: &model.MultiSignatureTransactionBody{
 					UnsignedTransactionBytes: make([]byte, 32),
 				},

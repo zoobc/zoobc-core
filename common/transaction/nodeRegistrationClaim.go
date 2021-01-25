@@ -257,7 +257,7 @@ func (tx *ClaimNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *ClaimNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
 	}
 	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)

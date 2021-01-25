@@ -718,10 +718,8 @@ func TestSendMoney_GetTransactionBody(t *testing.T) {
 
 func TestSendMoney_Escrowable(t *testing.T) {
 	type fields struct {
-		ID                int64
 		TransactionObject *model.Transaction
 		Body              *model.SendMoneyTransactionBody
-		Escrow            *model.Escrow
 		QueryExecutor     query.ExecutorInterface
 		EscrowQuery       query.EscrowTransactionQueryInterface
 	}
@@ -734,8 +732,8 @@ func TestSendMoney_Escrowable(t *testing.T) {
 		{
 			name: "wantNonEscrow",
 			fields: fields{
-				ID: 0,
 				TransactionObject: &model.Transaction{
+					ID:                      0,
 					Fee:                     0,
 					SenderAccountAddress:    nil,
 					RecipientAccountAddress: nil,
@@ -753,22 +751,22 @@ func TestSendMoney_Escrowable(t *testing.T) {
 		{
 			name: "wantEscrow",
 			fields: fields{
-				ID: 1,
 				TransactionObject: &model.Transaction{
+					ID:                      1,
 					Fee:                     1,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: recipientAddress1,
 					Height:                  0,
+					Escrow: &model.Escrow{
+						SenderAddress:    senderAddress1,
+						RecipientAddress: recipientAddress1,
+						ApproverAddress:  senderAddress2,
+						Commission:       10,
+						Timeout:          1,
+					},
 				},
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 1,
-				},
-				Escrow: &model.Escrow{
-					SenderAddress:    senderAddress1,
-					RecipientAddress: recipientAddress1,
-					ApproverAddress:  senderAddress2,
-					Commission:       10,
-					Timeout:          1,
 				},
 				QueryExecutor: nil,
 				EscrowQuery:   nil,
@@ -887,6 +885,7 @@ func TestSendMoney_EscrowValidate(t *testing.T) {
 		{
 			name: "wantError:AmountNotEnough",
 			fields: fields{
+				TransactionObject: &model.Transaction{},
 				Body: &model.SendMoneyTransactionBody{
 					Amount: -1,
 				},
