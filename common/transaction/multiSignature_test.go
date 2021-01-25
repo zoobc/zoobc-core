@@ -52,9 +52,10 @@ package transaction
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/fee"
@@ -1363,16 +1364,12 @@ func (*mockAccountBalanceHelperMultisignatureValidateSuccess) GetBalanceByAccoun
 
 func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -1406,7 +1403,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo invalid",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: nil,
@@ -1423,7 +1422,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo valid - unsignedTransactionBytes invalid",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: make([]byte, 32),
@@ -1441,7 +1442,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:exist - multisignatureInfo valid - " +
 				"signatureInfo invalid",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       &model.MultiSignatureInfo{},
 					UnsignedTransactionBytes: nil,
@@ -1458,7 +1461,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 		{
 			name: "Validate - multisignatureInfo:notExist - unsignedTransactionBytes invalid",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: make([]byte, 32),
@@ -1476,7 +1481,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - unsignedTransactionBytes valid and return multisigInfo - " +
 				"signatureInfo invalid",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: make([]byte, 32),
@@ -1494,7 +1501,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - error getting pending transaction - " +
 				"signatureInfo provided",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1512,7 +1521,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - no pending transaction - " +
 				"signatureInfo provided",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1530,7 +1541,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"multisigInfo not exist",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1549,7 +1562,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"get multisigInfo error",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1568,7 +1583,9 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			name: "Validate - multisignatureInfo:notExist - pending transaction exist - " +
 				"get multisigInfo exist - ValidateSignatureSuccess",
 			fields: fields{
-				Fee: mockFeeMultisignatureValidate,
+				TransactionObject: &model.Transaction{
+					Fee: mockFeeMultisignatureValidate,
+				},
 				Body: &model.MultiSignatureTransactionBody{
 					MultiSignatureInfo:       nil,
 					UnsignedTransactionBytes: nil,
@@ -1588,16 +1605,12 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
 				MultisigUtil:             tt.fields.MultisigUtil,
 				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
@@ -1649,16 +1662,12 @@ func (*mockUndoApplyUnconfirmedPendingTransactionHelperUndoPendingSuccess) UndoA
 
 func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -1714,16 +1723,12 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
 				MultisigUtil:             tt.fields.MultisigUtil,
 				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
@@ -1759,16 +1764,12 @@ func (*mockApplyUnconfirmedPendingTransactionHelperApplyUnconfirmedSuccess) Appl
 
 func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -1824,16 +1825,12 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
 				MultisigUtil:             tt.fields.MultisigUtil,
 				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
@@ -1988,16 +1985,12 @@ func TestPendingTransactionHelper_UndoApplyUnconfirmedPendingTransaction(t *test
 
 func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -2180,16 +2173,10 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
-				MultisigUtil:             tt.fields.MultisigUtil,
-				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
 				PendingTransactionHelper: tt.fields.PendingTransactionHelper,
 				AccountBalanceHelper:     tt.fields.AccountBalanceHelper,
@@ -2228,25 +2215,23 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 			},
 		}
 		tx1 = &MultiSignatureTransaction{
-			ID:            1390544043583530800,
-			SenderAddress: senderAddress1,
-			Fee:           1,
-			Body:          multisigTxBody,
+			TransactionObject: &model.Transaction{
+				ID:                   1390544043583530800,
+				SenderAccountAddress: senderAddress1,
+				Fee:                  1,
+			},
+			Body: multisigTxBody,
 		}
 		multisigTx1BodyBytes, _ = tx1.GetBodyBytes()
 	)
 
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -2267,12 +2252,14 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 		{
 			name: "parseBodyBytes - complete",
 			fields: fields{
-				ID:            1390544043583530800,
-				SenderAddress: senderAddress1,
-				Body:          multisigTxBody,
-				Fee:           1,
-				BlockID:       int64(111),
-				Height:        uint32(10),
+				TransactionObject: &model.Transaction{
+					ID:                   1390544043583530800,
+					SenderAccountAddress: senderAddress1,
+					Fee:                  1,
+					BlockID:              int64(111),
+					Height:               uint32(10),
+				},
+				Body: multisigTxBody,
 			},
 			args: args{
 				txBodyBytes: multisigTx1BodyBytes,
@@ -2284,16 +2271,12 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
 				MultisigUtil:             tt.fields.MultisigUtil,
 				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,
@@ -2315,16 +2298,12 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 
 func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 	type fields struct {
-		ID                       int64
-		SenderAddress            []byte
-		Fee                      int64
+		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
 		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
-		Height                   uint32
-		BlockID                  int64
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
 		MultisignatureInfoHelper MultisignatureInfoHelperInterface
@@ -2365,16 +2344,12 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &MultiSignatureTransaction{
-				ID:                       tt.fields.ID,
-				SenderAddress:            tt.fields.SenderAddress,
-				Fee:                      tt.fields.Fee,
+				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
 				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
-				Height:                   tt.fields.Height,
-				BlockID:                  tt.fields.BlockID,
 				MultisigUtil:             tt.fields.MultisigUtil,
 				SignatureInfoHelper:      tt.fields.SignatureInfoHelper,
 				MultisignatureInfoHelper: tt.fields.MultisignatureInfoHelper,

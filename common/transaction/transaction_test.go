@@ -52,9 +52,10 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/zoobc/zoobc-core/common/auth"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -144,9 +145,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &SendMoney{
-				Height:           0,
-				SenderAddress:    senderAddress1,
-				RecipientAddress: nil,
+				TransactionObject: &model.Transaction{
+					Height:                  0,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
+				},
 				Body: &model.SendMoneyTransactionBody{
 					Amount: 10,
 				},
@@ -221,8 +224,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &NodeRegistration{
-				Height:                  0,
-				SenderAddress:           senderAddress1,
+				TransactionObject: &model.Transaction{
+					Height:               0,
+					SenderAccountAddress: senderAddress1,
+				},
 				Body:                    nodeRegistrationBody,
 				QueryExecutor:           &query.Executor{},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
@@ -259,9 +264,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &UpdateNodeRegistration{
-				Body:                  updateNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         senderAddress1,
+				Body: updateNodeRegistrationBody,
+				TransactionObject: &model.Transaction{
+					Height:               0,
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -297,8 +304,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &RemoveNodeRegistration{
-				Body:                  removeNodeRegistrationBody,
-				SenderAddress:         senderAddress1,
+				Body: removeNodeRegistrationBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  accountBalanceHelper,
@@ -333,9 +342,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &ClaimNodeRegistration{
-				Body:                  claimNodeRegistrationBody,
-				Height:                0,
-				SenderAddress:         senderAddress1,
+				Body: claimNodeRegistrationBody,
+				TransactionObject: &model.Transaction{
+					Height:               0,
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &query.Executor{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -368,9 +379,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &SetupAccountDataset{
-				Body:                 mockSetupAccountDatasetBody,
-				Height:               5,
-				SenderAddress:        senderAddress2,
+				Body: mockSetupAccountDatasetBody,
+				TransactionObject: &model.Transaction{
+					Height:               5,
+					SenderAccountAddress: senderAddress2,
+				},
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
@@ -399,10 +412,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &RemoveAccountDataset{
-				Body:                 mockRemoveAccountDatasetBody,
-				Height:               5,
-				SenderAddress:        senderAddress1,
-				RecipientAddress:     nil,
+				Body: mockRemoveAccountDatasetBody,
+				TransactionObject: &model.Transaction{
+					Height:                  5,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: nil,
+				},
 				QueryExecutor:        &query.Executor{},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
@@ -431,10 +446,12 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &ApprovalEscrowTransaction{
-				ID:               0,
-				SenderAddress:    senderAddress1,
+				TransactionObject: &model.Transaction{
+					ID:                   0,
+					SenderAccountAddress: senderAddress1,
+					Height:               5,
+				},
 				Body:             approvalEscrowBody,
-				Height:           5,
 				QueryExecutor:    &query.Executor{},
 				EscrowQuery:      query.NewEscrowTransactionQuery(),
 				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
@@ -472,9 +489,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &FeeVoteCommitTransaction{
-				Body:                       feeVoteCommitTransactionBody,
-				Height:                     5,
-				SenderAddress:              senderAddress1,
+				Body: feeVoteCommitTransactionBody,
+				TransactionObject: &model.Transaction{
+					Height:               5,
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:              &query.Executor{},
 				AccountBalanceHelper:       accountBalanceHelper,
 				BlockQuery:                 query.NewBlockQuery(&chaintype.MainChain{}),
@@ -515,9 +534,11 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &FeeVoteRevealTransaction{
-				Body:                   feeVoteRevealBody,
-				Height:                 5,
-				SenderAddress:          senderAddress1,
+				Body: feeVoteRevealBody,
+				TransactionObject: &model.Transaction{
+					Height:               5,
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:          &query.Executor{},
 				AccountBalanceHelper:   accountBalanceHelper,
 				NodeRegistrationQuery:  query.NewNodeRegistrationQuery(),
@@ -553,11 +574,13 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &LiquidPaymentTransaction{
-				ID:                            0,
-				SenderAddress:                 mockTxSenderAccountAddress,
-				RecipientAddress:              mockTxRecipientAccountAddress,
+				TransactionObject: &model.Transaction{
+					ID:                      0,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					Height:                  5,
+				},
 				Body:                          liquidPaymentBody,
-				Height:                        5,
 				QueryExecutor:                 &query.Executor{},
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
@@ -584,11 +607,13 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 			},
 			want: &LiquidPaymentStopTransaction{
-				ID:                            0,
-				SenderAddress:                 mockTxSenderAccountAddress,
-				RecipientAddress:              mockTxRecipientAccountAddress,
+				TransactionObject: &model.Transaction{
+					ID:                      0,
+					SenderAccountAddress:    mockTxSenderAccountAddress,
+					RecipientAccountAddress: mockTxRecipientAccountAddress,
+					Height:                  5,
+				},
 				Body:                          liquidPaymentStopBody,
-				Height:                        5,
 				QueryExecutor:                 &query.Executor{},
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),

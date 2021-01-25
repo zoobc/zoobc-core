@@ -163,8 +163,8 @@ func (*mockLiquidPaymentTransactionQueryFail) Scan(liquidPayment *model.LiquidPa
 }
 
 func (m *mockLiquidPaymentTransactionQuerySuccess) Scan(liquidPayment *model.LiquidPayment, row *sql.Row) error {
-	liquidPayment.SenderAccountAddress = m.Sender
-	liquidPayment.RecipientAccountAddress = m.Recipient
+	liquidPayment.SenderAddress = m.Sender
+	liquidPayment.RecipientAddress = m.Recipient
 	liquidPayment.Status = m.Status
 	return nil
 }
