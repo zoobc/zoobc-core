@@ -61,7 +61,7 @@ import (
 type (
 	NodeAddressInfoQueryInterface interface {
 		InsertNodeAddressInfo(peerAddress *model.NodeAddressInfo) (str string, args []interface{})
-		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{}
+		UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) (string, []interface{})
 		ConfirmNodeAddressInfo(nodeAddressInfo *model.NodeAddressInfo) [][]interface{}
 		DeleteNodeAddressInfoByNodeID(nodeID int64, addressStatuses []model.NodeAddressStatus) (str string, args []interface{})
 		GetNodeAddressInfoByNodeIDs(nodeIDs []int64, addressStatuses []model.NodeAddressStatus) string
@@ -114,10 +114,7 @@ func (paq *NodeAddressInfoQuery) InsertNodeAddressInfo(peerAddress *model.NodeAd
 }
 
 // UpdateNodeAddressInfo returns a slice of queries/query parameters containing the update query to be executed.
-func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) [][]interface{} {
-	var (
-		queries [][]interface{}
-	)
+func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAddressInfo) (qry string, args []interface{}) {
 	qryUpdate := fmt.Sprintf(
 		"UPDATE %s SET"+
 			" address = ?,"+
@@ -129,10 +126,7 @@ func (paq *NodeAddressInfoQuery) UpdateNodeAddressInfo(peerAddress *model.NodeAd
 			" WHERE node_id = ? AND status = ?", paq.getTableName())
 	// move NodeID at the bottom of the values array
 	values := append(paq.ExtractModel(peerAddress)[1:], peerAddress.NodeID, peerAddress.Status)
-	queries = append(queries,
-		append([]interface{}{qryUpdate}, values...),
-	)
-	return queries
+	return qryUpdate, values
 }
 
 // ConfirmNodeAddressInfo returns a slice of queries/query parameters containing the insert/delete queries to be executed.

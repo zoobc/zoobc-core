@@ -54,11 +54,13 @@ package service
 import (
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
-	"github.com/zoobc/zoobc-core/common/storage"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
+	"github.com/zoobc/zoobc-core/common/queue"
+	"github.com/zoobc/zoobc-core/common/storage"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/sirupsen/logrus"
@@ -214,19 +216,19 @@ func (*mockGetTransactionExecutorTxNoRow) ExecuteSelectRow(qStr string, tx bool,
 	return db.QueryRow(""), nil
 }
 
-func (*mockTransactionExecutorFailBeginTx) BeginTx() error {
+func (*mockTransactionExecutorFailBeginTx) BeginTx(bool, int) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorSuccess) BeginTx() error {
+func (*mockTransactionExecutorSuccess) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockTransactionExecutorSuccess) CommitTx() error {
+func (*mockTransactionExecutorSuccess) CommitTx(bool) error {
 	return nil
 }
 
-func (*mockTransactionExecutorSuccess) RollbackTx() error {
+func (*mockTransactionExecutorSuccess) RollbackTx(bool) error {
 	return nil
 }
 
@@ -234,11 +236,11 @@ func (*mockTransactionExecutorSuccess) ExecuteTransaction(qStr string, args ...i
 	return nil
 }
 
-func (*mockTransactionExecutorRollbackFail) RollbackTx() error {
+func (*mockTransactionExecutorRollbackFail) RollbackTx(bool) error {
 	return errors.New("mockedError")
 }
 
-func (*mockTransactionExecutorCommitFail) CommitTx() error {
+func (*mockTransactionExecutorCommitFail) CommitTx(bool) error {
 	return errors.New("mockedError")
 }
 
@@ -257,7 +259,7 @@ func TestNewTransactionService(t *testing.T) {
 		{
 			name: "NewTransactionService:InitiateTransactionServiceInstance",
 			want: &TransactionService{
-				Query:           query.NewQueryExecutor(db),
+				Query:           query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				TransactionUtil: transactionUtil,
 			},
 		},
@@ -265,7 +267,7 @@ func TestNewTransactionService(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewTransactionService(
-				query.NewQueryExecutor(db),
+				query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 				nil,
 				nil,
 				nil,
@@ -293,13 +295,13 @@ type (
 	}
 )
 
-func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) CommitTx(bool) error {
 	return nil
 }
-func (*mockQueryExecutorPostApprovalEscrowTX) RollbackTx() error {
+func (*mockQueryExecutorPostApprovalEscrowTX) RollbackTx(bool) error {
 	return nil
 }
 func (*mockQueryExecutorPostApprovalEscrowTX) ExecuteTransaction(query string, args ...interface{}) error {

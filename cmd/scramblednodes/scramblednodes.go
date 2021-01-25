@@ -53,6 +53,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -147,7 +148,7 @@ func getScrambledNodesAtHeight() *model.ScrambledNodes {
 	activeNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypeActiveNodeRegistryStorage, nil)
 	pendingNodeRegistryCacheStorage := storage.NewNodeRegistryCacheStorage(monitoring.TypePendingNodeRegistryStorage, nil)
 	var (
-		queryExecutor          = query.NewQueryExecutor(dB)
+		queryExecutor          = query.NewQueryExecutor(dB, queue.NewPriorityPreferenceLock())
 		nodeAddressInfoService = service.NewNodeAddressInfoService(
 			queryExecutor,
 			query.NewNodeAddressInfoQuery(),

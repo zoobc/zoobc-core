@@ -283,34 +283,38 @@ func (*mockNaiStorageFailRemoveItem) RemoveItem(idx interface{}) error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorSuccess) BeginTx() error {
+func (*mockNaiQueryExecutorSuccess) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockNaiQueryExecutorSuccess) RollbackTx() error {
+func (*mockNaiQueryExecutorSuccess) RollbackTx(bool) error {
 	return nil
 }
-func (*mockNaiQueryExecutorSuccess) CommitTx() error {
+func (*mockNaiQueryExecutorSuccess) CommitTx(bool) error {
 	return nil
 }
 
-func (*mockNaiQueryExecutorFailBeginTx) BeginTx() error {
+func (*mockNaiQueryExecutorSuccess) ExecuteStatement(query string, args ...interface{}) (sql.Result, error) {
+	return nil, nil
+}
+
+func (*mockNaiQueryExecutorFailBeginTx) BeginTx(bool, int) error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailRollbackTx) BeginTx() error {
+func (*mockNaiQueryExecutorFailRollbackTx) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockNaiQueryExecutorFailRollbackTx) RollbackTx() error {
+func (*mockNaiQueryExecutorFailRollbackTx) RollbackTx(bool) error {
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailCommitTx) BeginTx() error {
+func (*mockNaiQueryExecutorFailCommitTx) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockNaiQueryExecutorFailCommitTx) RollbackTx() error {
+func (*mockNaiQueryExecutorFailCommitTx) RollbackTx(bool) error {
 	return nil
 }
-func (*mockNaiQueryExecutorFailCommitTx) CommitTx() error {
+func (*mockNaiQueryExecutorFailCommitTx) CommitTx(bool) error {
 	return errors.New("error")
 }
 
@@ -537,10 +541,10 @@ func (*mockNaiQueryExecutorFailScan) Scan(block *model.Block, row *sql.Row) erro
 	return errors.New("error")
 }
 
-func (*mockNaiQueryExecutorFailExecuteTransactions) BeginTx() error {
+func (*mockNaiQueryExecutorFailExecuteTransactions) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockNaiQueryExecutorFailExecuteTransactions) RollbackTx() error {
+func (*mockNaiQueryExecutorFailExecuteTransactions) RollbackTx(bool) error {
 	return errors.New("error")
 }
 func (*mockNaiQueryExecutorFailExecuteTransactions) ExecuteTransactions([][]interface{}) error {
@@ -663,10 +667,10 @@ func (*mockNaiQueryExecutorFailRollbackTx) ExecuteSelect(query string, tx bool, 
 func (*mockNaiQueryExecutorFailExecuteSelect) ExecuteTransaction(string, ...interface{}) error {
 	return errors.New("error")
 }
-func (*mockNaiQueryExecutorFailExecuteSelect) BeginTx() error {
+func (*mockNaiQueryExecutorFailExecuteSelect) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockNaiQueryExecutorFailExecuteSelect) RollbackTx() error {
+func (*mockNaiQueryExecutorFailExecuteSelect) RollbackTx(bool) error {
 	return errors.New("error")
 }
 
@@ -2113,43 +2117,6 @@ func TestNodeAddressInfoService_InsertAddressInfo(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "InsertAddressInfo:FailBeginTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailBeginTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: nil,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailRollbackTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailRollbackTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-				Logger:                 log.New(),
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailCommitTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailCommitTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
-		},
-		{
 			name: "InsertAddressInfo:FailSetItem",
 			fields: fields{
 				QueryExecutor:          &mockNaiQueryExecutorSuccess{},
@@ -2268,43 +2235,6 @@ func TestNodeAddressInfoService_UpdateAddrressInfo(t *testing.T) {
 				nodeAddressInfo: naiNode1,
 			},
 			wantErr: false,
-		},
-		{
-			name: "UpdateAddressInfo:FailBeginTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailBeginTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: nil,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailRollbackTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailRollbackTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-				Logger:                 log.New(),
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
-		},
-		{
-			name: "InsertAddressInfo:FailCommitTx",
-			fields: fields{
-				QueryExecutor:          &mockNaiQueryExecutorFailCommitTx{},
-				NodeAddressInfoQuery:   query.NewNodeAddressInfoQuery(),
-				NodeAddressInfoStorage: &mockNaiStorageFail{},
-			},
-			args: args{
-				nodeAddressInfo: naiNode1,
-			},
-			wantErr: true,
 		},
 		{
 			name: "InsertAddressInfo:FailSetItem",

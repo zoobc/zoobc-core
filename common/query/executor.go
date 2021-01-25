@@ -56,12 +56,13 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/common/queue"
 )
 
 type (
 	// ExecutorInterface interface
 	ExecutorInterface interface {
-		BeginTx() error
+		BeginTx(highPriorityLock bool, ownerProcess int) error
 		Execute(string) (sql.Result, error)
 		ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error)
 		ExecuteSelectRow(query string, tx bool, args ...interface{}) (*sql.Row, error)
@@ -70,8 +71,8 @@ type (
 		ExecuteTransactions(queries [][]interface{}) error
 		// CommitTx commit on every transaction stacked in Executor.Tx
 		// note: rollback is called in this function if commit fail, to avoid locking complication
-		CommitTx() error
-		RollbackTx() error
+		CommitTx(highPriorityLock bool) error
+		RollbackTx(highPriorityLock bool) error
 	}
 
 	// Executor struct
@@ -83,7 +84,7 @@ type (
 )
 
 // NewQueryExecutor create new query executor instance
-func NewQueryExecutor(db *sql.DB) *Executor {
+func NewQueryExecutor(db *sql.DB, pL queue.PriorityLock) *Executor {
 	return &Executor{
 		Db: db,
 	}
@@ -93,7 +94,7 @@ func NewQueryExecutor(db *sql.DB) *Executor {
 BeginTx begin database transaction and assign it to the Executor.Tx
 lock the struct on begin
 */
-func (qe *Executor) BeginTx() error {
+func (qe *Executor) BeginTx(highPriorityLock bool, ownerProcess int) error {
 	qe.Lock()
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	tx, err := qe.Db.Begin()
@@ -247,7 +248,7 @@ func (qe *Executor) ExecuteTransactions(queries [][]interface{}) error {
 
 // CommitTx commit on every transaction stacked in Executor.Tx
 // note: rollback is called in this function if commit fail, to avoid locking complication
-func (qe *Executor) CommitTx() error {
+func (qe *Executor) CommitTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	err := qe.Tx.Commit()
 	defer func() {
@@ -269,7 +270,7 @@ func (qe *Executor) CommitTx() error {
 }
 
 // RollbackTx rollback and unlock executor in case any single tx fail
-func (qe *Executor) RollbackTx() error {
+func (qe *Executor) RollbackTx(highPriorityLock bool) error {
 	monitoring.SetDatabaseStats(qe.Db.Stats())
 	var err = qe.Tx.Rollback()
 	defer func() {
