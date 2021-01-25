@@ -390,7 +390,8 @@ func (bs *BlockSpineService) ProcessPushBlock(previousBlock, block *model.Block,
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -400,7 +401,7 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePushBlockOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -408,13 +409,13 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	err = bs.ProcessPushBlock(previousBlock, block, broadcast, persist)
 	if err != nil {
 		bs.Logger.Error(err.Error())
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -545,13 +546,19 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, with
 // GetLastBlock return the last pushed block
 func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
+		lastBlock *model.Block
+		err       error
 	)
+
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, err
 	}
-	return &lastBlock, nil
+	return lastBlock, nil
 }
 
 func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
@@ -1092,7 +1099,8 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -1127,7 +1135,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePopOffToBlockOwnerProcess)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -1136,14 +1144,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
+			rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
 			}
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, err
 	}

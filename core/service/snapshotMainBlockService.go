@@ -520,20 +520,21 @@ func (ss *SnapshotMainBlockService) InsertSnapshotPayloadToDB(payload *model.Sna
 			}
 		}
 	}
-	err := ss.QueryExecutor.BeginTx()
+	isDbTransactionHighPriority := false
+	err := ss.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.InsertSnapshotPayloadToDBOwnerProcess)
 	if err != nil {
 		return err
 	}
 	err = ss.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		rollbackErr := ss.QueryExecutor.RollbackTx()
+		rollbackErr := ss.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			ss.Logger.Error(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("fail to insert snapshot into db: %v", err))
 	}
 
-	err = ss.QueryExecutor.CommitTx()
+	err = ss.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}

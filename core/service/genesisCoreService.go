@@ -52,6 +52,7 @@ package service
 import (
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"golang.org/x/crypto/sha3"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -229,23 +230,22 @@ func AddGenesisNextNodeAdmission(
 			BlockHeight: 0,
 			Latest:      true,
 		}
-		insertQueries = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+		insertQueries               = query.NewNodeAdmissionTimestampQuery().InsertNextNodeAdmission(nodeAdmission)
+		isDbTransactionHighPriority = false
 	)
-	err = executor.BeginTx()
+	err = executor.BeginTx(isDbTransactionHighPriority, monitoring.AddGenesisNextNodeAdmissionOwnerProcess)
 	if err != nil {
 		return err
 	}
 	err = executor.ExecuteTransactions(insertQueries)
 	if err != nil {
-
-		rollbackErr := executor.RollbackTx()
+		rollbackErr := executor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis next node admission timestamp")
-
 	}
-	err = executor.CommitTx()
+	err = executor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -272,11 +272,12 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 		genesisAccountBalanceInsertQ, genesisAccountBalanceInsertArgs = query.NewAccountBalanceQuery().InsertAccountBalance(
 			&genesisAccountBalance)
 
-		genesisQueries [][]interface{}
-		err            error
+		genesisQueries              [][]interface{}
+		err                         error
+		isDbTransactionHighPriority = false
 	)
 
-	err = executor.BeginTx()
+	err = executor.BeginTx(isDbTransactionHighPriority, monitoring.AddGenesisAccountOwnerProcess)
 	if err != nil {
 		return err
 	}
@@ -286,13 +287,13 @@ func AddGenesisAccount(executor query.ExecutorInterface) error {
 	)
 	err = executor.ExecuteTransactions(genesisQueries)
 	if err != nil {
-		rollbackErr := executor.RollbackTx()
+		rollbackErr := executor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return blocker.NewBlocker(blocker.AppErr, "fail to add genesis account balance")
 	}
-	err = executor.CommitTx()
+	err = executor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}

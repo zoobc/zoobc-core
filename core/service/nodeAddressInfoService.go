@@ -51,6 +51,7 @@ package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -388,18 +389,8 @@ func (nru *NodeAddressInfoService) CountRegistredNodeAddressWithAddressInfo() (i
 }
 
 func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	qry, args := nru.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx()
-		nru.Logger.Error(errRollback)
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx()
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args...)
 	if err != nil {
 		return err
 	}
@@ -412,20 +403,11 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
+	if nodeAddressInfo == nil {
+		return errors.New("invalid nodeaddressinfo")
 	}
-	qryArgs := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx()
-		if errRollback != nil {
-			nru.Logger.Error(errRollback)
-		}
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx()
+	qry, args := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args)
 	if err != nil {
 		return err
 	}
@@ -441,21 +423,22 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	pendingNodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	var (
-		queries = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-		err     = nru.QueryExecutor.BeginTx()
+		isDbTransactionHighPriority = false
+		queries                     = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
+		err                         = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ConfirmNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		rollbackErr := nru.QueryExecutor.RollbackTx()
+		rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx()
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -497,20 +480,21 @@ func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) er
 			nodeID,
 			nodeAddressInfoStatuses,
 		)
+		isDbTransactionHighPriority = false
 		// start db transaction here
-		err = nru.QueryExecutor.BeginTx()
+		err = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.DeletePendingNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
-		if rollbackErr := nru.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			nru.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx()
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}

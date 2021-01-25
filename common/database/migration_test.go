@@ -54,6 +54,8 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/queue"
+
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -111,7 +113,7 @@ func TestMigration_Init(t *testing.T) {
 						"created_date" TIMESTAMP NOT NULL
 					);`,
 				},
-				Query: query.NewQueryExecutor(db),
+				Query: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 			wantErr: false,
 		},
@@ -163,7 +165,7 @@ type (
 	}
 )
 
-func (*mockQueryExecutorVersionNil) BeginTx() error {
+func (*mockQueryExecutorVersionNil) BeginTx(bool, int) error {
 	return nil
 }
 func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...interface{}) error {
@@ -178,7 +180,7 @@ func (*mockQueryExecutorVersionNil) ExecuteTransaction(qStr string, args ...inte
 	_, err = stmt.Exec(args...)
 	return err
 }
-func (*mockQueryExecutorVersionNil) CommitTx() error {
+func (*mockQueryExecutorVersionNil) CommitTx(bool) error {
 	return nil
 }
 func TestMigration_Apply(t *testing.T) {

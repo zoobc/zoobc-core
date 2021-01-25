@@ -50,6 +50,7 @@
 package util
 
 import (
+	"bytes"
 	"regexp"
 	"strings"
 )
@@ -62,4 +63,12 @@ func ValidateIP4(ipAddress string) bool {
 	pattern := `^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`
 	re, _ := regexp.Compile(pattern)
 	return re.MatchString(ipAddress)
+}
+
+// IsBytesEmpty returns check result whether the bytes are empty
+func IsBytesEmpty(bytesToCheck []byte) bool {
+	if bytesToCheck == nil {
+		return true
+	}
+	return bytes.Equal(bytesToCheck, []byte{})
 }
