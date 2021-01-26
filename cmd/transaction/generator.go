@@ -301,64 +301,24 @@ func getAccountTypeFromEncodedAccount(senderAccountAddressHex string) accounttyp
 	return accountType
 }
 
-func getSenderDecodeAddress(senderAccountAddress string) []byte {
-	var decodedSenderAddress []byte
+func getDecodeAddress(senderAccountAddress string) []byte {
+	var decodedAddress []byte
 	var err error
 	if strings.Contains(senderAccountAddress, "0000") {
-		decodedSenderAddress, err = hex.DecodeString(senderAccountAddress)
+		decodedAddress, err = hex.DecodeString(senderAccountAddress)
 		if err != nil {
 			panic(err)
 		}
 	} else if strings.Contains(senderAccountAddress, "ZBC") {
 		zbcPrefix := []byte{0, 0, 0, 0}
 		ed25519 := signaturetype.NewEd25519Signature()
-		decodedSenderAddress, err = ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddress)
+		decodedAddress, err = ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddress)
 		if err != nil {
 			panic(err)
 		}
-		decodedSenderAddress = append(zbcPrefix, decodedSenderAddress...)
+		decodedAddress = append(zbcPrefix, decodedAddress...)
 	}
-	return decodedSenderAddress
-}
-
-func getRecipientDecodeAddress(recipientAccountAddress string) []byte {
-	var decodedRecipientAddress []byte
-	var err error
-	if strings.Contains(recipientAccountAddress, "0000") {
-		decodedRecipientAddress, err = hex.DecodeString(recipientAccountAddress)
-		if err != nil {
-			panic(err)
-		}
-	} else if strings.Contains(recipientAccountAddress, "ZBC") {
-		zbcPrefix := []byte{0, 0, 0, 0}
-		ed25519 := signaturetype.NewEd25519Signature()
-		decodedRecipientAddress, err = ed25519.GetPublicKeyFromEncodedAddress(recipientAccountAddress)
-		if err != nil {
-			panic(err)
-		}
-		decodedRecipientAddress = append(zbcPrefix, decodedRecipientAddress...)
-	}
-	return decodedRecipientAddress
-}
-
-func getApproverDecodeAddress(approverAccountAddress string) []byte {
-	var decodedApproverAddress []byte
-	var err error
-	if strings.Contains(approverAccountAddress, "0000") {
-		decodedApproverAddress, err = hex.DecodeString(approverAccountAddress)
-		if err != nil {
-			panic(err)
-		}
-	} else if strings.Contains(approverAccountAddress, "ZBC") {
-		zbcPrefix := []byte{0, 0, 0, 0}
-		ed25519 := signaturetype.NewEd25519Signature()
-		decodedApproverAddress, err = ed25519.GetPublicKeyFromEncodedAddress(approverAccountAddress)
-		if err != nil {
-			panic(err)
-		}
-		decodedApproverAddress = append(zbcPrefix, decodedApproverAddress...)
-	}
-	return decodedApproverAddress
+	return decodedAddress
 }
 
 // GenerateBasicTransaction return  basic transaction based on common transaction field
@@ -418,8 +378,8 @@ func GenerateBasicTransaction(
 		timestamp = time.Now().Unix()
 	}
 	var decodedSenderAddress, decodedRecipientAddress []byte
-	decodedSenderAddress = getSenderDecodeAddress(senderAccountAddressHex)
-	decodedRecipientAddress = getRecipientDecodeAddress(recipientAccountAddressHex)
+	decodedSenderAddress = getDecodeAddress(senderAccountAddressHex)
+	decodedRecipientAddress = getDecodeAddress(recipientAccountAddressHex)
 
 	return &model.Transaction{
 		Version:                 version,
@@ -553,7 +513,7 @@ Invalid escrow validation when those fields has not set
 func GenerateEscrowedTransaction(
 	tx *model.Transaction,
 ) *model.Transaction {
-	decodedApproverAddress := getApproverDecodeAddress(esApproverAddressHex)
+	decodedApproverAddress := getDecodeAddress(esApproverAddressHex)
 	tx.Escrow = &model.Escrow{
 		ApproverAddress: decodedApproverAddress,
 		Commission:      esCommission,

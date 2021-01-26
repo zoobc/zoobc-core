@@ -52,11 +52,12 @@ package transaction
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 
@@ -576,7 +577,6 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 				message,
 			)
 		)
-
 		dbInstance := database.NewSqliteDB()
 		dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
 		err = dbInstance.InitializeDB(dbPath, dBName)
