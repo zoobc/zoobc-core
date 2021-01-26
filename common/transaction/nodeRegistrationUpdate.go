@@ -225,7 +225,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeReg.GetLockedBalance()
 	}
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -(effectiveBalanceToLock + tx.TransactionObject.Fee))
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(effectiveBalanceToLock + tx.TransactionObject.Fee))
 	if err != nil {
 		return err
 	}
@@ -470,7 +471,9 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 	}
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission()+effectiveBalanceToLock)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission()+effectiveBalanceToLock)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -555,7 +558,8 @@ func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	// delta amount to be locked
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, effectiveBalanceToLock+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		effectiveBalanceToLock+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		return err
 	}

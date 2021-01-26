@@ -350,8 +350,8 @@ EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx a
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *SetupAccountDataset) EscrowUndoApplyUnconfirmed() error {
-
-	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

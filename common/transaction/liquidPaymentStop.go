@@ -198,7 +198,8 @@ func (tx *LiquidPaymentStopTransaction) Validate(dbTx bool) error {
 		return err
 	}
 
-	if !bytes.Equal(liquidPayment.SenderAddress, tx.TransactionObject.SenderAccountAddress) && !bytes.Equal(liquidPayment.RecipientAddress, tx.TransactionObject.SenderAccountAddress) {
+	if !bytes.Equal(liquidPayment.SenderAddress, tx.TransactionObject.SenderAccountAddress) &&
+		!bytes.Equal(liquidPayment.RecipientAddress, tx.TransactionObject.SenderAccountAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "Only sender or recipient of the payment can stop the payment")
 	}
 
@@ -329,7 +330,9 @@ func (tx *LiquidPaymentStopTransaction) EscrowValidate(dbTx bool) (err error) {
 	if err != nil {
 		return err
 	}
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

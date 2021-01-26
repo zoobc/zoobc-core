@@ -125,8 +125,8 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `SendMoney
 	- perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 */
 func (tx *SendMoney) ApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -(tx.Body.GetAmount() + tx.TransactionObject.Fee))
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(tx.Body.GetAmount() + tx.TransactionObject.Fee))
 	if err != nil {
 		return err
 	}
@@ -169,7 +169,9 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 			return errors.New("transaction must have a valid sender account id")
 		}
 
-		enough, e := tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.Body.GetAmount()+tx.TransactionObject.Fee)
+		enough, e := tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+			tx.TransactionObject.SenderAccountAddress,
+			tx.Body.GetAmount()+tx.TransactionObject.Fee)
 		if e != nil {
 			if e != sql.ErrNoRows {
 				return err
@@ -262,7 +264,8 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 		return err
 	}
 
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetRecipientAddress() == nil || bytes.Equal(tx.TransactionObject.Escrow.GetRecipientAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow.GetRecipientAddress() == nil ||
+		bytes.Equal(tx.TransactionObject.Escrow.GetRecipientAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "RecipientAddressRequired")
 	}
 
@@ -270,7 +273,8 @@ func (tx *SendMoney) EscrowValidate(dbTx bool) error {
 	if err != nil {
 		return err
 	}
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.Body.GetAmount()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress,
+		tx.Body.GetAmount()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -290,8 +294,8 @@ EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
 similar with ApplyUnconfirmed and Escrow.Commission
 */
 func (tx *SendMoney) EscrowApplyUnconfirmed() error {
-
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -(tx.Body.GetAmount() + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()))
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(tx.Body.GetAmount() + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()))
 	if err != nil {
 		return err
 	}

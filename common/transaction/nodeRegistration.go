@@ -453,7 +453,9 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 	}
 
 	// check balance
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.Body.GetLockedBalance()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.Body.GetLockedBalance()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err

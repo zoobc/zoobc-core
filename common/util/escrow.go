@@ -9,6 +9,9 @@ import (
 
 // ValidateBasicEscrow performs basic validation on the escrow
 func ValidateBasicEscrow(tx *model.Transaction) error {
+	if tx.Escrow == nil {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidEscrowObject")
+	}
 	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
 		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
 	}
