@@ -230,7 +230,8 @@ ApplyUnconfirmed is func that for applying to unconfirmed Transaction `NodeRegis
 */
 func (tx *NodeRegistration) ApplyUnconfirmed() error {
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -(tx.Body.GetLockedBalance() + tx.TransactionObject.Fee))
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(tx.Body.GetLockedBalance() + tx.TransactionObject.Fee))
 	if err != nil {
 		return err
 	}
@@ -240,7 +241,8 @@ func (tx *NodeRegistration) ApplyUnconfirmed() error {
 
 func (tx *NodeRegistration) UndoApplyUnconfirmed() error {
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.Body.GetLockedBalance()+tx.TransactionObject.Fee)
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		tx.Body.GetLockedBalance()+tx.TransactionObject.Fee)
 	if err != nil {
 		return err
 	}
@@ -478,9 +480,9 @@ func (tx *NodeRegistration) EscrowValidate(dbTx bool) error {
 // EscrowApplyUnconfirmed is applyUnconfirmed specific for Escrow's transaction
 // similar with ApplyUnconfirmed and Escrow.Commission
 func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
-
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -(tx.Body.GetLockedBalance() + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()))
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(tx.Body.GetLockedBalance() + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()))
 	if err != nil {
 		return err
 	}
@@ -491,9 +493,9 @@ func (tx *NodeRegistration) EscrowApplyUnconfirmed() error {
 // EscrowUndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 // this will be called on apply confirmed or when rollback occurred
 func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
-
 	// update sender balance by reducing his spendable balance of the tx fee
-	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.Body.GetLockedBalance()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	var err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		tx.Body.GetLockedBalance()+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		return err
 	}
