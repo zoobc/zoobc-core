@@ -137,10 +137,10 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				Body:              transactionBody.(*model.SendMoneyTransactionBody),
 				QueryExecutor:     ts.Executor,
 				EscrowQuery:       query.NewEscrowTransactionQuery(),
-				// BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				// EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-				// 	24, fee.SendMoneyFeeConstant,
-				// ),
+				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
+				),
 				NormalFee:            fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 				AccountBalanceHelper: accountBalanceHelper,
 			}, nil

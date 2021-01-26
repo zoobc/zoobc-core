@@ -52,7 +52,6 @@ package transaction
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/json"
 	"reflect"
 	"testing"
 
@@ -162,10 +161,10 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				},
 				QueryExecutor: &query.Executor{},
 				EscrowQuery:   query.NewEscrowTransactionQuery(),
-				// BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
-				// EscrowFee: fee.NewBlockLifeTimeFeeModel(
-				// 	10, constant.OneZBC/100,
-				// ),
+				BlockQuery:    query.NewBlockQuery(&chaintype.MainChain{}),
+				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
+					24, fee.SendMoneyFeeConstant,
+				),
 				NormalFee:            fee.NewConstantFeeModel(constant.OneZBC / 100),
 				AccountBalanceHelper: accountBalanceHelper,
 			},
@@ -699,9 +698,6 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 				FeeScaleService:            tt.fields.FeeScaleService,
 			}
 			if got, _ := ts.GetTransactionType(tt.args.tx); !reflect.DeepEqual(got, tt.want) {
-				j, _ := json.MarshalIndent(got, "", "  ")
-				j2, _ := json.MarshalIndent(tt.want, "", "  ")
-				t.Errorf("TypeSwitcher.GetTransactionType() = \n%s, want \n%s", j, j2)
 				t.Errorf("TypeSwitcher.GetTransactionType() = \n%v, want \n%v", got, tt.want)
 			}
 		})
