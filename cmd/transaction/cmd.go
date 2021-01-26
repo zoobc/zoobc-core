@@ -306,6 +306,16 @@ func Commands() *cobra.Command {
 	return txCmd
 }
 
+func getAccountAddressType(senderAddress string) int32 {
+	var senderAccountType int32
+	if strings.Contains(senderAddress, "0000") {
+		senderAccountType = getAccountTypeFromAccountHex(senderAddress).GetTypeInt()
+	} else if strings.Contains(senderAddress, "ZBC") {
+		senderAccountType = getAccountTypeFromEncodedAccount(senderAddress).GetTypeInt()
+	}
+	return senderAccountType
+}
+
 // SendMoneyProcess for generate TX SendMoney type
 func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
@@ -322,12 +332,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		var senderAccountType int32
-		if strings.Contains(senderAddressHex, "0000") {
-			senderAccountType = getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
-		} else if strings.Contains(senderAddressHex, "ZBC") {
-			senderAccountType = getAccountTypeFromEncodedAccount(senderAddressHex).GetTypeInt()
-		}
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -363,7 +368,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -400,7 +405,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -422,7 +427,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -457,7 +462,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -485,7 +490,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -506,7 +511,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -524,7 +529,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			message,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -546,7 +551,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountAddressType(senderAddressHex)
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}
@@ -623,7 +628,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountAddressType(senderAddressHex)
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}
@@ -709,7 +714,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 		}
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
 
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -727,7 +732,7 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -745,7 +750,7 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
