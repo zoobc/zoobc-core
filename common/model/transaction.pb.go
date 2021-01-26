@@ -1249,6 +1249,8 @@ type GetTransactionsRequest struct {
 	TimestampEnd         int64       `protobuf:"varint,4,opt,name=TimestampEnd,proto3" json:"TimestampEnd,omitempty"`
 	TransactionType      uint32      `protobuf:"varint,5,opt,name=TransactionType,proto3" json:"TransactionType,omitempty"`
 	Pagination           *Pagination `protobuf:"bytes,6,opt,name=Pagination,proto3" json:"Pagination,omitempty"`
+	FromBlock            uint32      `protobuf:"varint,7,opt,name=FromBlock,proto3" json:"FromBlock,omitempty"`
+	ToBlock              uint32      `protobuf:"varint,8,opt,name=ToBlock,proto3" json:"ToBlock,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
 	XXX_unrecognized     []byte      `json:"-"`
 	XXX_sizecache        int32       `json:"-"`
@@ -1319,6 +1321,20 @@ func (m *GetTransactionsRequest) GetPagination() *Pagination {
 		return m.Pagination
 	}
 	return nil
+}
+
+func (x *GetTransactionsRequest) GetFromBlock() uint32 {
+	if x != nil {
+		return x.FromBlock
+	}
+	return 0
+}
+
+func (x *GetTransactionsRequest) GetToBlock() uint32 {
+	if x != nil {
+		return x.ToBlock
+	}
+	return 0
 }
 
 type GetTransactionsResponse struct {

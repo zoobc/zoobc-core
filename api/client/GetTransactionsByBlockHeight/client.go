@@ -47,28 +47,52 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
-package util
+package main
 
 import (
-	"bytes"
-	"regexp"
-	"strings"
+	"context"
+	"fmt"
+	"log"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/spf13/viper"
+	rpc_model "github.com/zoobc/zoobc-core/common/model"
+	rpc_service "github.com/zoobc/zoobc-core/common/service"
+	"github.com/zoobc/zoobc-core/common/util"
+	"google.golang.org/grpc"
 )
 
-/*
-ValidateIP4 validates format of ipv4
-*/
-func ValidateIP4(ipAddress string) bool {
-	ipAddress = strings.Trim(ipAddress, " ")
-	pattern := `^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$`
-	re, _ := regexp.Compile(pattern)
-	return re.MatchString(ipAddress)
-}
-
-// IsBytesEmpty returns check result whether the bytes are empty
-func IsBytesEmpty(bytesToCheck []byte) bool {
-	if bytesToCheck == nil {
-		return true
+func main() {
+	var apiRPCPort int
+	if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
+		logrus.Fatal(err)
+	} else {
+		apiRPCPort = viper.GetInt("apiRPCPort")
+		if apiRPCPort == 0 {
+			apiRPCPort = 8080
+		}
 	}
-	return bytes.Equal(bytesToCheck, []byte{})
+
+	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("did not connect: %s", err)
+	}
+	defer conn.Close()
+
+	c := rpc_service.NewTransactionServiceClient(conn)
+
+	response, err := c.GetTransactions(context.Background(),
+		&rpc_model.GetTransactionsRequest{
+			FromBlock: 0,
+			ToBlock:   500,
+		},
+	)
+
+	if err != nil {
+		log.Fatalf("error calling remote.GetTransactionsByBlockHeight: %s", err)
+	}
+
+	log.Printf("response from remote.GetTransactionsByBlockHeight(): %v", response)
+
 }
