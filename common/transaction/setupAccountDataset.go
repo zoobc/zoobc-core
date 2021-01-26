@@ -317,7 +317,9 @@ func (tx *SetupAccountDataset) EscrowValidate(dbTx bool) error {
 		return err
 	}
 	// Need to check also spendable balance has enough again: plus commission
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return blocker.NewBlocker(blocker.ValidationErr, err.Error())

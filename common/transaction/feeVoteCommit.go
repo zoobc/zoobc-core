@@ -326,7 +326,8 @@ func (tx *FeeVoteCommitTransaction) SkipMempoolTransaction(
 
 // Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option
 func (tx *FeeVoteCommitTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
+		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		tx.TransactionObject.Escrow = util.PrepareEscrowObjectForAction(tx.TransactionObject)
 		return EscrowTypeAction(tx), true
 	}
