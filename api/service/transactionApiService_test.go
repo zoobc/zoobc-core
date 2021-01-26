@@ -734,6 +734,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
+					FromBlock: 1,
+					ToBlock:   1,
 					Pagination: &model.Pagination{
 						Limit: 1,
 						Page:  0,
