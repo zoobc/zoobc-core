@@ -135,7 +135,8 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 		name   string
 		fields fields
 		args   args
-		want   [][]interface{}
+		want   string
+		want2  []interface{}
 	}{
 		{
 			name: "UpdateNodeAddressInfo:success",
@@ -155,20 +156,19 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				Fields:    NewNodeAddressInfoQuery().Fields,
 				TableName: NewNodeAddressInfoQuery().TableName,
 			},
-			want: [][]interface{}{
-				append([]interface{}{"UPDATE node_address_info SET address = ?, " +
-					"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
-					" node_id = ? AND status = ?"},
-					"192.168.1.2",
-					uint32(8080),
-					uint32(100),
-					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-					[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-						1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
-					model.NodeAddressStatus_NodeAddressConfirmed,
-					int64(111),
-					model.NodeAddressStatus_NodeAddressConfirmed,
-				),
+			want: "UPDATE node_address_info SET address = ?, " +
+				"port = ?, block_height = ?, block_hash = ?, signature = ?, status = ? WHERE" +
+				" node_id = ? AND status = ?",
+			want2: []interface{}{
+				"192.168.1.2",
+				uint32(8080),
+				uint32(100),
+				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				[]byte{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+					1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1},
+				model.NodeAddressStatus_NodeAddressConfirmed,
+				int64(111),
+				model.NodeAddressStatus_NodeAddressConfirmed,
 			},
 		},
 	}
@@ -178,8 +178,12 @@ func TestNodeAddressInfoQuery_UpdateNodeAddressInfo(t *testing.T) {
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			if got := paq.UpdateNodeAddressInfo(tt.args.peerAddress); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got, tt.want)
+			got1, got2 := paq.UpdateNodeAddressInfo(tt.args.peerAddress)
+			if got1 != tt.want {
+				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got1, tt.want)
+			}
+			if !reflect.DeepEqual(got2, tt.want2) {
+				t.Errorf("NodeAddressInfoQuery.UpdateNodeAddressInfo() = %v, want %v", got2, tt.want2)
 			}
 		})
 	}

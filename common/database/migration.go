@@ -54,6 +54,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 )
 
@@ -551,8 +552,9 @@ And this will create migration table included version of migration
 func (m *Migration) Apply() error {
 
 	var (
-		migrations = m.Versions
-		err        error
+		migrations                  = m.Versions
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 
 	if m.CurrentVersion != nil {
@@ -561,13 +563,13 @@ func (m *Migration) Apply() error {
 
 	for v, qStr := range migrations {
 		version := v
-		err = m.Query.BeginTx()
+		err = m.Query.BeginTx(isDbTransactionHighPriority, monitoring.MigrationApplyOwnerProcess)
 		if err != nil {
 			return err
 		}
 		err = m.Query.ExecuteTransaction(qStr)
 		if err != nil {
-			rollbackErr := m.Query.RollbackTx()
+			rollbackErr := m.Query.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				log.Errorln(rollbackErr.Error())
 			}
@@ -577,9 +579,6 @@ func (m *Migration) Apply() error {
 			*m.CurrentVersion++
 			err = m.Query.ExecuteTransaction(`UPDATE "migration"
 				SET "version" = ?, "created_date" = datetime('now');`, m.CurrentVersion)
-			if err != nil {
-				return err
-			}
 		} else {
 			m.CurrentVersion = &version // should 0 value not nil anymore
 			err = m.Query.ExecuteTransaction(`
@@ -592,12 +591,16 @@ func (m *Migration) Apply() error {
 					datetime('now')
 				);
 			`)
-			if err != nil {
-				return err
+		}
+		if err != nil {
+			rollbackErr := m.Query.RollbackTx(isDbTransactionHighPriority)
+			if rollbackErr != nil {
+				log.Errorln(rollbackErr.Error())
 			}
+			return err
 		}
 
-		err = m.Query.CommitTx()
+		err = m.Query.CommitTx(isDbTransactionHighPriority)
 		if err != nil {
 			return err
 		}

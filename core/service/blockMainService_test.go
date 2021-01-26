@@ -404,9 +404,9 @@ func (*mockQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...inter
 func (*mockQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
 }
-func (*mockQueryExecutorFail) BeginTx() error { return nil }
+func (*mockQueryExecutorFail) BeginTx(bool, int) error { return nil }
 
-func (*mockQueryExecutorFail) RollbackTx() error { return nil }
+func (*mockQueryExecutorFail) RollbackTx(bool) error { return nil }
 
 func (*mockQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockError:deleteMempoolFail")
@@ -418,12 +418,12 @@ func (*mockQueryExecutorFail) ExecuteSelectRow(qStr string, tx bool, args ...int
 	mock.ExpectQuery(qStr).WillReturnRows(mockRows)
 	return db.QueryRow(qStr), nil
 }
-func (*mockQueryExecutorFail) CommitTx() error { return errors.New("mockError:commitFail") }
+func (*mockQueryExecutorFail) CommitTx(bool) error { return errors.New("mockError:commitFail") }
 
 // mockQueryExecutorSuccess
-func (*mockQueryExecutorSuccess) BeginTx() error { return nil }
+func (*mockQueryExecutorSuccess) BeginTx(bool, int) error { return nil }
 
-func (*mockQueryExecutorSuccess) RollbackTx() error { return nil }
+func (*mockQueryExecutorSuccess) RollbackTx(bool) error { return nil }
 
 func (*mockQueryExecutorSuccess) ExecuteTransaction(string, ...interface{}) error {
 	return nil
@@ -431,7 +431,7 @@ func (*mockQueryExecutorSuccess) ExecuteTransaction(string, ...interface{}) erro
 func (*mockQueryExecutorSuccess) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
-func (*mockQueryExecutorSuccess) CommitTx() error { return nil }
+func (*mockQueryExecutorSuccess) CommitTx(bool) error { return nil }
 
 func (*mockQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
@@ -1785,9 +1785,9 @@ type (
 	}
 )
 
-func (*mockAddGenesisExecutor) BeginTx() error    { return nil }
-func (*mockAddGenesisExecutor) RollbackTx() error { return nil }
-func (*mockAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockAddGenesisExecutor) BeginTx(bool, int) error { return nil }
+func (*mockAddGenesisExecutor) RollbackTx(bool) error   { return nil }
+func (*mockAddGenesisExecutor) CommitTx(bool) error     { return nil }
 func (*mockAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
@@ -3081,10 +3081,10 @@ type (
 	}
 )
 
-func (*mockPopOffToBlockReturnCommonBlock) BeginTx() error {
+func (*mockPopOffToBlockReturnCommonBlock) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnCommonBlock) CommitTx() error {
+func (*mockPopOffToBlockReturnCommonBlock) CommitTx(bool) error {
 	return nil
 }
 func (*mockPopOffToBlockReturnCommonBlock) ExecuteTransactions(queries [][]interface{}) error {
@@ -3123,16 +3123,16 @@ func (*mockPopOffToBlockReturnCommonBlock) ExecuteSelect(qSrt string, tx bool, a
 func (*mockPopOffToBlockReturnCommonBlock) ExecuteTransaction(query string, args ...interface{}) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnBeginTxFunc) BeginTx() error {
+func (*mockPopOffToBlockReturnBeginTxFunc) BeginTx(bool, int) error {
 	return errors.New("i want this")
 }
-func (*mockPopOffToBlockReturnBeginTxFunc) CommitTx() error {
+func (*mockPopOffToBlockReturnBeginTxFunc) CommitTx(bool) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnWantFailOnCommit) BeginTx() error {
+func (*mockPopOffToBlockReturnWantFailOnCommit) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnWantFailOnCommit) CommitTx() error {
+func (*mockPopOffToBlockReturnWantFailOnCommit) CommitTx(bool) error {
 	return errors.New("i want this")
 }
 func (*mockPopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -3152,16 +3152,16 @@ func (*mockPopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, tx bo
 	return db.Query("")
 
 }
-func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx() error {
+func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx() error {
+func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx(bool) error {
 	return nil
 }
 func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) ExecuteTransactions(queries [][]interface{}) error {
 	return errors.New("i want this")
 }
-func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error {
+func (*mockPopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx(bool) error {
 	return nil
 }
 
@@ -3230,6 +3230,7 @@ type (
 		query.Executor
 	}
 	mockExecutorBlockPopSuccess struct {
+		lastBlockHeight uint32
 		query.Executor
 	}
 	mockExecutorBlockPopFailCommonNotFound struct {
@@ -3287,28 +3288,7 @@ func (*mockExecutorBlockPopFailCommonNotFound) ExecuteSelectRow(
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
-			sqlmock.NewRows(blockQ.Fields[:len(blockQ.Fields)-1]).AddRow(
-				mockGoodBlock.GetHeight(),
-				mockGoodBlock.GetID(),
-				mockGoodBlock.GetBlockHash(),
-				mockGoodBlock.GetPreviousBlockHash(),
-				mockGoodBlock.GetTimestamp(),
-				mockGoodBlock.GetBlockSeed(),
-				mockGoodBlock.GetBlockSignature(),
-				mockGoodBlock.GetCumulativeDifficulty(),
-				mockGoodBlock.GetPayloadLength(),
-				mockGoodBlock.GetPayloadHash(),
-				mockGoodBlock.GetBlocksmithPublicKey(),
-				mockGoodBlock.GetTotalAmount(),
-				mockGoodBlock.GetTotalFee(),
-				mockGoodBlock.GetTotalCoinBase(),
-				mockGoodBlock.GetTotalCoinBase(),
-				mockGoodBlock.GetVersion(),
-				mockGoodBlock.GetMerkleRoot(),
-				mockGoodBlock.GetMerkleTree(),
-				mockGoodBlock.GetReferenceBlockHeight(),
-			),
-		)
+			sqlmock.NewRows(blockQ.Fields))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 1":
@@ -3329,6 +3309,11 @@ func (*mockExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, tx bo
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version, merkle_root, merkle_tree, reference_block_height FROM main_block WHERE id = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields))
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block":
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(blockQ.Fields))
 	default:
@@ -3399,18 +3384,18 @@ func (*mockReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([]*mod
 	return nil, errors.New("mockError")
 }
 
-func (*mockExecutorBlockPopSuccess) BeginTx() error {
+func (*mockExecutorBlockPopSuccess) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockExecutorBlockPopSuccess) CommitTx() error {
+func (*mockExecutorBlockPopSuccess) CommitTx(bool) error {
 	return nil
 }
 
 func (*mockExecutorBlockPopSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
-func (*mockExecutorBlockPopSuccess) RollbackTx() error {
+func (*mockExecutorBlockPopSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -3485,34 +3470,68 @@ func (*mockExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...
 	return db.Query(qStr)
 }
 
-func (*mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
+func (bmMock *mockExecutorBlockPopSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 
 	blockQ := query.NewBlockQuery(&chaintype.MainChain{})
+	switch qStr {
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block":
+		var (
+			height uint32
+		)
+		if bmMock.lastBlockHeight > 0 {
+			height = bmMock.lastBlockHeight
+		}
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields).AddRow(
+				height,
+				constant.MainchainGenesisBlockID,
+				mockGoodBlock.GetBlockHash(),
+				mockGoodBlock.GetPreviousBlockHash(),
+				mockGoodBlock.GetTimestamp(),
+				mockGoodBlock.GetBlockSeed(),
+				mockGoodBlock.GetBlockSignature(),
+				mockGoodBlock.GetCumulativeDifficulty(),
+				mockGoodBlock.GetPayloadLength(),
+				mockGoodBlock.GetPayloadHash(),
+				mockGoodBlock.GetBlocksmithPublicKey(),
+				mockGoodBlock.GetTotalAmount(),
+				mockGoodBlock.GetTotalFee(),
+				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
+			),
+		)
+	default:
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
+			sqlmock.NewRows(blockQ.Fields).AddRow(
+				mockGoodBlock.GetHeight(),
+				mockGoodBlock.GetID(),
+				mockGoodBlock.GetBlockHash(),
+				mockGoodBlock.GetPreviousBlockHash(),
+				mockGoodBlock.GetTimestamp(),
+				mockGoodBlock.GetBlockSeed(),
+				mockGoodBlock.GetBlockSignature(),
+				mockGoodBlock.GetCumulativeDifficulty(),
+				mockGoodBlock.GetPayloadLength(),
+				mockGoodBlock.GetPayloadHash(),
+				mockGoodBlock.GetBlocksmithPublicKey(),
+				mockGoodBlock.GetTotalAmount(),
+				mockGoodBlock.GetTotalFee(),
+				mockGoodBlock.GetTotalCoinBase(),
+				mockGoodBlock.GetVersion(),
+				mockGoodBlock.GetMerkleRoot(),
+				mockGoodBlock.GetMerkleTree(),
+				mockGoodBlock.GetReferenceBlockHeight(),
+			),
+		)
+	}
 
-	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
-		sqlmock.NewRows(blockQ.Fields).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-			mockGoodBlock.GetMerkleRoot(),
-			mockGoodBlock.GetMerkleTree(),
-			mockGoodBlock.GetReferenceBlockHeight(),
-		),
-	)
 	return db.QueryRow(qStr), nil
 }
 
@@ -3565,17 +3584,17 @@ type (
 	}
 )
 
-func (*mockedExecutorPopOffToBlockSuccessPopping) BeginTx() error {
+func (*mockedExecutorPopOffToBlockSuccessPopping) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockedExecutorPopOffToBlockSuccessPopping) CommitTx() error {
+func (*mockedExecutorPopOffToBlockSuccessPopping) CommitTx(bool) error {
 	return nil
 }
 func (*mockedExecutorPopOffToBlockSuccessPopping) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
-func (*mockedExecutorPopOffToBlockSuccessPopping) RollbackTx() error {
+func (*mockedExecutorPopOffToBlockSuccessPopping) RollbackTx(bool) error {
 	return nil
 }
 
@@ -3753,8 +3772,10 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Fail-HardFork",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				Chaintype: &chaintype.MainChain{},
+				QueryExecutor: &mockExecutorBlockPopSuccess{
+					lastBlockHeight: 10000,
+				},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),
@@ -3774,6 +3795,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageHardForkSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
+				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 			},
 			args: args{
 				commonBlock: mockBadCommonBlockHardFork,
@@ -3805,6 +3827,7 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 				Logger:                  log.New(),
 				BlockStateStorage:       &mockPopOffToBlockBlockStateStorageSuccess{},
 				ScrambleNodeService:     &mockScrambleServicePopOffToBlockSuccess{},
+				PublishedReceiptUtil:    &mockPublishedReceiptUtilSuccess{},
 			},
 			args: args{
 				commonBlock: mockGoodCommonBlock,
@@ -3848,8 +3871,10 @@ func TestBlockService_PopOffToBlock(t *testing.T) {
 		{
 			name: "Fail-GetMempoolToBackupFail",
 			fields: fields{
-				Chaintype:               &chaintype.MainChain{},
-				QueryExecutor:           &mockExecutorBlockPopSuccess{},
+				Chaintype: &chaintype.MainChain{},
+				QueryExecutor: &mockExecutorBlockPopSuccess{
+					lastBlockHeight: 100,
+				},
 				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
 				MempoolQuery:            nil,
 				TransactionQuery:        query.NewTransactionQuery(&chaintype.MainChain{}),

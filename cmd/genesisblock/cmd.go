@@ -55,6 +55,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
 	"io/ioutil"
 	"log"
 	"os"
@@ -351,7 +352,7 @@ func getDbLastState(dbPath string) (bcEntries []genesisEntry, err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	queryExecutor := query.NewQueryExecutor(db)
+	queryExecutor := query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock())
 	accountBalanceQuery := query.NewAccountBalanceQuery()
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	participationScoreQuery := query.NewParticipationScoreQuery()
