@@ -73,8 +73,6 @@ type FeeVoteCommitTransaction struct {
 	AccountBalanceHelper       AccountBalanceHelperInterface
 	QueryExecutor              query.ExecutorInterface
 	EscrowQuery                query.EscrowTransactionQueryInterface
-	EscrowFee                  fee.FeeModelInterface
-	NormalFee                  fee.FeeModelInterface
 }
 
 // ApplyConfirmed to apply confirmed transaction FeeVoteCommitTransaction type
@@ -242,11 +240,12 @@ func (tx *FeeVoteCommitTransaction) GetAmount() int64 {
 // GetMinimumFee return minimum fee of transaction
 // TODO: need to calculate the minimum fee
 func (tx *FeeVoteCommitTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 // GetSize is size of transaction body

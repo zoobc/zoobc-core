@@ -75,8 +75,7 @@ type ClaimNodeRegistration struct {
 	AuthPoown               auth.NodeAuthValidationInterface
 	EscrowQuery             query.EscrowTransactionQueryInterface
 	AccountBalanceHelper    AccountBalanceHelperInterface
-	EscrowFee               fee.FeeModelInterface
-	NormalFee               fee.FeeModelInterface
+	FeeScaleService         fee.FeeScaleServiceInterface
 	NodeAddressInfoQuery    query.NodeAddressInfoQueryInterface
 	NodeAddressInfoStorage  storage.TransactionalCache
 	ActiveNodeRegistryCache storage.TransactionalCache
@@ -257,12 +256,12 @@ func (tx *ClaimNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *ClaimNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil &&
-		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (tx *ClaimNodeRegistration) GetSize() (uint32, error) {

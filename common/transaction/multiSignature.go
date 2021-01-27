@@ -73,8 +73,7 @@ type (
 	MultiSignatureTransaction struct {
 		TransactionObject *model.Transaction
 		Body              *model.MultiSignatureTransactionBody
-		NormalFee         fee.FeeModelInterface
-		EscrowFee         fee.FeeModelInterface
+		FeeScaleService   fee.FeeScaleServiceInterface
 		TransactionUtil   UtilInterface
 		TypeSwitcher      TypeActionSwitcher
 		Signature         crypto.SignatureInterface
@@ -676,12 +675,12 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *MultiSignatureTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil &&
-		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (*MultiSignatureTransaction) GetAmount() int64 {

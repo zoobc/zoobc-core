@@ -79,8 +79,6 @@ type (
 		AccountBalanceHelper   AccountBalanceHelperInterface
 		QueryExecutor          query.ExecutorInterface
 		EscrowQuery            query.EscrowTransactionQueryInterface
-		EscrowFee              fee.FeeModelInterface
-		NormalFee              fee.FeeModelInterface
 	}
 )
 
@@ -342,11 +340,12 @@ func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 
 // GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 /*

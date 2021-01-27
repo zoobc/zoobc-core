@@ -72,9 +72,8 @@ type (
 		QueryExecutor                 query.ExecutorInterface
 		LiquidPaymentTransactionQuery query.LiquidPaymentTransactionQueryInterface
 		AccountBalanceHelper          AccountBalanceHelperInterface
-		NormalFee                     fee.FeeModelInterface
-		EscrowFee                     fee.FeeModelInterface
 		EscrowQuery                   query.EscrowTransactionQueryInterface
+		FeeScaleService               fee.FeeScaleServiceInterface
 	}
 	LiquidPaymentTransactionInterface interface {
 		CompletePayment(blockHeight uint32, blockTimestamp, firstAppliedTimestamp int64) error
@@ -168,11 +167,12 @@ func (tx *LiquidPaymentTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *LiquidPaymentTransaction) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (tx *LiquidPaymentTransaction) GetAmount() int64 {

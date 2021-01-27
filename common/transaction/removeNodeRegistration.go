@@ -71,8 +71,7 @@ type RemoveNodeRegistration struct {
 	QueryExecutor            query.ExecutorInterface
 	AccountBalanceHelper     AccountBalanceHelperInterface
 	EscrowQuery              query.EscrowTransactionQueryInterface
-	EscrowFee                fee.FeeModelInterface
-	NormalFee                fee.FeeModelInterface
+	FeeScaleService          fee.FeeScaleServiceInterface
 	NodeAddressInfoStorage   storage.TransactionalCache
 	PendingNodeRegistryCache storage.TransactionalCache
 	ActiveNodeRegistryCache  storage.TransactionalCache
@@ -263,12 +262,12 @@ func (tx *RemoveNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *RemoveNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil &&
-		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (tx *RemoveNodeRegistration) GetSize() (uint32, error) {

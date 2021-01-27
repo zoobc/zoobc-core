@@ -70,8 +70,7 @@ type SetupAccountDataset struct {
 	EscrowQuery          query.EscrowTransactionQueryInterface
 	AccountBalanceHelper AccountBalanceHelperInterface
 	TransactionQuery     query.TransactionQueryInterface
-	EscrowFee            fee.FeeModelInterface
-	NormalFee            fee.FeeModelInterface
+	FeeScaleService      fee.FeeScaleServiceInterface
 }
 
 // SkipMempoolTransaction this tx type has no mempool filter
@@ -215,12 +214,12 @@ func (tx *SetupAccountDataset) GetAmount() int64 {
 
 // GetMinimumFee return minimum fee of transaction
 func (tx *SetupAccountDataset) GetMinimumFee() (int64, error) {
-	if tx.TransactionObject.Escrow != nil &&
-		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
-		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.TransactionObject)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 // GetSize is size of transaction body

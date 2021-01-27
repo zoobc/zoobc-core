@@ -133,15 +133,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &SendMoney{
-				TransactionObject: tx,
-				Body:              transactionBody.(*model.SendMoneyTransactionBody),
-				QueryExecutor:     ts.Executor,
-				EscrowQuery:       query.NewEscrowTransactionQuery(),
-				BlockQuery:        query.NewBlockQuery(&chaintype.MainChain{}),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:            fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:    tx,
+				Body:                 transactionBody.(*model.SendMoneyTransactionBody),
+				QueryExecutor:        ts.Executor,
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
+				FeeScaleService:      ts.FeeScaleService,
 				AccountBalanceHelper: accountBalanceHelper,
 			}, nil
 		default:
@@ -158,19 +155,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &NodeRegistration{
-				TransactionObject:       tx,
-				Body:                    transactionBody.(*model.NodeRegistrationTransactionBody),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AuthPoown:               ts.NodeAuthValidation,
-				QueryExecutor:           ts.Executor,
-				EscrowQuery:             query.NewEscrowTransactionQuery(),
-				AccountBalanceHelper:    accountBalanceHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:        tx,
+				Body:                     transactionBody.(*model.NodeRegistrationTransactionBody),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				AuthPoown:                ts.NodeAuthValidation,
+				QueryExecutor:            ts.Executor,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:     accountBalanceHelper,
+				FeeScaleService:          ts.FeeScaleService,
 				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 			}, nil
 		case 1:
@@ -181,18 +175,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &UpdateNodeRegistration{
-				TransactionObject:     tx,
-				Body:                  transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:            tx,
+				Body:                         transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:        query.NewNodeRegistrationQuery(),
+				BlockQuery:                   query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:                    ts.NodeAuthValidation,
+				QueryExecutor:                ts.Executor,
+				EscrowQuery:                  query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:         accountBalanceHelper,
+				FeeScaleService:              ts.FeeScaleService,
 				PendingNodeRegistrationCache: ts.PendingNodeRegistryStorage,
 				ActiveNodeRegistrationCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
@@ -202,17 +193,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
-				TransactionObject:     tx,
-				Body:                  transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
-				QueryExecutor:         ts.Executor,
-				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:        tx,
+				Body:                     transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
+				QueryExecutor:            ts.Executor,
+				AccountBalanceHelper:     accountBalanceHelper,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				FeeScaleService:          ts.FeeScaleService,
 				NodeAddressInfoStorage:   ts.NodeAddressInfoStorage,
 				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 				ActiveNodeRegistryCache:  ts.ActiveNodeRegistryStorage,
@@ -223,18 +211,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
-				TransactionObject:     tx,
-				Body:                  transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:       tx,
+				Body:                    transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:               ts.NodeAuthValidation,
+				QueryExecutor:           ts.Executor,
+				AccountBalanceHelper:    accountBalanceHelper,
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
+				FeeScaleService:         ts.FeeScaleService,
 				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
 				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
 				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
@@ -257,10 +242,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		case 1:
 			transactionBody, err = new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -274,10 +256,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		default:
 			return nil, nil
@@ -299,10 +278,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				TransactionQuery:     query.NewTransactionQuery(&chaintype.MainChain{}),
 				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		default:
 			return nil, nil
@@ -352,12 +328,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				SignatureInfoHelper:      signatureInfoHelper,
 				PendingTransactionHelper: pendingTransactionHelper,
 				MultisignatureInfoHelper: multisignatureInfoHelper,
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:     fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-				EscrowQuery:   query.NewEscrowTransactionQuery(),
-				QueryExecutor: ts.Executor,
+				FeeScaleService:          ts.FeeScaleService,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				QueryExecutor:            ts.Executor,
 			}, nil
 		default:
 			return nil, nil
@@ -376,10 +349,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				EscrowQuery:                   query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:               ts.FeeScaleService,
 			}, nil
 		case 1: // LiquidPaymentStop Transaction
 			transactionBody, err = new(LiquidPaymentStopTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
@@ -387,12 +357,9 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &LiquidPaymentStopTransaction{
-				TransactionObject: tx,
-				Body:              transactionBody.(*model.LiquidPaymentStopTransactionBody),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                     fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:             tx,
+				Body:                          transactionBody.(*model.LiquidPaymentStopTransactionBody),
+				FeeScaleService:               ts.FeeScaleService,
 				QueryExecutor:                 ts.Executor,
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
@@ -421,10 +388,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeScaleService:            ts.FeeScaleService,
 				EscrowQuery:                query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			}, nil
 		case 1:
 			transactionBody, err = new(FeeVoteRevealTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
@@ -443,10 +406,6 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				SignatureInterface:     crypto.NewSignature(),
 				FeeScaleService:        ts.FeeScaleService,
 				EscrowQuery:            query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewTimestampLifeTimeFeeModel(
-					24, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			}, nil
 		default:
 			return nil, nil

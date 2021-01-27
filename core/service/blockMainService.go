@@ -630,7 +630,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// insert initial fee scale
 		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
-			FeeScale:    constant.OneZBC, // initial fee_scale 1
+			FeeScale:    fee.InitialFeeScale,
 			BlockHeight: 0,
 			Latest:      true,
 		})
