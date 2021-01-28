@@ -57,7 +57,7 @@ const (
 	BlockDownloadSegSize             uint32        = 36
 	MaxResponseTime                                = 1 * time.Minute
 	DefaultNumberOfForkConfirmations int32         = 1
-	PeerGetBlocksLimit               uint32        = 1440
+	PeerGetBlocksLimit               uint32        = 720
 	CommonMilestoneBlockIdsLimit     int32         = 10
 	SafeBlockGap                                   = MinRollbackBlocks / 2
 	MinRollbackBlocks                uint32        = 720 // production 720
