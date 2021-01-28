@@ -58,7 +58,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/zoobc/zoobc-core/common/fee"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 )
@@ -1366,7 +1365,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -1607,7 +1605,6 @@ func TestMultiSignatureTransaction_Validate(t *testing.T) {
 			tx := &MultiSignatureTransaction{
 				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
@@ -1664,7 +1661,6 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -1729,7 +1725,6 @@ func TestMultiSignatureTransaction_UndoApplyUnconfirmed(t *testing.T) {
 			tx := &MultiSignatureTransaction{
 				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
@@ -1770,7 +1765,6 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -1835,7 +1829,6 @@ func TestMultiSignatureTransaction_ApplyUnconfirmed(t *testing.T) {
 			tx := &MultiSignatureTransaction{
 				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
@@ -1995,7 +1988,6 @@ func TestMultiSignatureTransaction_GetBodyBytes(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -2236,7 +2228,6 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -2281,7 +2272,6 @@ func TestMultiSignatureTransaction_ParseBodyBytes(t *testing.T) {
 			tx := &MultiSignatureTransaction{
 				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,
@@ -2308,7 +2298,6 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 	type fields struct {
 		TransactionObject        *model.Transaction
 		Body                     *model.MultiSignatureTransactionBody
-		NormalFee                fee.FeeModelInterface
 		TransactionUtil          UtilInterface
 		TypeSwitcher             TypeActionSwitcher
 		Signature                crypto.SignatureInterface
@@ -2354,7 +2343,6 @@ func TestMultiSignatureTransaction_GetSize(t *testing.T) {
 			tx := &MultiSignatureTransaction{
 				TransactionObject:        tt.fields.TransactionObject,
 				Body:                     tt.fields.Body,
-				NormalFee:                tt.fields.NormalFee,
 				TransactionUtil:          tt.fields.TransactionUtil,
 				TypeSwitcher:             tt.fields.TypeSwitcher,
 				Signature:                tt.fields.Signature,

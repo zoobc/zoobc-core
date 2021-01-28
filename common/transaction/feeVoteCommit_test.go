@@ -566,6 +566,7 @@ func (*mockFeeScaleServiceValidateSuccess) GetCurrentPhase(
 }
 
 func (*mockFeeScaleServiceValidateSuccess) GetLatestFeeScale(feeScale *model.FeeScale) error {
+	feeScale.FeeScale = fee.InitialFeeScale
 	return nil
 }
 
@@ -872,7 +873,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 		FeeVoteCommitmentVoteQuery query.FeeVoteCommitmentVoteQueryInterface
 		AccountBalanceHelper       AccountBalanceHelperInterface
 		QueryExecutor              query.ExecutorInterface
-		NormalFee                  fee.FeeModelInterface
 	}
 	tests := []struct {
 		name    string
@@ -886,8 +886,8 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 				TransactionObject: &model.Transaction{
 					Escrow: &model.Escrow{},
 				},
-				Body:      mockFeeVoteCommitTxBody,
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				Body:            mockFeeVoteCommitTxBody,
+				FeeScaleService: &mockFeeScaleServiceValidateSuccess{},
 			},
 			want:    fee.SendMoneyFeeConstant,
 			wantErr: false,
@@ -904,7 +904,6 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 				FeeVoteCommitmentVoteQuery: tt.fields.FeeVoteCommitmentVoteQuery,
 				AccountBalanceHelper:       tt.fields.AccountBalanceHelper,
 				QueryExecutor:              tt.fields.QueryExecutor,
-				NormalFee:                  tt.fields.NormalFee,
 			}
 			got, err := f.GetMinimumFee()
 			if (err != nil) != tt.wantErr {

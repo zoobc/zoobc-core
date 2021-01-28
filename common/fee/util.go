@@ -59,28 +59,29 @@ import (
 )
 
 func CalculateTxMinimumFee(tx *model.Transaction, feeScale int64) (int64, error) {
-	feePerCharacterMultiplier := float64(0.1)
 	minFeeMultiplier := 1
 	escrowInstructionFeeMultiplier := float64(0)
-	escrowLifetimeMultiplier := 24
 	escrowLifeDays := float64(1)
-	if tx.Escrow != nil {
+	if tx.Escrow != nil && tx.Escrow.Timeout != 0 {
 		// escrowInstructionFeeMultiplier: fee for instruction in the instruction (1 ZBC for every 1000 character)
-		escrowInstructionFeeMultiplier = float64(len(tx.Escrow.Instruction)) * feePerCharacterMultiplier
+		escrowInstructionFeeMultiplier = float64(len(tx.Escrow.Instruction)) * FeePerCharacterMultiplier
 
 		escrowTimeout := time.Unix(tx.Escrow.Timeout, 0)
 		txTimestamp := time.Unix(tx.Timestamp, 0)
-		hoursDifference := txTimestamp.Sub(escrowTimeout).Hours()
-		if hoursDifference < 0 {
+		if escrowTimeout.Before(txTimestamp) {
 			return 0, errors.New("InvalidTime:Passed")
 		}
+		hoursDifference := math.Ceil(escrowTimeout.Sub(txTimestamp).Hours())
 
 		// increment fee by feePerBlockPeriod every 24 hours
-		escrowLifeDays = math.Ceil(hoursDifference / float64(escrowLifetimeMultiplier))
+		escrowLifeDays = math.Ceil(hoursDifference / float64(EscrowLifetimeDivider)) // 24 hours
+		if escrowLifeDays == float64(0) {
+			escrowLifeDays = float64(1)
+		}
 	}
 
 	// txMessageFeeMultiplier: fee multiplier for message in the instruction (1 ZBC for every 1000 character)
-	txMessageFeeMultiplier := float64(len(tx.Message)) * feePerCharacterMultiplier
+	txMessageFeeMultiplier := float64(len(tx.Message)) * FeePerCharacterMultiplier
 	fee := int64(math.Ceil((txMessageFeeMultiplier + escrowInstructionFeeMultiplier + float64(minFeeMultiplier)) * escrowLifeDays * float64(feeScale)))
 	return fee, nil
 }
