@@ -361,14 +361,18 @@ func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) 
 	for i := 0; i < len(validRandomNumbers); i++ {
 		idx = bss.convertRandomNumberToIndex(validRandomNumbers[i], int64(len(activeNodeRegistry)))
 		if bytes.Equal(activeNodeRegistry[idx].Node.NodePublicKey, block.BlocksmithPublicKey) {
-			startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-len(validRandomNumbers)+(i+1))
-			if err != nil {
-				return err
-			}
-			// validate block's timestamp within persistable timestamp
-			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
-				return nil
-			}
+			return nil
+			// TODO: restore block time creation validation for spine blocks when understood why it doesn't work for spine blocks
+			// note: for now, to validate a spine block is sufficient that it comes from one of the valid blocksmiths for current height (
+			// computed by the node)
+			// startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-len(validRandomNumbers)+(i+1))
+			// if err != nil {
+			// 	return err
+			// }
+			// // validate block's timestamp within persistable timestamp
+			// if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
+			// 	return nil
+			// }
 		}
 	}
 	return errors.New("IsBlockValid:Failed-InvalidSmithingTime")
