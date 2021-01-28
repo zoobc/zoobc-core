@@ -58,7 +58,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
+// CalculateTxMinimumFee calculate the minimum fee for the given transaction
 func CalculateTxMinimumFee(tx *model.Transaction, feeScale int64) (int64, error) {
+	// fee: (txMessageMultiplier + escrowInstructionMultiplier + minFee) * escrowTimeout * feeScale
 	minFeeMultiplier := 1
 	escrowInstructionFeeMultiplier := float64(0)
 	escrowLifeDays := float64(1)
