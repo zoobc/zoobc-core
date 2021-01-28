@@ -294,7 +294,7 @@ func (u *Util) ParseTransactionBytes(transactionBytes []byte, sign bool) (*model
 		if err != nil {
 			return nil, err
 		}
-		escrow.Timeout = int64(util.ConvertBytesToUint64(chunkedBytes))
+		escrow.Timeout = util.ConvertBytesToUint64(chunkedBytes)
 
 		chunkedBytes, err = util.ReadTransactionBytes(buffer, int(constant.EscrowInstructionLength))
 		if err != nil {
