@@ -47,95 +47,122 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
+
 package fee
 
 import (
-	"reflect"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/constant"
+	"time"
 
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
-func TestBlockLifeTimeFeeModel_CalculateTxMinimumFee(t *testing.T) {
-	type fields struct {
-		blockPeriod       int64
-		feePerBlockPeriod int64
-	}
+func TestCalculateTxMinimumFee(t *testing.T) {
+	uniformTimestamp := time.Now().Unix()
+
 	type args struct {
-		txBody model.TransactionBodyInterface
-		tx     *model.Transaction
+		tx       *model.Transaction
+		feeScale int64
 	}
 	tests := []struct {
 		name    string
-		fields  fields
 		args    args
 		want    int64
 		wantErr bool
 	}{
 		{
-			name: "CalculateTxMinimumFee-1",
-			fields: fields{
-				blockPeriod:       5,
-				feePerBlockPeriod: constant.OneZBC / 100,
-			},
+			name: "wantError:escrowTimeouthasPassed",
 			args: args{
-				txBody: nil,
 				tx: &model.Transaction{
+					Timestamp: uniformTimestamp,
 					Escrow: &model.Escrow{
-						Timeout: 17,
+						Timeout: uniformTimestamp - 1000,
 					},
 				},
+				feeScale: InitialFeeScale,
 			},
-			want:    4 * (constant.OneZBC / 100),
-			wantErr: false,
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess:minimumFee",
+			args: args{
+				tx:       &model.Transaction{},
+				feeScale: InitialFeeScale,
+			},
+			want: InitialFeeScale,
+		},
+		{
+			name: "wantSuccess:changedFeeScale",
+			args: args{
+				tx:       &model.Transaction{},
+				feeScale: InitialFeeScale * 5,
+			},
+			want: InitialFeeScale * 5,
+		},
+		{
+			name: "wantSuccess:withTxMesssage",
+			args: args{
+				tx: &model.Transaction{
+					Message: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+				},
+				feeScale: InitialFeeScale,
+			},
+			want: InitialFeeScale * 2,
+		},
+		{
+			name: "wantSuccess:withEscrowInstruction",
+			args: args{
+				tx: &model.Transaction{
+					Timestamp: uniformTimestamp,
+					Escrow: &model.Escrow{
+						Instruction: "1234567890",
+						Timeout:     uniformTimestamp,
+					},
+				},
+				feeScale: InitialFeeScale,
+			},
+			want: InitialFeeScale * 2,
+		},
+		{
+			name: "wantSuccess:withTxMessage&EscrowInstruction",
+			args: args{
+				tx: &model.Transaction{
+					Timestamp: uniformTimestamp,
+					Message:   []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+					Escrow: &model.Escrow{
+						Instruction: "1234567890",
+						Timeout:     uniformTimestamp,
+					},
+				},
+				feeScale: InitialFeeScale,
+			},
+			want: InitialFeeScale * 3,
+		},
+		{
+			name: "wantSuccess:withTxMessage&EscrowInstruction&escrowTimeoutMoreThanEscrowLifetimeDivider",
+			args: args{
+				tx: &model.Transaction{
+					Timestamp: uniformTimestamp,
+					Message:   []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+					Escrow: &model.Escrow{
+						Instruction: "1234567890",
+						Timeout:     time.Unix(uniformTimestamp, 0).Add(EscrowLifetimeDivider*time.Hour).Unix() + 1,
+					},
+				},
+				feeScale: InitialFeeScale,
+			},
+			want: InitialFeeScale * 3 * 2,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blt := &BlockLifeTimeFeeModel{
-				blockPeriod:       tt.fields.blockPeriod,
-				feePerBlockPeriod: tt.fields.feePerBlockPeriod,
-			}
-			got, err := blt.CalculateTxMinimumFee(tt.args.txBody, tt.args.tx)
+			got, err := CalculateTxMinimumFee(tt.args.tx, tt.args.feeScale)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CalculateTxMinimumFee() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("CalculateTxMinimumFee() got = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNewBlockLifeTimeFeeModel(t *testing.T) {
-	type args struct {
-		blockPeriod       int64
-		feePerBlockPeriod int64
-	}
-	tests := []struct {
-		name string
-		args args
-		want *BlockLifeTimeFeeModel
-	}{
-		{
-			name: "NewBlockLifeTimeFeeModel-Success",
-			args: args{
-				blockPeriod:       0,
-				feePerBlockPeriod: 0,
-			},
-			want: &BlockLifeTimeFeeModel{
-				feePerBlockPeriod: 0,
-				blockPeriod:       0,
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockLifeTimeFeeModel(tt.args.blockPeriod, tt.args.feePerBlockPeriod); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBlockLifeTimeFeeModel() = %v, want %v", got, tt.want)
+				t.Errorf("CalculateTxMinimumFee() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -65,7 +65,7 @@ func NewConstantFeeModel(constantFee int64) *ConstantFeeModel {
 }
 
 func (cfm *ConstantFeeModel) CalculateTxMinimumFee(
-	model.TransactionBodyInterface, *model.Escrow,
+	model.TransactionBodyInterface, *model.Transaction,
 ) (int64, error) {
 	return cfm.constantFee, nil
 }
