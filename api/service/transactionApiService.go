@@ -209,7 +209,8 @@ func (ts *TransactionService) GetTransactions(
 	}
 
 	if toBlock != 0 && fromBlock <= toBlock {
-		caseQuery.And(caseQuery.Between("height", fromBlock, toBlock))
+		caseQuery.And(caseQuery.Between("block_height", fromBlock, toBlock))
+		selectQuery, args = caseQuery.Build()
 	}
 
 	// count first
