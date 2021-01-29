@@ -113,6 +113,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		prevNodeFound                                               bool
 		err                                                         error
 		row                                                         *sql.Row
+		nodeID                                                      = tx.TransactionObject.ID
 	)
 	if tx.TransactionObject.Height > 0 {
 		registrationStatus = uint32(model.NodeRegistrationState_NodeQueued)
@@ -156,6 +157,8 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		// if there is a previously deleted node registration, set its latest status to false, to avoid duplicates
 		clearDeletedNodeRegistrationQ := tx.NodeRegistrationQuery.ClearDeletedNodeRegistration(&prevNodeRegistrationByPubKey)
 		queries = append(queries, clearDeletedNodeRegistrationQ...)
+		// don't change node id when re-registering deleted node with same public key
+		nodeID = prevNodeRegistrationByPubKey.NodeID
 	} else {
 		// check if this account previously deleted a registered node. in that case, set the 'deleted' one's latest to 0
 		// check for account address duplication (accounts can register one node at the time)
@@ -180,7 +183,7 @@ func (tx *NodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 
 	// if a node with this public key has been previously deleted, update its owner to the new registerer
 	nodeRegistration := &model.NodeRegistration{
-		NodeID:             tx.TransactionObject.ID,
+		NodeID:             nodeID,
 		LockedBalance:      tx.Body.LockedBalance,
 		Height:             tx.TransactionObject.Height,
 		RegistrationHeight: tx.TransactionObject.Height,
