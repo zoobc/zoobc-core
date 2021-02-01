@@ -353,9 +353,8 @@ func (*Util) GetTransactionID(transactionHash []byte) (int64, error) {
 // ValidateTransaction take in transaction object and execute basic validation
 func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction, verifySignature bool) error {
 	var (
-		err              error
-		feeScale         model.FeeScale
-		maxMessageLength int
+		err      error
+		feeScale model.FeeScale
 	)
 
 	if tx.Fee <= 0 {
@@ -364,12 +363,13 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			"TxFeeZero",
 		)
 	}
-	if tx.GetEscrow() != nil {
-		maxMessageLength = constant.MaxMessageLengthEscrow
-	} else {
-		maxMessageLength = constant.MaxMessageLength
+	if tx.GetEscrow() != nil && len(tx.Escrow.GetInstruction()) > constant.MaxMessageLengthEscrowInstruction {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxEscrowInstructionMaxLengthExceeded",
+		)
 	}
-	if len(tx.Message) > maxMessageLength {
+	if len(tx.Message) > constant.MaxMessageLength {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxMessageMaxLengthExceeded",

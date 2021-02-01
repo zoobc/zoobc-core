@@ -35,7 +35,7 @@
 //             contact us at roberto.capodieci[at]blockchainzoo.com
 //             and barton.johnston[at]blockchainzoo.com
 //
-// Core developers that contributed to the current implementation of the
+// Core developers that contributed to the current impl	ementation of the
 // software are:
 //             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
 //             Allan Bintoro allan.bintoro[at]blockchainzoo.com
@@ -52,12 +52,12 @@ package constant
 import "time"
 
 var (
-	MaxMessageLength                     = 64000  // 64kb
-	MaxMessageLengthEscrow               = 128000 // 128kb
-	MaxNumberOfTransactionsInBlock       = 500
-	MinTransactionSizeInBlock            = 176
-	MaxPayloadLengthInBlock              = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
-	TransactionExpirationOffset    int64 = 3600 // 3600 seconds
+	MaxMessageLength                        = 64000  // 64kb
+	MaxMessageLengthEscrowInstruction       = 128000 // 128kb
+	MaxNumberOfTransactionsInBlock          = 500
+	MinTransactionSizeInBlock               = 176
+	MaxPayloadLengthInBlock                 = MinTransactionSizeInBlock * MaxNumberOfTransactionsInBlock
+	TransactionExpirationOffset       int64 = 3600 // 3600 seconds
 	// OneFeePerByteTransaction use to level up accuracy fee per byte of transaction bytes
 	// Will be useful when ordering tx in mempool based on fee per byte
 	OneFeePerByteTransaction int64 = 10000
