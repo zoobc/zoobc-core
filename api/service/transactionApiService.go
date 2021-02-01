@@ -201,6 +201,18 @@ func (ts *TransactionService) GetTransactions(
 	}
 	selectQuery, args = caseQuery.Build()
 
+	fromBlock := params.GetFromBlock()
+	toBlock := params.GetToBlock()
+
+	if fromBlock > toBlock {
+		return nil, status.Error(codes.Internal, "FromBlock height cannot exceed toBlock height")
+	}
+
+	if toBlock != 0 && fromBlock <= toBlock {
+		caseQuery.And(caseQuery.Between("block_height", fromBlock, toBlock))
+		selectQuery, args = caseQuery.Build()
+	}
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rowCount, err = ts.Query.ExecuteSelectRow(countQuery, false, args...)
