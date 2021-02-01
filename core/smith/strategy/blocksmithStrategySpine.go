@@ -322,7 +322,7 @@ func (bss *BlocksmithStrategySpine) ActiveNodeRegistryGetAllItems(block *model.B
 		}
 		activeNodeRegistry = append(activeNodeRegistry, anr)
 	}
-	return
+	return activeNodeRegistry, nil
 }
 
 func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) error {
