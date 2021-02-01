@@ -67,9 +67,6 @@ linters:
         - gochecknoinits
         - gocognit
         - ineffassign
-        - godot
-        - forbidigo
-        - exhaustivestruct
     fast: false
 run:
     skip-dirs:
