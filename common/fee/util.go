@@ -47,12 +47,43 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
+
 package fee
 
-import "github.com/zoobc/zoobc-core/common/model"
+import (
+	"errors"
+	"math"
+	"time"
 
-type (
-	FeeModelInterface interface {
-		CalculateTxMinimumFee(txBody model.TransactionBodyInterface, tx *model.Transaction) (int64, error)
-	}
+	"github.com/zoobc/zoobc-core/common/model"
 )
+
+// CalculateTxMinimumFee calculate the minimum fee for the given transaction
+func CalculateTxMinimumFee(tx *model.Transaction, feeScale int64) (int64, error) {
+	// fee: (txMessageMultiplier + escrowInstructionMultiplier + minFee) * escrowTimeout * feeScale
+	minFeeMultiplier := 1
+	escrowInstructionFeeMultiplier := float64(0)
+	escrowLifeDays := float64(1)
+	if tx.Escrow != nil && tx.Escrow.Timeout != 0 {
+		// escrowInstructionFeeMultiplier: fee for instruction in the instruction (1 ZBC for every 1000 character)
+		escrowInstructionFeeMultiplier = float64(len(tx.Escrow.Instruction)) * FeePerCharacterMultiplier
+
+		escrowTimeout := time.Unix(tx.Escrow.Timeout, 0)
+		txTimestamp := time.Unix(tx.Timestamp, 0)
+		if escrowTimeout.Before(txTimestamp) {
+			return 0, errors.New("InvalidTime:Passed")
+		}
+		hoursDifference := math.Ceil(escrowTimeout.Sub(txTimestamp).Hours())
+
+		// increment fee by feePerBlockPeriod every 24 hours
+		escrowLifeDays = math.Ceil(hoursDifference / float64(EscrowLifetimeDivider)) // 24 hours
+		if escrowLifeDays == float64(0) {
+			escrowLifeDays = float64(1)
+		}
+	}
+
+	// txMessageFeeMultiplier: fee multiplier for message in the instruction (1 ZBC for every 1000 character)
+	txMessageFeeMultiplier := float64(len(tx.Message)) * FeePerCharacterMultiplier
+	fee := int64(math.Ceil((txMessageFeeMultiplier + escrowInstructionFeeMultiplier + float64(minFeeMultiplier)) * escrowLifeDays * float64(feeScale)))
+	return fee, nil
+}
