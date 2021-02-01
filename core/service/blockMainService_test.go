@@ -342,6 +342,9 @@ func (*mockTypeAction) Validate(bool) error {
 func (*mockTypeAction) GetAmount() int64 {
 	return 10
 }
+func (*mockTypeAction) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
+}
 func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
 	return &mockTypeAction{}, nil
 }

@@ -65,7 +65,7 @@ func TestNewScrambleCacheStackStorage(t *testing.T) {
 		{
 			name: "TestNewScrambleCacheStackStorage:Success",
 			want: &ScrambleCacheStackStorage{
-				itemLimit:      36,
+				itemLimit:      72,
 				RWMutex:        sync.RWMutex{},
 				scrambledNodes: []model.ScrambledNodes{},
 			},

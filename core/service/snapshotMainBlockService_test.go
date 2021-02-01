@@ -404,11 +404,11 @@ var (
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
-		Height:    1440,
+		Height:    2160,
 		Timestamp: 15875392,
 	}
-	snapshotFullHash = []byte{24, 221, 153, 30, 107, 6, 128, 163, 98, 204, 96, 191, 126, 13, 184, 12, 200, 188, 39, 15,
-		65, 111, 26, 6, 181, 130, 90, 175, 180, 57, 152, 169}
+	snapshotFullHash = []byte{90, 177, 45, 122, 153, 208, 174, 225, 113, 91, 251, 46, 100, 115, 153, 9, 160, 72, 40, 166, 133, 2, 249, 175,
+		234, 24, 132, 9, 96, 25, 60, 220}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
 		188, 144, 9, 73, 75, 6, 1, 1, 1,
@@ -510,7 +510,7 @@ func (*mockSnapshotQueryExecutor) ExecuteSelect(qry string, tx bool, args ...int
 	// special case for multisig info because it has custom logic to be tested
 	case "SELECT multisig_address, minimum_signatures, nonce, block_height, latest FROM multisignature_info " +
 		"WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) " +
-		"FROM multisignature_info t2 WHERE t2.block_height >= 0 AND t2.block_height <= 720 AND t2.block_height != 0 " +
+		"FROM multisignature_info t2 WHERE t2.block_height >= 0 AND t2.block_height <= 1440 AND t2.block_height != 0 " +
 		"GROUP BY t2.multisig_address) ORDER BY block_height":
 		mock.ExpectQuery("").
 			WillReturnRows(sqlmock.NewRows(query.NewMultiSignatureParticipantQuery().Fields).
