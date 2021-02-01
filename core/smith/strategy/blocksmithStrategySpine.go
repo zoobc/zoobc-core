@@ -361,18 +361,14 @@ func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) 
 	for i := 0; i < len(validRandomNumbers); i++ {
 		idx = bss.convertRandomNumberToIndex(validRandomNumbers[i], int64(len(activeNodeRegistry)))
 		if bytes.Equal(activeNodeRegistry[idx].Node.NodePublicKey, block.BlocksmithPublicKey) {
-			return nil
-			// TODO: restore block time creation validation for spine blocks when understood why it doesn't work for spine blocks
-			// note: for now, to validate a spine block is sufficient that it comes from one of the valid blocksmiths for current height (
-			// computed by the node)
-			// startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-len(validRandomNumbers)+(i+1))
-			// if err != nil {
-			// 	return err
-			// }
-			// // validate block's timestamp within persistable timestamp
-			// if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
-			// 	return nil
-			// }
+			startTime, endTime, err := bss.getValidBlockCreationTime(prevBlock, round-len(validRandomNumbers)+(i+1))
+			if err != nil {
+				return err
+			}
+			// validate block's timestamp within persistable timestamp
+			if block.GetTimestamp() >= startTime && block.GetTimestamp() < endTime {
+				return nil
+			}
 		}
 	}
 	return errors.New("IsBlockValid:Failed-InvalidSmithingTime")
@@ -411,22 +407,21 @@ func (bss *BlocksmithStrategySpine) getValidBlockPersistTime(previousBlock *mode
 	return startTime, startTime + bss.Chaintype.GetBlocksmithTimeGap(), nil
 }
 
-// TODO: restore block time creation validation for spine blocks when understood why it doesn't work for spine blocks
 // getValidBlockCreationTime return the valid time to create block given previousBlock and round
-// func (bss *BlocksmithStrategySpine) getValidBlockCreationTime(previousBlock *model.Block, round int) (start, end int64, err error) {
-// 	offset := bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
-// 	if round <= 1 {
-// 		startTime := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod()
-// 		return startTime, startTime + offset, nil
-// 	}
-// 	gaps := int64(round-1) * bss.Chaintype.GetBlocksmithTimeGap()
-// 	estimatedPreviousBlockPersistTime, err := bss.estimatePreviousBlockPersistTime(previousBlock)
-// 	if err != nil {
-// 		return 0, 0, err
-// 	}
-// 	startTime := estimatedPreviousBlockPersistTime + bss.Chaintype.GetSmithingPeriod() + gaps
-// 	return startTime, startTime + offset, nil
-// }
+func (bss *BlocksmithStrategySpine) getValidBlockCreationTime(previousBlock *model.Block, round int) (start, end int64, err error) {
+	offset := bss.Chaintype.GetBlocksmithBlockCreationTime() + bss.Chaintype.GetBlocksmithNetworkTolerance()
+	if round <= 1 {
+		startTime := previousBlock.GetTimestamp() + bss.Chaintype.GetSmithingPeriod()
+		return startTime, startTime + offset, nil
+	}
+	gaps := int64(round-1) * bss.Chaintype.GetBlocksmithTimeGap()
+	estimatedPreviousBlockPersistTime, err := bss.estimatePreviousBlockPersistTime(previousBlock)
+	if err != nil {
+		return 0, 0, err
+	}
+	startTime := estimatedPreviousBlockPersistTime + bss.Chaintype.GetSmithingPeriod() + gaps
+	return startTime, startTime + offset, nil
+}
 
 func (bss *BlocksmithStrategySpine) CanPersistBlock(previousBlock, block *model.Block, timestamp int64) error {
 	var (
