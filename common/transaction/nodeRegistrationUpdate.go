@@ -67,21 +67,15 @@ import (
 
 // UpdateNodeRegistration Implement service layer for (new) node registration's transaction
 type UpdateNodeRegistration struct {
-	ID                           int64
-	Fee                          int64
-	SenderAddress                []byte
-	Height                       uint32
-	Timestamp                    int64
+	TransactionObject            *model.Transaction
 	Body                         *model.UpdateNodeRegistrationTransactionBody
-	Escrow                       *model.Escrow
 	NodeRegistrationQuery        query.NodeRegistrationQueryInterface
 	BlockQuery                   query.BlockQueryInterface
 	QueryExecutor                query.ExecutorInterface
 	AuthPoown                    auth.NodeAuthValidationInterface
 	EscrowQuery                  query.EscrowTransactionQueryInterface
 	AccountBalanceHelper         AccountBalanceHelperInterface
-	EscrowFee                    fee.FeeModelInterface
-	NormalFee                    fee.FeeModelInterface
+	FeeScaleService              fee.FeeScaleServiceInterface
 	PendingNodeRegistrationCache storage.TransactionalCache
 	ActiveNodeRegistrationCache  storage.TransactionalCache
 }
@@ -101,7 +95,7 @@ func (tx *UpdateNodeRegistration) SkipMempoolTransaction(
 	for _, sel := range selectedTransactions {
 		// if we find another node registration tx in currently selected transactions, filter current one out of selection
 		if _, ok := authorizedType[model.TransactionType(sel.GetTransactionType())]; ok &&
-			bytes.Equal(tx.SenderAddress, sel.SenderAccountAddress) {
+			bytes.Equal(tx.TransactionObject.SenderAccountAddress, sel.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -119,7 +113,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	)
 
 	// get the latest node registration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, _ = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 	if err != nil {
@@ -147,11 +141,11 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	}
 
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-(effectiveBalanceToLock + tx.Fee),
+		tx.TransactionObject.SenderAccountAddress,
+		-(effectiveBalanceToLock + tx.TransactionObject.Fee),
 		model.EventType_EventUpdateNodeRegistrationTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -160,7 +154,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	nodeQueries := tx.NodeRegistrationQuery.UpdateNodeRegistration(&model.NodeRegistration{
 		NodeID:             nodeReg.GetNodeID(),
 		LockedBalance:      lockedBalance,
-		Height:             tx.Height,
+		Height:             tx.TransactionObject.Height,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
 		NodePublicKey:      nodePublicKey,
 		Latest:             true,
@@ -216,7 +210,7 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 	// (delta between old locked balance and update locked balance)
 	if tx.Body.LockedBalance > 0 {
 		// get the latest node registration by owner (sender account)
-		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 		row, _ = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 		err = tx.NodeRegistrationQuery.Scan(&nodeReg, row)
 		if err != nil {
@@ -230,7 +224,8 @@ func (tx *UpdateNodeRegistration) ApplyUnconfirmed() error {
 		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeReg.GetLockedBalance()
 	}
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(effectiveBalanceToLock + tx.Fee))
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(effectiveBalanceToLock + tx.TransactionObject.Fee))
 	if err != nil {
 		return err
 	}
@@ -245,7 +240,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 		row                    *sql.Row
 	)
 	// get the latest nodeRegistration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -261,7 +256,7 @@ func (tx *UpdateNodeRegistration) UndoApplyUnconfirmed() error {
 	// delta amount to be locked
 	effectiveBalanceToLock = tx.Body.LockedBalance - prevNodeRegistration.LockedBalance
 	// update sender balance by reducing his spendable balance of the tx fee
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, effectiveBalanceToLock+tx.Fee)
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, effectiveBalanceToLock+tx.TransactionObject.Fee)
 	if err != nil {
 		return err
 	}
@@ -288,7 +283,7 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return err
 	}
 
-	nodeRegQ, nodeRegArgs := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	nodeRegQ, nodeRegArgs := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(nodeRegQ, dbTx, nodeRegArgs...)
 	if err != nil {
 		return err
@@ -333,7 +328,9 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 	}
 
 	// check aalance
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+effectiveBalanceToLock)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+effectiveBalanceToLock)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -352,18 +349,20 @@ func (tx *UpdateNodeRegistration) GetAmount() int64 {
 }
 
 func (tx *UpdateNodeRegistration) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (tx *UpdateNodeRegistration) GetSize() (uint32, error) {
 	// ProofOfOwnership (message + signature)
-	if tx.SenderAddress == nil {
+	if tx.TransactionObject.SenderAccountAddress == nil {
 		return 0, blocker.NewBlocker(blocker.ValidationErr, "SenderAddressRequired")
 	}
-	accType, err := accounttype.NewAccountTypeFromAccount(tx.SenderAddress)
+	accType, err := accounttype.NewAccountTypeFromAccount(tx.TransactionObject.SenderAccountAddress)
 	if err != nil {
 		return 0, err
 	}
@@ -438,19 +437,10 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *UpdateNodeRegistration) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		tx.Escrow = &model.Escrow{
-			ID:              tx.ID,
-			SenderAddress:   tx.SenderAddress,
-			ApproverAddress: tx.Escrow.GetApproverAddress(),
-			Commission:      tx.Escrow.GetCommission(),
-			Timeout:         tx.Escrow.GetTimeout(),
-			Status:          tx.Escrow.GetStatus(),
-			BlockHeight:     tx.Height,
-			Latest:          true,
-			Instruction:     tx.Escrow.GetInstruction(),
-		}
-
+	if tx.TransactionObject.Escrow != nil &&
+		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
+		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+		tx.TransactionObject.Escrow = util.PrepareEscrowObjectForAction(tx.TransactionObject)
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false
@@ -465,8 +455,9 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 		prevNodeReg            model.NodeRegistration
 	)
 
-	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	err = util.ValidateBasicEscrow(tx.TransactionObject)
+	if err != nil {
+		return err
 	}
 
 	err = tx.Validate(dbTx)
@@ -474,7 +465,7 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 		return err
 	}
 
-	nodeRegQ, nodeRegArgs := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	nodeRegQ, nodeRegArgs := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, _ := tx.QueryExecutor.ExecuteSelectRow(nodeRegQ, dbTx, nodeRegArgs...)
 	err = tx.NodeRegistrationQuery.Scan(&prevNodeReg, row)
 	if err != nil {
@@ -485,7 +476,9 @@ func (tx *UpdateNodeRegistration) EscrowValidate(dbTx bool) error {
 	}
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission()+effectiveBalanceToLock)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx,
+		tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission()+effectiveBalanceToLock)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -516,7 +509,7 @@ func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed() error {
 	// (delta between old locked balance and update locked balance)
 	if tx.Body.LockedBalance > 0 {
 		// get the latest node registration by owner (sender account)
-		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+		qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 		if err != nil {
 			return err
@@ -534,7 +527,8 @@ func (tx *UpdateNodeRegistration) EscrowApplyUnconfirmed() error {
 		effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
 	}
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -(effectiveBalanceToLock + tx.Fee + tx.Escrow.GetCommission()))
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		-(effectiveBalanceToLock + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()))
 	if err != nil {
 		return err
 	}
@@ -553,7 +547,7 @@ func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	)
 
 	// get the latest node registration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return err
@@ -570,7 +564,8 @@ func (tx *UpdateNodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	// delta amount to be locked
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - nodeRegistration.GetLockedBalance()
 
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, effectiveBalanceToLock+tx.Fee+tx.Escrow.GetCommission())
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress,
+		effectiveBalanceToLock+tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		return err
 	}
@@ -587,7 +582,7 @@ func (tx *UpdateNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) err
 	)
 
 	// get the latest node registration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return err
@@ -606,11 +601,11 @@ func (tx *UpdateNodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) err
 	}
 
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-(effectiveBalanceToLock + tx.Fee + tx.Escrow.GetCommission()),
+		tx.TransactionObject.SenderAccountAddress,
+		-(effectiveBalanceToLock + tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -636,7 +631,7 @@ func (tx *UpdateNodeRegistration) EscrowApproval(
 	)
 
 	// get the latest node registration by owner (sender account)
-	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args := tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, false, args...)
 	if err != nil {
 		return err
@@ -656,13 +651,13 @@ func (tx *UpdateNodeRegistration) EscrowApproval(
 
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
-		tx.Escrow.Status = model.EscrowStatus_Approved
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Approved
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			effectiveBalanceToLock+tx.Fee,
+			tx.TransactionObject.SenderAccountAddress,
+			effectiveBalanceToLock+tx.TransactionObject.Fee,
 			model.EventType_EventEscrowedTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -674,24 +669,24 @@ func (tx *UpdateNodeRegistration) EscrowApproval(
 			return err
 		}
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	case model.EscrowApproval_Reject:
-		tx.Escrow.Status = model.EscrowStatus_Rejected
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Rejected
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
+			tx.TransactionObject.SenderAccountAddress,
 			effectiveBalanceToLock,
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -699,24 +694,24 @@ func (tx *UpdateNodeRegistration) EscrowApproval(
 		}
 
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	default:
-		tx.Escrow.Status = model.EscrowStatus_Expired
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Expired
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			effectiveBalanceToLock+tx.Escrow.GetCommission(),
+			tx.TransactionObject.SenderAccountAddress,
+			effectiveBalanceToLock+tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -725,7 +720,7 @@ func (tx *UpdateNodeRegistration) EscrowApproval(
 	}
 
 	// Insert Escrow
-	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.TransactionObject.Escrow)
 	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
 	if err != nil {
 		return err

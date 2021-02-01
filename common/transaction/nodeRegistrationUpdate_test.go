@@ -427,9 +427,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -459,8 +457,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{executeSelectFail}",
 			fields: fields{
-				Body:                  txBodyWithValidPoown,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithValidPoown,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateFailExecuteSelectFailRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -471,8 +471,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{NodeDeleted}",
 			fields: fields{
-				Body:                  txBodyWithValidPoown,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithValidPoown,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateFailNodeDeleted{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -483,8 +485,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{SenderAccountNotNodeOwner}",
 			fields: fields{
-				Body:                  txBodyWithValidPoown,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithValidPoown,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateFailAccountNotNodeOwnerRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -495,8 +499,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{UpdateNodePublicKey.NodeAlreadyRegistered}",
 			fields: fields{
-				Body:                  txBodyWithInvalidNodePubKey,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithInvalidNodePubKey,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateFailNodeAlreadyRegisteredRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -507,8 +513,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success-{UpdateNodePublicKey}",
 			fields: fields{
-				Body:                  txBodyWithValidNodePubKey,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithValidNodePubKey,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateSuccessUpdateNodePublicKeyRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -520,8 +528,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{UpdateLockedBalance.NewBalanceLowerThanPrevious}",
 			fields: fields{
-				Body:                  txBodyWithInvalidLockedBalance,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithInvalidLockedBalance,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -532,8 +542,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{UpdateLockedBalance.InsufficientAccountBalance}",
 			fields: fields{
-				Body:                  txBodyWithLockedBalanceTooHigh,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithLockedBalanceTooHigh,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -545,8 +557,10 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success-{UpdateLockedBalance}",
 			fields: fields{
-				Body:                  txBodyWithValidLockedBalance,
-				SenderAddress:         senderAddress1,
+				Body: txBodyWithValidLockedBalance,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -560,9 +574,7 @@ func TestUpdateNodeRegistration_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -592,9 +604,7 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -609,8 +619,10 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed:success",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
+				Body: txBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateSuccessRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -621,8 +633,10 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed:fail-{PreviousNodeRecordNotFound}",
 			fields: fields{
-				Body:                  txBody,
-				SenderAddress:         senderAddress1,
+				Body: txBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:         &mockExecutorValidateFailNodeNotFoundRU{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
@@ -634,9 +648,7 @@ func TestUpdateNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -706,9 +718,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 	}
 	type fields struct {
 		Body                     *model.UpdateNodeRegistrationTransactionBody
-		Fee                      int64
-		SenderAddress            []byte
-		Height                   uint32
+		TransactionObject        *model.Transaction
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		BlockQuery               query.BlockQueryInterface
 		QueryExecutor            query.ExecutorInterface
@@ -725,8 +735,10 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:fail-{PreviousNodeRecordNotFound}",
 			fields: fields{
-				Body:                     txBody,
-				SenderAddress:            senderAddress1,
+				Body: txBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedNodeNotFound{},
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
@@ -738,8 +750,10 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:errorNotFound",
 			fields: fields{
-				Body:                     txBody,
-				SenderAddress:            senderAddress1,
+				Body: txBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
@@ -752,8 +766,10 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                     txBody,
-				SenderAddress:            senderAddress1,
+				Body: txBody,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 				QueryExecutor:            &mockQueryExecutorUpdateNodeRegApplyConfirmedSuccess{},
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
@@ -768,9 +784,7 @@ func TestUpdateNodeRegistration_ApplyConfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                         tt.fields.Body,
-				Fee:                          tt.fields.Fee,
-				SenderAddress:                tt.fields.SenderAddress,
-				Height:                       tt.fields.Height,
+				TransactionObject:            tt.fields.TransactionObject,
 				NodeRegistrationQuery:        tt.fields.NodeRegistrationQuery,
 				BlockQuery:                   tt.fields.BlockQuery,
 				QueryExecutor:                tt.fields.QueryExecutor,
@@ -808,9 +822,7 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -825,10 +837,12 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:fail-{executeTransactionsFail}",
 			fields: fields{
-				SenderAddress:         senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+					Fee:                  1,
+				},
 				QueryExecutor:         &mockExecutorUndoUnconfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Fee:                   1,
 				Body:                  txBody,
 				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedFail{},
 			},
@@ -837,11 +851,13 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				SenderAddress:         senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+					Fee:                  1,
+				},
 				QueryExecutor:         &mockExecutorUndoUnconfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				Fee:                   1,
 				Body:                  txBody,
 				AccountBalanceHelper:  &mockAccountBalanceHelperUpdateNRUndoApplyUnconfirmedSuccess{},
 			},
@@ -852,9 +868,7 @@ func TestUpdateNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -874,9 +888,7 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 	}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -898,9 +910,7 @@ func TestUpdateNodeRegistration_GetAmount(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -917,9 +927,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 	txBody := &model.UpdateNodeRegistrationTransactionBody{}
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -935,7 +943,9 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 			fields: fields{
 				Body:                  txBody,
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				SenderAddress:         senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			want: 176,
 		},
@@ -944,9 +954,7 @@ func TestUpdateNodeRegistration_GetSize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -968,9 +976,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -989,10 +995,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - empty body bytes",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -1003,10 +1011,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - wrong public key length",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -1017,10 +1027,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - no node address length",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -1031,10 +1043,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - no node address",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: nil,
 				QueryExecutor:         nil,
 			},
@@ -1047,10 +1061,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - no locked balance",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
@@ -1063,10 +1079,12 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		{
 			name: "UpdateNodeRegistration:error - no poown",
 			fields: fields{
-				Body:                  nil,
-				Fee:                   0,
-				SenderAddress:         nil,
-				Height:                0,
+				Body: nil,
+				TransactionObject: &model.Transaction{
+					Fee:                  0,
+					SenderAccountAddress: nil,
+					Height:               0,
+				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         nil,
 			},
@@ -1092,9 +1110,7 @@ func TestUpdateNodeRegistration_ParseBodyBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			up := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -1116,9 +1132,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 	_, _, txBody, txBodyBytes := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1142,9 +1156,7 @@ func TestUpdateNodeRegistration_GetBodyBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -1161,9 +1173,7 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 	_, _, mockTxBody, _ := GetFixturesForUpdateNoderegistration(query.NewNodeRegistrationQuery())
 	type fields struct {
 		Body                  *model.UpdateNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		BlockQuery            query.BlockQueryInterface
 		QueryExecutor         query.ExecutorInterface
@@ -1191,9 +1201,7 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &UpdateNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				BlockQuery:            tt.fields.BlockQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
@@ -1206,11 +1214,8 @@ func TestUpdateNodeRegistration_GetTransactionBody(t *testing.T) {
 
 func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
-		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
-		Fee                     int64
-		SenderAddress           []byte
-		Height                  uint32
+		TransactionObject       *model.Transaction
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -1232,7 +1237,9 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -1255,7 +1262,9 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -1277,7 +1286,9 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -1300,11 +1311,8 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &NodeRegistration{
-				ID:                      tt.fields.ID,
 				Body:                    tt.fields.Body,
-				Fee:                     tt.fields.Fee,
-				SenderAddress:           tt.fields.SenderAddress,
-				Height:                  tt.fields.Height,
+				TransactionObject:       tt.fields.TransactionObject,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,

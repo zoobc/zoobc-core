@@ -398,7 +398,6 @@ func (tg *TransactionCoreService) ApplyConfirmedTransaction(
 	txAction transaction.TypeAction,
 	blockTimestamp int64,
 ) error {
-
 	escrowAction, ok := txAction.Escrowable()
 	switch ok {
 	case true:

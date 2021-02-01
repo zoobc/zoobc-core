@@ -165,7 +165,9 @@ func GetGenesisNodeRegistrationTx(
 
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	nodeRegistration := transaction.NodeRegistration{
-		SenderAddress: constant.MainchainGenesisAccountAddress,
+		TransactionObject: &model.Transaction{
+			SenderAccountAddress: constant.MainchainGenesisAccountAddress,
+		},
 		Body: &model.NodeRegistrationTransactionBody{
 			AccountAddress: accountAddress,
 			LockedBalance:  lockedBalance,
