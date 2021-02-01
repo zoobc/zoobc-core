@@ -362,6 +362,12 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			"TxFeeZero",
 		)
 	}
+	if tx.GetEscrow() != nil && len(tx.Escrow.GetInstruction()) > constant.MaxMessageLengthEscrowInstruction {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxEscrowInstructionMaxLengthExceeded",
+		)
+	}
 	if len(tx.Message) > constant.MaxMessageLength {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
