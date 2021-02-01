@@ -1,15 +1,15 @@
 apiHTTPPort = 7001
-apiReqTimeoutSec = 2
 apiRPCPort = 7000
+apiReqTimeoutSec = 2
 # to show usefull information on terminal/cli. The logOnCli must be false
-cliMonitoring = true
+antiSpamCPULimitPercentage = 75
 antiSpamFilter = true
-antiSpamP2PRequestLimit=150
-antiSpamCPULimitPercentage=75
+antiSpamP2PRequestLimit = 150
+cliMonitoring = true
 cpuProfilingPort = 6060
 dbName = "zoobc.db"
 # Available log level: info, warn, error, fatal, panic
-logLevels = ["fatal","error","panic"]
+logLevels = ["fatal", "error", "panic"]
 # to show all log on terminal/cli that recoreded in .log/log_files
 logOnCli = false
 maxAPIRequestPerSecond = 10

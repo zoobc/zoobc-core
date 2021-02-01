@@ -499,7 +499,7 @@ func initiateMainInstance() {
 		crypto.NewRandomNumberGenerator(),
 		mainchain,
 	)
-	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
@@ -509,6 +509,7 @@ func initiateMainInstance() {
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		spinechain,
+		query.NewSpinePublicKeyQuery(),
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
