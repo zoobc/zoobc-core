@@ -109,8 +109,7 @@ type (
 			signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 		) error
 	}
-	MultisigTransactionUtil struct {
-	}
+	MultisigTransactionUtil struct{}
 )
 
 // GetTransactionBytes translate transaction model to its byte representation
