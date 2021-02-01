@@ -221,7 +221,7 @@ func (*nrsMockQueryExecutorSuccess) ExecuteSelectRow(qe string, tx bool, args ..
 		)
 	case fmt.Sprintf("SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, "+
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, "+
-		"version FROM main_block WHERE height = %d", 1000-constant.MinRollbackBlocks):
+		"version FROM main_block WHERE height = %d", 1720-constant.MinRollbackBlocks):
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"Height", "ID", "BlockHash", "PreviousBlockHash", "Timestamp", "BlockSeed", "BlockSignature", "CumulativeDifficulty",
 			"PayloadLength", "PayloadHash", "BlocksmithPublicKey", "TotalAmount", "TotalFee", "TotalCoinBase",
