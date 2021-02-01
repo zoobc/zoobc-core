@@ -74,9 +74,9 @@ func NewBlockLifeTimeFeeModel(
 }
 
 func (blt *BlockLifeTimeFeeModel) CalculateTxMinimumFee(
-	txBody model.TransactionBodyInterface, escrow *model.Escrow,
+	txBody model.TransactionBodyInterface, tx *model.Transaction,
 ) (int64, error) {
 	// timeout / blockPeriod result is ceil
-	fee := int64(math.Ceil(float64(escrow.Timeout)/float64(blt.blockPeriod))) * blt.feePerBlockPeriod
+	fee := int64(math.Ceil(float64(tx.Escrow.Timeout)/float64(blt.blockPeriod))) * blt.feePerBlockPeriod
 	return fee, nil
 }

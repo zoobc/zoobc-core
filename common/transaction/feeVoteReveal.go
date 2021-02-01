@@ -68,13 +68,8 @@ import (
 
 type (
 	FeeVoteRevealTransaction struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
-		Escrow                 *model.Escrow
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
 		BlockQuery             query.BlockQueryInterface
@@ -84,8 +79,6 @@ type (
 		AccountBalanceHelper   AccountBalanceHelperInterface
 		QueryExecutor          query.ExecutorInterface
 		EscrowQuery            query.EscrowTransactionQueryInterface
-		EscrowFee              fee.FeeModelInterface
-		NormalFee              fee.FeeModelInterface
 	}
 )
 
@@ -105,7 +98,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	)
 
 	// check the transaction submitted on reveal-phase
-	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.Timestamp, true)
+	feeVotePhase, _, err = tx.FeeScaleService.GetCurrentPhase(tx.TransactionObject.Timestamp, true)
 	if err != nil {
 		return err
 	}
@@ -120,7 +113,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 	// must match the previously submitted in CommitmentVote
 	qry, args = tx.FeeVoteCommitVoteQuery.GetVoteCommitByAccountAddressAndHeight(
-		tx.SenderAddress,
+		tx.TransactionObject.SenderAccountAddress,
 		lastFeeScale.BlockHeight,
 	)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
@@ -149,7 +142,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	err = tx.SignatureInterface.VerifySignature(
 		tx.GetFeeVoteInfoBytes(),
 		tx.Body.GetVoterSignature(),
-		tx.SenderAddress,
+		tx.TransactionObject.SenderAccountAddress,
 	)
 	if err != nil {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSignature")
@@ -173,7 +166,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 
 	// sender must be as node owner
-	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.SenderAddress)
+	qry, args = tx.NodeRegistrationQuery.GetNodeRegistrationByAccountAddress(tx.TransactionObject.SenderAccountAddress)
 	row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
 	if err != nil {
 		return err
@@ -193,7 +186,7 @@ func (tx *FeeVoteRevealTransaction) Validate(dbTx bool) error {
 	}
 	// check existing & balance account sender
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -210,7 +203,7 @@ func (tx *FeeVoteRevealTransaction) checkDuplicateVoteReveal(dbTx bool) error {
 	var (
 		revealVote model.FeeVoteRevealVote
 		qry, args  = tx.FeeVoteRevealVoteQuery.GetFeeVoteRevealByAccountAddressAndRecentBlockHeight(
-			tx.SenderAddress,
+			tx.TransactionObject.SenderAccountAddress,
 			tx.Body.GetFeeVoteInfo().GetRecentBlockHeight(),
 		)
 		row, err = tx.QueryExecutor.ExecuteSelectRow(qry, dbTx, args...)
@@ -231,7 +224,7 @@ func (tx *FeeVoteRevealTransaction) checkDuplicateVoteReveal(dbTx bool) error {
 
 // ApplyUnconfirmed to apply unconfirmed transaction
 func (tx *FeeVoteRevealTransaction) ApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 }
 
 /*
@@ -239,18 +232,18 @@ UndoApplyUnconfirmed is used to undo the previous applied unconfirmed tx action
 this will be called on apply confirmed or when rollback occurred
 */
 func (tx *FeeVoteRevealTransaction) UndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 }
 
 // ApplyConfirmed applying transaction, will store ledger, account balance update, and also the transaction it self
 func (tx *FeeVoteRevealTransaction) ApplyConfirmed(blockTimestamp int64) (err error) {
 
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-tx.Fee,
+		tx.TransactionObject.SenderAccountAddress,
+		-tx.TransactionObject.Fee,
 		model.EventType_EventFeeVoteRevealTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -260,8 +253,8 @@ func (tx *FeeVoteRevealTransaction) ApplyConfirmed(blockTimestamp int64) (err er
 	qry, args := tx.FeeVoteRevealVoteQuery.InsertRevealVote(&model.FeeVoteRevealVote{
 		VoteInfo:       tx.Body.GetFeeVoteInfo(),
 		VoterSignature: tx.Body.GetVoterSignature(),
-		VoterAddress:   tx.SenderAddress,
-		BlockHeight:    tx.Height,
+		VoterAddress:   tx.TransactionObject.SenderAccountAddress,
+		BlockHeight:    tx.TransactionObject.Height,
 	})
 	err = tx.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
@@ -347,10 +340,12 @@ func (tx *FeeVoteRevealTransaction) GetAmount() int64 {
 
 // GetMinimumFee calculate fee
 func (tx *FeeVoteRevealTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 /*
@@ -376,7 +371,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	for _, selectedTx := range selectedTransactions {
 		// if we find another fee reveal tx in currently selected transactions, filter current one out of selection
 		sameTxType := model.TransactionType_FeeVoteRevealVoteTransaction == model.TransactionType(selectedTx.GetTransactionType())
-		if sameTxType && bytes.Equal(tx.SenderAddress, selectedTx.SenderAccountAddress) {
+		if sameTxType && bytes.Equal(tx.TransactionObject.SenderAccountAddress, selectedTx.SenderAccountAddress) {
 			return true, nil
 		}
 	}
@@ -403,18 +398,9 @@ func (tx *FeeVoteRevealTransaction) GetSize() (uint32, error) {
 
 // Escrowable will check the transaction is escrow or not. Currently doesn't have escrow option
 func (tx *FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		tx.Escrow = &model.Escrow{
-			ID:              tx.ID,
-			SenderAddress:   tx.SenderAddress,
-			ApproverAddress: tx.Escrow.GetApproverAddress(),
-			Commission:      tx.Escrow.GetCommission(),
-			Timeout:         tx.Escrow.GetTimeout(),
-			Status:          0,
-			BlockHeight:     tx.Height,
-			Latest:          true,
-			Instruction:     tx.Escrow.GetInstruction(),
-		}
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
+		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+		tx.TransactionObject.Escrow = util.PrepareEscrowObjectForAction(tx.TransactionObject)
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false
@@ -422,11 +408,11 @@ func (tx *FeeVoteRevealTransaction) Escrowable() (EscrowTypeAction, bool) {
 
 func (tx *FeeVoteRevealTransaction) EscrowApplyConfirmed(blockTimestamp int64) (err error) {
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-(tx.Fee + tx.Escrow.GetCommission()),
+		tx.TransactionObject.SenderAccountAddress,
+		-(tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -436,16 +422,17 @@ func (tx *FeeVoteRevealTransaction) EscrowApplyConfirmed(blockTimestamp int64) (
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowApplyUnconfirmed() (err error) {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowUndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 }
 
 func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
-	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return blocker.NewBlocker(blocker.ValidationErr, "ApproverAddressRequired")
+	err = util.ValidateBasicEscrow(tx.TransactionObject)
+	if err != nil {
+		return err
 	}
 
 	err = tx.Validate(dbTx)
@@ -454,7 +441,8 @@ func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
 	}
 
 	var enough bool
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -470,13 +458,13 @@ func (tx *FeeVoteRevealTransaction) EscrowValidate(dbTx bool) (err error) {
 func (tx *FeeVoteRevealTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
-		tx.Escrow.Status = model.EscrowStatus_Approved
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Approved
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			tx.Fee,
+			tx.TransactionObject.SenderAccountAddress,
+			tx.TransactionObject.Fee,
 			model.EventType_EventEscrowedTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -487,44 +475,44 @@ func (tx *FeeVoteRevealTransaction) EscrowApproval(blockTimestamp int64, txBody 
 			return err
 		}
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	case model.EscrowApproval_Reject:
-		tx.Escrow.Status = model.EscrowStatus_Rejected
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Rejected
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	default:
-		tx.Escrow.Status = model.EscrowStatus_Expired
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Expired
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.SenderAccountAddress,
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	}
-	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.TransactionObject.Escrow)
 	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
 	if err != nil {
 		return err
