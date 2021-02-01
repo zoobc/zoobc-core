@@ -763,10 +763,13 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	// check last main block height still higher from SpineReferenceBlockHeightOffset
-	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
-		newReferenceBlockHeight = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+
+	if lastMainBlock.Height < newIncludedFirstBlockHeight {
+		newIncludedFirstBlockHeight = lastMainBlock.Height
 	}
+
+	newReferenceBlockHeight = lastMainBlock.Height
+
 	// make sure new reference block height is greater than previous Reference Block Height
 	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
 		limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
