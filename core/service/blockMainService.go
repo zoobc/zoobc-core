@@ -1723,6 +1723,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			"ProcessCompletedBlock2 push Block fail: %v",
 			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
 		)
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return nil
 }
