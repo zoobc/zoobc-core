@@ -305,13 +305,13 @@ func (ts *TransactionService) PostTransaction(
 	//  the network can regulate itself without leading to blockchain splits or hard forks
 	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
 	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
-		if limitLevel == constant.FeedbackLimitHigh {
+		if limitLevel == constant.FeedbackLimitHigh || limitLevel == constant.FeedbackLimitCritical {
 			ts.Logger.Error("Tx dropped due to high cpu usage")
 			monitoring.IncreaseTxFiltered()
 			return nil, status.Error(codes.Unavailable, "Service is currently not available")
 		}
 	}
-	// STEF removing goroutine limit (only considering CPU usage)
+	// TODO: remove comment to use goroutine limit too
 	// if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
 	// 	switch limitLevel {
 	// 	case constant.FeedbackLimitHigh:
