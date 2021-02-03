@@ -62,7 +62,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/common/util"
 )
@@ -179,42 +178,14 @@ func Commands() *cobra.Command {
 // GenerateMultiSignatureAccount to generate address for multi signature transaction
 func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 	return func(cmd *cobra.Command, args []string) {
-		var (
-			accPubKey []byte
-			err       error
-		)
-		switch accountTypeInt {
-		case int32(model.AccountType_ZbcAccountType):
-			ed25519 := signaturetype.NewEd25519Signature()
-			accPubKey, err = ed25519.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
-			if err != nil {
-				panic(err)
-			}
-		case int32(model.AccountType_BTCAccountType):
-			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
-			accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
-			if err != nil {
-				panic(err)
-			}
-		case int32(model.AccountType_EstoniaEidAccountType):
-			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
-			accPubKey, err = estoniaEidAccountType.DecodePublicKeyFromAddress(encodedAccountAddress)
-			if err != nil {
-				panic(err)
-			}
-		}
-		accType, err := accounttype.NewAccountType(accountTypeInt, accPubKey)
-		if err != nil {
-			panic(err)
-		}
-		fullAccountAddress, err := accType.GetAccountAddress()
+		fullAccountAddress, err := accounttype.ParseEncodedAccountToAccountAddress(accountTypeInt, encodedAccountAddress)
 		if err != nil {
 			panic(err)
 		}
 		fmt.Printf("account address type: %s (%d)\n", model.AccountType_name[accountTypeInt], accountTypeInt)
 		fmt.Printf("encoded account address: %s\n", encodedAccountAddress)
-		fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
-		fmt.Printf("public key bytes: %v\n", accPubKey)
+		// fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
+		// fmt.Printf("public key bytes: %v\n", accPubKey)
 		fmt.Printf("full account address: %v\n", fullAccountAddress)
 		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
 	}

@@ -57,6 +57,7 @@ import (
 	"github.com/zoobc/lib/address"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 )
 
 // NewAccountType returns the appropriate AccountTypeInterface object based on the account account type nul and account public key
@@ -125,8 +126,26 @@ func ParseEncodedAccountToAccountAddress(accTypeInt int32, encodedAccountAddress
 			return nil, err
 		}
 	case int32(model.AccountType_BTCAccountType):
+		bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
+		accPubKey, err = bitcoinSignature.GetAddressBytes(encodedAccountAddress)
+		if err != nil {
+			return nil, err
+		}
+	case int32(model.AccountType_EmptyAccountType):
 		// TODO: not implemented yet!
-		return nil, errors.New("parsing encoded BTC accounts is not implemented yet")
+		return nil, errors.New("parsing encoded EMPTY accounts is not implemented yet")
+	case int32(model.AccountType_EstoniaEidAccountType):
+		estoniaEidAccountType := &EstoniaEidAccountType{}
+		accPubKey, err = estoniaEidAccountType.DecodePublicKeyFromAddress(encodedAccountAddress)
+		if err != nil {
+			return nil, err
+		}
+	case int32(model.AccountType_ETHAccountType):
+		ethereumAccountType := &ETHAccountType{}
+		accPubKey, err = ethereumAccountType.DecodePublicKeyFromAddress(encodedAccountAddress)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, errors.New("InvalidAccountType")
 	}
