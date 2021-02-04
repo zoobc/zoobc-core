@@ -311,7 +311,7 @@ func (ts *TransactionService) PostTransaction(
 			return nil, status.Error(codes.Unavailable, "Service is currently not available")
 		}
 	}
-	// STEF removing goroutine limit (only considering CPU usage)
+	// TODO: remove comment to use goroutine limit too
 	// if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
 	// 	switch limitLevel {
 	// 	case constant.FeedbackLimitHigh:
