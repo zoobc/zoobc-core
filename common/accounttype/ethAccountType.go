@@ -154,8 +154,7 @@ func (acc *ETHAccountType) GetAccountPrivateKey() ([]byte, error) {
 	return acc.privateKey, nil
 }
 
-// Sign: this account type and signature comes only from Estonia eID and we don't have private key of the accounts
-// so we don't sign sign for this type of account.
+// Sign: Sign the payload with ethereum private key
 func (acc *ETHAccountType) Sign(payload []byte, seed string, optionalParams ...interface{}) ([]byte, error) {
 	hash := crypto.Keccak256Hash(payload)
 	privateKey, err := crypto.ToECDSA(acc.privateKey)
