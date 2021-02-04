@@ -68,6 +68,9 @@ type ETHAccountType struct {
 }
 
 func (acc *ETHAccountType) SetAccountPublicKey(accountPublicKey []byte) {
+	if uint32(len(accountPublicKey)) > acc.GetAccountPublicKeyLength() {
+		return
+	}
 	if accountPublicKey == nil {
 		acc.publicKey = make([]byte, 0)
 	}
@@ -127,7 +130,7 @@ func (acc *ETHAccountType) GetEncodedAddress() (string, error) {
 		return "", errors.New("EmptyAccountPublicKey")
 	}
 	hash := sha3.NewLegacyKeccak256()
-	hash.Write(acc.publicKey[1:])
+	hash.Write(acc.publicKey)
 	return hexutil.Encode(hash.Sum(nil)[12:]), nil
 }
 
@@ -161,17 +164,12 @@ func (acc *ETHAccountType) Sign(payload []byte, seed string, optionalParams ...i
 
 func (acc *ETHAccountType) VerifySignature(payload, signature, accountAddress []byte) error {
 	hash := crypto.Keccak256Hash(payload)
-	// sigPublicKey, err := crypto.Ecrecover(hash.Bytes(), signature)
-	// if err != nil {
-	// 	return fmt.Errorf("CanNotParseSignature:%s", err.Error())
-	// }
-	// matches := bytes.Equal(sigPublicKey, acc.publicKey)
-	// if !matches {
-	// 	return errors.New("InvalidSignature")
-	// }
 
 	signatureNoRecoverID := signature[:len(signature)-1] // remove recovery id
-	verified := crypto.VerifySignature(acc.publicKey, hash.Bytes(), signatureNoRecoverID)
+
+	publicKeyWithPrefix := []byte{4}
+	publicKeyWithPrefix = append(publicKeyWithPrefix, acc.publicKey...)
+	verified := crypto.VerifySignature(publicKeyWithPrefix, hash.Bytes(), signatureNoRecoverID)
 	if !verified {
 		return errors.New("InvalidSignature")
 	}
