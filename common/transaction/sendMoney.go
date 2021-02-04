@@ -154,8 +154,8 @@ func (tx *SendMoney) Validate(dbTx bool) error {
 	var (
 		err error
 	)
-	if tx.Body.GetAmount() <= 0 {
-		return errors.New("transaction must have an amount more than 0")
+	if tx.Body.GetAmount() < 0 {
+		return errors.New("transaction amount can not be negative")
 	}
 	if tx.TransactionObject.RecipientAccountAddress == nil {
 		return errors.New("transaction must have a valid recipient account id")
