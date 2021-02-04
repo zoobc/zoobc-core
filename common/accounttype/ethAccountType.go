@@ -130,7 +130,10 @@ func (acc *ETHAccountType) GetEncodedAddress() (string, error) {
 		return "", errors.New("EmptyAccountPublicKey")
 	}
 	hash := sha3.NewLegacyKeccak256()
-	hash.Write(acc.publicKey)
+	_, err := hash.Write(acc.publicKey)
+	if err != nil {
+		return "", err
+	}
 	return hexutil.Encode(hash.Sum(nil)[12:]), nil
 }
 

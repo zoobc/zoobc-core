@@ -119,7 +119,8 @@ func TestETHAccountType_VerifySignature(t *testing.T) {
 }
 
 func TestETHAccountType_GetEncodedAddress(t *testing.T) {
-	publicKey, _ := hex.DecodeString("11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5")
+	publicKey, _ := hex.DecodeString("11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce" +
+		"26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5")
 
 	type fields struct {
 		privateKey  []byte
