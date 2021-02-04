@@ -53,7 +53,7 @@ import "time"
 
 var (
 	// SQLMaxIdleConnections Represent number of maximum idle connetion in sql pool connection
-	SQLMaxIdleConnections = 50
+	SQLMaxIdleConnections = 5
 	// SQLMaxConnectionLifetime Reprensent the expiration of opened database connetion
 	// Setting it to 0 means that there is no maximum lifetime and the connection is reused forever (which is the default behavior).
 	SQLMaxConnectionLifetime = 10 * time.Second
