@@ -50,10 +50,12 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"strings"
@@ -91,6 +93,8 @@ var (
 		Timestamp: 1,
 		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		MerkleRoot:           nil,
+		MerkleTree:           nil,
 		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
 		CumulativeDifficulty: "1000",
 		PayloadLength:        1,
@@ -102,7 +106,25 @@ var (
 		TotalCoinBase: 1,
 		Version:       0,
 	}
+
+	mockMerkleMainBlock       *util.MerkleRoot
+	mockMerkleHashesMainBlock []*bytes.Buffer
 )
+
+func fixtureGenerateMerkleRootAndHash(mockTx []*model.Transaction) (root, tree []byte) {
+	mockMerkleMainBlock = &util.MerkleRoot{}
+	// Generate MerkleRoot
+	for i := 0; i < len(mockTx); i++ {
+		_, _ = rand.Read(mockTx[i].TransactionHash)
+		mockMerkleHashesMainBlock = append(mockMerkleHashesMainBlock, bytes.NewBuffer(mockTx[i].TransactionHash))
+	}
+	_, err := mockMerkleMainBlock.GenerateMerkleRoot(mockMerkleHashesMainBlock)
+	if err != nil {
+		return nil, nil
+	}
+	root, tree = mockMerkleMainBlock.ToBytes()
+	return root, tree
+}
 
 type (
 	mockSignature struct {
@@ -732,6 +754,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 			PreviousBlockHash:   []byte{},
 			BlockSeed:           []byte{},
 			BlocksmithPublicKey: bcsNodePubKey1,
+			MerkleRoot:          []byte{},
+			MerkleTree:          []byte{},
 			Timestamp:           15875392,
 			TotalAmount:         0,
 			TotalFee:            0,
@@ -761,6 +785,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 		previousBlockHash   []byte
 		blockSeed           []byte
 		blockSmithPublicKey []byte
+		merkleRoot          []byte
+		merkleTree          []byte
 		previousBlockHeight uint32
 		timestamp           int64
 		totalAmount         int64
@@ -788,6 +814,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 				previousBlockHash:   []byte{},
 				blockSeed:           []byte{},
 				blockSmithPublicKey: bcsNodePubKey1,
+				merkleRoot:          []byte{},
+				merkleTree:          []byte{},
 				previousBlockHeight: 0,
 				timestamp:           15875392,
 				totalAmount:         0,
@@ -816,6 +844,8 @@ func TestBlockService_NewBlock(t *testing.T) {
 				tt.args.previousBlockHash,
 				tt.args.blockSeed,
 				tt.args.blockSmithPublicKey,
+				tt.args.merkleRoot,
+				tt.args.merkleTree,
 				tt.args.previousBlockHeight,
 				tt.args.timestamp,
 				tt.args.totalAmount,
@@ -4634,6 +4664,148 @@ func TestBlockService_ValidatePayloadHash(t *testing.T) {
 			}
 			if err := bs.ValidatePayloadHash(tt.args.block); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.ValidatePayloadHash() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestBlockService_validateMerkleRoot(t *testing.T) {
+	mockTx := []*model.Transaction{
+		{
+			TransactionHash: make([]byte, 32),
+		},
+		{
+			TransactionHash: make([]byte, 32),
+		},
+		{
+			TransactionHash: make([]byte, 32),
+		},
+	}
+	mockTxInvalid := []*model.Transaction{
+		{
+			TransactionHash: make([]byte, 32),
+		},
+	}
+	root, tree := fixtureGenerateMerkleRootAndHash(mockTx)
+	mockBlockValidMerkleRoot := &model.Block{
+		MerkleRoot:   root,
+		MerkleTree:   tree,
+		Transactions: mockTx,
+	}
+	mockBlockInvalidMerkleRoot := &model.Block{
+		MerkleRoot:   root,
+		MerkleTree:   tree,
+		Transactions: mockTxInvalid,
+	}
+
+	type fields struct {
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		MempoolQuery                query.MempoolQueryInterface
+		TransactionQuery            query.TransactionQueryInterface
+		PublishedReceiptQuery       query.PublishedReceiptQueryInterface
+		SkippedBlocksmithQuery      query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		MempoolService              MempoolServiceInterface
+		ReceiptService              ReceiptServiceInterface
+		NodeRegistrationService     NodeRegistrationServiceInterface
+		NodeAddressInfoService      NodeAddressInfoServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		FeeScaleService             fee.FeeScaleServiceInterface
+		ActionTypeSwitcher          transaction.TypeActionSwitcher
+		AccountBalanceQuery         query.AccountBalanceQueryInterface
+		ParticipationScoreQuery     query.ParticipationScoreQueryInterface
+		NodeRegistrationQuery       query.NodeRegistrationQueryInterface
+		AccountLedgerQuery          query.AccountLedgerQueryInterface
+		FeeVoteRevealVoteQuery      query.FeeVoteRevealVoteQueryInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		BlockIncompleteQueueService BlockIncompleteQueueServiceInterface
+		BlockPoolService            BlockPoolServiceInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		TransactionUtil             transaction.UtilInterface
+		ReceiptUtil                 coreUtil.ReceiptUtilInterface
+		PublishedReceiptUtil        coreUtil.PublishedReceiptUtilInterface
+		TransactionCoreService      TransactionCoreServiceInterface
+		PendingTransactionService   PendingTransactionServiceInterface
+		CoinbaseService             CoinbaseServiceInterface
+		ParticipationScoreService   ParticipationScoreServiceInterface
+		PublishedReceiptService     PublishedReceiptServiceInterface
+		PruneQuery                  []query.PruneQuery
+		BlockStateStorage           storage.CacheStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		ScrambleNodeService         ScrambleNodeServiceInterface
+	}
+	type args struct {
+		block *model.Block
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		wantErr bool
+	}{
+		{
+			name:   "ValidateMerkleRoot:Success",
+			fields: fields{},
+			args: args{
+				block: mockBlockValidMerkleRoot,
+			},
+			wantErr: false,
+		},
+		{
+			name:   "ValidateMerkleRoot:Fail",
+			fields: fields{},
+			args: args{
+				block: mockBlockInvalidMerkleRoot,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bs := &BlockService{
+				Chaintype:                   tt.fields.Chaintype,
+				QueryExecutor:               tt.fields.QueryExecutor,
+				BlockQuery:                  tt.fields.BlockQuery,
+				MempoolQuery:                tt.fields.MempoolQuery,
+				TransactionQuery:            tt.fields.TransactionQuery,
+				PublishedReceiptQuery:       tt.fields.PublishedReceiptQuery,
+				SkippedBlocksmithQuery:      tt.fields.SkippedBlocksmithQuery,
+				Signature:                   tt.fields.Signature,
+				MempoolService:              tt.fields.MempoolService,
+				ReceiptService:              tt.fields.ReceiptService,
+				NodeRegistrationService:     tt.fields.NodeRegistrationService,
+				NodeAddressInfoService:      tt.fields.NodeAddressInfoService,
+				BlocksmithService:           tt.fields.BlocksmithService,
+				FeeScaleService:             tt.fields.FeeScaleService,
+				ActionTypeSwitcher:          tt.fields.ActionTypeSwitcher,
+				AccountBalanceQuery:         tt.fields.AccountBalanceQuery,
+				ParticipationScoreQuery:     tt.fields.ParticipationScoreQuery,
+				NodeRegistrationQuery:       tt.fields.NodeRegistrationQuery,
+				AccountLedgerQuery:          tt.fields.AccountLedgerQuery,
+				FeeVoteRevealVoteQuery:      tt.fields.FeeVoteRevealVoteQuery,
+				BlocksmithStrategy:          tt.fields.BlocksmithStrategy,
+				BlockIncompleteQueueService: tt.fields.BlockIncompleteQueueService,
+				BlockPoolService:            tt.fields.BlockPoolService,
+				Observer:                    tt.fields.Observer,
+				Logger:                      tt.fields.Logger,
+				TransactionUtil:             tt.fields.TransactionUtil,
+				ReceiptUtil:                 tt.fields.ReceiptUtil,
+				PublishedReceiptUtil:        tt.fields.PublishedReceiptUtil,
+				TransactionCoreService:      tt.fields.TransactionCoreService,
+				PendingTransactionService:   tt.fields.PendingTransactionService,
+				CoinbaseService:             tt.fields.CoinbaseService,
+				ParticipationScoreService:   tt.fields.ParticipationScoreService,
+				PublishedReceiptService:     tt.fields.PublishedReceiptService,
+				PruneQuery:                  tt.fields.PruneQuery,
+				BlockStateStorage:           tt.fields.BlockStateStorage,
+				BlockchainStatusService:     tt.fields.BlockchainStatusService,
+				ScrambleNodeService:         tt.fields.ScrambleNodeService,
+			}
+			if err := bs.validateMerkleRoot(tt.args.block); (err != nil) != tt.wantErr {
+				t.Errorf("validateMerkleRoot() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}

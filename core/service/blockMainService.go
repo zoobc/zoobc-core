@@ -54,6 +54,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"math/rand"
 	"sort"
 	"sync"
 	"time"
@@ -224,7 +225,7 @@ func NewBlockMainService(
 func (bs *BlockService) NewMainBlock(
 	version uint32,
 	previousBlockHash,
-	blockSeed, blockSmithPublicKey []byte,
+	blockSeed, blockSmithPublicKey, merkleRoot, merkleTree []byte,
 	previousBlockHeight uint32,
 	timestamp,
 	totalAmount,
@@ -250,6 +251,8 @@ func (bs *BlockService) NewMainBlock(
 		TotalCoinBase:       totalCoinBase,
 		Transactions:        transactions,
 		PublishedReceipts:   publishedReceipts,
+		MerkleRoot:          merkleRoot,
+		MerkleTree:          merkleTree,
 	}
 
 	// compute block's payload hash and length and add it to block struct
@@ -384,6 +387,42 @@ func (bs *BlockService) ValidateBlock(block, previousLastBlock *model.Block) err
 	// if the same block height is already in the database compare cummulative difficulty.
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
+	}
+	// verify Merkle Root
+	if err := bs.validateMerkleRoot(block); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (bs *BlockService) validateMerkleRoot(block *model.Block) error {
+	var (
+		merkleRoot         commonUtils.MerkleRoot
+		intermediateHashes [][]byte
+	)
+	if len(block.Transactions) > 0 {
+		// Get Random Index
+		rand.Seed(time.Now().UnixNano())
+		randomTxIndex := rand.Intn(len(block.Transactions))
+		// Flatten the Merkle Root
+		merkleRoot.HashTree = merkleRoot.FromBytes(block.MerkleTree, block.MerkleRoot)
+		randomTx := block.Transactions[randomTxIndex].TransactionHash
+		intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(randomTx), int32(randomTxIndex))
+		for _, buf := range intermediateHashesBuffer {
+			intermediateHashes = append(intermediateHashes, buf.Bytes())
+		}
+
+		root, err := merkleRoot.GetMerkleRootFromIntermediateHashes(
+			randomTx,
+			uint32(randomTxIndex),
+			intermediateHashes,
+		)
+		if err != nil {
+			return err
+		}
+		if !bytes.Equal(root, block.MerkleRoot) {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidMerkleRootBlock")
+		}
 	}
 	return nil
 }
@@ -1338,11 +1377,31 @@ func (bs *BlockService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
+
+	var (
+		merkleRoot   commonUtils.MerkleRoot
+		hashedTx     []*bytes.Buffer
+		mRoot, mTree []byte
+	)
+
+	if len(sortedTransactions) > 0 {
+		for i := 0; i < len(sortedTransactions); i++ {
+			hashedTx = append(hashedTx, bytes.NewBuffer(sortedTransactions[i].TransactionHash))
+		}
+		_, err = merkleRoot.GenerateMerkleRoot(hashedTx)
+		if err != nil {
+			return nil, err
+		}
+		mRoot, mTree = merkleRoot.ToBytes()
+	}
+
 	block, err := bs.NewMainBlock(
 		1,
 		previousBlockHash,
 		blockSeed,
 		blockSmithPublicKey,
+		mRoot,
+		mTree,
 		newBlockHeight,
 		timestamp,
 		totalAmount,
@@ -1399,14 +1458,30 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 	}
 
 	payloadHash := digest.Sum([]byte{})
+
+	var (
+		merkleRoot               commonUtils.MerkleRoot
+		hashedGenesisTransaction []*bytes.Buffer
+		mRoot, mTree             []byte
+	)
+
+	for i := 0; i < len(genesisTransactions); i++ {
+		hashedGenesisTransaction = append(hashedGenesisTransaction, bytes.NewBuffer(genesisTransactions[i].TransactionHash))
+	}
+
+	_, err = merkleRoot.GenerateMerkleRoot(hashedGenesisTransaction)
+	if err != nil {
+		return nil, err
+	}
+	mRoot, mTree = merkleRoot.ToBytes()
+
 	block, err := bs.NewGenesisBlock(
 		1,
 		nil,
 		bs.Chaintype.GetGenesisBlockSeed(),
 		bs.Chaintype.GetGenesisNodePublicKey(),
-		// TODO: Generate merkle root genesis
-		nil,
-		nil,
+		mRoot,
+		mTree,
 		0,
 		0,
 		bs.Chaintype.GetGenesisBlockTimestamp(),
