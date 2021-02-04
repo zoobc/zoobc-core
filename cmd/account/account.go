@@ -184,8 +184,6 @@ func (gc *GeneratorCommands) ConvertEncodedAccountAddressToHex() RunCommand {
 		}
 		fmt.Printf("account address type: %s (%d)\n", model.AccountType_name[accountTypeInt], accountTypeInt)
 		fmt.Printf("encoded account address: %s\n", encodedAccountAddress)
-		// fmt.Printf("public key hex: %s\n", hex.EncodeToString(accPubKey))
-		// fmt.Printf("public key bytes: %v\n", accPubKey)
 		fmt.Printf("full account address: %v\n", fullAccountAddress)
 		fmt.Printf("full account address hex: %v\n", hex.EncodeToString(fullAccountAddress))
 	}
