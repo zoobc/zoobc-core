@@ -62,5 +62,5 @@ const (
 	SafeBlockGap                                   = MinRollbackBlocks / 2
 	MinRollbackBlocks                uint32        = 1440 // circa half week for a network that on average generates 2 blocks per minute
 	MaxCommonMilestoneRequestTrial                 = MinRollbackBlocks/uint32(CommonMilestoneBlockIdsLimit) + 1
-	MinimumPeersBlocksToDownload     int32         = 2
+	MinimumPeersBlocksToDownload     int32         = 1
 )
