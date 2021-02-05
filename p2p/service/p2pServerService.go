@@ -497,20 +497,11 @@ func (ps *P2PServerService) SendBlock(
 			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
 		}
 		requester = p2pUtil.GetNodeInfo(fullAddress)
-		// TODO: get it from cache
-		// add nodeID to peer (needed to pass receipts validation)
-		nai, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
-			peer.GetInfo().Address,
-			peer.GetInfo().Port,
-			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
-		)
+		err = ps.addNodeIDToPeer(requester)
 		if err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
+			return nil, err
 		}
-		if len(nai) > 0 {
-			peer.Info.ID = nai[0].NodeID
-			requester.ID = nai[0].NodeID
-		}
+		peer.Info.ID = requester.ID
 
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
@@ -605,6 +596,10 @@ func (ps *P2PServerService) SendTransaction(
 		)
 
 		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+		err = ps.addNodeIDToPeer(requester)
+		if err != nil {
+			return nil, err
+		}
 		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
 			receipt, e := mempoolService.ReceivedTransaction(senderPublicKey, transactionBytes, lastBlockCacheFormat, ps.NodeSecretPhrase, isGenerate)
 			if e != nil {
@@ -620,6 +615,23 @@ func (ps *P2PServerService) SendTransaction(
 		}, nil
 	}
 	return nil, status.Error(codes.Unauthenticated, "Rejected request")
+}
+
+func (ps *P2PServerService) addNodeIDToPeer(peer *model.Node) error {
+	// TODO: get it from cache
+	// add nodeID to peer (needed to pass receipts validation)
+	nai, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
+		peer.GetAddress(),
+		peer.GetPort(),
+		[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
+	)
+	if err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	if len(nai) > 0 {
+		peer.ID = nai[0].NodeID
+	}
+	return nil
 }
 
 // SendBlockTransactions receive a list of transaction from other node and calling TransactionReceived Event
@@ -658,6 +670,10 @@ func (ps *P2PServerService) SendBlockTransactions(
 		)
 
 		requester = p2pUtil.GetNodeInfo(md.Get(p2pUtil.DefaultConnectionMetadata)[0])
+		err = ps.addNodeIDToPeer(requester)
+		if err != nil {
+			return nil, err
+		}
 		receipts, err = ps.needToGenerateReceipt(requester, func(isGenerate bool) ([]*model.Receipt, error) {
 			return mempoolService.ReceivedBlockTransactions(
 				senderPublicKey,
