@@ -168,7 +168,7 @@ func init() {
 	txCmd.PersistentFlags().StringVarP(&dbPath, "db-path", "p", "resource", "db-path is database path location")
 	txCmd.PersistentFlags().StringVarP(&dBName, "db-name", "n", "zoobc.db", "db-name is database name {name}.db")
 	/*
-		SendMoney Command
+		SendZBC Command
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
 	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
@@ -279,7 +279,7 @@ func Commands() *cobra.Command {
 		txGeneratorCommandsInstance = &TXGeneratorCommands{}
 	}
 
-	sendMoneyCmd.Run = txGeneratorCommandsInstance.SendMoneyProcess()
+	sendMoneyCmd.Run = txGeneratorCommandsInstance.SendZBCProcess()
 	txCmd.AddCommand(sendMoneyCmd)
 	registerNodeCmd.Run = txGeneratorCommandsInstance.RegisterNodeProcess()
 	txCmd.AddCommand(registerNodeCmd)
@@ -318,8 +318,8 @@ func getAccountAddressType(senderAddress string) int32 {
 	return senderAccountType
 }
 
-// SendMoneyProcess for generate TX SendMoney type
-func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
+// SendZBCProcess for generate TX SendZBC type
+func (*TXGeneratorCommands) SendZBCProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
 		tx := GenerateBasicTransaction(
 			senderAddressHex,
@@ -330,7 +330,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 			recipientAccountAddressHex,
 			message,
 		)
-		tx = GenerateTxSendMoney(tx, sendAmount)
+		tx = GenerateTxSendZBC(tx, sendAmount)
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}

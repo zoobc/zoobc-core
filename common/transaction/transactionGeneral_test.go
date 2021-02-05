@@ -91,8 +91,8 @@ func TestGetTransactionBytes(t *testing.T) {
 			mockTxSenderAccountAddress,
 			mockTxRecipientAccountAddress,
 			mockTxBodyLength,
-			model.TransactionType_SendMoneyTransaction,
-			&model.SendMoneyTransactionBody{
+			model.TransactionType_sendZBCTransaction,
+			&model.SendZBCTransactionBody{
 				Amount: 10,
 			},
 			false,
@@ -104,8 +104,8 @@ func TestGetTransactionBytes(t *testing.T) {
 			mockTxSenderAccountAddress,
 			mockTxRecipientAccountAddress,
 			mockTxBodyLength,
-			model.TransactionType_SendMoneyTransaction,
-			&model.SendMoneyTransactionBody{
+			model.TransactionType_sendZBCTransaction,
+			&model.SendZBCTransactionBody{
 				Amount: 10,
 			},
 			true,

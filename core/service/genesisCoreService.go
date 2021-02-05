@@ -104,8 +104,8 @@ func GetGenesisTransactions(
 					RecipientAccountAddress: accountFullAddress,
 					Fee:                     0,
 					TransactionBodyLength:   8,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: genesisEntry.AccountBalance,
 						},
 					},
