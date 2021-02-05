@@ -497,6 +497,20 @@ func (ps *P2PServerService) SendBlock(
 			return nil, status.Error(codes.InvalidArgument, "invalidPeer")
 		}
 		requester = p2pUtil.GetNodeInfo(fullAddress)
+		// TODO: get it from cache
+		// add nodeID to peer (needed to pass receipts validation)
+		nai, err := ps.NodeAddressInfoService.GetAddressInfoByAddressPort(
+			peer.GetInfo().Address,
+			peer.GetInfo().Port,
+			[]model.NodeAddressStatus{model.NodeAddressStatus_NodeAddressConfirmed},
+		)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		if len(nai) > 0 {
+			peer.Info.ID = nai[0].NodeID
+			requester.ID = nai[0].NodeID
+		}
 
 		blockService := ps.BlockServices[chainType.GetTypeInt()]
 		if blockService == nil {
@@ -731,6 +745,6 @@ func (ps *P2PServerService) needToGenerateReceipt(
 	if err != nil {
 		return []*model.Receipt{}, err
 	}
-	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, requester, ps.NodeConfigurationService.GetHost().GetInfo())
+	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, ps.NodeConfigurationService.GetHost().GetInfo(), requester)
 	return process(generateReceipt)
 }

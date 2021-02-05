@@ -1016,6 +1016,14 @@ func startMainchain() {
 		mainchainDownloader,
 		mainchainForkProcessor,
 	)
+
+	// add nodeID to current host if it's a registered node
+	nodeSecretPhrase := nodeConfigurationService.GetNodeSecretPhrase()
+	nr, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(
+		signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase))
+	if err == nil && nr != nil {
+		nodeConfigurationService.SetHostID(nr.GetNodeID())
+	}
 }
 
 func startSpinechain() {
