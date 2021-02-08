@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package monitoring
 
 import (
@@ -5,7 +54,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"reflect"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,7 +79,16 @@ var (
 	resolvedPriorityPeersCounter       prometheus.Gauge
 	activeRegisteredNodesGauge         prometheus.Gauge
 	nodeScore                          prometheus.Gauge
+	tpsReceived                        prometheus.Gauge
+	tpsProcessed                       prometheus.Gauge
+	txReceived                         prometheus.Gauge
+	txProcessed                        prometheus.Gauge
+	txFiltered                         prometheus.Gauge
+	P2PTxFilteredIncoming              prometheus.Gauge
+	P2PTxFilteredOutgoing              prometheus.Gauge
 	blockerCounterVector               *prometheus.CounterVec
+	dbLockGaugeVector                  *prometheus.GaugeVec
+	dbLockBlockingOwnerGaugeVector     *prometheus.GaugeVec
 	statusLockGaugeVector              *prometheus.GaugeVec
 	blockchainStatusGaugeVector        *prometheus.GaugeVec
 	blockchainSmithIndexGaugeVector    *prometheus.GaugeVec
@@ -198,6 +255,18 @@ func SetMonitoringActive(isActive bool) {
 	}, []string{"chaintype", "status_type"})
 	prometheus.MustRegister(statusLockGaugeVector)
 
+	dbLockGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_lock",
+		Help: "db lock counter",
+	}, []string{"lock_type"})
+	prometheus.MustRegister(dbLockGaugeVector)
+
+	dbLockBlockingOwnerGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "zoobc_db_lock_blocking_owner",
+		Help: "db lock counter",
+	}, []string{"lock_type"})
+	prometheus.MustRegister(dbLockBlockingOwnerGaugeVector)
+
 	blockchainStatusGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_blockchain_status",
 		Help: "Blockchain status",
@@ -215,6 +284,48 @@ func SetMonitoringActive(isActive bool) {
 		Help: "The score of the node (divided by 100 to fit the max float64)",
 	})
 	prometheus.MustRegister(nodeScore)
+
+	tpsReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_received",
+		Help: "Transactions per second received",
+	})
+	prometheus.MustRegister(tpsReceived)
+
+	txReceived = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_received",
+		Help: "Transactions received since node last start",
+	})
+	prometheus.MustRegister(txReceived)
+
+	tpsProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tps_processed",
+		Help: "Transactions per second processed",
+	})
+	prometheus.MustRegister(tpsProcessed)
+
+	txProcessed = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_processed",
+		Help: "Transactions processed since node last start",
+	})
+	prometheus.MustRegister(txProcessed)
+
+	txFiltered = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_tx_filtered",
+		Help: "Transactions filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(txFiltered)
+
+	P2PTxFilteredIncoming = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered_incoming",
+		Help: "Transactions broadcast by other nodes filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(P2PTxFilteredIncoming)
+
+	P2PTxFilteredOutgoing = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "zoobc_p2p_tx_filtered_outgoing",
+		Help: "Transactions broadcast to other nodes filtered by anti-spam strategy",
+	})
+	prometheus.MustRegister(P2PTxFilteredOutgoing)
 
 	blockchainIDMsbGaugeVector = prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "zoobc_last_block_id_msb",
@@ -288,6 +399,8 @@ func SetMonitoringActive(isActive bool) {
 		Help: "Cache storage usage in bytes",
 	}, []string{"cache_type"})
 	prometheus.MustRegister(cacheStorageGaugeVector)
+
+	startDBLockOwnerMetricsLoggingRoutine()
 }
 
 func SetCLIMonitoring(cliMonitoring CLIMonitoringInteface) {
@@ -426,6 +539,45 @@ func DecrementStatusLockCounter(chaintype chaintype.ChainType, typeStatusLock in
 	statusLockGaugeVector.WithLabelValues(chaintype.GetName(), fmt.Sprintf("%d", typeStatusLock)).Dec()
 }
 
+func IncrementDbLockCounter(priorityLock, processOwner int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	name := getDbLockType(priorityLock)
+
+	// to note down the locking
+	processOwnerQueueMutex.Lock()
+	defer processOwnerQueueMutex.Unlock()
+
+	updateProcessOwnerQueue(priorityLock, processOwner)
+	dbLockGaugeVector.WithLabelValues(name).Inc()
+}
+
+func DecrementDbLockCounter(priorityLock int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	name := getDbLockType(priorityLock)
+
+	processOwnerQueueMutex.Lock()
+	defer processOwnerQueueMutex.Unlock()
+
+	popProcessOwnerQueue(priorityLock)
+
+	dbLockGaugeVector.WithLabelValues(name).Dec()
+	logProcessOwnerQueue(priorityLock)
+}
+
+func SetDbLockBlockingOwner(name string, processOwner int) {
+	if !isMonitoringActive {
+		return
+	}
+
+	dbLockBlockingOwnerGaugeVector.WithLabelValues(name).Set(float64(processOwner))
+}
+
 func SetBlockchainStatus(chainType chaintype.ChainType, newStatus int) {
 	if !isMonitoringActive {
 		return
@@ -442,20 +594,61 @@ func SetBlockchainSmithIndex(chainType chaintype.ChainType, index int64) {
 	blockchainSmithIndexGaugeVector.WithLabelValues(chainType.GetName()).Set(float64(index))
 }
 
-func SetNodeScore(activeBlocksmiths []*model.Blocksmith) {
+func SetNodeScore(score int64) {
 	if !isMonitoringActive {
 		return
 	}
 
-	var scoreInt64 int64
-	for _, blockSmith := range activeBlocksmiths {
-		if reflect.DeepEqual(blockSmith.NodePublicKey, nodePublicKey) {
-			scoreInt64 = blockSmith.Score.Int64()
-			break
-		}
-	}
+	nodeScore.Set(float64(score))
+}
 
-	nodeScore.Set(float64(scoreInt64))
+func SetTpsReceived(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsReceived.Set(float64(tps))
+}
+
+func SetTpsProcessed(tps int) {
+	if !isMonitoringActive {
+		return
+	}
+	tpsProcessed.Set(float64(tps))
+}
+
+func IncreaseTxReceived() {
+	if !isMonitoringActive {
+		return
+	}
+	txReceived.Inc()
+}
+
+func IncreaseTxProcessed() {
+	if !isMonitoringActive {
+		return
+	}
+	txProcessed.Inc()
+}
+
+func IncreaseTxFiltered() {
+	if !isMonitoringActive {
+		return
+	}
+	txFiltered.Inc()
+}
+
+func IncreaseP2PTxFilteredIncoming() {
+	if !isMonitoringActive {
+		return
+	}
+	P2PTxFilteredIncoming.Inc()
+}
+
+func IncreaseP2PTxFilteredOutgoing() {
+	if !isMonitoringActive {
+		return
+	}
+	P2PTxFilteredOutgoing.Inc()
 }
 
 func SetNextSmith(sortedBlocksmiths []*model.Blocksmith, sortedBlocksmithsMap map[string]*int64) {
@@ -591,7 +784,8 @@ var (
 	TypeNodeAddressInfoCacheStorage CacheStorageType = "node_address_infos"
 	TypeActiveNodeRegistryStorage   CacheStorageType = "node_registry_active"
 	TypePendingNodeRegistryStorage  CacheStorageType = "node_registry_pending"
-	TypeBlocksCacheStorage          CacheStorageType = "blocks_cache_object"
+	TypeMainBlocksCacheStorage      CacheStorageType = "main_blocks_cache_object"
+	TypeSpineBlocksCacheStorage     CacheStorageType = "spine_blocks_cache_object"
 )
 
 func SetCacheStorageMetrics(cacheType CacheStorageType, size float64) {

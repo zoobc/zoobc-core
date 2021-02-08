@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -355,11 +404,11 @@ var (
 		Value:                   "testVal",
 	}
 	blockForSnapshot1 = &model.Block{
-		Height:    1440,
+		Height:    2160,
 		Timestamp: 15875392,
 	}
-	snapshotFullHash = []byte{24, 221, 153, 30, 107, 6, 128, 163, 98, 204, 96, 191, 126, 13, 184, 12, 200, 188, 39, 15,
-		65, 111, 26, 6, 181, 130, 90, 175, 180, 57, 152, 169}
+	snapshotFullHash = []byte{90, 177, 45, 122, 153, 208, 174, 225, 113, 91, 251, 46, 100, 115, 153, 9, 160, 72, 40, 166, 133, 2, 249, 175,
+		234, 24, 132, 9, 96, 25, 60, 220}
 	snapshotChunk1Hash = []byte{
 		1, 1, 1, 249, 145, 71, 241, 88, 208, 4, 80, 132, 88, 43, 189, 93, 19, 104, 255, 61, 177, 177, 223,
 		188, 144, 9, 73, 75, 6, 1, 1, 1,
@@ -461,7 +510,7 @@ func (*mockSnapshotQueryExecutor) ExecuteSelect(qry string, tx bool, args ...int
 	// special case for multisig info because it has custom logic to be tested
 	case "SELECT multisig_address, minimum_signatures, nonce, block_height, latest FROM multisignature_info " +
 		"WHERE (multisig_address, block_height) IN (SELECT t2.multisig_address, MAX(t2.block_height) " +
-		"FROM multisignature_info t2 WHERE t2.block_height >= 0 AND t2.block_height <= 720 AND t2.block_height != 0 " +
+		"FROM multisignature_info t2 WHERE t2.block_height >= 0 AND t2.block_height <= 1440 AND t2.block_height != 0 " +
 		"GROUP BY t2.multisig_address) ORDER BY block_height":
 		mock.ExpectQuery("").
 			WillReturnRows(sqlmock.NewRows(query.NewMultiSignatureParticipantQuery().Fields).
@@ -865,11 +914,11 @@ func TestSnapshotMainBlockService_Integration_NewSnapshotFile(t *testing.T) {
 	}
 }
 
-func (*mockSnapshotQueryExecutor) BeginTx() error {
+func (*mockSnapshotQueryExecutor) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockSnapshotQueryExecutor) CommitTx() error {
+func (*mockSnapshotQueryExecutor) CommitTx(bool) error {
 	return nil
 }
 
@@ -964,7 +1013,7 @@ func TestSnapshotMainBlockService_ImportSnapshotFile(t *testing.T) {
 				PendingSignatureQuery:          query.NewPendingSignatureQuery(),
 				MultisignatureInfoQuery:        query.NewMultisignatureInfoQuery(),
 				MultiSignatureParticipantQuery: query.NewMultiSignatureParticipantQuery(),
-				SkippedBlocksmithQuery:         query.NewSkippedBlocksmithQuery(),
+				SkippedBlocksmithQuery:         query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 				FeeScaleQuery:                  query.NewFeeScaleQuery(),
 				FeeVoteCommitmentVoteQuery:     query.NewFeeVoteCommitmentVoteQuery(),
 				FeeVoteRevealVoteQuery:         query.NewFeeVoteRevealVoteQuery(),

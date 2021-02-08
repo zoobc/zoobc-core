@@ -1,17 +1,70 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
 	"bytes"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"sort"
 	"time"
+
+	"golang.org/x/crypto/ed25519"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"github.com/zoobc/zoobc-core/common/storage"
@@ -274,21 +327,32 @@ func (rs *ReceiptService) pickReceipts(
 // generating will do when number of collected receipts(batch receipts) already <= the number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 	var (
-		receiptsCached, receipts []model.Receipt
-		hashedReceipts           []*bytes.Buffer
-		merkleRoot               util.MerkleRoot
-		queries                  [][]interface{}
-		batchReceipt             *model.BatchReceipt
-		block                    model.Block
-		err                      error
+		receiptsCached, receipts    []model.Receipt
+		hashedReceipts              []*bytes.Buffer
+		merkleRoot                  util.MerkleRoot
+		queries                     [][]interface{}
+		batchReceipt                *model.BatchReceipt
+		block                       model.Block
+		err                         error
+		rootMerkle                  []byte
+		isDbTransactionHighPriority = false
 	)
-
-	err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
+	// NOTE: this is temporary solution, should be enhace after implement new receipt logic
+	err = rs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
 	if err != nil {
 		return err
 	}
 
-	if len(receiptsCached) >= int(constant.ReceiptBatchMaximum) {
+	err = func() error {
+		err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached)
+		if err != nil {
+			return err
+		}
+
+		if len(receiptsCached) < int(constant.ReceiptBatchMaximum) {
+			return nil
+		}
+
 		// Need to sorting before do next
 		sort.SliceStable(receiptsCached, func(i, j int) bool {
 			return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
@@ -339,24 +403,25 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot() error {
 		)
 		queries[len(queries)-1] = append([]interface{}{insertMerkleTreeQ}, insertMerkleTreeArgs...)
 
-		err = rs.QueryExecutor.BeginTx()
-		if err != nil {
-			return err
-		}
 		err = rs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			_ = rs.QueryExecutor.RollbackTx()
 			return err
 		}
-		err = rs.QueryExecutor.CommitTx()
-		if err != nil {
-			return err
+		return nil
+	}()
+	if err != nil {
+		if rollbackErr := rs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
+			return blocker.NewBlocker(blocker.DBErr, fmt.Sprintf("err: %v - rollbackErr: %v", err, rollbackErr))
 		}
-		rs.LastMerkleRoot = rootMerkle // update local cache
-		return rs.BatchReceiptCacheStorage.SetItems(receiptsCached)
+		return err
 	}
 
-	return nil
+	err = rs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
+	if err != nil {
+		return err
+	}
+	rs.LastMerkleRoot = rootMerkle // update local cache
+	return rs.BatchReceiptCacheStorage.SetItems(receiptsCached)
 }
 
 // CheckDuplication check existing batch receipt in cache storage
@@ -399,6 +464,21 @@ func (rs *ReceiptService) ValidateReceipt(
 		blockAtHeight *storage.BlockCacheObject
 		err           error
 	)
+	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptRecipientPublicKeySize",
+		)
+	}
+	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptSignatureSize",
+		)
+	}
+
 	unsignedBytes := rs.ReceiptUtil.GetUnsignedReceiptBytes(receipt)
 	if !rs.Signature.VerifyNodeSignature(
 		unsignedBytes,

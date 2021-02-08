@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
@@ -84,20 +133,12 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &SendMoney{
-				ID:               tx.GetID(),
-				Body:             transactionBody.(*model.SendMoneyTransactionBody),
-				Fee:              tx.Fee,
-				SenderAddress:    tx.GetSenderAccountAddress(),
-				RecipientAddress: tx.GetRecipientAccountAddress(),
-				Height:           tx.GetHeight(),
-				QueryExecutor:    ts.Executor,
-				Escrow:           tx.GetEscrow(),
-				EscrowQuery:      query.NewEscrowTransactionQuery(),
-				BlockQuery:       query.NewBlockQuery(&chaintype.MainChain{}),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:            fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:    tx,
+				Body:                 transactionBody.(*model.SendMoneyTransactionBody),
+				QueryExecutor:        ts.Executor,
+				EscrowQuery:          query.NewEscrowTransactionQuery(),
+				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
+				FeeScaleService:      ts.FeeScaleService,
 				AccountBalanceHelper: accountBalanceHelper,
 			}, nil
 		default:
@@ -114,23 +155,16 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &NodeRegistration{
-				ID:                      tx.ID, // assign tx ID to nodeID
-				Body:                    transactionBody.(*model.NodeRegistrationTransactionBody),
-				Fee:                     tx.Fee,
-				SenderAddress:           tx.GetSenderAccountAddress(),
-				Height:                  tx.GetHeight(),
-				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
-				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
-				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
-				AuthPoown:               ts.NodeAuthValidation,
-				QueryExecutor:           ts.Executor,
-				Escrow:                  tx.GetEscrow(),
-				EscrowQuery:             query.NewEscrowTransactionQuery(),
-				AccountBalanceHelper:    accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:        tx,
+				Body:                     transactionBody.(*model.NodeRegistrationTransactionBody),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				BlockQuery:               query.NewBlockQuery(&chaintype.MainChain{}),
+				ParticipationScoreQuery:  query.NewParticipationScoreQuery(),
+				AuthPoown:                ts.NodeAuthValidation,
+				QueryExecutor:            ts.Executor,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:     accountBalanceHelper,
+				FeeScaleService:          ts.FeeScaleService,
 				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 			}, nil
 		case 1:
@@ -141,22 +175,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &UpdateNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				AccountBalanceHelper:  accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                    fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:            tx,
+				Body:                         transactionBody.(*model.UpdateNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:        query.NewNodeRegistrationQuery(),
+				BlockQuery:                   query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:                    ts.NodeAuthValidation,
+				QueryExecutor:                ts.Executor,
+				EscrowQuery:                  query.NewEscrowTransactionQuery(),
+				AccountBalanceHelper:         accountBalanceHelper,
+				FeeScaleService:              ts.FeeScaleService,
 				PendingNodeRegistrationCache: ts.PendingNodeRegistryStorage,
 				ActiveNodeRegistrationCache:  ts.ActiveNodeRegistryStorage,
 			}, nil
@@ -166,21 +193,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				NodeAddressInfoQuery:  query.NewNodeAddressInfoQuery(),
-				QueryExecutor:         ts.Executor,
-				AccountBalanceHelper:  accountBalanceHelper,
-				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:                fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:        tx,
+				Body:                     transactionBody.(*model.RemoveNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
+				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
+				QueryExecutor:            ts.Executor,
+				AccountBalanceHelper:     accountBalanceHelper,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				FeeScaleService:          ts.FeeScaleService,
 				NodeAddressInfoStorage:   ts.NodeAddressInfoStorage,
 				PendingNodeRegistryCache: ts.PendingNodeRegistryStorage,
 				ActiveNodeRegistryCache:  ts.ActiveNodeRegistryStorage,
@@ -191,22 +211,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ClaimNodeRegistration{
-				ID:                    tx.GetID(),
-				Body:                  transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
-				Fee:                   tx.Fee,
-				SenderAddress:         tx.GetSenderAccountAddress(),
-				Height:                tx.GetHeight(),
-				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
-				AuthPoown:             ts.NodeAuthValidation,
-				QueryExecutor:         ts.Executor,
-				AccountBalanceHelper:  accountBalanceHelper,
-				Escrow:                tx.GetEscrow(),
-				EscrowQuery:           query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:               fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				TransactionObject:       tx,
+				Body:                    transactionBody.(*model.ClaimNodeRegistrationTransactionBody),
+				NodeRegistrationQuery:   query.NewNodeRegistrationQuery(),
+				BlockQuery:              query.NewBlockQuery(&chaintype.MainChain{}),
+				AuthPoown:               ts.NodeAuthValidation,
+				QueryExecutor:           ts.Executor,
+				AccountBalanceHelper:    accountBalanceHelper,
+				EscrowQuery:             query.NewEscrowTransactionQuery(),
+				FeeScaleService:         ts.FeeScaleService,
 				NodeAddressInfoStorage:  ts.NodeAddressInfoStorage,
 				ActiveNodeRegistryCache: ts.ActiveNodeRegistryStorage,
 				NodeAddressInfoQuery:    query.NewNodeAddressInfoQuery(),
@@ -223,21 +236,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &SetupAccountDataset{
-				ID:                   tx.GetID(),
+				TransactionObject:    tx,
 				Body:                 transactionBody.(*model.SetupAccountDatasetTransactionBody),
-				Fee:                  tx.Fee,
-				SenderAddress:        tx.GetSenderAccountAddress(),
-				RecipientAddress:     tx.GetRecipientAccountAddress(),
-				Height:               tx.GetHeight(),
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				QueryExecutor:        ts.Executor,
-				Escrow:               tx.GetEscrow(),
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		case 1:
 			transactionBody, err = new(RemoveAccountDataset).ParseBodyBytes(tx.TransactionBodyBytes)
@@ -245,21 +250,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &RemoveAccountDataset{
-				ID:                   tx.GetID(),
+				TransactionObject:    tx,
 				Body:                 transactionBody.(*model.RemoveAccountDatasetTransactionBody),
-				Fee:                  tx.Fee,
-				SenderAddress:        tx.GetSenderAccountAddress(),
-				RecipientAddress:     tx.GetRecipientAccountAddress(),
-				Height:               tx.GetHeight(),
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				QueryExecutor:        ts.Executor,
-				Escrow:               tx.GetEscrow(),
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		default:
 			return nil, nil
@@ -273,22 +270,15 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &ApprovalEscrowTransaction{
-				ID:                   tx.GetID(),
+				TransactionObject:    tx,
 				Body:                 transactionBody.(*model.ApprovalEscrowTransactionBody),
-				Fee:                  tx.GetFee(),
-				SenderAddress:        tx.GetSenderAccountAddress(),
-				Height:               tx.GetHeight(),
-				Escrow:               tx.GetEscrow(),
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				TypeActionSwitcher:   ts,
 				TransactionQuery:     query.NewTransactionQuery(&chaintype.MainChain{}),
 				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
 				AccountBalanceHelper: accountBalanceHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:      ts.FeeScaleService,
 			}, nil
 		default:
 			return nil, nil
@@ -327,27 +317,20 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &MultiSignatureTransaction{
-				ID:                       tx.ID,
+				TransactionObject:        tx,
 				Body:                     transactionBody.(*model.MultiSignatureTransactionBody),
-				Fee:                      tx.GetFee(),
-				SenderAddress:            tx.GetSenderAccountAddress(),
 				TransactionUtil:          transactionUtil,
 				TypeSwitcher:             typeSwitcher,
 				Signature:                &crypto.Signature{},
-				Height:                   tx.Height,
-				BlockID:                  tx.BlockID,
 				TransactionHelper:        transactionHelper,
 				AccountBalanceHelper:     accountBalanceHelper,
 				MultisigUtil:             multisigUtil,
 				SignatureInfoHelper:      signatureInfoHelper,
 				PendingTransactionHelper: pendingTransactionHelper,
 				MultisignatureInfoHelper: multisignatureInfoHelper,
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee:     fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-				EscrowQuery:   query.NewEscrowTransactionQuery(),
-				QueryExecutor: ts.Executor,
+				FeeScaleService:          ts.FeeScaleService,
+				EscrowQuery:              query.NewEscrowTransactionQuery(),
+				QueryExecutor:            ts.Executor,
 			}, nil
 		default:
 			return nil, nil
@@ -360,21 +343,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &LiquidPaymentTransaction{
-				ID:                            tx.GetID(),
+				TransactionObject:             tx,
 				Body:                          transactionBody.(*model.LiquidPaymentTransactionBody),
-				Fee:                           tx.GetFee(),
-				SenderAddress:                 tx.GetSenderAccountAddress(),
-				RecipientAddress:              tx.GetRecipientAccountAddress(),
-				Height:                        tx.GetHeight(),
 				QueryExecutor:                 ts.Executor,
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
-				Escrow:                        tx.GetEscrow(),
 				EscrowQuery:                   query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
+				FeeScaleService:               ts.FeeScaleService,
 			}, nil
 		case 1: // LiquidPaymentStop Transaction
 			transactionBody, err = new(LiquidPaymentStopTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
@@ -382,23 +357,14 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &LiquidPaymentStopTransaction{
-				ID:               tx.GetID(),
-				Body:             transactionBody.(*model.LiquidPaymentStopTransactionBody),
-				Fee:              tx.GetFee(),
-				SenderAddress:    tx.GetSenderAccountAddress(),
-				RecipientAddress: tx.GetRecipientAccountAddress(),
-				Height:           tx.GetHeight(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
-
+				TransactionObject:             tx,
+				Body:                          transactionBody.(*model.LiquidPaymentStopTransactionBody),
+				FeeScaleService:               ts.FeeScaleService,
 				QueryExecutor:                 ts.Executor,
 				AccountBalanceHelper:          accountBalanceHelper,
 				LiquidPaymentTransactionQuery: query.NewLiquidPaymentTransactionQuery(),
 				TransactionQuery:              query.NewTransactionQuery(&chaintype.MainChain{}),
 				TypeActionSwitcher:            ts,
-				Escrow:                        tx.GetEscrow(),
 				EscrowQuery:                   query.NewEscrowTransactionQuery(),
 			}, nil
 		default:
@@ -413,10 +379,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &FeeVoteCommitTransaction{
-				ID:                         tx.ID,
-				Fee:                        tx.Fee,
-				SenderAddress:              tx.SenderAccountAddress,
-				Height:                     tx.Height,
+				TransactionObject:          tx,
 				Body:                       transactionBody.(*model.FeeVoteCommitTransactionBody),
 				QueryExecutor:              ts.Executor,
 				AccountBalanceHelper:       accountBalanceHelper,
@@ -424,12 +387,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				NodeRegistrationQuery:      query.NewNodeRegistrationQuery(),
 				FeeVoteCommitmentVoteQuery: query.NewFeeVoteCommitmentVoteQuery(),
 				FeeScaleService:            ts.FeeScaleService,
-				Escrow:                     tx.GetEscrow(),
 				EscrowQuery:                query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			}, nil
 		case 1:
 			transactionBody, err = new(FeeVoteRevealTransaction).ParseBodyBytes(tx.GetTransactionBodyBytes())
@@ -437,11 +395,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				return nil, err
 			}
 			return &FeeVoteRevealTransaction{
-				ID:                     tx.GetID(),
-				Fee:                    tx.GetFee(),
-				SenderAddress:          tx.GetSenderAccountAddress(),
-				Height:                 tx.GetHeight(),
-				Timestamp:              tx.GetTimestamp(),
+				TransactionObject:      tx,
 				Body:                   transactionBody.(*model.FeeVoteRevealTransactionBody),
 				QueryExecutor:          ts.Executor,
 				AccountBalanceHelper:   accountBalanceHelper,
@@ -451,12 +405,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				BlockQuery:             query.NewBlockQuery(&chaintype.MainChain{}),
 				SignatureInterface:     crypto.NewSignature(),
 				FeeScaleService:        ts.FeeScaleService,
-				Escrow:                 tx.GetEscrow(),
 				EscrowQuery:            query.NewEscrowTransactionQuery(),
-				EscrowFee: fee.NewBlockLifeTimeFeeModel(
-					10, fee.SendMoneyFeeConstant,
-				),
-				NormalFee: fee.NewConstantFeeModel(fee.SendMoneyFeeConstant),
 			}, nil
 		default:
 			return nil, nil

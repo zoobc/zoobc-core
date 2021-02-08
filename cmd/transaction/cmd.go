@@ -1,12 +1,65 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
 	"database/sql"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"os"
 	"path"
+	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
+
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -118,9 +171,9 @@ func init() {
 		SendMoney Command
 	*/
 	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
-	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", true, "Escrowable transaction ? need approver-address if yes")
+	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
 	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
-	sendMoneyCmd.Flags().Uint64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout transaction id")
+	sendMoneyCmd.Flags().Int64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout which is timestamp unix format")
 	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
 	sendMoneyCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
 
@@ -255,6 +308,16 @@ func Commands() *cobra.Command {
 	return txCmd
 }
 
+func getAccountAddressType(senderAddress string) int32 {
+	var senderAccountType int32
+	if strings.Contains(senderAddress, "0000") {
+		senderAccountType = getAccountTypeFromAccountHex(senderAddress).GetTypeInt()
+	} else if strings.Contains(senderAddress, "ZBC") {
+		senderAccountType = getAccountTypeFromEncodedAccount(senderAddress).GetTypeInt()
+	}
+	return senderAccountType
+}
+
 // SendMoneyProcess for generate TX SendMoney type
 func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 	return func(ccmd *cobra.Command, args []string) {
@@ -271,7 +334,7 @@ func (*TXGeneratorCommands) SendMoneyProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -307,7 +370,7 @@ func (*TXGeneratorCommands) RegisterNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -344,7 +407,7 @@ func (*TXGeneratorCommands) UpdateNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -366,7 +429,7 @@ func (*TXGeneratorCommands) RemoveNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -401,7 +464,7 @@ func (*TXGeneratorCommands) ClaimNodeProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -429,7 +492,7 @@ func (*TXGeneratorCommands) SetupAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -450,7 +513,7 @@ func (*TXGeneratorCommands) RemoveAccountDatasetProcess() RunCommand {
 		if escrow {
 			tx = GenerateEscrowedTransaction(tx)
 		}
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -468,7 +531,7 @@ func (*TXGeneratorCommands) EscrowApprovalProcess() RunCommand {
 			message,
 		)
 		tx = GenerateEscrowApprovalTransaction(tx)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -490,7 +553,7 @@ func (*TXGeneratorCommands) MultiSignatureProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountAddressType(senderAddressHex)
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}
@@ -514,7 +577,6 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 				message,
 			)
 		)
-
 		dbInstance := database.NewSqliteDB()
 		dbPath = path.Join(helper.GetAbsDBPath(), dbPath)
 		err = dbInstance.InitializeDB(dbPath, dBName)
@@ -537,7 +599,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		}
 
 		lastBlock, err := commonUtil.GetLastBlock(
-			query.NewQueryExecutor(sqliteDB),
+			query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock()),
 			query.NewBlockQuery(&chaintype.MainChain{}),
 		)
 		if err != nil {
@@ -567,7 +629,7 @@ func (*TXGeneratorCommands) feeVoteCommitmentProcess() RunCommand {
 		if tx == nil {
 			fmt.Printf("fail to generate transaction, please check the provided parameter")
 		} else {
-			senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+			senderAccountType := getAccountAddressType(senderAddressHex)
 			PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 		}
 	}
@@ -616,7 +678,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 				logrus.Errorf("Getting last block failed: %s", err.Error())
 				os.Exit(1)
 			}
-			row, err = query.NewQueryExecutor(sqliteDB).ExecuteSelectRow(
+			row, err = query.NewQueryExecutor(sqliteDB, queue.NewPriorityPreferenceLock()).ExecuteSelectRow(
 				blockQuery.GetBlockByHeight(recentBlockHeight),
 				false,
 			)
@@ -653,7 +715,7 @@ func (*TXGeneratorCommands) feeVoteRevealProcess() RunCommand {
 		}
 		tx = GenerateTxFeeVoteRevealPhase(tx, &feeVoteInfo, feeVoteSigned)
 
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -671,7 +733,7 @@ func (*TXGeneratorCommands) LiquidPaymentProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPayment(tx, sendAmount, completeMinutes)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }
@@ -689,7 +751,7 @@ func (*TXGeneratorCommands) LiquidPaymentStopProcess() RunCommand {
 			message,
 		)
 		tx = GenerateTxLiquidPaymentStop(tx, transactionID)
-		senderAccountType := getAccountTypeFromAccountHex(senderAddressHex).GetTypeInt()
+		senderAccountType := getAccountAddressType(senderAddressHex)
 		PrintTx(GenerateSignedTxBytes(tx, senderSeed, senderAccountType, sign), outputType)
 	}
 }

@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -16,6 +65,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/transaction"
@@ -46,6 +96,28 @@ var (
 		PayloadLength:       1,
 		PayloadHash:         []byte{},
 		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
+	}
+	mockSpineBlockData1 = model.Block{
+		ID:        -1701929749060110283,
+		BlockHash: make([]byte, 32),
+		PreviousBlockHash: []byte{204, 131, 181, 204, 170, 112, 249, 115, 172, 193, 120, 7, 166, 200, 160, 138, 32, 0, 163, 161,
+			45, 128, 173, 123, 252, 203, 199, 224, 249, 124, 168, 41},
+		Height:    1,
+		Timestamp: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:         0,
+		TotalFee:            0,
+		TotalCoinBase:       0,
+		Version:             0,
+		PayloadLength:       1,
+		PayloadHash:         []byte{},
+		SpineBlockManifests: make([]*model.SpineBlockManifest, 0),
+		SpinePublicKeys:     []*model.SpinePublicKey{mockSpinePublicKey},
 	}
 	mockSpinePublicKey = &model.SpinePublicKey{
 		NodeID:          1,
@@ -256,9 +328,9 @@ func (*mockSpineQueryExecutorFail) ExecuteSelect(query string, tx bool, args ...
 func (*mockSpineQueryExecutorFail) ExecuteStatement(qe string, args ...interface{}) (sql.Result, error) {
 	return nil, errors.New("MockedError")
 }
-func (*mockSpineQueryExecutorFail) BeginTx() error { return nil }
+func (*mockSpineQueryExecutorFail) BeginTx(bool, int) error { return nil }
 
-func (*mockSpineQueryExecutorFail) RollbackTx() error { return nil }
+func (*mockSpineQueryExecutorFail) RollbackTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorFail) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return errors.New("mockSpineError:deleteMempoolFail")
@@ -270,12 +342,14 @@ func (*mockSpineQueryExecutorFail) ExecuteSelectRow(qStr string, tx bool, args .
 	mockSpine.ExpectQuery(qStr).WillReturnRows(mockSpineRows)
 	return db.QueryRow(qStr), nil
 }
-func (*mockSpineQueryExecutorFail) CommitTx() error { return errors.New("mockSpineError:commitFail") }
+func (*mockSpineQueryExecutorFail) CommitTx(bool) error {
+	return errors.New("mockSpineError:commitFail")
+}
 
 // mockSpineQueryExecutorSuccess
-func (*mockSpineQueryExecutorSuccess) BeginTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) BeginTx(bool, int) error { return nil }
 
-func (*mockSpineQueryExecutorSuccess) RollbackTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) RollbackTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
@@ -283,7 +357,7 @@ func (*mockSpineQueryExecutorSuccess) ExecuteTransaction(qStr string, args ...in
 func (*mockSpineQueryExecutorSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
-func (*mockSpineQueryExecutorSuccess) CommitTx() error { return nil }
+func (*mockSpineQueryExecutorSuccess) CommitTx(bool) error { return nil }
 
 func (*mockSpineQueryExecutorSuccess) ExecuteSelectRow(qStr string, tx bool, args ...interface{}) (*sql.Row, error) {
 	db, mockSpine, _ := sqlmock.New()
@@ -823,7 +897,7 @@ func TestBlockSpineService_GetLastBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateStorage:         &mockSpineBlockStateStorageSuccess{},
 			},
-			want:    &mockSpineBlockData,
+			want:    &mockSpineBlockData1,
 			wantErr: false,
 		},
 		{
@@ -1361,9 +1435,9 @@ type (
 	}
 )
 
-func (*mockSpineAddGenesisExecutor) BeginTx() error    { return nil }
-func (*mockSpineAddGenesisExecutor) RollbackTx() error { return nil }
-func (*mockSpineAddGenesisExecutor) CommitTx() error   { return nil }
+func (*mockSpineAddGenesisExecutor) BeginTx(bool, int) error { return nil }
+func (*mockSpineAddGenesisExecutor) RollbackTx(bool) error   { return nil }
+func (*mockSpineAddGenesisExecutor) CommitTx(bool) error     { return nil }
 func (*mockSpineAddGenesisExecutor) ExecuteTransaction(qStr string, args ...interface{}) error {
 	return nil
 }
@@ -1418,6 +1492,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		MainBlockService          BlockServiceInterface
 	}
@@ -1457,6 +1532,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 					SpineBlockQuery:         query.NewBlockQuery(&chaintype.SpineChain{}),
 				},
 				BlockStateStorage:       storage.NewBlockStateStorage(),
+				BlocksStorage:           storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage),
 				BlockchainStatusService: &mockBlockchainStatusService{},
 				MainBlockService:        &mockAddGenesisBlockMainBlockServiceSuccess{},
 			},
@@ -1478,6 +1554,7 @@ func TestBlockSpineService_AddGenesis(t *testing.T) {
 				BlockStateStorage:         tt.fields.BlockStateStorage,
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				MainBlockService:          tt.fields.MainBlockService,
+				BlocksStorage:             tt.fields.BlocksStorage,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockSpineService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -2341,10 +2418,10 @@ type (
 	}
 )
 
-func (*mockSpinePopOffToBlockReturnCommonBlock) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnCommonBlock) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnCommonBlock) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnCommonBlock) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteTransactions(queries [][]interface{}) error {
@@ -2353,7 +2430,6 @@ func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteTransactions(queries [][]
 func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteSelect(qSrt string, tx bool, args ...interface{}) (*sql.Rows, error) {
 	db, mockSpine, _ := sqlmock.New()
 	defer db.Close()
-
 	mockSpine.ExpectQuery("").WillReturnRows(
 		sqlmock.NewRows(query.NewMempoolQuery(chaintype.GetChainType(0)).Fields).AddRow(
 			1,
@@ -2383,16 +2459,16 @@ func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteSelect(qSrt string, tx bo
 func (*mockSpinePopOffToBlockReturnCommonBlock) ExecuteTransaction(query string, args ...interface{}) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnBeginTxFunc) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnBeginTxFunc) BeginTx(bool, int) error {
 	return errors.New("i want this")
 }
-func (*mockSpinePopOffToBlockReturnBeginTxFunc) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnBeginTxFunc) CommitTx(bool) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnCommit) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnCommit) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnCommit) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnCommit) CommitTx(bool) error {
 	return errors.New("i want this")
 }
 func (*mockSpinePopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -2412,16 +2488,16 @@ func (*mockSpinePopOffToBlockReturnWantFailOnCommit) ExecuteSelect(qSrt string, 
 	return db.Query("")
 
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) BeginTx(bool, int) error {
 	return nil
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) ExecuteTransactions(queries [][]interface{}) error {
 	return errors.New("i want this")
 }
-func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx() error {
+func (*mockSpinePopOffToBlockReturnWantFailOnExecuteTransactions) RollbackTx(bool) error {
 	return nil
 }
 
@@ -2430,7 +2506,7 @@ var (
 		ID:                   1,
 		BlockHash:            nil,
 		PreviousBlockHash:    nil,
-		Height:               1000,
+		Height:               2000,
 		Timestamp:            0,
 		BlockSeed:            nil,
 		BlockSignature:       nil,
@@ -2449,7 +2525,7 @@ var (
 		ID:                   1,
 		BlockHash:            nil,
 		PreviousBlockHash:    nil,
-		Height:               900,
+		Height:               1620,
 		Timestamp:            0,
 		BlockSeed:            nil,
 		BlockSignature:       nil,
@@ -2587,6 +2663,11 @@ func (*mockSpineExecutorBlockPopGetLastBlockFail) ExecuteSelectRow(qStr string, 
 
 	blockQ := query.NewBlockQuery(&chaintype.SpineChain{})
 	switch qStr {
+	case "SELECT MAX(height), id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM spine_block":
+		mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnError(
+			errors.New("MockErr"))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, " +
 		"cumulative_difficulty, payload_length, payload_hash, blocksmith_public_key, total_amount, " +
 		"total_fee, total_coinbase, version FROM main_block WHERE id = 0":
@@ -2631,18 +2712,18 @@ func (*mockSpineReceiptFail) GetPublishedReceiptsByHeight(blockHeight uint32) ([
 	return nil, errors.New("mockSpineError")
 }
 
-func (*mockSpineExecutorBlockPopSuccess) BeginTx() error {
+func (*mockSpineExecutorBlockPopSuccess) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockSpineExecutorBlockPopSuccess) CommitTx() error {
+func (*mockSpineExecutorBlockPopSuccess) CommitTx(bool) error {
 	return nil
 }
 
 func (*mockSpineExecutorBlockPopSuccess) ExecuteTransactions(queries [][]interface{}) error {
 	return nil
 }
-func (*mockSpineExecutorBlockPopSuccess) RollbackTx() error {
+func (*mockSpineExecutorBlockPopSuccess) RollbackTx(bool) error {
 	return nil
 }
 func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, args ...interface{}) (*sql.Rows, error) {
@@ -2682,7 +2763,7 @@ func (*mockSpineExecutorBlockPopSuccess) ExecuteSelect(qStr string, tx bool, arg
 		"WHERE height >= 0 AND height <= 1000 AND public_key_action=0 AND latest=1 ORDER BY height":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
-	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 1000":
+	case "SELECT node_public_key, node_id, public_key_action, main_block_height, latest, height FROM spine_public_key WHERE height = 2000":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(
 			sqlmock.NewRows(spinePubKeyQ.Fields))
 	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, " +
@@ -2748,6 +2829,9 @@ type (
 	mockSpinePopOffBlockBlockStateStorageSuccess struct {
 		storage.CacheStorageInterface
 	}
+	mockSpinePopOffBlockBlocksStorageSuccess struct {
+		storage.CacheStackStorageInterface
+	}
 	mockSpinePopOffBlockBlockStateStorageFail struct {
 		storage.CacheStorageInterface
 	}
@@ -2765,6 +2849,31 @@ func (*mockSpinePopOffBlockBlockStateStorageSuccess) SetItem(lastChange, item in
 
 func (*mockSpinePopOffBlockBlockStateStorageFail) GetItem(lastChange, item interface{}) error {
 	return errors.New("mockedError")
+}
+
+func (mockSpinePopOffBlockBlocksStorageSuccess) Pop() error {
+	return nil
+}
+
+func (mockSpinePopOffBlockBlocksStorageSuccess) Push(interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) PopTo(uint32) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetAll(interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetAtIndex(uint32, interface{}) error {
+	return nil
+}
+func (mockSpinePopOffBlockBlocksStorageSuccess) GetTop(interface{}) error {
+	return nil
+}
+
+// Clear clean up the whole stack and reinitialize with new array
+func (mockSpinePopOffBlockBlocksStorageSuccess) Clear() error {
+	return nil
 }
 
 func (*mockSnapshotMainBlockServiceDeleteFail) DeleteFileByChunkHashes([]byte) error {
@@ -2801,17 +2910,17 @@ func (*mockSpineBlockManifestServiceSuccesGetManifestFromHeight) GetSpineBlockMa
 	return make([]*model.SpineBlockManifest, 0), nil
 }
 
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) BeginTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) CommitTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) CommitTx(bool) error {
 	return nil
 }
 func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) ExecuteTransactions([][]interface{}) error {
 	return nil
 }
-func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) RollbackTx() error {
+func (*mockSpineExecutorBlockPopSuccessPoppedBlocks) RollbackTx(bool) error {
 	return nil
 }
 
@@ -2895,6 +3004,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 		SpineBlockManifestService SpineBlockManifestServiceInterface
 		SnapshotMainBlockService  SnapshotBlockServiceInterface
 		BlockStateStorage         storage.CacheStorageInterface
+		BlocksStorage             storage.CacheStackStorageInterface
 	}
 	type args struct {
 		commonBlock *model.Block
@@ -3005,6 +3115,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				},
 				SpineBlockManifestService: &mockSpineBlockManifestService{},
 				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
+				BlocksStorage:             &mockSpinePopOffBlockBlocksStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3035,6 +3146,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpineBlockManifestService: &mockSpineBlockManifestServiceSuccesGetManifestFromHeight{},
 				SnapshotMainBlockService:  &mockSnapshotMainBlockServiceDeleteSuccess{},
 				BlockStateStorage:         &mockSpinePopOffBlockBlockStateStorageSuccess{},
+				BlocksStorage:             &mockSpinePopOffBlockBlocksStorageSuccess{},
 			},
 			args: args{
 				commonBlock: mockSpineGoodCommonBlock,
@@ -3057,6 +3169,7 @@ func TestBlockSpineService_PopOffToBlock(t *testing.T) {
 				SpineBlockManifestService: tt.fields.SpineBlockManifestService,
 				SnapshotMainBlockService:  tt.fields.SnapshotMainBlockService,
 				BlockStateStorage:         tt.fields.BlockStateStorage,
+				BlocksStorage:             tt.fields.BlocksStorage,
 			}
 			got, err := bs.PopOffToBlock(tt.args.commonBlock)
 			if (err != nil) != tt.wantErr {

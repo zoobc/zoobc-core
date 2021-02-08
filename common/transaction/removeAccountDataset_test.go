@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
@@ -42,10 +91,7 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 
 	type fields struct {
 		Body                 *model.RemoveAccountDatasetTransactionBody
-		Fee                  int64
-		SenderAddress        []byte
-		RecipientAddress     []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		AccountDatasetQuery  query.AccountDatasetQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
@@ -58,10 +104,12 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
-				Body:                mockRemoveAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor: &executorRemoveAccountDatasetApplyConfirmedSuccess{
 					query.Executor{
@@ -75,11 +123,13 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:UndoUnconfirmedFail",
 			fields: fields{
-				Body:                &model.RemoveAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
-				Height:              3,
+				Body: &model.RemoveAccountDatasetTransactionBody{},
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+					Height:                  3,
+				},
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor: &executorRemoveAccountDatasetApplyConfirmedFail{
 					query.Executor{
@@ -93,11 +143,13 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 		{
 			name: "wantErr:TransactionsFail",
 			fields: fields{
-				Body:                &model.RemoveAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
-				Height:              0,
+				Body: &model.RemoveAccountDatasetTransactionBody{},
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+					Height:                  0,
+				},
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor: &executorRemoveAccountDatasetApplyConfirmedFail{
 					query.Executor{
@@ -113,10 +165,7 @@ func TestRemoveAccountDataset_ApplyConfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                 tt.fields.Body,
-				Fee:                  tt.fields.Fee,
-				SenderAddress:        tt.fields.SenderAddress,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				Height:               tt.fields.Height,
+				TransactionObject:    tt.fields.TransactionObject,
 				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
@@ -177,10 +226,7 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 	mockRemoveAccountDatasetTransactionBody, _ := GetFixturesForRemoveAccountDataset()
 	type fields struct {
 		Body                 *model.RemoveAccountDatasetTransactionBody
-		Fee                  int64
-		SenderAddress        []byte
-		RecipientAddress     []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		AccountDatasetQuery  query.AccountDatasetQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
@@ -193,10 +239,12 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "success",
 			fields: fields{
-				Body:                mockRemoveAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetApplyUnconfirmedSuccess{
 					query.Executor{
@@ -210,10 +258,12 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "wantErr:ExecuteSpendableBalanceFail",
 			fields: fields{
-				Body:                mockRemoveAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetApplyUnconfirmedFail{
 					query.Executor{
@@ -229,10 +279,7 @@ func TestRemoveAccountDataset_ApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                 tt.fields.Body,
-				Fee:                  tt.fields.Fee,
-				SenderAddress:        tt.fields.SenderAddress,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				Height:               tt.fields.Height,
+				TransactionObject:    tt.fields.TransactionObject,
 				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
@@ -263,10 +310,7 @@ func (*executorRemoveAccountDatasetUndoUnconfirmedFail) ExecuteTransaction(strin
 func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
 		Body                 *model.RemoveAccountDatasetTransactionBody
-		Fee                  int64
-		SenderAddress        []byte
-		RecipientAddress     []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		AccountDatasetQuery  query.AccountDatasetQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
@@ -279,9 +323,11 @@ func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				Body:                &model.RemoveAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       nil,
+				Body: &model.RemoveAccountDatasetTransactionBody{},
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: nil,
+				},
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetUndoUnconfirmedSuccess{
 					query.Executor{
@@ -295,9 +341,11 @@ func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:fail",
 			fields: fields{
-				Body:                &model.RemoveAccountDatasetTransactionBody{},
-				Fee:                 1,
-				SenderAddress:       nil,
+				Body: &model.RemoveAccountDatasetTransactionBody{},
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: nil,
+				},
 				AccountDatasetQuery: nil,
 				QueryExecutor: &executorRemoveAccountDatasetUndoUnconfirmedFail{
 					query.Executor{
@@ -313,10 +361,7 @@ func TestRemoveAccountDataset_UndoApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                 tt.fields.Body,
-				Fee:                  tt.fields.Fee,
-				SenderAddress:        tt.fields.SenderAddress,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				Height:               tt.fields.Height,
+				TransactionObject:    tt.fields.TransactionObject,
 				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
@@ -386,10 +431,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 
 	type fields struct {
 		Body                 *model.RemoveAccountDatasetTransactionBody
-		Fee                  int64
-		SenderAddress        []byte
-		RecipientAddress     []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		AccountDatasetQuery  query.AccountDatasetQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		AccountBalanceHelper AccountBalanceHelperInterface
@@ -402,10 +444,12 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 		{
 			name: "Validate:success",
 			fields: fields{
-				Body:                 mockRemoveAccountDatasetTransactionBody,
-				Fee:                  1,
-				SenderAddress:        senderAddress1,
-				RecipientAddress:     recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				QueryExecutor:        &executorRemoveAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperSuccess{},
@@ -415,10 +459,12 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 		{
 			name: "Validate:BalanceNotEnough",
 			fields: fields{
-				Body:                 mockRemoveAccountDatasetTransactionBody,
-				Fee:                  60,
-				SenderAddress:        senderAddress1,
-				RecipientAddress:     recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     60,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
 				QueryExecutor:        &executorRemoveAccountDatasetValidateSuccess{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFail{},
@@ -428,10 +474,12 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 		{
 			name: "Validate:noRow",
 			fields: fields{
-				Body:                mockRemoveAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+				},
 				AccountDatasetQuery: query.NewAccountDatasetsQuery(),
 				QueryExecutor:       &executorRemoveAccountDatasetValidateFail{},
 			},
@@ -442,10 +490,7 @@ func TestRemoveAccountDataset_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                 tt.fields.Body,
-				Fee:                  tt.fields.Fee,
-				SenderAddress:        tt.fields.SenderAddress,
-				RecipientAddress:     tt.fields.RecipientAddress,
-				Height:               tt.fields.Height,
+				TransactionObject:    tt.fields.TransactionObject,
 				AccountDatasetQuery:  tt.fields.AccountDatasetQuery,
 				QueryExecutor:        tt.fields.QueryExecutor,
 				AccountBalanceHelper: tt.fields.AccountBalanceHelper,
@@ -462,10 +507,7 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 
 	type fields struct {
 		Body                *model.RemoveAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       []byte
-		RecipientAddress    []byte
-		Height              uint32
+		TransactionObject   *model.Transaction
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -477,11 +519,13 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 		{
 			name: "GetSize:success",
 			fields: fields{
-				Body:                mockRemoveAccountDatasetTransactionBody,
-				Fee:                 1,
-				SenderAddress:       senderAddress1,
-				RecipientAddress:    recipientAddress1,
-				Height:              5,
+				Body: mockRemoveAccountDatasetTransactionBody,
+				TransactionObject: &model.Transaction{
+					Fee:                     1,
+					SenderAccountAddress:    senderAddress1,
+					RecipientAccountAddress: recipientAddress1,
+					Height:                  5,
+				},
 				AccountDatasetQuery: nil,
 				QueryExecutor:       nil,
 			},
@@ -492,10 +536,7 @@ func TestRemoveAccountDataset_GetSize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
+				TransactionObject:   tt.fields.TransactionObject,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}
@@ -510,10 +551,7 @@ func TestRemoveAccountDataset_GetTransactionBody(t *testing.T) {
 	mockTxBody, _ := GetFixturesForRemoveAccountDataset()
 	type fields struct {
 		Body                *model.RemoveAccountDatasetTransactionBody
-		Fee                 int64
-		SenderAddress       []byte
-		RecipientAddress    []byte
-		Height              uint32
+		TransactionObject   *model.Transaction
 		AccountDatasetQuery query.AccountDatasetQueryInterface
 		QueryExecutor       query.ExecutorInterface
 	}
@@ -539,10 +577,7 @@ func TestRemoveAccountDataset_GetTransactionBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveAccountDataset{
 				Body:                tt.fields.Body,
-				Fee:                 tt.fields.Fee,
-				SenderAddress:       tt.fields.SenderAddress,
-				RecipientAddress:    tt.fields.RecipientAddress,
-				Height:              tt.fields.Height,
+				TransactionObject:   tt.fields.TransactionObject,
 				AccountDatasetQuery: tt.fields.AccountDatasetQuery,
 				QueryExecutor:       tt.fields.QueryExecutor,
 			}

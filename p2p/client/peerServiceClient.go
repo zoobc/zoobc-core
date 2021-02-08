@@ -1,8 +1,58 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package client
 
 import (
 	"context"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"math"
 	"sync"
 	"time"
@@ -79,6 +129,7 @@ type (
 		PeerConnections          map[string]*grpc.ClientConn
 		PeerConnectionsLock      sync.RWMutex
 		NodeAuthValidation       auth.NodeAuthValidationInterface
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
 	}
 	// Dialer represent peer service
 	Dialer func(destinationPeer *model.Peer) (*grpc.ClientConn, error)
@@ -94,6 +145,7 @@ func NewPeerServiceClient(
 	receiptService coreService.ReceiptServiceInterface,
 	nodeConfigurationService coreService.NodeConfigurationServiceInterface,
 	nodeAuthValidation auth.NodeAuthValidationInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
 	logger *log.Logger,
 ) PeerServiceClientInterface {
 	// set to current struct log
@@ -126,6 +178,7 @@ func NewPeerServiceClient(
 		NodeConfigurationService: nodeConfigurationService,
 		PeerConnections:          make(map[string]*grpc.ClientConn),
 		NodeAuthValidation:       nodeAuthValidation,
+		FeedbackStrategy:         feedbackStrategy,
 	}
 }
 
@@ -206,6 +259,8 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 ) (*model.GetNodeAddressesInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
@@ -249,6 +304,8 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerInfoResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetPeerInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	// add a copy to avoid pointer delete
 	connection, err := psc.GetConnection(destPeer)
@@ -278,6 +335,8 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMorePeersResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetMorePeersClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -305,6 +364,8 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 ) (*model.ProofOfOrigin, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNodeProofOfOwnershipInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	if destPeer.Info.GetID() == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
@@ -361,6 +422,9 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendNodeAddressInfoClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
+
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
 		return nil, err
@@ -386,6 +450,8 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model.Node) (*model.Empty, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendPeersClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendPeersClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -415,6 +481,8 @@ func (psc *PeerServiceClient) SendBlock(
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendBlockClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendBlockClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -465,6 +533,8 @@ func (psc *PeerServiceClient) SendTransaction(
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -524,6 +594,10 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	defer func() {
 		cancelReq()
 	}()
+	monitoring.IncrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pSendTransactionClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	response, err = p2pClient.SendBlockTransactions(ctx, &model.SendBlockTransactionsRequest{
 		SenderPublicKey:   psc.NodePublicKey,
@@ -539,6 +613,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 
 	// continue even though some receipts are failing
 	for _, receipt := range response.GetReceipts() {
+
 		err = psc.ReceiptService.CheckDuplication(psc.NodePublicKey, receipt.GetDatumHash())
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
@@ -568,6 +643,8 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 ) error {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestBlockTransactionsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -598,6 +675,8 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 ) (*model.FileDownloadResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pRequestFileDownloadClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -627,6 +706,8 @@ func (psc *PeerServiceClient) GetCumulativeDifficulty(
 ) (*model.GetCumulativeDifficultyResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCumulativeDifficultyClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -658,6 +739,8 @@ func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 ) (*model.GetCommonMilestoneBlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetCommonMilestoneBlockIDsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -692,6 +775,8 @@ func (psc *PeerServiceClient) GetNextBlockIDs(
 ) (*model.BlockIdsResponse, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlockIDsClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {
@@ -726,6 +811,8 @@ func (psc *PeerServiceClient) GetNextBlocks(
 ) (*model.BlocksData, error) {
 	monitoring.IncrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
 	defer monitoring.DecrementGoRoutineActivity(monitoring.P2pGetNextBlocksClient)
+	psc.FeedbackStrategy.IncrementVarCount("P2POutgoingRequests")
+	defer psc.FeedbackStrategy.DecrementVarCount("P2POutgoingRequests")
 
 	connection, err := psc.GetConnection(destPeer)
 	if err != nil {

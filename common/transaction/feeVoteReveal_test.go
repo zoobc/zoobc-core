@@ -1,14 +1,64 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
 	"crypto/sha256"
 	"database/sql"
 	"errors"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"reflect"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -193,11 +243,7 @@ func (*mockAccountBalanceHelperValidateSuccess) GetBalanceByAccountAddress(accou
 }
 func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 	type fields struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
@@ -220,8 +266,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:InvalidPhasePeriod",
 			fields: fields{
-				Fee:             1,
-				Timestamp:       12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService: &mockFeeScaleFeeVoteRevealTXValidateInvalidPhasePeriod{},
 			},
 			wantErr: true,
@@ -229,8 +277,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:InvalidSignature",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateInvalid{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -249,8 +299,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:InvalidRecentBlock",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -270,8 +322,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:CommitVoteNotFound",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -291,8 +345,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:NotNodeOwner",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -313,8 +369,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "WantErr:RevealVoteDuplicated",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateDuplicated{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -336,8 +394,10 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 		{
 			name: "Success",
 			fields: fields{
-				Fee:                1,
-				Timestamp:          12345678,
+				TransactionObject: &model.Transaction{
+					Fee:       1,
+					Timestamp: 12345678,
+				},
 				FeeScaleService:    &mockFeeScaleFeeVoteRevealTXValidateSuccess{},
 				SignatureInterface: &mockSignatureFeeVoteRevealTXValidateSuccess{},
 				Body: &model.FeeVoteRevealTransactionBody{
@@ -361,11 +421,7 @@ func TestFeeVoteRevealTransaction_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &FeeVoteRevealTransaction{
-				ID:                     tt.fields.ID,
-				Fee:                    tt.fields.Fee,
-				SenderAddress:          tt.fields.SenderAddress,
-				Height:                 tt.fields.Height,
-				Timestamp:              tt.fields.Timestamp,
+				TransactionObject:      tt.fields.TransactionObject,
 				Body:                   tt.fields.Body,
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
@@ -405,11 +461,7 @@ func (*mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess) ExecuteTransaction(s
 
 func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
@@ -428,6 +480,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 			},
 		},
@@ -435,11 +488,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &FeeVoteRevealTransaction{
-				ID:                     tt.fields.ID,
-				Fee:                    tt.fields.Fee,
-				SenderAddress:          tt.fields.SenderAddress,
-				Height:                 tt.fields.Height,
-				Timestamp:              tt.fields.Timestamp,
+				TransactionObject:      tt.fields.TransactionObject,
 				Body:                   tt.fields.Body,
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
@@ -459,11 +508,7 @@ func TestFeeVoteRevealTransaction_ApplyUnconfirmed(t *testing.T) {
 
 func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	type fields struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
@@ -482,6 +527,7 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:    &model.Transaction{},
 				AccountBalanceHelper: &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 			},
 		},
@@ -489,11 +535,7 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &FeeVoteRevealTransaction{
-				ID:                     tt.fields.ID,
-				Fee:                    tt.fields.Fee,
-				SenderAddress:          tt.fields.SenderAddress,
-				Height:                 tt.fields.Height,
-				Timestamp:              tt.fields.Timestamp,
+				TransactionObject:      tt.fields.TransactionObject,
 				Body:                   tt.fields.Body,
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
@@ -513,11 +555,7 @@ func TestFeeVoteRevealTransaction_UndoApplyUnconfirmed(t *testing.T) {
 
 func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 	type fields struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
@@ -540,6 +578,7 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 		{
 			name: "WantSuccess",
 			fields: fields{
+				TransactionObject:      &model.Transaction{},
 				AccountBalanceHelper:   &mockAccountBalanceHelperFeeVoteRevealSuccess{},
 				FeeVoteRevealVoteQuery: query.NewFeeVoteRevealVoteQuery(),
 				QueryExecutor:          &mockQueryExecutorFeeVoteRevealApplyConfirmedSuccess{},
@@ -549,11 +588,7 @@ func TestFeeVoteRevealTransaction_ApplyConfirmed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &FeeVoteRevealTransaction{
-				ID:                     tt.fields.ID,
-				Fee:                    tt.fields.Fee,
-				SenderAddress:          tt.fields.SenderAddress,
-				Height:                 tt.fields.Height,
-				Timestamp:              tt.fields.Timestamp,
+				TransactionObject:      tt.fields.TransactionObject,
 				Body:                   tt.fields.Body,
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,
@@ -582,11 +617,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	}
 
 	type fields struct {
-		ID                     int64
-		Fee                    int64
-		SenderAddress          []byte
-		Height                 uint32
-		Timestamp              int64
+		TransactionObject      *model.Transaction
 		Body                   *model.FeeVoteRevealTransactionBody
 		FeeScaleService        fee.FeeScaleServiceInterface
 		SignatureInterface     crypto.SignatureInterface
@@ -622,11 +653,7 @@ func TestFeeVoteRevealTransaction_ParseBodyBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &FeeVoteRevealTransaction{
-				ID:                     tt.fields.ID,
-				Fee:                    tt.fields.Fee,
-				SenderAddress:          tt.fields.SenderAddress,
-				Height:                 tt.fields.Height,
-				Timestamp:              tt.fields.Timestamp,
+				TransactionObject:      tt.fields.TransactionObject,
 				Body:                   tt.fields.Body,
 				FeeScaleService:        tt.fields.FeeScaleService,
 				SignatureInterface:     tt.fields.SignatureInterface,

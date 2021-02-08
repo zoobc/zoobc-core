@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package query
 
 import (
@@ -7,8 +56,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/constant"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/go-cmp/cmp"
@@ -33,7 +81,7 @@ var (
 			43, 59, 241, 146, 243, 147, 58, 161, 35, 229, 54},
 		Amount:      10,
 		Commission:  1,
-		Timeout:     120,
+		Timeout:     time.Now().Unix(),
 		Status:      1,
 		BlockHeight: 0,
 		Latest:      true,
@@ -45,7 +93,7 @@ var (
 		escrowApproverAddress,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
@@ -78,7 +126,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 					ApproverAddress:  escrowApproverAddress,
 					Amount:           10,
 					Commission:       1,
-					Timeout:          120,
+					Timeout:          time.Now().Unix(),
 					Status:           1,
 					BlockHeight:      0,
 					Latest:           true,
@@ -99,7 +147,7 @@ func TestEscrowTransactionQuery_InsertEscrowTransaction(t *testing.T) {
 					escrowApproverAddress,
 					int64(10),
 					int64(1),
-					uint64(120),
+					time.Now().Unix(),
 					model.EscrowStatus_Approved,
 					uint32(0),
 					true,
@@ -207,7 +255,7 @@ func TestEscrowTransactionQuery_BuildModels(t *testing.T) {
 		escrowApproverAddress,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
@@ -267,7 +315,7 @@ func TestEscrowTransactionQuery_Scan(t *testing.T) {
 		escrowApproverAddress,
 		int64(10),
 		int64(1),
-		uint64(120),
+		time.Now().Unix(),
 		model.EscrowStatus_Approved,
 		uint32(0),
 		true,
@@ -304,49 +352,6 @@ func TestEscrowTransactionQuery_Scan(t *testing.T) {
 			}
 			if err := et.Scan(tt.args.escrow, tt.args.row); (err != nil) != tt.wantErr {
 				t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestEscrowTransactionQuery_ExpiringEscrowTransactions(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	type args struct {
-		blockHeight uint32
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantQStr string
-		wantArgs []interface{}
-	}{
-		{
-			name:   "WantSuccess",
-			fields: fields(*mockEscrowQuery),
-			args: args{
-				blockHeight: 1,
-			},
-			wantQStr: "UPDATE escrow_transaction SET latest = ?, status = ? WHERE timeout < ? AND status = 0",
-			wantArgs: []interface{}{1, model.EscrowStatus_Expired, uint32(1)},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			et := &EscrowTransactionQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			gotQStr, gotArgs := et.ExpiringEscrowTransactions(tt.args.blockHeight)
-			if gotQStr != tt.wantQStr {
-				t.Errorf("ExpiringEscrowTransactions() gotQStr = \n%v, want \n%v", gotQStr, tt.wantQStr)
-				return
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("ExpiringEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
@@ -558,19 +563,6 @@ func TestEscrowTransactionQuery_GetEscrowTransactionsByTransactionIdsAndStatus(t
 	})
 }
 
-func TestEscrowTransactionQuery_GetExpiredEscrowTransactionsAtCurrentBlock(t *testing.T) {
-	t.Run("GetExpiredEscrowTransactionAtCurrentBlockQuery", func(t *testing.T) {
-		escrowTransactionQuery := NewEscrowTransactionQuery()
-		qry := escrowTransactionQuery.GetExpiredEscrowTransactionsAtCurrentBlock(constant.MinRollbackBlocks)
-		expect := "SELECT id, sender_address, recipient_address, approver_address, amount, commission, " +
-			"timeout, status, block_height, latest, instruction FROM escrow_transaction WHERE " +
-			"timeout + block_height = 720 AND latest = true AND status = 0"
-		if qry != expect {
-			t.Errorf("expect: %s\ngot: %v", expect, qry)
-		}
-	})
-}
-
 func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
 	type fields struct {
 		Fields    []string
@@ -607,11 +599,11 @@ func TestEscrowTransactionQuery_InsertEscrowTransactions(t *testing.T) {
 			}
 			gotStr, gotArgs := et.InsertEscrowTransactions(tt.args.escrows)
 			if gotStr != tt.wantStr {
-				t.Errorf("InsertEscrowTransactions() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("InsertEscrowTransactions() gotStr = \n%v, want \n%v", gotStr, tt.wantStr)
 				return
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("InsertEscrowTransactions() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("InsertEscrowTransactions() gotArgs = \n%v, want \n%v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

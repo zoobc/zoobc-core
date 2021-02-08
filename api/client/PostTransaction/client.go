@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package main
 
 import (
@@ -5,6 +54,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -22,7 +72,7 @@ func main() {
 	)
 	dir, _ := os.Getwd()
 	if strings.Contains(dir, "api") {
-		configPath = "../../../resource"
+		configPath = "../../../"
 	}
 	if err := util.LoadConfig(configPath, "config", "toml", ""); err != nil {
 		log.Fatal(err)
@@ -42,25 +92,30 @@ func main() {
 	c := rpc_service.NewTransactionServiceClient(conn)
 
 	response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+		// Sendmoney
+		TransactionBytes: []byte{1, 0, 0, 0, 1, 75, 93, 171, 95, 0, 0, 0, 0, 0, 0, 0, 0, 236, 125, 37, 22, 103, 77, 115, 149, 65, 98, 75,
+			252, 148, 113, 91, 119, 67, 138, 240, 89, 57, 28, 107, 162, 225, 82, 79, 186, 163, 158, 161, 115, 0, 0, 0, 0, 123, 166, 78,
+			235, 41, 31, 17, 3, 254, 32, 33, 149, 6, 209, 16, 250, 23, 74, 126, 200, 54, 255, 196, 135, 192, 128, 218, 130, 73, 31, 171,
+			72, 65, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 0, 225, 245, 5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 115, 15, 32, 47, 154, 231, 30,
+			42, 41, 117, 125, 241, 125, 149, 43, 42, 139, 73, 40, 69, 199, 95, 82, 16, 241, 158, 229, 122, 86, 55, 7, 48, 201, 105, 197,
+			107, 159, 203, 89, 109, 245, 231, 11, 115, 67, 61, 67, 128, 7, 52, 109, 217, 41, 252, 26, 135, 25, 129, 140, 182, 82, 38, 78, 6},
+	})
 
-		// Escrow
-		TransactionBytes: []byte{1, 0, 0, 0, 1, 114, 186, 68, 94, 0, 0, 0, 0, 44, 0, 0, 0, 72, 108, 90, 76, 104, 51, 86, 99, 110, 78, 108,
-			118, 66, 121, 87, 111, 65, 122, 88, 79, 81, 50, 106, 65, 108, 119, 70, 79, 105, 121, 79, 57, 95, 110, 106, 73, 51, 111,
-			113, 53, 89, 103, 104, 97, 44, 0, 0, 0, 110, 75, 95, 111, 117, 120, 100, 68, 68, 119, 117, 74, 105, 111, 103, 105, 68, 65,
-			105, 95, 122, 115, 49, 76, 113, 101, 78, 55, 102, 53, 90, 115, 88, 98, 70, 116, 88, 71, 113, 71, 99, 48, 80, 100, 1, 0, 0,
-			0, 0, 0, 0, 0, 8, 0, 0, 0, 87, 4, 0, 0, 0, 0, 0, 0, 44, 0, 0, 0, 66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102, 68,
-			79, 86, 102, 57, 90, 83, 52, 69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81, 74, 95, 54, 116, 72, 75, 108,
-			69, 111, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 97, 109, 111, 117, 110, 116, 32, 109, 117, 115, 116, 32,
-			109, 111, 114, 101, 32, 116, 104, 97, 110, 32, 49, 0, 0, 0, 0, 178, 66, 128, 131, 168, 110, 230, 13, 235, 177, 8, 220, 123,
-			148, 159, 170, 237, 219, 168, 84, 207, 106, 112, 50, 2, 39, 139, 246, 51, 100, 142, 98, 198, 14, 196, 147, 248, 167, 20,
-			150, 114, 204, 47, 56, 215, 165, 36, 81, 178, 159, 224, 190, 147, 117, 103, 120, 246, 25, 24, 79, 142, 209, 39, 2},
-		// Approval
-		// TransactionBytes: []byte{4, 0, 0, 0, 1, 162, 32, 65, 94, 0, 0, 0, 0, 44, 0, 0, 0, 66, 67, 90, 69, 71, 79, 98, 51, 87, 78, 120, 51, 102,
-		// 	68, 79, 86, 102, 57, 90, 83, 52, 69, 106, 118, 79, 73, 118, 95, 85, 101, 87, 52, 84, 86, 66, 81, 74, 95, 54, 116, 72, 75, 108,
-		// 	69, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 170, 224, 210, 110, 59, 66, 173, 125, 0, 0, 0, 0, 0, 0, 0, 0,
-		// 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 225, 156, 122, 176, 20, 82, 143, 126, 10, 21, 142, 236, 89, 163, 58,
-		// 	213, 187, 21, 26, 50, 231, 200, 20, 175, 42, 2, 195, 141, 194, 171, 190, 211, 52, 238, 10, 68, 86, 247, 27, 135, 130, 123, 238,
-		// 	139, 49, 149, 25, 34, 164, 61, 123, 219, 124, 6, 178, 118, 157, 76, 227, 28, 14, 162, 60, 5},
+	if err != nil {
+		log.Fatalf("error calling rpc_service.PostTransaction: %s", err)
+	}
+
+	log.Printf("response from remote rpc_service.PostTransaction(): %s", response)
+
+	time.Sleep(2 * time.Second)
+	response, err = c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
+		// Sendmoney
+		TransactionBytes: []byte{1, 0, 0, 0, 1, 177, 96, 171, 95, 0, 0, 0, 0, 0, 0, 0, 0, 236, 125, 37, 22, 103, 77, 115, 149, 65, 98,
+			75, 252, 148, 113, 91, 119, 67, 138, 240, 89, 57, 28, 107, 162, 225, 82, 79, 186, 163, 158, 161, 115, 0, 0, 0, 0, 123, 166,
+			78, 235, 41, 31, 17, 3, 254, 32, 33, 149, 6, 209, 16, 250, 23, 74, 126, 200, 54, 255, 196, 135, 192, 128, 218, 130, 73, 31,
+			171, 72, 65, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 45, 4, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 240, 38, 121, 109, 62, 178,
+			154, 15, 61, 224, 134, 100, 47, 143, 174, 4, 59, 194, 37, 172, 23, 22, 138, 253, 117, 3, 248, 239, 207, 133, 3, 226, 77, 175,
+			128, 201, 61, 101, 93, 33, 89, 163, 74, 64, 178, 218, 185, 87, 88, 58, 99, 80, 44, 126, 40, 223, 35, 233, 62, 8, 27, 103, 166, 6},
 	})
 
 	if err != nil {

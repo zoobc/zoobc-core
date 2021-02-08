@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -36,20 +85,22 @@ type (
 
 	BlockSpineService struct {
 		sync.RWMutex
-		Chaintype                 chaintype.ChainType
-		QueryExecutor             query.ExecutorInterface
-		BlockQuery                query.BlockQueryInterface
-		Signature                 crypto.SignatureInterface
-		BlocksmithStrategy        strategy.BlocksmithStrategyInterface
-		Observer                  *observer.Observer
-		Logger                    *log.Logger
-		SpinePublicKeyService     BlockSpinePublicKeyServiceInterface
-		SpineBlockManifestService SpineBlockManifestServiceInterface
-		BlocksmithService         BlocksmithServiceInterface
-		SnapshotMainBlockService  SnapshotBlockServiceInterface
-		BlockStateStorage         storage.CacheStorageInterface
-		BlockchainStatusService   BlockchainStatusServiceInterface
-		MainBlockService          BlockServiceInterface
+		Chaintype                   chaintype.ChainType
+		QueryExecutor               query.ExecutorInterface
+		BlockQuery                  query.BlockQueryInterface
+		SpineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface
+		Signature                   crypto.SignatureInterface
+		BlocksmithStrategy          strategy.BlocksmithStrategyInterface
+		Observer                    *observer.Observer
+		Logger                      *log.Logger
+		SpinePublicKeyService       BlockSpinePublicKeyServiceInterface
+		SpineBlockManifestService   SpineBlockManifestServiceInterface
+		BlocksmithService           BlocksmithServiceInterface
+		SnapshotMainBlockService    SnapshotBlockServiceInterface
+		BlockStateStorage           storage.CacheStorageInterface
+		BlocksStorage               storage.CacheStackStorageInterface
+		BlockchainStatusService     BlockchainStatusServiceInterface
+		MainBlockService            BlockServiceInterface
 	}
 )
 
@@ -57,6 +108,7 @@ func NewBlockSpineService(
 	ct chaintype.ChainType,
 	queryExecutor query.ExecutorInterface,
 	spineBlockQuery query.BlockQueryInterface,
+	spineSkippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	signature crypto.SignatureInterface,
 	obsr *observer.Observer,
 	blocksmithStrategy strategy.BlocksmithStrategyInterface,
@@ -68,16 +120,18 @@ func NewBlockSpineService(
 	blockchainStatusService BlockchainStatusServiceInterface,
 	spinePublicKeyService BlockSpinePublicKeyServiceInterface,
 	mainBlockService BlockServiceInterface,
+	blocksStorage storage.CacheStackStorageInterface,
 ) *BlockSpineService {
 	return &BlockSpineService{
-		Chaintype:             ct,
-		QueryExecutor:         queryExecutor,
-		BlockQuery:            spineBlockQuery,
-		Signature:             signature,
-		BlocksmithStrategy:    blocksmithStrategy,
-		Observer:              obsr,
-		Logger:                logger,
-		SpinePublicKeyService: spinePublicKeyService,
+		Chaintype:                   ct,
+		QueryExecutor:               queryExecutor,
+		BlockQuery:                  spineBlockQuery,
+		SpineSkippedBlocksmithQuery: spineSkippedBlocksmithQuery,
+		Signature:                   signature,
+		BlocksmithStrategy:          blocksmithStrategy,
+		Observer:                    obsr,
+		Logger:                      logger,
+		SpinePublicKeyService:       spinePublicKeyService,
 		SpineBlockManifestService: NewSpineBlockManifestService(
 			queryExecutor,
 			megablockQuery,
@@ -87,6 +141,7 @@ func NewBlockSpineService(
 		BlocksmithService:        blocksmithService,
 		SnapshotMainBlockService: snapshotMainblockService,
 		BlockStateStorage:        blockStateStorage,
+		BlocksStorage:            blocksStorage,
 		BlockchainStatusService:  blockchainStatusService,
 		MainBlockService:         mainBlockService,
 	}
@@ -302,11 +357,41 @@ func (bs *BlockSpineService) validateBlockHeight(block *model.Block) error {
 	return nil
 }
 
+// ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
+func (bs *BlockSpineService) ProcessPushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
+	var err error
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
+	if err != nil {
+		return err
+	}
+
+	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
+	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
+		return err
+	}
+
+	// if present, add new spine block manifests into spineBlockManifest table
+	for _, spineBlockManifest := range block.SpineBlockManifests {
+		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
+			return err
+		}
+	}
+	if block.GetHeight() > 1 {
+		err = bs.ProcessSkippedBlocksmiths(previousBlock, block)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
 // broadcast flag to `true`, and `false` otherwise
 func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		block.Height = previousBlock.GetHeight() + 1
@@ -316,40 +401,21 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 		}
 	}
 	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePushBlockOwnerProcess)
 	if err != nil {
-		return err
-	}
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-			bs.Logger.Error(rollbackErr.Error())
-		}
 		return err
 	}
 
-	// add new spine public keys (pub keys included in this spine block) into spinePublicKey table
-	if err := bs.SpinePublicKeyService.InsertSpinePublicKeys(block); err != nil {
+	err = bs.ProcessPushBlock(previousBlock, block, broadcast, persist)
+	if err != nil {
 		bs.Logger.Error(err.Error())
-		if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			bs.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
 
-	// if present, add new spine block manifests into spineBlockManifest table
-	for _, spineBlockManifest := range block.SpineBlockManifests {
-		if err := bs.SpineBlockManifestService.InsertSpineBlockManifest(spineBlockManifest); err != nil {
-			bs.Logger.Error(err.Error())
-			if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-				bs.Logger.Error(rollbackErr.Error())
-			}
-			return err
-		}
-	}
-
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -358,6 +424,12 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	err = bs.UpdateLastBlockCache(block)
 	if err != nil {
 		return err
+	}
+	// cache last block into blocks cache storage
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
+	if err != nil {
+		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
+		_ = bs.InitializeBlocksCache()
 	}
 	bs.Logger.Debugf("%s Block Pushed ID: %d", bs.Chaintype.GetName(), block.GetID())
 	// broadcast block
@@ -371,36 +443,76 @@ func (bs *BlockSpineService) PushBlock(previousBlock, block *model.Block, broadc
 	return nil
 }
 
+func (bs *BlockSpineService) ProcessSkippedBlocksmiths(previousBlock, block *model.Block) error {
+	var (
+		skippedBlocksmiths []*model.SkippedBlocksmith
+		err                error
+	)
+	blocksBlocksmiths, err := bs.BlocksmithStrategy.GetBlocksBlocksmiths(previousBlock, block)
+	if err != nil {
+		return err
+	}
+	blocksBlocksmithsLength := len(blocksBlocksmiths)
+	if blocksBlocksmithsLength < 1 {
+		return blocker.NewBlocker(blocker.AppErr, fmt.Sprintf(
+			"updatePopScore- chaintype: %s -BlocksmithStrategy-NoBlocksmithFound",
+			bs.Chaintype.GetName(),
+		))
+	}
+	// insert skipped blocksmith to database
+	for i := 0; i < blocksBlocksmithsLength-1; i++ {
+		skippedBlocksmith := &model.SkippedBlocksmith{
+			BlocksmithPublicKey: blocksBlocksmiths[i].NodePublicKey,
+			POPChange:           constant.ParticipationScorePunishAmount,
+			BlockHeight:         block.Height,
+			BlocksmithIndex:     int32(i),
+		}
+		// punish score
+		skippedBlocksmiths = append(skippedBlocksmiths, skippedBlocksmith)
+	}
+	if len(skippedBlocksmiths) > 0 {
+		skippedBlocksmithSnapshotImportQuery := bs.SpineSkippedBlocksmithQuery.(query.SnapshotQuery)
+		// use import snapshot to account for huge skipped blocksmith when blockchain resume from a long pause (several months)
+		q, err := skippedBlocksmithSnapshotImportQuery.ImportSnapshot(skippedBlocksmiths)
+		if err != nil {
+			return err
+		}
+		err = bs.QueryExecutor.ExecuteTransactions(q)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockSpineService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err := bs.PopulateBlockData(&block)
+		err := bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockSpineService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -434,17 +546,30 @@ func (bs *BlockSpineService) GetBlocksFromHeight(startHeight, limit uint32, with
 // GetLastBlock return the last pushed block
 func (bs *BlockSpineService) GetLastBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
+		lastBlock *model.Block
+		err       error
+	)
+
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = bs.PopulateBlockData(lastBlock)
+	if err != nil {
+		return nil, err
+	}
+	return lastBlock, nil
+}
+
+func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
+	var (
+		lastBlock storage.BlockCacheObject
+		err       = bs.BlocksStorage.GetTop(&lastBlock)
 	)
 	if err != nil {
 		return nil, err
 	}
 	return &lastBlock, nil
-}
-
-func (bs *BlockSpineService) GetLastBlockCacheFormat() (*storage.BlockCacheObject, error) {
-	return nil, blocker.NewBlocker(blocker.AppErr, "NotImplementedYet")
 }
 
 // GetBlockHash return block's hash (makes sure always include spine public keys)
@@ -471,7 +596,12 @@ func (bs *BlockSpineService) GetBlockByHeight(height uint32) (*model.Block, erro
 }
 
 func (bs *BlockSpineService) GetBlockByHeightCacheFormat(height uint32) (*storage.BlockCacheObject, error) {
-	return nil, blocker.NewBlocker(blocker.AppErr, "GetBlockByHeightCacheFormat-NotImplementedYet")
+	return commonUtils.GetBlockByHeightUseBlocksCache(
+		height,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		bs.BlocksStorage,
+	)
 }
 
 // GetGenesisBlock return the genesis block
@@ -556,6 +686,33 @@ func (bs *BlockSpineService) UpdateLastBlockCache(block *model.Block) error {
 }
 
 func (bs *BlockSpineService) InitializeBlocksCache() error {
+	var err = bs.BlocksStorage.Clear()
+	if err != nil {
+		return err
+	}
+	lastBlock, err := bs.GetLastBlock()
+	if err != nil {
+		return err
+	}
+	var firstBlocksHeightCache uint32 = 0
+	if lastBlock.Height > constant.MaxBlocksCacheStorage {
+		firstBlocksHeightCache = lastBlock.Height - constant.MaxBlocksCacheStorage
+	}
+	var (
+		blocks []*model.Block
+	)
+	blocks, err = bs.GetBlocksFromHeight(firstBlocksHeightCache, constant.MaxBlocksCacheStorage, false)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(blocks); i++ {
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -606,10 +763,13 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	// check last main block height still higher from SpineReferenceBlockHeightOffset
-	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
-		newReferenceBlockHeight = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+
+	if lastMainBlock.Height < newIncludedFirstBlockHeight {
+		newIncludedFirstBlockHeight = lastMainBlock.Height
 	}
+
+	newReferenceBlockHeight = lastMainBlock.Height
+
 	// make sure new reference block height is greater than previous Reference Block Height
 	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
 		limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
@@ -791,12 +951,7 @@ func (bs *BlockSpineService) CheckGenesis() (bool, error) {
 // ReceiveBlock handle the block received from connected peers
 // argument lastBlock is the lastblock in this node
 // argument block is the in coming block from peer
-func (bs *BlockSpineService) ReceiveBlock(
-	senderPublicKey []byte,
-	lastBlock, block *model.Block,
-	nodeSecretPhrase string,
-	peer *model.Peer,
-) (*model.Receipt, error) {
+func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Block, _ string, _ *model.Peer, _ bool) (*model.Receipt, error) {
 	var (
 		err error
 	)
@@ -947,7 +1102,8 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
-		err error
+		err                         error
+		isDbTransactionHighPriority = true
 	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
 	lastBlock, err := bs.GetLastBlock()
@@ -982,7 +1138,7 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	}
 
 	derivedQueries := query.GetDerivedQuery(bs.Chaintype)
-	err = bs.QueryExecutor.BeginTx()
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.SpinePopOffToBlockOwnerProcess)
 	if err != nil {
 		return []*model.Block{}, err
 	}
@@ -991,14 +1147,14 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 		queries := dQuery.Rollback(commonBlock.Height)
 		err = bs.QueryExecutor.ExecuteTransactions(queries)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
+			rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 			if rollbackErr != nil {
 				bs.Logger.Warnf("spineblock-rollback-err: %v", rollbackErr)
 			}
 			return []*model.Block{}, err
 		}
 	}
-	err = bs.QueryExecutor.CommitTx()
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, err
 	}
@@ -1009,16 +1165,18 @@ func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.B
 	if err != nil {
 		return nil, err
 	}
+	err = bs.BlocksStorage.PopTo(commonBlock.Height)
+	if err != nil {
+		return nil, err
+	}
 
 	go func() {
 		// post rollback action:
 		// - clean snapshot data
 		poppedManifests, err = bs.SpineBlockManifestService.GetSpineBlockManifestsFromSpineBlockHeight(commonBlock.Height)
 		if err != nil {
-			rollbackErr := bs.QueryExecutor.RollbackTx()
-			if rollbackErr != nil {
-				bs.Logger.Warn(rollbackErr)
-			}
+			bs.Logger.Warn(err)
+			return
 		}
 		for _, manifest := range poppedManifests {
 			// ignore error, file deletion can fail

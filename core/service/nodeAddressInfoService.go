@@ -1,7 +1,57 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -122,7 +172,7 @@ func (nru *NodeAddressInfoService) GenerateNodeAddressInfo(
 		return nil, err
 	}
 	// get a rollback-safe block for node address info message, to make sure evey peer can validate it
-	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first 720 blocks
+	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first MinRollbackBlocks blocks
 	if lastBlock.GetHeight() < constant.MinRollbackBlocks {
 		safeBlockHeight = 0
 	} else {
@@ -339,18 +389,8 @@ func (nru *NodeAddressInfoService) CountRegistredNodeAddressWithAddressInfo() (i
 }
 
 func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	qry, args := nru.NodeAddressInfoQuery.InsertNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx()
-		nru.Logger.Error(errRollback)
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx()
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args...)
 	if err != nil {
 		return err
 	}
@@ -363,20 +403,11 @@ func (nru *NodeAddressInfoService) InsertAddressInfo(nodeAddressInfo *model.Node
 }
 
 func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.NodeAddressInfo) error {
-	var err = nru.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
+	if nodeAddressInfo == nil {
+		return errors.New("invalid nodeaddressinfo")
 	}
-	qryArgs := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
-	err = nru.QueryExecutor.ExecuteTransactions(qryArgs)
-	if err != nil {
-		errRollback := nru.QueryExecutor.RollbackTx()
-		if errRollback != nil {
-			nru.Logger.Error(errRollback)
-		}
-		return err
-	}
-	err = nru.QueryExecutor.CommitTx()
+	qry, args := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args)
 	if err != nil {
 		return err
 	}
@@ -392,21 +423,22 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 func (nru *NodeAddressInfoService) ConfirmNodeAddressInfo(pendingNodeAddressInfo *model.NodeAddressInfo) error {
 	pendingNodeAddressInfo.Status = model.NodeAddressStatus_NodeAddressConfirmed
 	var (
-		queries = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
-		err     = nru.QueryExecutor.BeginTx()
+		isDbTransactionHighPriority = false
+		queries                     = nru.NodeAddressInfoQuery.ConfirmNodeAddressInfo(pendingNodeAddressInfo)
+		err                         = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.ConfirmNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransactions(queries)
 	if err != nil {
-		rollbackErr := nru.QueryExecutor.RollbackTx()
+		rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority)
 		if rollbackErr != nil {
 			log.Errorln(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx()
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}
@@ -448,20 +480,21 @@ func (nru *NodeAddressInfoService) DeletePendingNodeAddressInfo(nodeID int64) er
 			nodeID,
 			nodeAddressInfoStatuses,
 		)
+		isDbTransactionHighPriority = false
 		// start db transaction here
-		err = nru.QueryExecutor.BeginTx()
+		err = nru.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.DeletePendingNodeAddressInfoOwnerProcess)
 	)
 	if err != nil {
 		return err
 	}
 	err = nru.QueryExecutor.ExecuteTransaction(qry, args...)
 	if err != nil {
-		if rollbackErr := nru.QueryExecutor.RollbackTx(); rollbackErr != nil {
+		if rollbackErr := nru.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
 			nru.Logger.Error(rollbackErr.Error())
 		}
 		return err
 	}
-	err = nru.QueryExecutor.CommitTx()
+	err = nru.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return err
 	}

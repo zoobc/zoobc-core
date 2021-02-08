@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
@@ -55,17 +104,17 @@ var (
 		232, 0,
 	}
 
-	fixtureFullHash = []byte{219, 136, 65, 65, 124, 127, 36, 66, 204, 103, 161, 208, 102, 96, 215, 177, 43, 232, 209,
-		239, 96, 206, 159, 126, 87, 50, 247, 69, 190, 199, 168, 54}
+	fixtureFullHash = []byte{49, 138, 155, 46, 218, 231, 96, 233, 220, 107, 220, 207, 235, 36, 235, 50, 109, 69, 57, 14, 171, 74, 212, 53,
+		226, 209, 255, 217, 108, 158, 103, 212}
 	fixtureFileChunkHashes = [][]byte{
-		{140, 13, 138, 215, 186, 111, 67, 198, 243, 121, 123, 212, 187, 46, 236, 143, 143, 18, 65, 181, 126, 213,
-			160, 206, 12, 84, 244, 80, 29, 90, 224, 180},
-		{148, 58, 57, 206, 161, 147, 212, 197, 217, 248, 13, 211, 255, 2, 212, 149, 245, 160, 158, 238, 120,
-			23, 56, 186, 123, 179, 84, 240, 197, 98, 135, 106},
-		{47, 66, 144, 80, 129, 91, 202, 56, 165, 245, 169, 188, 155, 74, 84, 150, 205, 75, 142, 244, 200,
-			35, 18, 79, 204, 221, 63, 5, 146, 49, 165, 130},
-		{181, 41, 188, 232, 83, 44, 195, 184, 185, 225, 124, 188, 79, 240, 98, 3, 17, 223, 195, 84,
-			147, 20, 120, 169, 29, 228, 72, 222, 128, 228, 61, 159},
+		{249, 222, 69, 55, 85, 199, 68, 191, 119, 182, 34, 150, 229, 182, 41, 143, 81, 31, 149, 110, 61, 113, 14, 46, 87, 75, 69, 170, 70,
+			57, 78, 94},
+		{141, 185, 110, 222, 56, 134, 77, 212, 139, 163, 131, 117, 102, 246, 112, 158, 154, 197, 251, 44, 117, 212, 41, 140, 99, 114, 241,
+			181, 199, 108, 212, 51},
+		{86, 146, 179, 101, 99, 123, 37, 127, 255, 248, 195, 79, 17, 128, 156, 194, 8, 219, 13, 36, 110, 106, 127, 200, 53, 104, 4, 92,
+			203, 85, 188, 42},
+		{175, 38, 59, 184, 185, 171, 156, 129, 177, 225, 63, 232, 66, 52, 186, 8, 231, 207, 103, 103, 255, 196, 229, 221, 148, 204, 174,
+			206, 46, 6, 150, 157},
 	}
 	fixtureSnapshotPayload = &model.SnapshotPayload{
 		Blocks: []*model.Block{

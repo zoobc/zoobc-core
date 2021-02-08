@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package query
 
 import (
@@ -6,7 +55,6 @@ import (
 	"strings"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
-
 	"github.com/zoobc/zoobc-core/common/model"
 )
 
@@ -23,11 +71,10 @@ type (
 		InsertEscrowTransactions(escrows []*model.Escrow) (str string, args []interface{})
 		GetLatestEscrowTransactionByID(int64) (string, []interface{})
 		GetEscrowTransactions(fields map[string]interface{}) (string, []interface{})
-		GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string
+		GetExpiredEscrowTransactionsAtCurrentBlock(blockTimestamp int64) string
 		GetEscrowTransactionsByTransactionIdsAndStatus(
 			transactionIds []string, status model.EscrowStatus,
 		) string
-		ExpiringEscrowTransactions(blockHeight uint32) (string, []interface{})
 		ExtractModel(*model.Escrow) []interface{}
 		BuildModels(*sql.Rows) ([]*model.Escrow, error)
 		Scan(escrow *model.Escrow, row *sql.Row) error
@@ -179,22 +226,9 @@ func (et *EscrowTransactionQuery) GetEscrowTransactions(fields map[string]interf
 }
 
 // GetExpiredEscrowTransactionsAtCurrentBlock fetch provided block height expired escrow transaction
-func (et *EscrowTransactionQuery) GetExpiredEscrowTransactionsAtCurrentBlock(blockHeight uint32) string {
-	return fmt.Sprintf("SELECT %s FROM %s WHERE timeout + block_height = %d AND latest = true AND status = %d",
-		strings.Join(et.Fields, ", "), et.getTableName(), blockHeight, model.EscrowStatus_Pending)
-}
-
-// ExpiringEscrowTransactions represents update escrows status to expired where that has been expired by blockHeight
-func (et *EscrowTransactionQuery) ExpiringEscrowTransactions(blockHeight uint32) (qStr string, args []interface{}) {
-	return fmt.Sprintf(
-			"UPDATE %s SET latest = ?, status = ? WHERE timeout < ? AND status = 0",
-			et.getTableName(),
-		),
-		[]interface{}{
-			1,
-			model.EscrowStatus_Expired,
-			blockHeight,
-		}
+func (et *EscrowTransactionQuery) GetExpiredEscrowTransactionsAtCurrentBlock(blockTimestamp int64) string {
+	return fmt.Sprintf("SELECT %s FROM %s WHERE timeout < %d AND latest = true AND status = %d",
+		strings.Join(et.Fields, ", "), et.getTableName(), blockTimestamp, model.EscrowStatus_Pending)
 }
 
 func (et *EscrowTransactionQuery) GetEscrowTransactionsByTransactionIdsAndStatus(

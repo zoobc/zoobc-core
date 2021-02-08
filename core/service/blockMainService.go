@@ -1,10 +1,57 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math/big"
 	"sort"
@@ -375,55 +422,22 @@ func (bs *BlockService) validateBlockHeight(block *model.Block) error {
 	return nil
 }
 
-// PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
-// broadcast flag to `true`, and `false` otherwise
-func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
-	var (
-		round      int64
-		start      = time.Now()
-		err        error
-		mempoolMap storage.MempoolMap
-	)
+// ProcessPushBlock processes inside pushBlock that is guarded with DB transaction outside
+func (bs *BlockService) ProcessPushBlock(previousBlock,
+	block *model.Block,
+	broadcast, persist bool,
+	round int64) (nodeAdmissionTimestamp *model.NodeAdmissionTimestamp, transactionIDs []int64, err error) {
+	var mempoolMap storage.MempoolMap
 
-	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
-		block.Height = previousBlock.GetHeight() + 1
-
-		roundInt, err := bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block)
-		if err != nil {
-			return err
-		}
-		round = int64(roundInt)
-		// check for duplicate in block pool
-		blockPool := bs.BlockPoolService.GetBlock(round)
-		if blockPool != nil && !persist {
-			return blocker.NewBlocker(
-				blocker.BlockErr, "DuplicateBlockPool",
-			)
-		}
-
-		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
-		if err != nil {
-			return blocker.NewBlocker(
-				blocker.BlockErr,
-				fmt.Sprintf("CalculateCummulativeDifficultyError:%v", err),
-			)
-		}
-	}
-
-	// start db transaction here
-	err = bs.QueryExecutor.BeginTx()
-	if err != nil {
-		return err
-	}
 	err = bs.NodeRegistrationService.BeginCacheTransaction()
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("NodeRegistryCacheBeginTransaction - %s", err.Error()))
+		return nil, nil, err
 	}
 	err = bs.NodeAddressInfoService.BeginCacheTransaction()
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("NodeAddressInfoCacheBeginTransaction - %s", err.Error()))
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("NodeAddressInfoCacheBeginTransaction - %s", err.Error()))
+		return nil, nil, err
 	}
 	/*
 		Expiring Process: expiring the transactions that affected by current block height.
@@ -431,13 +445,13 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	*/
 	err = bs.TransactionCoreService.ExpiringEscrowTransactions(block.GetHeight(), block.GetTimestamp(), true)
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringEscrowTransactionsErr - %s", err.Error()))
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("ExpiringEscrowTransactionsErr - %s", err.Error()))
+		return nil, nil, err
 	}
 	err = bs.PendingTransactionService.ExpiringPendingTransactions(block.GetHeight(), true)
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("ExpiringPendingTransactionsErr - %s", err.Error()))
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("ExpiringPendingTransactionsErr - %s", err.Error()))
+		return nil, nil, err
 	}
 
 	/*
@@ -445,21 +459,14 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	*/
 	err = bs.TransactionCoreService.CompletePassedLiquidPayment(block)
 	if err != nil {
-		bs.queryAndCacheRollbackProcess(fmt.Sprintf("CompletePassedLiquidPaymentErr - %s", err.Error()))
-		return blocker.NewBlocker(blocker.BlockErr, err.Error())
+		err = blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("CompletePassedLiquidPaymentErr - %s", err.Error()))
+		return nil, nil, err
 	}
 
-	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
-	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
-	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
-	}
-	var transactionIDs = make([]int64, len(block.GetTransactions()))
+	transactionIDs = make([]int64, len(block.GetTransactions()))
 	mempoolMap, err = bs.MempoolService.GetMempoolTransactions()
 	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
+		return nil, nil, err
 	}
 	// apply transactions and remove them from mempool
 	for index, tx := range block.GetTransactions() {
@@ -471,23 +478,21 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// validate tx here
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
+			return nil, nil, err
 		}
+
 		// check if is in mempool : if yes, undo unconfirmed
 		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
 			if err != nil {
-				bs.queryAndCacheRollbackProcess("")
-				return err
+				return nil, nil, err
 			}
 		}
 
 		if block.Height > 0 {
 			err = bs.TransactionCoreService.ValidateTransaction(txType, true)
 			if err != nil {
-				bs.queryAndCacheRollbackProcess("")
-				return err
+				return nil, nil, err
 			}
 		}
 		// validate tx body and apply/perform transaction-specific logic
@@ -496,19 +501,16 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			transactionInsertQuery, transactionInsertValue := bs.TransactionQuery.InsertTransaction(tx)
 			err := bs.QueryExecutor.ExecuteTransaction(transactionInsertQuery, transactionInsertValue...)
 			if err != nil {
-				bs.queryAndCacheRollbackProcess("")
-				return err
+				return nil, nil, err
 			}
 		} else {
-			bs.queryAndCacheRollbackProcess("")
-			return err
+			return nil, nil, err
 		}
 	}
 
 	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(block)
 	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
+		return nil, nil, err
 	}
 
 	// persist flag will only be turned off only when generate or receive block broadcasted by another peer
@@ -520,7 +522,6 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			if err != nil {
 				// insert into block pool
 				bs.BlockPoolService.InsertBlock(block, round)
-				bs.queryAndCacheRollbackProcess("")
 				if broadcast {
 					// create copy of the block to avoid reference update on block pool
 					var (
@@ -530,18 +531,20 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 					blockBytes, err = json.Marshal(*block)
 
 					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
+						err = blocker.NewBlocker(blocker.AppErr, "Failed marshal block err: "+err.Error())
+						return nil, nil, err
 					}
 					err = json.Unmarshal(blockBytes, &blockToBroadcast)
 					if err != nil {
-						return blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
+						err = blocker.NewBlocker(blocker.AppErr, "Failed unmarshal block bytes err: "+err.Error())
+						return nil, nil, err
 					}
 					// add transactionIDs and remove transaction before broadcast
 					blockToBroadcast.TransactionIDs = transactionIDs
 					blockToBroadcast.Transactions = []*model.Transaction{}
 					bs.Observer.Notify(observer.BroadcastBlock, &blockToBroadcast, bs.Chaintype)
 				}
-				return nil
+				return nil, nil, blocker.NewBlocker(blocker.IgnoredError, "No op error")
 			}
 			// if canPersistBlock return true ignore the passed `persist` flag
 		}
@@ -558,11 +561,10 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		// when start smithing from a block with height > 0, since SortedBlocksmiths are computed  after a block is pushed,
 		// for the first block that is pushed, we don't know who are the blocksmith to be rewarded
 		// sort blocksmiths for current block
-
 		activeRegistries, scoreSum, err := bs.NodeRegistrationService.GetActiveRegistryNodeWithTotalParticipationScore()
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
+			err = blocker.NewBlocker(blocker.BlockErr, "NoActiveNodeRegistriesFound")
+			return nil, nil, err
 		}
 
 		popScore, err := commonUtils.CalculateParticipationScore(
@@ -571,13 +573,11 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
 		)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
+			return nil, nil, err
 		}
 		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
+			return nil, nil, err
 		}
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
@@ -590,8 +590,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			previousBlock,
 		)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
-			return err
+			return nil, nil, err
 		}
 		if totalReward > 0 {
 			if err := bs.BlocksmithService.RewardBlocksmithAccountAddresses(
@@ -600,39 +599,56 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 				block.GetTimestamp(),
 				block.Height,
 			); err != nil {
-				bs.queryAndCacheRollbackProcess("")
-				return err
+				return nil, nil, err
 			}
 		}
 	}
-	// nodeRegistryProcess precess to admit & expel node registry
-	nodeAdmissionTimestamp, err := bs.nodeRegistryProcess(block)
+
+	if block.Height > 0 {
+		block.CumulativeDifficulty, err = bs.BlocksmithStrategy.CalculateCumulativeDifficulty(previousBlock, block)
+		if err != nil {
+			err = blocker.NewBlocker(
+				blocker.BlockErr,
+				fmt.Sprintf("PushBlock:CalculateCumulativeDifficultyError:%v", err),
+			)
+			return nil, nil, err
+		}
+	}
+
+	blockInsertQuery, blockInsertValue := bs.BlockQuery.InsertBlock(block)
+	err = bs.QueryExecutor.ExecuteTransaction(blockInsertQuery, blockInsertValue...)
 	if err != nil {
-		bs.queryAndCacheRollbackProcess("")
-		return err
+		return nil, nil, err
+	}
+	// nodeRegistryProcess precess to admit & expel node registry
+	nodeAdmissionTimestamp, err = bs.nodeRegistryProcess(block)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// if genesis
 	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// insert initial fee scale
-		err := bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
-			FeeScale:    constant.OneZBC, // initial fee_scale 1
+		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
+			FeeScale:    fee.InitialFeeScale,
 			BlockHeight: 0,
 			Latest:      true,
 		})
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("initFeeScale:rollback-error")
-			return err
+			err = fmt.Errorf("initFeeScale:rollback-error: %s", err.Error())
+			return nil, nil, err
 		}
 	}
 
 	// adjust fee if end of fee-vote period
 	_, adjust, err := bs.FeeScaleService.GetCurrentPhase(block.Timestamp, false)
 	if err != nil {
-		return err
+		err = fmt.Errorf("PushBlock:GetCurrentPhase error: %v", err)
+		return nil, nil, err
 	}
 
 	if adjust {
+		// TODO: move this anonymous function in a separate method for better code readability and testability
 		// fetch vote-reveals
 		voteInfos, err := func() ([]*model.FeeVoteInfo, error) {
 			var (
@@ -643,16 +659,19 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			)
 			err = bs.FeeScaleService.GetLatestFeeScale(&latestFeeScale)
 			if err != nil {
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			qry, args := bs.FeeVoteRevealVoteQuery.GetFeeVoteRevealsInPeriod(latestFeeScale.BlockHeight, block.Height)
 			rows, err := bs.QueryExecutor.ExecuteSelect(qry, false, args...)
 			if err != nil {
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			defer rows.Close()
 			queryResult, err = bs.FeeVoteRevealVoteQuery.BuildModel(queryResult, rows)
 			if err != nil {
+				err = fmt.Errorf(fmt.Sprintf("AdjustFeeError: %v", err))
 				return result, err
 			}
 			for _, vote := range queryResult {
@@ -662,8 +681,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		}()
 
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
-			return err
+			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
+			return nil, nil, err
 		}
 		// select vote
 		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
@@ -675,8 +694,8 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		})
 
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("AdjustFeeRollbackErr")
-			return err
+			err = fmt.Errorf(fmt.Sprintf("AdjustFeeRollbackErr: %v", err))
+			return nil, nil, err
 		}
 	}
 
@@ -687,24 +706,69 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 			strQuery, args := pQuery.PruneData(saveHeight, constant.PruningChunkedSize)
 			err = bs.QueryExecutor.ExecuteTransaction(strQuery, args...)
 			if err != nil {
-				bs.queryAndCacheRollbackProcess("PruneDataRollbackErr")
-				return err
+				err = fmt.Errorf(fmt.Sprintf("PruneDataRollbackErr: %v", err))
+				return nil, nil, err
 			}
 		}
 	}
 	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		if errRemoveMempool := bs.MempoolService.RemoveMempoolTransactions(block.GetTransactions()); errRemoveMempool != nil {
-			bs.queryAndCacheRollbackProcess("RemoveMempoolTransactionsRollbackErr")
+			err = fmt.Errorf(fmt.Sprintf("RemoveMempoolTransactionsRollbackErr: %v", err))
 			// reset mempool cache
 			initMempoolErr := bs.MempoolService.InitMempoolTransaction()
 			if initMempoolErr != nil {
 				bs.Logger.Errorf(initMempoolErr.Error())
 			}
-			return err
+			return nil, nil, err
 		}
 	}
 
-	err = bs.QueryExecutor.CommitTx()
+	return nodeAdmissionTimestamp, transactionIDs, nil
+}
+
+// PushBlock push block into blockchain, to broadcast the block after pushing to own node, switch the
+// broadcast flag to `true`, and `false` otherwise
+func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, persist bool) error {
+	var (
+		err                         error
+		round                       int64
+		start                       = time.Now()
+		isDbTransactionHighPriority = true
+	)
+	if !coreUtil.IsGenesis(previousBlock.GetID(), block) {
+		block.Height = previousBlock.GetHeight() + 1
+
+		roundInt, err := bs.BlocksmithStrategy.GetSmithingRound(previousBlock, block)
+		if err != nil {
+			return err
+		}
+		round = int64(roundInt)
+		// check for duplicate in block pool
+		blockPool := bs.BlockPoolService.GetBlock(round)
+		if blockPool != nil && !persist {
+			return blocker.NewBlocker(
+				blocker.BlockErr, "DuplicateBlockPool",
+			)
+		}
+	}
+
+	// start db transaction here
+	err = bs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.MainPushBlockOwnerProcess)
+	if err != nil {
+		return err
+	}
+
+	nodeAdmissionTimestamp, transactionIDs, err := bs.ProcessPushBlock(previousBlock, block, broadcast, persist, round)
+
+	if err != nil {
+		bs.queryAndCacheRollbackProcess(err.Error(), isDbTransactionHighPriority, false)
+		if castedError, ok := err.(blocker.Blocker); !ok || castedError.Type != blocker.IgnoredError {
+			return err
+		}
+		return nil
+	}
+
+	err = bs.QueryExecutor.CommitTx(isDbTransactionHighPriority)
 	if err != nil { // commit automatically unlock executor and close tx
 		return err
 	}
@@ -727,12 +791,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 		_ = bs.UpdateLastBlockCache(nil)
 	}
 	// cache last block into blocks cache storage
-	err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-		Timestamp: block.GetTimestamp(),
-		Height:    block.Height,
-		BlockHash: block.BlockHash,
-		ID:        block.ID,
-	})
+	err = bs.BlocksStorage.Push(commonUtils.BlockConvertToCacheFormat(block))
 	if err != nil {
 		bs.Logger.Warnf("FailedPushBlocksStorageCache-%v", err)
 		_ = bs.InitializeBlocksCache()
@@ -748,7 +807,7 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	if block.GetHeight() == bs.ScrambleNodeService.GetBlockHeightToBuildScrambleNodes(block.GetHeight()) {
 		err = bs.ScrambleNodeService.BuildScrambledNodes(block)
 		if err != nil {
-			bs.queryAndCacheRollbackProcess("")
+			bs.queryAndCacheRollbackProcess("", isDbTransactionHighPriority, true)
 			return err
 		}
 	}
@@ -767,11 +826,12 @@ func (bs *BlockService) PushBlock(previousBlock, block *model.Block, broadcast, 
 	bs.BlockchainStatusService.SetLastBlock(block, bs.Chaintype)
 	monitoring.SetLastBlock(bs.Chaintype, block)
 	monitoring.SetBlockProcessTime(time.Since(start).Milliseconds())
+
 	return nil
 }
 
 // queryAndCacheRollbackProcess process to rollback database & cache after failed execute query
-func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
+func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string, isDbTransactionHighPriority, cacheOnly bool) {
 	// clear all cache in transactional list
 	var err = bs.NodeAddressInfoService.RollbackCacheTransaction()
 	if err != nil {
@@ -781,8 +841,10 @@ func (bs *BlockService) queryAndCacheRollbackProcess(rollbackErrLable string) {
 	if err != nil {
 		bs.Logger.Errorf("noderegistry:cacheRollbackErr - %s", err.Error())
 	}
-	if rollbackErr := bs.QueryExecutor.RollbackTx(); rollbackErr != nil {
-		bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
+	if !cacheOnly {
+		if rollbackErr := bs.QueryExecutor.RollbackTx(isDbTransactionHighPriority); rollbackErr != nil {
+			bs.Logger.Errorf("%s:%s", rollbackErrLable, rollbackErr.Error())
+		}
 	}
 }
 
@@ -950,32 +1012,31 @@ func (bs *BlockService) updatePopScore(popScore int64, previousBlock, block *mod
 // GetBlockByID return a block by its ID
 // withAttachedData if true returns extra attached data for the block (transactions)
 func (bs *BlockService) GetBlockByID(id int64, withAttachedData bool) (*model.Block, error) {
-	if id == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, "block ID 0 is not found")
-	}
-	var (
-		block    model.Block
-		row, err = bs.QueryExecutor.ExecuteSelectRow(bs.BlockQuery.GetBlockByID(id), false)
-	)
+	var block, err = commonUtils.GetBlockByID(id, bs.QueryExecutor, bs.BlockQuery)
 	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	if err = bs.BlockQuery.Scan(&block, row); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, err.Error())
-		}
-		return nil, blocker.NewBlocker(blocker.DBErr, "failed to build model")
-	}
-	if block.ID == 0 {
-		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("block %v is not found", id))
+		return nil, err
 	}
 	if withAttachedData {
-		err = bs.PopulateBlockData(&block)
+		err = bs.PopulateBlockData(block)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return &block, nil
+	return block, nil
+}
+
+// GetBlockByID return a block by its ID using cache format
+func (bs *BlockService) GetBlockByIDCacheFormat(id int64) (*storage.BlockCacheObject, error) {
+	convertedBlocksCache, ok := bs.BlocksStorage.(storage.CacheStorageInterface)
+	if !ok {
+		return nil, blocker.NewBlocker(blocker.AppErr, "FailToCastBlocksStorageAsCacheStorageInterface")
+	}
+	return commonUtils.GetBlockByIDUseBlocksCache(
+		id,
+		bs.QueryExecutor,
+		bs.BlockQuery,
+		convertedBlocksCache,
+	)
 }
 
 // GetBlocksFromHeight get all blocks from a given height till last block (or a given limit is reached).
@@ -1007,13 +1068,19 @@ func (bs *BlockService) GetBlocksFromHeight(startHeight, limit uint32, withAttac
 // GetLastBlock return the last pushed block from block state storage
 func (bs *BlockService) GetLastBlock() (*model.Block, error) {
 	var (
-		lastBlock model.Block
-		err       = bs.BlockStateStorage.GetItem(nil, &lastBlock)
+		lastBlock *model.Block
+		err       error
 	)
+
+	lastBlock, err = commonUtils.GetLastBlock(bs.QueryExecutor, bs.BlockQuery)
+	if err != nil {
+		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	err = bs.PopulateBlockData(lastBlock)
 	if err != nil {
 		return nil, err
 	}
-	return &lastBlock, nil
+	return lastBlock, nil
 }
 
 // GetLastBlockCacheFormat return the last pushed block in storage.BlockCacheObject format
@@ -1167,12 +1234,9 @@ func (bs *BlockService) InitializeBlocksCache() error {
 		return err
 	}
 	for i := 0; i < len(blocks); i++ {
-		err = bs.BlocksStorage.Push(storage.BlockCacheObject{
-			Timestamp: blocks[i].GetTimestamp(),
-			Height:    blocks[i].Height,
-			BlockHash: blocks[i].BlockHash,
-			ID:        blocks[i].ID,
-		})
+		err = bs.BlocksStorage.Push(
+			commonUtils.BlockConvertToCacheFormat(blocks[i]),
+		)
 		if err != nil {
 			return err
 		}
@@ -1234,7 +1298,7 @@ func (bs *BlockService) GenerateBlock(
 	if !empty {
 		sortedTransactions, err = bs.MempoolService.SelectTransactionsFromMempool(timestamp, newBlockHeight)
 		if err != nil {
-			return nil, errors.New("MempoolReadError")
+			return nil, fmt.Errorf("MempoolReadError")
 		}
 		// select transactions from mempool to be added to the block
 		for _, tx := range sortedTransactions {
@@ -1401,8 +1465,13 @@ func (bs *BlockService) ReceiveBlock(
 	lastBlock, block *model.Block,
 	nodeSecretPhrase string,
 	peer *model.Peer,
+	generateReceipt bool,
 ) (*model.Receipt, error) {
-	var err error
+	var (
+		lastBlockCacheFormat = commonUtils.BlockConvertToCacheFormat(lastBlock)
+		receipt              *model.Receipt
+		err                  error
+	)
 	// make sure block has previous block hash
 	if block.GetPreviousBlockHash() == nil {
 		return nil, blocker.NewBlocker(
@@ -1420,6 +1489,25 @@ func (bs *BlockService) ReceiveBlock(
 
 	// check if received the exact same block as current node's last block
 	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		if generateReceipt {
+			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
+				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
+					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+						bs.Chaintype,
+						block.GetBlockHash(),
+						&lastBlockCacheFormat,
+						senderPublicKey,
+						nodeSecretPhrase,
+						constant.ReceiptDatumTypeTransaction,
+					)
+					if err != nil {
+						return nil, err
+					}
+					return receipt, nil
+				}
+				return nil, status.Error(codes.Internal, e.Error())
+			}
+		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
 
@@ -1454,38 +1542,38 @@ func (bs *BlockService) ReceiveBlock(
 	if err != nil {
 		return nil, err
 	}
-	lastBlockCacheFormat := &storage.BlockCacheObject{
-		ID:        lastBlock.ID,
-		Height:    lastBlock.Height,
-		BlockHash: lastBlock.BlockHash,
+
+	// Need to check if the sender is on the priority list,
+	// And no need to send a receipt if not in
+	if generateReceipt {
+		receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+			bs.Chaintype,
+			block.GetBlockHash(),
+			&lastBlockCacheFormat,
+			senderPublicKey,
+			nodeSecretPhrase,
+			constant.ReceiptDatumTypeBlock,
+		)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+		return receipt, nil
 	}
-	// generate receipt and return as response
-	receipt, err := bs.ReceiptService.GenerateReceiptWithReminder(
-		bs.Chaintype, block.GetBlockHash(),
-		lastBlockCacheFormat,
-		senderPublicKey,
-		nodeSecretPhrase,
-		constant.ReceiptDatumTypeBlock,
-	)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	return receipt, nil
+	return nil, nil
 }
 
 func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
-	var (
-		publishedReceipts []*model.PublishedReceipt
-		err               error
-	)
 	// if current blockchain Height is lower than minimal height of the blockchain that is allowed to rollback
-	lastBlock, err := bs.GetLastBlock()
+	// make sure this block contains all its attributes (transaction, receipts)
+	var lastBlock, err = bs.GetLastBlock()
 	if err != nil {
+
 		return nil, err
 	}
 	minRollbackHeight := commonUtils.GetMinRollbackHeight(lastBlock.Height)
 
 	if commonBlock.Height < minRollbackHeight {
+
 		// TODO: handle it appropriately and analyze the effect if this returning empty element in the further processfork process
 		bs.Logger.Warn("the node blockchain detects hardfork, please manually delete the database to recover")
 		return nil, nil
@@ -1493,38 +1581,28 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 
 	_, err = bs.GetBlockByID(commonBlock.ID, false)
 	if err != nil {
+
 		return nil, blocker.NewBlocker(blocker.BlockNotFoundErr, fmt.Sprintf("the common block is not found %v", commonBlock.ID))
 	}
 
-	var poppedBlocks []*model.Block
-	block := lastBlock
-
-	// TODO:
-	// Need to refactor this codes with better solution in the future
-	// https://github.com/zoobc/zoobc-core/pull/514#discussion_r355297318
-	publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	block.PublishedReceipts = publishedReceipts
-
+	var (
+		poppedBlocks []*model.Block
+		block        = lastBlock
+	)
 	for block.ID != commonBlock.ID && block.ID != bs.Chaintype.GetGenesisBlockID() {
+
 		poppedBlocks = append(poppedBlocks, block)
+		// make sure this block contains all its attributes (transaction, receipts)
 		block, err = bs.GetBlockByHeight(block.Height - 1)
 		if err != nil {
 			return nil, err
 		}
-		publishedReceipts, err = bs.ReceiptService.GetPublishedReceiptsByHeight(block.GetHeight())
-		if err != nil {
-			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-		}
-		block.PublishedReceipts = publishedReceipts
 	}
-
 	// Backup existing transactions from mempool before rollback
 	// note: rollback process do inside Backup Mempools func
 	err = bs.MempoolService.BackupMempools(commonBlock)
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -1532,15 +1610,18 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// Note: Make sure every time calling query insert & rollback block, calling this SetItem too
 	err = bs.UpdateLastBlockCache(nil)
 	if err != nil {
+
 		return nil, err
 	}
 	err = bs.BlocksStorage.PopTo(commonBlock.Height)
 	if err != nil {
+
 		return nil, err
 	}
 	// update cache next node admission timestamp after rollback
 	err = bs.NodeRegistrationService.UpdateNextNodeAdmissionCache(nil)
 	if err != nil {
+
 		return nil, err
 	}
 	// TODO: here we should also delete all snapshot files relative to the block manifests being rolled back during derived tables
@@ -1552,6 +1633,7 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// remove peer memoization
 	err = bs.ScrambleNodeService.PopOffScrambleToHeight(commonBlock.Height)
 	if err != nil {
+
 		return nil, err
 	}
 	/*
@@ -1563,10 +1645,12 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()
 	if err != nil {
+
 		return nil, err
 	}
 	// Need to sort ascending since was descended in above by Height
 	sort.Slice(poppedBlocks, func(i, j int) bool {
+
 		return poppedBlocks[i].GetHeight() < poppedBlocks[j].GetHeight()
 	})
 

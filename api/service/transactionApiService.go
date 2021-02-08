@@ -1,12 +1,65 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package service
 
 import (
 	"database/sql"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"math"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/chaintype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/transaction"
 	"github.com/zoobc/zoobc-core/core/service"
@@ -34,6 +87,8 @@ type (
 		MempoolService     service.MempoolServiceInterface
 		Observer           *observer.Observer
 		TransactionUtil    transaction.UtilInterface
+		FeedbackStrategy   feedbacksystem.FeedbackStrategyInterface
+		Logger             *log.Logger
 	}
 )
 
@@ -47,6 +102,8 @@ func NewTransactionService(
 	mempoolService service.MempoolServiceInterface,
 	observer *observer.Observer,
 	transactionUtil transaction.UtilInterface,
+	feedbackStrategy feedbacksystem.FeedbackStrategyInterface,
+	logger *log.Logger,
 ) *TransactionService {
 	if transactionServiceInstance == nil {
 		transactionServiceInstance = &TransactionService{
@@ -56,6 +113,8 @@ func NewTransactionService(
 			MempoolService:     mempoolService,
 			Observer:           observer,
 			TransactionUtil:    transactionUtil,
+			FeedbackStrategy:   feedbackStrategy,
+			Logger:             logger,
 		}
 	}
 	return transactionServiceInstance
@@ -142,6 +201,18 @@ func (ts *TransactionService) GetTransactions(
 	}
 	selectQuery, args = caseQuery.Build()
 
+	fromBlock := params.GetFromBlock()
+	toBlock := params.GetToBlock()
+
+	if fromBlock > toBlock {
+		return nil, status.Error(codes.Internal, "FromBlock height cannot exceed toBlock height")
+	}
+
+	if toBlock != 0 && fromBlock <= toBlock {
+		caseQuery.And(caseQuery.Between("block_height", fromBlock, toBlock))
+		selectQuery, args = caseQuery.Build()
+	}
+
 	// count first
 	countQuery := query.GetTotalRecordOfSelect(selectQuery)
 	rowCount, err = ts.Query.ExecuteSelectRow(countQuery, false, args...)
@@ -220,7 +291,56 @@ func (ts *TransactionService) PostTransaction(
 		txType  transaction.TypeAction
 		tx      *model.Transaction
 		err     error
+		tpsProcessed,
+		tpsReceived int
+		isDbTransactionHighPriority = false
 	)
+
+	// Set txReceived (transactions to be processed received by clients since last node run)
+	ts.FeedbackStrategy.IncrementVarCount("txReceived")
+	monitoring.IncreaseTxReceived()
+
+	// TODO: this is an example to prove that, by limiting number of tx per second
+	//  when the node is too busy due to high number of goroutines,
+	//  the network can regulate itself without leading to blockchain splits or hard forks
+	tpsReceived = ts.FeedbackStrategy.IncrementVarCount("tpsReceivedTmp").(int)
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsCPULimitReached(constant.FeedbackCPUMinSamples); limitReached {
+		if limitLevel == constant.FeedbackLimitHigh || limitLevel == constant.FeedbackLimitCritical {
+			ts.Logger.Error("Tx dropped due to high cpu usage")
+			monitoring.IncreaseTxFiltered()
+			return nil, status.Error(codes.Unavailable, "Service is currently not available")
+		}
+	}
+	// TODO: remove comment to use goroutine limit too
+	// if limitReached, limitLevel := ts.FeedbackStrategy.IsGoroutineLimitReached(constant.FeedbackMinSamples); limitReached {
+	// 	switch limitLevel {
+	// 	case constant.FeedbackLimitHigh:
+	// 		ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 		monitoring.IncreaseTxFiltered()
+	// 		return nil, status.Error(codes.Internal, "TooManyTps")
+	// 	case constant.FeedbackLimitMedium:
+	// 		if tpsReceived > 1 {
+	// 			ts.Logger.Error("Tx dropped due to network being spammed with too many transactions")
+	// 			monitoring.IncreaseTxFiltered()
+	// 			return nil, status.Error(codes.Internal, "TooManyTps")
+	// 		}
+	// 	}
+	// }
+	if limitReached, limitLevel := ts.FeedbackStrategy.IsP2PRequestLimitReached(constant.FeedbackMinSamples); limitReached {
+		switch limitLevel {
+		case constant.FeedbackLimitHigh:
+			ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+			monitoring.IncreaseTxFiltered()
+			return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+		case constant.FeedbackLimitMedium:
+			if tpsReceived > 2 {
+				ts.Logger.Error("Tx dropped due to node being too busy resolving P2P requests")
+				monitoring.IncreaseTxFiltered()
+				return nil, status.Error(codes.Internal, "TooManyP2PRequests")
+			}
+		}
+	}
+
 	// get unsigned bytes
 	tx, err = ts.TransactionUtil.ParseTransactionBytes(txBytes, true)
 	if err != nil {
@@ -235,7 +355,7 @@ func (ts *TransactionService) PostTransaction(
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	// Apply Unconfirmed
-	err = ts.Query.BeginTx()
+	err = ts.Query.BeginTx(isDbTransactionHighPriority, monitoring.PostTransactionServiceOwnerProcess)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -249,7 +369,7 @@ func (ts *TransactionService) PostTransaction(
 		err = txType.ApplyUnconfirmed()
 	}
 	if err != nil {
-		errRollback := ts.Query.RollbackTx()
+		errRollback := ts.Query.RollbackTx(isDbTransactionHighPriority)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
@@ -258,16 +378,25 @@ func (ts *TransactionService) PostTransaction(
 	// Save to mempool
 	err = ts.MempoolService.AddMempoolTransaction(tx, txBytes)
 	if err != nil {
-		errRollback := ts.Query.RollbackTx()
+		errRollback := ts.Query.RollbackTx(isDbTransactionHighPriority)
 		if errRollback != nil {
 			return nil, status.Error(codes.Internal, errRollback.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	err = ts.Query.CommitTx()
+	err = ts.Query.CommitTx(isDbTransactionHighPriority)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
+
+	// Set tpsProcessed (transactions per seconds already processed received by clients).
+	// Note: these are the ones that produce network traffic because they must be broadcast to peers
+	tpsProcessed = ts.FeedbackStrategy.IncrementVarCount("tpsProcessedTmp").(int)
+	monitoring.SetTpsProcessed(tpsProcessed)
+
+	// Set txProcessed (transactions already processed received by clients since last node run).
+	ts.FeedbackStrategy.IncrementVarCount("txProcessed")
+	monitoring.IncreaseTxProcessed()
 
 	ts.Observer.Notify(observer.TransactionAdded, txBytes, chaintype)
 	// return parsed transaction

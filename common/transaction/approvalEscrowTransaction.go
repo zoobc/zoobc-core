@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
@@ -15,20 +64,15 @@ import (
 type (
 	// ApprovalEscrowTransaction field
 	ApprovalEscrowTransaction struct {
-		ID                   int64
-		Fee                  int64
-		SenderAddress        []byte
-		Height               uint32
+		TransactionObject    *model.Transaction
 		Body                 *model.ApprovalEscrowTransactionBody
-		Escrow               *model.Escrow
 		BlockQuery           query.BlockQueryInterface
 		EscrowQuery          query.EscrowTransactionQueryInterface
 		QueryExecutor        query.ExecutorInterface
 		TransactionQuery     query.TransactionQueryInterface
 		TypeActionSwitcher   TypeActionSwitcher
 		AccountBalanceHelper AccountBalanceHelperInterface
-		EscrowFee            fee.FeeModelInterface
-		NormalFee            fee.FeeModelInterface
+		FeeScaleService      fee.FeeScaleServiceInterface
 	}
 	// EscrowTypeAction is escrow transaction type methods collection
 	EscrowTypeAction interface {
@@ -67,10 +111,12 @@ func (*ApprovalEscrowTransaction) GetSize() (uint32, error) {
 }
 
 func (tx *ApprovalEscrowTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 // GetAmount return Amount from TransactionBody
@@ -130,13 +176,13 @@ func (tx *ApprovalEscrowTransaction) Validate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	err = tx.checkEscrowValidity(dbTx, tx.Height)
+	err = tx.checkEscrowValidity(dbTx, tx.TransactionObject.Height)
 	if err != nil {
 		return err
 	}
 	// check existing account & balance
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee)
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -180,7 +226,7 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 	}
 
 	// Check sender, should be approver address
-	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.SenderAddress) {
+	if !bytes.Equal(latestEscrow.GetApproverAddress(), tx.TransactionObject.SenderAccountAddress) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidSenderAddress")
 	}
 
@@ -195,14 +241,14 @@ func (tx *ApprovalEscrowTransaction) checkEscrowValidity(dbTx bool, blockHeight 
 ApplyUnconfirmed exec before Confirmed
 */
 func (tx *ApprovalEscrowTransaction) ApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 }
 
 /*
 UndoApplyUnconfirmed func exec before confirmed
 */
 func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 }
 
 /*
@@ -249,7 +295,7 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		return blocker.NewBlocker(blocker.AppErr, "TransactionNotFound")
 
 	}
-	transaction.Height = tx.Height
+	transaction.Height = tx.TransactionObject.Height
 	transaction.Escrow = &latestEscrow
 
 	txType, err = tx.TypeActionSwitcher.GetTransactionType(&transaction)
@@ -269,11 +315,11 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 
 	// Update sender
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-tx.Fee,
+		tx.TransactionObject.SenderAccountAddress,
+		-tx.TransactionObject.Fee,
 		model.EventType_EventApprovalEscrowTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -287,8 +333,8 @@ Escrowable will check the transaction is escrow or not.
 Rebuild escrow if not nil, and can use for whole sibling methods (escrow)
 */
 func (tx *ApprovalEscrowTransaction) Escrowable() (EscrowTypeAction, bool) {
-
-	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
+	if tx.TransactionObject.Escrow != nil && tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
+		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false

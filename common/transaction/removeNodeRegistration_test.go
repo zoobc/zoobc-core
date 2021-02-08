@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
@@ -177,11 +226,11 @@ func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) ExecuteTransacti
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx() error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) BeginTx(bool, int) error {
 	return nil
 }
 
-func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) CommitTx() error {
+func (*mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess) CommitTx(bool) error {
 	return nil
 }
 
@@ -205,9 +254,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 	bodyBytes := buffer.Bytes()
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -229,9 +276,7 @@ func TestRemoveNodeRegistration_GetBodyBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
@@ -250,9 +295,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 	}
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -296,9 +339,7 @@ func TestRemoveNodeRegistration_ParseBodyBytes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
@@ -370,9 +411,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -385,10 +424,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:success",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress1,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
@@ -398,10 +439,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{GetNodeQuery}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress1,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailGetRNode{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
@@ -410,10 +453,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{AccountNotNodeOwner}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress2,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress2,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
@@ -422,10 +467,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{NodeAlreadyDeleted}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress1,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationFailNodeAlreadyDeleted{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 			},
@@ -434,10 +481,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{GetAccountBalanceByAccountAddressFail}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   mockFeeRemoveNodeRegistrationValidate,
-				SenderAddress:         senderAddress1,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  mockFeeRemoveNodeRegistrationValidate,
+					SenderAccountAddress: senderAddress1,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
@@ -447,10 +496,12 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		{
 			name: "Validate:fail-{GetAccountBalanceByAccountAddressNotEnoughSpendable}",
 			fields: fields{
-				Body:                  body,
-				Fee:                   mockFeeRemoveNodeRegistrationValidate,
-				SenderAddress:         senderAddress1,
-				Height:                1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  mockFeeRemoveNodeRegistrationValidate,
+					SenderAccountAddress: senderAddress1,
+					Height:               1,
+				},
 				QueryExecutor:         &mockExecutorValidateRemoveNodeRegistrationSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
@@ -462,9 +513,7 @@ func TestRemoveNodeRegistration_Validate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
@@ -480,9 +529,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -495,10 +542,12 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:fail-{executeTransactionsFail}",
 			fields: fields{
-				SenderAddress:         senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+					Fee:                  1,
+				},
 				QueryExecutor:         &mockExecutorUndoUnconfirmedExecuteTransactionsFail{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Fee:                   1,
 				Body:                  body,
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
 			},
@@ -507,10 +556,12 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		{
 			name: "UndoApplyUnconfirmed:success",
 			fields: fields{
-				SenderAddress:         senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+					Fee:                  1,
+				},
 				QueryExecutor:         &mockExecutorUndoUnconfirmedSuccess{},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
-				Fee:                   1,
 				Body:                  body,
 				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
 			},
@@ -521,9 +572,7 @@ func TestRemoveNodeRegistration_UndoApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
@@ -539,9 +588,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -554,9 +601,11 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed:success",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyUnconfirmedRemoveNodeRegistrationSuccess{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperSuccess{},
@@ -566,9 +615,11 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		{
 			name: "ApplyUnconfirmed:fail",
 			fields: fields{
-				Body:                  body,
-				Fee:                   1,
-				SenderAddress:         senderAddress1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+				},
 				NodeRegistrationQuery: query.NewNodeRegistrationQuery(),
 				QueryExecutor:         &mockExecutorApplyUnconfirmedRemoveNodeRegistrationFail{},
 				AccountBalanceHelper:  &mockAccountBalanceHelperFail{},
@@ -580,9 +631,7 @@ func TestRemoveNodeRegistration_ApplyUnconfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
@@ -608,9 +657,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 	body, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
 		Body                     *model.RemoveNodeRegistrationTransactionBody
-		Fee                      int64
-		SenderAddress            []byte
-		Height                   uint32
+		TransactionObject        *model.Transaction
 		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
 		QueryExecutor            query.ExecutorInterface
 		NodeAddressInfoQuery     query.NodeAddressInfoQueryInterface
@@ -627,9 +674,11 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:fail-{nodeNotExist}",
 			fields: fields{
-				Body:                     body,
-				Fee:                      1,
-				SenderAddress:            senderAddress1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+				},
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationFail{},
 				AccountBalanceHelper:     &mockAccountBalanceHelperSuccess{},
@@ -641,9 +690,11 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		{
 			name: "ApplyConfirmed:success",
 			fields: fields{
-				Body:                     body,
-				Fee:                      1,
-				SenderAddress:            senderAddress1,
+				Body: body,
+				TransactionObject: &model.Transaction{
+					Fee:                  1,
+					SenderAccountAddress: senderAddress1,
+				},
 				NodeRegistrationQuery:    query.NewNodeRegistrationQuery(),
 				QueryExecutor:            &mockExecutorApplyConfirmedRemoveNodeRegistrationSuccess{},
 				NodeAddressInfoQuery:     query.NewNodeAddressInfoQuery(),
@@ -659,9 +710,7 @@ func TestRemoveNodeRegistration_ApplyConfirmed(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                     tt.fields.Body,
-				Fee:                      tt.fields.Fee,
-				SenderAddress:            tt.fields.SenderAddress,
-				Height:                   tt.fields.Height,
+				TransactionObject:        tt.fields.TransactionObject,
 				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
 				QueryExecutor:            tt.fields.QueryExecutor,
 				NodeAddressInfoQuery:     tt.fields.NodeAddressInfoQuery,
@@ -681,9 +730,7 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 	mockTxBody, _ := GetFixturesForRemoveNoderegistration()
 	type fields struct {
 		Body                  *model.RemoveNodeRegistrationTransactionBody
-		Fee                   int64
-		SenderAddress         []byte
-		Height                uint32
+		TransactionObject     *model.Transaction
 		NodeRegistrationQuery query.NodeRegistrationQueryInterface
 		QueryExecutor         query.ExecutorInterface
 		AccountBalanceHelper  AccountBalanceHelperInterface
@@ -710,9 +757,7 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &RemoveNodeRegistration{
 				Body:                  tt.fields.Body,
-				Fee:                   tt.fields.Fee,
-				SenderAddress:         tt.fields.SenderAddress,
-				Height:                tt.fields.Height,
+				TransactionObject:     tt.fields.TransactionObject,
 				NodeRegistrationQuery: tt.fields.NodeRegistrationQuery,
 				QueryExecutor:         tt.fields.QueryExecutor,
 				AccountBalanceHelper:  tt.fields.AccountBalanceHelper,
@@ -724,11 +769,8 @@ func TestRemoveNodeRegistration_GetTransactionBody(t *testing.T) {
 
 func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	type fields struct {
-		ID                      int64
 		Body                    *model.NodeRegistrationTransactionBody
-		Fee                     int64
-		SenderAddress           []byte
-		Height                  uint32
+		TransactionObject       *model.Transaction
 		NodeRegistrationQuery   query.NodeRegistrationQueryInterface
 		BlockQuery              query.BlockQueryInterface
 		ParticipationScoreQuery query.ParticipationScoreQueryInterface
@@ -750,7 +792,9 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{Filtered}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -773,7 +817,9 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_DifferentSenders}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -795,7 +841,9 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 		{
 			name: "SkipMempoolTransaction:success-{UnFiltered_NoOtherRecordsFound}",
 			fields: fields{
-				SenderAddress: senderAddress1,
+				TransactionObject: &model.Transaction{
+					SenderAccountAddress: senderAddress1,
+				},
 			},
 			args: args{
 				selectedTransactions: []*model.Transaction{
@@ -818,11 +866,8 @@ func TestRemoveNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tx := &NodeRegistration{
-				ID:                      tt.fields.ID,
 				Body:                    tt.fields.Body,
-				Fee:                     tt.fields.Fee,
-				SenderAddress:           tt.fields.SenderAddress,
-				Height:                  tt.fields.Height,
+				TransactionObject:       tt.fields.TransactionObject,
 				NodeRegistrationQuery:   tt.fields.NodeRegistrationQuery,
 				BlockQuery:              tt.fields.BlockQuery,
 				ParticipationScoreQuery: tt.fields.ParticipationScoreQuery,

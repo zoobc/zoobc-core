@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package main
 
 import (
@@ -5,7 +54,19 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/queue"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"syscall"
+	"time"
+
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,6 +81,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/database"
 	"github.com/zoobc/zoobc-core/common/fee"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -31,7 +93,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
-	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -39,15 +100,6 @@ import (
 	"github.com/zoobc/zoobc-core/p2p/client"
 	p2pStrategy "github.com/zoobc/zoobc-core/p2p/strategy"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
-	"net/http"
-	_ "net/http/pprof"
-	"os"
-	"os/signal"
-	"path/filepath"
-	"runtime"
-	"sort"
-	"syscall"
-	"time"
 )
 
 var (
@@ -109,8 +161,10 @@ var (
 	mainchainDownloader, spinechainDownloader                              blockchainsync.BlockchainDownloadInterface
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
-	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
-	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
+	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
+	blocksmithStrategyMain                                                 blockSmithStrategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                blockSmithStrategy.BlocksmithStrategyInterface
+	priorityPreferenceLock                                                 queue.PriorityLock
 )
 var (
 	flagConfigPath, flagConfigPostfix, flagResourcePath string
@@ -142,7 +196,7 @@ func initiateMainInstance() {
 
 	// load config for default value to be feed to viper
 	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
@@ -175,6 +229,14 @@ func initiateMainInstance() {
 		case 1:
 			bitcoinSignature := signaturetype.NewBitcoinSignature(signaturetype.DefaultBitcoinNetworkParams(), signaturetype.DefaultBitcoinCurve())
 			encodedAccountAddress, err = bitcoinSignature.GetAddressFromPublicKey(accType.GetAccountPublicKey())
+			if err != nil {
+				log.Error(err)
+				os.Exit(1)
+			}
+		case 3:
+			estoniaEidAccountType := &accounttype.EstoniaEidAccountType{}
+			estoniaEidAccountType.SetAccountPublicKey(accType.GetAccountPublicKey())
+			encodedAccountAddress, err = estoniaEidAccountType.GetEncodedAddress()
 			if err != nil {
 				log.Error(err)
 				os.Exit(1)
@@ -248,9 +310,22 @@ func initiateMainInstance() {
 			os.Exit(1)
 		}
 	}
+
+	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
+
+	if config.AntiSpamFilter {
+		feedbackStrategy = feedbacksystem.NewAntiSpamStrategy(
+			loggerCoreService,
+			config.AntiSpamCPULimitPercentage,
+			config.AntiSpamP2PRequestLimit,
+		)
+	} else {
+		// no filtering: turn antispam filter off
+		feedbackStrategy = feedbacksystem.NewDummyFeedbackStrategy()
+	}
+
 	cliMonitoring = monitoring.NewCLIMonitoring(config)
 	monitoring.SetCLIMonitoring(cliMonitoring)
-	initLogInstance(fmt.Sprintf("%s/.log", config.ResourcePath))
 
 	// break
 	// initialize/open db and queryExecutor
@@ -269,7 +344,7 @@ func initiateMainInstance() {
 	if err != nil {
 		loggerCoreService.Fatal(err)
 	}
-	queryExecutor = query.NewQueryExecutor(db)
+	queryExecutor = query.NewQueryExecutor(db, priorityPreferenceLock)
 
 	// initialize cache storage
 	mainBlockStateStorage = storage.NewBlockStateStorage()
@@ -284,8 +359,8 @@ func initiateMainInstance() {
 	mempoolBackupStorage = storage.NewMempoolBackupStorage()
 	batchReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 	nodeAddressInfoStorage = storage.NewNodeAddressInfoStorage()
-	mainBlocksStorage = storage.NewBlocksStorage()
-	spineBlocksStorage = storage.NewBlocksStorage()
+	mainBlocksStorage = storage.NewBlocksStorage(monitoring.TypeMainBlocksCacheStorage)
+	spineBlocksStorage = storage.NewBlocksStorage(monitoring.TypeSpineBlocksCacheStorage)
 	// store current active node registry (not in queue)
 	activeNodeRegistryCacheStorage = storage.NewNodeRegistryCacheStorage(
 		monitoring.TypeActiveNodeRegistryStorage,
@@ -417,23 +492,24 @@ func initiateMainInstance() {
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewBlockQuery(mainchain),
 		mainBlocksStorage,
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		mainchain,
 	)
-	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		query.NewBlockQuery(spinechain),
 		spineBlocksStorage,
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		spinechain,
+		query.NewSpinePublicKeyQuery(),
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -513,7 +589,7 @@ func initiateMainInstance() {
 		query.NewBlockQuery(mainchain),
 		query.NewMempoolQuery(mainchain),
 		query.NewTransactionQuery(mainchain),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		crypto.NewSignature(),
 		mempoolService,
 		receiptService,
@@ -561,7 +637,7 @@ func initiateMainInstance() {
 		query.NewPendingSignatureQuery(),
 		query.NewMultisignatureInfoQuery(),
 		query.NewMultiSignatureParticipantQuery(),
-		query.NewSkippedBlocksmithQuery(),
+		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewFeeScaleQuery(),
 		query.NewFeeVoteCommitmentVoteQuery(),
 		query.NewFeeVoteRevealVoteQuery(),
@@ -609,6 +685,7 @@ func initiateMainInstance() {
 		spinechain,
 		queryExecutor,
 		query.NewBlockQuery(spinechain),
+		query.NewSkippedBlocksmithQuery(spinechain),
 		crypto.NewSignature(),
 		observerInstance,
 		blocksmithStrategySpine,
@@ -620,6 +697,7 @@ func initiateMainInstance() {
 		blockchainStatusService,
 		spinePublicKeyService,
 		mainchainBlockService,
+		spineBlocksStorage,
 	)
 
 	/*
@@ -682,6 +760,7 @@ func initP2pInstance() {
 		receiptService,
 		nodeConfigurationService,
 		nodeAuthValidationService,
+		feedbackStrategy,
 		loggerP2PService,
 	)
 
@@ -706,6 +785,7 @@ func initP2pInstance() {
 		fileService,
 		nodeRegistrationService,
 		nodeConfigurationService,
+		feedbackStrategy,
 	)
 	fileDownloader = p2p.NewFileDownloader(
 		p2pServiceInstance,
@@ -746,6 +826,8 @@ func startServices() {
 		nodeConfigurationService,
 		nodeAddressInfoService,
 		observerInstance,
+		feedbackStrategy,
+		scrambleNodeStorage,
 	)
 	api.Start(
 		queryExecutor,
@@ -768,6 +850,7 @@ func startServices() {
 		config.APIKeyFile,
 		config.MaxAPIRequestPerSecond,
 		config.NodeKey.PublicKey,
+		feedbackStrategy,
 	)
 }
 
@@ -1122,6 +1205,7 @@ func start() {
 	startServices()
 	startScheduler()
 	go startBlockchainSynchronizers()
+	go feedbackStrategy.StartSampling(constant.FeedbackSamplingInterval)
 
 	// Shutting Down
 	shutdownCompleted := make(chan bool, 1)
@@ -1173,6 +1257,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&flagUseEnv, "use-env", false, "Running node without configuration file")
 	rootCmd.PersistentFlags().StringVar(&flagResourcePath, "resource-path", "", "Resource path location")
 	config = model.NewConfig()
+	priorityPreferenceLock = queue.NewPriorityPreferenceLock()
 }
 
 func main() {

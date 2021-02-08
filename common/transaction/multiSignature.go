@@ -1,3 +1,52 @@
+// ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
+// This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
+//
+// ZooBC is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// ZooBC is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with ZooBC.  If not, see <http://www.gnu.org/licenses/>.
+//
+// Additional Permission Under GNU GPL Version 3 section 7.
+// As the special exception permitted under Section 7b, c and e,
+// in respect with the Author’s copyright, please refer to this section:
+//
+// 1. You are free to convey this Program according to GNU GPL Version 3,
+//     as long as you respect and comply with the Author’s copyright by
+//     showing in its user interface an Appropriate Notice that the derivate
+//     program and its source code are “powered by ZooBC”.
+//     This is an acknowledgement for the copyright holder, ZooBC,
+//     as the implementation of appreciation of the exclusive right of the
+//     creator and to avoid any circumvention on the rights under trademark
+//     law for use of some trade names, trademarks, or service marks.
+//
+// 2. Complying to the GNU GPL Version 3, you may distribute
+//     the program without any permission from the Author.
+//     However a prior notification to the authors will be appreciated.
+//
+// ZooBC is architected by Roberto Capodieci & Barton Johnston
+//             contact us at roberto.capodieci[at]blockchainzoo.com
+//             and barton.johnston[at]blockchainzoo.com
+//
+// Core developers that contributed to the current implementation of the
+// software are:
+//             Ahmad Ali Abdilah ahmad.abdilah[at]blockchainzoo.com
+//             Allan Bintoro allan.bintoro[at]blockchainzoo.com
+//             Andy Herman
+//             Gede Sukra
+//             Ketut Ariasa
+//             Nawi Kartini nawi.kartini[at]blockchainzoo.com
+//             Stefano Galassi stefano.galassi[at]blockchainzoo.com
+//
+// IMPORTANT: The above copyright notice and this permission notice
+// shall be included in all copies or substantial portions of the Software.
 package transaction
 
 import (
@@ -22,19 +71,13 @@ type (
 	// MultiSignatureTransaction represent wrapper transaction type that require multiple signer to approve the transaction
 	// wrapped
 	MultiSignatureTransaction struct {
-		ID              int64
-		SenderAddress   []byte
-		Fee             int64
-		Body            *model.MultiSignatureTransactionBody
-		NormalFee       fee.FeeModelInterface
-		EscrowFee       fee.FeeModelInterface
-		TransactionUtil UtilInterface
-		TypeSwitcher    TypeActionSwitcher
-		Signature       crypto.SignatureInterface
-		Height          uint32
-		BlockID         int64
-		Escrow          *model.Escrow
-		EscrowQuery     query.EscrowTransactionQueryInterface
+		TransactionObject *model.Transaction
+		Body              *model.MultiSignatureTransactionBody
+		FeeScaleService   fee.FeeScaleServiceInterface
+		TransactionUtil   UtilInterface
+		TypeSwitcher      TypeActionSwitcher
+		Signature         crypto.SignatureInterface
+		EscrowQuery       query.EscrowTransactionQueryInterface
 		// multisig helpers
 		MultisigUtil             MultisigTransactionUtilInterface
 		SignatureInfoHelper      SignatureInfoHelperInterface
@@ -343,7 +386,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			return err
 		}
 		tx.Body.MultiSignatureInfo.MultisigAddress = address
-		tx.Body.MultiSignatureInfo.BlockHeight = tx.Height
+		tx.Body.MultiSignatureInfo.BlockHeight = tx.TransactionObject.Height
 		tx.Body.MultiSignatureInfo.Latest = true
 		err = tx.MultisignatureInfoHelper.InsertMultisignatureInfo(tx.Body.MultiSignatureInfo)
 		if err != nil {
@@ -363,7 +406,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		var pendingTx model.PendingTransaction
 		err = tx.PendingTransactionHelper.GetPendingTransactionByHash(&pendingTx, txHash[:], []model.PendingTransactionStatus{
 			model.PendingTransactionStatus_PendingTransactionPending,
-		}, tx.Height, true)
+		}, tx.TransactionObject.Height, true)
 		if err == sql.ErrNoRows {
 			// apply-unconfirmed on pending transaction
 			err = tx.PendingTransactionHelper.ApplyUnconfirmedPendingTransaction(tx.Body.UnsignedTransactionBytes)
@@ -376,7 +419,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 				TransactionHash:  txHash[:],
 				TransactionBytes: tx.Body.UnsignedTransactionBytes,
 				Status:           model.PendingTransactionStatus_PendingTransactionPending,
-				BlockHeight:      tx.Height,
+				BlockHeight:      tx.TransactionObject.Height,
 				Latest:           true,
 			}
 			err = tx.PendingTransactionHelper.InsertPendingTransaction(pendingTx)
@@ -401,7 +444,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 				TransactionHash: tx.Body.SignatureInfo.TransactionHash,
 				AccountAddress:  addr,
 				Signature:       sig,
-				BlockHeight:     tx.Height,
+				BlockHeight:     tx.TransactionObject.Height,
 				Latest:          true,
 			}
 			err = tx.SignatureInfoHelper.InsertPendingSignature(pendingSig)
@@ -418,7 +461,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		tx.SignatureInfoHelper,
 		tx.PendingTransactionHelper,
 		tx.Body,
-		tx.Height,
+		tx.TransactionObject.Height,
 	)
 	if err != nil {
 		return err
@@ -430,7 +473,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		// parse the UnsignedTransactionBytes
 		utx, err := tx.PendingTransactionHelper.ApplyConfirmedPendingTransaction(
 			cpTx.Body.UnsignedTransactionBytes,
-			tx.Height,
+			tx.TransactionObject.Height,
 			blockTimestamp,
 		)
 		if err != nil {
@@ -443,7 +486,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 			TransactionHash:  v.SignatureInfo.TransactionHash,
 			TransactionBytes: v.UnsignedTransactionBytes,
 			Status:           model.PendingTransactionStatus_PendingTransactionExecuted,
-			BlockHeight:      tx.Height,
+			BlockHeight:      tx.TransactionObject.Height,
 			Latest:           true,
 		}
 		// update pendingTx
@@ -454,7 +497,7 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 
 		// save multisig_child transaction
 		utx.MultisigChild = true
-		utx.BlockID = tx.BlockID
+		utx.BlockID = tx.TransactionObject.BlockID
 		err = tx.TransactionHelper.InsertTransaction(utx)
 		if err != nil {
 			return err
@@ -462,11 +505,11 @@ func (tx *MultiSignatureTransaction) ApplyConfirmed(blockTimestamp int64) error 
 	}
 	// deduct fee from sender
 	err = tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-tx.Fee,
+		tx.TransactionObject.SenderAccountAddress,
+		-tx.TransactionObject.Fee,
 		model.EventType_EventMultiSignatureTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 	if err != nil {
@@ -480,7 +523,7 @@ func (tx *MultiSignatureTransaction) ApplyUnconfirmed() error {
 		err error
 	)
 	// reduce fee from sender
-	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	err = tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 	if err != nil {
 		return err
 	}
@@ -497,7 +540,7 @@ func (tx *MultiSignatureTransaction) ApplyUnconfirmed() error {
 
 func (tx *MultiSignatureTransaction) UndoApplyUnconfirmed() error {
 	// recover fee
-	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	err := tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 	if err != nil {
 		return err
 	}
@@ -526,12 +569,12 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 	}
 
 	// check existing & balance account sender
-	err = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, tx.SenderAddress, dbTx)
+	err = tx.AccountBalanceHelper.GetBalanceByAccountAddress(&accountBalance, tx.TransactionObject.SenderAccountAddress, dbTx)
 	if err != nil {
 		return err
 	}
 
-	if accountBalance.SpendableBalance < tx.Fee {
+	if accountBalance.SpendableBalance < tx.TransactionObject.Fee {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"UserBalanceNotEnough",
@@ -553,9 +596,9 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				tx.MultisignatureInfoHelper,
 				tx.PendingTransactionHelper,
 				body.MultiSignatureInfo,
-				tx.SenderAddress,
+				tx.TransactionObject.SenderAccountAddress,
 				body.UnsignedTransactionBytes,
-				tx.Height,
+				tx.TransactionObject.Height,
 				dbTx,
 			)
 			if err != nil {
@@ -581,9 +624,9 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				tx.MultisignatureInfoHelper,
 				tx.PendingTransactionHelper,
 				&multisigInfo,
-				tx.SenderAddress,
+				tx.TransactionObject.SenderAccountAddress,
 				body.UnsignedTransactionBytes,
-				tx.Height,
+				tx.TransactionObject.Height,
 				dbTx,
 			)
 			if err != nil {
@@ -599,7 +642,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 						model.PendingTransactionStatus_PendingTransactionPending,
 						model.PendingTransactionStatus_PendingTransactionExecuted,
 					},
-					tx.Height,
+					tx.TransactionObject.Height,
 					dbTx,
 				)
 				if err != nil {
@@ -608,7 +651,7 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 				if len(pendingTx.TransactionBytes) == 0 {
 					return blocker.NewBlocker(blocker.ValidationErr, "NoPendingTransactionWithProvidedTransactionHash")
 				}
-				err = tx.MultisignatureInfoHelper.GetMultisigInfoByAddress(&multisigInfo, pendingTx.SenderAddress, tx.Height)
+				err = tx.MultisignatureInfoHelper.GetMultisigInfoByAddress(&multisigInfo, pendingTx.SenderAddress, tx.TransactionObject.Height)
 				if err != nil {
 					if err == sql.ErrNoRows {
 						return blocker.NewBlocker(
@@ -632,10 +675,12 @@ func (tx *MultiSignatureTransaction) Validate(dbTx bool) error {
 }
 
 func (tx *MultiSignatureTransaction) GetMinimumFee() (int64, error) {
-	if tx.Escrow != nil && tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return tx.EscrowFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	var lastFeeScale model.FeeScale
+	err := tx.FeeScaleService.GetLatestFeeScale(&lastFeeScale)
+	if err != nil {
+		return 0, err
 	}
-	return tx.NormalFee.CalculateTxMinimumFee(tx.Body, tx.Escrow)
+	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
 func (*MultiSignatureTransaction) GetAmount() int64 {
@@ -701,6 +746,8 @@ func (tx *MultiSignatureTransaction) ParseBodyBytes(txBodyBytes []byte) (model.T
 			}
 			addresses = append(addresses, address)
 		}
+		// MultisigAddress is not provided because that data is not present in the body bytes.
+		// It always matches with the sender of the multisig transaction, so external application can get that data from the sender data
 		multisigInfo = &model.MultiSignatureInfo{
 			MinimumSignatures: minSignatures,
 			Nonce:             int64(nonce),
@@ -802,18 +849,10 @@ func (*MultiSignatureTransaction) SkipMempoolTransaction([]*model.Transaction, i
 }
 
 func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
-	if tx.Escrow.GetApproverAddress() != nil && !bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		tx.Escrow = &model.Escrow{
-			ID:              tx.ID,
-			SenderAddress:   tx.SenderAddress,
-			ApproverAddress: tx.Escrow.GetApproverAddress(),
-			Commission:      tx.Escrow.GetCommission(),
-			Timeout:         tx.Escrow.GetTimeout(),
-			Status:          tx.Escrow.GetStatus(),
-			BlockHeight:     tx.Height,
-			Latest:          true,
-			Instruction:     tx.Escrow.GetInstruction(),
-		}
+	if tx.TransactionObject.Escrow != nil &&
+		tx.TransactionObject.Escrow.GetApproverAddress() != nil &&
+		!bytes.Equal(tx.TransactionObject.Escrow.GetApproverAddress(), []byte{}) {
+		tx.TransactionObject.Escrow = util.PrepareEscrowObjectForAction(tx.TransactionObject)
 		return EscrowTypeAction(tx), true
 	}
 	return nil, false
@@ -821,21 +860,21 @@ func (tx *MultiSignatureTransaction) Escrowable() (EscrowTypeAction, bool) {
 
 func (tx *MultiSignatureTransaction) EscrowApplyConfirmed(blockTimestamp int64) error {
 	return tx.AccountBalanceHelper.AddAccountBalance(
-		tx.SenderAddress,
-		-(tx.Fee + tx.Escrow.GetCommission()),
+		tx.TransactionObject.SenderAccountAddress,
+		-(tx.TransactionObject.Fee + tx.TransactionObject.Escrow.GetCommission()),
 		model.EventType_EventEscrowedTransaction,
-		tx.Height,
-		tx.ID,
+		tx.TransactionObject.Height,
+		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
 	)
 }
 
 func (tx *MultiSignatureTransaction) EscrowApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, -tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, -tx.TransactionObject.Fee)
 }
 
 func (tx *MultiSignatureTransaction) EscrowUndoApplyUnconfirmed() error {
-	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.SenderAddress, tx.Fee)
+	return tx.AccountBalanceHelper.AddAccountSpendableBalance(tx.TransactionObject.SenderAccountAddress, tx.TransactionObject.Fee)
 }
 
 func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
@@ -844,21 +883,19 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 		err    error
 		enough bool
 	)
-	if tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}) {
-		return blocker.NewBlocker(blocker.RequestParameterErr, "ApproverAddressRequired")
+
+	err = util.ValidateBasicEscrow(tx.TransactionObject)
+	if err != nil {
+		return err
 	}
-	if tx.Escrow.GetCommission() <= 0 {
-		return blocker.NewBlocker(blocker.RequestParameterErr, "CommissionRequired")
-	}
-	if tx.Escrow.GetTimeout() > uint64(constant.MinRollbackBlocks) {
-		return blocker.NewBlocker(blocker.ValidationErr, "TimeoutRequired")
-	}
+
 	err = tx.Validate(dbTx)
 	if err != nil {
 		return err
 	}
 
-	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.SenderAddress, tx.Fee+tx.Escrow.GetCommission())
+	enough, err = tx.AccountBalanceHelper.HasEnoughSpendableBalance(dbTx, tx.TransactionObject.SenderAccountAddress,
+		tx.TransactionObject.Fee+tx.TransactionObject.Escrow.GetCommission())
 	if err != nil {
 		if err != sql.ErrNoRows {
 			return err
@@ -874,13 +911,13 @@ func (tx *MultiSignatureTransaction) EscrowValidate(dbTx bool) error {
 func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody *model.ApprovalEscrowTransactionBody) (err error) {
 	switch txBody.GetApproval() {
 	case model.EscrowApproval_Approve:
-		tx.Escrow.Status = model.EscrowStatus_Approved
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Approved
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			tx.Fee,
+			tx.TransactionObject.SenderAccountAddress,
+			tx.TransactionObject.Fee,
 			model.EventType_EventEscrowedTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -891,24 +928,24 @@ func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody
 			return err
 		}
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	case model.EscrowApproval_Reject:
-		tx.Escrow.Status = model.EscrowStatus_Rejected
+		tx.TransactionObject.Escrow.Status = model.EscrowStatus_Rejected
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.Escrow.GetApproverAddress(),
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.Escrow.GetApproverAddress(),
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
@@ -916,18 +953,18 @@ func (tx *MultiSignatureTransaction) EscrowApproval(blockTimestamp int64, txBody
 		}
 	default:
 		err = tx.AccountBalanceHelper.AddAccountBalance(
-			tx.SenderAddress,
-			tx.Escrow.GetCommission(),
+			tx.TransactionObject.SenderAccountAddress,
+			tx.TransactionObject.Escrow.GetCommission(),
 			model.EventType_EventApprovalEscrowTransaction,
-			tx.Height,
-			tx.ID,
+			tx.TransactionObject.Height,
+			tx.TransactionObject.ID,
 			uint64(blockTimestamp),
 		)
 		if err != nil {
 			return err
 		}
 	}
-	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.Escrow)
+	escrowQ := tx.EscrowQuery.InsertEscrowTransaction(tx.TransactionObject.Escrow)
 	err = tx.QueryExecutor.ExecuteTransactions(escrowQ)
 	if err != nil {
 		return err

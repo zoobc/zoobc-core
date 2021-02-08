@@ -78,6 +78,12 @@ run:
 
 issues:
     exclude-rules:
+        - text: "`derivate` is a misspelling of `derivative`"
+          linters:
+              - misspell
+        - text: "captLocal:"
+          linters:
+              - gocritic
         - text: "G401: Use of weak cryptographic primitive"
           linters:
               - gosec
