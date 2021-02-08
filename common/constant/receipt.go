@@ -54,7 +54,7 @@ import "time"
 const (
 	ReceiptDatumTypeBlock       = uint32(1)
 	ReceiptDatumTypeTransaction = uint32(2)
-	ReceiptBatchMaximum         = uint32(6)
+	ReceiptBatchMaximum         = uint32(2)
 	ReceiptNodeMaximum          = uint32(256)
 	PruningChunkedSize          = 500
 	// this multiplier is used to expand the receipt selection windows, this avoid multiple database read
