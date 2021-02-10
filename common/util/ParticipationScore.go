@@ -72,9 +72,7 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	maxBlockScore := int64(float32(maxReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore)
 	halfMaxBlockScore := maxBlockScore / 2
 
-	linkedBlockScore := float32(linkedReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore
-	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
-	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
+	blockScore := GetReceiptValue(linkedReceipt, unlinkedReceipt)
 
 	scoreDiffBig := new(big.Int).SetInt64(blockScore - halfMaxBlockScore)
 	scoreDiffBigMul := new(big.Int).Mul(scoreDiffBig, new(big.Int).SetInt64(constant.MaxScoreChange))

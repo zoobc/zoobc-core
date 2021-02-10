@@ -1123,7 +1123,7 @@ func startScheduler() {
 	}
 	// scheduler to generate receipt merkle root
 	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
+		constant.ReceiptGenerateMerkleRootPeriod,
 		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())

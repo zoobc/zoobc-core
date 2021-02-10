@@ -575,6 +575,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		if err != nil {
 			return nil, nil, err
 		}
+
 		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
 			return nil, nil, err
@@ -1640,7 +1641,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		Need to clearing some cache storage that affected
 	*/
 	bs.BlockPoolService.ClearBlockPool()
-	bs.ReceiptService.ClearCache()
+	// STEF try to not clear receipt cache
+	// bs.ReceiptService.ClearCache()
 
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()

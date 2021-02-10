@@ -505,6 +505,9 @@ func (psc *PeerServiceClient) SendBlock(
 		return err
 	}
 	if response == nil || response.GetReceipt() == nil {
+		if response.GetReceipt() == nil {
+			psc.Logger.Infof("NO RECEIPT FROM %s:%d", destPeer.Info.Address, destPeer.Info.Port)
+		}
 		return err
 	}
 
