@@ -35,13 +35,14 @@ func main() {
 
 	response, err := c.GetLiquidTransactions(context.Background(),
 		&rpc_model.GetLiquidTransactionsRequest{
-			ID: 1,
-			Pagination: &rpc_model.Pagination{
-				OrderField: "block_height",
-				OrderBy:    rpc_model.OrderBy_DESC,
-				Page:       1,
-				Limit:      1,
-			},
+			// ID: -1717580412290952103,
+			Status: 1,
+			// Pagination: &rpc_model.Pagination{
+			// 	OrderField: "block_height",
+			// 	OrderBy:    rpc_model.OrderBy_DESC,
+			// 	Page:       1,
+			// 	Limit:      1,
+			// },
 		},
 	)
 

@@ -11,6 +11,7 @@ import (
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/queue"
 )
 
 func TestNewLiquidTransactionService(t *testing.T) {
@@ -33,10 +34,10 @@ func TestNewLiquidTransactionService(t *testing.T) {
 		{
 			name: "wantSuccess",
 			args: args{
-				executor: query.NewQueryExecutor(db),
+				executor: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 			want: &LiquidTransactionService{
-				QueryExecutor: query.NewQueryExecutor(db),
+				QueryExecutor: query.NewQueryExecutor(db, queue.NewPriorityPreferenceLock()),
 			},
 		},
 	}
