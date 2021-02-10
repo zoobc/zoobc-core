@@ -54,8 +54,8 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 	if recipientAddress != nil {
 		caseQ.And(caseQ.Equal("recipient_address", recipientAddress))
 	}
-	lpStatus := request.GetRecipientAddress()
-	if lpStatus != nil {
+	lpStatus := request.GetStatus()
+	if &lpStatus != nil {
 		caseQ.And(caseQ.Equal("status", lpStatus))
 	}
 

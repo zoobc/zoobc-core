@@ -442,18 +442,18 @@ func GenerateSignedTxBytes(
 ) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
-		txType          transaction.TypeAction
-		err             error
+		// txType          transaction.TypeAction
+		err error
 	)
-	txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	if err != nil {
-		log.Fatalf("fail get transaction type: %s", err)
-	}
-	minimumFee, err := txType.GetMinimumFee()
-	if err != nil {
-		log.Fatalf("fail get minimum fee: %s", err)
-	}
-	tx.Fee += minimumFee
+	// txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
+	// if err != nil {
+	// 	log.Fatalf("fail get transaction type: %s", err)
+	// }
+	// minimumFee, err := txType.GetMinimumFee()
+	// if err != nil {
+	// 	log.Fatalf("fail get minimum fee: %s", err)
+	// }
+	// tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {

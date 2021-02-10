@@ -1,3 +1,4 @@
+//Ahmad Ali Abdilah, [Feb 9, 2021 at 11:23:10 AM]:
 // ZooBC Copyright (C) 2020 Quasisoft Limited - Hong Kong
 // This file is part of ZooBC <https://github.com/zoobc/zoobc-core>
 //
@@ -52,7 +53,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 8312562352190673225
+	MainchainGenesisBlockID int64 = -3767305870572318112
 )
 
 type (
@@ -106,8 +107,9 @@ var (
 		},
 		{
 			AccountAddressType: 0,
-			AccountAddress:     "ZBC_MVSCRODC_M7MPBOZJ_EGEVP7OS_5LNMXF7A_5NWKQRPV_EZ26CEKD_MWLMFXVK",
-			AccountBalance:     0,
+			// core seed: pizza midnight enforce morning panda entire fatal plastic piece roof edge subject soap taxi car swim cash future egg burden stone step fire miracle
+			AccountAddress: "ZBC_CYVEEIUY_GD63E4NF_YBDDL23Z_TWFGKAZ5_ZRERAWWT_ZMVPL4MG_VWB7OYND",
+			AccountBalance: 100000000,
 			NodePublicKey: []byte{91, 36, 228, 70, 101, 94, 186, 246, 186, 4, 78, 142, 173, 162, 187, 173, 202, 81, 243,
 				92, 141, 120, 148, 220, 41, 160, 208, 94, 174, 166, 62, 207},
 			LockedBalance:      0,
