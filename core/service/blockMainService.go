@@ -567,9 +567,10 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			return nil, nil, err
 		}
 
+		blockPublishedReceipts := block.GetPublishedReceipts()
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
-			uint32(len(block.GetPublishedReceipts())-linkedCount),
+			uint32(len(blockPublishedReceipts)-linkedCount),
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
 		)
 		if err != nil {
