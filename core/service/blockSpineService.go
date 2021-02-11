@@ -755,7 +755,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		includedMainBlocks          []*model.Block
 		blockSmithPublicKey         = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight              = previousBlock.Height + 1
-		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight + 1
+		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight
 		newReferenceBlockHeight     uint32
 	)
 	// select main block to be include in spine block
@@ -764,11 +764,15 @@ func (bs *BlockSpineService) GenerateBlock(
 		return nil, err
 	}
 
-	if lastMainBlock.Height < newIncludedFirstBlockHeight {
-		newIncludedFirstBlockHeight = lastMainBlock.Height
+	// get the timestamp of the block 1 MinRollbackBlocks ago
+	if lastMainBlock.Height > constant.MinRollbackBlocks {
+		newReferenceBlockHeight = lastMainBlock.Height - constant.MinRollbackBlocks
 	}
 
-	newReferenceBlockHeight = lastMainBlock.Height
+	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
+	if newReferenceBlockHeight > newIncludedFirstBlockHeight {
+		newIncludedFirstBlockHeight += 1
+	}
 
 	// make sure new reference block height is greater than previous Reference Block Height
 	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
@@ -795,14 +799,17 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 	mRoot, mTree := merkleRoot.ToBytes()
 
-	// compute spine pub keys from mainchain node registrations
-	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(
-		newIncludedFirstBlockHeight,
-		newReferenceBlockHeight,
-		newBlockHeight,
-	)
-	if err != nil {
-		return nil, err
+	// validation to avoid including nodes that has been included previously
+	if newIncludedFirstBlockHeight > previousBlock.ReferenceBlockHeight {
+		// compute spine pub keys from mainchain node registrations
+		spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(
+			newIncludedFirstBlockHeight,
+			newReferenceBlockHeight,
+			newBlockHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// retrieve all spineBlockManifests at current spine height (complete with file chunks entities)

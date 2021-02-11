@@ -55,7 +55,6 @@ import (
 	"errors"
 	"math"
 	"math/big"
-	"sort"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -206,7 +205,7 @@ func (bss *BlocksmithStrategySpine) AddCandidate(prevBlock *model.Block) error {
 	)
 
 	// get node registry
-	activeNodeRegistry, err = bss.ActiveNodeRegistryGetAllItems(prevBlock)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, prevBlock)
 	if err != nil {
 		return err
 	}
@@ -266,72 +265,13 @@ func (bss *BlocksmithStrategySpine) CalculateCumulativeDifficulty(prevBlock, blo
 	return newCummulativeDifficulty.String(), nil
 }
 
-// ActiveNodeRegistryGetAllItems get the active nodes either from cache (
-// main blocks), or from from spine_pub_keys if spine blocks
-func (bss *BlocksmithStrategySpine) ActiveNodeRegistryGetAllItems(block *model.Block) (activeNodeRegistry []storage.NodeRegistry, err error) {
-	var (
-		spinePubKeys []*model.SpinePublicKey
-	)
-	spinePubKeys, err = bss.GetActiveSpinePublicKeysByBlockHeight(block.GetHeight())
-	if err != nil {
-		return
-	}
-	// update local spine pub keys with the ones in downloaded block in case there are newly added/removed nodes from registry since prev
-	// block
-	for _, blockPubKey := range block.GetSpinePublicKeys() {
-		switch blockPubKey.GetPublicKeyAction() {
-		case model.SpinePublicKeyAction_RemoveKey:
-			for idx, spinePubKey := range spinePubKeys {
-				if blockPubKey.GetNodeID() == spinePubKey.GetNodeID() {
-					// remove element from spinePubKeys
-					spinePubKeys = append(spinePubKeys[:idx], spinePubKeys[idx+1:]...)
-					break
-				}
-			}
-		case model.SpinePublicKeyAction_AddKey:
-			var found = false
-			for idx, spinePubKey := range spinePubKeys {
-				if blockPubKey.GetNodeID() == spinePubKey.GetNodeID() {
-					// update element from spinePubKeys with new one (already registered node, updated node pub key)
-					spinePubKeys[idx] = blockPubKey
-					found = true
-					break
-				}
-			}
-			if !found {
-				// add new spine pub key (node registered after previous spine block)
-				spinePubKeys = append(spinePubKeys, blockPubKey)
-			}
-		}
-
-	}
-	// sort by nodeID (same sort as in ActiveNodeRegistryCacheStorage.activeNodeRegistry)
-	sort.SliceStable(spinePubKeys, func(i, j int) bool {
-		// sort by nodeID lowest - highest
-		return spinePubKeys[i].GetNodeID() < spinePubKeys[j].GetNodeID()
-	})
-	for _, spinePubKey := range spinePubKeys {
-		var anr = storage.NodeRegistry{
-			Node: model.NodeRegistration{
-				NodeID:        spinePubKey.GetNodeID(),
-				NodePublicKey: spinePubKey.GetNodePublicKey(),
-			},
-			// mock this value since we don't have it in spine public keys
-			// anyway if a public key is in spine pub keys it means that node has positive score
-			ParticipationScore: constant.DefaultParticipationScore,
-		}
-		activeNodeRegistry = append(activeNodeRegistry, anr)
-	}
-	return activeNodeRegistry, nil
-}
-
 func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) error {
 	var (
 		activeNodeRegistry []storage.NodeRegistry
 		err                error
 	)
 	// get node registry
-	activeNodeRegistry, err = bss.ActiveNodeRegistryGetAllItems(block)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return err
 	}
@@ -372,20 +312,6 @@ func (bss *BlocksmithStrategySpine) IsBlockValid(prevBlock, block *model.Block) 
 		}
 	}
 	return errors.New("IsBlockValid:Failed-InvalidSmithingTime")
-}
-
-func (bss *BlocksmithStrategySpine) GetActiveSpinePublicKeysByBlockHeight(height uint32) (spinePublicKeys []*model.SpinePublicKey, err error) {
-	rows, err := bss.QueryExecutor.ExecuteSelect(bss.SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(0, height), false)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	defer rows.Close()
-
-	spinePublicKeys, err = bss.SpinePublicKeyQuery.BuildModel(spinePublicKeys, rows)
-	if err != nil {
-		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
-	}
-	return spinePublicKeys, nil
 }
 
 // getValidBlockPersistTime calculate the valid starting time (inclusive) and ending time (exclusive) for a block to be persisted
@@ -429,7 +355,7 @@ func (bss *BlocksmithStrategySpine) CanPersistBlock(previousBlock, block *model.
 		err                error
 	)
 	// get node registry
-	activeNodeRegistry, err = bss.ActiveNodeRegistryGetAllItems(block)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return err
 	}
@@ -458,7 +384,7 @@ func (bss *BlocksmithStrategySpine) GetBlocksBlocksmiths(previousBlock, block *m
 		err                error
 	)
 	// get node registry
-	activeNodeRegistry, err = bss.ActiveNodeRegistryGetAllItems(block)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return nil, err
 	}
