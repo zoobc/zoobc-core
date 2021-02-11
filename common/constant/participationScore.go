@@ -69,9 +69,9 @@ const (
 	// smith too fast
 	MaxParticipationScore int64 = 10000000000 * int64(ScalarReceiptScore)
 	// Starting score for newly registered nodes
-	DefaultParticipationScore int64 = MaxParticipationScore / 10
+	DefaultParticipationScore int64 = MaxParticipationScore / 5
 	// Starting score for pre seed nodes (registered at genesis)
-	GenesisParticipationScore int64 = MaxParticipationScore / 2
+	GenesisParticipationScore int64 = MaxParticipationScore
 	// BetaBlockBonus beta only additional participation score
 	BetaBlockBonus = MaxParticipationScore / 420
 	// BetaBlockBonusSkipMultiplier beta only additional participation score decrease

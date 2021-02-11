@@ -637,6 +637,7 @@ func TestUtil_ValidateTransaction(t *testing.T) {
 		recipientAddress1,
 		true,
 	)
+	txValidateEscrow.Escrow.ApproverAddress = recipientAddress1
 	txBytesEscrow, _ := transactionUtil.GetTransactionBytes(txValidateEscrow, false)
 	txBytesEscrowHash := sha3.Sum256(txBytesEscrow)
 	signatureTXValidateEscrow, _ := (&crypto.Signature{}).Sign(txBytesEscrowHash[:], model.AccountType_ZbcAccountType,

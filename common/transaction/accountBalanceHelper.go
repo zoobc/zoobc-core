@@ -166,6 +166,7 @@ func (abh *AccountBalanceHelper) GetBalanceByAccountAddress(accountBalance *mode
 		}
 		return blocker.NewBlocker(blocker.ValidationErr, "TXSenderNotFound")
 	}
+
 	return nil
 }
 

@@ -47,95 +47,118 @@
 //
 // IMPORTANT: The above copyright notice and this permission notice
 // shall be included in all copies or substantial portions of the Software.
-package fee
+package accounttype
 
 import (
-	"reflect"
+	"encoding/hex"
 	"testing"
-
-	"github.com/zoobc/zoobc-core/common/constant"
-
-	"github.com/zoobc/zoobc-core/common/model"
 )
 
-func TestBlockLifeTimeFeeModel_CalculateTxMinimumFee(t *testing.T) {
+func TestETHAccountType_VerifySignature(t *testing.T) {
+	payload, _ := hex.DecodeString("0100000001df6f1b60000000000400000011f2b30c9479ccaa639962e943ca7cfd3498705258ddb49d" +
+		"fe25bba00a555e48cb35a79f3d084ce26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d500000000e12c84a0fd461cbbec5" +
+		"956a66b2ebad0499491cff77f75b583d041d757d87fff00e1f505000000000800000000e1f505000000000200000000000000")
+	signature, _ := hex.DecodeString("c79984b222e95f095df054be5533fbc92f95f078b375d2985472bc96012176da2442dcbfe274ffe6a" +
+		"0f4bf31bfc6093554aae00f105a37add43257c569eb8fe91c")
+	wrongPublicKey, _ := hex.DecodeString("10f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084c" +
+		"e26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5")
+	publicKey, _ := hex.DecodeString("11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce26db" +
+		"ac0e6bb887463774817cb80e89b20c0990bc47f9075d5")
+
 	type fields struct {
-		blockPeriod       int64
-		feePerBlockPeriod int64
+		privateKey  []byte
+		publicKey   []byte
+		fullAddress []byte
 	}
 	type args struct {
-		txBody model.TransactionBodyInterface
-		tx     *model.Transaction
+		payload        []byte
+		signature      []byte
+		accountAddress []byte
 	}
 	tests := []struct {
 		name    string
 		fields  fields
 		args    args
-		want    int64
 		wantErr bool
 	}{
 		{
-			name: "CalculateTxMinimumFee-1",
+			name: "wantErr:invalid signature",
 			fields: fields{
-				blockPeriod:       5,
-				feePerBlockPeriod: constant.OneZBC / 100,
+				publicKey: wrongPublicKey,
 			},
 			args: args{
-				txBody: nil,
-				tx: &model.Transaction{
-					Escrow: &model.Escrow{
-						Timeout: 17,
-					},
-				},
+				payload:   payload,
+				signature: signature,
 			},
-			want:    4 * (constant.OneZBC / 100),
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				publicKey: publicKey,
+			},
+			args: args{
+				payload:   payload,
+				signature: signature,
+			},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			blt := &BlockLifeTimeFeeModel{
-				blockPeriod:       tt.fields.blockPeriod,
-				feePerBlockPeriod: tt.fields.feePerBlockPeriod,
+			acc := &ETHAccountType{
+				privateKey:  tt.fields.privateKey,
+				publicKey:   tt.fields.publicKey,
+				fullAddress: tt.fields.fullAddress,
 			}
-			got, err := blt.CalculateTxMinimumFee(tt.args.txBody, tt.args.tx)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CalculateTxMinimumFee() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("CalculateTxMinimumFee() got = %v, want %v", got, tt.want)
+			if err := acc.VerifySignature(tt.args.payload, tt.args.signature, tt.args.accountAddress); (err != nil) != tt.wantErr {
+				t.Errorf("ETHAccountType.VerifySignature() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestNewBlockLifeTimeFeeModel(t *testing.T) {
-	type args struct {
-		blockPeriod       int64
-		feePerBlockPeriod int64
+func TestETHAccountType_GetEncodedAddress(t *testing.T) {
+	publicKey, _ := hex.DecodeString("11f2b30c9479ccaa639962e943ca7cfd3498705258ddb49dfe25bba00a555e48cb35a79f3d084ce" +
+		"26dbac0e6bb887463774817cb80e89b20c0990bc47f9075d5")
+
+	type fields struct {
+		privateKey  []byte
+		publicKey   []byte
+		fullAddress []byte
 	}
 	tests := []struct {
-		name string
-		args args
-		want *BlockLifeTimeFeeModel
+		name    string
+		fields  fields
+		want    string
+		wantErr bool
 	}{
 		{
-			name: "NewBlockLifeTimeFeeModel-Success",
-			args: args{
-				blockPeriod:       0,
-				feePerBlockPeriod: 0,
+			name:    "wantError",
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				publicKey: publicKey,
 			},
-			want: &BlockLifeTimeFeeModel{
-				feePerBlockPeriod: 0,
-				blockPeriod:       0,
-			},
+			want: "0xc2524c08e0166f6a3b8d9925f8864c8ee18cb729",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewBlockLifeTimeFeeModel(tt.args.blockPeriod, tt.args.feePerBlockPeriod); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewBlockLifeTimeFeeModel() = %v, want %v", got, tt.want)
+			acc := &ETHAccountType{
+				privateKey:  tt.fields.privateKey,
+				publicKey:   tt.fields.publicKey,
+				fullAddress: tt.fields.fullAddress,
+			}
+			got, err := acc.GetEncodedAddress()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ETHAccountType.GetEncodedAddress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("ETHAccountType.GetEncodedAddress() = %v, want %v", got, tt.want)
 			}
 		})
 	}

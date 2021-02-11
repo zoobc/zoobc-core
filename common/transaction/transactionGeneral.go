@@ -109,8 +109,7 @@ type (
 			signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 		) error
 	}
-	MultisigTransactionUtil struct {
-	}
+	MultisigTransactionUtil struct{}
 )
 
 // GetTransactionBytes translate transaction model to its byte representation
@@ -363,6 +362,12 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 			"TxFeeZero",
 		)
 	}
+	if tx.GetEscrow() != nil && len(tx.Escrow.GetInstruction()) > constant.MaxMessageLengthEscrowInstruction {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxEscrowInstructionMaxLengthExceeded",
+		)
+	}
 	if len(tx.Message) > constant.MaxMessageLength {
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
@@ -404,22 +409,33 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 		)
 	}
 
-	// Checking the recipient has an model.AccountDatasetProperty_AccountDatasetEscrowApproval
-	// when tx is not escrowed
-	if tx.GetRecipientAccountAddress() != nil && (tx.Escrow != nil &&
-		(tx.Escrow.GetApproverAddress() == nil || bytes.Equal(tx.Escrow.GetApproverAddress(), []byte{}))) {
+	isTxNonEscrow := tx.Escrow == nil || util.IsBytesEmpty(tx.Escrow.GetApproverAddress())
+	// Returning error when receiving non-escrow transaction while the user needs transactions to him to be escrowed
+	if tx.GetRecipientAccountAddress() != nil &&
+		!bytes.Equal(tx.GetSenderAccountAddress(), tx.GetRecipientAccountAddress()) &&
+		(isTxNonEscrow || !bytes.Equal(tx.Escrow.GetApproverAddress(), tx.GetRecipientAccountAddress())) {
 		var (
 			accountDataset model.AccountDataset
 			row            *sql.Row
 		)
+
+		// getting dataset `AccountDatasetEscrowApproval` that has him as recipient
 		accDatasetQ, accDatasetArgs := u.AccountDatasetQuery.GetAccountDatasetEscrowApproval(tx.RecipientAccountAddress)
 		row, _ = u.QueryExecutor.ExecuteSelectRow(accDatasetQ, false, accDatasetArgs...)
 		err = u.AccountDatasetQuery.Scan(&accountDataset, row)
 		if err != nil && err != sql.ErrNoRows {
 			return err
 		}
+
 		if accountDataset.GetIsActive() {
-			return fmt.Errorf("RecipientRequireEscrow")
+			if isTxNonEscrow {
+				return fmt.Errorf("RecipientRequireEscrow")
+			}
+
+			// return error if the the dataset `AccountDatasetEscrowApproval` is satisfied but the approver is not himself
+			if !bytes.Equal(tx.Escrow.GetApproverAddress(), tx.GetRecipientAccountAddress()) {
+				return fmt.Errorf("InvalidEscrowApprover")
+			}
 		}
 	}
 
