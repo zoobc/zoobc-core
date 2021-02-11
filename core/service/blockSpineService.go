@@ -775,12 +775,13 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 
 	// make sure new reference block height is greater than previous Reference Block Height
-	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
-		limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
-		includedMainBlocks, err = bs.MainBlockService.GetBlocksFromHeight(newIncludedFirstBlockHeight, limit, false)
-		if err != nil {
-			return nil, err
-		}
+	limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
+	if limit == 0 {
+		limit = 1
+	}
+	includedMainBlocks, err = bs.MainBlockService.GetBlocksFromHeight(newIncludedFirstBlockHeight, limit, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(includedMainBlocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
@@ -1061,10 +1062,7 @@ func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Bloc
 
 // validateIncludedMainBlock to validate included main block in spine block
 func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock *model.Block) error {
-	if incomingBlock.GetReferenceBlockHeight() == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "NoIncludedMainBlock")
-	}
-	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
+	if incomingBlock.ReferenceBlockHeight < lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
 	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()
