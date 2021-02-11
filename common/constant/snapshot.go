@@ -55,7 +55,7 @@ const (
 	// SnapshotGenerationTimeout maximum time, in seconds, allowed for a node to generate a snapshot
 	MainchainSnapshotGenerationTimeout time.Duration = 10 * time.Minute // 10 minutes before including in spine block
 	// MainchainSnapshotInterval interval in mainchain blocks between snapshots
-	MainchainSnapshotInterval uint32 = 1440            // 1440 mainchain blocks (= MinRollbackHeight)
+	MainchainSnapshotInterval uint32 = 3000            // Make sure that we don't generate more than one snapshot per spine block
 	SnapshotChunkSize         int    = int(100 * 1024) // 10 KB
 	// DownloadSnapshotNumberOfRetries number of times to retry downloading failed snapshot file chunks from other peers
 	DownloadSnapshotNumberOfRetries = uint32(MaxResolvedPeers)

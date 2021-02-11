@@ -71,8 +71,7 @@ var (
 	CheckTimedOutBlock        = 30 * time.Second
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod intervals between spine blocks in seconds
-	// reduce to 60 for testing locally (300 in production)
-	SpineChainSmithingPeriod = int64(300)
+	SpineChainSmithingPeriod = int64(86400)
 	MainChainSmithIdlePeriod = 500 * time.Millisecond
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)
