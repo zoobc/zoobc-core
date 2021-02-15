@@ -771,7 +771,7 @@ func (bs *BlockSpineService) GenerateBlock(
 
 	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
 	if newReferenceBlockHeight > newIncludedFirstBlockHeight {
-		newIncludedFirstBlockHeight += 1
+		newIncludedFirstBlockHeight++
 	}
 
 	// make sure new reference block height is greater than previous Reference Block Height

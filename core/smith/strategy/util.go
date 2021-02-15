@@ -59,7 +59,9 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 )
 
-func GetActiveSpinePublicKeysByBlockHeight(QueryExecutor query.ExecutorInterface, SpinePublicKeyQuery query.SpinePublicKeyQueryInterface, height uint32) (spinePublicKeys []*model.SpinePublicKey, err error) {
+func GetActiveSpinePublicKeysByBlockHeight(QueryExecutor query.ExecutorInterface,
+	SpinePublicKeyQuery query.SpinePublicKeyQueryInterface,
+	height uint32) (spinePublicKeys []*model.SpinePublicKey, err error) {
 	rows, err := QueryExecutor.ExecuteSelect(SpinePublicKeyQuery.GetValidSpinePublicKeysByHeightInterval(0, height), false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
@@ -75,7 +77,9 @@ func GetActiveSpinePublicKeysByBlockHeight(QueryExecutor query.ExecutorInterface
 
 // GetActiveNodesInSpineBlocks get the active nodes either from cache (
 // main blocks), or from from spine_pub_keys if spine blocks
-func GetActiveNodesInSpineBlocks(QueryExecutor query.ExecutorInterface, SpinePublicKeyQuery query.SpinePublicKeyQueryInterface, block *model.Block) (activeNodeRegistry []storage.NodeRegistry, err error) {
+func GetActiveNodesInSpineBlocks(QueryExecutor query.ExecutorInterface,
+	SpinePublicKeyQuery query.SpinePublicKeyQueryInterface,
+	block *model.Block) (activeNodeRegistry []storage.NodeRegistry, err error) {
 	var (
 		spinePubKeys []*model.SpinePublicKey
 	)
