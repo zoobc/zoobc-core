@@ -106,7 +106,6 @@ func (tx *UpdateNodeRegistration) SkipMempoolTransaction(
 func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 	var (
 		effectiveBalanceToLock, lockedBalance int64
-		nodePublicKey                         []byte
 		nodeReg                               model.NodeRegistration
 		row                                   *sql.Row
 		err                                   error
@@ -127,12 +126,6 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		lockedBalance = tx.Body.GetLockedBalance()
 	} else {
 		lockedBalance = nodeReg.GetLockedBalance()
-	}
-
-	if len(tx.Body.GetNodePublicKey()) != 0 {
-		nodePublicKey = tx.Body.NodePublicKey
-	} else {
-		nodePublicKey = nodeReg.GetNodePublicKey()
 	}
 
 	if tx.Body.LockedBalance > 0 {
@@ -156,7 +149,7 @@ func (tx *UpdateNodeRegistration) ApplyConfirmed(blockTimestamp int64) error {
 		LockedBalance:      lockedBalance,
 		Height:             tx.TransactionObject.Height,
 		RegistrationHeight: nodeReg.GetRegistrationHeight(),
-		NodePublicKey:      nodePublicKey,
+		NodePublicKey:      nodeReg.GetNodePublicKey(),
 		Latest:             true,
 		RegistrationStatus: nodeReg.GetRegistrationStatus(),
 		// account address is the only field that can't be updated via update node registration
@@ -299,27 +292,6 @@ func (tx *UpdateNodeRegistration) Validate(dbTx bool) error {
 		return blocker.NewBlocker(blocker.AuthErr, "NodeDeleted")
 	}
 
-	// validate node public key, if we are updating that field
-	// note: node pub key must be not already registered for another node
-	if len(tx.Body.NodePublicKey) > 0 && !bytes.Equal(prevNodeReg.NodePublicKey, tx.Body.NodePublicKey) {
-		err = func() (e error) {
-			row, e = tx.QueryExecutor.ExecuteSelectRow(tx.NodeRegistrationQuery.GetNodeRegistrationByNodePublicKey(), dbTx, tx.Body.GetNodePublicKey())
-			if e != nil {
-				return e
-			}
-			e = tx.NodeRegistrationQuery.Scan(&model.NodeRegistration{}, row)
-			if e != nil {
-				if e != sql.ErrNoRows {
-					return e
-				}
-				return nil
-			}
-			return blocker.NewBlocker(blocker.ValidationErr, "NodePublicKeyAlreadyRegistered")
-		}()
-		if err != nil {
-			return err
-		}
-	}
 	// delta amount to be locked
 	effectiveBalanceToLock = tx.Body.GetLockedBalance() - prevNodeReg.GetLockedBalance()
 	if effectiveBalanceToLock < 0 {
