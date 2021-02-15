@@ -54,7 +54,7 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 		caseQ.And(caseQ.Equal("secipient_address", recipientAddress))
 	}
 	lpStatus := request.GetStatus()
-	if &lpStatus != nil {
+	if lpStatus != -1 {
 		caseQ.And(caseQ.Equal("status", lpStatus))
 	}
 
@@ -79,8 +79,9 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 	page := request.GetPagination()
 	if page.GetOrderField() != "" {
 		caseQ.OrderBy(page.GetOrderField(), page.GetOrderBy())
-		caseQ.Paginate(page.GetLimit(), page.GetPage())
 	}
+
+	caseQ.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQ, args := caseQ.Build()
 	rows, err = lts.QueryExecutor.ExecuteSelect(selectQ, false, args...)
