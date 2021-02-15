@@ -61,6 +61,6 @@ const (
 	ReceiptBatchPickMultiplier      = uint32(5)
 	ReceiptHashSize                 = 32 // sha256
 	ReceiptGenerateMerkleRootPeriod = 20 * time.Second
-	// number of blocks, before last block to, calculate merkle root (max receipt height = lastblock - ReceiptGraceBlocks)
-	ReceiptGraceBlocks = 1
+	// time to wait, after pushBlock for batch receipts and relative merkle root to be generated
+	BatchReceiptWaitingTime = 7 * time.Second
 )

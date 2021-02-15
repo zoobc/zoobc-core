@@ -470,6 +470,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		loggerCoreService,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -805,6 +806,7 @@ func initObserverListeners() {
 	// only smithing nodes generate snapshots
 	if config.Smithing {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
+		observerInstance.AddListener(observer.BlockPushed, receiptService.GenerateReceiptsMerkleRootListener())
 	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, mainchainBlockService.ReceivedValidatedBlockTransactionsListener())
@@ -1121,6 +1123,7 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
+	// STEF DELETE
 	// scheduler to generate receipt merkle root
 	if err := schedulerInstance.AddJob(
 		constant.ReceiptGenerateMerkleRootPeriod,
