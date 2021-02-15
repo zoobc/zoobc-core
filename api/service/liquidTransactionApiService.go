@@ -41,7 +41,6 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 	)
 
 	caseQ.Select(lts.LiquidPaymentTransactionQuery.TableName, lts.LiquidPaymentTransactionQuery.Fields...)
-
 	id := request.GetID()
 	if id != 0 {
 		caseQ.And(caseQ.Equal("id", id))
@@ -52,12 +51,15 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 	}
 	recipientAddress := request.GetRecipientAddress()
 	if recipientAddress != nil {
-		caseQ.And(caseQ.Equal("recipient_address", recipientAddress))
+		caseQ.And(caseQ.Equal("secipient_address", recipientAddress))
 	}
 	lpStatus := request.GetStatus()
 	if &lpStatus != nil {
 		caseQ.And(caseQ.Equal("status", lpStatus))
 	}
+
+	latest := true
+	caseQ.And(caseQ.Equal("latest", latest))
 
 	// count first
 	selectQuery, args := caseQ.Build()
@@ -77,8 +79,8 @@ func (lts *LiquidTransactionService) GetLiquidTransactions(
 	page := request.GetPagination()
 	if page.GetOrderField() != "" {
 		caseQ.OrderBy(page.GetOrderField(), page.GetOrderBy())
+		caseQ.Paginate(page.GetLimit(), page.GetPage())
 	}
-	caseQ.Paginate(page.GetLimit(), page.GetPage())
 
 	selectQ, args := caseQ.Build()
 	rows, err = lts.QueryExecutor.ExecuteSelect(selectQ, false, args...)
