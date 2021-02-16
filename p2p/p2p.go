@@ -249,7 +249,6 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			for _, peer := range peers {
 				go func(p *model.Peer) {
 					// add a max (random) 1 sec delay to avoid opening too many connections too fast
-					s.sleepRandomMillis(1000)
 					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
 						s.Logger.Errorf("SendBlockListener: %s", err)
 					}
@@ -257,13 +256,6 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			}
 		},
 	}
-}
-
-// sleepRandomMillis add randomness to goroutine execution
-func (*Peer2PeerService) sleepRandomMillis(millis int) {
-	rand.Seed(time.Now().UnixNano())
-	n := rand.Intn(millis)
-	time.Sleep(time.Duration(n) * time.Millisecond)
 }
 
 // SendTransactionListener setup listener for transaction to the list peer
@@ -309,8 +301,6 @@ func (s *Peer2PeerService) SendTransactionListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
 				go func(p *model.Peer) {
-					// add a max (random) 1 sec delay to avoid opening too many connections too fast
-					s.sleepRandomMillis(1000)
 					_ = s.PeerServiceClient.SendTransaction(p, t, chainType)
 
 				}(peer)

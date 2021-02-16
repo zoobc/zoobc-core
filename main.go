@@ -1125,14 +1125,6 @@ func startScheduler() {
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
-	// STEF DELETE
-	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMerkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
 	// scheduler to remove block uncompleted queue that already waiting transactions too long
 	if err := schedulerInstance.AddJob(
 		constant.CheckTimedOutBlock,

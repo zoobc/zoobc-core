@@ -391,7 +391,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) err
 	var idxHeight uint32
 	for idx, receipt := range receiptsCached {
 		// skip (and keep in cache receipts that refers to future blocks)
-		if receipt.ReferenceBlockHeight > lastBlock.Height {
+		if receipt.ReferenceBlockHeight != lastBlock.Height-1 {
 			break
 		}
 		if idx == 0 || receipt.ReferenceBlockHeight != receiptsCached[idx-1].ReferenceBlockHeight {
