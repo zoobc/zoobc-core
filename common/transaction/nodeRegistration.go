@@ -505,7 +505,7 @@ func (tx *NodeRegistration) EscrowUndoApplyUnconfirmed() error {
 	return nil
 }
 
-// EscrowApplyConfirmed func that for applying Transaction SendMoney type
+// EscrowApplyConfirmed func that for applying Transaction SendZBC type
 func (tx *NodeRegistration) EscrowApplyConfirmed(blockTimestamp int64) error {
 	var (
 		err error
