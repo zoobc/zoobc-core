@@ -51,9 +51,10 @@ package block
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -248,6 +249,7 @@ func initialize(
 		activeNodeRegistryCacheStorage,
 		query.NewSkippedBlocksmithQuery(&chaintype.MainChain{}),
 		query.NewBlockQuery(&chaintype.MainChain{}),
+		nil,
 		nil,
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),

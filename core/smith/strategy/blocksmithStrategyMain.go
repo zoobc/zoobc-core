@@ -84,6 +84,7 @@ type (
 		BlockQuery                     query.BlockQueryInterface
 		QueryExecutor                  query.ExecutorInterface
 		BlocksCacheStorage             storage.CacheStackStorageInterface
+		SpinePublicKeyQuery            query.SpinePublicKeyQueryInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
@@ -100,6 +101,7 @@ func NewBlocksmithStrategyMain(
 	skippedBlocksmithQuery query.SkippedBlocksmithQueryInterface,
 	blockQuery query.BlockQueryInterface,
 	blocksCacheStorage storage.CacheStackStorageInterface,
+	spinePublicKeyQuery query.SpinePublicKeyQueryInterface,
 	queryExecutor query.ExecutorInterface,
 	rng *crypto.RandomNumberGenerator,
 	chaintype chaintype.ChainType,
@@ -113,6 +115,7 @@ func NewBlocksmithStrategyMain(
 		SkippedBlocksmithQuery:         skippedBlocksmithQuery,
 		BlockQuery:                     blockQuery,
 		BlocksCacheStorage:             blocksCacheStorage,
+		SpinePublicKeyQuery:            spinePublicKeyQuery,
 		me:                             Candidate{},
 		candidates:                     make([]Candidate, 0),
 		rng:                            rng,
@@ -208,7 +211,7 @@ func (bss *BlocksmithStrategyMain) AddCandidate(prevBlock *model.Block) error {
 	)
 
 	// get node registry
-	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, prevBlock)
 	if err != nil {
 		return err
 	}
@@ -274,7 +277,7 @@ func (bss *BlocksmithStrategyMain) IsBlockValid(prevBlock, block *model.Block) e
 		err                error
 	)
 	// get node registry
-	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return err
 	}
@@ -358,7 +361,7 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 		err                error
 	)
 	// get node registry
-	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return err
 	}
@@ -387,7 +390,7 @@ func (bss *BlocksmithStrategyMain) GetBlocksBlocksmiths(previousBlock, block *mo
 		err                error
 	)
 	// get node registry
-	err = bss.ActiveNodeRegistryCacheStorage.GetAllItems(&activeNodeRegistry)
+	activeNodeRegistry, err = GetActiveNodesInSpineBlocks(bss.QueryExecutor, bss.SpinePublicKeyQuery, block)
 	if err != nil {
 		return nil, err
 	}
