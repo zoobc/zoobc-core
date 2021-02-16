@@ -350,7 +350,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		txAPISenderAccount1,
 		txAPIRecipientAccount1,
 		8,
-		model.TransactionType_sendZBCTransaction,
+		model.TransactionType_SendZBCTransaction,
 		&model.SendZBCTransactionBody{
 			Amount: 10,
 		},
