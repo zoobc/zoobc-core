@@ -246,8 +246,7 @@ func (psc *PeerServiceClient) getDefaultContext(requestTimeOut time.Duration) (c
 	}
 	var (
 		header                      = metadata.New(psc.setDefaultMetadata())
-		clientDeadline              = time.Now().Add(requestTimeOut)
-		ctxWithDeadline, cancelFunc = context.WithDeadline(context.Background(), clientDeadline)
+		ctxWithDeadline, cancelFunc = context.WithTimeout(context.Background(), requestTimeOut)
 	)
 	return metadata.NewOutgoingContext(ctxWithDeadline, header), cancelFunc
 }
@@ -269,7 +268,7 @@ func (psc *PeerServiceClient) GetNodeAddressesInfo(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 		nodeIDs        = make([]int64, len(nodeRegistrations))
 	)
 	defer func() {
@@ -314,7 +313,7 @@ func (psc *PeerServiceClient) GetPeerInfo(destPeer *model.Peer) (*model.GetPeerI
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -344,7 +343,7 @@ func (psc *PeerServiceClient) GetMorePeers(destPeer *model.Peer) (*model.GetMore
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -379,7 +378,7 @@ func (psc *PeerServiceClient) GetNodeProofOfOrigin(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -431,7 +430,7 @@ func (psc *PeerServiceClient) SendNodeAddressInfo(destPeer *model.Peer, nodeAddr
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(2 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -459,7 +458,7 @@ func (psc *PeerServiceClient) SendPeers(destPeer *model.Peer, peersInfo []*model
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(10 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -491,7 +490,7 @@ func (psc *PeerServiceClient) SendBlock(
 	var (
 		response       *model.SendBlockResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(25 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -546,7 +545,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	var (
 		response       *model.SendTransactionResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -592,7 +591,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 	var (
 		response       *model.SendBlockTransactionsResponse
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -655,7 +654,7 @@ func (psc *PeerServiceClient) RequestBlockTransactions(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -687,7 +686,7 @@ func (psc *PeerServiceClient) RequestDownloadFile(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(20 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -718,7 +717,7 @@ func (psc *PeerServiceClient) GetCumulativeDifficulty(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -751,7 +750,7 @@ func (psc *PeerServiceClient) GetCommonMilestoneBlockIDs(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -787,7 +786,7 @@ func (psc *PeerServiceClient) GetNextBlockIDs(
 	}
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()
@@ -824,7 +823,7 @@ func (psc *PeerServiceClient) GetNextBlocks(
 
 	var (
 		p2pClient      = service.NewP2PCommunicationClient(connection)
-		ctx, cancelReq = psc.getDefaultContext(15 * time.Second)
+		ctx, cancelReq = psc.getDefaultContext(constant.P2PClientConnTimeout)
 	)
 	defer func() {
 		cancelReq()

@@ -1535,7 +1535,14 @@ func (bs *BlockService) ReceiveBlock(
 	if !isQueued {
 		err = bs.ProcessCompletedBlock(block)
 		if err != nil {
-			return nil, err
+			errCasted, ok := err.(blocker.Blocker)
+			if !ok {
+				return nil, err
+			}
+			if errCasted.Message != "DuplicateBlockPool" {
+				// return a 'status' error message instead of a 'blocker' message, as above
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
 		}
 	}
 
@@ -1725,7 +1732,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			"ProcessCompletedBlock2 push Block fail: %v",
 			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
 		)
-		return status.Error(codes.InvalidArgument, err.Error())
+		return err
 	}
 	return nil
 }

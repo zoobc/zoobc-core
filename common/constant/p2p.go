@@ -102,4 +102,6 @@ const (
 	BlockchainsyncSpineTimeout time.Duration = 3600 * time.Second
 	// ProofOfOriginExpirationOffset expiration offset in seconds for proof of origin response
 	ProofOfOriginExpirationOffset = 10
+	// P2PClientConnTimeout timeout in seconds for a gRpc client (p2p) connection
+	P2PClientConnTimeout = 15 * time.Second
 )
