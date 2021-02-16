@@ -96,7 +96,7 @@ func (tx *SendZBC) ApplyConfirmed(blockTimestamp int64) error {
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.TransactionObject.RecipientAccountAddress,
 		tx.Body.GetAmount(),
-		model.EventType_EventsendZBCTransaction,
+		model.EventType_EventSendZBCTransaction,
 		tx.TransactionObject.Height,
 		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
@@ -107,7 +107,7 @@ func (tx *SendZBC) ApplyConfirmed(blockTimestamp int64) error {
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.TransactionObject.SenderAccountAddress,
 		-(tx.Body.GetAmount() + tx.TransactionObject.Fee),
-		model.EventType_EventsendZBCTransaction,
+		model.EventType_EventSendZBCTransaction,
 		tx.TransactionObject.Height,
 		tx.TransactionObject.ID,
 		uint64(blockTimestamp),
