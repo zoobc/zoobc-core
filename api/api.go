@@ -51,11 +51,12 @@ package api
 
 import (
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 	"html/template"
 	"net"
 	"net/http"
+
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/feedbacksystem"
 
 	grpcMiddleware "github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -228,6 +229,15 @@ func startGrpcServer(
 			queryExecutor,
 		),
 	})
+
+	// Set GRPC handler for liquid transactions
+	rpcService.RegisterLiquidPaymentServiceServer(grpcServer, &handler.LiquidTransactionHandler{
+		Service: service.NewLiquidTransactionService(
+			queryExecutor,
+			query.NewLiquidPaymentTransactionQuery(),
+		),
+	})
+
 	go func() {
 		// serve rpc
 		if err := grpcServer.Serve(serv); err != nil {
