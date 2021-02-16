@@ -56,7 +56,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -66,6 +65,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -496,6 +497,7 @@ func initiateMainInstance() {
 		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewBlockQuery(mainchain),
 		mainBlocksStorage,
+		query.NewSpinePublicKeyQuery(),
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		mainchain,
