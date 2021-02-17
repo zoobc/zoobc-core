@@ -497,113 +497,113 @@ var (
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 3), // i:4
+			FeeVote:           SendZBCFeeConstant - (SendZBCFeeConstant - 3), // i:4
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 1), // i:2 less than 0.5 than previous
+			FeeVote:           SendZBCFeeConstant - (SendZBCFeeConstant - 1), // i:2 less than 0.5 than previous
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant - (SendMoneyFeeConstant - 2), // i:3
+			FeeVote:           SendZBCFeeConstant - (SendZBCFeeConstant - 2), // i:3
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/10, // i:1
+			FeeVote:           SendZBCFeeConstant - SendZBCFeeConstant/10, // i:1
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant - SendMoneyFeeConstant/30, // i:0
+			FeeVote:           SendZBCFeeConstant - SendZBCFeeConstant/30, // i:0
 		},
 	}
 	mockMedianHigherConstraintsPassed = []*model.FeeVoteInfo{
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 3), // i:4
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant + 3), // i:4
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 1), // i:2 more than 2.0 than previous
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant + 1), // i:2 more than 2.0 than previous
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant + 2), // i:3
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant + 2), // i:3
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/10, // i:1
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/30, // i:0
 		},
 	}
 	mockMedianWithinConstraintsEven = []*model.FeeVoteInfo{
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 4), // i:5
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 3), // i:4
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 3), // i:4
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 1), // i:2
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 2), // i:3
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/10, // i:1
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/30, // i:0
 		},
 	}
 	mockMedianWithinConstraintsOdd = []*model.FeeVoteInfo{
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 4), // i:5
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 4), // i:5
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 1), // i:2
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 1), // i:2
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + (SendMoneyFeeConstant - 2), // i:3
+			FeeVote:           SendZBCFeeConstant + (SendZBCFeeConstant - 2), // i:3
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/10, // i:1
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/10, // i:1
 		},
 		{
 			RecentBlockHash:   nil,
 			RecentBlockHeight: 0,
-			FeeVote:           SendMoneyFeeConstant + SendMoneyFeeConstant/30, // i:0
+			FeeVote:           SendZBCFeeConstant + SendZBCFeeConstant/30, // i:0
 		},
 	}
 )
@@ -618,8 +618,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 		Executor              query.ExecutorInterface
 	}
 	type args struct {
-		votes                []*model.FeeVoteInfo
-		originalSendMoneyFee int64
+		votes              []*model.FeeVoteInfo
+		originalSendZBCFee int64
 	}
 	tests := []struct {
 		name   string
@@ -640,8 +640,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				Executor:              nil,
 			},
 			args: args{
-				votes:                []*model.FeeVoteInfo{},
-				originalSendMoneyFee: SendMoneyFeeConstant,
+				votes:              []*model.FeeVoteInfo{},
+				originalSendZBCFee: SendZBCFeeConstant,
 			},
 			want: previousScale,
 		},
@@ -658,8 +658,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				Executor:              nil,
 			},
 			args: args{
-				votes:                mockMedianLowerConstraintsPassed,
-				originalSendMoneyFee: SendMoneyFeeConstant,
+				votes:              mockMedianLowerConstraintsPassed,
+				originalSendZBCFee: SendZBCFeeConstant,
 			},
 			want: previousScale / 2,
 		},
@@ -676,8 +676,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				Executor:              nil,
 			},
 			args: args{
-				votes:                mockMedianHigherConstraintsPassed,
-				originalSendMoneyFee: SendMoneyFeeConstant,
+				votes:              mockMedianHigherConstraintsPassed,
+				originalSendZBCFee: SendZBCFeeConstant,
 			},
 			want: previousScale * 2,
 		},
@@ -694,8 +694,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				Executor:              nil,
 			},
 			args: args{
-				votes:                mockMedianWithinConstraintsEven,
-				originalSendMoneyFee: SendMoneyFeeConstant,
+				votes:              mockMedianWithinConstraintsEven,
+				originalSendZBCFee: SendZBCFeeConstant,
 			},
 			want: 199999650,
 		},
@@ -712,8 +712,8 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				Executor:              nil,
 			},
 			args: args{
-				votes:                mockMedianWithinConstraintsOdd,
-				originalSendMoneyFee: SendMoneyFeeConstant,
+				votes:              mockMedianWithinConstraintsOdd,
+				originalSendZBCFee: SendZBCFeeConstant,
 			},
 			want: 199999600,
 		},
@@ -727,7 +727,7 @@ func TestFeeScaleService_SelectVote(t *testing.T) {
 				MainBlockStateStorage: tt.fields.MainBlockStateStorage,
 				Executor:              tt.fields.Executor,
 			}
-			if got := fss.SelectVote(tt.args.votes, tt.args.originalSendMoneyFee); got != tt.want {
+			if got := fss.SelectVote(tt.args.votes, tt.args.originalSendZBCFee); got != tt.want {
 				t.Errorf("SelectVote() = %v, want %v", got, tt.want)
 			}
 		})

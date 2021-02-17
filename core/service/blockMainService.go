@@ -685,7 +685,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			return nil, nil, err
 		}
 		// select vote
-		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
+		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendZBCFeeConstant)
 		// insert new fee-scale
 		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
 			FeeScale:    vote,
@@ -1381,7 +1381,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 			return nil, err
 		}
 		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
-			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+			totalAmount += tx.GetSendZBCTransactionBody().Amount
 		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {

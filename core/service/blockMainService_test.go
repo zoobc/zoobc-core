@@ -127,7 +127,7 @@ type (
 		query.Executor
 	}
 	mockTypeAction struct {
-		transaction.SendMoney
+		transaction.SendZBC
 	}
 	mockTypeActionSuccess struct {
 		mockTypeAction
@@ -279,13 +279,13 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	mockSendMoneyTxBody = &transaction.SendMoney{
-		Body: &model.SendMoneyTransactionBody{
+	mockSendZBCTxBody = &transaction.SendZBC{
+		Body: &model.SendZBCTransactionBody{
 			Amount: 10,
 		},
 	}
-	mockSendMoneyTxBodyBytes, _ = mockSendMoneyTxBody.GetBodyBytes()
-	mockTransaction             = &model.Transaction{
+	mockSendZBCTxBodyBytes, _ = mockSendZBCTxBody.GetBodyBytes()
+	mockTransaction           = &model.Transaction{
 		ID:      1,
 		BlockID: 1,
 		Height:  0,
@@ -298,7 +298,7 @@ var (
 		Timestamp:             1000,
 		TransactionHash:       []byte{},
 		TransactionBodyLength: 8,
-		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		TransactionBodyBytes:  mockSendZBCTxBodyBytes,
 		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Version:               1,
 		TransactionIndex:      1,
@@ -316,7 +316,7 @@ var (
 		Timestamp:             1000,
 		TransactionHash:       []byte{},
 		TransactionBodyLength: 8,
-		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		TransactionBodyBytes:  mockSendZBCTxBodyBytes,
 		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Version:               1,
 		TransactionIndex:      1,
