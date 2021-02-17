@@ -62,5 +62,5 @@ const (
 	ReceiptHashSize                 = 32 // sha256
 	ReceiptGenerateMerkleRootPeriod = 20 * time.Second
 	// time to wait, after pushBlock for batch receipts and relative merkle root to be generated
-	BatchReceiptWaitingTime = 7 * time.Second
+	BatchReceiptWaitingTime = 10 * time.Second
 )

@@ -103,8 +103,14 @@ const (
 	// ProofOfOriginExpirationOffset expiration offset in seconds for proof of origin response
 	ProofOfOriginExpirationOffset = 10
 	// P2PClientConnShortTimeout timeout in seconds for a gRpc client (p2p) connection
-	P2PClientConnShortTimeout   = 3 * time.Second
-	P2PClientConnDefaultTimeout = 7 * time.Second
-	P2PClientConnLongTimeout    = 17 * time.Second
-	P2PReqKeepAliveInterval     = 10 * time.Second
+	P2PClientConnShortTimeout   = 2 * time.Second
+	P2PClientConnDefaultTimeout = 10 * time.Second
+	P2PClientConnLongTimeout    = 25 * time.Second
+	P2PClientKeepAliveInterval  = 20 * time.Second
+	P2PClientKeepAliveTimeout   = 10 * time.Second
+	P2PServerKeepAliveInterval  = 60 * time.Second
+	P2PServerKeepAliveTimeout   = 10 * time.Second
+	// MaxSeverConnectionIdle is a duration for the amount of time after which an idle connection would be closed by sending a GoAway.
+	// Idleness duration is defined since the most recent time the number of outstanding RPCs became zero or the connection establishment.
+	MaxSeverConnectionIdle = 5 * time.Minute
 )

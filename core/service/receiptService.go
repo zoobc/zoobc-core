@@ -359,7 +359,7 @@ func (rs *ReceiptService) pickReceipts(
 
 // GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
 // generating will do when number of collected receipts(batch receipts) already <= the number of required
-func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) error {
+func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	var (
 		receiptsCached, receipts    []model.Receipt
 		hashedReceipts              []*bytes.Buffer
@@ -377,6 +377,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) err
 	}
 	// If no receipts in cache no need to log errors
 	if len(receiptsCached) == 0 {
+		// TODO: lower this to level 'Info' to not pollute the logs
+		rs.Logger.Error("No Receipts for block height: ", block.Height)
 		return nil
 	}
 	// Need to sorting before do next
@@ -385,13 +387,23 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) err
 	})
 
 	// TODO: if not necessary to process receipts for multiple blocks (since we call this function every time a block is pushed),
-	//  remove grouping by block and just order receipts pool by block height
+	//  remove grouping by block and just order receipts pool by block height,
+	//  discard the old ones and keep the ones that reference future blocks
 
 	// Generate a map object where receipts are grouped by block height, to facilitate generating merkleroots by block height
-	var idxHeight uint32
+	var (
+		idxHeight         uint32
+		receiptsCachedTmp = make([]model.Receipt, 0)
+	)
 	for idx, receipt := range receiptsCached {
-		// skip (and keep in cache receipts that refers to future blocks)
-		if receipt.ReferenceBlockHeight != lastBlock.Height-1 {
+		// discard receipts that cannot be processed anymore because they reference an old block
+		if receipt.ReferenceBlockHeight < block.Height-1 {
+			rs.Logger.Error("Node receipt received too late from peer: discarding")
+			continue
+		}
+		receiptsCachedTmp = append(receiptsCachedTmp, receipt)
+		// skip (and keep in cache receipts that refers to future blocks = current block height or higher)
+		if receipt.ReferenceBlockHeight >= block.Height {
 			break
 		}
 		if idx == 0 || receipt.ReferenceBlockHeight != receiptsCached[idx-1].ReferenceBlockHeight {
@@ -403,6 +415,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) err
 		receiptsCachedByHeight[idxHeight] = append(receiptsCachedByHeight[idxHeight], receipt)
 		cacheCount++
 	}
+	// re initialize receipt cache without discarded receipts
+	receiptsCached = receiptsCachedTmp
 
 	err = rs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
 	if err != nil {
@@ -414,8 +428,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(lastBlock *model.Block) err
 			// 1. node push (apply block)
 			// 2. node broadcast that block and eventually receives receipts from peers he broadcast the block to
 			// 3. next time we push a block and trigger current function we still only have receipts of block broadcast at point 2
-			if receiptsRefHeight != lastBlock.Height-1 {
-				continue
+			if receiptsRefHeight != block.Height-1 {
+				break
 			}
 			for _, receipt := range receiptsByHeight {
 				b := receipt
