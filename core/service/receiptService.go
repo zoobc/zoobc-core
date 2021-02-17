@@ -397,13 +397,14 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	)
 	for idx, receipt := range receiptsCached {
 		// discard receipts that cannot be processed anymore because they reference an old block
-		if receipt.ReferenceBlockHeight < block.Height-1 {
+		if receipt.ReferenceBlockHeight < block.Height {
 			rs.Logger.Error("Node receipt received too late from peer: discarding")
 			continue
 		}
 		receiptsCachedTmp = append(receiptsCachedTmp, receipt)
-		// skip (and keep in cache receipts that refers to future blocks = current block height or higher)
-		if receipt.ReferenceBlockHeight >= block.Height {
+		// skip and keep in cache receipts that refers to future blocks.
+		// This shouldn't happen though unless we have already pushed another block while we were waiting to collect receipts for this block
+		if receipt.ReferenceBlockHeight > block.Height {
 			break
 		}
 		if idx == 0 || receipt.ReferenceBlockHeight != receiptsCached[idx-1].ReferenceBlockHeight {
@@ -415,7 +416,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		receiptsCachedByHeight[idxHeight] = append(receiptsCachedByHeight[idxHeight], receipt)
 		cacheCount++
 	}
-	// re initialize receipt cache without discarded receipts
+	// re initialize receipt cache without receipts been discarded
 	receiptsCached = receiptsCachedTmp
 
 	err = rs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
@@ -424,11 +425,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	}
 	err = func() error {
 		for receiptsRefHeight, receiptsByHeight := range receiptsCachedByHeight {
-			// only process receipts that reference previous block height, given this is the sequence of events:
-			// 1. node push (apply block)
-			// 2. node broadcast that block and eventually receives receipts from peers he broadcast the block to
-			// 3. next time we push a block and trigger current function we still only have receipts of block broadcast at point 2
-			if receiptsRefHeight != block.Height-1 {
+			if receiptsRefHeight != block.Height {
 				break
 			}
 			for _, receipt := range receiptsByHeight {
