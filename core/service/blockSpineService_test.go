@@ -152,7 +152,7 @@ type (
 		query.Executor
 	}
 	mockSpineTypeAction struct {
-		transaction.SendMoney
+		transaction.SendZBC
 	}
 	mockSpineTypeActionSuccess struct {
 		mockSpineTypeAction

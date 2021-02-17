@@ -124,7 +124,7 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 		want   TypeAction
 	}{
 		{
-			name: "wantSendMoney",
+			name: "wantSendZBC",
 			fields: fields{
 				Executor: &query.Executor{},
 			},
@@ -133,8 +133,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  0,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: 10,
 						},
 					},
@@ -142,20 +142,20 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					TransactionType:      binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
 				},
 			},
-			want: &SendMoney{
+			want: &SendZBC{
 				TransactionObject: &model.Transaction{
 					Height:                  0,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
 					TransactionBodyBytes:    util.ConvertUint64ToBytes(10),
 					TransactionType:         binary.LittleEndian.Uint32([]byte{1, 0, 0, 0}),
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: 10,
 						},
 					},
 				},
-				Body: &model.SendMoneyTransactionBody{
+				Body: &model.SendZBCTransactionBody{
 					Amount: 10,
 				},
 				QueryExecutor:        &query.Executor{},
@@ -174,8 +174,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  0,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: 10,
 						},
 					},
@@ -194,8 +194,8 @@ func TestTypeSwitcher_GetTransactionType(t *testing.T) {
 					Height:                  0,
 					SenderAccountAddress:    senderAddress1,
 					RecipientAccountAddress: nil,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: 10,
 						},
 					},

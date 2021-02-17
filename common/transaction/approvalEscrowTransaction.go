@@ -252,7 +252,7 @@ func (tx *ApprovalEscrowTransaction) UndoApplyUnconfirmed() error {
 }
 
 /*
-ApplyConfirmed func that for applying Transaction SendMoney type.
+ApplyConfirmed func that for applying Transaction SendZBC type.
 If Genesis perhaps recipient is not exists , so create new `account` and `account_balance`, balance and spendable = amount.
 If Not Genesis, perhaps sender and recipient is exists, so update `account_balance`, `recipient.balance` = current + amount and
 `sender.balance` = current - amount
@@ -365,7 +365,7 @@ func (tx *ApprovalEscrowTransaction) EscrowUndoApplyUnconfirmed() error {
 }
 
 /*
-EscrowApplyConfirmed func that for applying Transaction SendMoney type.
+EscrowApplyConfirmed func that for applying Transaction SendZBC type.
 */
 func (tx *ApprovalEscrowTransaction) EscrowApplyConfirmed(int64) error {
 
