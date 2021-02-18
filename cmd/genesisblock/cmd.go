@@ -331,7 +331,6 @@ func generateRandomGenesisEntry(accountAddress string) genesisEntry {
 		NodePublicKeyBytes: nodePublicKey,
 		NodePublicKey:      nodePublicKeyStr,
 		NodeSeed:           nodeSeed,
-		ParticipationScore: constant.GenesisParticipationScore,
 		Smithing:           true,
 		LockedBalance:      0,
 	}
