@@ -175,16 +175,16 @@ func SaveConfig(cfg *model.Config, filePath string) error {
 	var err error
 	ownerAccountAddress, err := hex.DecodeString(cfg.OwnerAccountAddressHex)
 	if err != nil {
-		return fmt.Errorf("Invalid OwnerAccountAddress in config. It must be in hex format: %s", err.Error())
+		return fmt.Errorf("invalid OwnerAccountAddress in config. It must be in hex format: %s", err.Error())
 	}
 	// double check that the decoded account address is valid
 	accType, err := accounttype.NewAccountTypeFromAccount(ownerAccountAddress)
 	if err != nil {
-		return fmt.Errorf("Invalid account type: %s", err.Error())
+		return fmt.Errorf("invalid account type: %s", err.Error())
 	}
 	encodedAddress, err := accType.GetEncodedAddress()
 	if err != nil {
-		return fmt.Errorf("Error in generating encoded address: %s", err.Error())
+		return fmt.Errorf("error in generating encoded address: %s", err.Error())
 	}
 
 	viper.Set("smithing", cfg.Smithing)
