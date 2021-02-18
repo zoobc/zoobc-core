@@ -1,36 +1,36 @@
-resourcePath = "./resource"
 dbName = "zoobc_5.db"
 nodeKeyFile = "node_keys_5.json"
+resourcePath = "./resource"
 snapshotPath = "./resource/snapshots_5"
 
 # Peer
-peerPort=8005
-myAddress="127.0.0.1"
-wellknownPeers=["127.0.0.1:8002"]
+myAddress = "127.0.0.1"
+peerPort = 8005
+wellknownPeers = ["127.0.0.1:8002"]
 
-apiRPCPort=3005
-apiHTTPPort=7005
-maxAPIRequestPerSecond=10
+apiHTTPPort = 7005
+apiRPCPort = 3005
+maxAPIRequestPerSecond = 10
 # comment out or set to 0 to disable http proxy, only enable in dev mode
-monitoringPort=9095
-cpuProfilingPort=6065
-apiReqTimeoutSec=2
+apiReqTimeoutSec = 2
+cpuProfilingPort = 6065
+monitoringPort = 9095
 
-ownerAccountAddress = "00000000f5393f8aa31911304b268df33e33fb06c857819742a1a074c444f297494c1b40"
+ownerAccountAddress = "ZBC_6U4T7CVD_DEITASZG_RXZT4M73_A3EFPAMX_IKQ2A5GE_ITZJOSKM_DNAASSHP"
 
-smithing=true
 proofOfOwnershipReqTimeoutSec = 2
+smithing = true
 # Log Levels
 # Available log level: info, warn, error, fatal, panic
 #logLevels=["fatal", "error", "panic"]
-logLevels=["debug", "warn", "info", "fatal", "error", "panic"]
+logLevels = ["debug", "warn", "info", "fatal", "error", "panic"]
 
 # to show all log on terminal/cli that recoreded in .log/log_files
-logOnCli= false
+logOnCli = false
 # to show usefull information on terminal/cli. The logOnCli must be false
-cliMonitoring=true
+cliMonitoring = true
 
-walletCertFileName= "wallet5.zbc"
+walletCertFileName = "wallet5.zbc"
 
 #apiCertFile="./resource/network.crt"
 #apiKeyFile="./resource/network.key"
