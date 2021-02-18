@@ -49,14 +49,6 @@
 // shall be included in all copies or substantial portions of the Software.
 package model
 
-import (
-	"errors"
-	"os"
-	"path/filepath"
-
-	"github.com/spf13/viper"
-)
-
 type (
 	Config struct {
 		PeerPort, MaxAPIRequestPerSecond                          uint32
@@ -91,60 +83,4 @@ func NewConfig() *Config {
 	return &Config{
 		NodeKey: &NodeKey{},
 	}
-}
-
-func (cfg *Config) LoadConfigurations() {
-	cfg.MyAddress = viper.GetString("myAddress")
-	cfg.PeerPort = viper.GetUint32("peerPort")
-	cfg.MonitoringPort = viper.GetInt("monitoringPort")
-	cfg.RPCAPIPort = viper.GetInt("apiRPCPort")
-	cfg.HTTPAPIPort = viper.GetInt("apiHTTPPort")
-	cfg.MaxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
-	cfg.CPUProfilingPort = viper.GetInt("cpuProfilingPort")
-	cfg.OwnerAccountAddressHex = viper.GetString("ownerAccountAddress")
-	cfg.WellknownPeers = viper.GetStringSlice("wellknownPeers")
-	cfg.Smithing = viper.GetBool("smithing")
-	cfg.DatabaseFileName = viper.GetString("dbName")
-	cfg.ResourcePath = viper.GetString("resourcePath")
-	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
-	cfg.NodeSeed = viper.GetString("nodeSeed")
-	cfg.APICertFile = viper.GetString("apiCertFile")
-	cfg.APIKeyFile = viper.GetString("apiKeyFile")
-	cfg.SnapshotPath = viper.GetString("snapshotPath")
-	cfg.LogOnCli = viper.GetBool("logOnCli")
-	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
-	cfg.AntiSpamFilter = viper.GetBool("antiSpamFilter")
-	cfg.AntiSpamP2PRequestLimit = viper.GetInt("antiSpamP2PRequestLimit")
-	cfg.AntiSpamCPULimitPercentage = viper.GetInt("antiSpamCPULimitPercentage")
-}
-
-func (cfg *Config) SaveConfig(filePath string) error {
-	var err error
-	viper.Set("smithing", cfg.Smithing)
-	viper.Set("ownerAccountAddress", cfg.OwnerAccountAddressHex)
-	viper.Set("wellknownPeers", cfg.WellknownPeers)
-	viper.Set("peerPort", cfg.PeerPort)
-	viper.Set("apiRPCPort", cfg.RPCAPIPort)
-	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
-	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
-	viper.Set("antiSpamFilter", cfg.AntiSpamFilter)
-	viper.Set("antiSpamP2PRequestLimit", cfg.AntiSpamP2PRequestLimit)
-	viper.Set("antiSpamCPULimitPercentage", cfg.AntiSpamCPULimitPercentage)
-	// todo: code in rush, need refactor later andy-shi88
-	_, err = os.Stat(filepath.Join(filePath, "./config.toml"))
-	if err != nil {
-		if ok := os.IsNotExist(err); ok {
-			err = viper.SafeWriteConfigAs(filepath.Join(filePath, "./config.toml"))
-			if err != nil {
-				return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
-			}
-		} else {
-			return err
-		}
-	}
-	err = viper.WriteConfigAs(filepath.Join(filePath, "./config.toml"))
-	if err != nil {
-		return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
-	}
-	return nil
 }

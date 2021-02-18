@@ -96,7 +96,7 @@ func TestLoadConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := LoadConfig(tt.args.path, tt.args.name, tt.args.extension, ""); (err != nil) != tt.wantErr {
+			if _, err := LoadConfig(tt.args.path, tt.args.name, tt.args.extension, "", false); (err != nil) != tt.wantErr {
 				t.Errorf("LoadConfig() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

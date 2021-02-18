@@ -51,9 +51,9 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 
-	"github.com/spf13/viper"
 	"github.com/zoobc/zoobc-core/common/util"
 
 	log "github.com/sirupsen/logrus"
@@ -63,14 +63,18 @@ import (
 )
 
 func main() {
-	var apiRPCPort int
-	if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
-		log.Fatal(err)
-	} else {
-		apiRPCPort = viper.GetInt("apiRPCPort")
+	var ip string
+	flag.StringVar(&ip, "ip", "", "Usage")
+	flag.Parse()
+	if len(ip) < 1 {
+		config, err := util.LoadConfig("../../../", "config", "toml", "", false)
+		if err != nil {
+			log.Fatal(err)
+		} else {
+			ip = fmt.Sprintf(":%d", config.RPCAPIPort)
+		}
 	}
-
-	conn, err := grpc.Dial(fmt.Sprintf(":%d", apiRPCPort), grpc.WithInsecure())
+	conn, err := grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}

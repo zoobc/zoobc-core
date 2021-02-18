@@ -50,10 +50,16 @@
 package util
 
 import (
+	"encoding/hex"
+	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/constant"
 	"os"
 	"path/filepath"
+
+	"github.com/zoobc/lib/address"
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/model"
 
 	"github.com/spf13/viper"
 )
@@ -61,7 +67,21 @@ import (
 /*
 LoadConfig must be called at first time while start the app
 */
-func LoadConfig(path, name, extension, resourcePath string) error {
+func LoadConfig(path, name, extension, resourcePath string, flagUseEnv bool) (config *model.Config, err error) {
+	err = loadFromFile(path, name, extension, resourcePath)
+	if err != nil {
+		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); !ok || !flagUseEnv {
+			return config, err
+		}
+	}
+
+	config = model.NewConfig()
+	config.ConfigFileExist = true
+	readConfigurations(config)
+	return config, err
+}
+
+func loadFromFile(path, name, extension, resourcePath string) error {
 	if path == "" {
 		p, err := GetRootPath()
 		if err != nil {
@@ -78,6 +98,7 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 		return fmt.Errorf("path and extension cannot be nil")
 	}
 
+	// set default config values
 	viper.SetDefault("dbName", "zoobc.db")
 	viper.SetDefault("nodeKeyFile", "node_keys.json")
 	viper.Set("resourcePath", filepath.Join(resourcePath))
@@ -119,6 +140,81 @@ func LoadConfig(path, name, extension, resourcePath string) error {
 	if err != nil {
 		fmt.Printf("WriteConfig.Err %v\n\n", err)
 		return err
+	}
+
+	return nil
+}
+
+func readConfigurations(cfg *model.Config) {
+	var pubKey = make([]byte, 32)
+	_ = address.DecodeZbcID(viper.GetString("ownerAccountAddress"), pubKey)
+	addressHexString := hex.EncodeToString(append([]byte{0, 0, 0, 0}, pubKey...))
+
+	cfg.MyAddress = viper.GetString("myAddress")
+	cfg.PeerPort = viper.GetUint32("peerPort")
+	cfg.MonitoringPort = viper.GetInt("monitoringPort")
+	cfg.RPCAPIPort = viper.GetInt("apiRPCPort")
+	cfg.HTTPAPIPort = viper.GetInt("apiHTTPPort")
+	cfg.MaxAPIRequestPerSecond = viper.GetUint32("maxAPIRequestPerSecond")
+	cfg.CPUProfilingPort = viper.GetInt("cpuProfilingPort")
+	cfg.OwnerAccountAddressHex = addressHexString
+	cfg.WellknownPeers = viper.GetStringSlice("wellknownPeers")
+	cfg.Smithing = viper.GetBool("smithing")
+	cfg.DatabaseFileName = viper.GetString("dbName")
+	cfg.ResourcePath = viper.GetString("resourcePath")
+	cfg.NodeKeyFileName = viper.GetString("nodeKeyFile")
+	cfg.NodeSeed = viper.GetString("nodeSeed")
+	cfg.APICertFile = viper.GetString("apiCertFile")
+	cfg.APIKeyFile = viper.GetString("apiKeyFile")
+	cfg.SnapshotPath = viper.GetString("snapshotPath")
+	cfg.LogOnCli = viper.GetBool("logOnCli")
+	cfg.CliMonitoring = viper.GetBool("cliMonitoring")
+	cfg.AntiSpamFilter = viper.GetBool("antiSpamFilter")
+	cfg.AntiSpamP2PRequestLimit = viper.GetInt("antiSpamP2PRequestLimit")
+	cfg.AntiSpamCPULimitPercentage = viper.GetInt("antiSpamCPULimitPercentage")
+}
+
+func SaveConfig(cfg *model.Config, filePath string) error {
+	var err error
+	ownerAccountAddress, err := hex.DecodeString(cfg.OwnerAccountAddressHex)
+	if err != nil {
+		return fmt.Errorf("Invalid OwnerAccountAddress in config. It must be in hex format: %s", err.Error())
+	}
+	// double check that the decoded account address is valid
+	accType, err := accounttype.NewAccountTypeFromAccount(ownerAccountAddress)
+	if err != nil {
+		return fmt.Errorf("Invalid account type: %s", err.Error())
+	}
+	encodedAddress, err := accType.GetEncodedAddress()
+	if err != nil {
+		return fmt.Errorf("Error in generating encoded address: %s", err.Error())
+	}
+
+	viper.Set("smithing", cfg.Smithing)
+	viper.Set("ownerAccountAddress", encodedAddress)
+	viper.Set("wellknownPeers", cfg.WellknownPeers)
+	viper.Set("peerPort", cfg.PeerPort)
+	viper.Set("apiRPCPort", cfg.RPCAPIPort)
+	viper.Set("apiHTTPPort", cfg.HTTPAPIPort)
+	viper.Set("maxAPIRequestPerSecond", cfg.MaxAPIRequestPerSecond)
+	viper.Set("antiSpamFilter", cfg.AntiSpamFilter)
+	viper.Set("antiSpamP2PRequestLimit", cfg.AntiSpamP2PRequestLimit)
+	viper.Set("antiSpamCPULimitPercentage", cfg.AntiSpamCPULimitPercentage)
+	// todo: code in rush, need refactor later andy-shi88
+	_, err = os.Stat(filepath.Join(filePath, "./config.toml"))
+	if err != nil {
+		if ok := os.IsNotExist(err); ok {
+			err = viper.SafeWriteConfigAs(filepath.Join(filePath, "./config.toml"))
+			if err != nil {
+				return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
+			}
+		} else {
+			return err
+		}
+	}
+	err = viper.WriteConfigAs(filepath.Join(filePath, "./config.toml"))
+	if err != nil {
+		return errors.New("error saving configuration to ./config.toml\terror: " + err.Error())
 	}
 	return nil
 }
