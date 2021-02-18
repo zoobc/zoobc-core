@@ -17,7 +17,7 @@ func main() {
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
-		config, err := util.LoadConfig("../../../", "config", "toml", "", false)
+		config, err := util.LoadConfig("../../../", "config", "toml", "")
 		if err != nil {
 			log.Fatal(err)
 		} else {

@@ -54,6 +54,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	_ "net/http/pprof"
@@ -195,7 +196,14 @@ func initiateMainInstance() {
 	)
 
 	// load config for default value to be feed to viper
-	config, err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath, flagUseEnv)
+	config, err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath)
+	if err != nil {
+		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); ok && flagUseEnv {
+			config.ConfigFileExist = true
+		}
+	} else {
+		config.ConfigFileExist = true
+	}
 
 	// decode owner account address
 	if config.OwnerAccountAddressHex != "" {

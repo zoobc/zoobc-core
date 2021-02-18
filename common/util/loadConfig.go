@@ -67,16 +67,13 @@ import (
 /*
 LoadConfig must be called at first time while start the app
 */
-func LoadConfig(path, name, extension, resourcePath string, flagUseEnv bool) (config *model.Config, err error) {
+func LoadConfig(path, name, extension, resourcePath string) (config *model.Config, err error) {
 	err = loadFromFile(path, name, extension, resourcePath)
 	if err != nil {
-		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); !ok || !flagUseEnv {
-			return config, err
-		}
+		return config, err
 	}
 
 	config = model.NewConfig()
-	config.ConfigFileExist = true
 	readConfigurations(config)
 	return config, err
 }
