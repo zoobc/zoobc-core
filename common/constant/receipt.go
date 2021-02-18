@@ -63,4 +63,6 @@ const (
 	ReceiptGenerateMerkleRootPeriod = 20 * time.Second
 	// time to wait, after pushBlock for batch receipts and relative merkle root to be generated
 	BatchReceiptWaitingTime = 30 * time.Second
+	// ReceiptPoolMaxLife max blocks a receipt can stay in the pool before being discarded
+	ReceiptPoolMaxLife = 40
 )

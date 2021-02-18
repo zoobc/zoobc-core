@@ -411,6 +411,8 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	for _, receipt := range receiptsCached {
 		if receipt.ReferenceBlockHeight == block.Height && bytes.Equal(receipt.ReferenceBlockHash, block.BlockHash) {
 			receiptsToProcess = append(receiptsToProcess, receipt)
+		} else if receipt.ReferenceBlockHeight < block.Height-constant.ReceiptPoolMaxLife {
+			continue
 		} else {
 			remainingReceipts = append(remainingReceipts, receipt)
 		}
