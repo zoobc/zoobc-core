@@ -52,7 +52,6 @@ package genesisblock
 import (
 	"bytes"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/zoobc/zoobc-core/common/queue"
@@ -685,25 +684,6 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 		log.Fatalf("create %s file: %s\n", newClusterConfigFilePath, err)
 	}
 	return clusterConfig
-}
-
-func convZBCAddressToHex(encodedAccountAddress string) string {
-	var (
-		defSignature = signaturetype.NewEd25519Signature()
-	)
-	pubKey, err := defSignature.GetPublicKeyFromEncodedAddress(encodedAccountAddress)
-	if err != nil {
-		panic(err)
-	}
-	accType, err := accounttype.NewAccountType(int32(model.AccountType_ZbcAccountType), pubKey)
-	if err != nil {
-		panic(err)
-	}
-	accountAddress, err := accType.GetAccountAddress()
-	if err != nil {
-		panic(err)
-	}
-	return hex.EncodeToString(accountAddress)
 }
 
 func generateAccountNodesFile(accountNodeEntries []accountNodeEntry, configFilePath string) {
