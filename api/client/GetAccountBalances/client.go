@@ -75,8 +75,6 @@ func main() {
 		}
 	}
 	conn, err := grpc.Dial(ip, grpc.WithInsecure())
-
-	conn, err := grpc.Dial(ip, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %s", err)
 	}
