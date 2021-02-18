@@ -670,7 +670,7 @@ func generateClusterConfigFile(genesisEntries []genesisEntry, newClusterConfigFi
 			entry := clusterConfigEntry{
 				NodePublicKey:  genEntry.NodePublicKey,
 				NodeSeed:       genEntry.NodeSeed,
-				AccountAddress: convZBCAddressToHex(genEntry.AccountAddress),
+				AccountAddress: genEntry.AccountAddress,
 				Smithing:       genEntry.Smithing,
 			}
 			clusterConfig = append(clusterConfig, entry)
