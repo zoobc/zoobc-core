@@ -303,7 +303,7 @@ func (tx *ApprovalEscrowTransaction) ApplyConfirmed(blockTimestamp int64) error 
 		return err
 	}
 
-	// now only send money has EscrowApproval method
+	// now only send zbc has EscrowApproval method
 	escrowable, ok := txType.Escrowable()
 	if !ok {
 		return blocker.NewBlocker(blocker.AppErr, "ExpectEscrowableTransaction")

@@ -52,7 +52,7 @@ package fee
 import "github.com/zoobc/zoobc-core/common/constant"
 
 const (
-	// SendZBCFeeConstant value of initial / constant send money fee
+	// SendZBCFeeConstant value of initial / constant send zbc fee
 	SendZBCFeeConstant        = constant.OneZBC / 100
 	InitialFeeScale           = constant.OneZBC / 100
 	FeeScaleLowerConstraints  = 0.5
