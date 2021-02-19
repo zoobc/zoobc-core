@@ -51,6 +51,8 @@ package p2p
 
 import (
 	"encoding/base64"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"google.golang.org/grpc/keepalive"
 	"math/rand"
 	"time"
 
@@ -192,6 +194,21 @@ func (s *Peer2PeerService) StartP2P(
 						codes.Unauthenticated: "indicates the request is unauthenticated",
 					},
 				)),
+				grpc.KeepaliveParams(
+					keepalive.ServerParameters{
+						MaxConnectionIdle: constant.MaxSeverConnectionIdle,
+						Time:              constant.P2PServerKeepAliveInterval,
+						Timeout:           constant.P2PServerKeepAliveTimeout,
+					},
+				),
+				grpc.KeepaliveEnforcementPolicy(
+					keepalive.EnforcementPolicy{
+						// Any value higher than P2PClientKeepAliveInterval will result in server closing connection with error:
+						// transport: Got too many pings from the client, closing the connection
+						MinTime:             constant.P2PClientKeepAliveInterval,
+						PermitWithoutStream: true,
+					},
+				),
 			)
 		)
 
@@ -248,6 +265,7 @@ func (s *Peer2PeerService) SendBlockListener() observer.Listener {
 			peers := s.PeerExplorer.GetResolvedPeers()
 			for _, peer := range peers {
 				go func(p *model.Peer) {
+					// add a max (random) 1 sec delay to avoid opening too many connections too fast
 					if err := s.PeerServiceClient.SendBlock(p, b, chainType); err != nil {
 						s.Logger.Errorf("SendBlockListener: %s", err)
 					}

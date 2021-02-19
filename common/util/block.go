@@ -171,7 +171,8 @@ func GetBlockByHeightUseBlocksCache(
 ) (*storage.BlockCacheObject, error) {
 	var (
 		blockCacheObject storage.BlockCacheObject
-		err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
+		// @iltoga commented out code to test without Blockcache
+		// err              = blocksCacheStorage.GetAtIndex(height, &blockCacheObject)
 	)
 	// @iltoga commented out code to test without Blockcache
 	// if err == nil {

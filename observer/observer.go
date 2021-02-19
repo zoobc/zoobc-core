@@ -98,6 +98,6 @@ func (o *Observer) Notify(event Event, data interface{}, args ...interface{}) {
 		return
 	}
 	for _, listener := range listeners {
-		listener.OnNotify(data, args...)
+		go listener.OnNotify(data, args...)
 	}
 }
