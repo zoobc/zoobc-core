@@ -1539,6 +1539,7 @@ func (bs *BlockService) ReceiveBlock(
 			if !ok {
 				return nil, err
 			}
+			// DuplicateBlockPool is not to be considered an error for receipt generation
 			if errCasted.Message != "DuplicateBlockPool" {
 				// return a 'status' error message instead of a 'blocker' message, as above
 				return nil, status.Error(codes.InvalidArgument, err.Error())
