@@ -1282,8 +1282,8 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 			RecipientSignature:   make([]byte, 64),
 		}
 	)
-	mockReceiptCacheStorage.SetItem(nil, mockReceipt1)
-	mockReceiptCacheStorage.SetItem(nil, mockReceipt2)
+	_ = mockReceiptCacheStorage.SetItem(nil, mockReceipt1)
+	_ = mockReceiptCacheStorage.SetItem(nil, mockReceipt2)
 
 	type fields struct {
 		NodeReceiptQuery         query.BatchReceiptQueryInterface

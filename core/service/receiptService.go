@@ -148,7 +148,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRootListener() observer.Listener
 			if chainType.GetTypeInt() == (&chaintype.MainChain{}).GetTypeInt() {
 				// wait for node to collect all receipt in case of heavy network load
 				time.Sleep(constant.BatchReceiptWaitingTime)
-				rs.GenerateReceiptsMerkleRoot(b)
+				if err := rs.GenerateReceiptsMerkleRoot(b); err != nil {
+					rs.Logger.Error(err)
+				}
 			}
 		},
 	}
@@ -388,7 +390,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		return errors.New("BlockNotInDb")
 	}
 
-	if err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached); err != nil {
+	if err := rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached); err != nil {
 		return err
 	}
 	// If no receipts in cache no need to return errors. just log a message
