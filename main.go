@@ -141,7 +141,7 @@ var (
 	spineBlockManifestService                                              service.SpineBlockManifestServiceInterface
 	snapshotService                                                        service.SnapshotServiceInterface
 	transactionUtil                                                        transaction.UtilInterface
-	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
+	receiptUtil                                                            coreUtil.ReceiptUtilInterface
 	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
 	pendingTransactionServiceIns                                           service.PendingTransactionServiceInterface
 	fileService                                                            service.FileServiceInterface
@@ -456,6 +456,8 @@ func initiateMainInstance() {
 		scrambleNodeStorage,
 	)
 
+	receiptUtil = coreUtil.NewReceiptUtil()
+
 	receiptService = service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
@@ -471,6 +473,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		loggerCoreService,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -807,6 +810,7 @@ func initObserverListeners() {
 	// only smithing nodes generate snapshots
 	if config.Smithing {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
+		observerInstance.AddListener(observer.BlockPushed, receiptService.GenerateReceiptsMerkleRootListener())
 	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, mainchainBlockService.ReceivedValidatedBlockTransactionsListener())
@@ -1018,6 +1022,14 @@ func startMainchain() {
 		mainchainDownloader,
 		mainchainForkProcessor,
 	)
+
+	// add nodeID to current host if it's a registered node
+	nodeSecretPhrase := nodeConfigurationService.GetNodeSecretPhrase()
+	nr, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(
+		signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase))
+	if err == nil && nr != nil {
+		nodeConfigurationService.SetHostID(nr.GetNodeID())
+	}
 }
 
 func startSpinechain() {
@@ -1112,13 +1124,6 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
-	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}
