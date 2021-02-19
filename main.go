@@ -141,7 +141,7 @@ var (
 	spineBlockManifestService                                              service.SpineBlockManifestServiceInterface
 	snapshotService                                                        service.SnapshotServiceInterface
 	transactionUtil                                                        transaction.UtilInterface
-	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
+	receiptUtil                                                            coreUtil.ReceiptUtilInterface
 	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
 	pendingTransactionServiceIns                                           service.PendingTransactionServiceInterface
 	fileService                                                            service.FileServiceInterface
@@ -455,6 +455,8 @@ func initiateMainInstance() {
 		query.NewBlockQuery(mainchain),
 		scrambleNodeStorage,
 	)
+
+	receiptUtil = coreUtil.NewReceiptUtil()
 
 	receiptService = service.NewReceiptService(
 		query.NewBatchReceiptQuery(),

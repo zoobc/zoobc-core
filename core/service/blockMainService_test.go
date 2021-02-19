@@ -4500,6 +4500,7 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 
 type (
 	mockReceiptUtil struct {
+		validateSender bool
 		coreUtil.ReceiptUtil
 		resSignetBytes []byte
 	}
@@ -4510,6 +4511,16 @@ func (mRu *mockReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte
 		return mRu.resSignetBytes
 	}
 	return []byte{}
+}
+
+func (mRu *mockReceiptUtil) ValidateReceiptSenderRecipient(
+	receipt *model.Receipt,
+	scrambledNode *model.ScrambledNodes,
+) error {
+	if mRu.validateSender {
+		return nil
+	}
+	return errors.New("MockErr")
 }
 
 func TestBlockService_ValidatePayloadHash(t *testing.T) {

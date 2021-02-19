@@ -73,7 +73,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
-	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -392,10 +391,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	if err = rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached); err != nil {
 		return err
 	}
-	// If no receipts in cache no need to log errors
+	// If no receipts in cache no need to return errors. just log a message
 	if len(receiptsCached) == 0 {
-		// TODO: lower this to level 'Info' to not pollute the logs
-		rs.Logger.Error("No Receipts for block height: ", block.Height)
+		rs.Logger.Info("No Receipts for block height: ", block.Height)
 		return nil
 	}
 	// Need to sorting before do next
@@ -406,12 +404,14 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	var (
 		receiptsToProcess = make([]model.Receipt, 0)
 		remainingReceipts = make([]model.Receipt, 0)
+		// note that expirationHeight cannot be negative because is a uint32
+		expirationHeight = block.Height - constant.ReceiptPoolMaxLife
 	)
 	// Extract from receipt pool only the ones that reference current block
 	for _, receipt := range receiptsCached {
 		if receipt.ReferenceBlockHeight == block.Height && bytes.Equal(receipt.ReferenceBlockHash, block.BlockHash) {
 			receiptsToProcess = append(receiptsToProcess, receipt)
-		} else if receipt.ReferenceBlockHeight < block.Height-constant.ReceiptPoolMaxLife {
+		} else if receipt.ReferenceBlockHeight > constant.ReceiptPoolMaxLife && receipt.ReferenceBlockHeight < expirationHeight {
 			continue
 		} else {
 			remainingReceipts = append(remainingReceipts, receipt)
@@ -560,50 +560,16 @@ func (rs *ReceiptService) ValidateReceipt(
 	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
 	}
-	err = rs.validateReceiptSenderRecipient(receipt)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (rs *ReceiptService) validateReceiptSenderRecipient(
-	receipt *model.Receipt,
-) error {
-	var (
-		err   error
-		peers map[string]*model.Peer
-	)
 	// get or build scrambled nodes at height
 	scrambledNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-	// get sender address at height
-	senderNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetSenderPublicKey())]
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptSenderNotInScrambleList")
-	}
-	// get recipient address at height
-	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetRecipientPublicKey())]
-	if !ok {
-		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
-	}
-	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
-		senderNodeID,
-		scrambledNode,
-	); err != nil {
+	err = rs.ReceiptUtil.ValidateReceiptSenderRecipient(receipt, scrambledNode)
+	if err != nil {
 		return err
 	}
-
-	// check if recipient is in sender.Peers list
-	for _, peer := range peers {
-		if peer.GetInfo().ID == recipientNodeID {
-			// valid recipient and sender
-			return nil
-		}
-	}
-	return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInPriorityList")
+	return nil
 }
 
 // GetPublishedReceiptsByHeight that handling database connection to get published receipts by height

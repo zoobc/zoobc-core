@@ -135,7 +135,18 @@ type (
 	mockNodeConfigurationService struct {
 		coreService.NodeConfigurationServiceInterface
 	}
+	mockNodeAddressInfoServiceSuccess struct {
+		coreService.NodeAddressInfoServiceInterface
+	}
 )
+
+func (*mockNodeAddressInfoServiceSuccess) GetAddressInfoByAddressPort(
+	address string,
+	port uint32,
+	nodeAddressStatuses []model.NodeAddressStatus,
+) ([]*model.NodeAddressInfo, error) {
+	return nil, nil
+}
 
 func (mockNais *p2pSrvMockNodeAddressInfoService) GetAddressInfoTableWithConsolidatedAddresses(
 	preferredStatus model.NodeAddressStatus,
@@ -1272,15 +1283,19 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		mockHeaderContextPeerFail = metadata.New(mockMetaDataPeerFail)
 		mockContextPeerFail       = metadata.NewIncomingContext(context.Background(), mockHeaderContextPeerFail)
 	)
+
 	type fields struct {
-		FileService       coreService.FileServiceInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		BlockServices     map[int32]coreService.BlockServiceInterface
-		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase  string
-		Observer          *observer.Observer
-		ScrambleNodeCache storage.CacheStackStorageInterface
-		NodeConfiguration coreService.NodeConfigurationServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		FileService              coreService.FileServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
+		PeerExplorer             strategy.PeerExplorerStrategyInterface
+		BlockServices            map[int32]coreService.BlockServiceInterface
+		MempoolServices          map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase         string
+		Observer                 *observer.Observer
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeCache        storage.CacheStackStorageInterface
 	}
 	type args struct {
 		ctx             context.Context
@@ -1298,7 +1313,8 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		{
 			name: "wantFail:ValidateRequest",
 			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategyValidateRequestFail{},
+				PeerExplorer:           &mockPeerExplorerStrategyValidateRequestFail{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args:    args{},
 			want:    nil,
@@ -1307,7 +1323,8 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		{
 			name: "wantFail:InvalidContext",
 			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategySuccess{},
+				PeerExplorer:           &mockPeerExplorerStrategySuccess{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1319,7 +1336,8 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		{
 			name: "wantFail:ParsePeer",
 			fields: fields{
-				PeerExplorer: &mockPeerExplorerStrategySuccess{},
+				PeerExplorer:           &mockPeerExplorerStrategySuccess{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContextPeerFail,
@@ -1331,8 +1349,9 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 		{
 			name: "wantFail:InvalidChainType",
 			fields: fields{
-				PeerExplorer:  &mockPeerExplorerStrategySuccess{},
-				BlockServices: map[int32]coreService.BlockServiceInterface{},
+				PeerExplorer:           &mockPeerExplorerStrategySuccess{},
+				BlockServices:          map[int32]coreService.BlockServiceInterface{},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1348,6 +1367,7 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceGetLastBlockFail{},
 				},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1363,7 +1383,8 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceReceiveBlockFail{},
 				},
-				ScrambleNodeCache: &mockScrambleNodeCache{wantErr: true},
+				ScrambleNodeCache:      &mockScrambleNodeCache{wantErr: true},
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1379,8 +1400,9 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendBlockBlockServiceSuccess{},
 				},
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				ScrambleNodeCache:        &mockScrambleNodeCache{},
+				NodeConfigurationService: &mockNodeConfigurationService{},
+				NodeAddressInfoService:   &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1395,22 +1417,25 @@ func TestP2PServerService_SendBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &P2PServerService{
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
 				FileService:              tt.fields.FileService,
+				NodeConfigurationService: tt.fields.NodeConfigurationService,
+				NodeAddressInfoService:   tt.fields.NodeAddressInfoService,
 				PeerExplorer:             tt.fields.PeerExplorer,
 				BlockServices:            tt.fields.BlockServices,
 				MempoolServices:          tt.fields.MempoolServices,
 				NodeSecretPhrase:         tt.fields.NodeSecretPhrase,
 				Observer:                 tt.fields.Observer,
+				FeedbackStrategy:         tt.fields.FeedbackStrategy,
 				ScrambleNodeCache:        tt.fields.ScrambleNodeCache,
-				NodeConfigurationService: tt.fields.NodeConfiguration,
 			}
 			got, err := ps.SendBlock(tt.args.ctx, tt.args.chainType, tt.args.block, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("P2PServerService.SendBlock() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SendBlock() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("P2PServerService.SendBlock() = %v, want %v", got, tt.want)
+				t.Errorf("SendBlock() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1455,7 +1480,7 @@ func (*mockSendTransactionMempoolServiceSuccess) ReceivedTransaction(
 	}, nil
 }
 
-func TestP2PServerService_SendTransaction(t *testing.T) {
+func TestP2PServerService_SendTransaction1(t *testing.T) {
 	var (
 		mockMetaData      = map[string]string{p2pUtil.DefaultConnectionMetadata: p2pUtil.GetFullAddress(&mockNode)}
 		mockHeaderContext = metadata.New(mockMetaData)
@@ -1463,15 +1488,17 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 	)
 
 	type fields struct {
-		FileService       coreService.FileServiceInterface
-		PeerExplorer      strategy.PeerExplorerStrategyInterface
-		BlockServices     map[int32]coreService.BlockServiceInterface
-		MempoolServices   map[int32]coreService.MempoolServiceInterface
-		NodeSecretPhrase  string
-		Observer          *observer.Observer
-		FeedbackStrategy  feedbacksystem.FeedbackStrategyInterface
-		ScrambleNodeCache storage.CacheStackStorageInterface
-		NodeConfiguration coreService.NodeConfigurationServiceInterface
+		NodeRegistrationService  coreService.NodeRegistrationServiceInterface
+		FileService              coreService.FileServiceInterface
+		NodeConfigurationService coreService.NodeConfigurationServiceInterface
+		NodeAddressInfoService   coreService.NodeAddressInfoServiceInterface
+		PeerExplorer             strategy.PeerExplorerStrategyInterface
+		BlockServices            map[int32]coreService.BlockServiceInterface
+		MempoolServices          map[int32]coreService.MempoolServiceInterface
+		NodeSecretPhrase         string
+		Observer                 *observer.Observer
+		FeedbackStrategy         feedbacksystem.FeedbackStrategyInterface
+		ScrambleNodeCache        storage.CacheStackStorageInterface
 	}
 	type args struct {
 		ctx              context.Context
@@ -1489,8 +1516,9 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:ValidateRequest",
 			fields: fields{
-				PeerExplorer:     &mockPeerExplorerStrategyValidateRequestFail{},
-				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
+				PeerExplorer:           &mockPeerExplorerStrategyValidateRequestFail{},
+				FeedbackStrategy:       feedbacksystem.NewDummyFeedbackStrategy(),
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args:    args{},
 			want:    nil,
@@ -1499,9 +1527,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 		{
 			name: "wantFail:InvalidChainType_BlockService",
 			fields: fields{
-				PeerExplorer:     &mockPeerExplorerStrategySuccess{},
-				BlockServices:    map[int32]coreService.BlockServiceInterface{},
-				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
+				PeerExplorer:           &mockPeerExplorerStrategySuccess{},
+				BlockServices:          map[int32]coreService.BlockServiceInterface{},
+				FeedbackStrategy:       feedbacksystem.NewDummyFeedbackStrategy(),
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1517,7 +1546,8 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceGetLastBlockFail{},
 				},
-				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
+				FeedbackStrategy:       feedbacksystem.NewDummyFeedbackStrategy(),
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1533,8 +1563,9 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				BlockServices: map[int32]coreService.BlockServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionBlockServiceSuccess{},
 				},
-				MempoolServices:  map[int32]coreService.MempoolServiceInterface{},
-				FeedbackStrategy: feedbacksystem.NewDummyFeedbackStrategy(),
+				MempoolServices:        map[int32]coreService.MempoolServiceInterface{},
+				FeedbackStrategy:       feedbacksystem.NewDummyFeedbackStrategy(),
+				NodeAddressInfoService: &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       context.Background(),
@@ -1553,9 +1584,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceReceivedTransactionFail{},
 				},
-				FeedbackStrategy:  feedbacksystem.NewDummyFeedbackStrategy(),
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				FeedbackStrategy:         feedbacksystem.NewDummyFeedbackStrategy(),
+				ScrambleNodeCache:        &mockScrambleNodeCache{},
+				NodeConfigurationService: &mockNodeConfigurationService{},
+				NodeAddressInfoService:   &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1574,9 +1606,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				MempoolServices: map[int32]coreService.MempoolServiceInterface{
 					mockChainType.GetTypeInt(): &mockSendTransactionMempoolServiceSuccess{},
 				},
-				FeedbackStrategy:  feedbacksystem.NewDummyFeedbackStrategy(),
-				ScrambleNodeCache: &mockScrambleNodeCache{},
-				NodeConfiguration: &mockNodeConfigurationService{},
+				FeedbackStrategy:         feedbacksystem.NewDummyFeedbackStrategy(),
+				ScrambleNodeCache:        &mockScrambleNodeCache{},
+				NodeConfigurationService: &mockNodeConfigurationService{},
+				NodeAddressInfoService:   &mockNodeAddressInfoServiceSuccess{},
 			},
 			args: args{
 				ctx:       mockContext,
@@ -1591,7 +1624,10 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ps := &P2PServerService{
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
 				FileService:              tt.fields.FileService,
+				NodeConfigurationService: tt.fields.NodeConfigurationService,
+				NodeAddressInfoService:   tt.fields.NodeAddressInfoService,
 				PeerExplorer:             tt.fields.PeerExplorer,
 				BlockServices:            tt.fields.BlockServices,
 				MempoolServices:          tt.fields.MempoolServices,
@@ -1599,15 +1635,14 @@ func TestP2PServerService_SendTransaction(t *testing.T) {
 				Observer:                 tt.fields.Observer,
 				FeedbackStrategy:         tt.fields.FeedbackStrategy,
 				ScrambleNodeCache:        tt.fields.ScrambleNodeCache,
-				NodeConfigurationService: tt.fields.NodeConfiguration,
 			}
 			got, err := ps.SendTransaction(tt.args.ctx, tt.args.chainType, tt.args.transactionBytes, tt.args.senderPublicKey)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("P2PServerService.SendTransaction() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("SendTransaction() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("P2PServerService.SendTransaction() = %v, want %v", got, tt.want)
+				t.Errorf("SendTransaction() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
