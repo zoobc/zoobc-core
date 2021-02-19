@@ -386,7 +386,7 @@ func (tx *FeeVoteRevealTransaction) SkipMempoolTransaction(
 	return false, nil
 }
 
-// GetSize send money Amount should be 8
+// GetSize send zbc Amount should be 8
 func (tx *FeeVoteRevealTransaction) GetSize() (uint32, error) {
 	// only amount
 	txBodyBytes, err := tx.GetBodyBytes()

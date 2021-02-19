@@ -1382,7 +1382,7 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
-		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
+		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send zbc
 			totalAmount += tx.GetSendZBCTransactionBody().Amount
 		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)

@@ -247,7 +247,7 @@ func (tx *LiquidPaymentTransaction) CompletePayment(blockHeight uint32, blockTim
 		senderBalanceIncrement = tx.Body.GetAmount() - recipientBalanceIncrement
 	}
 
-	// transfer the money to the recipient pro-rate wise
+	// transfer the zbc to the recipient pro-rate wise
 	err = tx.AccountBalanceHelper.AddAccountBalance(
 		tx.TransactionObject.RecipientAccountAddress,
 		recipientBalanceIncrement,
