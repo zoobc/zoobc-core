@@ -325,7 +325,6 @@ func (rs *ReceiptService) pickReceipts(
 ) ([]*model.PublishedReceipt, error) {
 	var receipts []*model.BatchReceipt
 	receipts, err := func() ([]*model.BatchReceipt, error) {
-		// STEF check this logic: seems doesn't select anything even when there are published receipts to be picked up
 		receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
 			numberOfReceipt*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
 		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
@@ -359,7 +358,6 @@ func (rs *ReceiptService) pickReceipts(
 	return pickedReceipts, nil
 }
 
-// TODO: add a scheduled job to prune old receipts after n (MinRollbackSafe?) blocks
 // GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
 // generating will do when number of collected receipts(batch receipts) already <= the number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
