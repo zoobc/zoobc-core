@@ -124,7 +124,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		default:
 			return nil, nil
 		}
-	// Send Money
+	// Send zbc
 	case 1:
 		switch buf[1] {
 		case 0:

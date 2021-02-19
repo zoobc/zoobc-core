@@ -84,7 +84,7 @@ var (
 	senderAddressHex           string
 	sign                       bool
 
-	// Send money transaction
+	// Send zbc transaction
 	sendAmount int64
 
 	// node registration transaction

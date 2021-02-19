@@ -201,7 +201,7 @@ func (tx *SendZBC) GetMinimumFee() (int64, error) {
 	return fee.CalculateTxMinimumFee(tx.TransactionObject, lastFeeScale.FeeScale)
 }
 
-// GetSize send money Amount should be 8
+// GetSize send zbc Amount should be 8
 func (*SendZBC) GetSize() (uint32, error) {
 	// only amount
 	return constant.Balance, nil

@@ -87,9 +87,9 @@ var (
 		Use:   "transaction",
 		Short: "transaction command used to generate transaction.",
 	}
-	sendMoneyCmd = &cobra.Command{
-		Use:   "send-money",
-		Short: "send-money command used to generate \"send money\" transaction",
+	sendZBCCmd = &cobra.Command{
+		Use:   "send-zbc",
+		Short: "send-zbc command used to generate \"send zbc\" transaction",
 	}
 	registerNodeCmd = &cobra.Command{
 		Use:   "register-node",
@@ -170,19 +170,19 @@ func init() {
 	/*
 		SendZBC Command
 	*/
-	sendMoneyCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send")
-	sendMoneyCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
-	sendMoneyCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
-	sendMoneyCmd.Flags().Int64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout which is timestamp unix format")
-	sendMoneyCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
-	sendMoneyCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
+	sendZBCCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of zbc we want to send")
+	sendZBCCmd.Flags().BoolVar(&escrow, "escrow", false, "Escrowable transaction ? need approver-address if yes")
+	sendZBCCmd.Flags().StringVar(&esApproverAddressHex, "approver-address", "", "Escrow fields: Approver account address")
+	sendZBCCmd.Flags().Int64Var(&esTimeout, "timeout", 0, "Escrow fields: Timeout which is timestamp unix format")
+	sendZBCCmd.Flags().Int64Var(&esCommission, "commission", 0, "Escrow fields: Commission")
+	sendZBCCmd.Flags().StringVar(&esInstruction, "instruction", "", "Escrow fields: Instruction")
 
 	/*
 		RegisterNode Command
 	*/
 	registerNodeCmd.Flags().StringVar(&nodeOwnerAccountAddressHex, "node-owner-account-address", "", "Account address of the owner of the node")
 	registerNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
-	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
+	registerNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of zbc wanted to be locked")
 	registerNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "proof-of-ownership-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
 	registerNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
@@ -195,7 +195,7 @@ func init() {
 	*/
 	updateNodeCmd.Flags().StringVar(&nodeOwnerAccountAddressHex, "node-owner-account-address", "", "Account address of the owner of the node")
 	updateNodeCmd.Flags().StringVar(&nodeSeed, "node-seed", "", "Private key of the node")
-	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of money wanted to be locked")
+	updateNodeCmd.Flags().Int64Var(&lockedBalance, "locked-balance", 0, "Amount of zbc wanted to be locked")
 	updateNodeCmd.Flags().StringVar(&proofOfOwnershipHex, "poow-hex", "", "the hex string proof of owenership bytes")
 	// db path & db name is needed to get last block of node for making sure generate a valid Proof Of Ownership
 	updateNodeCmd.Flags().StringVar(&databasePath, "db-node-path", "../resource", "Database path of node, "+
@@ -264,7 +264,7 @@ func init() {
 	/*
 		liquidPaymentCmd
 	*/
-	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of money we want to send with liquid payment")
+	liquidPaymentCmd.Flags().Int64Var(&sendAmount, "amount", 0, "Amount of zbc we want to send with liquid payment")
 	liquidPaymentCmd.Flags().Uint64Var(&completeMinutes, "complete-minutes", 0, "In how long the span we want to send the liquid payment (in minutes)")
 
 	/*
@@ -279,8 +279,8 @@ func Commands() *cobra.Command {
 		txGeneratorCommandsInstance = &TXGeneratorCommands{}
 	}
 
-	sendMoneyCmd.Run = txGeneratorCommandsInstance.SendZBCProcess()
-	txCmd.AddCommand(sendMoneyCmd)
+	sendZBCCmd.Run = txGeneratorCommandsInstance.SendZBCProcess()
+	txCmd.AddCommand(sendZBCCmd)
 	registerNodeCmd.Run = txGeneratorCommandsInstance.RegisterNodeProcess()
 	txCmd.AddCommand(registerNodeCmd)
 	updateNodeCmd.Run = txGeneratorCommandsInstance.UpdateNodeProcess()
