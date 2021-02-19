@@ -50,10 +50,15 @@
 package strategy
 
 import (
-	"github.com/zoobc/zoobc-core/common/query"
+	"database/sql"
 	"math/big"
 	"reflect"
+	"regexp"
 	"testing"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/query"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/crypto"
@@ -71,6 +76,7 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 		skippedBlocksmithQuery  query.SkippedBlocksmithQueryInterface
 		blockQuery              query.BlockQueryInterface
 		blockStorage            storage.CacheStackStorageInterface
+		spinePublicKeyQuery     query.SpinePublicKeyQueryInterface
 		queryExecutor           query.ExecutorInterface
 		chaintype               chaintype.ChainType
 		rng                     *crypto.RandomNumberGenerator
@@ -86,7 +92,7 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 				logger: nil,
 			},
 			want: NewBlocksmithStrategyMain(
-				nil, nil, nil, nil, nil, nil, nil, nil, nil,
+				nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 			),
 		},
 	}
@@ -94,7 +100,7 @@ func TestNewBlocksmithStrategy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := NewBlocksmithStrategyMain(
 				tt.args.logger, nil, tt.args.activeNodeRegistryCache, tt.args.skippedBlocksmithQuery,
-				tt.args.blockQuery, tt.args.blockStorage, tt.args.queryExecutor,
+				tt.args.blockQuery, tt.args.blockStorage, tt.args.spinePublicKeyQuery, tt.args.queryExecutor,
 				tt.args.rng, tt.args.chaintype); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewBlocksmithStrategyMain() = %v, want %v", got, tt.want)
 			}
@@ -196,6 +202,10 @@ type (
 	mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates struct {
 		storage.NodeRegistryCacheStorage
 	}
+
+	mockQueryExecutorSuccessSpinePublicKeys struct {
+		query.ExecutorInterface
+	}
 )
 
 func (*mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates) GetAllItems(items interface{}) error {
@@ -204,10 +214,29 @@ func (*mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates) GetAllItems(it
 	return nil
 }
 
+func (*mockQueryExecutorSuccessSpinePublicKeys) ExecuteSelect(query string, tx bool, args ...interface{}) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	mock.ExpectQuery(regexp.QuoteMeta(query)).WillReturnRows(sqlmock.NewRows([]string{
+		"node_public_key",
+		"node_id",
+		"public_key_action",
+		"main_block_height",
+		"latest",
+		"height",
+	}).AddRow(append([]byte{1}, make([]byte, 31)...), 1, 0, 0, 1, 1).AddRow(
+		append([]byte{2}, make([]byte, 31)...), 2, 0, 0, 1, 2).AddRow(
+		append([]byte{3}, make([]byte, 31)...), 3, 0, 0, 1, 3).AddRow(
+		append([]byte{4}, make([]byte, 31)...), 4, 0, 0, 1, 4).AddRow(
+		append([]byte{5}, make([]byte, 31)...), 5, 0, 0, 1, 5))
+	return db.Query(query)
+}
+
 func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 	type fields struct {
 		Chaintype                      chaintype.ChainType
 		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		SpinePublicKeyQuery            query.SpinePublicKeyQueryInterface
+		QueryExecutor                  query.ExecutorInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
@@ -230,14 +259,15 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 		{
 			name: "Success:OneSmithingCandidate",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:            mainchain,
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				QueryExecutor:        &mockQueryExecutorSuccessSpinePublicKeys{},
+				Logger:               nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -253,7 +283,7 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 				{
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+					Score:         big.NewInt(constant.DefaultParticipationScore),
 				},
 			},
 			wantErr: false,
@@ -261,14 +291,15 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 		{
 			name: "Fail:FiveSmithingCandidate-BlocksmithNotInListCandidate",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:            mainchain,
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				QueryExecutor:        &mockQueryExecutorSuccessSpinePublicKeys{},
+				Logger:               nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -286,14 +317,15 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 		{
 			name: "Success:FiveSmithingCandidate - FirstOne",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:            mainchain,
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				QueryExecutor:        &mockQueryExecutorSuccessSpinePublicKeys{},
+				Logger:               nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -309,22 +341,22 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 				{
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+					Score:         big.NewInt(constant.DefaultParticipationScore),
 				},
 				{
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+					Score:         big.NewInt(constant.DefaultParticipationScore),
 				},
 				{
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+					Score:         big.NewInt(constant.DefaultParticipationScore),
 				},
 				{
 					NodeID:        mockNodeRegistries[3].Node.NodeID,
 					NodePublicKey: mockNodeRegistries[3].Node.NodePublicKey,
-					Score:         big.NewInt(mockNodeRegistries[3].ParticipationScore),
+					Score:         big.NewInt(constant.DefaultParticipationScore),
 				},
 			},
 			wantErr: false,
@@ -335,6 +367,8 @@ func TestBlocksmithStrategyMain_GetBlocksBlocksmiths(t *testing.T) {
 			bss := &BlocksmithStrategyMain{
 				Chaintype:                      tt.fields.Chaintype,
 				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
+				QueryExecutor:                  tt.fields.QueryExecutor,
+				SpinePublicKeyQuery:            tt.fields.SpinePublicKeyQuery,
 				Logger:                         tt.fields.Logger,
 				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
 				candidates:                     tt.fields.candidates,
@@ -446,6 +480,8 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 	type fields struct {
 		Chaintype                      chaintype.ChainType
 		ActiveNodeRegistryCacheStorage storage.CacheStorageInterface
+		SpinePublicKeyQuery            query.SpinePublicKeyQueryInterface
+		QueryExecutor                  query.ExecutorInterface
 		Logger                         *log.Logger
 		CurrentNodePublicKey           []byte
 		candidates                     []Candidate
@@ -468,14 +504,15 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 		{
 			name: "CanPersistBlock:True - FirstBlocksmith",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:            mainchain,
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				QueryExecutor:        &mockQueryExecutorSuccessSpinePublicKeys{},
+				Logger:               nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -493,14 +530,14 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 		{
 			name: "CanPersistBlock:CanPersistWithinBlockCreationTime - FirstBlocksmith",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:           mainchain,
+				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
+				QueryExecutor:       &mockQueryExecutorSuccessSpinePublicKeys{}, Logger: nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -518,14 +555,15 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 		{
 			name: "CanPersistBlock:Expired - Fourth Blocksmith",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:            mainchain,
+				SpinePublicKeyQuery:  query.NewSpinePublicKeyQuery(),
+				QueryExecutor:        &mockQueryExecutorSuccessSpinePublicKeys{},
+				Logger:               nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -544,14 +582,14 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 		{
 			name: "CanPersistBlock:CanPersist - SecondBlocksmith",
 			fields: fields{
-				Chaintype:                      mainchain,
-				ActiveNodeRegistryCacheStorage: &mockGetBlockBlocksmithsActiveNodeRegistryCache5Candidates{},
-				Logger:                         nil,
-				CurrentNodePublicKey:           nil,
-				candidates:                     nil,
-				me:                             Candidate{},
-				lastBlockHash:                  nil,
-				rng:                            crypto.NewRandomNumberGenerator(),
+				Chaintype:           mainchain,
+				SpinePublicKeyQuery: query.NewSpinePublicKeyQuery(),
+				QueryExecutor:       &mockQueryExecutorSuccessSpinePublicKeys{}, Logger: nil,
+				CurrentNodePublicKey: nil,
+				candidates:           nil,
+				me:                   Candidate{},
+				lastBlockHash:        nil,
+				rng:                  crypto.NewRandomNumberGenerator(),
 			},
 			args: args{
 				previousBlock: &model.Block{
@@ -570,14 +608,14 @@ func TestBlocksmithStrategyMain_CanPersistBlock(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			bss := &BlocksmithStrategyMain{
-				Chaintype:                      tt.fields.Chaintype,
-				ActiveNodeRegistryCacheStorage: tt.fields.ActiveNodeRegistryCacheStorage,
-				Logger:                         tt.fields.Logger,
-				CurrentNodePublicKey:           tt.fields.CurrentNodePublicKey,
-				candidates:                     tt.fields.candidates,
-				me:                             tt.fields.me,
-				lastBlockHash:                  tt.fields.lastBlockHash,
-				rng:                            tt.fields.rng,
+				Chaintype:           tt.fields.Chaintype,
+				SpinePublicKeyQuery: tt.fields.SpinePublicKeyQuery,
+				QueryExecutor:       tt.fields.QueryExecutor, Logger: tt.fields.Logger,
+				CurrentNodePublicKey: tt.fields.CurrentNodePublicKey,
+				candidates:           tt.fields.candidates,
+				me:                   tt.fields.me,
+				lastBlockHash:        tt.fields.lastBlockHash,
+				rng:                  tt.fields.rng,
 			}
 			if err := bss.CanPersistBlock(tt.args.previousBlock, tt.args.block, tt.args.timestamp); (err != nil) != tt.wantErr {
 				t.Errorf("CanPersistBlock() error = %v, wantErr %v", err, tt.wantErr)

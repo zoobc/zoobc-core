@@ -55,11 +55,11 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/crypto"
 	"time"
 
+	"github.com/zoobc/zoobc-core/common/crypto"
+
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	rpcModel "github.com/zoobc/zoobc-core/common/model"
 	rpcService "github.com/zoobc/zoobc-core/common/service"
 	"github.com/zoobc/zoobc-core/common/util"
@@ -68,16 +68,15 @@ import (
 )
 
 func main() {
-	var (
-		ip string
-	)
+	var ip string
 	flag.StringVar(&ip, "ip", "", "Usage")
 	flag.Parse()
 	if len(ip) < 1 {
-		if err := util.LoadConfig("../../../", "config", "toml", ""); err != nil {
+		config, err := util.LoadConfig("../../../", "config", "toml", "")
+		if err != nil {
 			log.Fatal(err)
 		} else {
-			ip = fmt.Sprintf(":%d", viper.GetInt("apiRPCPort"))
+			ip = fmt.Sprintf(":%d", config.RPCAPIPort)
 		}
 	}
 	conn, err := grpc.Dial(ip, grpc.WithInsecure())

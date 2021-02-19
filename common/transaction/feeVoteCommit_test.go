@@ -889,7 +889,7 @@ func TestFeeVoteCommitTransaction_GetMinimumFee(t *testing.T) {
 				Body:            mockFeeVoteCommitTxBody,
 				FeeScaleService: &mockFeeScaleServiceValidateSuccess{},
 			},
-			want:    fee.SendMoneyFeeConstant,
+			want:    fee.SendZBCFeeConstant,
 			wantErr: false,
 		},
 	}

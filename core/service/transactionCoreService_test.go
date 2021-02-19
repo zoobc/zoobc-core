@@ -471,8 +471,8 @@ func (*mockQueryExecutorExpiringEscrowSuccess) ExecuteSelectRow(qStr string, _ b
 		address1,
 		address2,
 		8,
-		model.TransactionType_SendMoneyTransaction,
-		&model.SendMoneyTransactionBody{
+		model.TransactionType_SendZBCTransaction,
+		&model.SendZBCTransactionBody{
 			Amount: 10,
 		},
 		true,

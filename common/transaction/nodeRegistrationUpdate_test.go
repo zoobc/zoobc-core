@@ -1302,7 +1302,7 @@ func TestUpdateNodeRegistration_SkipMempoolTransaction(t *testing.T) {
 					},
 					{
 						SenderAccountAddress: senderAddress4,
-						TransactionType:      uint32(model.TransactionType_SendMoneyTransaction),
+						TransactionType:      uint32(model.TransactionType_SendZBCTransaction),
 					},
 				},
 			},

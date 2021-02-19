@@ -71,11 +71,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GenerateTxSendMoney return send money transaction based on provided basic transaction & ammunt
-func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
-	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendMoney"])
-	tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
-		SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+// GenerateTxSendZBC return send money transaction based on provided basic transaction & ammunt
+func GenerateTxSendZBC(tx *model.Transaction, sendAmount int64) *model.Transaction {
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendZBC"])
+	tx.TransactionBody = &model.Transaction_SendZBCTransactionBody{
+		SendZBCTransactionBody: &model.SendZBCTransactionBody{
 			Amount: sendAmount,
 		},
 	}
@@ -442,18 +442,8 @@ func GenerateSignedTxBytes(
 ) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
-		txType          transaction.TypeAction
 		err             error
 	)
-	txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	if err != nil {
-		log.Fatalf("fail get transaction type: %s", err)
-	}
-	minimumFee, err := txType.GetMinimumFee()
-	if err != nil {
-		log.Fatalf("fail get minimum fee: %s", err)
-	}
-	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {

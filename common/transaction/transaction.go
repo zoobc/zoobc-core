@@ -128,13 +128,13 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 	case 1:
 		switch buf[1] {
 		case 0:
-			transactionBody, err = new(SendMoney).ParseBodyBytes(tx.TransactionBodyBytes)
+			transactionBody, err = new(SendZBC).ParseBodyBytes(tx.TransactionBodyBytes)
 			if err != nil {
 				return nil, err
 			}
-			return &SendMoney{
+			return &SendZBC{
 				TransactionObject:    tx,
-				Body:                 transactionBody.(*model.SendMoneyTransactionBody),
+				Body:                 transactionBody.(*model.SendZBCTransactionBody),
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				BlockQuery:           query.NewBlockQuery(&chaintype.MainChain{}),
