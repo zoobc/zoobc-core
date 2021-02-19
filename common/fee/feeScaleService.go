@@ -171,7 +171,7 @@ func (fss *FeeScaleService) GetCurrentPhase(
 	return model.FeeVotePhase_FeeVotePhaseReveal, false, nil
 }
 
-// SelectVote return the scaled vote relative to original / unscaled send-money fee
+// SelectVote return the scaled vote relative to original / unscaled send-zbc fee
 func (fss *FeeScaleService) SelectVote(votes []*model.FeeVoteInfo, originalSendZBCFee int64) int64 {
 	var (
 		floats stats.Float64Data

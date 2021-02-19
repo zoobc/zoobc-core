@@ -71,7 +71,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GenerateTxSendZBC return send money transaction based on provided basic transaction & ammunt
+// GenerateTxSendZBC return send sbc transaction based on provided basic transaction & ammunt
 func GenerateTxSendZBC(tx *model.Transaction, sendAmount int64) *model.Transaction {
 	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendZBC"])
 	tx.TransactionBody = &model.Transaction_SendZBCTransactionBody{

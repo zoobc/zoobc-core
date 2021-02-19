@@ -83,7 +83,7 @@ func main() {
 	c := rpc_service.NewTransactionServiceClient(conn)
 
 	response, err := c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
-		// Sendmoney
+		// SendZBC
 		TransactionBytes: []byte{1, 0, 0, 0, 1, 75, 93, 171, 95, 0, 0, 0, 0, 0, 0, 0, 0, 236, 125, 37, 22, 103, 77, 115, 149, 65, 98, 75,
 			252, 148, 113, 91, 119, 67, 138, 240, 89, 57, 28, 107, 162, 225, 82, 79, 186, 163, 158, 161, 115, 0, 0, 0, 0, 123, 166, 78,
 			235, 41, 31, 17, 3, 254, 32, 33, 149, 6, 209, 16, 250, 23, 74, 126, 200, 54, 255, 196, 135, 192, 128, 218, 130, 73, 31, 171,
@@ -100,7 +100,7 @@ func main() {
 
 	time.Sleep(2 * time.Second)
 	response, err = c.PostTransaction(context.Background(), &rpc_model.PostTransactionRequest{
-		// Sendmoney
+		// SendZBC
 		TransactionBytes: []byte{1, 0, 0, 0, 1, 177, 96, 171, 95, 0, 0, 0, 0, 0, 0, 0, 0, 236, 125, 37, 22, 103, 77, 115, 149, 65, 98,
 			75, 252, 148, 113, 91, 119, 67, 138, 240, 89, 57, 28, 107, 162, 225, 82, 79, 186, 163, 158, 161, 115, 0, 0, 0, 0, 123, 166,
 			78, 235, 41, 31, 17, 3, 254, 32, 33, 149, 6, 209, 16, 250, 23, 74, 126, 200, 54, 255, 196, 135, 192, 128, 218, 130, 73, 31,
