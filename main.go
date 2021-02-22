@@ -54,8 +54,8 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/queue"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -65,6 +65,8 @@ import (
 	"sort"
 	"syscall"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/queue"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -92,7 +94,6 @@ import (
 	"github.com/zoobc/zoobc-core/core/scheduler"
 	"github.com/zoobc/zoobc-core/core/service"
 	"github.com/zoobc/zoobc-core/core/smith"
-	"github.com/zoobc/zoobc-core/core/smith/strategy"
 	blockSmithStrategy "github.com/zoobc/zoobc-core/core/smith/strategy"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
 	"github.com/zoobc/zoobc-core/observer"
@@ -140,7 +141,7 @@ var (
 	spineBlockManifestService                                              service.SpineBlockManifestServiceInterface
 	snapshotService                                                        service.SnapshotServiceInterface
 	transactionUtil                                                        transaction.UtilInterface
-	receiptUtil                                                            = &coreUtil.ReceiptUtil{}
+	receiptUtil                                                            coreUtil.ReceiptUtilInterface
 	transactionCoreServiceIns                                              service.TransactionCoreServiceInterface
 	pendingTransactionServiceIns                                           service.PendingTransactionServiceInterface
 	fileService                                                            service.FileServiceInterface
@@ -162,8 +163,8 @@ var (
 	mainchainForkProcessor, spinechainForkProcessor                        blockchainsync.ForkingProcessorInterface
 	cliMonitoring                                                          monitoring.CLIMonitoringInteface
 	feedbackStrategy                                                       feedbacksystem.FeedbackStrategyInterface
-	blocksmithStrategyMain                                                 strategy.BlocksmithStrategyInterface
-	blocksmithStrategySpine                                                strategy.BlocksmithStrategyInterface
+	blocksmithStrategyMain                                                 blockSmithStrategy.BlocksmithStrategyInterface
+	blocksmithStrategySpine                                                blockSmithStrategy.BlocksmithStrategyInterface
 	priorityPreferenceLock                                                 queue.PriorityLock
 )
 var (
@@ -195,15 +196,15 @@ func initiateMainInstance() {
 	)
 
 	// load config for default value to be feed to viper
-	if err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok && flagUseEnv {
+	config, err = util.LoadConfig(flagConfigPath, "config"+flagConfigPostfix, "toml", flagResourcePath)
+	if err != nil {
+		if ok := errors.As(err, &viper.ConfigFileNotFoundError{}); ok && flagUseEnv {
 			config.ConfigFileExist = true
 		}
 	} else {
 		config.ConfigFileExist = true
 	}
-	// assign read configuration to config object
-	config.LoadConfigurations()
+
 	// decode owner account address
 	if config.OwnerAccountAddressHex != "" {
 		config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
@@ -304,7 +305,7 @@ func initiateMainInstance() {
 			os.Exit(1)
 		}
 		config.OwnerAccountAddressHex = hex.EncodeToString(config.OwnerAccountAddress)
-		err = config.SaveConfig(flagConfigPath)
+		err = util.SaveConfig(config, flagConfigPath)
 		if err != nil {
 			log.Error("Fail to save new configuration")
 			os.Exit(1)
@@ -455,6 +456,8 @@ func initiateMainInstance() {
 		scrambleNodeStorage,
 	)
 
+	receiptUtil = coreUtil.NewReceiptUtil()
+
 	receiptService = service.NewReceiptService(
 		query.NewBatchReceiptQuery(),
 		query.NewMerkleTreeQuery(),
@@ -470,6 +473,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		loggerCoreService,
 	)
 
 	spineBlockManifestService = service.NewSpineBlockManifestService(
@@ -495,11 +499,12 @@ func initiateMainInstance() {
 		query.NewSkippedBlocksmithQuery(mainchain),
 		query.NewBlockQuery(mainchain),
 		mainBlocksStorage,
+		query.NewSpinePublicKeyQuery(),
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		mainchain,
 	)
-	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategyMain(
+	blocksmithStrategySpine = blockSmithStrategy.NewBlocksmithStrategySpine(
 		loggerCoreService,
 		config.NodeKey.PublicKey,
 		activeNodeRegistryCacheStorage,
@@ -509,6 +514,7 @@ func initiateMainInstance() {
 		queryExecutor,
 		crypto.NewRandomNumberGenerator(),
 		spinechain,
+		query.NewSpinePublicKeyQuery(),
 	)
 
 	blockIncompleteQueueService = service.NewBlockIncompleteQueueService(
@@ -804,6 +810,7 @@ func initObserverListeners() {
 	// only smithing nodes generate snapshots
 	if config.Smithing {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
+		observerInstance.AddListener(observer.BlockPushed, receiptService.GenerateReceiptsMerkleRootListener())
 	}
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, mainchainBlockService.ReceivedValidatedBlockTransactionsListener())
@@ -1015,6 +1022,14 @@ func startMainchain() {
 		mainchainDownloader,
 		mainchainForkProcessor,
 	)
+
+	// add nodeID to current host if it's a registered node
+	nodeSecretPhrase := nodeConfigurationService.GetNodeSecretPhrase()
+	nr, err := nodeRegistrationService.GetNodeRegistrationByNodePublicKey(
+		signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(nodeSecretPhrase))
+	if err == nil && nr != nil {
+		nodeConfigurationService.SetHostID(nr.GetNodeID())
+	}
 }
 
 func startSpinechain() {
@@ -1109,13 +1124,6 @@ func startScheduler() {
 	if err := schedulerInstance.AddJob(
 		constant.CheckMempoolExpiration,
 		mainchainMempoolService.DeleteExpiredMempoolTransactions,
-	); err != nil {
-		loggerCoreService.Error("Scheduler Err : ", err.Error())
-	}
-	// scheduler to generate receipt merkle root
-	if err := schedulerInstance.AddJob(
-		constant.ReceiptGenerateMarkleRootPeriod,
-		receiptService.GenerateReceiptsMerkleRoot,
 	); err != nil {
 		loggerCoreService.Error("Scheduler Err : ", err.Error())
 	}

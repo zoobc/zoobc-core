@@ -81,10 +81,3 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 	scoreChangeOfANode := new(big.Int).Div(scoreDiffBigMul, new(big.Int).SetInt64(halfMaxBlockScore))
 	return scoreChangeOfANode.Int64(), nil
 }
-
-func GetReceiptValue(linkedReceipt, unlinkedReceipt uint32) int64 {
-	linkedBlockScore := float32(linkedReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore
-	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
-	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
-	return blockScore
-}

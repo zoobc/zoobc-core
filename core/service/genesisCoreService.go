@@ -104,8 +104,8 @@ func GetGenesisTransactions(
 					RecipientAccountAddress: accountFullAddress,
 					Fee:                     0,
 					TransactionBodyLength:   8,
-					TransactionBody: &model.Transaction_SendMoneyTransactionBody{
-						SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+					TransactionBody: &model.Transaction_SendZBCTransactionBody{
+						SendZBCTransactionBody: &model.SendZBCTransactionBody{
 							Amount: genesisEntry.AccountBalance,
 						},
 					},
@@ -165,7 +165,9 @@ func GetGenesisNodeRegistrationTx(
 
 	nodeRegistrationQuery := query.NewNodeRegistrationQuery()
 	nodeRegistration := transaction.NodeRegistration{
-		SenderAddress: constant.MainchainGenesisAccountAddress,
+		TransactionObject: &model.Transaction{
+			SenderAccountAddress: constant.MainchainGenesisAccountAddress,
+		},
 		Body: &model.NodeRegistrationTransactionBody{
 			AccountAddress: accountAddress,
 			LockedBalance:  lockedBalance,

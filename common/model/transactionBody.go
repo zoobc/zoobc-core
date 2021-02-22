@@ -57,7 +57,7 @@ func (*UpdateNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
 func (*RemoveNodeRegistrationTransactionBody) isTransaction_TransactionBody() {}
 func (*ClaimNodeRegistrationTransactionBody) isTransaction_TransactionBody()  {}
 func (*EmptyTransactionBody) isTransaction_TransactionBody()                  {}
-func (*SendMoneyTransactionBody) isTransaction_TransactionBody()              {}
+func (*SendZBCTransactionBody) isTransaction_TransactionBody()                {}
 func (*SetupAccountDatasetTransactionBody) isTransaction_TransactionBody()    {}
 func (*RemoveAccountDatasetTransactionBody) isTransaction_TransactionBody()   {}
 func (*ApprovalEscrowTransactionBody) isTransaction_TransactionBody()         {}

@@ -127,7 +127,7 @@ type (
 		query.Executor
 	}
 	mockTypeAction struct {
-		transaction.SendMoney
+		transaction.SendZBC
 	}
 	mockTypeActionSuccess struct {
 		mockTypeAction
@@ -279,13 +279,13 @@ var (
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
 	bcsNodePubKey3 = []byte{4, 5, 6, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
 		45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135}
-	mockSendMoneyTxBody = &transaction.SendMoney{
-		Body: &model.SendMoneyTransactionBody{
+	mockSendZBCTxBody = &transaction.SendZBC{
+		Body: &model.SendZBCTransactionBody{
 			Amount: 10,
 		},
 	}
-	mockSendMoneyTxBodyBytes, _ = mockSendMoneyTxBody.GetBodyBytes()
-	mockTransaction             = &model.Transaction{
+	mockSendZBCTxBodyBytes, _ = mockSendZBCTxBody.GetBodyBytes()
+	mockTransaction           = &model.Transaction{
 		ID:      1,
 		BlockID: 1,
 		Height:  0,
@@ -298,7 +298,7 @@ var (
 		Timestamp:             1000,
 		TransactionHash:       []byte{},
 		TransactionBodyLength: 8,
-		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		TransactionBodyBytes:  mockSendZBCTxBodyBytes,
 		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Version:               1,
 		TransactionIndex:      1,
@@ -316,7 +316,7 @@ var (
 		Timestamp:             1000,
 		TransactionHash:       []byte{},
 		TransactionBodyLength: 8,
-		TransactionBodyBytes:  mockSendMoneyTxBodyBytes,
+		TransactionBodyBytes:  mockSendZBCTxBodyBytes,
 		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
 		Version:               1,
 		TransactionIndex:      1,
@@ -341,6 +341,9 @@ func (*mockTypeAction) Validate(bool) error {
 }
 func (*mockTypeAction) GetAmount() int64 {
 	return 10
+}
+func (*mockTypeAction) Escrowable() (transaction.EscrowTypeAction, bool) {
+	return nil, false
 }
 func (*mockTypeActionSuccess) GetTransactionType(tx *model.Transaction) (transaction.TypeAction, error) {
 	return &mockTypeAction{}, nil
@@ -4497,6 +4500,7 @@ func TestBlockMainService_PopulateBlockData(t *testing.T) {
 
 type (
 	mockReceiptUtil struct {
+		validateSender bool
 		coreUtil.ReceiptUtil
 		resSignetBytes []byte
 	}
@@ -4507,6 +4511,16 @@ func (mRu *mockReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte
 		return mRu.resSignetBytes
 	}
 	return []byte{}
+}
+
+func (mRu *mockReceiptUtil) ValidateReceiptSenderRecipient(
+	receipt *model.Receipt,
+	scrambledNode *model.ScrambledNodes,
+) error {
+	if mRu.validateSender {
+		return nil
+	}
+	return errors.New("MockErr")
 }
 
 func TestBlockService_ValidatePayloadHash(t *testing.T) {

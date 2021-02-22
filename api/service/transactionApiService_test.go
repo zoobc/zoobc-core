@@ -334,7 +334,7 @@ func (*mockCacheStorageAlwaysSuccess) ClearCache() error                   { ret
 func TestTransactionService_PostTransaction(t *testing.T) {
 
 	var (
-		sendMoneyTxBytes = []byte{1, 0, 0, 0, 1, 45, 230, 135, 95, 0, 0, 0, 0, 0, 0, 0, 0, 22, 42, 66, 34, 152, 48, 253, 178,
+		sendZBCTxBytes = []byte{1, 0, 0, 0, 1, 45, 230, 135, 95, 0, 0, 0, 0, 0, 0, 0, 0, 22, 42, 66, 34, 152, 48, 253, 178,
 			113, 165, 192, 70, 53, 235, 121, 157, 138, 101, 3, 61, 204, 73, 16, 90, 211, 203, 42, 245, 241, 134, 173, 131, 0,
 			0, 0, 0, 209, 39, 149, 255, 194, 205, 12, 110, 147, 76, 232, 143, 197, 139, 71, 162, 195, 147, 119, 235, 115, 12,
 			231, 73, 49, 234, 207, 187, 242, 63, 97, 58, 65, 66, 15, 0, 0, 0, 0, 0, 8, 0, 0, 0, 128, 150, 152, 0, 0, 0, 0, 0,
@@ -350,8 +350,8 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 		txAPISenderAccount1,
 		txAPIRecipientAccount1,
 		8,
-		model.TransactionType_SendMoneyTransaction,
-		&model.SendMoneyTransactionBody{
+		model.TransactionType_SendZBCTransaction,
+		&model.SendZBCTransactionBody{
 			Amount: 10,
 		},
 		false,
@@ -405,7 +405,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -426,7 +426,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -447,7 +447,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -468,7 +468,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -489,7 +489,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -510,7 +510,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -531,7 +531,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -552,7 +552,7 @@ func TestTransactionService_PostTransaction(t *testing.T) {
 			args: args{
 				chaintype: &chaintype.MainChain{},
 				req: &model.PostTransactionRequest{
-					TransactionBytes: sendMoneyTxBytes,
+					TransactionBytes: sendZBCTxBytes,
 				},
 			},
 			wantErr: true,
@@ -734,6 +734,8 @@ func TestTransactionService_GetTransactions(t *testing.T) {
 			args: args{
 				chainType: &chaintype.MainChain{},
 				params: &model.GetTransactionsRequest{
+					FromBlock: 1,
+					ToBlock:   1,
 					Pagination: &model.Pagination{
 						Limit: 1,
 						Page:  0,

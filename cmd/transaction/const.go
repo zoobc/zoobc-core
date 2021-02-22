@@ -55,7 +55,7 @@ import (
 
 var (
 	txTypeMap = map[string][]byte{
-		"sendMoney":              {1, 0, 0, 0},
+		"sendZBC":                {1, 0, 0, 0},
 		"registerNode":           {2, 0, 0, 0},
 		"updateNodeRegistration": {2, 1, 0, 0},
 		"removeNodeRegistration": {2, 2, 0, 0},
@@ -84,7 +84,7 @@ var (
 	senderAddressHex           string
 	sign                       bool
 
-	// Send money transaction
+	// Send zbc transaction
 	sendAmount int64
 
 	// node registration transaction

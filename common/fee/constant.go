@@ -52,8 +52,11 @@ package fee
 import "github.com/zoobc/zoobc-core/common/constant"
 
 const (
-	// SendMoneyFeeConstant value of initial / constant send money fee
-	SendMoneyFeeConstant     = constant.OneZBC / 100
-	FeeScaleLowerConstraints = 0.5
-	FeeScaleUpperConstraints = 2.0
+	// SendZBCFeeConstant value of initial / constant send zbc fee
+	SendZBCFeeConstant        = constant.OneZBC / 100
+	InitialFeeScale           = constant.OneZBC / 100
+	FeeScaleLowerConstraints  = 0.5
+	FeeScaleUpperConstraints  = 2.0
+	FeePerCharacterMultiplier = float64(0.1) // so with initial fee, 1000 char would require 1ZBC
+	EscrowLifetimeDivider     = 24           // 24 hours
 )

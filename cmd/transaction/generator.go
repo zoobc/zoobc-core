@@ -53,11 +53,12 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"log"
 	"strings"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/zoobc/zoobc-core/cmd/admin"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -70,11 +71,11 @@ import (
 	"google.golang.org/grpc"
 )
 
-// GenerateTxSendMoney return send money transaction based on provided basic transaction & ammunt
-func GenerateTxSendMoney(tx *model.Transaction, sendAmount int64) *model.Transaction {
-	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendMoney"])
-	tx.TransactionBody = &model.Transaction_SendMoneyTransactionBody{
-		SendMoneyTransactionBody: &model.SendMoneyTransactionBody{
+// GenerateTxSendZBC return send sbc transaction based on provided basic transaction & ammunt
+func GenerateTxSendZBC(tx *model.Transaction, sendAmount int64) *model.Transaction {
+	tx.TransactionType = util.ConvertBytesToUint32(txTypeMap["sendZBC"])
+	tx.TransactionBody = &model.Transaction_SendZBCTransactionBody{
+		SendZBCTransactionBody: &model.SendZBCTransactionBody{
 			Amount: sendAmount,
 		},
 	}
@@ -278,6 +279,47 @@ func getAccountTypeFromAccountHex(senderAccountAddressHex string) accounttype.Ac
 	}
 	return accountType
 }
+func getAccountTypeFromEncodedAccount(senderAccountAddressHex string) accounttype.AccountTypeInterface {
+	zbcPrefix := []byte{0, 0, 0, 0}
+	ed25519 := signaturetype.NewEd25519Signature()
+	accountAddress, err := ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddressHex)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed GetPublicKey",
+			err.Error(),
+		))
+	}
+	accountAddress = append(zbcPrefix, accountAddress...)
+
+	accountType, err := accounttype.NewAccountTypeFromAccount(accountAddress)
+	if err != nil {
+		panic(fmt.Sprintln(
+			"GenerateBasicTransaction-Failed DecodeAccountTypeFromAddress",
+			err.Error(),
+		))
+	}
+	return accountType
+}
+
+func getDecodeAddress(senderAccountAddress string) []byte {
+	var decodedAddress []byte
+	var err error
+	if strings.Contains(senderAccountAddress, "0000") {
+		decodedAddress, err = hex.DecodeString(senderAccountAddress)
+		if err != nil {
+			panic(err)
+		}
+	} else if strings.Contains(senderAccountAddress, "ZBC") {
+		zbcPrefix := []byte{0, 0, 0, 0}
+		ed25519 := signaturetype.NewEd25519Signature()
+		decodedAddress, err = ed25519.GetPublicKeyFromEncodedAddress(senderAccountAddress)
+		if err != nil {
+			panic(err)
+		}
+		decodedAddress = append(zbcPrefix, decodedAddress...)
+	}
+	return decodedAddress
+}
 
 // GenerateBasicTransaction return  basic transaction based on common transaction field
 func GenerateBasicTransaction(
@@ -288,7 +330,8 @@ func GenerateBasicTransaction(
 	message string,
 ) *model.Transaction {
 	if senderAccountAddressHex == "" && senderSeed != "" {
-		accountType := getAccountTypeFromAccountHex(senderAccountAddressHex)
+		senderAccountAddressHex = signaturetype.NewEd25519Signature().GetAddressFromSeed(constant.PrefixZoobcDefaultAccount, senderSeed)
+		accountType := getAccountTypeFromEncodedAccount(senderAccountAddressHex)
 		// TODO: move this into AccountType interface
 		switch accountType.GetSignatureType() {
 		case model.SignatureType_DefaultSignature:
@@ -334,14 +377,10 @@ func GenerateBasicTransaction(
 	if timestamp <= 0 {
 		timestamp = time.Now().Unix()
 	}
-	decodedSenderAddress, err := hex.DecodeString(senderAccountAddressHex)
-	if err != nil {
-		panic(err)
-	}
-	decodedRecipientAddress, err := hex.DecodeString(recipientAccountAddressHex)
-	if err != nil {
-		panic(err)
-	}
+	var decodedSenderAddress, decodedRecipientAddress []byte
+	decodedSenderAddress = getDecodeAddress(senderAccountAddressHex)
+	decodedRecipientAddress = getDecodeAddress(recipientAccountAddressHex)
+
 	return &model.Transaction{
 		Version:                 version,
 		Timestamp:               timestamp,
@@ -403,18 +442,8 @@ func GenerateSignedTxBytes(
 ) []byte {
 	var (
 		transactionUtil = &transaction.Util{}
-		txType          transaction.TypeAction
 		err             error
 	)
-	txType, err = (&transaction.TypeSwitcher{}).GetTransactionType(tx)
-	if err != nil {
-		log.Fatalf("fail get transaction type: %s", err)
-	}
-	minimumFee, err := txType.GetMinimumFee()
-	if err != nil {
-		log.Fatalf("fail get minimum fee: %s", err)
-	}
-	tx.Fee += minimumFee
 
 	unsignedTxBytes, _ := transactionUtil.GetTransactionBytes(tx, false)
 	if senderSeed == "" {
@@ -474,10 +503,7 @@ Invalid escrow validation when those fields has not set
 func GenerateEscrowedTransaction(
 	tx *model.Transaction,
 ) *model.Transaction {
-	decodedApproverAddress, err := hex.DecodeString(esApproverAddressHex)
-	if err != nil {
-		panic(err)
-	}
+	decodedApproverAddress := getDecodeAddress(esApproverAddressHex)
 	tx.Escrow = &model.Escrow{
 		ApproverAddress: decodedApproverAddress,
 		Commission:      esCommission,

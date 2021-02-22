@@ -172,7 +172,7 @@ func (nru *NodeAddressInfoService) GenerateNodeAddressInfo(
 		return nil, err
 	}
 	// get a rollback-safe block for node address info message, to make sure evey peer can validate it
-	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first 720 blocks
+	// note: a disadvantage of this is, once a node address is written to db, it cannot be updated in the first MinRollbackBlocks blocks
 	if lastBlock.GetHeight() < constant.MinRollbackBlocks {
 		safeBlockHeight = 0
 	} else {

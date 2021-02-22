@@ -37,16 +37,16 @@ Command line interface to as a utility tools to develop the zoobc system.
 - `--post-host` to provide where the transaction will post. Example: `--post-host "127.0.0.1:7000"`
 - `--message` include an arbitrary message in the transaction (max 256 bytes). Example: `--message "test message"`
 
-### Transaction Send Money
+### Transaction Send ZBC
 
 ```
-go run main.go transaction send-money --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU --amount 5000000000
+go run main.go transaction send-zbc --timestamp 1257894000 --sender-seed "concur vocalist rotten busload gap quote stinging undiluted surfer goofiness deviation starved" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU --amount 5000000000
 ```
 
-### Transaction send money escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
+### Transaction send zbc escrow, set flag `--escrow true` and 3 more fields: `--approver-address`, `--timeout`, `--commission` and `--instruction`
 
 ```bash
-go run main.go transaction send-money --escrow true --approver-address ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU
+go run main.go transaction send-zbc --escrow true --approver-address ZBC_EQAR73E3_JYON3222_KL5YYC54_Y54KMULE_KF4YSXUS_DR72QQNX_FOO2KA3L --timeout 200 --sender-seed "execute beach inflict session course dance vanish cover lawsuit earth casino fringe waste warfare also habit skull donate window cannon scene salute dawn good" --amount 1111 --commission 111 --instruction "Check amount should be 111" --recipient ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU
 ```
 
 ### Transaction Register Node
@@ -104,9 +104,9 @@ Flags:
       --unsigned-transaction string         hex string of the unsigned transaction bytes
 ```
 
-For the multi signature transaction let say want to send money with multisig account, need to do this steps:
+For the multi signature transaction let say want to send zbc with multisig account, need to do this steps:
 
-1. Generate transaction send money, make sure with argument `--hash`. It will be `--unsigned-transaction` value on multi signature generator.
+1. Generate transaction send zbc, make sure with argument `--hash`. It will be `--unsigned-transaction` value on multi signature generator.
 2. Sign the transaction to get the transaction hash, and it will be `--transcation-has` and the last the `signature-hex` will be as `--address-signatures` value on multi signature generator. <br>
 
 So the completed comment it will be:
@@ -158,16 +158,19 @@ go run main.go account multisig --addresses "BCZnSfqpP5tqFQlMTYkDeBVFWnbyVK7vLr5
 ```
 
 ### Account Converting from encoded to hex
+
 ```bash
 go run main.go account hexconv --encodedAccountAddress="ZBC_3WWDF4S2_IZVG2HHD_VOPSCNGN_COLYZ2OZ_M4QJZ4OL_44YHTKVC_2TPZBZAU" --accountType=0
 ```
 
 ### Account Decoding and hex-encoded full account address to its human readable encoded format
+
 ```bash
 go run main.go account account hexdecode --hexAccountAddress="00000000e1e6ea65267121801089048c3a1dd863aea1fab123977677c612658a749a8a01"
 ```
 
 ### Account Generating account_address table by parsing account_balance table of a given zoobc.db (for debug purposes only)
+
 ```bash
 go run main.go account generateaddresstable
 ```
@@ -188,20 +191,23 @@ go run main.go decryptcert
 ```
 
 The command outputs resource/generated/decrypted/hosted_preRegisteredNodes.json file containing all decrypted certificates in a form that
- can be
- easily imported for 'genesis generate' command (see command 'Genesis' below)
+can be
+easily imported for 'genesis generate' command (see command 'Genesis' below)
 
-note: 
-this command requires this specific input file: 
+note:
+this command requires this specific input file:
+
 ```bash
 resource/templates/certificates.json
 ```
+
 with this structure (the one below is an example):
+
 ```json
 [
   {
-  "encryptedCert": "U2FsdGVkX18gZYg7TxccQYcSbs5Q4ToyFfD1d7ROI85lz8zka5N9FW0StDo3OXckj3Nyq9El+f9s68+F328R/fB4MxCpBJ/8uInt4sLY67dz1ps8trFmAowXYxT/gCjQqaFOttrfYXOhVteiOOV0pM+G9vZzDQ+GuwZFkMI+zqE4LlE/Do4WvWMaKofMiHlqBMzsTvLSG17o6k4VnvkSNAbpbxzaR8KE6iqzjFgB2xiZEMjeWJ9BgCODVrY+mAopVd1sL0aZ9Ya/Y0ZaVZ0Kiw==",
-  "password": "123123"
+    "encryptedCert": "U2FsdGVkX18gZYg7TxccQYcSbs5Q4ToyFfD1d7ROI85lz8zka5N9FW0StDo3OXckj3Nyq9El+f9s68+F328R/fB4MxCpBJ/8uInt4sLY67dz1ps8trFmAowXYxT/gCjQqaFOttrfYXOhVteiOOV0pM+G9vZzDQ+GuwZFkMI+zqE4LlE/Do4WvWMaKofMiHlqBMzsTvLSG17o6k4VnvkSNAbpbxzaR8KE6iqzjFgB2xiZEMjeWJ9BgCODVrY+mAopVd1sL0aZ9Ya/Y0ZaVZ0Kiw==",
+    "password": "123123"
   }
 ]
 ```
@@ -236,12 +242,14 @@ genesis generate --deploymentName=zoobc-beta -e=beta --applicationVersion=1.0.0 
 ```
 
 Starting from a 'seatSale.json' and/or a 'preRegisteredNodes.json', to be placed in resource/templates directory, it will generate files
- such as genesis.go, consulKVInit.sh consul script and more, you can check these inside `${-o}/generated/genesis` directory.
+such as genesis.go, consulKVInit.sh consul script and more, you can check these inside `${-o}/generated/genesis` directory.
 
 structure of the two input files is:
 
 seatSale.json
- * this are all nodes in Ethereum contract used for the seat sale
+
+- this are all nodes in Ethereum contract used for the seat sale
+
 ```json
 [
   {
@@ -253,8 +261,10 @@ seatSale.json
 ```
 
 preRegisteredNodes.json
-* this are all nodes hosted by BlockChainZoo and contains also the node seeds
-* this is a subset of seatSale.json (Ethereum contract contains all notes in the registry at genesis)
+
+- this are all nodes hosted by BlockChainZoo and contains also the node seeds
+- this is a subset of seatSale.json (Ethereum contract contains all notes in the registry at genesis)
+
 ```json
 [
   {
@@ -265,7 +275,6 @@ preRegisteredNodes.json
   }
 ]
 ```
-
 
 ### Generate Proof of Ownership Node Registry
 

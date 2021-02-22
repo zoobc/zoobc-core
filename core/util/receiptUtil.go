@@ -51,6 +51,9 @@ package util
 
 import (
 	"bytes"
+	"encoding/hex"
+	"github.com/zoobc/zoobc-core/common/blocker"
+	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -74,10 +77,53 @@ type (
 		GetReceiptKey(
 			dataHash, senderPublicKey []byte,
 		) ([]byte, error)
+		ValidateReceiptSenderRecipient(
+			receipt *model.Receipt,
+			scrambledNode *model.ScrambledNodes,
+		) error
 	}
 
 	ReceiptUtil struct{}
 )
+
+func NewReceiptUtil() *ReceiptUtil {
+	return &ReceiptUtil{}
+}
+
+func (ru *ReceiptUtil) ValidateReceiptSenderRecipient(
+	receipt *model.Receipt,
+	scrambledNode *model.ScrambledNodes,
+) error {
+	var (
+		err   error
+		peers map[string]*model.Peer
+	)
+	// get sender address at height
+	senderNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetSenderPublicKey())]
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptSenderNotInScrambleList")
+	}
+	// get recipient address at height
+	recipientNodeID, ok := scrambledNode.NodePublicKeyToIDMap[hex.EncodeToString(receipt.GetRecipientPublicKey())]
+	if !ok {
+		return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInScrambleList")
+	}
+	if peers, err = p2pUtil.GetPriorityPeersByNodeID(
+		senderNodeID,
+		scrambledNode,
+	); err != nil {
+		return err
+	}
+
+	// check if recipient is in sender.Peers list
+	for _, peer := range peers {
+		if peer.GetInfo().ID == recipientNodeID {
+			// valid recipient and sender
+			return nil
+		}
+	}
+	return blocker.NewBlocker(blocker.ValidationErr, "ReceiptRecipientNotInPriorityList")
+}
 
 func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32 {
 	if numberOfSortedBlocksmiths < 1 {

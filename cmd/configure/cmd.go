@@ -55,14 +55,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/accounttype"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/zoobc/zoobc-core/common/accounttype"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -96,7 +97,7 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 		err                   error
 		configFile            = "config.toml"
 		shell                 = ishell.New()
-		config                model.Config
+		config                = &model.Config{}
 		encodedAccountAddress string
 	)
 
@@ -113,13 +114,12 @@ func generateConfigFileCommand(*cobra.Command, []string) {
 	} else { // Try another step
 		update := shell.MultiChoice([]string{"Yes", "No"}, "Config file exists, want to update ? [ENTER to exit]")
 		if update == 0 {
-			err = util.LoadConfig("./", "config", "toml", "")
+			config, err = util.LoadConfig("./", "config", "toml", "")
 			if err != nil {
 				color.Red(err.Error())
 				return
 			}
 			shell.Close()
-			config.LoadConfigurations()
 			// decode owner account address
 			if config.OwnerAccountAddressHex != "" {
 				config.OwnerAccountAddress, err = hex.DecodeString(config.OwnerAccountAddressHex)
@@ -276,7 +276,7 @@ func readCertFile(config *model.Config, fileName string) error {
 	return nil
 }
 
-func generateConfig(config model.Config) error {
+func generateConfig(config *model.Config) error {
 	var (
 		shell    = ishell.New()
 		port     int
@@ -350,7 +350,7 @@ func generateConfig(config model.Config) error {
 	}
 
 	if len(fileInfos) != 0 {
-		err = readCertFile(&config, fileInfos[0])
+		err = readCertFile(config, fileInfos[0])
 		if err != nil {
 			return err
 		}
@@ -361,7 +361,7 @@ func generateConfig(config model.Config) error {
 			"Input manual the OWNER ADDRESS and NODE SEED",
 		}, "Certificate file [*.zbc] not found")
 		if choice == 0 {
-			err = readCertFile(&config, "*")
+			err = readCertFile(config, "*")
 			if err != nil {
 				return err
 			}
@@ -400,7 +400,7 @@ func generateConfig(config model.Config) error {
 
 	admin.GenerateNodeKeysFile(config.NodeSeed)
 	color.Cyan("Saving configuration ...")
-	err = config.SaveConfig("./")
+	err = util.SaveConfig(config, "./")
 	if err != nil {
 		color.Red(err.Error())
 	}

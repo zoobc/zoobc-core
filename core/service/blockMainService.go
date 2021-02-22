@@ -480,6 +480,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		if err != nil {
 			return nil, nil, err
 		}
+
 		// check if is in mempool : if yes, undo unconfirmed
 		if _, ok := mempoolMap[tx.ID]; ok {
 			err = bs.TransactionCoreService.UndoApplyUnconfirmedTransaction(txType)
@@ -566,14 +567,16 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			return nil, nil, err
 		}
 
+		blockPublishedReceipts := block.GetPublishedReceipts()
 		popScore, err := commonUtils.CalculateParticipationScore(
 			uint32(linkedCount),
-			uint32(len(block.GetPublishedReceipts())-linkedCount),
+			uint32(len(blockPublishedReceipts)-linkedCount),
 			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
 		)
 		if err != nil {
 			return nil, nil, err
 		}
+
 		err = bs.updatePopScore(popScore, previousBlock, block)
 		if err != nil {
 			return nil, nil, err
@@ -629,7 +632,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	if coreUtil.IsGenesis(previousBlock.GetID(), block) {
 		// insert initial fee scale
 		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
-			FeeScale:    constant.OneZBC, // initial fee_scale 1
+			FeeScale:    fee.InitialFeeScale,
 			BlockHeight: 0,
 			Latest:      true,
 		})
@@ -684,7 +687,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			return nil, nil, err
 		}
 		// select vote
-		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendMoneyFeeConstant)
+		vote := bs.FeeScaleService.SelectVote(voteInfos, fee.SendZBCFeeConstant)
 		// insert new fee-scale
 		err = bs.FeeScaleService.InsertFeeScale(&model.FeeScale{
 			FeeScale:    vote,
@@ -1379,8 +1382,8 @@ func (bs *BlockService) GenerateGenesisBlock(genesisEntries []constant.GenesisCo
 		if _, err := digest.Write(tx.TransactionHash); err != nil {
 			return nil, err
 		}
-		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send money
-			totalAmount += tx.GetSendMoneyTransactionBody().Amount
+		if tx.TransactionType == commonUtils.ConvertBytesToUint32([]byte{1, 0, 0, 0}) { // if type = send zbc
+			totalAmount += tx.GetSendZBCTransactionBody().Amount
 		}
 		txType, err := bs.ActionTypeSwitcher.GetTransactionType(tx)
 		if err != nil {
@@ -1532,7 +1535,15 @@ func (bs *BlockService) ReceiveBlock(
 	if !isQueued {
 		err = bs.ProcessCompletedBlock(block)
 		if err != nil {
-			return nil, err
+			errCasted, ok := err.(blocker.Blocker)
+			if !ok {
+				return nil, err
+			}
+			// DuplicateBlockPool is not to be considered an error for receipt generation
+			if errCasted.Message != "DuplicateBlockPool" {
+				// return a 'status' error message instead of a 'blocker' message, as above
+				return nil, status.Error(codes.InvalidArgument, err.Error())
+			}
 		}
 	}
 
@@ -1639,7 +1650,8 @@ func (bs *BlockService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block,
 		Need to clearing some cache storage that affected
 	*/
 	bs.BlockPoolService.ClearBlockPool()
-	bs.ReceiptService.ClearCache()
+	// STEF try to not clear receipt cache
+	// bs.ReceiptService.ClearCache()
 
 	// re-initialize node-registry cache
 	err = bs.NodeRegistrationService.InitializeCache()
@@ -1721,7 +1733,7 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 			"ProcessCompletedBlock2 push Block fail: %v",
 			blocker.NewBlocker(blocker.PushMainBlockErr, err.Error(), block.GetID(), lastBlock.GetID()),
 		)
-		return status.Error(codes.InvalidArgument, err.Error())
+		return err
 	}
 	return nil
 }

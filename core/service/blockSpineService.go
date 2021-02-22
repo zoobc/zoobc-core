@@ -755,7 +755,7 @@ func (bs *BlockSpineService) GenerateBlock(
 		includedMainBlocks          []*model.Block
 		blockSmithPublicKey         = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		newBlockHeight              = previousBlock.Height + 1
-		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight + 1
+		newIncludedFirstBlockHeight = previousBlock.ReferenceBlockHeight
 		newReferenceBlockHeight     uint32
 	)
 	// select main block to be include in spine block
@@ -763,17 +763,25 @@ func (bs *BlockSpineService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
-	// check last main block height still higher from SpineReferenceBlockHeightOffset
-	if lastMainBlock.Height > constant.SpineReferenceBlockHeightOffset {
-		newReferenceBlockHeight = lastMainBlock.Height - constant.SpineReferenceBlockHeightOffset
+
+	// get the timestamp of the block 1 MinRollbackBlocks ago
+	if lastMainBlock.Height > constant.MinRollbackBlocks {
+		newReferenceBlockHeight = lastMainBlock.Height - constant.MinRollbackBlocks
 	}
+
+	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
+	if newReferenceBlockHeight > newIncludedFirstBlockHeight {
+		newIncludedFirstBlockHeight++
+	}
+
 	// make sure new reference block height is greater than previous Reference Block Height
-	if newReferenceBlockHeight > previousBlock.ReferenceBlockHeight {
-		limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
-		includedMainBlocks, err = bs.MainBlockService.GetBlocksFromHeight(newIncludedFirstBlockHeight, limit, false)
-		if err != nil {
-			return nil, err
-		}
+	limit := newReferenceBlockHeight - previousBlock.ReferenceBlockHeight
+	if limit == 0 {
+		limit = 1
+	}
+	includedMainBlocks, err = bs.MainBlockService.GetBlocksFromHeight(newIncludedFirstBlockHeight, limit, false)
+	if err != nil {
+		return nil, err
 	}
 	if len(includedMainBlocks) == 0 {
 		return nil, blocker.NewBlocker(blocker.ValidationErr, "NoNewMainBlocks")
@@ -792,14 +800,17 @@ func (bs *BlockSpineService) GenerateBlock(
 	}
 	mRoot, mTree := merkleRoot.ToBytes()
 
-	// compute spine pub keys from mainchain node registrations
-	spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(
-		newIncludedFirstBlockHeight,
-		newReferenceBlockHeight,
-		newBlockHeight,
-	)
-	if err != nil {
-		return nil, err
+	// validation to avoid including nodes that has been included previously
+	if newIncludedFirstBlockHeight > previousBlock.ReferenceBlockHeight {
+		// compute spine pub keys from mainchain node registrations
+		spinePublicKeys, err = bs.SpinePublicKeyService.BuildSpinePublicKeysFromNodeRegistry(
+			newIncludedFirstBlockHeight,
+			newReferenceBlockHeight,
+			newBlockHeight,
+		)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// retrieve all spineBlockManifests at current spine height (complete with file chunks entities)
@@ -1051,10 +1062,7 @@ func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Bloc
 
 // validateIncludedMainBlock to validate included main block in spine block
 func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock *model.Block) error {
-	if incomingBlock.GetReferenceBlockHeight() == 0 {
-		return blocker.NewBlocker(blocker.ValidationErr, "NoIncludedMainBlock")
-	}
-	if incomingBlock.ReferenceBlockHeight <= lastBlock.ReferenceBlockHeight {
+	if incomingBlock.ReferenceBlockHeight < lastBlock.ReferenceBlockHeight {
 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
 	}
 	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()

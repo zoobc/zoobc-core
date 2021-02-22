@@ -51,9 +51,10 @@ package accounttype
 
 import (
 	"bytes"
-	"github.com/zoobc/zoobc-core/common/model"
 	"reflect"
 	"testing"
+
+	"github.com/zoobc/zoobc-core/common/model"
 )
 
 func TestGetAccountTypes(t *testing.T) {
@@ -85,10 +86,19 @@ func TestGetAccountTypes(t *testing.T) {
 }
 
 func TestNewAccountType(t *testing.T) {
-	var (
-		zbcAccType = &ZbcAccountType{}
-	)
+	zbcAccType := &ZbcAccountType{}
 	zbcAccType.SetAccountPublicKey([]byte{1, 2, 3})
+	btcAccType := &BTCAccountType{}
+	btcAccType.SetAccountPublicKey([]byte{1, 2, 3})
+	emptyAccType := &EmptyAccountType{}
+	emptyAccType.SetAccountPublicKey([]byte{1, 2, 3})
+	estoniaEidAccType := &EstoniaEidAccountType{}
+	estoniaEidAccType.SetAccountPublicKey([]byte{1, 2, 3})
+	ethAccType := &ETHAccountType{}
+	ethAccType.SetAccountPublicKey([]byte{17, 242, 179, 12, 148, 121, 204, 170, 99, 153, 98, 233, 67, 202,
+		124, 253, 52, 152, 112, 82, 88, 221, 180, 157, 254, 37, 187, 160, 10, 85, 94, 72, 203, 53, 167, 159,
+		61, 8, 76, 226, 109, 186, 192, 230, 187, 136, 116, 99, 119, 72, 23, 203, 128, 232, 155, 32, 192, 153,
+		11, 196, 127, 144, 117, 213})
 	type args struct {
 		accTypeInt int32
 		accPubKey  []byte
@@ -100,12 +110,46 @@ func TestNewAccountType(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "TestNewAccountType:success",
+			name: "TestNewAccountType:success/ZbcAccountType",
 			args: args{
 				accPubKey:  []byte{1, 2, 3},
 				accTypeInt: 0,
 			},
 			want: zbcAccType,
+		},
+		{
+			name: "TestNewAccountType:success/BTCAccountType",
+			args: args{
+				accPubKey:  []byte{1, 2, 3},
+				accTypeInt: 1,
+			},
+			want: btcAccType,
+		},
+		{
+			name: "TestNewAccountType:success/EmptyAccountType",
+			args: args{
+				accPubKey:  []byte{1, 2, 3},
+				accTypeInt: 2,
+			},
+			want: emptyAccType,
+		},
+		{
+			name: "TestNewAccountType:success/EstoniaEidAccountType",
+			args: args{
+				accPubKey:  []byte{1, 2, 3},
+				accTypeInt: 3,
+			},
+			want: estoniaEidAccType,
+		},
+		{
+			name: "TestNewAccountType:success/ETHAccountType",
+			args: args{
+				accPubKey: []byte{17, 242, 179, 12, 148, 121, 204, 170, 99, 153, 98, 233, 67, 202, 124, 253, 52, 152, 112,
+					82, 88, 221, 180, 157, 254, 37, 187, 160, 10, 85, 94, 72, 203, 53, 167, 159, 61, 8, 76, 226, 109, 186,
+					192, 230, 187, 136, 116, 99, 119, 72, 23, 203, 128, 232, 155, 32, 192, 153, 11, 196, 127, 144, 117, 213},
+				accTypeInt: 4,
+			},
+			want: ethAccType,
 		},
 		{
 			name: "TestNewAccountType:fail-{invalidAccountType}",
@@ -253,12 +297,12 @@ func TestParseEncodedAccountToAccountAddress(t *testing.T) {
 			want: fullAddress1,
 		},
 		{
-			name: "TestParseEncodedAccountToAccountAddress:fail-{BtcNotImplemented}",
+			name: "TestParseEncodedAccountToAccountAddress:success-btcImplementation",
 			args: args{
 				encodedAccountAddress: "12Ea6WAMZhFnfM5kjyfrfykqVWFcaWorQ8",
 				accTypeInt:            int32(model.AccountType_BTCAccountType),
 			},
-			wantErr: true,
+			want: []byte{0, 0, 0, 0, 13, 137, 40, 212, 218, 119, 144, 80, 70, 113, 150, 129, 2, 84, 45, 144, 145, 17, 64, 134},
 		},
 		{
 			name: "TestParseEncodedAccountToAccountAddress:fail-{InvalidAccountType}",

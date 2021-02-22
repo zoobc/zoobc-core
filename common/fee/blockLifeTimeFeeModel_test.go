@@ -65,7 +65,7 @@ func TestBlockLifeTimeFeeModel_CalculateTxMinimumFee(t *testing.T) {
 	}
 	type args struct {
 		txBody model.TransactionBodyInterface
-		escrow *model.Escrow
+		tx     *model.Transaction
 	}
 	tests := []struct {
 		name    string
@@ -82,8 +82,10 @@ func TestBlockLifeTimeFeeModel_CalculateTxMinimumFee(t *testing.T) {
 			},
 			args: args{
 				txBody: nil,
-				escrow: &model.Escrow{
-					Timeout: 17,
+				tx: &model.Transaction{
+					Escrow: &model.Escrow{
+						Timeout: 17,
+					},
 				},
 			},
 			want:    4 * (constant.OneZBC / 100),
@@ -96,7 +98,7 @@ func TestBlockLifeTimeFeeModel_CalculateTxMinimumFee(t *testing.T) {
 				blockPeriod:       tt.fields.blockPeriod,
 				feePerBlockPeriod: tt.fields.feePerBlockPeriod,
 			}
-			got, err := blt.CalculateTxMinimumFee(tt.args.txBody, tt.args.escrow)
+			got, err := blt.CalculateTxMinimumFee(tt.args.txBody, tt.args.tx)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CalculateTxMinimumFee() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -238,6 +238,7 @@ func (nrs *NodeRegistrationService) GetActiveRegisteredNodes() ([]*model.NodeReg
 		}
 		nodeRegistries = append(nodeRegistries, &registry.Node)
 	}
+	monitoring.SetActiveRegisteredNodesCount(len(nodeRegistries))
 	return nodeRegistries, nil
 }
 

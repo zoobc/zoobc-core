@@ -60,5 +60,9 @@ const (
 	// this multiplier is used to expand the receipt selection windows, this avoid multiple database read
 	ReceiptBatchPickMultiplier      = uint32(5)
 	ReceiptHashSize                 = 32 // sha256
-	ReceiptGenerateMarkleRootPeriod = 20 * time.Second
+	ReceiptGenerateMerkleRootPeriod = 20 * time.Second
+	// time to wait, after pushBlock for batch receipts and relative merkle root to be generated
+	BatchReceiptWaitingTime = 30 * time.Second
+	// ReceiptPoolMaxLife max blocks a receipt can stay in the pool before being discarded
+	ReceiptPoolMaxLife = 40
 )

@@ -109,8 +109,7 @@ type (
 			signature crypto.SignatureInterface, signatureInfo *model.SignatureInfo, multisignatureAddresses map[string]bool,
 		) error
 	}
-	MultisigTransactionUtil struct {
-	}
+	MultisigTransactionUtil struct{}
 )
 
 // GetTransactionBytes translate transaction model to its byte representation
@@ -361,6 +360,12 @@ func (u *Util) ValidateTransaction(tx *model.Transaction, typeAction TypeAction,
 		return blocker.NewBlocker(
 			blocker.ValidationErr,
 			"TxFeeZero",
+		)
+	}
+	if tx.GetEscrow() != nil && len(tx.Escrow.GetInstruction()) > constant.MaxMessageLengthEscrowInstruction {
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"TxEscrowInstructionMaxLengthExceeded",
 		)
 	}
 	if len(tx.Message) > constant.MaxMessageLength {
