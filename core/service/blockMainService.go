@@ -567,19 +567,22 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 			return nil, nil, err
 		}
 
-		blockPublishedReceipts := block.GetPublishedReceipts()
-		popScore, err := commonUtils.CalculateParticipationScore(
-			uint32(linkedCount),
-			uint32(len(blockPublishedReceipts)-linkedCount),
-			bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
-		)
-		if err != nil {
-			return nil, nil, err
-		}
+		// score won't change till we can select receipts
+		if block.Height >= constant.BatchReceiptLookBackHeight {
+			blockPublishedReceipts := block.GetPublishedReceipts()
+			popScore, err := commonUtils.CalculateParticipationScore(
+				uint32(linkedCount),
+				uint32(len(blockPublishedReceipts)-linkedCount),
+				bs.ReceiptUtil.GetNumberOfMaxReceipts(len(activeRegistries)),
+			)
+			if err != nil {
+				return nil, nil, err
+			}
 
-		err = bs.updatePopScore(popScore, previousBlock, block)
-		if err != nil {
-			return nil, nil, err
+			err = bs.updatePopScore(popScore, previousBlock, block)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		// selecting multiple account to be rewarded and split the total coinbase + totalFees evenly between them
@@ -1313,16 +1316,6 @@ func (bs *BlockService) GenerateBlock(
 		}
 	}
 	activeRegistries, err := bs.NodeRegistrationService.GetActiveRegisteredNodes()
-
-	if err != nil {
-		return nil, err
-	}
-	// select published receipts to be added to the block
-	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
-		timestamp, bs.ReceiptUtil.GetNumberOfMaxReceipts(
-			len(activeRegistries)),
-		previousBlock.Height,
-	)
 	if err != nil {
 		return nil, err
 	}
@@ -1340,6 +1333,20 @@ func (bs *BlockService) GenerateBlock(
 	if err != nil {
 		return nil, err
 	}
+
+	// select published receipts to be added to the block
+	publishedReceipts, err = bs.ReceiptService.SelectReceipts(
+		bs.ReceiptUtil.GetNumberOfMaxReceipts(
+			len(activeRegistries)),
+		previousBlock.Height+1,
+		previousBlockHash,
+		blockSeed,
+		secretPhrase,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	block, err := bs.NewMainBlock(
 		1,
 		previousBlockHash,

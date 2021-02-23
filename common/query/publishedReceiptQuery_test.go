@@ -515,3 +515,101 @@ func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightRange(t *testing.
 		}
 	})
 }
+
+func TestPublishedReceiptQuery_GetUnlinkedPublishedReceipt(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		root []byte
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name: "GetPublishedReceiptByLinkedRMR:success",
+			fields: fields{
+				Fields:    mockPublishedReceiptQuery.Fields,
+				TableName: mockPublishedReceiptQuery.TableName,
+			},
+			args: args{
+				root: make([]byte, 32),
+			},
+			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
+				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, " +
+				"receipt_index, published_index FROM published_receipt WHERE rmr_linked != ?",
+			wantArgs: []interface{}{
+				make([]byte, 32),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prq := &PublishedReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := prq.GetUnlinkedPublishedReceipt(tt.args.root)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetUnlinkedPublishedReceipt() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetUnlinkedPublishedReceipt() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightWithMerkleRoot(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		blockHeight uint32
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name: "GetPublishedReceiptByBlockHeightWithMerkleRoot:success",
+			fields: fields{
+				Fields:    mockPublishedReceiptQuery.Fields,
+				TableName: mockPublishedReceiptQuery.TableName,
+			},
+			args: args{
+				blockHeight: 1,
+			},
+			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
+				" rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+				"published_index FROM published_receipt WHERE block_height = ? AND rmr_linked IS NOT NULL ORDER BY published_index ASC",
+			wantArgs: []interface{}{
+				uint32(1),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prq := &PublishedReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := prq.GetPublishedReceiptByBlockHeightWithMerkleRoot(tt.args.blockHeight)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetPublishedReceiptByBlockHeightWithMerkleRoot() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetPublishedReceiptByBlockHeightWithMerkleRoot() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

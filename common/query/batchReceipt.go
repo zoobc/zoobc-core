@@ -63,7 +63,9 @@ type (
 		InsertReceipt(receipt *model.BatchReceipt) (str string, args []interface{})
 		InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
-		GetReceiptByRoot(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
+		GetReceiptsByRootInRange(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
+		GetReceiptsByRoot(root []byte) (str string, args []interface{})
+		GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		PruneData(blockHeight, limit uint32) (string, []interface{})
@@ -146,9 +148,9 @@ func (rq *BatchReceiptQuery) GetReceiptsWithUniqueRecipient(
 	return query
 }
 
-// GetReceiptByRoot return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
+// GetReceiptsByRootInRange return sql query to fetch pas by its merkle root, the datum_hash should not already exists in
 // published_receipt table
-func (rq *BatchReceiptQuery) GetReceiptByRoot(
+func (rq *BatchReceiptQuery) GetReceiptsByRootInRange(
 	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
@@ -158,6 +160,29 @@ func (rq *BatchReceiptQuery) GetReceiptByRoot(
 		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight)
 	return query, []interface{}{
 		root,
+	}
+}
+
+// GetReceiptsByRoot return sql query to fetch batch receipts by their merkle root
+// note: order is important during receipt selection process during block generation
+func (rq *BatchReceiptQuery) GetReceiptsByRoot(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? ORDER BY datum_hash, recipient_public_key, reference_block_height",
+		strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		root,
+	}
+}
+
+// GetReceiptsByRoot return sql query to fetch batch receipts by their merkle root
+// note: order is important during receipt selection process during block generation
+func (rq *BatchReceiptQuery) GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc."+
+		"datum_type = ? ORDER BY recipient_public_key, reference_block_height",
+		strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		root,
+		datumHash,
+		datumType,
 	}
 }
 

@@ -61,7 +61,9 @@ import (
 type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
+		GetUnlinkedPublishedReceipt(root []byte) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
+		GetPublishedReceiptByBlockHeightWithMerkleRoot(blockHeight uint32) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeightRange(
 			fromBlockHeight, toBlockHeight uint32,
 		) (str string, args []interface{})
@@ -170,8 +172,23 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (s
 	}
 }
 
+func (prq *PublishedReceiptQuery) GetUnlinkedPublishedReceipt(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked != ?", strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		root,
+	}
+}
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? ORDER BY published_index ASC",
+		strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		blockHeight,
+	}
+}
+
+func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeightWithMerkleRoot(blockHeight uint32) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? AND rmr_linked IS NOT NULL ORDER BY published_index ASC",
 		strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
 		blockHeight,

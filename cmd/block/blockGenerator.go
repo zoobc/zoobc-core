@@ -185,6 +185,7 @@ func initialize(
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(chainType),
+		query.NewTransactionQuery(chainType),
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),

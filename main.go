@@ -463,6 +463,7 @@ func initiateMainInstance() {
 		query.NewMerkleTreeQuery(),
 		query.NewNodeRegistrationQuery(),
 		query.NewBlockQuery(mainchain),
+		query.NewTransactionQuery(mainchain),
 		queryExecutor,
 		nodeRegistrationService,
 		crypto.NewSignature(),

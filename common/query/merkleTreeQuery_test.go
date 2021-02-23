@@ -64,70 +64,6 @@ var (
 	mockTree            = make([]byte, 14*32)
 )
 
-func TestMerkleTreeQuery_SelectMerkleTree(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	type args struct {
-		lowerHeight uint32
-		upperHeight uint32
-		limit       uint32
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   string
-	}{
-		{
-			name: "SelectMerkleTree:success",
-			fields: fields{
-				Fields:    mockMerkleTreeQuery.Fields,
-				TableName: mockMerkleTreeQuery.TableName,
-			},
-			args: args{
-				lowerHeight: 0,
-				upperHeight: 10,
-				limit:       20,
-			},
-			want: "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (SELECT rmr_linked FROM " +
-				"published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND " +
-				"block_height BETWEEN 0 AND 10 ORDER BY block_height ASC LIMIT 20",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mrQ := &MerkleTreeQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			if got := mrQ.SelectMerkleTree(tt.args.lowerHeight, tt.args.upperHeight, tt.args.limit); got != tt.want {
-				t.Errorf("SelectMerkleTree() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestNewMerkleTreeQuery(t *testing.T) {
-	tests := []struct {
-		name string
-		want MerkleTreeQueryInterface
-	}{
-		{
-			name: "NewMerkleTreeQuery:success",
-			want: mockMerkleTreeQuery,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewMerkleTreeQuery(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewMerkleTreeQuery() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestMerkleTreeQuery_InsertMerkleTree(t *testing.T) {
 	type fields struct {
 		Fields    []string
@@ -556,6 +492,80 @@ func TestMerkleTreeQuery_Rollback(t *testing.T) {
 			}
 			if gotMultiQueries := mrQ.Rollback(tt.args.height); !reflect.DeepEqual(gotMultiQueries, tt.wantMultiQueries) {
 				t.Errorf("MerkleTreeQuery.Rollback() = %v, want %v", gotMultiQueries, tt.wantMultiQueries)
+			}
+		})
+	}
+}
+
+func TestMerkleTreeQuery_SelectMerkleTreeAtHeight(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockMerkleTreeQuery),
+			args:   args{height: 1},
+			want:   "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE block_height = 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mrQ := &MerkleTreeQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := mrQ.SelectMerkleTreeAtHeight(tt.args.height); got != tt.want {
+				t.Errorf("SelectMerkleTreeAtHeight() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMerkleTreeQuery_SelectMerkleTreeForPublishedReceipts(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		height uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   string
+	}{
+		{
+			name: "SelectMerkleTreeForPublishedReceipts:success",
+			fields: fields{
+				Fields:    mockMerkleTreeQuery.Fields,
+				TableName: mockMerkleTreeQuery.TableName,
+			},
+			args: args{
+				height: 1,
+			},
+			want: "SELECT id, block_height, tree, timestamp FROM merkle_tree AS mt WHERE EXISTS (" +
+				"SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND block_height = 1",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mrQ := &MerkleTreeQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			if got := mrQ.SelectMerkleTreeForPublishedReceipts(tt.args.height); got != tt.want {
+				t.Errorf("SelectMerkleTreeForPublishedReceipts() = %v, want %v", got, tt.want)
 			}
 		})
 	}
