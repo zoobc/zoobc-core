@@ -812,6 +812,7 @@ func initObserverListeners() {
 		observerInstance.AddListener(observer.BlockPushed, snapshotService.StartSnapshotListener())
 		observerInstance.AddListener(observer.BlockPushed, receiptService.GenerateReceiptsMerkleRootListener())
 	}
+	observerInstance.AddListener(observer.BlockPushed, batchReceiptCacheStorage.CacheRegularCleaningListener())
 	observerInstance.AddListener(observer.BlockRequestTransactions, p2pServiceInstance.RequestBlockTransactionsListener())
 	observerInstance.AddListener(observer.ReceivedBlockTransactionsValidated, mainchainBlockService.ReceivedValidatedBlockTransactionsListener())
 	observerInstance.AddListener(observer.BlockTransactionsRequested, mainchainBlockService.BlockTransactionsRequestedListener())
