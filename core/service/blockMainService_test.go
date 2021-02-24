@@ -1541,8 +1541,9 @@ type (
 )
 
 func (*mockReceiptServiceReturnEmpty) SelectReceipts(
-	blockTimestamp int64,
-	numberOfReceipt, lastBlockHeight uint32,
+	numberOfReceipt, blockHeight uint32,
+	previousBlockHash, blockSeed []byte,
+	secretPhrase string,
 ) ([]*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil
 }

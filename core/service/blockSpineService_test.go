@@ -1198,7 +1198,11 @@ func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight
 	return spineBlockManifests, err
 }
 
-func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
+func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(
+	numberOfReceipt, blockHeight uint32,
+	previousBlockHash, blockSeed []byte,
+	secretPhrase string,
+) ([]*model.PublishedReceipt, error) {
 	return []*model.PublishedReceipt{}, nil
 }
 
