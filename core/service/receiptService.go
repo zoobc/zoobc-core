@@ -396,7 +396,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 			datumHashes = append(datumHashes, hashString)
 		}
 	}
-	blockHash := hex.EncodeToString(block.GetBlockHash())
+	blockHash := hex.EncodeToString(block.GetPreviousBlockHash())
 	if len(blockHash) != 0 {
 		datumHashes = append(datumHashes, blockHash)
 	}
