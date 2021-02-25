@@ -639,9 +639,7 @@ func (rs *ReceiptService) ClearCache() {
 func FlattenReceiptGroups(receiptGroups map[string][]model.Receipt) []model.Receipt {
 	var receipts []model.Receipt
 	for _, receiptGroup := range receiptGroups {
-		for _, receipt := range receiptGroup {
-			receipts = append(receipts, receipt)
-		}
+		receipts = append(receipts, receiptGroup...)
 	}
 	return receipts
 }

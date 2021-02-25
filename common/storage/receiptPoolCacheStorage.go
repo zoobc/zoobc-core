@@ -228,9 +228,6 @@ func (brs ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
 		minHeightReceiptsToKeep = blockHeight - constant.ReceiptLifeCutOff
 	}
 
-	brs.Lock()
-	defer brs.Unlock()
-
 	for key, receiptGroup := range brs.receipts {
 		newReceiptList := []model.Receipt{}
 		for _, receipt := range receiptGroup {
@@ -250,6 +247,8 @@ func (brs ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
 func (brs ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args ...interface{}) {
+			brs.Lock()
+			defer brs.Unlock()
 			var (
 				b  *model.Block
 				ok bool
