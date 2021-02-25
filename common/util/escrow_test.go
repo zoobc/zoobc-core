@@ -58,7 +58,6 @@ func TestValidateBasicEscrow(t *testing.T) {
 					Timestamp: 100,
 				},
 			},
-			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
