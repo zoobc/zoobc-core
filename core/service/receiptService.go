@@ -507,8 +507,8 @@ func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.Receipt,
 ) error {
 	var (
-		blockAtHeight *storage.BlockCacheObject
-		err           error
+		// blockAtHeight *storage.BlockCacheObject
+		err error
 	)
 	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
 		return blocker.NewBlocker(blocker.ValidationErr,
@@ -537,19 +537,19 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptSignature",
 		)
 	}
-	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
-		receipt.ReferenceBlockHeight,
-		rs.QueryExecutor,
-		rs.BlockQuery,
-		rs.MainBlocksStorage,
-	)
-	if err != nil {
-		return err
-	}
-	// check block hash
-	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
-	}
+	// blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+	// 	receipt.ReferenceBlockHeight,
+	// 	rs.QueryExecutor,
+	// 	rs.BlockQuery,
+	// 	rs.MainBlocksStorage,
+	// )
+	// if err != nil {
+	// 	return err
+	// }
+	// // check block hash
+	// if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+	// 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
+	// }
 	// get or build scrambled nodes at height
 	scrambledNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
@@ -631,7 +631,7 @@ func (rs *ReceiptService) GenerateReceiptWithReminder(
 
 func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) (err error) {
 	b := *receipt
-	err = rs.BatchReceiptCacheStorage.SetItem(receipt.DatumHash, b)
+	err = rs.BatchReceiptCacheStorage.SetItem(hex.EncodeToString(receipt.DatumHash), b)
 	if err != nil {
 		return err
 	}

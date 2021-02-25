@@ -235,13 +235,18 @@ func (brs ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Liste
 				return
 			}
 
+			var minHeightReceiptsToKeep uint32
+			if b.GetHeight() > constant.ReceiptLifeCutOff {
+				minHeightReceiptsToKeep = b.GetHeight() - constant.ReceiptLifeCutOff
+			}
+
 			brs.Lock()
 			defer brs.Unlock()
 
 			for key, receiptGroup := range brs.receipts {
 				newReceiptList := []model.Receipt{}
 				for _, receipt := range receiptGroup {
-					if receipt.ReferenceBlockHeight >= b.GetHeight()-constant.ReceiptPoolMaxLife-constant.MinRollbackBlocks {
+					if receipt.ReferenceBlockHeight >= minHeightReceiptsToKeep {
 						newReceiptList = append(newReceiptList, receipt)
 					}
 				}
