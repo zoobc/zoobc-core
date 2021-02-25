@@ -51,8 +51,11 @@ package util
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"encoding/hex"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/query"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -77,6 +80,14 @@ type (
 		GetReceiptKey(
 			dataHash, senderPublicKey []byte,
 		) ([]byte, error)
+		ValidateReceiptHelper(
+			receipt *model.Receipt,
+			executor query.ExecutorInterface,
+			blockQuery query.BlockQueryInterface,
+			mainBlockStorage storage.CacheStackStorageInterface,
+			signature crypto.SignatureInterface,
+			scrambleNodesAtHeight *model.ScrambledNodes,
+		) error
 		ValidateReceiptSenderRecipient(
 			receipt *model.Receipt,
 			scrambledNode *model.ScrambledNodes,
@@ -88,6 +99,66 @@ type (
 
 func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
+}
+
+// ValidateReceiptHelper helper function for better code testability
+func (ru *ReceiptUtil) ValidateReceiptHelper(
+	receipt *model.Receipt,
+	executor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	mainBlockStorage storage.CacheStackStorageInterface,
+	signature crypto.SignatureInterface,
+	scrambleNodesAtHeight *model.ScrambledNodes,
+) error {
+	var (
+		blockAtHeight *storage.BlockCacheObject
+		err           error
+	)
+	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptRecipientPublicKeySize",
+		)
+	}
+	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptSignatureSize",
+		)
+	}
+
+	unsignedBytes := ru.GetUnsignedReceiptBytes(receipt)
+	if !signature.VerifyNodeSignature(
+		unsignedBytes,
+		receipt.RecipientSignature,
+		receipt.RecipientPublicKey,
+	) {
+		// rollback
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"InvalidReceiptSignature",
+		)
+	}
+	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+		receipt.ReferenceBlockHeight,
+		executor,
+		blockQuery,
+		mainBlockStorage,
+	)
+	if err != nil {
+		return err
+	}
+	// check block hash
+	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
+	}
+	err = ru.ValidateReceiptSenderRecipient(receipt, scrambleNodesAtHeight)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ru *ReceiptUtil) ValidateReceiptSenderRecipient(

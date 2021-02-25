@@ -1403,6 +1403,23 @@ func (*receiptSrvMockScrambleNodeService) GetScrambleNodesByHeight(
 	return mockScrambledNodesWithNodePublicKeyToIDMap, nil
 }
 
+type (
+	receiptSrvMockReceiptUtilSuccess struct {
+		coreUtil.ReceiptUtilInterface
+	}
+)
+
+func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
+	receipt *model.Receipt,
+	executor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	mainBlockStorage storage.CacheStackStorageInterface,
+	signature crypto.SignatureInterface,
+	scrambleNodesAtHeight *model.ScrambledNodes,
+) error {
+	return nil
+}
+
 func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 	type fields struct {
 		NodeReceiptQuery         query.BatchReceiptQueryInterface
@@ -1462,6 +1479,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
 				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
 				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
 			},
 			args: args{
 				numberOfReceipt: 2,

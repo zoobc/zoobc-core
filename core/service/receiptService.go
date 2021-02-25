@@ -62,8 +62,6 @@ import (
 	"sort"
 	"time"
 
-	"golang.org/x/crypto/ed25519"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -330,15 +328,15 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	secretPhrase string,
 ) ([]*model.BatchReceipt, error) {
 	var (
-		err                       error
-		qryStr                    string
-		batchMerkleRoot           []byte
-		batchReceipts             []*model.BatchReceipt
-		lookBackBlock             model.Block
-		lookBackBlockTransactions []*model.Transaction
-		unlinkedReceiptList       []*model.BatchReceipt
-		lookBackHeight            = blockHeight - constant.BatchReceiptLookBackHeight
-		emptyReceipts             = make([]*model.BatchReceipt, 0)
+		err                               error
+		qryStr                            string
+		batchMerkleRoot                   []byte
+		batchReceipts, validBatchReceipts []*model.BatchReceipt
+		lookBackBlock                     model.Block
+		lookBackBlockTransactions         []*model.Transaction
+		unlinkedReceiptList               []*model.BatchReceipt
+		lookBackHeight                    = blockHeight - constant.BatchReceiptLookBackHeight
+		emptyReceipts                     = make([]*model.BatchReceipt, 0)
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
@@ -429,7 +427,12 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	if err != nil {
 		return nil, err
 	}
-	if len(batchReceipts) == 0 {
+	for _, br := range batchReceipts {
+		if err = rs.ValidateReceipt(br.Receipt); err == nil {
+			validBatchReceipts = append(validBatchReceipts, br)
+		}
+	}
+	if len(validBatchReceipts) == 0 {
 		return nil, nil
 	}
 
@@ -464,7 +467,7 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	// select all batch (node) receipts, collected at look back height, from one of the priority peers (at that height),
 	// that match the random datum hash (transaction or block hash) rolled earlier
 	for _, priorityPeer := range priorityPeersAtHeight {
-		for _, batchReceipt := range batchReceipts {
+		for _, batchReceipt := range validBatchReceipts {
 			if bytes.Equal(batchReceipt.GetReceipt().RecipientPublicKey, priorityPeer.GetInfo().GetPublicKey()) {
 				unlinkedReceiptList = append(unlinkedReceiptList, batchReceipt)
 			}
@@ -510,7 +513,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// get all batch receipts for selected merkle root and datum_hash ordered by recipient_public_key, reference_block_height
 		publishedReceipts, err = func() ([]*model.PublishedReceipt, error) {
 			var receipts []*model.PublishedReceipt
-			batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetPublishedReceiptByBlockHeightWithMerkleRoot(refHeight)
+			batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeight(refHeight)
 			rows, err := rs.QueryExecutor.ExecuteSelect(batchReceiptsQ, false, rootArgs...)
 			if err != nil {
 				return nil, err
@@ -792,60 +795,19 @@ func (rs *ReceiptService) CheckDuplication(publicKey, datumHash []byte) (err err
 func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.Receipt,
 ) error {
-	var (
-		blockAtHeight *storage.BlockCacheObject
-		err           error
-	)
-	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
-		return blocker.NewBlocker(blocker.ValidationErr,
-			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
-			len(receipt.GetRecipientPublicKey()),
-			"InvalidReceiptRecipientPublicKeySize",
-		)
-	}
-	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
-		return blocker.NewBlocker(blocker.ValidationErr,
-			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
-			len(receipt.GetRecipientPublicKey()),
-			"InvalidReceiptSignatureSize",
-		)
-	}
-
-	unsignedBytes := rs.ReceiptUtil.GetUnsignedReceiptBytes(receipt)
-	if !rs.Signature.VerifyNodeSignature(
-		unsignedBytes,
-		receipt.RecipientSignature,
-		receipt.RecipientPublicKey,
-	) {
-		// rollback
-		return blocker.NewBlocker(
-			blocker.ValidationErr,
-			"InvalidReceiptSignature",
-		)
-	}
-	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
-		receipt.ReferenceBlockHeight,
-		rs.QueryExecutor,
-		rs.BlockQuery,
-		rs.MainBlocksStorage,
-	)
-	if err != nil {
-		return err
-	}
-	// check block hash
-	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
-	}
 	// get or build scramble nodes at height
 	scrambleNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
 		return err
 	}
-	err = rs.ReceiptUtil.ValidateReceiptSenderRecipient(receipt, scrambleNode)
-	if err != nil {
-		return err
-	}
-	return nil
+	return rs.ReceiptUtil.ValidateReceiptHelper(
+		receipt,
+		rs.QueryExecutor,
+		rs.BlockQuery,
+		rs.MainBlocksStorage,
+		rs.Signature,
+		scrambleNode,
+	)
 }
 
 // GetPublishedReceiptsByHeight that handling database connection to get published receipts by height
