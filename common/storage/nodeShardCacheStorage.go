@@ -55,6 +55,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -183,4 +184,16 @@ func (n *NodeShardCacheStorage) ClearCache() error {
 	}
 
 	return nil
+}
+
+func (n *NodeShardCacheStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (n *NodeShardCacheStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (n *NodeShardCacheStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

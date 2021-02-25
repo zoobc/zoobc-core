@@ -57,6 +57,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -452,4 +453,16 @@ func (n *NodeRegistryCacheStorage) copy(src NodeRegistry) NodeRegistry {
 	}
 	copy(result.Node.NodePublicKey, src.Node.GetNodePublicKey())
 	return result
+}
+
+func (n *NodeRegistryCacheStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (n *NodeRegistryCacheStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (n *NodeRegistryCacheStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

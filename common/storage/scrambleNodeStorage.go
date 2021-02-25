@@ -60,6 +60,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -231,4 +232,16 @@ func (s *ScrambleCacheStackStorage) copy(src model.ScrambledNodes) model.Scrambl
 		BlockHeight:          src.BlockHeight,
 	}
 	return result
+}
+
+func (s *ScrambleCacheStackStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (s *ScrambleCacheStackStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (s *ScrambleCacheStackStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }
