@@ -68,7 +68,7 @@ type (
 
 func NewReceiptPoolCacheStorage() *ReceiptPoolCacheStorage {
 	return &ReceiptPoolCacheStorage{
-		receipts: make(map[string][]model.Receipt, 0),
+		receipts: make(map[string][]model.Receipt),
 	}
 }
 
@@ -215,11 +215,36 @@ func (brs *ReceiptPoolCacheStorage) ClearCache() error {
 	brs.Lock()
 	defer brs.Unlock()
 
-	brs.receipts = make(map[string][]model.Receipt, 0)
+	brs.receipts = make(map[string][]model.Receipt)
 	if monitoring.IsMonitoringActive() {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeBatchReceiptCacheStorage, 0)
 	}
 	return nil
+}
+
+func (brs ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
+	var minHeightReceiptsToKeep uint32
+	if blockHeight > constant.ReceiptLifeCutOff {
+		minHeightReceiptsToKeep = blockHeight - constant.ReceiptLifeCutOff
+	}
+
+	brs.Lock()
+	defer brs.Unlock()
+
+	for key, receiptGroup := range brs.receipts {
+		newReceiptList := []model.Receipt{}
+		for _, receipt := range receiptGroup {
+			if receipt.ReferenceBlockHeight >= minHeightReceiptsToKeep {
+				newReceiptList = append(newReceiptList, receipt)
+			}
+		}
+
+		if len(newReceiptList) == 0 {
+			delete(brs.receipts, key)
+		} else if len(newReceiptList) != len(receiptGroup) {
+			brs.receipts[key] = newReceiptList
+		}
+	}
 }
 
 func (brs ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Listener {
@@ -231,32 +256,10 @@ func (brs ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Liste
 			)
 			b, ok = block.(*model.Block)
 			if !ok {
-				// brs.Logger.Fatalln("Block casting failures in SendBlockListener")
 				return
 			}
+			brs.CleanExpiredReceipts(b.GetHeight())
 
-			var minHeightReceiptsToKeep uint32
-			if b.GetHeight() > constant.ReceiptLifeCutOff {
-				minHeightReceiptsToKeep = b.GetHeight() - constant.ReceiptLifeCutOff
-			}
-
-			brs.Lock()
-			defer brs.Unlock()
-
-			for key, receiptGroup := range brs.receipts {
-				newReceiptList := []model.Receipt{}
-				for _, receipt := range receiptGroup {
-					if receipt.ReferenceBlockHeight >= minHeightReceiptsToKeep {
-						newReceiptList = append(newReceiptList, receipt)
-					}
-				}
-
-				if len(newReceiptList) == 0 {
-					delete(brs.receipts, key)
-				} else if len(newReceiptList) != len(receiptGroup) {
-					brs.receipts[key] = newReceiptList
-				}
-			}
 		},
 	}
 }

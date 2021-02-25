@@ -369,7 +369,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		rootMerkle, treeMerkle      []byte
 		blockAtHeight               *storage.BlockCacheObject
 		isDbTransactionHighPriority = false
-		receiptsCached              = make(map[string][]model.Receipt, 0)
+		receiptsCached              = make(map[string][]model.Receipt)
 		receiptsToProcess           = make([]model.Receipt, 0)
 		receiptsToSave              = make([]model.Receipt, 0)
 	)
@@ -392,12 +392,12 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	var datumHashes []string
 	for _, tx := range block.GetTransactions() {
 		hashString := hex.EncodeToString(tx.GetTransactionHash())
-		if len(hashString) != 0 {
+		if hashString != "" {
 			datumHashes = append(datumHashes, hashString)
 		}
 	}
 	blockHash := hex.EncodeToString(block.GetPreviousBlockHash())
-	if len(blockHash) != 0 {
+	if blockHash != "" {
 		datumHashes = append(datumHashes, blockHash)
 	}
 
@@ -406,6 +406,12 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	}
 
 	receiptsToProcess = FlattenReceiptGroups(receiptsCached)
+
+	// If no receipts in cache no need to return errors. just log a message
+	if len(receiptsToProcess) == 0 {
+		rs.Logger.Info("No Receipts for block height: ", block.Height)
+		return nil
+	}
 	receiptsToProcess = SortReceipts(receiptsToProcess)
 
 	err = rs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
@@ -550,6 +556,7 @@ func (rs *ReceiptService) ValidateReceipt(
 	// if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
 	// 	return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
 	// }
+
 	// get or build scrambled nodes at height
 	scrambledNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
