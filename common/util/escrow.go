@@ -25,6 +25,7 @@ func ValidateBasicEscrow(tx *model.Transaction) error {
 func PrepareEscrowObjectForAction(tx *model.Transaction) *model.Escrow {
 	tx.Escrow.ID = tx.ID
 	tx.Escrow.SenderAddress = tx.SenderAccountAddress
+	tx.Escrow.RecipientAddress = tx.RecipientAccountAddress
 	tx.Escrow.BlockHeight = tx.Height
 	tx.Escrow.Latest = true
 	return tx.Escrow
