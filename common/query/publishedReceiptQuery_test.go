@@ -516,13 +516,14 @@ func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightRange(t *testing.
 	})
 }
 
-func TestPublishedReceiptQuery_GetUnlinkedPublishedReceiptByBlockHeight(t *testing.T) {
+func TestPublishedReceiptQuery_GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(t *testing.T) {
 	type fields struct {
 		Fields    []string
 		TableName string
 	}
 	type args struct {
-		blockHeight uint32
+		blockHeight     uint32
+		recipientPubKey []byte
 	}
 	tests := []struct {
 		name     string
@@ -532,19 +533,21 @@ func TestPublishedReceiptQuery_GetUnlinkedPublishedReceiptByBlockHeight(t *testi
 		wantArgs []interface{}
 	}{
 		{
-			name: "GetUnlinkedPublishedReceiptByBlockHeight:success",
+			name: "GetUnlinkedPublishedReceiptByBlockHeightAndReceiver:success",
 			fields: fields{
 				Fields:    mockPublishedReceiptQuery.Fields,
 				TableName: mockPublishedReceiptQuery.TableName,
 			},
 			args: args{
-				blockHeight: 1,
+				blockHeight:     1,
+				recipientPubKey: make([]byte, 0),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
 				" rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
-				"published_index FROM published_receipt WHERE block_height = ? AND rmr_linked IS NULL ORDER BY published_index ASC",
+				"published_index FROM published_receipt WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1",
 			wantArgs: []interface{}{
 				uint32(1),
+				make([]byte, 0),
 			},
 		},
 	}
@@ -554,12 +557,12 @@ func TestPublishedReceiptQuery_GetUnlinkedPublishedReceiptByBlockHeight(t *testi
 				Fields:    tt.fields.Fields,
 				TableName: tt.fields.TableName,
 			}
-			gotStr, gotArgs := prq.GetUnlinkedPublishedReceiptByBlockHeight(tt.args.blockHeight)
+			gotStr, gotArgs := prq.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(tt.args.blockHeight, tt.args.recipientPubKey)
 			if gotStr != tt.wantStr {
-				t.Errorf("GetUnlinkedPublishedReceiptByBlockHeight() gotStr = %v, want %v", gotStr, tt.wantStr)
+				t.Errorf("GetUnlinkedPublishedReceiptByBlockHeightAndReceiver() gotStr = %v, want %v", gotStr, tt.wantStr)
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetUnlinkedPublishedReceiptByBlockHeight() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+				t.Errorf("GetUnlinkedPublishedReceiptByBlockHeightAndReceiver() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}

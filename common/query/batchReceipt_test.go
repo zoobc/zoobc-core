@@ -502,3 +502,52 @@ func TestBatchReceiptQuery_GetReceiptsByRootAndDatumHash(t *testing.T) {
 		})
 	}
 }
+
+func TestBatchReceiptQuery_GetReceiptsByRefBlockHeightAndRefBlockHash(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		refHeight uint32
+		refHash   []byte
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockReceiptQuery),
+			args: args{
+				refHeight: 1,
+				refHash:   make([]byte, 32),
+			},
+			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
+				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
+				"reference_block_hash = ? LIMIT 1",
+			wantArgs: []interface{}{
+				uint32(1),
+				make([]byte, 32),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rq := &BatchReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := rq.GetReceiptsByRefBlockHeightAndRefBlockHash(tt.args.refHeight, tt.args.refHash)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetReceiptsByRefBlockHeightAndRefBlockHash() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetReceiptsByRefBlockHeightAndRefBlockHash() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}

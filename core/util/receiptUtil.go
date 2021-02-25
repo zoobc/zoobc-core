@@ -56,6 +56,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/query"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
@@ -92,6 +93,10 @@ type (
 			receipt *model.Receipt,
 			scrambledNode *model.ScrambledNodes,
 		) error
+		GetPriorityPeersAtHeight(
+			secretPhrase string,
+			scrambleNodes *model.ScrambledNodes,
+		) (map[string]*model.Peer, error)
 	}
 
 	ReceiptUtil struct{}
@@ -99,6 +104,26 @@ type (
 
 func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
+}
+
+func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
+	secretPhrase string,
+	scrambleNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
+	if !ok {
+		// return empty priority peers list if current node is not found in scramble nodes at look back height
+		return make(map[string]*model.Peer, 0), nil
+	}
+	peers, err := p2pUtil.GetPriorityPeersByNodeID(
+		scrambleNodeID,
+		scrambleNodes,
+	)
+	if err != nil {
+		return make(map[string]*model.Peer, 0), nil
+	}
+	return peers, nil
 }
 
 // ValidateReceiptHelper helper function for better code testability

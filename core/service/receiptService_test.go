@@ -55,6 +55,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"regexp"
@@ -1418,6 +1419,17 @@ func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 	scrambleNodesAtHeight *model.ScrambledNodes,
 ) error {
 	return nil
+}
+
+func (*receiptSrvMockReceiptUtilSuccess) GetPriorityPeersAtHeight(
+	secretPhrase string,
+	scrambleNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var res = make(map[string]*model.Peer, 0)
+	for _, peer := range mockScrambledNodesWithNodePublicKeyToIDMap.AddressNodes {
+		res[fmt.Sprintf("%s:%d", peer.Info.Address, peer.Info.Port)] = peer
+	}
+	return res, nil
 }
 
 func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {

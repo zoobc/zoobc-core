@@ -64,6 +64,7 @@ type (
 		InsertReceipts(receipts []*model.BatchReceipt) (str string, args []interface{})
 		GetReceipts(paginate model.Pagination) string
 		GetReceiptsByRootInRange(lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{})
+		GetReceiptsByRefBlockHeightAndRefBlockHash(refHeight uint32, refHash []byte) (str string, args []interface{})
 		GetReceiptsByRoot(root []byte) (str string, args []interface{})
 		GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
@@ -160,6 +161,16 @@ func (rq *BatchReceiptQuery) GetReceiptsByRootInRange(
 		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight)
 	return query, []interface{}{
 		root,
+	}
+}
+
+func (rq *BatchReceiptQuery) GetReceiptsByRefBlockHeightAndRefBlockHash(refHeight uint32, refHash []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.reference_block_height = ? AND "+
+		"rc.reference_block_hash = ? LIMIT 1",
+		strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		refHeight,
+		refHash,
 	}
 }
 
