@@ -222,7 +222,7 @@ func (brs *ReceiptPoolCacheStorage) ClearCache() error {
 	return nil
 }
 
-func (brs ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
+func (brs *ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
 	var minHeightReceiptsToKeep uint32
 	if blockHeight > constant.ReceiptLifeCutOff {
 		minHeightReceiptsToKeep = blockHeight - constant.ReceiptLifeCutOff
@@ -244,7 +244,7 @@ func (brs ReceiptPoolCacheStorage) CleanExpiredReceipts(blockHeight uint32) {
 	}
 }
 
-func (brs ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Listener {
+func (brs *ReceiptPoolCacheStorage) CacheRegularCleaningListener() observer.Listener {
 	return observer.Listener{
 		OnNotify: func(block interface{}, args ...interface{}) {
 			brs.Lock()
