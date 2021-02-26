@@ -67,6 +67,7 @@ type (
 		GetReceiptsByRefBlockHeightAndRefBlockHash(refHeight uint32, refHash []byte) (str string, args []interface{})
 		GetReceiptsByRoot(root []byte) (str string, args []interface{})
 		GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{})
+		GetReceiptsByRecipientAndDatumHash(datumHash []byte, datumType uint32, recipientPubKey []byte) (str string, args []interface{})
 		GetReceiptsWithUniqueRecipient(limit, lowerBlockHeight, upperBlockHeight uint32) string
 		SelectReceipt(lowerHeight, upperHeight, limit uint32) (str string)
 		PruneData(blockHeight, limit uint32) (string, []interface{})
@@ -194,6 +195,19 @@ func (rq *BatchReceiptQuery) GetReceiptsByRootAndDatumHash(root, datumHash []byt
 		root,
 		datumHash,
 		datumType,
+	}
+}
+
+// GetReceiptsByRoot return sql query to fetch batch receipts by their merkle root
+// note: order is important during receipt selection process during block generation
+func (rq *BatchReceiptQuery) GetReceiptsByRecipientAndDatumHash(datumHash []byte, datumType uint32,
+	recipientPubKey []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.datum_hash = ? AND rc.datum_type = ? AND rc.recipient_public_key = ? LIMIT 1",
+		strings.Join(rq.Fields, ", "), rq.getTableName())
+	return query, []interface{}{
+		datumHash,
+		datumType,
+		recipientPubKey,
 	}
 }
 

@@ -83,6 +83,7 @@ type (
 		) ([]byte, error)
 		ValidateReceiptHelper(
 			receipt *model.Receipt,
+			validateRefBlock bool,
 			executor query.ExecutorInterface,
 			blockQuery query.BlockQueryInterface,
 			mainBlockStorage storage.CacheStackStorageInterface,
@@ -97,6 +98,7 @@ type (
 			secretPhrase string,
 			scrambleNodes *model.ScrambledNodes,
 		) (map[string]*model.Peer, error)
+		GeneratePublishedReceipt() (*model.PublishedReceipt, error)
 	}
 
 	ReceiptUtil struct{}
@@ -104,6 +106,29 @@ type (
 
 func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
+}
+
+func (ru *ReceiptUtil) GeneratePublishedReceipt(receipt *model.Receipt) (*model.PublishedReceipt, error) {
+	var (
+		intermediateHashes [][]byte
+		merkle             = util.MerkleRoot{}
+	)
+	rcByte := ru.GetSignedReceiptBytes(receipt)
+	rcHash := sha3.Sum256(rcByte)
+
+	intermediateHashesBuffer := merkle.GetIntermediateHashes(
+		bytes.NewBuffer(rcHash[:]),
+		int32(rc.RMRIndex),
+	)
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
+	return &model.PublishedReceipt{
+		Receipt:            rc.GetReceipt(),
+		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
+		ReceiptIndex:       rc.RMRIndex,
+	}, nil
+
 }
 
 func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
@@ -129,6 +154,7 @@ func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 // ValidateReceiptHelper helper function for better code testability
 func (ru *ReceiptUtil) ValidateReceiptHelper(
 	receipt *model.Receipt,
+	validateRefBlock bool,
 	executor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mainBlockStorage storage.CacheStackStorageInterface,
@@ -166,19 +192,26 @@ func (ru *ReceiptUtil) ValidateReceiptHelper(
 			"InvalidReceiptSignature",
 		)
 	}
-	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
-		receipt.ReferenceBlockHeight,
-		executor,
-		blockQuery,
-		mainBlockStorage,
-	)
-	if err != nil {
-		return err
+
+	// validate reference block hash only if necessary
+	// Eg. when collecting batch receipts from peers, we don't want to check if the receipt come from a fork (or we are in a temporary fork,
+	// thus we would not collect a good receipt).
+	if validateRefBlock {
+		blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+			receipt.ReferenceBlockHeight,
+			executor,
+			blockQuery,
+			mainBlockStorage,
+		)
+		if err != nil {
+			return err
+		}
+		// check block hash
+		if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
+		}
 	}
-	// check block hash
-	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
-	}
+
 	err = ru.ValidateReceiptSenderRecipient(receipt, scrambleNodesAtHeight)
 	if err != nil {
 		return err

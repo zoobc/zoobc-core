@@ -441,14 +441,23 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	priorityPeersAtHeight, err := func() (map[string]*model.Peer, error) {
 		var scrambleNodes *model.ScrambledNodes
 		scrambleNodes, err = rs.ScrambleNodeService.GetScrambleNodesByHeight(lookBackHeight)
+		if err != nil {
+			return nil, err
+		}
 		if scrambleNodes.NodePublicKeyToIDMap == nil {
-			return make(map[string]*model.Peer, 0), nil
+			return nil, errors.New("NodePublicKeyToIDMapEmpty")
 		}
 		return rs.ReceiptUtil.GetPriorityPeersAtHeight(secretPhrase, scrambleNodes)
 	}()
-	if len(priorityPeersAtHeight) == 0 {
+	if err != nil || len(priorityPeersAtHeight) == 0 {
+		if err != nil {
+			rs.Logger.Error(err)
+		}
 		// TODO: make sure we want to return empty receipts in case we can't find priority peers for current node at look back height
 		// eg. if we return error instead, the block won't be generated/broadcast and this blocksmith would skip this round
+
+		// TODO: lower this to debug once tested on alpha network to not pollute logs
+		rs.Logger.Error("no priority peers for node at block height: ", lookBackHeight)
 		return emptyReceipts, nil
 	}
 
@@ -483,6 +492,10 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeight := blockHeight; refHeight >= 0; refHeight-- {
+		var (
+			publishedReceipt model.PublishedReceipt
+		)
+
 		if maxLookBackwardSteps <= 0 {
 			break
 		}
@@ -496,9 +509,6 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		}
 		// we found one block where the node was one of the scramble nodes
 		maxLookBackwardSteps--
-		var (
-			publishedReceipt model.PublishedReceipt
-		)
 		// get the unlinked published receipt that has current node as recipient, at reference block height
 		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(refHeight, nodePublicKey)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
@@ -513,6 +523,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			}
 			return nil, err
 		}
+
 		// take the 'reference height', 'reference block hash' and look up the batch receipts for that block.
 		// If we do not have a corresponding batch for that height / hash, we fail this block (cannot link a receipt to it.) and continue
 		var batchReceiptToLink model.BatchReceipt
@@ -566,7 +577,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			hashList = [][]byte{
 				referenceBlock.PreviousBlockHash,
 			}
-			rndDatumType uint32
+			referenceBlockHeight = referenceBlock.Height
+			rndDatumType         uint32
 		)
 		// add transaction hashes of current block
 		for _, tx := range lookBackBlockTransactions {
@@ -593,26 +605,80 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			rndDatumType = constant.ReceiptDatumTypeTransaction
 		}
 
-		// the node looks up its position in scramble nodes at the look back height,
+		// the node looks up its position in scramble nodes at the referenceBlock height,
 		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-		priorityPeersAtHeight, err := func() (map[string]*model.Peer, error) {
-			var scrambleNodes *model.ScrambledNodes
-			scrambleNodes, err = rs.ScrambleNodeService.GetScrambleNodesByHeight(lookBackHeight)
-			if scrambleNodes.NodePublicKeyToIDMap == nil {
-				return make(map[string]*model.Peer, 0), nil
+		priorityPeersAtHeight, err := func() ([]*model.Peer, error) {
+			var (
+				scrambleNodes      *model.ScrambledNodes
+				priorityPeersArray []*model.Peer
+				priorityPeersMap   map[string]*model.Peer
+			)
+			scrambleNodes, err = rs.ScrambleNodeService.GetScrambleNodesByHeight(referenceBlockHeight)
+			if err != nil {
+				return nil, err
 			}
-			return rs.ReceiptUtil.GetPriorityPeersAtHeight(secretPhrase, scrambleNodes)
+			if scrambleNodes.NodePublicKeyToIDMap == nil {
+				return nil, errors.New("NodePublicKeyToIDMapEmpty")
+			}
+			priorityPeersMap, err = rs.ReceiptUtil.GetPriorityPeersAtHeight(secretPhrase, scrambleNodes)
+			if err != nil {
+				return nil, err
+			}
+			for _, pp := range priorityPeersMap {
+				priorityPeersArray = append(priorityPeersArray, pp)
+			}
+			return priorityPeersArray, nil
 		}()
+		if err != nil || len(priorityPeersAtHeight) == 0 {
+			if err != nil {
+				rs.Logger.Error(err)
+			}
+			// TODO: lower this to debug once tested on alpha network to not pollute logs
+			rs.Logger.Error("no priority peers for node at block height: ", referenceBlockHeight)
+			continue
+		}
 
-		// go on from here
-		// 1. Use the new block seed (from the block I am creating) to “roll” a random number to select one of my N assigned receivers
-		// -- This determines the “receiver” I must produce a receipt for.
+		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
+		// This determines the “receiver” I must produce a receipt for.
+		var (
+			rndPeerIdx = rnd.Intn(len(priorityPeersAtHeight) - 1)
+			rndPeer    = priorityPeersAtHeight[rndPeerIdx]
+		)
+		if rndPeer.GetInfo() == nil {
+			return nil, errors.New("priorityPeerInfoEmpty")
+		}
+
 		// 2. Query my receipts in the batch, to find one that matches the data hash we rolled,
-		// and also matches the receiver that we rolled. If we *do not* have a receipt in the batch that matches these 2, then we fail this block (cannot link a receipt to it), and continue iterating backwards.
+		// and also matches the receiver that we rolled. If we *do not* have a receipt in the batch that matches these 2,
+		// then we fail this block (cannot link a receipt to it), and continue iterating backwards.
+		var batchReceiptRmr model.BatchReceipt
+		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRecipientAndDatumHash(
+			rndDatumHash,
+			rndDatumType,
+			rndPeer.GetInfo().PublicKey,
+		)
+		row, err = rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
+		if err != nil {
+			return nil, err
+		}
+		err = rs.NodeReceiptQuery.Scan(&batchReceiptToLink, row)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				// there is no batch receipt that matches this ref hash and receiver. fail the block and continue
+				continue
+			}
+			return nil, err
+		}
+		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
+			// batch receipt is invalid. fail the block and continue
+			continue
+		}
 
 		// 3. If we DO have a matching receipt (which we should, if we’ve been doing all of our work on the network),
-		// this becomes one of our N “linked receipts”, which we can publish in our new block.
-
+		// this becomes one of our N "linked receipts", which we can publish in our new block.
+		publishedReceipt.Receipt.RMRLinked = batchReceiptRmr.RMR
+		// TODO: add RMR db field to published receipts
+		// publishedReceipt.Receipt.RMR = batchReceiptToLink.RMR
 	}
 
 	return linkedReceipts, nil

@@ -51,6 +51,7 @@ package query
 
 import (
 	"database/sql"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
 
@@ -547,6 +548,58 @@ func TestBatchReceiptQuery_GetReceiptsByRefBlockHeightAndRefBlockHash(t *testing
 			}
 			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
 				t.Errorf("GetReceiptsByRefBlockHeightAndRefBlockHash() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func TestBatchReceiptQuery_GetReceiptsByRecipientAndDatumHash(t *testing.T) {
+	type fields struct {
+		Fields    []string
+		TableName string
+	}
+	type args struct {
+		datumHash       []byte
+		datumType       uint32
+		recipientPubKey []byte
+	}
+	tests := []struct {
+		name     string
+		fields   fields
+		args     args
+		wantStr  string
+		wantArgs []interface{}
+	}{
+		{
+			name:   "wantSuccess",
+			fields: fields(*mockReceiptQuery),
+			args: args{
+				datumHash:       make([]byte, 32),
+				datumType:       constant.ReceiptDatumTypeBlock,
+				recipientPubKey: make([]byte, 32),
+			},
+			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
+				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc." +
+				"datum_type = ? AND rc.recipient_public_key = ? LIMIT 1",
+			wantArgs: []interface{}{
+				make([]byte, 32),
+				constant.ReceiptDatumTypeBlock,
+				make([]byte, 32),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rq := &BatchReceiptQuery{
+				Fields:    tt.fields.Fields,
+				TableName: tt.fields.TableName,
+			}
+			gotStr, gotArgs := rq.GetReceiptsByRecipientAndDatumHash(tt.args.datumHash, tt.args.datumType, tt.args.recipientPubKey)
+			if gotStr != tt.wantStr {
+				t.Errorf("GetReceiptsByRecipientAndDatumHash() gotStr = %v, want %v", gotStr, tt.wantStr)
+			}
+			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
+				t.Errorf("GetReceiptsByRecipientAndDatumHash() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
 			}
 		})
 	}
