@@ -56,6 +56,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -142,4 +143,16 @@ func (bs *BlockStateStorage) GetSize() int64 {
 func (bs *BlockStateStorage) ClearCache() error {
 	bs.lastBlockBytes = nil
 	return nil
+}
+
+func (bs *BlockStateStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (bs *BlockStateStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (bs *BlockStateStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

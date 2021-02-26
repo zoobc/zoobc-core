@@ -54,264 +54,17 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 )
-
-func TestNewReceiptPoolCacheStorage(t *testing.T) {
-	tests := []struct {
-		name string
-		want *ReceiptPoolCacheStorage
-	}{
-		{
-			name: "TestNewReceiptPoolCacheStorage:Success",
-			want: &ReceiptPoolCacheStorage{
-				RWMutex:  sync.RWMutex{},
-				receipts: []model.Receipt{},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := NewReceiptPoolCacheStorage(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewReceiptPoolCacheStorage() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_ClearCache(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		wantErr bool
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_ClearCache:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if err := brs.ClearCache(); (err != nil) != tt.wantErr {
-				t.Errorf("ClearCache() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_GetAllItems(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	type args struct {
-		items interface{}
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_GetAllItems:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				items: &[]model.Receipt{},
-			},
-			wantErr: false,
-		},
-		{
-			name: "TestReceiptPoolCacheStorage_GetAllItems:Fail-InvalidBatchReceipt",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				items: nil,
-			},
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if err := brs.GetAllItems(tt.args.items); (err != nil) != tt.wantErr {
-				t.Errorf("GetAllItems() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_GetItem(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	type args struct {
-		in0 interface{}
-		in1 interface{}
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_GetItem:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				in0: nil,
-				in1: nil,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if err := brs.GetItem(tt.args.in0, tt.args.in1); (err != nil) != tt.wantErr {
-				t.Errorf("GetItem() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_GetSize(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int64
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_GetSize:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			want: 0,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if got := brs.GetSize(); got != tt.want {
-				t.Errorf("GetSize() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_GetTotalItems(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   int
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_GetTotalItems:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			want: 0,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if got := brs.GetTotalItems(); got != tt.want {
-				t.Errorf("GetTotalItems() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestReceiptPoolCacheStorage_RemoveItem(t *testing.T) {
-	type fields struct {
-		RWMutex  sync.RWMutex
-		receipts []model.Receipt
-	}
-	type args struct {
-		in0 interface{}
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
-	}{
-		{
-			name: "TestReceiptPoolCacheStorage_RemoveItem:Success",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				in0: nil,
-			},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			brs := &ReceiptPoolCacheStorage{
-				RWMutex:  tt.fields.RWMutex,
-				receipts: tt.fields.receipts,
-			}
-			if err := brs.RemoveItem(tt.args.in0); (err != nil) != tt.wantErr {
-				t.Errorf("RemoveItem() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
 
 func TestReceiptPoolCacheStorage_SetItem(t *testing.T) {
 	type fields struct {
 		RWMutex  sync.RWMutex
-		receipts []model.Receipt
+		receipts map[string][]model.Receipt
 	}
 	type args struct {
-		in0  interface{}
+		key  interface{}
 		item interface{}
 	}
 	tests := []struct {
@@ -321,28 +74,35 @@ func TestReceiptPoolCacheStorage_SetItem(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "TestReceiptPoolCacheStorage_SetItem:Success",
+			name: "wantError:InvalidKey",
 			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
+				receipts: make(map[string][]model.Receipt),
 			},
 			args: args{
-				in0:  nil,
-				item: model.Receipt{},
-			},
-			wantErr: false,
-		},
-		{
-			name: "TestReceiptPoolCacheStorage_SetItem:Fail-InvalidBatchReceiptItem",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				in0:  nil,
-				item: nil,
+				key: 123,
 			},
 			wantErr: true,
+		},
+		{
+			name: "wantError:InvalidReceipt",
+			fields: fields{
+				receipts: make(map[string][]model.Receipt),
+			},
+			args: args{
+				key:  "123",
+				item: model.Block{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess",
+			fields: fields{
+				receipts: make(map[string][]model.Receipt),
+			},
+			args: args{
+				key:  "123",
+				item: model.Receipt{},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -351,19 +111,49 @@ func TestReceiptPoolCacheStorage_SetItem(t *testing.T) {
 				RWMutex:  tt.fields.RWMutex,
 				receipts: tt.fields.receipts,
 			}
-			if err := brs.SetItem(tt.args.in0, tt.args.item); (err != nil) != tt.wantErr {
-				t.Errorf("SetItem() error = %v, wantErr %v", err, tt.wantErr)
+			if err := brs.SetItem(tt.args.key, tt.args.item); (err != nil) != tt.wantErr {
+				t.Errorf("ReceiptPoolCacheStorage.SetItem() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestReceiptPoolCacheStorage_SetItems(t *testing.T) {
+func TestReceiptPoolCacheStorage_GetItems(t *testing.T) {
+	mockReceiptGroups := make(map[string][]model.Receipt)
+	mockReceiptGroups["010203"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 3},
+		},
+	}
+	mockReceiptGroups["010204"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 4},
+		},
+	}
+	mockReceiptGroups["010205"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 5},
+		},
+	}
+
+	successGetItemsResults := make(map[string][]model.Receipt)
+	mockReceiptGroups["010203"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 3},
+		},
+	}
+	mockReceiptGroups["010204"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 4},
+		},
+	}
+
 	type fields struct {
 		RWMutex  sync.RWMutex
-		receipts []model.Receipt
+		receipts map[string][]model.Receipt
 	}
 	type args struct {
+		keys  interface{}
 		items interface{}
 	}
 	tests := []struct {
@@ -371,28 +161,39 @@ func TestReceiptPoolCacheStorage_SetItems(t *testing.T) {
 		fields  fields
 		args    args
 		wantErr bool
+		want    map[string][]model.Receipt
 	}{
 		{
-			name: "TestReceiptPoolCacheStorage_SetItems:Success",
+			name: "wantError:InvalidKey",
 			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
+				receipts: make(map[string][]model.Receipt),
 			},
 			args: args{
-				items: []model.Receipt{},
-			},
-			wantErr: false,
-		},
-		{
-			name: "TestReceiptPoolCacheStorage_SetItems:Fail-InvalidBatchReceiptItem",
-			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: nil,
-			},
-			args: args{
-				items: nil,
+				keys: 123,
 			},
 			wantErr: true,
+		},
+		{
+			name: "wantError:InvalidReceipt",
+			fields: fields{
+				receipts: make(map[string][]model.Receipt),
+			},
+			args: args{
+				keys:  []string{"010203"},
+				items: model.Block{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "wantSuccess-FileNotFound",
+			fields: fields{
+				receipts: make(map[string][]model.Receipt),
+			},
+			args: args{
+				keys:  []string{"010203", "010204"},
+				items: make(map[string][]model.Receipt),
+			},
+			want: successGetItemsResults,
 		},
 	}
 	for _, tt := range tests {
@@ -401,30 +202,40 @@ func TestReceiptPoolCacheStorage_SetItems(t *testing.T) {
 				RWMutex:  tt.fields.RWMutex,
 				receipts: tt.fields.receipts,
 			}
-			if err := brs.SetItems(tt.args.items); (err != nil) != tt.wantErr {
-				t.Errorf("SetItems() error = %v, wantErr %v", err, tt.wantErr)
+			if err := brs.GetItems(tt.args.keys, tt.args.items); (err != nil) != tt.wantErr {
+				t.Errorf("ReceiptPoolCacheStorage.GetItems() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && !reflect.DeepEqual(tt.args.items, tt.want) {
+				t.Errorf("ReceiptPoolCacheStorage.GetItems() got = %v, want %v", tt.args.items, tt.want)
 			}
 		})
 	}
 }
 
-func TestReceiptPoolCacheStorage_size(t *testing.T) {
+func TestReceiptPoolCacheStorage_ClearCache(t *testing.T) {
+	mockReceiptGroups := make(map[string][]model.Receipt)
+	mockReceiptGroups["010203"] = []model.Receipt{
+		{
+			DatumHash: []byte{1, 2, 3},
+		},
+	}
+
 	type fields struct {
 		RWMutex  sync.RWMutex
-		receipts []model.Receipt
+		receipts map[string][]model.Receipt
 	}
 	tests := []struct {
-		name   string
-		fields fields
-		want   int64
+		name    string
+		fields  fields
+		wantErr bool
+		want    map[string][]model.Receipt
 	}{
 		{
-			name: "TestReceiptPoolCacheStorage_size:Success",
+			name: "wantSuccess",
 			fields: fields{
-				RWMutex:  sync.RWMutex{},
-				receipts: []model.Receipt{},
+				receipts: mockReceiptGroups,
 			},
-			want: 0,
+			want: make(map[string][]model.Receipt),
 		},
 	}
 	for _, tt := range tests {
@@ -433,8 +244,100 @@ func TestReceiptPoolCacheStorage_size(t *testing.T) {
 				RWMutex:  tt.fields.RWMutex,
 				receipts: tt.fields.receipts,
 			}
-			if got := brs.size(); got != tt.want {
-				t.Errorf("size() = %v, want %v", got, tt.want)
+			if err := brs.ClearCache(); (err != nil) != tt.wantErr {
+				t.Errorf("ReceiptPoolCacheStorage.ClearCache() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && !reflect.DeepEqual(brs.receipts, tt.want) {
+				t.Errorf("ReceiptPoolCacheStorage.ClearCache() got = %v, want %v", brs.receipts, tt.want)
+			}
+		})
+	}
+}
+
+func TestReceiptPoolCacheStorage_CleanExpiredReceipts(t *testing.T) {
+	mockReceiptGroups := make(map[string][]model.Receipt)
+	mockReceiptGroups["010203"] = []model.Receipt{
+		{
+			ReferenceBlockHeight: 1,
+		},
+		{
+			ReferenceBlockHeight: 2,
+		},
+	}
+	mockReceiptGroups["010204"] = []model.Receipt{
+		{
+			ReferenceBlockHeight: 1,
+		},
+		{
+			ReferenceBlockHeight: 4,
+		},
+	}
+
+	expectedResult := make(map[string][]model.Receipt)
+	expectedResult["010203"] = []model.Receipt{
+		{
+			ReferenceBlockHeight: 2,
+		},
+	}
+	expectedResult["010204"] = []model.Receipt{
+		{
+			ReferenceBlockHeight: 4,
+		},
+	}
+
+	type fields struct {
+		RWMutex  sync.RWMutex
+		receipts map[string][]model.Receipt
+	}
+	type args struct {
+		blockHeight uint32
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   map[string][]model.Receipt
+	}{
+		{
+			name: "wantSuccess:no_receipts_are_cleaned_on_block_height_less_than_receipt_life_cut_off",
+			fields: fields{
+				receipts: mockReceiptGroups,
+			},
+			args: args{
+				blockHeight: constant.ReceiptLifeCutOff - 1,
+			},
+			want: mockReceiptGroups,
+		},
+		{
+			name: "wantSuccess:expired_receipts_are_deleted",
+			fields: fields{
+				receipts: mockReceiptGroups,
+			},
+			args: args{
+				blockHeight: constant.ReceiptLifeCutOff + 2,
+			},
+			want: expectedResult,
+		},
+		{
+			name: "wantSuccess:all_expired_receipts_are_deleted",
+			fields: fields{
+				receipts: mockReceiptGroups,
+			},
+			args: args{
+				blockHeight: constant.ReceiptLifeCutOff + 5,
+			},
+			want: make(map[string][]model.Receipt),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			brs := ReceiptPoolCacheStorage{
+				RWMutex:  tt.fields.RWMutex,
+				receipts: tt.fields.receipts,
+			}
+			brs.CleanExpiredReceipts(tt.args.blockHeight)
+			if !reflect.DeepEqual(brs.receipts, tt.want) {
+				t.Errorf("ReceiptPoolCacheStorage.ClearCache() got = %v, want %v", brs.receipts, tt.want)
 			}
 		})
 	}

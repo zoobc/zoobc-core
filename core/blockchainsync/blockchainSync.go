@@ -150,9 +150,11 @@ func (bss *BlockchainSyncService) getMoreBlocks() {
 	// notify observer about start of blockchain download of this specific chain
 	if err != nil {
 		bss.Logger.Fatalf("getMoreBlocks:GetLastBlock()-Fail: error: %v", err)
+		return
 	}
 	if lastBlock == nil {
 		bss.Logger.Fatalf("getMoreBlocks:GetLastBlock()-NoError-LastBlockNil: error: %v", err)
+		return
 	}
 	initialHeight := lastBlock.Height
 

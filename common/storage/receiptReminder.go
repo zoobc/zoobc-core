@@ -55,6 +55,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -165,4 +166,16 @@ func (rs *ReceiptReminderStorage) ClearCache() error {
 
 	rs.reminders = make(map[string]chaintype.ChainType)
 	return nil
+}
+
+func (rs *ReceiptReminderStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (rs *ReceiptReminderStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (rs *ReceiptReminderStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

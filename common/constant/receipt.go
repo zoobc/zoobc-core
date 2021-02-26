@@ -65,4 +65,5 @@ const (
 	BatchReceiptWaitingTime = 30 * time.Second
 	// ReceiptPoolMaxLife max blocks a receipt can stay in the pool before being discarded
 	ReceiptPoolMaxLife = 40
+	ReceiptLifeCutOff  = ReceiptPoolMaxLife + MinRollbackBlocks
 )

@@ -54,6 +54,7 @@ import (
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -134,4 +135,16 @@ func (ns *NodeAdmissionTimestampStorage) GetSize() int64 {
 func (ns *NodeAdmissionTimestampStorage) ClearCache() error {
 	ns.nextNodeAdmissionTimestamp = model.NodeAdmissionTimestamp{}
 	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (ns *NodeAdmissionTimestampStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }
