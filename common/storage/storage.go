@@ -49,6 +49,8 @@
 // shall be included in all copies or substantial portions of the Software.
 package storage
 
+import "github.com/zoobc/zoobc-core/observer"
+
 type (
 	CacheStorageInterface interface {
 		// SetItem take any item and store to its specific storage implementation
@@ -57,16 +59,22 @@ type (
 		SetItems(item interface{}) error
 		// GetItem take variable and assign implementation stored item to it
 		GetItem(key, item interface{}) error
+		// GetItems take variable and assign implementation stored items to it
+		GetItems(keys, items interface{}) error
 		// GetAllItems fetch all cached items
 		GetAllItems(item interface{}) error
 		// GetTotalItems fetch the number of total cached items
 		GetTotalItems() int
-		// RemoveItem remove item by providing the key(s)
+		// RemoveItem remove item by providing the key
 		RemoveItem(key interface{}) error
+		// RemoveItems remove item by providing the keys
+		RemoveItems(keys interface{}) error
 		// GetSize return the size of storage in number of `byte`
 		GetSize() int64
 		// ClearCache empty the storage item
 		ClearCache() error
+		// CacheRegularCleaningListener returns listener to run cleaning operation for cache items
+		CacheRegularCleaningListener() observer.Listener
 	}
 
 	CacheStackStorageInterface interface {

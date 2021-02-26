@@ -55,6 +55,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -184,4 +185,16 @@ func (m *MempoolCacheStorage) ClearCache() error {
 		monitoring.SetCacheStorageMetrics(monitoring.TypeMempoolCacheStorage, 0)
 	}
 	return nil
+}
+
+func (m *MempoolCacheStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (m *MempoolCacheStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (m *MempoolCacheStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

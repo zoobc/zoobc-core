@@ -56,10 +56,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"reflect"
 	"regexp"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
@@ -1296,8 +1297,8 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 			RecipientSignature:   make([]byte, 64),
 		}
 	)
-	_ = mockReceiptCacheStorage.SetItem(nil, mockReceipt1)
-	_ = mockReceiptCacheStorage.SetItem(nil, mockReceipt2)
+	_ = mockReceiptCacheStorage.SetItem("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a", mockReceipt1)
+	_ = mockReceiptCacheStorage.SetItem("01020304", mockReceipt2)
 
 	type fields struct {
 		NodeReceiptQuery         query.BatchReceiptQueryInterface
@@ -1412,6 +1413,7 @@ type (
 
 func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 	receipt *model.Receipt,
+	validateRefBlock bool,
 	executor query.ExecutorInterface,
 	blockQuery query.BlockQueryInterface,
 	mainBlockStorage storage.CacheStackStorageInterface,
