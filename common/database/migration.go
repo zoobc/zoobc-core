@@ -209,6 +209,8 @@ func (m *Migration) Init() error {
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
 				"rmr_linked" BLOB,
+				"rmr" BLOB,
+				"rmr_index" INTEGER,
 				"recipient_signature" BLOB,
 				"intermediate_hashes" BLOB,
 				"block_height" INTEGER,

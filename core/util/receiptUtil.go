@@ -98,7 +98,9 @@ type (
 			secretPhrase string,
 			scrambleNodes *model.ScrambledNodes,
 		) (map[string]*model.Peer, error)
-		GeneratePublishedReceipt() (*model.PublishedReceipt, error)
+		GeneratePublishedReceipt(
+			batchReceipt *model.BatchReceipt,
+		) (*model.PublishedReceipt, error)
 	}
 
 	ReceiptUtil struct{}
@@ -108,27 +110,31 @@ func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
 }
 
-func (ru *ReceiptUtil) GeneratePublishedReceipt(receipt *model.Receipt) (*model.PublishedReceipt, error) {
+func (ru *ReceiptUtil) GeneratePublishedReceipt(
+	batchReceipt *model.BatchReceipt,
+) (*model.PublishedReceipt, error) {
 	var (
 		intermediateHashes [][]byte
 		merkle             = util.MerkleRoot{}
+		receipt            = batchReceipt.GetReceipt()
 	)
+
 	rcByte := ru.GetSignedReceiptBytes(receipt)
 	rcHash := sha3.Sum256(rcByte)
 
 	intermediateHashesBuffer := merkle.GetIntermediateHashes(
 		bytes.NewBuffer(rcHash[:]),
-		int32(rc.RMRIndex),
+		int32(batchReceipt.RMRIndex),
 	)
 	for _, buf := range intermediateHashesBuffer {
 		intermediateHashes = append(intermediateHashes, buf.Bytes())
 	}
 	return &model.PublishedReceipt{
-		Receipt:            rc.GetReceipt(),
+		Receipt:            receipt,
 		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
-		ReceiptIndex:       rc.RMRIndex,
+		ReceiptIndex:       batchReceipt.RMRIndex,
+		RMR:                batchReceipt.RMR,
 	}, nil
-
 }
 
 func (ru *ReceiptUtil) GetPriorityPeersAtHeight(

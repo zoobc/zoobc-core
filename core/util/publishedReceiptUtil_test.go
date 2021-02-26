@@ -466,6 +466,8 @@ func (*mockPublishedReceiptUtilExecutorSuccess) ExecuteSelect(qStr string, tx bo
 		mockReceipt.ReferenceBlockHeight,
 		mockReceipt.ReferenceBlockHash,
 		mockReceipt.RMRLinked,
+		mockPublishedReceipt.RMR,
+		mockPublishedReceipt.RMRIndex,
 		mockReceipt.RecipientSignature,
 		mockPublishedReceipt.IntermediateHashes,
 		mockPublishedReceipt.BlockHeight,

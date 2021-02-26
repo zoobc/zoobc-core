@@ -119,12 +119,14 @@ type (
 
 func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateReceipt(
 	_ *model.Receipt,
+	_ bool,
 ) error {
 	return errors.New("mockedError")
 }
 
 func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateReceipt(
 	_ *model.Receipt,
+	_ bool,
 ) error {
 	return nil
 }

@@ -68,6 +68,8 @@ var (
 			"reference_block_height",
 			"reference_block_hash",
 			"rmr_linked",
+			"rmr",
+			"rmr_index",
 			"recipient_signature",
 			"intermediate_hashes",
 			"block_height",
@@ -145,6 +147,8 @@ func TestPublishedReceiptQuery_ExtractModel(t *testing.T) {
 				&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
 				&mockPublishedReceipt.Receipt.ReferenceBlockHash,
 				&mockPublishedReceipt.Receipt.RMRLinked,
+				&mockPublishedReceipt.RMR,
+				&mockPublishedReceipt.RMRIndex,
 				&mockPublishedReceipt.Receipt.RecipientSignature,
 				&mockPublishedReceipt.IntermediateHashes,
 				&mockPublishedReceipt.BlockHeight,
@@ -191,7 +195,7 @@ func TestPublishedReceiptQuery_GetPublishedReceiptByLinkedRMR(t *testing.T) {
 				root: make([]byte, 32),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, " +
+				"reference_block_hash, rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, " +
 				"receipt_index, published_index FROM published_receipt WHERE rmr_linked = ?",
 			wantArgs: []interface{}{
 				make([]byte, 32),
@@ -238,8 +242,8 @@ func TestPublishedReceiptQuery_InsertPublishedReceipt(t *testing.T) {
 			},
 			args: args{publishedReceipt: mockPublishedReceipt},
 			wantStr: "INSERT INTO published_receipt (sender_public_key, recipient_public_key, datum_type, datum_hash, " +
-				"reference_block_height, reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, " +
-				"block_height, receipt_index, published_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
+				"reference_block_height, reference_block_hash, rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, " +
+				"block_height, receipt_index, published_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
 			wantArgs: []interface{}{
 				&mockPublishedReceipt.Receipt.SenderPublicKey,
 				&mockPublishedReceipt.Receipt.RecipientPublicKey,
@@ -248,6 +252,8 @@ func TestPublishedReceiptQuery_InsertPublishedReceipt(t *testing.T) {
 				&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
 				&mockPublishedReceipt.Receipt.ReferenceBlockHash,
 				&mockPublishedReceipt.Receipt.RMRLinked,
+				&mockPublishedReceipt.RMR,
+				&mockPublishedReceipt.RMRIndex,
 				&mockPublishedReceipt.Receipt.RecipientSignature,
 				&mockPublishedReceipt.IntermediateHashes,
 				&mockPublishedReceipt.BlockHeight,
@@ -288,6 +294,8 @@ func TestPublishedReceiptQuery_Scan(t *testing.T) {
 		&mockPublishedReceipt.Receipt.ReferenceBlockHeight,
 		&mockPublishedReceipt.Receipt.ReferenceBlockHash,
 		&mockPublishedReceipt.Receipt.RMRLinked,
+		&mockPublishedReceipt.RMR,
+		&mockPublishedReceipt.RMRIndex,
 		&mockPublishedReceipt.Receipt.RecipientSignature,
 		&mockPublishedReceipt.IntermediateHashes,
 		&mockPublishedReceipt.BlockHeight,
@@ -393,7 +401,7 @@ func TestPublishedReceiptQuery_SelectDataForSnapshot(t *testing.T) {
 				Fields:    prQry.Fields,
 			},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+				"reference_block_hash, rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
 				"published_index FROM published_receipt WHERE block_height >= 0 AND block_height <= 1 AND block_height != 0 ORDER BY block_height",
 		},
 	}
@@ -476,8 +484,8 @@ func TestPublishedReceiptQuery_InsertPublishedReceipts(t *testing.T) {
 				},
 			},
 			wantStr: "INSERT INTO published_receipt (sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-				"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, published_index) " +
-				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				"reference_block_hash, rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, published_index) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			wantArgs: NewPublishedReceiptQuery().ExtractModel(mockPublishedReceipt),
 		},
 	}
@@ -503,7 +511,7 @@ func TestPublishedReceiptQuery_GetPublishedReceiptByBlockHeightRange(t *testing.
 		qry := NewPublishedReceiptQuery()
 		qStr, args := qry.GetPublishedReceiptByBlockHeightRange(0, 100)
 		result := "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-			"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+			"reference_block_hash, rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
 			"published_index FROM published_receipt WHERE block_height BETWEEN ? AND ? ORDER BY block_height, published_index ASC"
 		if qStr != result {
 			t.Fatalf("expect: %s\ngot: %s", result, qStr)
@@ -543,7 +551,7 @@ func TestPublishedReceiptQuery_GetUnlinkedPublishedReceiptByBlockHeightAndReceiv
 				recipientPubKey: make([]byte, 0),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
-				" rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+				" rmr_linked, rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
 				"published_index FROM published_receipt WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1",
 			wantArgs: []interface{}{
 				uint32(1),

@@ -474,6 +474,7 @@ func initiateMainInstance() {
 		batchReceiptCacheStorage,
 		scrambleNodeService,
 		mainBlocksStorage,
+		util.NewMerkleRoot(),
 		loggerCoreService,
 	)
 

@@ -343,6 +343,11 @@ var (
 		RMR:      []byte{1, 2, 3, 4, 5, 6},
 		RMRIndex: uint32(4),
 	}
+	mockReceiptToPublish = &model.PublishedReceipt{
+		Receipt:  mockBatchReceipt.Receipt,
+		RMR:      []byte{2, 3, 4, 5, 6, 7},
+		RMRIndex: uint32(1),
+	}
 )
 
 func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
@@ -917,6 +922,9 @@ type (
 	mockQueryExecutorGenerateReceiptsMerkleRootSuccess struct {
 		query.Executor
 	}
+	mockMerkleRootUtilsSuccess struct {
+		util.MerkleRoot
+	}
 	mockQueryExecutorGenerateReceiptsMerkleRootSelectRowFail struct {
 		query.Executor
 	}
@@ -930,6 +938,14 @@ type (
 		storage.CacheStorageInterface
 	}
 )
+
+func (*mockMerkleRootUtilsSuccess) GenerateMerkleRoot(items []*bytes.Buffer) (*bytes.Buffer, error) {
+	return &bytes.Buffer{}, nil
+}
+
+func (*mockMerkleRootUtilsSuccess) ToBytes() (root, tree []byte) {
+	return []byte{1, 2, 3, 4, 5}, []byte{2, 3, 4, 5, 6}
+}
 
 func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
 	var blockCopy, _ = item.(*model.Block)
@@ -1119,6 +1135,8 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 		mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 		mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
 		mockPublishedReceipt[0].Receipt.RMRLinked,
+		mockPublishedReceipt[0].RMR,
+		mockPublishedReceipt[0].RMRIndex,
 		mockPublishedReceipt[0].Receipt.RecipientSignature,
 		mockPublishedReceipt[0].IntermediateHashes,
 		mockPublishedReceipt[0].BlockHeight,
@@ -1315,6 +1333,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
 		MainBlocksStorage        storage.CacheStackStorageInterface
+		MerkleRootUtil           util.MerkleRootInterface
 		LastMerkleRoot           []byte
 		Logger                   *log.Logger
 	}
@@ -1358,6 +1377,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				QueryExecutor:            &mockQueryExecutorGenerateReceiptsMerkleRootSuccess{},
 				MainBlockStateStorage:    &mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess{},
 				BatchReceiptCacheStorage: mockReceiptCacheStorage,
+				MerkleRootUtil:           &mockMerkleRootUtilsSuccess{},
 				Logger:                   log.New(),
 			},
 			args: args{
@@ -1384,6 +1404,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				BatchReceiptCacheStorage: tt.fields.BatchReceiptCacheStorage,
 				MainBlocksStorage:        tt.fields.MainBlocksStorage,
 				LastMerkleRoot:           tt.fields.LastMerkleRoot,
+				MerkleRootUtil:           tt.fields.MerkleRootUtil,
 				Logger:                   tt.fields.Logger,
 			}
 			if err := rs.GenerateReceiptsMerkleRoot(tt.args.block); (err != nil) != tt.wantErr {
@@ -1421,6 +1442,12 @@ func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 	scrambleNodesAtHeight *model.ScrambledNodes,
 ) error {
 	return nil
+}
+
+func (*receiptSrvMockReceiptUtilSuccess) GeneratePublishedReceipt(
+	batchReceipt *model.BatchReceipt,
+) (*model.PublishedReceipt, error) {
+	return mockReceiptToPublish, nil
 }
 
 func (*receiptSrvMockReceiptUtilSuccess) GetPriorityPeersAtHeight(
@@ -1465,7 +1492,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 		name    string
 		fields  fields
 		args    args
-		want    []*model.BatchReceipt
+		want    []*model.PublishedReceipt
 		wantErr bool
 	}{
 		{
@@ -1474,7 +1501,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 			args: args{
 				blockHeight: constant.BatchReceiptLookBackHeight - 1,
 			},
-			want: make([]*model.BatchReceipt, 0),
+			want: make([]*model.PublishedReceipt, 0),
 		},
 		{
 			name:   "SelectUnlinkedReceipts:success-{noReceipts}",
@@ -1482,7 +1509,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 			args: args{
 				numberOfReceipt: 0,
 			},
-			want: make([]*model.BatchReceipt, 0),
+			want: make([]*model.PublishedReceipt, 0),
 		},
 		{
 			name: "SelectUnlinkedReceipts:success",
@@ -1500,8 +1527,8 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 				blockHeight:     constant.BatchReceiptLookBackHeight,
 				secretPhrase:    "test",
 			},
-			want: []*model.BatchReceipt{
-				mockBatchReceipt,
+			want: []*model.PublishedReceipt{
+				mockReceiptToPublish,
 			},
 		},
 	}

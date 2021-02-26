@@ -97,7 +97,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) 
 	)
 	for index, rc := range block.GetPublishedReceipts() {
 		// validate sender and recipient of receipt
-		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt())
+		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt(), true)
 		if err != nil {
 			return 0, err
 		}

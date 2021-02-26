@@ -126,6 +126,7 @@ type (
 		MainBlocksStorage        storage.CacheStackStorageInterface
 		// local cache
 		LastMerkleRoot []byte
+		MerkleRootUtil util.MerkleRootInterface
 		Logger         *log.Logger
 	}
 )
@@ -171,6 +172,7 @@ func NewReceiptService(
 	mainBlockStateStorage, receiptReminderStorage, batchReceiptCacheStorage storage.CacheStorageInterface,
 	scrambleNodeService ScrambleNodeServiceInterface,
 	mainBlocksStorage storage.CacheStackStorageInterface,
+	merkleRootUtil util.MerkleRootInterface,
 	logger *log.Logger,
 ) *ReceiptService {
 	return &ReceiptService{
@@ -190,6 +192,7 @@ func NewReceiptService(
 		BatchReceiptCacheStorage: batchReceiptCacheStorage,
 		MainBlocksStorage:        mainBlocksStorage,
 		LastMerkleRoot:           nil,
+		MerkleRootUtil:           merkleRootUtil,
 		Logger:                   logger,
 	}
 }
@@ -326,7 +329,7 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
 	previousBlockHash, blockSeed []byte,
 	secretPhrase string,
-) ([]*model.BatchReceipt, error) {
+) ([]*model.PublishedReceipt, error) {
 	var (
 		err                               error
 		qryStr                            string
@@ -334,9 +337,10 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 		batchReceipts, validBatchReceipts []*model.BatchReceipt
 		lookBackBlock                     *storage.BlockCacheObject
 		lookBackBlockTransactions         []*model.Transaction
-		unlinkedReceiptList               []*model.BatchReceipt
+		unlinkedBatchReceiptList          []*model.BatchReceipt
+		unlinkedPublishedReceipts         []*model.PublishedReceipt
 		lookBackHeight                    = blockHeight - constant.BatchReceiptLookBackHeight
-		emptyReceipts                     = make([]*model.BatchReceipt, 0)
+		emptyReceipts                     = make([]*model.PublishedReceipt, 0)
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
@@ -466,11 +470,20 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	for _, priorityPeer := range priorityPeersAtHeight {
 		for _, batchReceipt := range validBatchReceipts {
 			if bytes.Equal(batchReceipt.GetReceipt().RecipientPublicKey, priorityPeer.GetInfo().GetPublicKey()) {
-				unlinkedReceiptList = append(unlinkedReceiptList, batchReceipt)
+				unlinkedBatchReceiptList = append(unlinkedBatchReceiptList, batchReceipt)
 			}
 		}
 	}
-	return unlinkedReceiptList, nil
+
+	for _, unlinkedBatchReceipt := range unlinkedBatchReceiptList {
+		unlinkedReceiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(unlinkedBatchReceipt)
+		if err != nil {
+			rs.Logger.Error(err)
+			continue
+		}
+		unlinkedPublishedReceipts = append(unlinkedPublishedReceipts, unlinkedReceiptToPublish)
+	}
+	return unlinkedPublishedReceipts, nil
 }
 
 // SelectUnlinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
@@ -479,21 +492,27 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
 	secretPhrase string,
-) ([]*model.BatchReceipt, error) {
+) ([]*model.PublishedReceipt, error) {
 
 	var (
-		linkedReceipts []*model.BatchReceipt
+		linkedReceipts []*model.PublishedReceipt
 		referenceBlock *model.Block
 		nodePublicKey  = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 		// maxLookBackwardSteps max n. of times this node should look backwards trying to link receipts when he was one of the scramble nodes
 		// note: numberOfReceipts = number of max priority peers the node has
 		maxLookBackwardSteps = numberOfReceipt
+		emptyReceipts        = make([]*model.PublishedReceipt, 0)
 	)
+
+	// possible no connected node || lastblock height is too low to select receipts
+	if numberOfReceipt == 0 || blockHeight < constant.BatchReceiptLookBackHeight {
+		return emptyReceipts, nil
+	}
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeight := blockHeight; refHeight >= 0; refHeight-- {
 		var (
-			publishedReceipt model.PublishedReceipt
+			refPublishedReceipt model.PublishedReceipt
 		)
 
 		if maxLookBackwardSteps <= 0 {
@@ -515,7 +534,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
-		err = rs.PublishedReceiptQuery.Scan(&publishedReceipt, row)
+		err = rs.PublishedReceiptQuery.Scan(&refPublishedReceipt, row)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there are no published receipts to link a batch too, fail this block and continue
@@ -528,8 +547,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// If we do not have a corresponding batch for that height / hash, we fail this block (cannot link a receipt to it.) and continue
 		var batchReceiptToLink model.BatchReceipt
 		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRefBlockHeightAndRefBlockHash(
-			publishedReceipt.GetReceipt().ReferenceBlockHeight,
-			publishedReceipt.GetReceipt().ReferenceBlockHash,
+			refPublishedReceipt.GetReceipt().ReferenceBlockHeight,
+			refPublishedReceipt.GetReceipt().ReferenceBlockHash,
 		)
 		row, err = rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
 		if err != nil {
@@ -676,11 +695,19 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 		// 3. If we DO have a matching receipt (which we should, if we’ve been doing all of our work on the network),
 		// this becomes one of our N "linked receipts", which we can publish in our new block.
-		publishedReceipt.Receipt.RMRLinked = batchReceiptRmr.RMR
-		// TODO: add RMR db field to published receipts
-		// publishedReceipt.Receipt.RMR = batchReceiptToLink.RMR
+		batchReceiptToPublish := &model.BatchReceipt{
+			Receipt:  batchReceiptToLink.GetReceipt(),
+			RMR:      batchReceiptRmr.RMR,
+			RMRIndex: batchReceiptRmr.RMRIndex,
+		}
+		batchReceiptToPublish.Receipt.RMRLinked = batchReceiptToLink.RMR
+		receiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(batchReceiptToPublish)
+		if err != nil {
+			rs.Logger.Error(err)
+			continue
+		}
+		linkedReceipts = append(linkedReceipts, receiptToPublish)
 	}
-
 	return linkedReceipts, nil
 }
 
@@ -690,26 +717,35 @@ func (rs *ReceiptService) SelectReceipts(
 	previousBlockHash, blockSeed []byte,
 	secretPhrase string,
 ) ([]*model.PublishedReceipt, error) {
-	// var (
-	// 	err                 error
-	// 	unlinkedReceiptList []*model.BatchReceipt
-	// )
-	//
-	// // select unlinked receipts
-	// unlinkedReceiptList, err := rs.SelectUnlinkedReceipts(
-	// 	numberOfReceipt,
-	// 	blockHeight,
-	// 	previousBlockHash,
-	// 	blockSeed,
-	// 	secretPhrase,
-	// )
-	// if err != nil {
-	// 	return nil, err
-	// }
+	var (
+		err                              error
+		unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
+	)
+
+	// select unlinked receipts
+	unlinkedReceipts, err = rs.SelectUnlinkedReceipts(
+		numberOfReceipt,
+		blockHeight,
+		previousBlockHash,
+		blockSeed,
+		secretPhrase,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	// select linked receipts
+	linkedReceipts, err = rs.SelectLinkedReceipts(
+		numberOfReceipt,
+		blockHeight,
+		blockSeed,
+		secretPhrase,
+	)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	return append(unlinkedReceipts, linkedReceipts...), nil
 }
 
 func (rs *ReceiptService) pickReceipts(
@@ -758,7 +794,6 @@ func (rs *ReceiptService) pickReceipts(
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	var (
 		hashedReceipts              []*bytes.Buffer
-		merkleRoot                  util.MerkleRoot
 		queries                     [][]interface{}
 		batchReceipt                *model.BatchReceipt
 		err                         error
@@ -824,11 +859,11 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
 			}
 		}
-		_, err = merkleRoot.GenerateMerkleRoot(hashedReceipts)
+		_, err = rs.MerkleRootUtil.GenerateMerkleRoot(hashedReceipts)
 		if err != nil {
 			return err
 		}
-		rootMerkle, treeMerkle = merkleRoot.ToBytes()
+		rootMerkle, treeMerkle = rs.MerkleRootUtil.ToBytes()
 
 		queries = make([][]interface{}, len(hashedReceipts)+1)
 		for k, receipt := range receiptsToSave {
