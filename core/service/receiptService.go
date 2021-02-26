@@ -55,10 +55,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
-	"github.com/zoobc/zoobc-core/observer"
 	"sort"
 	"time"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 
 	"golang.org/x/crypto/ed25519"
 
@@ -146,8 +147,6 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRootListener() observer.Listener
 			}
 
 			if chainType.GetTypeInt() == (&chaintype.MainChain{}).GetTypeInt() {
-				// wait for node to collect all receipt in case of heavy network load
-				time.Sleep(constant.BatchReceiptWaitingTime)
 				if err := rs.GenerateReceiptsMerkleRoot(b); err != nil {
 					rs.Logger.Error(err)
 				}
@@ -362,7 +361,6 @@ func (rs *ReceiptService) pickReceipts(
 // generating will do when number of collected receipts(batch receipts) already <= the number of required
 func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	var (
-		receiptsCached, receipts    []model.Receipt
 		hashedReceipts              []*bytes.Buffer
 		merkleRoot                  util.MerkleRoot
 		queries                     [][]interface{}
@@ -371,6 +369,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		rootMerkle, treeMerkle      []byte
 		blockAtHeight               *storage.BlockCacheObject
 		isDbTransactionHighPriority = false
+		receiptsCached              = make(map[string][]model.Receipt)
+		receiptsToProcess           = make([]model.Receipt, 0)
+		receiptsToSave              = make([]model.Receipt, 0)
 	)
 
 	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
@@ -388,35 +389,30 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		return errors.New("BlockNotInDb")
 	}
 
-	if err := rs.BatchReceiptCacheStorage.GetAllItems(&receiptsCached); err != nil {
+	var datumHashes []string
+	for _, tx := range block.GetTransactions() {
+		hashString := hex.EncodeToString(tx.GetTransactionHash())
+		if hashString != "" {
+			datumHashes = append(datumHashes, hashString)
+		}
+	}
+	blockHash := hex.EncodeToString(block.GetPreviousBlockHash())
+	if blockHash != "" {
+		datumHashes = append(datumHashes, blockHash)
+	}
+
+	if err := rs.BatchReceiptCacheStorage.GetItems(datumHashes, receiptsCached); err != nil {
 		return err
 	}
+
+	receiptsToProcess = FlattenReceiptGroups(receiptsCached)
+
 	// If no receipts in cache no need to return errors. just log a message
-	if len(receiptsCached) == 0 {
+	if len(receiptsToProcess) == 0 {
 		rs.Logger.Info("No Receipts for block height: ", block.Height)
 		return nil
 	}
-	// Need to sorting before do next
-	sort.SliceStable(receiptsCached, func(i, j int) bool {
-		return receiptsCached[i].ReferenceBlockHeight < receiptsCached[j].ReferenceBlockHeight
-	})
-
-	var (
-		receiptsToProcess = make([]model.Receipt, 0)
-		remainingReceipts = make([]model.Receipt, 0)
-		// note that expirationHeight cannot be negative because is a uint32
-		expirationHeight = block.Height - constant.ReceiptPoolMaxLife
-	)
-	// Extract from receipt pool only the ones that reference current block
-	for _, receipt := range receiptsCached {
-		if receipt.ReferenceBlockHeight == block.Height && bytes.Equal(receipt.ReferenceBlockHash, block.BlockHash) {
-			receiptsToProcess = append(receiptsToProcess, receipt)
-		} else if receipt.ReferenceBlockHeight > constant.ReceiptPoolMaxLife && receipt.ReferenceBlockHeight < expirationHeight {
-			continue
-		} else {
-			remainingReceipts = append(remainingReceipts, receipt)
-		}
-	}
+	receiptsToProcess = SortReceipts(receiptsToProcess)
 
 	err = rs.QueryExecutor.BeginTx(isDbTransactionHighPriority, monitoring.GenerateReceiptsMerkleRootOwnerProcess)
 	if err != nil {
@@ -427,7 +423,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 			b := receiptToProcess
 			err = rs.ValidateReceipt(&b)
 			if err == nil {
-				receipts = append(receipts, b)
+				receiptsToSave = append(receiptsToSave, b)
 				hashedReceipt := sha3.Sum256(rs.ReceiptUtil.GetSignedReceiptBytes(&b))
 				hashedReceipts = append(hashedReceipts, bytes.NewBuffer(hashedReceipt[:]))
 			}
@@ -439,7 +435,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		rootMerkle, treeMerkle = merkleRoot.ToBytes()
 
 		queries = make([][]interface{}, len(hashedReceipts)+1)
-		for k, receipt := range receipts {
+		for k, receipt := range receiptsToSave {
 			b := receipt
 			batchReceipt = &model.BatchReceipt{
 				Receipt:  &b,
@@ -477,7 +473,7 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 	// update local cache
 	rs.LastMerkleRoot = rootMerkle
 	// overwrite receipt cache with remaining receipts to be processed
-	return rs.BatchReceiptCacheStorage.SetItems(remainingReceipts)
+	return rs.BatchReceiptCacheStorage.RemoveItems(datumHashes)
 }
 
 // CheckDuplication check existing batch receipt in cache storage
@@ -517,8 +513,7 @@ func (rs *ReceiptService) ValidateReceipt(
 	receipt *model.Receipt,
 ) error {
 	var (
-		blockAtHeight *storage.BlockCacheObject
-		err           error
+		err error
 	)
 	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
 		return blocker.NewBlocker(blocker.ValidationErr,
@@ -547,19 +542,7 @@ func (rs *ReceiptService) ValidateReceipt(
 			"InvalidReceiptSignature",
 		)
 	}
-	blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
-		receipt.ReferenceBlockHeight,
-		rs.QueryExecutor,
-		rs.BlockQuery,
-		rs.MainBlocksStorage,
-	)
-	if err != nil {
-		return err
-	}
-	// check block hash
-	if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
-		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
-	}
+
 	// get or build scrambled nodes at height
 	scrambledNode, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(receipt.ReferenceBlockHeight)
 	if err != nil {
@@ -640,9 +623,8 @@ func (rs *ReceiptService) GenerateReceiptWithReminder(
 }
 
 func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey []byte, chaintype chaintype.ChainType) (err error) {
-
 	b := *receipt
-	err = rs.BatchReceiptCacheStorage.SetItem(nil, b)
+	err = rs.BatchReceiptCacheStorage.SetItem(hex.EncodeToString(receipt.DatumHash), b)
 	if err != nil {
 		return err
 	}
@@ -652,4 +634,20 @@ func (rs *ReceiptService) StoreReceipt(receipt *model.Receipt, senderPublicKey [
 func (rs *ReceiptService) ClearCache() {
 	_ = rs.BatchReceiptCacheStorage.ClearCache()
 	_ = rs.ReceiptReminderStorage.ClearCache()
+}
+
+func FlattenReceiptGroups(receiptGroups map[string][]model.Receipt) []model.Receipt {
+	var receipts []model.Receipt
+	for _, receiptGroup := range receiptGroups {
+		receipts = append(receipts, receiptGroup...)
+	}
+	return receipts
+}
+
+func SortReceipts(receipts []model.Receipt) []model.Receipt {
+	sort.SliceStable(receipts, func(i, j int) bool {
+		// sort by signature bytes
+		return bytes.Compare(receipts[i].GetRecipientSignature(), receipts[j].GetRecipientSignature()) < 0
+	})
+	return receipts
 }

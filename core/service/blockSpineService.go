@@ -643,12 +643,12 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
 	if err != nil {
 		bs.Logger.Errorln(err)
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
+		return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("error getting block spine public keys: %s", err.Error()))
 	}
 	block.SpinePublicKeys = spinePublicKeys
 	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestBySpineBlockHeight(block.Height)
 	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
+		return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("error getting block spineBlockManifests: %s", err.Error()))
 	}
 	block.SpineBlockManifests = spineBlockManifests
 	return nil

@@ -57,6 +57,7 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 )
 
 type (
@@ -303,4 +304,16 @@ func (b *BlocksStorage) GetSize() int64 {
 // ClearCache empty the storage item
 func (b *BlocksStorage) ClearCache() error {
 	return b.Clear()
+}
+
+func (b *BlocksStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (b *BlocksStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (b *BlocksStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }
