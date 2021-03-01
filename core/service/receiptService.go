@@ -510,12 +510,12 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	}
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	for refHeight := blockHeight; refHeight >= 0; refHeight-- {
+	for refHeight := blockHeight; refHeight < 0; refHeight-- {
 		var (
 			refPublishedReceipt model.PublishedReceipt
 		)
 
-		if maxLookBackwardSteps <= 0 {
+		if maxLookBackwardSteps == 0 {
 			break
 		}
 		scrambleNodes, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(refHeight)
@@ -748,46 +748,47 @@ func (rs *ReceiptService) SelectReceipts(
 	return append(unlinkedReceipts, linkedReceipts...), nil
 }
 
-func (rs *ReceiptService) pickReceipts(
-	numberOfReceipt uint32,
-	pickedReceipts []*model.PublishedReceipt,
-	pickedRecipients map[string]bool,
-	lowerBlockHeight, upperBlockHeight uint32,
-) ([]*model.PublishedReceipt, error) {
-	var receipts []*model.BatchReceipt
-	receipts, err := func() ([]*model.BatchReceipt, error) {
-		receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
-			numberOfReceipt*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
-		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		return rs.NodeReceiptQuery.BuildModel(receipts, rows)
-	}()
-	if err != nil {
-		return nil, err
-	}
-	for _, rc := range receipts {
-		if len(pickedReceipts) >= int(numberOfReceipt) {
-			break
-		}
-		errValid := rs.ValidateReceipt(rc.GetReceipt(), true)
-		if errValid != nil {
-			// skipped invalid receipt
-			continue
-		}
-		if !pickedRecipients[string(rc.GetReceipt().RecipientPublicKey)] {
-			pickedReceipts = append(pickedReceipts, &model.PublishedReceipt{
-				Receipt:            rc.GetReceipt(),
-				IntermediateHashes: nil,
-				ReceiptIndex:       rc.RMRIndex,
-			})
-			pickedRecipients[string(rc.Receipt.RecipientPublicKey)] = true
-		}
-	}
-	return pickedReceipts, nil
-}
+// TODO: delete this after successful test of new linked receipts logic
+// func (rs *ReceiptService) pickReceipts(
+// 	numberOfReceipt uint32,
+// 	pickedReceipts []*model.PublishedReceipt,
+// 	pickedRecipients map[string]bool,
+// 	lowerBlockHeight, upperBlockHeight uint32,
+// ) ([]*model.PublishedReceipt, error) {
+// 	var receipts []*model.BatchReceipt
+// 	receipts, err := func() ([]*model.BatchReceipt, error) {
+// 		receiptsQ := rs.NodeReceiptQuery.GetReceiptsWithUniqueRecipient(
+// 			numberOfReceipt*constant.ReceiptBatchPickMultiplier, lowerBlockHeight, upperBlockHeight)
+// 		rows, err := rs.QueryExecutor.ExecuteSelect(receiptsQ, false)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 		defer rows.Close()
+// 		return rs.NodeReceiptQuery.BuildModel(receipts, rows)
+// 	}()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	for _, rc := range receipts {
+// 		if len(pickedReceipts) >= int(numberOfReceipt) {
+// 			break
+// 		}
+// 		errValid := rs.ValidateReceipt(rc.GetReceipt(), true)
+// 		if errValid != nil {
+// 			// skipped invalid receipt
+// 			continue
+// 		}
+// 		if !pickedRecipients[string(rc.GetReceipt().RecipientPublicKey)] {
+// 			pickedReceipts = append(pickedReceipts, &model.PublishedReceipt{
+// 				Receipt:            rc.GetReceipt(),
+// 				IntermediateHashes: nil,
+// 				ReceiptIndex:       rc.RMRIndex,
+// 			})
+// 			pickedRecipients[string(rc.Receipt.RecipientPublicKey)] = true
+// 		}
+// 	}
+// 	return pickedReceipts, nil
+// }
 
 // GenerateReceiptsMerkleRoot generate merkle root of some batch receipts and also remove from cache
 // generating will do when number of collected receipts(batch receipts) already <= the number of required

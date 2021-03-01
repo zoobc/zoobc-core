@@ -145,14 +145,14 @@ func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
 	if !ok {
 		// return empty priority peers list if current node is not found in scramble nodes at look back height
-		return make(map[string]*model.Peer, 0), nil
+		return make(map[string]*model.Peer), nil
 	}
 	peers, err := p2pUtil.GetPriorityPeersByNodeID(
 		scrambleNodeID,
 		scrambleNodes,
 	)
 	if err != nil {
-		return make(map[string]*model.Peer, 0), nil
+		return make(map[string]*model.Peer), nil
 	}
 	return peers, nil
 }

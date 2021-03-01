@@ -51,7 +51,6 @@ package service
 
 import (
 	"bytes"
-	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -62,19 +61,16 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/zoobc/zoobc-core/common/crypto"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
-
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
+	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/common/storage"
 	"github.com/zoobc/zoobc-core/common/util"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
@@ -273,52 +269,6 @@ func (*mockScrambleNodeServiceGetPriorityPeersSuccess) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
 	return mockGoodScrambledNodes, nil
-}
-
-func fixtureGenerateMerkle() {
-	mockSeed := "mock seed"
-	signature := crypto.NewSignature()
-	receiptUtil := &coreUtil.ReceiptUtil{}
-	// sign mock linked receipt and update the recipient public key
-	mockLinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockSelectReceiptGoodScrambleNode.NodePublicKeyToIDMap[hex.EncodeToString(mockLinkedReceipt.Receipt.RecipientPublicKey)] =
-		222
-	unsignedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockLinkedReceipt.Receipt)
-	mockLinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(unsignedReceiptByte, mockSeed)
-	// sign rmr linked receipt
-	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockUnlinkedReceiptWithLinkedRMR.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
-	unsignedUnlinkedReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceiptWithLinkedRMR.Receipt)
-	mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature = signature.SignByNode(
-		unsignedUnlinkedReceiptByte, mockSeed)
-	// sign no rmr linked
-	mockUnlinkedReceipt.Receipt.RecipientPublicKey = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(mockSeed)
-	mockUnlinkedReceipt.Receipt.SenderPublicKey = mockLinkedReceipt.Receipt.SenderPublicKey
-	unsignedNoRMRReceiptByte := receiptUtil.GetUnsignedReceiptBytes(mockUnlinkedReceipt.Receipt)
-	mockUnlinkedReceipt.Receipt.RecipientSignature = signature.SignByNode(
-		unsignedNoRMRReceiptByte, mockSeed,
-	)
-	mockNodeRegistrationDataB.NodePublicKey = mockLinkedReceipt.Receipt.RecipientPublicKey
-	mockMerkle = &util.MerkleRoot{}
-	receiptBytes := receiptUtil.GetSignedReceiptBytes(mockLinkedReceipt.Receipt)
-	receiptHash := sha3.Sum256(receiptBytes)
-	mockMerkleHashes = append(mockMerkleHashes, bytes.NewBuffer(receiptHash[:]))
-	// generate random data for the hashes
-	for i := 1; i < 8; i++ {
-		var randomHash = make([]byte, 32)
-		_, _ = rand.Read(randomHash)
-		mockMerkleHashes = append(mockMerkleHashes, bytes.NewBuffer(randomHash))
-	}
-	// calculate the tree and root
-	mockReceiptRMR, _ = mockMerkle.GenerateMerkleRoot(mockMerkleHashes)
-	_, mockFlattenTree = mockMerkle.ToBytes()
-	intermediateHashBuffer := mockMerkle.GetIntermediateHashes(bytes.NewBuffer(receiptHash[:]), 0)
-	var intermediateHashes [][]byte
-	for _, ihb := range intermediateHashBuffer {
-		intermediateHashes = append(intermediateHashes, ihb.Bytes())
-	}
-
-	mockFlattenIntermediateHash = mockMerkle.FlattenIntermediateHashes(intermediateHashes)
 }
 
 func (*mockQueryExecutorFailExecuteSelect) ExecuteSelect(
@@ -1454,7 +1404,7 @@ func (*receiptSrvMockReceiptUtilSuccess) GetPriorityPeersAtHeight(
 	secretPhrase string,
 	scrambleNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
-	var res = make(map[string]*model.Peer, 0)
+	var res = make(map[string]*model.Peer)
 	for _, peer := range mockScrambledNodesWithNodePublicKeyToIDMap.AddressNodes {
 		res[fmt.Sprintf("%s:%d", peer.Info.Address, peer.Info.Port)] = peer
 	}
@@ -1553,7 +1503,8 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 				LastMerkleRoot:           tt.fields.LastMerkleRoot,
 				Logger:                   tt.fields.Logger,
 			}
-			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.previousBlockHash, tt.args.blockSeed, tt.args.secretPhrase)
+			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.previousBlockHash,
+				tt.args.blockSeed, tt.args.secretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectUnlinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
