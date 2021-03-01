@@ -99,6 +99,9 @@ type (
 	mockQueryExecutorSuccessSelectUnlinked struct {
 		query.Executor
 	}
+	mockQueryExecutorSuccessSelectlinked struct {
+		query.Executor
+	}
 )
 
 var (
@@ -365,6 +368,129 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 	defer db.Close()
 	switch qe {
 
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block WHERE height = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
+		))
+	case "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE block_height = 0":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			mockMerkleTreeQuery.Fields,
+		).AddRow(
+			mockRoot,
+			mockBlockHeight,
+			mockTree,
+			int64(0),
+		))
+
+	default:
+		return nil, errors.New("QueryNotMocked")
+	}
+	row := db.QueryRow(qe)
+	return row, nil
+}
+
+func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
+	qe string, tx bool, args ...interface{},
+) (*sql.Rows, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT id, block_id, block_height, sender_account_address, recipient_account_address, transaction_type, fee, timestamp, " +
+		"transaction_hash, transaction_body_length, transaction_body_bytes, signature, version, transaction_index, multisig_child, " +
+		"message FROM \"transaction\" WHERE block_id = ? AND multisig_child = false ORDER BY transaction_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewTransactionQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockTransaction.ID,
+			mockTransaction.BlockID,
+			mockTransaction.Height,
+			mockTransaction.SenderAccountAddress,
+			mockTransaction.RecipientAccountAddress,
+			mockTransaction.TransactionType,
+			mockTransaction.Fee,
+			mockTransaction.Timestamp,
+			mockTransaction.TransactionHash,
+			mockTransaction.TransactionBodyLength,
+			mockTransaction.TransactionBodyBytes,
+			mockTransaction.Signature,
+			mockTransaction.Version,
+			mockTransaction.TransactionIndex,
+			mockTransaction.MultisigChild,
+			mockTransaction.Message,
+		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
+		" recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
+		"datum_type = ? ORDER BY recipient_public_key, reference_block_height":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			mockReceiptQuery.Fields,
+		).AddRow(
+			mockBatchReceipt.Receipt.SenderPublicKey,
+			mockBatchReceipt.Receipt.RecipientPublicKey,
+			mockBatchReceipt.Receipt.DatumType,
+			mockBatchReceipt.Receipt.DatumHash,
+			mockBatchReceipt.Receipt.ReferenceBlockHeight,
+			mockBatchReceipt.Receipt.ReferenceBlockHash,
+			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RecipientSignature,
+			mockBatchReceipt.RMR,
+			mockBatchReceipt.RMRIndex,
+		))
+	default:
+		return nil, errors.New("QueryNotMocked")
+	}
+
+	rows, _ := db.Query(qe)
+	return rows, nil
+}
+
+func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
+	qe string, tx bool, args ...interface{},
+) (*sql.Row, error) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	switch qe {
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
+		" rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"published_index FROM published_receipt WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewPublishedReceiptQuery().Fields,
+		).AddRow(
+			mockPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockPublishedReceipt[0].Receipt.DatumType,
+			mockPublishedReceipt[0].Receipt.DatumHash,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockPublishedReceipt[0].Receipt.RMRLinked,
+			mockPublishedReceipt[0].RMR,
+			mockPublishedReceipt[0].RMRIndex,
+			mockPublishedReceipt[0].Receipt.RecipientSignature,
+			mockPublishedReceipt[0].IntermediateHashes,
+			mockPublishedReceipt[0].BlockHeight,
+			mockPublishedReceipt[0].ReceiptIndex,
+			mockPublishedReceipt[0].PublishedIndex,
+		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
 		"reference_block_height FROM main_block WHERE height = 0":
@@ -1566,13 +1692,14 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		{
 			name: "SelectUnlinkedReceipts:success",
 			fields: fields{
-				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+				QueryExecutor:         &mockQueryExecutorSuccessSelectlinked{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:      query.NewBatchReceiptQuery(),
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				ScrambleNodeService:   &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:           &receiptSrvMockReceiptUtilSuccess{},
 			},
 			args: args{
 				numberOfReceipt: 2,
