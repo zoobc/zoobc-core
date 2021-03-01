@@ -953,7 +953,7 @@ func (rs *ReceiptService) ValidateReceipt(
 	}
 	return rs.ReceiptUtil.ValidateReceiptHelper(
 		receipt,
-		true,
+		validateRefBlock,
 		rs.QueryExecutor,
 		rs.BlockQuery,
 		rs.MainBlocksStorage,

@@ -60,7 +60,7 @@ import (
 type (
 	// PublishedReceiptServiceInterface act as interface for processing the published receipt data
 	PublishedReceiptServiceInterface interface {
-		ProcessPublishedReceipts(block *model.Block) (int, error)
+		ProcessPublishedReceipts(block *model.Block, validateReceipt bool) (int, error)
 	}
 
 	PublishedReceiptService struct {
@@ -90,16 +90,19 @@ func NewPublishedReceiptService(
 
 // ProcessPublishedReceipts takes published receipts in a block and validate them, this function will run in a db transaction
 // so ensure queryExecutor.Begin() is called before calling this function.
-func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
+func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block, validateReceipt bool) (int, error) {
 	var (
 		linkedCount int
 		err         error
 	)
 	for index, rc := range block.GetPublishedReceipts() {
 		// validate sender and recipient of receipt
-		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt(), true)
-		if err != nil {
-			return 0, err
+		if validateReceipt {
+			err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt(), true)
+			if err != nil {
+				return 0, err
+			}
+			// TODO: add here unlinked and linked receipt full validation
 		}
 		// check if linked
 		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {

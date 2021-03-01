@@ -157,7 +157,8 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 		QueryExecutor         query.ExecutorInterface
 	}
 	type args struct {
-		block *model.Block
+		block           *model.Block
+		validateReceipt bool
 	}
 	tests := []struct {
 		name    string
@@ -179,6 +180,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				block: &model.Block{
 					PublishedReceipts: make([]*model.PublishedReceipt, 0),
 				},
+				validateReceipt: true,
 			},
 			want:    0,
 			wantErr: false,
@@ -196,6 +198,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				block: &model.Block{
 					PublishedReceipts: dummyPublishedReceipts,
 				},
+				validateReceipt: true,
 			},
 			want:    0,
 			wantErr: true,
@@ -213,6 +216,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				block: &model.Block{
 					PublishedReceipts: dummyPublishedReceipts,
 				},
+				validateReceipt: true,
 			},
 			want:    0,
 			wantErr: true,
@@ -230,6 +234,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				block: &model.Block{
 					PublishedReceipts: dummyPublishedReceipts,
 				},
+				validateReceipt: true,
 			},
 			want:    0,
 			wantErr: false,
@@ -244,7 +249,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				ReceiptService:        tt.fields.ReceiptService,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			got, err := ps.ProcessPublishedReceipts(tt.args.block)
+			got, err := ps.ProcessPublishedReceipts(tt.args.block, tt.args.validateReceipt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessPublishedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
