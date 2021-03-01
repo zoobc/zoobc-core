@@ -173,11 +173,8 @@ var (
 		RMRIndex: 0,
 	}
 
-	mockMerkle                  *util.MerkleRoot
-	mockReceiptRMR              *bytes.Buffer
-	mockMerkleHashes            []*bytes.Buffer
-	mockFlattenTree             []byte
-	mockFlattenIntermediateHash []byte
+	mockReceiptRMR  *bytes.Buffer
+	mockFlattenTree []byte
 
 	// node registry
 	mockNodeRegistrationData = model.NodeRegistration{
@@ -1511,6 +1508,111 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SelectUnlinkedReceipts() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
+	type fields struct {
+		NodeReceiptQuery         query.BatchReceiptQueryInterface
+		MerkleTreeQuery          query.MerkleTreeQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		TransactionQuery         query.TransactionQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		NodeRegistrationService  NodeRegistrationServiceInterface
+		Signature                crypto.SignatureInterface
+		PublishedReceiptQuery    query.PublishedReceiptQueryInterface
+		ReceiptUtil              coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage    storage.CacheStorageInterface
+		ScrambleNodeService      ScrambleNodeServiceInterface
+		ReceiptReminderStorage   storage.CacheStorageInterface
+		BatchReceiptCacheStorage storage.CacheStorageInterface
+		MainBlocksStorage        storage.CacheStackStorageInterface
+		LastMerkleRoot           []byte
+		MerkleRootUtil           util.MerkleRootInterface
+		Logger                   *log.Logger
+	}
+	type args struct {
+		numberOfReceipt uint32
+		blockHeight     uint32
+		blockSeed       []byte
+		secretPhrase    string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    []*model.PublishedReceipt
+		wantErr bool
+	}{
+		// {
+		// 	name:   "SelectUnlinkedReceipts:success-{blockTooLow}",
+		// 	fields: fields{},
+		// 	args: args{
+		// 		blockHeight: constant.BatchReceiptLookBackHeight - 1,
+		// 	},
+		// 	want: make([]*model.PublishedReceipt, 0),
+		// },
+		// {
+		// 	name:   "SelectUnlinkedReceipts:success-{noReceipts}",
+		// 	fields: fields{},
+		// 	args: args{
+		// 		numberOfReceipt: 0,
+		// 	},
+		// 	want: make([]*model.PublishedReceipt, 0),
+		// },
+		{
+			name: "SelectUnlinkedReceipts:success",
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+			},
+			args: args{
+				numberOfReceipt: 2,
+				blockHeight:     constant.BatchReceiptLookBackHeight,
+				secretPhrase:    "test",
+			},
+			want: []*model.PublishedReceipt{
+				mockReceiptToPublish,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:         tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:          tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
+				BlockQuery:               tt.fields.BlockQuery,
+				TransactionQuery:         tt.fields.TransactionQuery,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
+				Signature:                tt.fields.Signature,
+				PublishedReceiptQuery:    tt.fields.PublishedReceiptQuery,
+				ReceiptUtil:              tt.fields.ReceiptUtil,
+				MainBlockStateStorage:    tt.fields.MainBlockStateStorage,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
+				ReceiptReminderStorage:   tt.fields.ReceiptReminderStorage,
+				BatchReceiptCacheStorage: tt.fields.BatchReceiptCacheStorage,
+				MainBlocksStorage:        tt.fields.MainBlocksStorage,
+				LastMerkleRoot:           tt.fields.LastMerkleRoot,
+				MerkleRootUtil:           tt.fields.MerkleRootUtil,
+				Logger:                   tt.fields.Logger,
+			}
+			got, err := rs.SelectLinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.blockSeed, tt.args.secretPhrase)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SelectLinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("SelectLinkedReceipts() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
