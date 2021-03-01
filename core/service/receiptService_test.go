@@ -471,6 +471,48 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 	defer db.Close()
 	switch qe {
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
+		" recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc.datum_type = ? AND rc." +
+		"recipient_public_key = ? LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBatchReceiptQuery().Fields,
+		).AddRow(
+			mockBatchReceipt.Receipt.SenderPublicKey,
+			mockBatchReceipt.Receipt.RecipientPublicKey,
+			mockBatchReceipt.Receipt.DatumType,
+			mockBatchReceipt.Receipt.DatumHash,
+			mockBatchReceipt.Receipt.ReferenceBlockHeight,
+			mockBatchReceipt.Receipt.ReferenceBlockHash,
+			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RecipientSignature,
+			mockBatchReceipt.RMR,
+			mockBatchReceipt.RMRIndex,
+		))
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block WHERE height = 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockBlockData.GetHeight(),
+			mockBlockData.GetID(),
+			mockBlockData.GetBlockHash(),
+			mockBlockData.GetPreviousBlockHash(),
+			mockBlockData.GetTimestamp(),
+			mockBlockData.GetBlockSeed(),
+			mockBlockData.GetBlockSignature(),
+			mockBlockData.GetCumulativeDifficulty(),
+			mockBlockData.GetPayloadLength(),
+			mockBlockData.GetPayloadHash(),
+			mockBlockData.GetBlocksmithPublicKey(),
+			mockBlockData.GetTotalAmount(),
+			mockBlockData.GetTotalFee(),
+			mockBlockData.GetTotalCoinBase(),
+			mockBlockData.GetVersion(),
+			mockBlockData.GetMerkleRoot(),
+			mockBlockData.GetMerkleTree(),
+			mockBlockData.GetReferenceBlockHeight(),
+		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
 		" rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
@@ -490,6 +532,23 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 			mockPublishedReceipt[0].BlockHeight,
 			mockPublishedReceipt[0].ReceiptIndex,
 			mockPublishedReceipt[0].PublishedIndex,
+		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, " +
+		"rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
+		"reference_block_hash = ? LIMIT 1":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBatchReceiptQuery().Fields,
+		).AddRow(
+			mockBatchReceipt.Receipt.SenderPublicKey,
+			mockBatchReceipt.Receipt.RecipientPublicKey,
+			mockBatchReceipt.Receipt.DatumType,
+			mockBatchReceipt.Receipt.DatumHash,
+			mockBatchReceipt.Receipt.ReferenceBlockHeight,
+			mockBatchReceipt.Receipt.ReferenceBlockHash,
+			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RecipientSignature,
+			mockBatchReceipt.RMR,
+			mockBatchReceipt.RMRIndex,
 		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -1496,7 +1555,16 @@ type (
 func (*receiptSrvMockScrambleNodeService) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
-	return mockScrambledNodesWithNodePublicKeyToIDMap, nil
+	if blockHeight == 40 ||
+		blockHeight == 20 ||
+		blockHeight == 0 ||
+		blockHeight == 1 {
+		return mockScrambledNodesWithNodePublicKeyToIDMap, nil
+	}
+	return &model.ScrambledNodes{
+		AddressNodes: []*model.Peer{},
+		IndexNodes:   map[string]*int{},
+	}, nil
 }
 
 type (
@@ -1673,22 +1741,22 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		want    []*model.PublishedReceipt
 		wantErr bool
 	}{
-		// {
-		// 	name:   "SelectUnlinkedReceipts:success-{blockTooLow}",
-		// 	fields: fields{},
-		// 	args: args{
-		// 		blockHeight: constant.BatchReceiptLookBackHeight - 1,
-		// 	},
-		// 	want: make([]*model.PublishedReceipt, 0),
-		// },
-		// {
-		// 	name:   "SelectUnlinkedReceipts:success-{noReceipts}",
-		// 	fields: fields{},
-		// 	args: args{
-		// 		numberOfReceipt: 0,
-		// 	},
-		// 	want: make([]*model.PublishedReceipt, 0),
-		// },
+		{
+			name:   "SelectUnlinkedReceipts:success-{blockTooLow}",
+			fields: fields{},
+			args: args{
+				blockHeight: constant.BatchReceiptLookBackHeight - 1,
+			},
+			want: make([]*model.PublishedReceipt, 0),
+		},
+		{
+			name:   "SelectUnlinkedReceipts:success-{noReceipts}",
+			fields: fields{},
+			args: args{
+				numberOfReceipt: 0,
+			},
+			want: make([]*model.PublishedReceipt, 0),
+		},
 		{
 			name: "SelectUnlinkedReceipts:success",
 			fields: fields{
@@ -1700,6 +1768,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
 				ScrambleNodeService:   &receiptSrvMockScrambleNodeService{},
 				ReceiptUtil:           &receiptSrvMockReceiptUtilSuccess{},
+				Logger:                log.New(),
 			},
 			args: args{
 				numberOfReceipt: 2,
@@ -1707,6 +1776,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 				secretPhrase:    "test",
 			},
 			want: []*model.PublishedReceipt{
+				mockReceiptToPublish,
 				mockReceiptToPublish,
 			},
 		},

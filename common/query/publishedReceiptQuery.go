@@ -79,6 +79,12 @@ type (
 	}
 )
 
+func NewPublishedReceipt() *model.PublishedReceipt {
+	return &model.PublishedReceipt{
+		Receipt: &model.Receipt{},
+	}
+}
+
 // NewPublishedReceiptQuery returns PublishedQuery instance
 func NewPublishedReceiptQuery() *PublishedReceiptQuery {
 	return &PublishedReceiptQuery{

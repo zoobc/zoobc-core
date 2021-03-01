@@ -148,7 +148,8 @@ func GetBlockByHeight(
 		row   *sql.Row
 		err   error
 	)
-	row, err = queryExecutor.ExecuteSelectRow(blockQuery.GetBlockByHeight(height), false)
+	qry := blockQuery.GetBlockByHeight(height)
+	row, err = queryExecutor.ExecuteSelectRow(qry, false)
 	if err != nil {
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}

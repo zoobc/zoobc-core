@@ -82,6 +82,12 @@ type (
 	}
 )
 
+func NewBatchReceipt() *model.BatchReceipt {
+	return &model.BatchReceipt{
+		Receipt: &model.Receipt{},
+	}
+}
+
 // NewBatchReceiptQuery returns BatchReceiptQuery instance
 func NewBatchReceiptQuery() *BatchReceiptQuery {
 	return &BatchReceiptQuery{

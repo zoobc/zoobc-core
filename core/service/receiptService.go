@@ -512,7 +512,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeightInt := int32(blockHeight); refHeightInt >= 0; refHeightInt-- {
 		var (
-			refPublishedReceipt model.PublishedReceipt
+			refPublishedReceipt = query.NewPublishedReceipt()
 			refHeight           = uint32(refHeightInt)
 		)
 
@@ -535,7 +535,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
-		err = rs.PublishedReceiptQuery.Scan(&refPublishedReceipt, row)
+		err = rs.PublishedReceiptQuery.Scan(refPublishedReceipt, row)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there are no published receipts to link a batch too, fail this block and continue
@@ -546,7 +546,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 		// take the 'reference height', 'reference block hash' and look up the batch receipts for that block.
 		// If we do not have a corresponding batch for that height / hash, we fail this block (cannot link a receipt to it.) and continue
-		var batchReceiptToLink model.BatchReceipt
+		var batchReceiptToLink = query.NewBatchReceipt()
 		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRefBlockHeightAndRefBlockHash(
 			refPublishedReceipt.GetReceipt().ReferenceBlockHeight,
 			refPublishedReceipt.GetReceipt().ReferenceBlockHash,
@@ -555,7 +555,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
-		err = rs.NodeReceiptQuery.Scan(&batchReceiptToLink, row)
+		err = rs.NodeReceiptQuery.Scan(batchReceiptToLink, row)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there is no batch receipt that matches this published receipt ref height/hash. fail the block and continue
@@ -652,9 +652,9 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
+			} else {
+				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlockHeight)
 			}
-			// TODO: lower this to debug once tested on alpha network to not pollute logs
-			rs.Logger.Error("no priority peers for node at block height: ", referenceBlockHeight)
 			continue
 		}
 
@@ -681,7 +681,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
-		err = rs.NodeReceiptQuery.Scan(&batchReceiptToLink, row)
+		err = rs.NodeReceiptQuery.Scan(batchReceiptToLink, row)
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there is no batch receipt that matches this ref hash and receiver. fail the block and continue
