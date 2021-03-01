@@ -510,9 +510,10 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	}
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	for refHeight := blockHeight; refHeight >= 0; refHeight-- {
+	for refHeightInt := int32(blockHeight); refHeightInt >= 0; refHeightInt-- {
 		var (
 			refPublishedReceipt model.PublishedReceipt
+			refHeight           = uint32(refHeightInt)
 		)
 
 		if maxLookBackwardSteps == 0 {

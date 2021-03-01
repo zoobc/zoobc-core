@@ -718,6 +718,8 @@ var mockPublishedReceipt = []*model.PublishedReceipt{
 		BlockHeight:        1,
 		ReceiptIndex:       0,
 		PublishedIndex:     0,
+		RMR:                make([]byte, 32),
+		RMRIndex:           uint32(0),
 	},
 }
 
