@@ -50,8 +50,6 @@
 package util
 
 import (
-	"math/big"
-
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 )
@@ -68,16 +66,11 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint
 		)
 	}
 
-	// Maximum score will get when create a block
-	maxBlockScore := int64(float32(maxReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore)
-	halfMaxBlockScore := maxBlockScore / 2
+	receiptCount := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
 
-	linkedBlockScore := float32(linkedReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore
-	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
-	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
-
-	scoreDiffBig := new(big.Int).SetInt64(blockScore - halfMaxBlockScore)
-	scoreDiffBigMul := new(big.Int).Mul(scoreDiffBig, new(big.Int).SetInt64(constant.MaxScoreChange))
-	scoreChangeOfANode := new(big.Int).Div(scoreDiffBigMul, new(big.Int).SetInt64(halfMaxBlockScore))
-	return scoreChangeOfANode.Int64(), nil
+	// this is to make nodes' score falls faster and gain slower
+	if receiptCount > constant.MaxReceiptCount/2 {
+		return int64(receiptCount * float32(constant.IncreaseScoreMod)), nil
+	}
+	return int64(receiptCount * float32(constant.DecreaseScoreMod)), nil
 }
