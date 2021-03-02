@@ -71,5 +71,5 @@ const (
 	// Starting score for pre seed nodes (registered at genesis)
 	GenesisParticipationScore int64 = MaxParticipationScore
 	IncreaseScoreMod          int64 = MaxScoreChange / 10
-	DecreaseScoreMod          int64 = MaxScoreChange / 5
+	DecreaseScoreMod          int64 = -(MaxScoreChange / 5)
 )

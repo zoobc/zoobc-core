@@ -50,27 +50,28 @@
 package util
 
 import (
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 // CalculateParticipationScore to calculate score change of node
-func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint32) (int64, error) {
-	if maxReceipt == 0 {
-		return constant.MaxScoreChange, nil
-	}
-	if (linkedReceipt + unlinkedReceipt) > maxReceipt {
-		return 0, blocker.NewBlocker(
-			blocker.ValidationErr,
-			"CalculateParticipationScore, the number of receipt exceeds",
-		)
-	}
-
+func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) int64 {
+	var (
+		result            int64
+		normalizationUnit int64 = 1000 // to normalize floating result to make the calculation easier
+	)
 	receiptCount := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
+	centerValue := float32(constant.MaxReceiptCount / 2)
 
 	// this is to make nodes' score falls faster and gain slower
-	if receiptCount > constant.MaxReceiptCount/2 {
-		return int64(receiptCount * float32(constant.IncreaseScoreMod)), nil
+	if receiptCount > centerValue {
+		result = int64((receiptCount - centerValue) * float32(normalizationUnit))
+		result *= (constant.IncreaseScoreMod / (normalizationUnit))
+
+		return result
 	}
-	return int64(receiptCount * float32(constant.DecreaseScoreMod)), nil
+
+	result = int64((centerValue - receiptCount) * float32(normalizationUnit))
+	result *= (constant.DecreaseScoreMod / (normalizationUnit))
+
+	return result
 }
