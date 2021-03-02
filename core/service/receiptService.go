@@ -688,16 +688,14 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 ) (validReceipts []*model.PublishedReceipt, err error) {
 	var (
 		linkedReceipts []*model.PublishedReceipt
-		referenceBlock *model.Block
-		nodePublicKey  = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 	)
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeightInt := int32(blockToValidate.Height); refHeightInt >= 0; refHeightInt-- {
 		var (
-			refPublishedReceipt = query.NewPublishedReceipt()
-			refHeight           = uint32(refHeightInt)
-			refBlock, err       = util.GetBlockByHeight(refHeight, rs.QueryExecutor, rs.BlockQuery)
+			refHeight       = uint32(refHeightInt)
+			refBlockReceipt *model.PublishedReceipt
+			refBlock, err   = util.GetBlockByHeight(refHeight, rs.QueryExecutor, rs.BlockQuery)
 		)
 		if err != nil {
 			return nil, err
@@ -711,102 +709,116 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			return nil, err
 		}
 
-		// if not in scramble nodes try next block
-		if _, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePublicKey)]; !ok {
-			continue
-		}
-		// we found one block where the node was one of the scramble nodes
-		maxLookBackwardSteps--
-		// get the unlinked published receipt that has current node as recipient, at reference block height
-		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(refHeight, nodePublicKey)
-		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
-		if err != nil {
-			return nil, err
-		}
-		err = rs.PublishedReceiptQuery.Scan(refPublishedReceipt, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				// there are no published receipts to link a batch too, fail this block and continue
-				continue
-			}
-			return nil, err
-		}
-
-		// take the 'reference height', 'reference block hash' and look up the batch receipts for that block.
-		// If we do not have a corresponding batch for that height / hash, we fail this block (cannot link a receipt to it.) and continue
-		var batchReceiptToLink = query.NewBatchReceipt()
-		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRefBlockHeightAndRefBlockHash(
-			refPublishedReceipt.GetReceipt().ReferenceBlockHeight,
-			refPublishedReceipt.GetReceipt().ReferenceBlockHash,
-		)
-		row, err = rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
-		if err != nil {
-			return nil, err
-		}
-		err = rs.NodeReceiptQuery.Scan(batchReceiptToLink, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				// there is no batch receipt that matches this published receipt ref height/hash. fail the block and continue
-				continue
-			}
-			return nil, err
-		}
-		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
-			// batch receipt is invalid. fail the block and continue
+		// look up that block creator at ref height is in the node scramble list, if not this block is invalid
+		if _, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(refBlock.BlocksmithPublicKey)]; !ok {
 			continue
 		}
 
-		// get the block to select relative transaction hashes and previous block hash (similar to what we do for unlinked receipts)
-		referenceBlock, err = util.GetBlockByHeight(
-			batchReceiptToLink.GetReceipt().ReferenceBlockHeight,
-			rs.QueryExecutor,
-			rs.BlockQuery,
-		)
-		// this should not happen, since we already verify that this block exists when validating the receipt
-		if err != nil {
-			return nil, err
-		}
-
-		var (
-			rndDatumType uint32
-			hashList     [][]byte
-			rndDatumHash []byte
-		) // list of hashes of all data secured by the block
-		hashList, err = rs.buildBlockDatumHashes(referenceBlock)
-		if err != nil {
-			return nil, err
-		}
-
-		// roll a random number based on new block seed to select specific data from the looked up
-		rndDatumHash, rndDatumType, err = rs.getRandomDatumHash(hashList, blockSeed)
-		if err != nil {
-			return nil, err
-		}
-
-		var (
-			priorityPeersArray []*model.Peer
-		)
-		// the node looks up its position in scramble nodes at the referenceBlock height,
-		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(referenceBlock.Height)
+		// check if the new block's creator is one of Priority Peers at ref height and if not skip this block and continue
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(refHeight)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
 			} else {
-				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
+				rs.Logger.Debug("no priority peers for node at block height: ", refHeight)
+			}
+			continue
+		}
+		if _, ok := priorityPeersAtHeight[hex.EncodeToString(blockToValidate.BlocksmithPublicKey)]; !ok {
+			continue
+		}
+
+		// we found one block where the new block's creator was one of the priority peers to that block's creator :)
+		// if we fail validation from now on, we miss one of the receipts that are supposed to be linked to the new block
+		maxLookBackwardSteps--
+
+		// loop through the unlinked published receipt from ref block and see if any of them have receipt.receiver = new_block.creator
+		var (
+			receiptFound = false
+		)
+		for _, refBlockReceipt = range refBlock.GetPublishedReceipts() {
+			// did the new block creator have an unlinked receipt in ref block?
+			if refBlockReceipt.Receipt.RMRLinked == nil {
+				if bytes.Equal(refBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
+					receiptFound = true
+				}
+			}
+		}
+		if !receiptFound {
+			continue
+		}
+
+		// for rcRoot, rcReceipt := range linkedReceiptList {
+		// 	merkle := util.MerkleRoot{}
+		// 	merkle.HashTree = merkle.FromBytes(linkedReceiptTree[rcRoot], []byte(rcRoot))
+		// 	for _, rc := range rcReceipt {
+		// 		if len(results) >= int(numberOfReceipt) {
+		// 			break
+		// 		}
+		// 		err = rs.ValidateReceipt(rc.Receipt)
+		// 		if err != nil {
+		// 			// skip invalid receipt
+		// 			continue
+		// 		}
+		// 		var intermediateHashes [][]byte
+		// 		rcByte := rs.ReceiptUtil.GetSignedReceiptBytes(rc.Receipt)
+		// 		rcHash := sha3.Sum256(rcByte)
+		//
+		// 		intermediateHashesBuffer := merkle.GetIntermediateHashes(
+		// 			bytes.NewBuffer(rcHash[:]),
+		// 			int32(rc.RMRIndex),
+		// 		)
+		// 		for _, buf := range intermediateHashesBuffer {
+		// 			intermediateHashes = append(intermediateHashes, buf.Bytes())
+		// 		}
+		// 		results = append(
+		// 			results,
+		// 			&model.PublishedReceipt{
+		// 				Receipt:            rc.GetReceipt(),
+		// 				IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
+		// 				ReceiptIndex:       rc.RMRIndex,
+		// 			},
+		// 		)
+		// 	}
+		// }
+
+		// Look up the "reference block" for the old receipt.
+		refOldReceiptBlock, err := util.GetBlockByHeight(oldBlockReceipt.Receipt.ReferenceBlockHeight, rs.QueryExecutor, rs.BlockQuery)
+		if err != nil {
+			return nil, err
+		}
+
+		// Use the new block seed to roll for a random data hash "secured by" the reference block
+		hashListRefOldReceiptBlock, err := rs.buildBlockDatumHashes(refOldReceiptBlock)
+		if err != nil {
+			return nil, err
+		}
+		rndDatumHash, rndDatumType, err := rs.getRandomDatumHash(hashListRefOldReceiptBlock, blockToValidate.BlockSeed)
+		if err != nil {
+			return nil, err
+		}
+		// and roll for a random receiver assigned to the block creator at the reference height.
+		var (
+			priorityPeersArray []*model.Peer
+		)
+		priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(refOldReceiptBlock.Height)
+		if err != nil || len(priorityPeersAtHeight) == 0 {
+			if err != nil {
+				rs.Logger.Error(err)
+			} else {
+				rs.Logger.Debug("no priority peers for node at block height: ", refOldReceiptBlock.Height)
 			}
 			continue
 		}
 		for _, pp := range priorityPeersAtHeight {
 			priorityPeersArray = append(priorityPeersArray, pp)
 		}
-
 		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
 		// This determines the “receiver” I must produce a receipt for.
 		var (
 			rng = crypto.NewRandomNumberGenerator()
 		)
-		err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockSeed)
+		err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockToValidate.BlockSeed)
 		if err != nil {
 			return nil, err
 		}
@@ -816,50 +828,13 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		rndPeerIdx := rnd.Intn(len(priorityPeersAtHeight) - 1)
 		rndPeer := priorityPeersArray[rndPeerIdx]
 
-		if rndPeer.GetInfo() == nil {
-			return nil, errors.New("priorityPeerInfoEmpty")
+		// Does the newly published receipt match this data hash, and match this receiver?
+		if bytes.Equal(receiptToValidate.Receipt.DatumHash, rndDatumHash) &&
+			receiptToValidate.Receipt.DatumType == rndDatumType &&
+			bytes.Equal(rndPeer.Info.PublicKey, receiptToValidate.Receipt.RecipientPublicKey) {
+			// then new block's linked receipt is valid!
+			linkedReceipts = append(linkedReceipts, receiptToValidate)
 		}
-
-		// 2. Query my receipts in the batch, to find one that matches the data hash we rolled,
-		// and also matches the receiver that we rolled. If we *do not* have a receipt in the batch that matches these 2,
-		// then we fail this block (cannot link a receipt to it), and continue iterating backwards.
-		var batchReceiptRmr model.BatchReceipt
-		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRecipientAndDatumHash(
-			rndDatumHash,
-			rndDatumType,
-			rndPeer.GetInfo().PublicKey,
-		)
-		row, err = rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
-		if err != nil {
-			return nil, err
-		}
-		err = rs.NodeReceiptQuery.Scan(batchReceiptToLink, row)
-		if err != nil {
-			if err != sql.ErrNoRows {
-				// there is no batch receipt that matches this ref hash and receiver. fail the block and continue
-				continue
-			}
-			return nil, err
-		}
-		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
-			// batch receipt is invalid. fail the block and continue
-			continue
-		}
-
-		// 3. If we DO have a matching receipt (which we should, if we’ve been doing all of our work on the network),
-		// this becomes one of our N "linked receipts", which we can publish in our new block.
-		batchReceiptToPublish := &model.BatchReceipt{
-			Receipt:  batchReceiptToLink.GetReceipt(),
-			RMR:      batchReceiptRmr.RMR,
-			RMRIndex: batchReceiptRmr.RMRIndex,
-		}
-		batchReceiptToPublish.Receipt.RMRLinked = batchReceiptToLink.RMR
-		receiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(batchReceiptToPublish)
-		if err != nil {
-			rs.Logger.Error(err)
-			continue
-		}
-		linkedReceipts = append(linkedReceipts, receiptToPublish)
 	}
 	return linkedReceipts, nil
 }
