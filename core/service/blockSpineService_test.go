@@ -1202,8 +1202,8 @@ func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(
 	numberOfReceipt, blockHeight uint32,
 	previousBlockHash, blockSeed []byte,
 	secretPhrase string,
-) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+) ([][]*model.PublishedReceipt, error) {
+	return [][]*model.PublishedReceipt{}, nil
 }
 
 // mockSpineQueryExecutorMempoolSuccess

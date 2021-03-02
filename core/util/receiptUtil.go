@@ -53,6 +53,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/hex"
+	"errors"
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/query"
@@ -101,6 +102,7 @@ type (
 		GeneratePublishedReceipt(
 			batchReceipt *model.BatchReceipt,
 		) (*model.PublishedReceipt, error)
+		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
 	}
 
 	ReceiptUtil struct{}
@@ -334,4 +336,27 @@ func (ru *ReceiptUtil) GetReceiptKey(
 	}
 	receiptKey := digest.Sum([]byte{})
 	return receiptKey, nil
+}
+
+func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error {
+	if a.BlockHeight != b.BlockHeight {
+		return errors.New("BlockHeight")
+	}
+	if a.Receipt.ReferenceBlockHeight != a.Receipt.ReferenceBlockHeight {
+		return errors.New("ReferenceBlockHeight")
+	}
+	if !bytes.Equal(a.Receipt.ReferenceBlockHash, b.Receipt.ReferenceBlockHash) {
+		return errors.New("ReferenceBlockHash")
+	}
+	if !bytes.Equal(a.Receipt.RecipientPublicKey, b.Receipt.RecipientPublicKey) {
+		return errors.New("RecipientPubKey")
+	}
+	if !bytes.Equal(a.Receipt.SenderPublicKey, b.Receipt.SenderPublicKey) {
+		return errors.New("SenderPubKey")
+	}
+	if !bytes.Equal(a.Receipt.RMRLinked, b.Receipt.RMRLinked) {
+		return errors.New("RMRLinked")
+	}
+
+	return nil
 }

@@ -1142,8 +1142,9 @@ func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([
 	return nil
 }
 
-func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block, validateReceipt bool) (int, error) {
-	return 0, nil
+func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
+	numberOfReceipts uint32, validateReceipt bool) (int, int, error) {
+	return 0, 0, nil
 }
 
 func (*mockPushBlockNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
@@ -1546,8 +1547,8 @@ func (*mockReceiptServiceReturnEmpty) SelectReceipts(
 	numberOfReceipt, blockHeight uint32,
 	previousBlockHash, blockSeed []byte,
 	secretPhrase string,
-) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+) ([][]*model.PublishedReceipt, error) {
+	return [][]*model.PublishedReceipt{}, nil
 }
 
 // mockQueryExecutorMempoolSuccess
@@ -1853,8 +1854,9 @@ func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Bloc
 
 }
 
-func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block, validateReceipt bool) (int, error) {
-	return 0, nil
+func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
+	numberOfReceipts uint32, validateReceipt bool) (int, int, error) {
+	return 0, 0, nil
 }
 
 type (
