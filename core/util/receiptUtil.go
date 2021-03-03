@@ -154,7 +154,8 @@ func (ru *ReceiptUtil) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (
 	// roll a random number based on lastBlock's previousBlock seed to select specific data from the looked up previousBlock
 	// (lastblock height - BatchReceiptLookBackHeight)
 	var (
-		rng = crypto.NewRandomNumberGenerator()
+		rng             = crypto.NewRandomNumberGenerator()
+		rndSelectionIdx int
 	)
 
 	// instantiate a pseudo random number generator using block seed (new block) as random seed
@@ -166,7 +167,9 @@ func (ru *ReceiptUtil) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (
 	rndSelSeed := rand.NewSource(rndSeedInt)
 	rnd := rand.New(rndSelSeed)
 	// rndSelectionIdx pseudo-random number in hashList array indexes
-	rndSelectionIdx := rnd.Intn(len(hashList) - 1)
+	if len(hashList) > 1 {
+		rndSelectionIdx = rnd.Intn(len(hashList) - 1)
+	}
 	// rndDatumHash hash to be used to find relative batch (node) receipts later on
 	if rndSelectionIdx > len(hashList)-1 {
 		return nil, 0, errors.New("BatchReceiptIndexOutOfRange")
