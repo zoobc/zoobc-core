@@ -92,7 +92,7 @@ type (
 		) ([]*model.PublishedReceipt, error)
 		SelectUnlinkedReceipts(
 			numberOfReceipt, blockHeight uint32,
-			previousBlockHash, blockSeed []byte,
+			blockSeed []byte,
 			secretPhrase string,
 		) ([]*model.PublishedReceipt, error)
 		ValidateUnlinkedReceipts(
@@ -228,67 +228,8 @@ func (rs *ReceiptService) Initialize() error {
 	return nil
 }
 
-// buildBlockDatumHashes build an array containing all hashes of data secured by the block (transactions and previous block)
-func (rs *ReceiptService) buildBlockDatumHashes(block *model.Block) ([][]byte, error) {
-	var (
-		// hashList list of prev previousBlock hash + all previousBlock tx hashes (it should match all batch receipts the nodes already have)
-		hashList = [][]byte{
-			block.PreviousBlockHash,
-		}
-	)
-	blockTransactions, err := func() ([]*model.Transaction, error) {
-		var transactions []*model.Transaction
-		qry, args := rs.TransactionQuery.GetTransactionsByBlockID(block.ID)
-		rows, err := rs.QueryExecutor.ExecuteSelect(qry, false, args)
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()
-		return rs.TransactionQuery.BuildModel(transactions, rows)
-	}()
-	if err != nil {
-		return nil, err
-	}
-	// add transaction hashes of current block
-	for _, tx := range blockTransactions {
-		hashList = append(hashList, tx.TransactionHash)
-	}
-	return hashList, nil
-}
-
-func (rs *ReceiptService) getRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error) {
-	// roll a random number based on lastBlock's previousBlock seed to select specific data from the looked up previousBlock
-	// (lastblock height - BatchReceiptLookBackHeight)
-	var (
-		rng = crypto.NewRandomNumberGenerator()
-	)
-
-	// instantiate a pseudo random number generator using block seed (new block) as random seed
-	err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockSeed)
-	if err != nil {
-		return nil, 0, err
-	}
-	rndSeedInt := rng.Next()
-	rndSelSeed := rand.NewSource(rndSeedInt)
-	rnd := rand.New(rndSelSeed)
-	// rndSelectionIdx pseudo-random number in hashList array indexes
-	rndSelectionIdx := rnd.Intn(len(hashList) - 1)
-	// rndDatumHash hash to be used to find relative batch (node) receipts later on
-	if rndSelectionIdx > len(hashList)-1 {
-		return nil, 0, errors.New("BatchReceiptIndexOutOfRange")
-	}
-	rndDatumHash = hashList[rndSelectionIdx]
-	// first element of hashList array is always an hash relative to a block
-	if rndSelectionIdx == 0 {
-		rndDatumType = constant.ReceiptDatumTypeBlock
-	} else {
-		rndDatumType = constant.ReceiptDatumTypeTransaction
-	}
-	return rndDatumHash, rndDatumType, nil
-}
-
 // getPriorityPeersAtHeight compute the set of assigned receivers (priority peers) at a given block height
-func (rs *ReceiptService) getPriorityPeersAtHeight(blockHeight uint32) (map[string]*model.Peer, error) {
+func (rs *ReceiptService) getPriorityPeersAtHeight(nodePubKey []byte, blockHeight uint32) (map[string]*model.Peer, error) {
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
 	var (
@@ -302,14 +243,14 @@ func (rs *ReceiptService) getPriorityPeersAtHeight(blockHeight uint32) (map[stri
 	if scrambleNodes.NodePublicKeyToIDMap == nil {
 		return nil, errors.New("NodePublicKeyToIDMapEmpty")
 	}
-	return rs.ReceiptUtil.GetPriorityPeersAtHeight(secretPhrase, scrambleNodes)
+	return rs.ReceiptUtil.GetPriorityPeersAtHeight(nodePubKey, scrambleNodes)
 }
 
 // SelectUnlinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
 // broadcast to them by current node
 func (rs *ReceiptService) SelectUnlinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
-	previousBlockHash, blockSeed []byte,
+	blockSeed []byte,
 	secretPhrase string,
 ) ([]*model.PublishedReceipt, error) {
 	var (
@@ -360,8 +301,8 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 		hashList     [][]byte
 		rndDatumHash []byte
 	)
-	hashList, err = rs.buildBlockDatumHashes(lookBackBlock)
-	rndDatumHash, rndDatumType, err = rs.getRandomDatumHash(hashList, blockSeed)
+	hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery)
+	rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockSeed)
 	if err != nil {
 		return nil, err
 	}
@@ -390,8 +331,18 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	}
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackHeight)
-	if err != nil || len(priorityPeersAtHeight) == 0 {
+
+	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, lookBackHeight)
+
+	found := false
+	for _, priorityPeer := range priorityPeersAtHeight {
+		if bytes.Equal(priorityPeer.Info.PublicKey, nodePubKey) {
+			found = true
+			break
+		}
+	}
+	if err != nil || len(priorityPeersAtHeight) == 0 || !found {
 		if err != nil {
 			rs.Logger.Error(err)
 		}
@@ -455,20 +406,21 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 		hashList     [][]byte
 		rndDatumHash []byte
 	) // list of hashes of all data secured by the block
-	hashList, err = rs.buildBlockDatumHashes(lookBackBlock)
+	hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery)
 	if err != nil {
 		return validReceipts, err
 	}
 
 	// roll a random number based on new block seed to select specific data from the looked up
-	rndDatumHash, rndDatumType, err = rs.getRandomDatumHash(hashList, blockToValidate.BlockSeed)
+	rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockToValidate.BlockSeed)
 	if err != nil {
 		return validReceipts, err
 	}
 
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackHeight)
+	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, lookBackHeight)
 	if err != nil {
 		return validReceipts, err
 	}
@@ -489,7 +441,7 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 	return validReceipts, nil
 }
 
-// SelectUnlinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
+// SelectLinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
 // broadcast to them by current node
 func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
@@ -587,13 +539,13 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			hashList     [][]byte
 			rndDatumHash []byte
 		) // list of hashes of all data secured by the block
-		hashList, err = rs.buildBlockDatumHashes(referenceBlock)
+		hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(referenceBlock, rs.QueryExecutor, rs.TransactionQuery)
 		if err != nil {
 			return nil, err
 		}
 
 		// roll a random number based on new block seed to select specific data from the looked up
-		rndDatumHash, rndDatumType, err = rs.getRandomDatumHash(hashList, blockSeed)
+		rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockSeed)
 		if err != nil {
 			return nil, err
 		}
@@ -603,7 +555,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		)
 		// the node looks up its position in scramble nodes at the referenceBlock height,
 		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(referenceBlock.Height)
+		nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, referenceBlock.Height)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -679,8 +632,6 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	return linkedReceipts, nil
 }
 
-// SelectUnlinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
-// broadcast to them by current node
 func (rs *ReceiptService) ValidateLinkedReceipts(
 	receiptsToValidate []*model.PublishedReceipt,
 	blockToValidate *model.Block,
@@ -693,9 +644,10 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeightInt := int32(blockToValidate.Height); refHeightInt >= 0; refHeightInt-- {
 		var (
-			refHeight       = uint32(refHeightInt)
-			refBlockReceipt *model.PublishedReceipt
-			refBlock, err   = util.GetBlockByHeight(refHeight, rs.QueryExecutor, rs.BlockQuery)
+			refHeight         = uint32(refHeightInt)
+			refBlockReceipt   *model.PublishedReceipt
+			refBlock, err     = util.GetBlockByHeight(refHeight, rs.QueryExecutor, rs.BlockQuery)
+			receiptToValidate *model.PublishedReceipt
 		)
 		if err != nil {
 			return nil, err
@@ -704,18 +656,11 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		if maxLookBackwardSteps == 0 {
 			break
 		}
-		scrambleNodes, err := rs.ScrambleNodeService.GetScrambleNodesByHeight(refHeight)
-		if err != nil {
-			return nil, err
-		}
-
-		// look up that block creator at ref height is in the node scramble list, if not this block is invalid
-		if _, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(refBlock.BlocksmithPublicKey)]; !ok {
-			continue
-		}
 
 		// check if the new block's creator is one of Priority Peers at ref height and if not skip this block and continue
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(refHeight)
+		// note: this functions also make sure that that block creator at ref height is in the node scramble list,
+		// if not returns and empty peer array
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(refBlock.BlocksmithPublicKey, refHeight)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -741,100 +686,86 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			if refBlockReceipt.Receipt.RMRLinked == nil {
 				if bytes.Equal(refBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
 					receiptFound = true
+					break
 				}
 			}
 		}
+		// new block's creator didn't produce an unlinked receipt relative to the linked receipt we are validating,
+		// when it was supposed to do it, so we skip this block
+		// TODO: for barton. should we fail block validation or continue to the next block?
 		if !receiptFound {
 			continue
 		}
 
-		// for rcRoot, rcReceipt := range linkedReceiptList {
-		// 	merkle := util.MerkleRoot{}
-		// 	merkle.HashTree = merkle.FromBytes(linkedReceiptTree[rcRoot], []byte(rcRoot))
-		// 	for _, rc := range rcReceipt {
-		// 		if len(results) >= int(numberOfReceipt) {
-		// 			break
-		// 		}
-		// 		err = rs.ValidateReceipt(rc.Receipt)
-		// 		if err != nil {
-		// 			// skip invalid receipt
-		// 			continue
-		// 		}
-		// 		var intermediateHashes [][]byte
-		// 		rcByte := rs.ReceiptUtil.GetSignedReceiptBytes(rc.Receipt)
-		// 		rcHash := sha3.Sum256(rcByte)
-		//
-		// 		intermediateHashesBuffer := merkle.GetIntermediateHashes(
-		// 			bytes.NewBuffer(rcHash[:]),
-		// 			int32(rc.RMRIndex),
-		// 		)
-		// 		for _, buf := range intermediateHashesBuffer {
-		// 			intermediateHashes = append(intermediateHashes, buf.Bytes())
-		// 		}
-		// 		results = append(
-		// 			results,
-		// 			&model.PublishedReceipt{
-		// 				Receipt:            rc.GetReceipt(),
-		// 				IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
-		// 				ReceiptIndex:       rc.RMRIndex,
-		// 			},
-		// 		)
-		// 	}
-		// }
-
-		// Look up the "reference block" for the old receipt.
-		refOldReceiptBlock, err := util.GetBlockByHeight(oldBlockReceipt.Receipt.ReferenceBlockHeight, rs.QueryExecutor, rs.BlockQuery)
-		if err != nil {
-			return nil, err
-		}
-
-		// Use the new block seed to roll for a random data hash "secured by" the reference block
-		hashListRefOldReceiptBlock, err := rs.buildBlockDatumHashes(refOldReceiptBlock)
-		if err != nil {
-			return nil, err
-		}
-		rndDatumHash, rndDatumType, err := rs.getRandomDatumHash(hashListRefOldReceiptBlock, blockToValidate.BlockSeed)
-		if err != nil {
-			return nil, err
-		}
-		// and roll for a random receiver assigned to the block creator at the reference height.
-		var (
-			priorityPeersArray []*model.Peer
-		)
-		priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(refOldReceiptBlock.Height)
-		if err != nil || len(priorityPeersAtHeight) == 0 {
-			if err != nil {
-				rs.Logger.Error(err)
-			} else {
-				rs.Logger.Debug("no priority peers for node at block height: ", refOldReceiptBlock.Height)
+		// find the relative linked receipt (same datum hash) that we have to validate
+		receiptFound = false
+		for _, receiptToValidate = range receiptsToValidate {
+			if bytes.Equal(receiptToValidate.Receipt.DatumHash, refBlockReceipt.Receipt.DatumHash) {
+				receiptFound = true
+				break
 			}
+		}
+		// TODO: for barton. should we fail block validation or continue to the next block?
+		if !receiptFound {
 			continue
 		}
-		for _, pp := range priorityPeersAtHeight {
-			priorityPeersArray = append(priorityPeersArray, pp)
-		}
-		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
-		// This determines the “receiver” I must produce a receipt for.
-		var (
-			rng = crypto.NewRandomNumberGenerator()
-		)
-		err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockToValidate.BlockSeed)
-		if err != nil {
-			return nil, err
-		}
-		rndSeedInt := rng.Next()
-		rndSelSeed := rand.NewSource(rndSeedInt)
-		rnd := rand.New(rndSelSeed)
-		rndPeerIdx := rnd.Intn(len(priorityPeersAtHeight) - 1)
-		rndPeer := priorityPeersArray[rndPeerIdx]
 
-		// Does the newly published receipt match this data hash, and match this receiver?
-		if bytes.Equal(receiptToValidate.Receipt.DatumHash, rndDatumHash) &&
-			receiptToValidate.Receipt.DatumType == rndDatumType &&
-			bytes.Equal(rndPeer.Info.PublicKey, receiptToValidate.Receipt.RecipientPublicKey) {
-			// then new block's linked receipt is valid!
-			linkedReceipts = append(linkedReceipts, receiptToValidate)
-		}
+		// // Look up the "reference block" for the old receipt.
+		// refOldReceiptBlock, err := util.GetBlockByHeight(oldBlockReceipt.Receipt.ReferenceBlockHeight, rs.QueryExecutor, rs.BlockQuery)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		//
+		// // Use the new block seed to roll for a random data hash "secured by" the reference block
+		// hashListRefOldReceiptBlock, err := rs.buildBlockDatumHashes(refOldReceiptBlock)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// rndDatumHash, rndDatumType, err := rs.getRandomDatumHash(hashListRefOldReceiptBlock, blockToValidate.BlockSeed)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// // and roll for a random receiver assigned to the block creator at the reference height.
+		// var (
+		// 	priorityPeersArray []*model.Peer
+		// )
+		// priorityPeersAtHeight, err = rs.getPriorityPeersAtHeight(refOldReceiptBlock.Height)
+		// if err != nil || len(priorityPeersAtHeight) == 0 {
+		// 	if err != nil {
+		// 		rs.Logger.Error(err)
+		// 	} else {
+		// 		rs.Logger.Debug("no priority peers for node at block height: ", refOldReceiptBlock.Height)
+		// 	}
+		// 	continue
+		// }
+		// for _, pp := range priorityPeersAtHeight {
+		// 	priorityPeersArray = append(priorityPeersArray, pp)
+		// }
+		// // Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
+		// // This determines the “receiver” I must produce a receipt for.
+		// var (
+		// 	rng = crypto.NewRandomNumberGenerator()
+		// )
+		// err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockToValidate.BlockSeed)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// rndSeedInt := rng.Next()
+		// rndSelSeed := rand.NewSource(rndSeedInt)
+		// rnd := rand.New(rndSelSeed)
+		// rndPeerIdx := rnd.Intn(len(priorityPeersAtHeight) - 1)
+		// rndPeer := priorityPeersArray[rndPeerIdx]
+		//
+		// // Does the newly published receipt match this data hash, and match this receiver?
+		// if bytes.Equal(receiptToValidate.Receipt.DatumHash, rndDatumHash) &&
+		// 	receiptToValidate.Receipt.DatumType == rndDatumType &&
+		// 	bytes.Equal(rndPeer.Info.PublicKey, receiptToValidate.Receipt.RecipientPublicKey) {
+		// 	// then new block's linked receipt is valid!
+		// 	linkedReceipts = append(linkedReceipts, receiptToValidate)
+		// }
+
+		// TODO: simplified logic for now
+		linkedReceipts = append(linkedReceipts, receiptToValidate)
 	}
 	return linkedReceipts, nil
 }
@@ -855,7 +786,6 @@ func (rs *ReceiptService) SelectReceipts(
 	unlinkedReceipts, err = rs.SelectUnlinkedReceipts(
 		numberOfReceipt,
 		blockHeight,
-		previousBlockHash,
 		blockSeed,
 		secretPhrase,
 	)

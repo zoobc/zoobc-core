@@ -55,6 +55,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
 	"testing"
@@ -244,6 +245,33 @@ var (
 					Address:   "127.0.0.1",
 					Port:      8000,
 					PublicKey: bcsNodePubKey1,
+				},
+			},
+			1: {
+				Info: &model.Node{
+					ID:        int64(222),
+					Address:   "127.0.0.1",
+					Port:      3001,
+					PublicKey: bcsNodePubKey2,
+				},
+			},
+		},
+		IndexNodes: map[string]*int{
+			"111": &indexScramble[0],
+			"222": &indexScramble[1],
+		},
+		NodePublicKeyToIDMap: map[string]int64{
+			"dd45ce5b27aaec0877a2bb19cd5162aeab4672b4a9d08a597040026279590b3a": int64(111),
+		},
+	}
+	mockScrambledNodesWithNodePublicKeyToIDMap1 = &model.ScrambledNodes{
+		AddressNodes: []*model.Peer{
+			0: {
+				Info: &model.Node{
+					ID:        int64(111),
+					Address:   "127.0.0.1",
+					Port:      8000,
+					PublicKey: signaturetype.NewEd25519Signature().GetPublicKeyFromSeed("test"),
 				},
 			},
 			1: {
@@ -1573,6 +1601,24 @@ type (
 	}
 )
 
+func (*receiptSrvMockReceiptUtilSuccess) BuildBlockDatumHashes(
+	block *model.Block,
+	executor query.ExecutorInterface,
+	transactionQuery query.TransactionQueryInterface,
+) ([][]byte, error) {
+	return [][]byte{
+		[]byte{1, 1, 1, 1, 1, 1, 1, 1},
+		[]byte{2, 2, 2, 2, 2, 2, 2, 2},
+	}, nil
+
+}
+
+func (*receiptSrvMockReceiptUtilSuccess) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32,
+	err error) {
+	return []byte{1, 1, 1, 1, 1, 1, 1, 1}, constant.ReceiptDatumTypeBlock, nil
+
+}
+
 func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 	receipt *model.Receipt,
 	validateRefBlock bool,
@@ -1592,11 +1638,14 @@ func (*receiptSrvMockReceiptUtilSuccess) GeneratePublishedReceipt(
 }
 
 func (*receiptSrvMockReceiptUtilSuccess) GetPriorityPeersAtHeight(
-	secretPhrase string,
+	nodePubKey []byte,
 	scrambleNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
-	var res = make(map[string]*model.Peer)
-	for _, peer := range mockScrambledNodesWithNodePublicKeyToIDMap.AddressNodes {
+	var (
+		res = make(map[string]*model.Peer)
+	)
+
+	for _, peer := range mockScrambledNodesWithNodePublicKeyToIDMap1.AddressNodes {
 		res[fmt.Sprintf("%s:%d", peer.Info.Address, peer.Info.Port)] = peer
 	}
 	return res, nil
@@ -1694,7 +1743,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 				LastMerkleRoot:           tt.fields.LastMerkleRoot,
 				Logger:                   tt.fields.Logger,
 			}
-			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.previousBlockHash,
+			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight,
 				tt.args.blockSeed, tt.args.secretPhrase)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectUnlinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)

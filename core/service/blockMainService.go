@@ -515,12 +515,14 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 	if err != nil {
 		return nil, nil, err
 	}
-	linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(
+	// TODO: make use of first returned value (unlinkedCount) for pop score change?
+	_, linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(
 		block,
 		bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(activeRegistries)),
 		!nodeGeneratedBlock,
 	)
+
 	if err != nil {
 		return nil, nil, err
 	}

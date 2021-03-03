@@ -59,7 +59,11 @@ import (
 type (
 	// PublishedReceiptServiceInterface act as interface for processing the published receipt data
 	PublishedReceiptServiceInterface interface {
-		ProcessPublishedReceipts(block *model.Block, numberOfEstimatedReceipts uint32, validateReceipt bool) (int, error)
+		ProcessPublishedReceipts(
+			block *model.Block,
+			numberOfEstimatedReceipts uint32,
+			validateReceipt bool,
+		) (unlinkedCount int, linkedCount int, err error)
 	}
 
 	PublishedReceiptService struct {

@@ -57,8 +57,8 @@ import (
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/crypto"
 	"github.com/zoobc/zoobc-core/common/query"
-	"github.com/zoobc/zoobc-core/common/signaturetype"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"math/rand"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -96,13 +96,19 @@ type (
 			scrambledNode *model.ScrambledNodes,
 		) error
 		GetPriorityPeersAtHeight(
-			secretPhrase string,
+			nodePubKey []byte,
 			scrambleNodes *model.ScrambledNodes,
 		) (map[string]*model.Peer, error)
 		GeneratePublishedReceipt(
 			batchReceipt *model.BatchReceipt,
 		) (*model.PublishedReceipt, error)
 		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
+		BuildBlockDatumHashes(
+			block *model.Block,
+			executor query.ExecutorInterface,
+			transactionQuery query.TransactionQueryInterface,
+		) ([][]byte, error)
+		GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error)
 	}
 
 	ReceiptUtil struct{}
@@ -110,6 +116,69 @@ type (
 
 func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
+}
+
+// buildBlockDatumHashes build an array containing all hashes of data secured by the block (transactions and previous block)
+func (ru *ReceiptUtil) BuildBlockDatumHashes(
+	block *model.Block,
+	executor query.ExecutorInterface,
+	transactionQuery query.TransactionQueryInterface,
+) ([][]byte, error) {
+	var (
+		// hashList list of prev previousBlock hash + all previousBlock tx hashes (it should match all batch receipts the nodes already have)
+		hashList = [][]byte{
+			block.PreviousBlockHash,
+		}
+	)
+	blockTransactions, err := func() ([]*model.Transaction, error) {
+		var transactions []*model.Transaction
+		qry, args := transactionQuery.GetTransactionsByBlockID(block.ID)
+		rows, err := executor.ExecuteSelect(qry, false, args)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return transactionQuery.BuildModel(transactions, rows)
+	}()
+	if err != nil {
+		return nil, err
+	}
+	// add transaction hashes of current block
+	for _, tx := range blockTransactions {
+		hashList = append(hashList, tx.TransactionHash)
+	}
+	return hashList, nil
+}
+
+func (ru *ReceiptUtil) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error) {
+	// roll a random number based on lastBlock's previousBlock seed to select specific data from the looked up previousBlock
+	// (lastblock height - BatchReceiptLookBackHeight)
+	var (
+		rng = crypto.NewRandomNumberGenerator()
+	)
+
+	// instantiate a pseudo random number generator using block seed (new block) as random seed
+	err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockSeed)
+	if err != nil {
+		return nil, 0, err
+	}
+	rndSeedInt := rng.Next()
+	rndSelSeed := rand.NewSource(rndSeedInt)
+	rnd := rand.New(rndSelSeed)
+	// rndSelectionIdx pseudo-random number in hashList array indexes
+	rndSelectionIdx := rnd.Intn(len(hashList) - 1)
+	// rndDatumHash hash to be used to find relative batch (node) receipts later on
+	if rndSelectionIdx > len(hashList)-1 {
+		return nil, 0, errors.New("BatchReceiptIndexOutOfRange")
+	}
+	rndDatumHash = hashList[rndSelectionIdx]
+	// first element of hashList array is always an hash relative to a block
+	if rndSelectionIdx == 0 {
+		rndDatumType = constant.ReceiptDatumTypeBlock
+	} else {
+		rndDatumType = constant.ReceiptDatumTypeTransaction
+	}
+	return rndDatumHash, rndDatumType, nil
 }
 
 func (ru *ReceiptUtil) GeneratePublishedReceipt(
@@ -140,10 +209,9 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 }
 
 func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
-	secretPhrase string,
+	nodePubKey []byte,
 	scrambleNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
-	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
 	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
 	if !ok {
 		// return empty priority peers list if current node is not found in scramble nodes at look back height

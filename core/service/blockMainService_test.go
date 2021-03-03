@@ -146,6 +146,13 @@ func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalPartici
 	return []storage.NodeRegistry{}, 0, nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	return []*model.NodeRegistration{
+		nr1,
+		nr2,
+	}, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 	nodeID, scoreDelta int64,
 	height uint32,
@@ -1897,6 +1904,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
 		PendingTransactionService PendingTransactionServiceInterface
+		ReceiptUtil               coreUtil.ReceiptUtilInterface
 	}
 	tests := []struct {
 		name    string
@@ -1940,6 +1948,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
+				ReceiptUtil:               &mockReceiptUtilSuccess{},
 			},
 			wantErr: false,
 		},
@@ -1970,6 +1979,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
 				PendingTransactionService: tt.fields.PendingTransactionService,
+				ReceiptUtil:               tt.fields.ReceiptUtil,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
