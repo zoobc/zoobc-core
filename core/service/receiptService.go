@@ -788,7 +788,7 @@ func (rs *ReceiptService) SelectReceipts(
 		blockSeed,
 	)
 	if err != nil {
-		return nil, err
+		rs.Logger.Error(err)
 	}
 	selectedReceipts[0] = unlinkedReceipts
 
@@ -799,7 +799,7 @@ func (rs *ReceiptService) SelectReceipts(
 		blockSeed,
 	)
 	if err != nil {
-		return nil, err
+		rs.Logger.Error(err)
 	}
 	selectedReceipts[1] = linkedReceipts
 
@@ -811,8 +811,10 @@ func (rs *ReceiptService) FlattenSelectedReceipts(
 	selectedReceiptsMatrix [][]*model.PublishedReceipt,
 ) []*model.PublishedReceipt {
 	var selectedReceipts = make([]*model.PublishedReceipt, 0)
-	for _, selectedReceiptArray := range selectedReceipts {
-		selectedReceipts = append(selectedReceipts, selectedReceiptArray)
+	for _, selectedReceiptArray := range selectedReceiptsMatrix {
+		if len(selectedReceiptArray) > 0 {
+			selectedReceipts = append(selectedReceipts, selectedReceiptArray...)
+		}
 	}
 	return selectedReceipts
 }
