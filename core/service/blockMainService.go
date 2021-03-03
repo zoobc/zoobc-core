@@ -1350,9 +1350,7 @@ func (bs *BlockService) GenerateBlock(
 		bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(activeRegistries)),
 		previousBlock.Height+1,
-		previousBlockHash,
 		blockSeed,
-		secretPhrase,
 	)
 	if err != nil {
 		return nil, err

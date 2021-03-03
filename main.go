@@ -475,6 +475,7 @@ func initiateMainInstance() {
 		scrambleNodeService,
 		mainBlocksStorage,
 		util.NewMerkleRoot(),
+		nodeConfigurationService,
 		loggerCoreService,
 	)
 

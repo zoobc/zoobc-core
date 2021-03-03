@@ -145,6 +145,21 @@ func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateUnlinkedReceipts(
 ) (validReceipts []*model.PublishedReceipt, err error) {
 	return []*model.PublishedReceipt{}, nil
 }
+func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateLinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+	maxLookBackwardSteps int32,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return mockPublishedReceipt, nil
+}
+
+func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateLinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+	maxLookBackwardSteps int32,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return []*model.PublishedReceipt{}, nil
+}
 
 func (*mockProcessPublishedReceiptPublishedReceiptUtilFail) InsertPublishedReceipt(
 	_ *model.PublishedReceipt, _ bool,

@@ -82,22 +82,24 @@ type (
 		Initialize() error
 		SelectReceipts(
 			numberOfReceipt, blockHeight uint32,
-			previousBlockHash, blockSeed []byte,
-			secretPhrase string,
+			blockSeed []byte,
 		) ([][]*model.PublishedReceipt, error)
 		SelectLinkedReceipts(
 			numberOfReceipt, blockHeight uint32,
 			blockSeed []byte,
-			secretPhrase string,
 		) ([]*model.PublishedReceipt, error)
 		SelectUnlinkedReceipts(
 			numberOfReceipt, blockHeight uint32,
 			blockSeed []byte,
-			secretPhrase string,
 		) ([]*model.PublishedReceipt, error)
 		ValidateUnlinkedReceipts(
 			receiptsToValidate []*model.PublishedReceipt,
 			blockToValidate *model.Block,
+		) (validReceipts []*model.PublishedReceipt, err error)
+		ValidateLinkedReceipts(
+			receiptsToValidate []*model.PublishedReceipt,
+			blockToValidate *model.Block,
+			maxLookBackwardSteps int32,
 		) (validReceipts []*model.PublishedReceipt, err error)
 		FlattenSelectedReceipts(
 			selectedReceiptsMatrix [][]*model.PublishedReceipt,
@@ -141,6 +143,7 @@ type (
 		ReceiptReminderStorage   storage.CacheStorageInterface
 		BatchReceiptCacheStorage storage.CacheStorageInterface
 		MainBlocksStorage        storage.CacheStackStorageInterface
+		NodeConfiguration        NodeConfigurationServiceInterface
 		// local cache
 		LastMerkleRoot []byte
 		MerkleRootUtil util.MerkleRootInterface
@@ -190,6 +193,7 @@ func NewReceiptService(
 	scrambleNodeService ScrambleNodeServiceInterface,
 	mainBlocksStorage storage.CacheStackStorageInterface,
 	merkleRootUtil util.MerkleRootInterface,
+	nodeConfiguration NodeConfigurationServiceInterface,
 	logger *log.Logger,
 ) *ReceiptService {
 	return &ReceiptService{
@@ -210,6 +214,7 @@ func NewReceiptService(
 		MainBlocksStorage:        mainBlocksStorage,
 		LastMerkleRoot:           nil,
 		MerkleRootUtil:           merkleRootUtil,
+		NodeConfiguration:        nodeConfiguration,
 		Logger:                   logger,
 	}
 }
@@ -251,7 +256,6 @@ func (rs *ReceiptService) getPriorityPeersAtHeight(nodePubKey []byte, blockHeigh
 func (rs *ReceiptService) SelectUnlinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
-	secretPhrase string,
 ) ([]*model.PublishedReceipt, error) {
 	var (
 		err                               error
@@ -331,18 +335,9 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	}
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-
-	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+	nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
 	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, lookBackHeight)
-
-	found := false
-	for _, priorityPeer := range priorityPeersAtHeight {
-		if bytes.Equal(priorityPeer.Info.PublicKey, nodePubKey) {
-			found = true
-			break
-		}
-	}
-	if err != nil || len(priorityPeersAtHeight) == 0 || !found {
+	if err != nil || len(priorityPeersAtHeight) == 0 {
 		if err != nil {
 			rs.Logger.Error(err)
 		}
@@ -419,7 +414,7 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 
 	// the node looks up its position in scramble nodes at the look back height,
 	// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-	nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+	nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
 	priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, lookBackHeight)
 	if err != nil {
 		return validReceipts, err
@@ -446,13 +441,12 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
-	secretPhrase string,
 ) ([]*model.PublishedReceipt, error) {
 
 	var (
 		linkedReceipts []*model.PublishedReceipt
 		referenceBlock *model.Block
-		nodePublicKey  = signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		nodePublicKey  = rs.NodeConfiguration.GetNodePublicKey()
 		// maxLookBackwardSteps max n. of times this node should look backwards trying to link receipts when he was one of the scramble nodes
 		// note: numberOfReceipts = number of max priority peers the node has
 		maxLookBackwardSteps = numberOfReceipt
@@ -555,7 +549,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		)
 		// the node looks up its position in scramble nodes at the referenceBlock height,
 		// and computes its set of assigned receivers at that time (gets its priority peers at that height).
-		nodePubKey := signaturetype.NewEd25519Signature().GetPublicKeyFromSeed(secretPhrase)
+		nodePubKey := rs.NodeConfiguration.GetNodePublicKey()
 		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(nodePubKey, referenceBlock.Height)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
@@ -572,7 +566,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
 		// This determines the “receiver” I must produce a receipt for.
 		var (
-			rng = crypto.NewRandomNumberGenerator()
+			rng        = crypto.NewRandomNumberGenerator()
+			rndPeerIdx int
 		)
 		err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockSeed)
 		if err != nil {
@@ -581,7 +576,9 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		rndSeedInt := rng.Next()
 		rndSelSeed := rand.NewSource(rndSeedInt)
 		rnd := rand.New(rndSelSeed)
-		rndPeerIdx := rnd.Intn(len(priorityPeersAtHeight) - 1)
+		if len(priorityPeersAtHeight) > 1 {
+			rndPeerIdx = rnd.Intn(len(priorityPeersAtHeight) - 1)
+		}
 		rndPeer := priorityPeersArray[rndPeerIdx]
 
 		if rndPeer.GetInfo() == nil {
@@ -744,7 +741,8 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		// // Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
 		// // This determines the “receiver” I must produce a receipt for.
 		// var (
-		// 	rng = crypto.NewRandomNumberGenerator()
+		// 	rng        = crypto.NewRandomNumberGenerator()
+		// 	rndPeerIdx int
 		// )
 		// err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockToValidate.BlockSeed)
 		// if err != nil {
@@ -753,7 +751,9 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		// rndSeedInt := rng.Next()
 		// rndSelSeed := rand.NewSource(rndSeedInt)
 		// rnd := rand.New(rndSelSeed)
-		// rndPeerIdx := rnd.Intn(len(priorityPeersAtHeight) - 1)
+		// if len(priorityPeersAtHeight) > 1 {
+		// 	rndPeerIdx = rnd.Intn(len(priorityPeersAtHeight) - 1)
+		// }
 		// rndPeer := priorityPeersArray[rndPeerIdx]
 		//
 		// // Does the newly published receipt match this data hash, and match this receiver?
@@ -773,8 +773,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 // SelectReceipts select list of (linked and unlinked) receipts to be included in a block
 func (rs *ReceiptService) SelectReceipts(
 	numberOfReceipt, blockHeight uint32,
-	previousBlockHash, blockSeed []byte,
-	secretPhrase string,
+	blockSeed []byte,
 ) ([][]*model.PublishedReceipt, error) {
 	var (
 		err                              error
@@ -787,7 +786,6 @@ func (rs *ReceiptService) SelectReceipts(
 		numberOfReceipt,
 		blockHeight,
 		blockSeed,
-		secretPhrase,
 	)
 	if err != nil {
 		return nil, err
@@ -799,7 +797,6 @@ func (rs *ReceiptService) SelectReceipts(
 		numberOfReceipt,
 		blockHeight,
 		blockSeed,
-		secretPhrase,
 	)
 	if err != nil {
 		return nil, err

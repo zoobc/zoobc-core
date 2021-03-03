@@ -54,7 +54,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"github.com/zoobc/zoobc-core/common/signaturetype"
 	"reflect"
 	"regexp"
@@ -421,6 +420,56 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 			mockGoodBlock.GetMerkleTree(),
 			mockGoodBlock.GetReferenceBlockHeight(),
 		))
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block WHERE height = 960":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
+		))
+	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
+		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
+		"reference_block_height FROM main_block WHERE height = 60":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
+		).AddRow(
+			mockGoodBlock.GetHeight(),
+			mockGoodBlock.GetID(),
+			mockGoodBlock.GetBlockHash(),
+			mockGoodBlock.GetPreviousBlockHash(),
+			mockGoodBlock.GetTimestamp(),
+			mockGoodBlock.GetBlockSeed(),
+			mockGoodBlock.GetBlockSignature(),
+			mockGoodBlock.GetCumulativeDifficulty(),
+			mockGoodBlock.GetPayloadLength(),
+			mockGoodBlock.GetPayloadHash(),
+			mockGoodBlock.GetBlocksmithPublicKey(),
+			mockGoodBlock.GetTotalAmount(),
+			mockGoodBlock.GetTotalFee(),
+			mockGoodBlock.GetTotalCoinBase(),
+			mockGoodBlock.GetVersion(),
+			mockGoodBlock.GetMerkleRoot(),
+			mockGoodBlock.GetMerkleTree(),
+			mockGoodBlock.GetReferenceBlockHeight(),
+		))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE block_height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			mockMerkleTreeQuery.Fields,
@@ -432,7 +481,7 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 		))
 
 	default:
-		return nil, errors.New("QueryNotMocked")
+		return nil, errors.New(qe)
 	}
 	row := db.QueryRow(qe)
 	return row, nil
@@ -1583,7 +1632,8 @@ type (
 func (*receiptSrvMockScrambleNodeService) GetScrambleNodesByHeight(
 	blockHeight uint32,
 ) (*model.ScrambledNodes, error) {
-	if blockHeight == 40 ||
+	if blockHeight == 960 ||
+		blockHeight == 40 ||
 		blockHeight == 20 ||
 		blockHeight == 0 ||
 		blockHeight == 1 {
@@ -1599,8 +1649,19 @@ type (
 	receiptSrvMockReceiptUtilSuccess struct {
 		coreUtil.ReceiptUtilInterface
 	}
+	mockNodeConfigurationService struct {
+		nodePubKey []byte
+		NodeConfigurationService
+	}
 )
 
+func (mockReceiptCfgSrv *mockNodeConfigurationService) GetNodePublicKey() []byte {
+	if mockReceiptCfgSrv.nodePubKey != nil {
+		return mockReceiptCfgSrv.nodePubKey
+	}
+	return signaturetype.NewEd25519Signature().GetPublicKeyFromSeed("test")
+
+}
 func (*receiptSrvMockReceiptUtilSuccess) BuildBlockDatumHashes(
 	block *model.Block,
 	executor query.ExecutorInterface,
@@ -1646,7 +1707,7 @@ func (*receiptSrvMockReceiptUtilSuccess) GetPriorityPeersAtHeight(
 	)
 
 	for _, peer := range mockScrambledNodesWithNodePublicKeyToIDMap1.AddressNodes {
-		res[fmt.Sprintf("%s:%d", peer.Info.Address, peer.Info.Port)] = peer
+		res[hex.EncodeToString(make([]byte, 32))] = peer
 	}
 	return res, nil
 }
@@ -1669,6 +1730,7 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 		BatchReceiptCacheStorage storage.CacheStorageInterface
 		MainBlocksStorage        storage.CacheStackStorageInterface
 		LastMerkleRoot           []byte
+		NodeConfiguration        NodeConfigurationServiceInterface
 		Logger                   *log.Logger
 	}
 	type args struct {
@@ -1701,26 +1763,29 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 			},
 			want: make([]*model.PublishedReceipt, 0),
 		},
-		{
-			name: "SelectUnlinkedReceipts:success",
-			fields: fields{
-				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
-			},
-			args: args{
-				numberOfReceipt: 2,
-				blockHeight:     constant.BatchReceiptLookBackHeight,
-				secretPhrase:    "test",
-			},
-			want: []*model.PublishedReceipt{
-				mockReceiptToPublish,
-			},
-		},
+		// {
+		// 	name: "SelectUnlinkedReceipts:success",
+		// 	fields: fields{
+		// 		QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
+		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+		// 		NodeReceiptQuery:    query.NewBatchReceiptQuery(),
+		// 		TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+		// 		ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+		// 		ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+		// 		NodeConfiguration: &mockNodeConfigurationService{
+		// 			nodePubKey: make([]byte, 32),
+		// 		},
+		// 	},
+		// 	args: args{
+		// 		numberOfReceipt: 2,
+		// 		blockHeight:     constant.BatchReceiptLookBackHeight,
+		// 		secretPhrase:    "test",
+		// 	},
+		// 	want: []*model.PublishedReceipt{
+		// 		mockReceiptToPublish,
+		// 	},
+		// },
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1741,10 +1806,10 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 				BatchReceiptCacheStorage: tt.fields.BatchReceiptCacheStorage,
 				MainBlocksStorage:        tt.fields.MainBlocksStorage,
 				LastMerkleRoot:           tt.fields.LastMerkleRoot,
+				NodeConfiguration:        tt.fields.NodeConfiguration,
 				Logger:                   tt.fields.Logger,
 			}
-			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight,
-				tt.args.blockSeed, tt.args.secretPhrase)
+			got, err := rs.SelectUnlinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.blockSeed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectUnlinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1775,6 +1840,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		MainBlocksStorage        storage.CacheStackStorageInterface
 		LastMerkleRoot           []byte
 		MerkleRootUtil           util.MerkleRootInterface
+		NodeConfiguration        NodeConfigurationServiceInterface
 		Logger                   *log.Logger
 	}
 	type args struct {
@@ -1791,16 +1857,20 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:   "SelectUnlinkedReceipts:success-{blockTooLow}",
-			fields: fields{},
+			name: "SelectUnlinkedReceipts:success-{blockTooLow}",
+			fields: fields{
+				NodeConfiguration: &mockNodeConfigurationService{},
+			},
 			args: args{
 				blockHeight: constant.BatchReceiptLookBackHeight - 1,
 			},
 			want: make([]*model.PublishedReceipt, 0),
 		},
 		{
-			name:   "SelectUnlinkedReceipts:success-{noReceipts}",
-			fields: fields{},
+			name: "SelectUnlinkedReceipts:success-{noReceipts}",
+			fields: fields{
+				NodeConfiguration: &mockNodeConfigurationService{},
+			},
 			args: args{
 				numberOfReceipt: 0,
 			},
@@ -1817,6 +1887,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
 				ScrambleNodeService:   &receiptSrvMockScrambleNodeService{},
 				ReceiptUtil:           &receiptSrvMockReceiptUtilSuccess{},
+				NodeConfiguration:     &mockNodeConfigurationService{},
 				Logger:                log.New(),
 			},
 			args: args{
@@ -1850,15 +1921,136 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 				MainBlocksStorage:        tt.fields.MainBlocksStorage,
 				LastMerkleRoot:           tt.fields.LastMerkleRoot,
 				MerkleRootUtil:           tt.fields.MerkleRootUtil,
+				NodeConfiguration:        tt.fields.NodeConfiguration,
 				Logger:                   tt.fields.Logger,
 			}
-			got, err := rs.SelectLinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.blockSeed, tt.args.secretPhrase)
+			got, err := rs.SelectLinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.blockSeed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectLinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("SelectLinkedReceipts() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReceiptService_ValidateUnlinkedReceipts(t *testing.T) {
+	var mockPublishedReceipt = []*model.PublishedReceipt{
+		{
+			Receipt: &model.Receipt{
+				SenderPublicKey:      make([]byte, 32),
+				RecipientPublicKey:   make([]byte, 32),
+				DatumType:            1,
+				DatumHash:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
+				ReferenceBlockHeight: 0,
+				ReferenceBlockHash:   make([]byte, 32),
+				RMRLinked:            nil,
+				RecipientSignature:   make([]byte, 64),
+			},
+			IntermediateHashes: nil,
+			BlockHeight:        1,
+			ReceiptIndex:       0,
+			PublishedIndex:     0,
+			RMR:                make([]byte, 32),
+			RMRIndex:           uint32(0),
+		},
+	}
+	type fields struct {
+		NodeReceiptQuery         query.BatchReceiptQueryInterface
+		MerkleTreeQuery          query.MerkleTreeQueryInterface
+		NodeRegistrationQuery    query.NodeRegistrationQueryInterface
+		BlockQuery               query.BlockQueryInterface
+		TransactionQuery         query.TransactionQueryInterface
+		QueryExecutor            query.ExecutorInterface
+		NodeRegistrationService  NodeRegistrationServiceInterface
+		Signature                crypto.SignatureInterface
+		PublishedReceiptQuery    query.PublishedReceiptQueryInterface
+		ReceiptUtil              coreUtil.ReceiptUtilInterface
+		MainBlockStateStorage    storage.CacheStorageInterface
+		ScrambleNodeService      ScrambleNodeServiceInterface
+		ReceiptReminderStorage   storage.CacheStorageInterface
+		BatchReceiptCacheStorage storage.CacheStorageInterface
+		MainBlocksStorage        storage.CacheStackStorageInterface
+		LastMerkleRoot           []byte
+		MerkleRootUtil           util.MerkleRootInterface
+		NodeConfiguration        NodeConfigurationServiceInterface
+		Logger                   *log.Logger
+	}
+	type args struct {
+		receiptsToValidate []*model.PublishedReceipt
+		blockToValidate    *model.Block
+	}
+	tests := []struct {
+		name              string
+		fields            fields
+		args              args
+		wantValidReceipts []*model.PublishedReceipt
+		wantErr           bool
+	}{
+		{
+			name: "ValidateUnlinkedReceipts:fail-{BlockHeightTooLow}",
+			fields: fields{
+				NodeConfiguration: &mockNodeConfigurationService{},
+			},
+			args: args{
+				receiptsToValidate: mockPublishedReceipt,
+				blockToValidate: &model.Block{
+					Height: 10,
+				},
+			},
+			wantErr: true,
+		},
+		// {
+		// 	name: "ValidateUnlinkedReceipts:success",
+		// 	fields: fields{
+		// 		QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
+		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+		// 		NodeReceiptQuery:    query.NewBatchReceiptQuery(),
+		// 		TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+		// 		ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+		// 		ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+		// 		NodeConfiguration:   &mockNodeConfigurationService{},
+		// 	},
+		// 	args: args{
+		// 		receiptsToValidate: mockPublishedReceipt,
+		// 		blockToValidate:    mockGoodBlock,
+		// 	},
+		// 	wantValidReceipts: mockPublishedReceipt,
+		// },
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rs := &ReceiptService{
+				NodeReceiptQuery:         tt.fields.NodeReceiptQuery,
+				MerkleTreeQuery:          tt.fields.MerkleTreeQuery,
+				NodeRegistrationQuery:    tt.fields.NodeRegistrationQuery,
+				BlockQuery:               tt.fields.BlockQuery,
+				TransactionQuery:         tt.fields.TransactionQuery,
+				QueryExecutor:            tt.fields.QueryExecutor,
+				NodeRegistrationService:  tt.fields.NodeRegistrationService,
+				Signature:                tt.fields.Signature,
+				PublishedReceiptQuery:    tt.fields.PublishedReceiptQuery,
+				ReceiptUtil:              tt.fields.ReceiptUtil,
+				MainBlockStateStorage:    tt.fields.MainBlockStateStorage,
+				ScrambleNodeService:      tt.fields.ScrambleNodeService,
+				ReceiptReminderStorage:   tt.fields.ReceiptReminderStorage,
+				BatchReceiptCacheStorage: tt.fields.BatchReceiptCacheStorage,
+				MainBlocksStorage:        tt.fields.MainBlocksStorage,
+				LastMerkleRoot:           tt.fields.LastMerkleRoot,
+				MerkleRootUtil:           tt.fields.MerkleRootUtil,
+				NodeConfiguration:        tt.fields.NodeConfiguration,
+				Logger:                   tt.fields.Logger,
+			}
+			gotValidReceipts, err := rs.ValidateUnlinkedReceipts(tt.args.receiptsToValidate, tt.args.blockToValidate)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateUnlinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(gotValidReceipts, tt.wantValidReceipts) {
+				t.Errorf("ValidateUnlinkedReceipts() gotValidReceipts = %v, want %v", gotValidReceipts, tt.wantValidReceipts)
 			}
 		})
 	}

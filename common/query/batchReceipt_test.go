@@ -406,52 +406,6 @@ func TestNodeReceiptQuery_PruneData(t *testing.T) {
 	}
 }
 
-func TestBatchReceiptQuery_GetReceiptsByRoot(t *testing.T) {
-	type fields struct {
-		Fields    []string
-		TableName string
-	}
-	type args struct {
-		root []byte
-	}
-	tests := []struct {
-		name     string
-		fields   fields
-		args     args
-		wantStr  string
-		wantArgs []interface{}
-	}{
-		{
-			name:   "wantSuccess",
-			fields: fields(*mockReceiptQuery),
-			args: args{
-				root: make([]byte, 32),
-			},
-			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
-				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? ORDER BY datum_hash, " +
-				"recipient_public_key, reference_block_height",
-			wantArgs: []interface{}{
-				make([]byte, 32),
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			rq := &BatchReceiptQuery{
-				Fields:    tt.fields.Fields,
-				TableName: tt.fields.TableName,
-			}
-			gotStr, gotArgs := rq.GetReceiptsByRoot(tt.args.root)
-			if gotStr != tt.wantStr {
-				t.Errorf("GetReceiptsByRoot() gotStr = %v, want %v", gotStr, tt.wantStr)
-			}
-			if !reflect.DeepEqual(gotArgs, tt.wantArgs) {
-				t.Errorf("GetReceiptsByRoot() gotArgs = %v, want %v", gotArgs, tt.wantArgs)
-			}
-		})
-	}
-}
-
 func TestBatchReceiptQuery_GetReceiptsByRootAndDatumHash(t *testing.T) {
 	type fields struct {
 		Fields    []string
@@ -479,7 +433,7 @@ func TestBatchReceiptQuery_GetReceiptsByRootAndDatumHash(t *testing.T) {
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
 				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
-				"datum_type = ? ORDER BY recipient_public_key, reference_block_height",
+				"datum_type = ? ORDER BY recipient_signature, reference_block_height",
 			wantArgs: []interface{}{
 				make([]byte, 32),
 				make([]byte, 32),

@@ -99,18 +99,37 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 	validateReceipt bool,
 ) (unlinkedCount int, linkedCount int, err error) {
 	var (
-		publishedReceipts = block.GetPublishedReceipts()
+		publishedReceipts                                    = block.GetPublishedReceipts()
+		unlinkedReceiptsToValidate, linkedReceiptsToValidate []*model.PublishedReceipt
 	)
 	// if block carries invalid receipts, we fail the block
 	if len(publishedReceipts) > int(numberOfEstimatedReceipts) {
 		return 0, 0, errors.New("MaxAllowedReceiptsPerBlockExceeded")
 	}
 
-	validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(publishedReceipts, block)
+	// filter unlinked receipts
+	for _, unlinked := range publishedReceipts {
+		if unlinked.Receipt.RMRLinked == nil {
+			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, unlinked)
+		}
+	}
+	validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(unlinkedReceiptsToValidate, block)
 	if err != nil {
 		return 0, 0, err
 	}
 	unlinkedCount = len(validUnlinkedReceipts)
+
+	// filter linked receipts
+	for _, linked := range publishedReceipts {
+		if linked.Receipt.RMRLinked != nil {
+			linkedReceiptsToValidate = append(linkedReceiptsToValidate, linked)
+		}
+	}
+	validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(linkedReceiptsToValidate, block, int32(numberOfEstimatedReceipts))
+	if err != nil {
+		return 0, 0, err
+	}
+	linkedCount = len(validLinkedReceipts)
 
 	for index, rc := range publishedReceipts {
 		// validate sender and recipient of receipt

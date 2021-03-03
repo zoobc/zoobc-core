@@ -208,10 +208,12 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 	}, nil
 }
 
+// GetPriorityPeersAtHeight get priority peers map with peer public key (hex) as map key
 func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 	nodePubKey []byte,
 	scrambleNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
+	var peersByPubKeyMap = make(map[string]*model.Peer, 0)
 	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
 	if !ok {
 		// return empty priority peers list if current node is not found in scramble nodes at look back height
@@ -223,6 +225,9 @@ func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 	)
 	if err != nil {
 		return make(map[string]*model.Peer), nil
+	}
+	for _, peer := range peers {
+		peersByPubKeyMap[hex.EncodeToString(peer.Info.PublicKey)] = peer
 	}
 	return peers, nil
 }

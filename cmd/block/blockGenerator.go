@@ -198,6 +198,7 @@ func initialize(
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	mempoolService := service.NewMempoolService(
 		transactionUtil,
