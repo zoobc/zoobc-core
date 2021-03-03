@@ -133,7 +133,7 @@ func (ru *ReceiptUtil) BuildBlockDatumHashes(
 	blockTransactions, err := func() ([]*model.Transaction, error) {
 		var transactions []*model.Transaction
 		qry, args := transactionQuery.GetTransactionsByBlockID(block.ID)
-		rows, err := executor.ExecuteSelect(qry, false, args)
+		rows, err := executor.ExecuteSelect(qry, false, args...)
 		if err != nil {
 			return nil, err
 		}
