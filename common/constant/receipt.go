@@ -68,4 +68,5 @@ const (
 	// BatchReceiptLookBackHeight number of main blocks to look back, from current block, to select receipts from
 	BatchReceiptLookBackHeight = 40
 	ReceiptLifeCutOff          = ReceiptPoolMaxLife + MinRollbackBlocks
+	MaxReceiptCount            = 2 * PriorityStrategyMaxPriorityPeers
 )
