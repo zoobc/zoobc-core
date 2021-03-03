@@ -459,7 +459,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	}
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	for refHeightInt := int32(blockHeight); refHeightInt >= 0; refHeightInt-- {
+	for refHeightInt := int32(blockHeight - 1); refHeightInt >= 0; refHeightInt-- {
 		var (
 			refPublishedReceipt = query.NewPublishedReceipt()
 			refHeight           = uint32(refHeightInt)
@@ -639,7 +639,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	)
 
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
-	for refHeightInt := int32(blockToValidate.Height); refHeightInt >= 0; refHeightInt-- {
+	for refHeightInt := int32(blockToValidate.Height - 1); refHeightInt >= 0; refHeightInt-- {
 		var (
 			refHeight         = uint32(refHeightInt)
 			refBlockReceipt   *model.PublishedReceipt
