@@ -51,6 +51,7 @@ package service
 
 import (
 	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
 	"github.com/zoobc/zoobc-core/core/util"
@@ -103,7 +104,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 		unlinkedReceiptsToValidate, linkedReceiptsToValidate []*model.PublishedReceipt
 	)
 	// if block carries invalid receipts, we fail the block
-	if len(publishedReceipts) > int(numberOfEstimatedReceipts) {
+	if len(publishedReceipts) > int(2*numberOfEstimatedReceipts) {
 		return 0, 0, errors.New("MaxAllowedReceiptsPerBlockExceeded")
 	}
 
@@ -113,23 +114,26 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, unlinked)
 		}
 	}
-	validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(unlinkedReceiptsToValidate, block)
-	if err != nil {
-		return 0, 0, err
-	}
-	unlinkedCount = len(validUnlinkedReceipts)
 
-	// filter linked receipts
-	for _, linked := range publishedReceipts {
-		if linked.Receipt.RMRLinked != nil {
-			linkedReceiptsToValidate = append(linkedReceiptsToValidate, linked)
+	if block.Height >= constant.BatchReceiptLookBackHeight {
+		validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(unlinkedReceiptsToValidate, block)
+		if err != nil {
+			return 0, 0, err
 		}
+		unlinkedCount = len(validUnlinkedReceipts)
+
+		// filter linked receipts
+		for _, linked := range publishedReceipts {
+			if linked.Receipt.RMRLinked != nil {
+				linkedReceiptsToValidate = append(linkedReceiptsToValidate, linked)
+			}
+		}
+		validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(linkedReceiptsToValidate, block, int32(numberOfEstimatedReceipts))
+		if err != nil {
+			return 0, 0, err
+		}
+		linkedCount = len(validLinkedReceipts)
 	}
-	validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(linkedReceiptsToValidate, block, int32(numberOfEstimatedReceipts))
-	if err != nil {
-		return 0, 0, err
-	}
-	linkedCount = len(validLinkedReceipts)
 
 	for index, rc := range publishedReceipts {
 		// validate sender and recipient of receipt

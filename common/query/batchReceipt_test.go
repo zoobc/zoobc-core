@@ -433,7 +433,7 @@ func TestBatchReceiptQuery_GetReceiptsByRootAndDatumHash(t *testing.T) {
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
 				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
-				"datum_type = ? ORDER BY recipient_signature, reference_block_height",
+				"datum_type = ? ORDER BY recipient_signature",
 			wantArgs: []interface{}{
 				make([]byte, 32),
 				make([]byte, 32),

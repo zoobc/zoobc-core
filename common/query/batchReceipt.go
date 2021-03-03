@@ -184,7 +184,7 @@ func (rq *BatchReceiptQuery) GetReceiptsByRefBlockHeightAndRefBlockHash(refHeigh
 // note: order is important during receipt selection process during block generation
 func (rq *BatchReceiptQuery) GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc."+
-		"datum_type = ? ORDER BY recipient_signature, reference_block_height",
+		"datum_type = ? ORDER BY recipient_signature",
 		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, []interface{}{
 		root,
