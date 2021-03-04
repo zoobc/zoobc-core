@@ -1782,8 +1782,8 @@ func (*receiptSrvMockReceiptUtilSuccess) BuildBlockDatumHashes(
 	transactionQuery query.TransactionQueryInterface,
 ) ([][]byte, error) {
 	return [][]byte{
-		[]byte{1, 1, 1, 1, 1, 1, 1, 1},
-		[]byte{2, 2, 2, 2, 2, 2, 2, 2},
+		{1, 1, 1, 1, 1, 1, 1, 1},
+		{2, 2, 2, 2, 2, 2, 2, 2},
 	}, nil
 
 }
@@ -1851,11 +1851,10 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 		Logger                   *log.Logger
 	}
 	type args struct {
-		numberOfReceipt   uint32
-		blockHeight       uint32
-		previousBlockHash []byte
-		blockSeed         []byte
-		secretPhrase      string
+		numberOfReceipt uint32
+		blockHeight     uint32
+		blockSeed       []byte
+		secretPhrase    string
 	}
 	tests := []struct {
 		name    string

@@ -1122,12 +1122,8 @@ func FlattenReceiptGroups(receiptGroups map[string][]model.Receipt) []model.Rece
 
 func SortReceipts(receipts []model.Receipt) []model.Receipt {
 	sort.SliceStable(receipts, func(i, j int) bool {
-		var (
-			// to avoid lint complaining about: Using the variable on range scope `int` in function literal
-			i1, j1 = i, j
-		)
 		// sort by signature bytes
-		return bytes.Compare(receipts[i1].GetRecipientSignature(), receipts[j1].GetRecipientSignature()) < 0
+		return bytes.Compare(receipts[i].GetRecipientSignature(), receipts[j].GetRecipientSignature()) < 0
 	})
 	return receipts
 }
