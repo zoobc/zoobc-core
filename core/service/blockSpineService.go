@@ -317,10 +317,10 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	}
 	// FIXME: commented out because current implementation of hashTree for block validation interferes with published receipt logic
 	// check included main block
-	// err = bs.validateIncludedMainBlock(previousLastBlock, block)
-	// if err != nil {
-	// 	return err
-	// }
+	err = bs.validateIncludedMainBlock(previousLastBlock, block)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1061,51 +1061,50 @@ func (bs *BlockSpineService) ReceiveBlock(_ []byte, lastBlock, block *model.Bloc
 	return nil, nil
 }
 
-// FIXME: uncomment this code when resolved the issue with intermediate hashes calculation for published receipts
 // validateIncludedMainBlock to validate included main block in spine block
-// func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock *model.Block) error {
-// 	if incomingBlock.ReferenceBlockHeight < lastBlock.ReferenceBlockHeight {
-// 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
-// 	}
-// 	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()
-// 	if err != nil {
-// 		return err
-// 	}
-// 	// no need validate merkle root when reference block height is higher than curerent last main block
-// 	if incomingBlock.ReferenceBlockHeight > mainLastBlock.Height {
-// 		return nil
-// 	}
-// 	var referenceBlock = mainLastBlock
-// 	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
-// 		referenceBlock, err = bs.MainBlockService.GetBlockByHeightCacheFormat(incomingBlock.ReferenceBlockHeight)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-// 	var (
-// 		merkleRoot         commonUtils.MerkleRoot
-// 		rootHash           []byte
-// 		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
-// 		intermediateHashes [][]byte
-// 	)
-// 	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
-// 	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
-// 	for _, buf := range intermediateHashesBuffer {
-// 		intermediateHashes = append(intermediateHashes, buf.Bytes())
-// 	}
-// 	rootHash, err = merkleRoot.GetMerkleRootFromIntermediateHashes(
-// 		referenceBlock.BlockHash,
-// 		leafIndex,
-// 		intermediateHashes,
-// 	)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if !bytes.Equal(incomingBlock.MerkleRoot, rootHash) {
-// 		return blocker.NewBlocker(blocker.ValidationErr, "InvalidMerkleRootBlock")
-// 	}
-// 	return nil
-// }
+func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock *model.Block) error {
+	if incomingBlock.ReferenceBlockHeight < lastBlock.ReferenceBlockHeight {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidReferenceBlockHeight")
+	}
+	var mainLastBlock, err = bs.MainBlockService.GetLastBlockCacheFormat()
+	if err != nil {
+		return err
+	}
+	// no need validate merkle root when reference block height is higher than curerent last main block
+	if incomingBlock.ReferenceBlockHeight > mainLastBlock.Height {
+		return nil
+	}
+	var referenceBlock = mainLastBlock
+	if mainLastBlock.Height != incomingBlock.ReferenceBlockHeight {
+		referenceBlock, err = bs.MainBlockService.GetBlockByHeightCacheFormat(incomingBlock.ReferenceBlockHeight)
+		if err != nil {
+			return err
+		}
+	}
+	var (
+		merkleRoot         commonUtils.MerkleRoot
+		rootHash           []byte
+		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
+		intermediateHashes [][]byte
+	)
+	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
+	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
+	rootHash, err = merkleRoot.GetMerkleRootFromIntermediateHashes(
+		referenceBlock.BlockHash,
+		leafIndex,
+		intermediateHashes,
+	)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(incomingBlock.MerkleRoot, rootHash) {
+		return blocker.NewBlocker(blocker.ValidationErr, "InvalidMerkleRootBlock")
+	}
+	return nil
+}
 
 func (bs *BlockSpineService) PopOffToBlock(commonBlock *model.Block) ([]*model.Block, error) {
 	var (
