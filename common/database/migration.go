@@ -213,7 +213,7 @@ func (m *Migration) Init() error {
 				"intermediate_hashes" BLOB,
 				"block_height" INTEGER,
 				"rmr_linked" BLOB,
-				"rmr_linked_index" INTEGER
+				"rmr_linked_index" INTEGER,
 				"published_index" INTEGER
 			)
 			`,
