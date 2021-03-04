@@ -163,6 +163,42 @@ func GetBlockByHeight(
 	return &block, nil
 }
 
+// PopulateBlockData add transactions and receipts to the block
+func PopulateBlockData(
+	block *model.Block,
+	queryExecutor query.ExecutorInterface,
+	transactionQuery query.TransactionQueryInterface,
+	receiptQuery query.PublishedReceiptQueryInterface,
+) error {
+	var (
+		rows         *sql.Rows
+		err          error
+		transactions []*model.Transaction
+		receipts     []*model.PublishedReceipt
+	)
+	qry, args := transactionQuery.GetTransactionsByBlockID(block.ID)
+	rows, err = queryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	transactions, err = transactionQuery.BuildModel([]*model.Transaction{}, rows)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	qry, args = receiptQuery.GetPublishedReceiptByBlockHeight(block.Height)
+	rows, err = queryExecutor.ExecuteSelect(qry, false, args...)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	receipts, err = receiptQuery.BuildModel([]*model.PublishedReceipt{}, rows)
+	if err != nil {
+		return blocker.NewBlocker(blocker.DBErr, err.Error())
+	}
+	block.Transactions = transactions
+	block.PublishedReceipts = receipts
+	return nil
+}
+
 // GetBlockByHeight get block at the height provided & returned in cache format
 func GetBlockByHeightUseBlocksCache(
 	height uint32,

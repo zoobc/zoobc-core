@@ -103,36 +103,45 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 		publishedReceipts                                    = block.GetPublishedReceipts()
 		unlinkedReceiptsToValidate, linkedReceiptsToValidate []*model.PublishedReceipt
 	)
+	if len(publishedReceipts) == 0 {
+		return 0, 0, nil
+	}
 	// if block carries invalid receipts, we fail the block
 	if len(publishedReceipts) > int(2*numberOfEstimatedReceipts) {
 		return 0, 0, errors.New("MaxAllowedReceiptsPerBlockExceeded")
 	}
 
-	// filter unlinked receipts
-	for _, unlinked := range publishedReceipts {
-		if unlinked.Receipt.RMR == nil {
-			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, unlinked)
+	// separate publishedReceipt and linked receipts
+	for _, publishedReceipt := range publishedReceipts {
+		if publishedReceipt.Receipt.RMR == nil {
+			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, publishedReceipt)
+		} else {
+			linkedReceiptsToValidate = append(linkedReceiptsToValidate, publishedReceipt)
 		}
 	}
 
 	if block.Height >= constant.BatchReceiptLookBackHeight {
-		validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(unlinkedReceiptsToValidate, block)
-		if err != nil {
-			return 0, 0, err
-		}
-		unlinkedCount = len(validUnlinkedReceipts)
-
-		// filter linked receipts
-		for _, linked := range publishedReceipts {
-			if linked.Receipt.RMR != nil {
-				linkedReceiptsToValidate = append(linkedReceiptsToValidate, linked)
+		if len(unlinkedReceiptsToValidate) > 0 {
+			validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(
+				unlinkedReceiptsToValidate,
+				block,
+			)
+			if err != nil {
+				return 0, 0, err
 			}
+			unlinkedCount = len(validUnlinkedReceipts)
 		}
-		validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(linkedReceiptsToValidate, block, int32(numberOfEstimatedReceipts))
-		if err != nil {
-			return 0, 0, err
+		if len(linkedReceiptsToValidate) > 0 {
+			validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
+				linkedReceiptsToValidate,
+				block,
+				int32(numberOfEstimatedReceipts),
+			)
+			if err != nil {
+				return 0, 0, err
+			}
+			linkedCount = len(validLinkedReceipts)
 		}
-		linkedCount = len(validLinkedReceipts)
 	}
 
 	for index, rc := range publishedReceipts {

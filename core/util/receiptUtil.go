@@ -238,7 +238,7 @@ func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 	for _, peer := range peers {
 		peersByPubKeyMap[hex.EncodeToString(peer.Info.PublicKey)] = peer
 	}
-	return peers, nil
+	return peersByPubKeyMap, nil
 }
 
 // ValidateReceiptHelper helper function for better code testability

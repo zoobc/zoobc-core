@@ -315,11 +315,12 @@ func (bs *BlockSpineService) ValidateBlock(block, previousLastBlock *model.Block
 	if err := bs.validateBlockHeight(block); err != nil {
 		return err
 	}
+	// FIXME: commented out because current implementation of hashTree for block validation interferes with published receipt logic
 	// check included main block
-	err = bs.validateIncludedMainBlock(previousLastBlock, block)
-	if err != nil {
-		return err
-	}
+	// err = bs.validateIncludedMainBlock(previousLastBlock, block)
+	// if err != nil {
+	// 	return err
+	// }
 	return nil
 }
 

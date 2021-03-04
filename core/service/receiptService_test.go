@@ -449,6 +449,26 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
 			mockBatchReceipt.RMRBatch,
 			mockBatchReceipt.RMRBatchIndex,
 		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr, " +
+		"recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
+		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewPublishedReceiptQuery().Fields,
+		).AddRow(
+			mockRecSrvPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumType,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumHash,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockRecSrvPublishedReceipt[0].Receipt.RMR,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientSignature,
+			mockRecSrvPublishedReceipt[0].IntermediateHashes,
+			mockRecSrvPublishedReceipt[0].BlockHeight,
+			mockRecSrvPublishedReceipt[0].RMRLinked,
+			mockRecSrvPublishedReceipt[0].RMRLinkedIndex,
+			mockRecSrvPublishedReceipt[0].PublishedIndex,
+		))
 	default:
 		return nil, errors.New("QueryNotMocked")
 	}
@@ -608,6 +628,26 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
 			mockBatchReceipt.Receipt.RecipientSignature,
 			mockBatchReceipt.RMRBatch,
 			mockBatchReceipt.RMRBatchIndex,
+		))
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr, " +
+		"recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
+		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
+		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
+			query.NewPublishedReceiptQuery().Fields,
+		).AddRow(
+			mockRecSrvPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumType,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumHash,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockRecSrvPublishedReceipt[0].Receipt.RMR,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientSignature,
+			mockRecSrvPublishedReceipt[0].IntermediateHashes,
+			mockRecSrvPublishedReceipt[0].BlockHeight,
+			mockRecSrvPublishedReceipt[0].RMRLinked,
+			mockRecSrvPublishedReceipt[0].RMRLinkedIndex,
+			mockRecSrvPublishedReceipt[0].PublishedIndex,
 		))
 	default:
 		return nil, errors.New("QueryNotMocked")
@@ -1843,13 +1883,14 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 		{
 			name: "SelectUnlinkedReceipts:success",
 			fields: fields{
-				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+				QueryExecutor:         &mockQueryExecutorSuccessSelectUnlinked{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:      query.NewBatchReceiptQuery(),
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				ScrambleNodeService:   &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:           &receiptSrvMockReceiptUtilSuccess{},
 				NodeConfiguration: &mockNodeConfigurationService{
 					nodePubKey: make([]byte, 32),
 				},
@@ -2083,14 +2124,15 @@ func TestReceiptService_ValidateUnlinkedReceipts(t *testing.T) {
 		{
 			name: "ValidateUnlinkedReceipts:success",
 			fields: fields{
-				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
-				NodeConfiguration:   &mockNodeConfigurationService{},
+				QueryExecutor:         &mockQueryExecutorSuccessSelectUnlinked{},
+				BlockQuery:            query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:      query.NewBatchReceiptQuery(),
+				TransactionQuery:      query.NewTransactionQuery(&chaintype.MainChain{}),
+				PublishedReceiptQuery: query.NewPublishedReceiptQuery(),
+				MerkleTreeQuery:       query.NewMerkleTreeQuery(),
+				ScrambleNodeService:   &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:           &receiptSrvMockReceiptUtilSuccess{},
+				NodeConfiguration:     &mockNodeConfigurationService{},
 			},
 			args: args{
 				receiptsToValidate: mockRecSrvPublishedReceipt,

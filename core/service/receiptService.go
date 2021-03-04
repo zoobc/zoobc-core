@@ -283,6 +283,11 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	if err != nil {
 		return nil, err
 	}
+	// get block transactions and published receipts
+	err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+	if err != nil {
+		return nil, err
+	}
 
 	// get merkle root for this reference previousBlock (previousBlock at lookBackHeight)
 	qryStr = rs.MerkleTreeQuery.SelectMerkleTreeAtHeight(lookBackHeight)
@@ -399,6 +404,11 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 	)
 	if err != nil {
 		return validReceipts, err
+	}
+	// get block transactions and published receipts
+	err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -537,6 +547,11 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			return nil, err
 		}
+		// get block transactions and published receipts
+		err = util.PopulateBlockData(referenceBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+		if err != nil {
+			return nil, err
+		}
 
 		var (
 			rndDatumType uint32
@@ -656,7 +671,14 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			refBlockReceipt   *model.PublishedReceipt
 			refBlock, err     = util.GetBlockByHeight(refHeight, rs.QueryExecutor, rs.BlockQuery)
 			receiptToValidate *model.PublishedReceipt
+			curNodePubKeyHex  = hex.EncodeToString(rs.NodeConfiguration.GetNodePublicKey())
 		)
+		// this should not happen, since we already verify that this block exists when validating the receipt
+		if err != nil {
+			return nil, err
+		}
+		// get block transactions and published receipts
+		err = util.PopulateBlockData(refBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -677,7 +699,8 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			}
 			continue
 		}
-		if _, ok := priorityPeersAtHeight[hex.EncodeToString(blockToValidate.BlocksmithPublicKey)]; !ok {
+
+		if _, ok := priorityPeersAtHeight[curNodePubKeyHex]; !ok {
 			continue
 		}
 
@@ -700,7 +723,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		}
 		// new block's creator didn't produce an unlinked receipt relative to the linked receipt we are validating,
 		// when it was supposed to do it, so we skip this block
-		// TODO: for barton. should we fail block validation or continue to the next block?
+		// TODO: for barton. should we fail new block validation or continue to the next block?
 		if !receiptFound {
 			continue
 		}
@@ -713,14 +736,19 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 				break
 			}
 		}
-		// TODO: for barton. should we fail block validation or continue to the next block?
+		// TODO: for barton. should we fail new block validation or continue to the next block?
 		if !receiptFound {
 			continue
 		}
 
-		// TODO: uncomment this when implementing intermediate hash validation
+		// // TODO: uncomment this when implementing intermediate hash validation
 		// // Look up the "reference block" for the old receipt.
 		// refOldReceiptBlock, err := util.GetBlockByHeight(oldBlockReceipt.Receipt.ReferenceBlockHeight, rs.QueryExecutor, rs.BlockQuery)
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// // get block transactions and published receipts
+		// err = util.PopulateBlockData(refOldReceiptBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
 		// if err != nil {
 		// 	return nil, err
 		// }
