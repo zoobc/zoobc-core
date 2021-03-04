@@ -53,6 +53,7 @@ import (
 	"bytes"
 	"database/sql"
 	"errors"
+	"fmt"
 	"math"
 	"math/big"
 	"time"
@@ -377,7 +378,7 @@ func (bss *BlocksmithStrategyMain) CanPersistBlock(previousBlock, block *model.B
 	if timestamp >= startTime && timestamp < endTime {
 		return nil
 	}
-	return blocker.NewBlocker(blocker.ValidationErr, "%s-PendingPersist", bss.Chaintype.GetName())
+	return blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf("%s-PendingPersist"), bss.Chaintype.GetName())
 }
 
 // GetBlocksBlocksmiths fetch the blocksmiths candidate list up to block.BlocksmithPublicKey, if the block.BlocksmithPublicKey

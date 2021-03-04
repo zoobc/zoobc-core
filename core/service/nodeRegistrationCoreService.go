@@ -52,10 +52,10 @@ package service
 import (
 	"bytes"
 	"database/sql"
-	"fmt"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	"math"
 	"math/big"
+
+	"github.com/zoobc/zoobc-core/common/monitoring"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -534,7 +534,8 @@ func (nrs *NodeRegistrationService) AddParticipationScore(
 
 	err = nrs.ActiveNodeRegistryCacheStorage.GetItem(nodeID, &nodeRegistry)
 	if err != nil {
-		return 0, blocker.NewBlocker(blocker.AppErr, fmt.Sprintf("AddParticipationScoreErr:%v", err))
+		nrs.Logger.Debugf("AddParticipationScoreErr:%v", err)
+		return 0, nil
 	}
 	// don't update the score if already max allowed
 	if nodeRegistry.ParticipationScore >= constant.MaxParticipationScore && scoreDelta > 0 {

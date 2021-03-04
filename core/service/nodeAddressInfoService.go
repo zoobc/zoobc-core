@@ -407,8 +407,9 @@ func (nru *NodeAddressInfoService) UpdateAddrressInfo(nodeAddressInfo *model.Nod
 		return errors.New("invalid nodeaddressinfo")
 	}
 	qry, args := nru.NodeAddressInfoQuery.UpdateNodeAddressInfo(nodeAddressInfo)
-	_, err := nru.QueryExecutor.ExecuteStatement(qry, args)
+	_, err := nru.QueryExecutor.ExecuteStatement(qry, args...)
 	if err != nil {
+		nru.Logger.Errorf("UpdateAddressInfoFail - query", qry)
 		return err
 	}
 	// followed update query, will directly replace the old  node address info based on node ID
