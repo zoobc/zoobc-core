@@ -1490,21 +1490,24 @@ func (bs *BlockService) ReceiveBlock(
 		if generateReceipt {
 			if e := bs.ReceiptService.CheckDuplication(senderPublicKey, block.GetBlockHash()); e != nil {
 				if b, ok := e.(blocker.Blocker); ok && b.Type == blocker.DuplicateReceiptErr {
-					receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
-						bs.Chaintype,
-						block.GetBlockHash(),
-						&lastBlockCacheFormat,
-						senderPublicKey,
-						nodeSecretPhrase,
-						constant.ReceiptDatumTypeTransaction,
-					)
-					if err != nil {
-						return nil, err
-					}
-					return receipt, nil
+					return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 				}
+
 				return nil, status.Error(codes.Internal, e.Error())
 			}
+
+			receipt, err = bs.ReceiptService.GenerateReceiptWithReminder(
+				bs.Chaintype,
+				block.GetBlockHash(),
+				&lastBlockCacheFormat,
+				senderPublicKey,
+				nodeSecretPhrase,
+				constant.ReceiptDatumTypeBlock,
+			)
+			if err != nil {
+				return nil, err
+			}
+			return receipt, nil
 		}
 		return nil, status.Error(codes.InvalidArgument, "DuplicateBlock")
 	}
@@ -1671,6 +1674,10 @@ func (bs *BlockService) ProcessCompletedBlock(block *model.Block) error {
 	lastBlock, err := bs.GetLastBlock()
 	if err != nil {
 		return err
+	}
+	// terminate if the last block is the same as the received block
+	if bytes.Equal(block.GetBlockHash(), lastBlock.GetBlockHash()) {
+		return nil
 	}
 	//  check equality last block hash with previous block hash from received block
 	if !bytes.Equal(lastBlock.GetBlockHash(), block.GetPreviousBlockHash()) {
