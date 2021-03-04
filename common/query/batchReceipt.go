@@ -97,10 +97,10 @@ func NewBatchReceiptQuery() *BatchReceiptQuery {
 			"datum_hash",
 			"reference_block_height",
 			"reference_block_hash",
-			"rmr_linked",
-			"recipient_signature",
 			"rmr",
-			"rmr_index",
+			"recipient_signature",
+			"rmr_batch",
+			"rmr_batch_index",
 		},
 		TableName: "node_receipt",
 	}
@@ -159,7 +159,7 @@ func (rq *BatchReceiptQuery) GetReceiptsWithUniqueRecipient(
 // published_receipt table
 func (rq *BatchReceiptQuery) GetReceiptsByRootInRange(
 	lowerHeight, upperHeight uint32, root []byte) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND "+
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr_batch = ? AND "+
 		"NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE "+
 		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND "+
 		"reference_block_height BETWEEN %d AND %d "+
@@ -183,7 +183,7 @@ func (rq *BatchReceiptQuery) GetReceiptsByRefBlockHeightAndRefBlockHash(refHeigh
 // GetReceiptsByRootAndDatumHash return sql query to fetch batch receipts by their merkle root
 // note: order is important during receipt selection process during block generation
 func (rq *BatchReceiptQuery) GetReceiptsByRootAndDatumHash(root, datumHash []byte, datumType uint32) (str string, args []interface{}) {
-	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc."+
+	query := fmt.Sprintf("SELECT %s FROM %s AS rc WHERE rc.rmr_batch = ? AND rc.datum_hash = ? AND rc."+
 		"datum_type = ? ORDER BY recipient_signature",
 		strings.Join(rq.Fields, ", "), rq.getTableName())
 	return query, []interface{}{
@@ -209,7 +209,7 @@ func (rq *BatchReceiptQuery) SelectReceipt(
 	lowerHeight, upperHeight, limit uint32,
 ) (str string) {
 	query := fmt.Sprintf("SELECT %s FROM %s AS nr WHERE EXISTS "+
-		"(SELECT rmr_linked FROM published_receipt AS pr WHERE nr.rmr = pr.rmr_linked AND "+
+		"(SELECT rmr FROM published_receipt AS pr WHERE nr.rmr_batch = pr.rmr AND "+
 		"block_height >= %d AND block_height <= %d ) LIMIT %d",
 		strings.Join(rq.Fields, ", "), rq.getTableName(), lowerHeight, upperHeight, limit)
 
@@ -275,10 +275,10 @@ func (*BatchReceiptQuery) ExtractModel(receipt *model.BatchReceipt) []interface{
 		&receipt.GetReceipt().DatumHash,
 		&receipt.GetReceipt().ReferenceBlockHeight,
 		&receipt.GetReceipt().ReferenceBlockHash,
-		&receipt.GetReceipt().RMRLinked,
+		&receipt.GetReceipt().RMR,
 		&receipt.GetReceipt().RecipientSignature,
-		&receipt.RMR,
-		&receipt.RMRIndex,
+		&receipt.RMRBatch,
+		&receipt.RMRBatchIndex,
 	}
 }
 
@@ -298,10 +298,10 @@ func (*BatchReceiptQuery) BuildModel(batchReceipts []*model.BatchReceipt, rows *
 			&receipt.DatumHash,
 			&receipt.ReferenceBlockHeight,
 			&receipt.ReferenceBlockHash,
-			&receipt.RMRLinked,
+			&receipt.RMR,
 			&receipt.RecipientSignature,
-			&batchReceipt.RMR,
-			&batchReceipt.RMRIndex,
+			&batchReceipt.RMRBatch,
+			&batchReceipt.RMRBatchIndex,
 		)
 		if err != nil {
 			return nil, err
@@ -322,10 +322,10 @@ func (*BatchReceiptQuery) Scan(batchReceipt *model.BatchReceipt, row *sql.Row) e
 		&batchReceipt.Receipt.DatumHash,
 		&batchReceipt.Receipt.ReferenceBlockHeight,
 		&batchReceipt.Receipt.ReferenceBlockHash,
-		&batchReceipt.Receipt.RMRLinked,
+		&batchReceipt.Receipt.RMR,
 		&batchReceipt.Receipt.RecipientSignature,
-		&batchReceipt.RMR,
-		&batchReceipt.RMRIndex,
+		&batchReceipt.RMRBatch,
+		&batchReceipt.RMRBatchIndex,
 	)
 	return err
 

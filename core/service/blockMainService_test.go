@@ -616,12 +616,12 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"reference_block_hash, rmr, recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key", "recipient_public_key", "datum_type", "datum_hash", "reference_block_height",
-			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
-			"receipt_index", "published_index",
+			"reference_block_hash", "rmr", "recipient_signature", "intermediate_hashes", "block_height",
+			"rmr_linked", "rmr_linked_index", "published_index",
 		}).AddRow(
 			mockPublishedReceipt[0].Receipt.SenderPublicKey,
 			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
@@ -629,11 +629,12 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].Receipt.DatumHash,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].Receipt.RMRLinked,
+			mockPublishedReceipt[0].Receipt.RMR,
 			mockPublishedReceipt[0].Receipt.RecipientSignature,
 			mockPublishedReceipt[0].IntermediateHashes,
 			mockPublishedReceipt[0].BlockHeight,
-			mockPublishedReceipt[0].ReceiptIndex,
+			mockPublishedReceipt[0].RMRLinked,
+			mockPublishedReceipt[0].RMRLinkedIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
 	case "SELECT id, node_public_key, account_address, registration_height, " +
@@ -718,15 +719,14 @@ var mockPublishedReceipt = []*model.PublishedReceipt{
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 0,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            nil,
+			RMR:                  nil,
 			RecipientSignature:   make([]byte, 64),
 		},
 		IntermediateHashes: nil,
 		BlockHeight:        1,
-		ReceiptIndex:       0,
 		PublishedIndex:     0,
-		RMR:                make([]byte, 32),
-		RMRIndex:           uint32(0),
+		RMRLinked:          make([]byte, 32),
+		RMRLinkedIndex:     uint32(0),
 	},
 }
 
@@ -4341,7 +4341,7 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 				mockTransaction.TransactionIndex,
 			))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"reference_block_hash, rmr, recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
 		mockMain.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
@@ -4353,11 +4353,12 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 				mockPublishedReceipt[0].Receipt.DatumHash,
 				mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 				mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-				mockPublishedReceipt[0].Receipt.RMRLinked,
+				mockPublishedReceipt[0].Receipt.RMR,
 				mockPublishedReceipt[0].Receipt.RecipientSignature,
 				mockPublishedReceipt[0].IntermediateHashes,
 				mockPublishedReceipt[0].BlockHeight,
-				mockPublishedReceipt[0].ReceiptIndex,
+				mockPublishedReceipt[0].RMRLinked,
+				mockPublishedReceipt[0].RMRLinkedIndex,
 				mockPublishedReceipt[0].PublishedIndex,
 			))
 

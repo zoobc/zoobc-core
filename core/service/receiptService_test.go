@@ -137,11 +137,11 @@ var (
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 10,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            make([]byte, 32),
+			RMR:                  make([]byte, 32),
 			RecipientSignature:   make([]byte, 64),
 		},
-		RMR:      make([]byte, 64),
-		RMRIndex: 0,
+		RMRBatch:      make([]byte, 64),
+		RMRBatchIndex: 0,
 	}
 	mockUnlinkedReceiptWithLinkedRMR = &model.BatchReceipt{
 		Receipt: &model.Receipt{
@@ -153,11 +153,11 @@ var (
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 10,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            make([]byte, 32),
+			RMR:                  make([]byte, 32),
 			RecipientSignature:   make([]byte, 64),
 		},
-		RMR:      make([]byte, 64),
-		RMRIndex: 0,
+		RMRBatch:      make([]byte, 64),
+		RMRBatchIndex: 0,
 	}
 	mockUnlinkedReceipt = &model.BatchReceipt{
 		Receipt: &model.Receipt{
@@ -169,11 +169,11 @@ var (
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 10,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            make([]byte, 32),
+			RMR:                  make([]byte, 32),
 			RecipientSignature:   make([]byte, 64),
 		},
-		RMR:      make([]byte, 64),
-		RMRIndex: 0,
+		RMRBatch:      make([]byte, 64),
+		RMRBatchIndex: 0,
 	}
 
 	mockReceiptRMR  *bytes.Buffer
@@ -314,16 +314,16 @@ var (
 			DatumHash:            []byte{1, 2, 3, 4, 5, 6},
 			ReferenceBlockHeight: uint32(1),
 			ReferenceBlockHash:   []byte{1, 2, 3, 4, 5, 6},
-			RMRLinked:            []byte{1, 2, 3, 4, 5, 6},
+			RMR:                  []byte{1, 2, 3, 4, 5, 6},
 			RecipientSignature:   []byte{1, 2, 3, 4, 5, 6},
 		},
-		RMR:      []byte{1, 2, 3, 4, 5, 6},
-		RMRIndex: uint32(4),
+		RMRBatch:      []byte{1, 2, 3, 4, 5, 6},
+		RMRBatchIndex: uint32(4),
 	}
 	mockReceiptToPublish = &model.PublishedReceipt{
-		Receipt:  mockBatchReceipt.Receipt,
-		RMR:      []byte{2, 3, 4, 5, 6, 7},
-		RMRIndex: uint32(1),
+		Receipt:        mockBatchReceipt.Receipt,
+		RMRLinked:      []byte{2, 3, 4, 5, 6, 7},
+		RMRLinkedIndex: uint32(1),
 	}
 )
 
@@ -356,8 +356,8 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
 			mockTransaction.MultisigChild,
 			mockTransaction.Message,
 		))
-	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
-		" recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
+		" recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
 		"datum_type = ? ORDER BY recipient_public_key, reference_block_height":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			mockReceiptQuery.Fields,
@@ -368,10 +368,10 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
 			mockBatchReceipt.Receipt.DatumHash,
 			mockBatchReceipt.Receipt.ReferenceBlockHeight,
 			mockBatchReceipt.Receipt.ReferenceBlockHash,
-			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RMR,
 			mockBatchReceipt.Receipt.RecipientSignature,
-			mockBatchReceipt.RMR,
-			mockBatchReceipt.RMRIndex,
+			mockBatchReceipt.RMRBatch,
+			mockBatchReceipt.RMRBatchIndex,
 		))
 	default:
 		return nil, errors.New("QueryNotMocked")
@@ -516,8 +516,8 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
 			mockTransaction.MultisigChild,
 			mockTransaction.Message,
 		))
-	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
-		" recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
+		" recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
 		"datum_type = ? ORDER BY recipient_public_key, reference_block_height":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			mockReceiptQuery.Fields,
@@ -528,10 +528,10 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
 			mockBatchReceipt.Receipt.DatumHash,
 			mockBatchReceipt.Receipt.ReferenceBlockHeight,
 			mockBatchReceipt.Receipt.ReferenceBlockHash,
-			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RMR,
 			mockBatchReceipt.Receipt.RecipientSignature,
-			mockBatchReceipt.RMR,
-			mockBatchReceipt.RMRIndex,
+			mockBatchReceipt.RMRBatch,
+			mockBatchReceipt.RMRBatchIndex,
 		))
 	default:
 		return nil, errors.New("QueryNotMocked")
@@ -547,8 +547,8 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 	db, mock, _ := sqlmock.New()
 	defer db.Close()
 	switch qe {
-	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
-		" recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc.datum_type = ? AND rc." +
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
+		" recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc.datum_type = ? AND rc." +
 		"recipient_public_key = ? LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBatchReceiptQuery().Fields,
@@ -559,10 +559,10 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 			mockBatchReceipt.Receipt.DatumHash,
 			mockBatchReceipt.Receipt.ReferenceBlockHeight,
 			mockBatchReceipt.Receipt.ReferenceBlockHash,
-			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RMR,
 			mockBatchReceipt.Receipt.RecipientSignature,
-			mockBatchReceipt.RMR,
-			mockBatchReceipt.RMRIndex,
+			mockBatchReceipt.RMRBatch,
+			mockBatchReceipt.RMRBatchIndex,
 		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -589,8 +589,8 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 			mockBlockData.GetMerkleTree(),
 			mockBlockData.GetReferenceBlockHeight(),
 		))
-	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr_linked," +
-		" rmr, rmr_index, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
+		" recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewPublishedReceiptQuery().Fields,
@@ -601,17 +601,16 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 			mockPublishedReceipt[0].Receipt.DatumHash,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].Receipt.RMRLinked,
-			mockPublishedReceipt[0].RMR,
-			mockPublishedReceipt[0].RMRIndex,
+			mockPublishedReceipt[0].Receipt.RMR,
 			mockPublishedReceipt[0].Receipt.RecipientSignature,
 			mockPublishedReceipt[0].IntermediateHashes,
 			mockPublishedReceipt[0].BlockHeight,
-			mockPublishedReceipt[0].ReceiptIndex,
+			mockPublishedReceipt[0].RMRLinked,
+			mockPublishedReceipt[0].RMRLinkedIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, " +
-		"rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
+		"rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
 		"reference_block_hash = ? LIMIT 1":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBatchReceiptQuery().Fields,
@@ -622,10 +621,10 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 			mockBatchReceipt.Receipt.DatumHash,
 			mockBatchReceipt.Receipt.ReferenceBlockHeight,
 			mockBatchReceipt.Receipt.ReferenceBlockHash,
-			mockBatchReceipt.Receipt.RMRLinked,
+			mockBatchReceipt.Receipt.RMR,
 			mockBatchReceipt.Receipt.RecipientSignature,
-			mockBatchReceipt.RMR,
-			mockBatchReceipt.RMRIndex,
+			mockBatchReceipt.RMRBatch,
+			mockBatchReceipt.RMRBatchIndex,
 		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -687,7 +686,7 @@ func (*mockQueryExecutorFailExecuteSelectReceipt) ExecuteSelect(
 			1*constant.OneZBC,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
+		"reference_block_hash, rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
 		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
 		"reference_block_height BETWEEN 0 AND 1000 " +
@@ -717,7 +716,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			1*constant.OneZBC,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
+		"reference_block_hash, rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
 		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
 		"reference_block_height BETWEEN 0 AND 1000 " +
@@ -740,7 +739,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			mockLinkedReceipt.Receipt.DatumHash,
 			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
 			mockLinkedReceipt.Receipt.ReferenceBlockHash,
-			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RMR,
 			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
@@ -756,10 +755,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			"datum_hash",
 			"reference_block_height",
 			"reference_block_hash",
-			"rmr_linked",
-			"recipient_signature",
 			"rmr",
-			"rmr_index",
+			"recipient_signature",
+			"rmr_batch",
+			"rmr_batch_index",
 		}).AddRow(
 			mockLinkedReceipt.Receipt.SenderPublicKey,
 			mockLinkedReceipt.Receipt.RecipientPublicKey,
@@ -767,7 +766,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceipts) ExecuteSelect(
 			mockLinkedReceipt.Receipt.DatumHash,
 			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
 			mockLinkedReceipt.Receipt.ReferenceBlockHash,
-			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RMR,
 			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
@@ -934,7 +933,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			1*constant.OneZBC,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc " +
+		"reference_block_hash, rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc " +
 		"WHERE rc.rmr = ? AND NOT EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE " +
 		"pr.datum_hash = rc.datum_hash AND pr.recipient_public_key = rc.recipient_public_key) AND " +
 		"reference_block_height BETWEEN 0 AND 1000 " +
@@ -946,10 +945,10 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			"datum_hash",
 			"reference_block_height",
 			"reference_block_hash",
-			"rmr_linked",
-			"recipient_signature",
 			"rmr",
-			"rmr_index",
+			"recipient_signature",
+			"rmr_batch",
+			"rmr_batch_index",
 		}).AddRow(
 			mockLinkedReceipt.Receipt.SenderPublicKey,
 			mockLinkedReceipt.Receipt.RecipientPublicKey,
@@ -957,13 +956,13 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			mockLinkedReceipt.Receipt.DatumHash,
 			mockLinkedReceipt.Receipt.ReferenceBlockHeight,
 			mockLinkedReceipt.Receipt.ReferenceBlockHash,
-			mockLinkedReceipt.Receipt.RMRLinked,
+			mockLinkedReceipt.Receipt.RMR,
 			mockLinkedReceipt.Receipt.RecipientSignature,
 			mockReceiptRMR.Bytes(),
 			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE NOT " +
+		"reference_block_hash, rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE NOT " +
 		"EXISTS (SELECT datum_hash FROM published_receipt AS pr WHERE pr.datum_hash == rc.datum_hash) AND " +
 		"reference_block_height BETWEEN 0 AND 1000 GROUP BY recipient_public_key ORDER BY reference_block_height " +
 		"ASC LIMIT 15":
@@ -985,7 +984,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			mockUnlinkedReceiptWithLinkedRMR.Receipt.DatumHash,
 			mockUnlinkedReceiptWithLinkedRMR.Receipt.ReferenceBlockHeight,
 			mockUnlinkedReceiptWithLinkedRMR.Receipt.ReferenceBlockHash,
-			mockUnlinkedReceiptWithLinkedRMR.Receipt.RMRLinked,
+			mockUnlinkedReceiptWithLinkedRMR.Receipt.RMR,
 			mockUnlinkedReceiptWithLinkedRMR.Receipt.RecipientSignature,
 			make([]byte, 32),
 			0,
@@ -996,7 +995,7 @@ func (*mockQueryExecutorSuccessOneLinkedReceiptsAndMore) ExecuteSelect(
 			mockUnlinkedReceipt.Receipt.DatumHash,
 			mockUnlinkedReceipt.Receipt.ReferenceBlockHeight,
 			mockUnlinkedReceipt.Receipt.ReferenceBlockHash,
-			mockUnlinkedReceipt.Receipt.RMRLinked,
+			mockUnlinkedReceipt.Receipt.RMR,
 			mockUnlinkedReceipt.Receipt.RecipientSignature,
 			make([]byte, 32),
 			0,
@@ -1343,13 +1342,12 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 		mockPublishedReceipt[0].Receipt.DatumHash,
 		mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 		mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-		mockPublishedReceipt[0].Receipt.RMRLinked,
-		mockPublishedReceipt[0].RMR,
-		mockPublishedReceipt[0].RMRIndex,
+		mockPublishedReceipt[0].Receipt.RMR,
 		mockPublishedReceipt[0].Receipt.RecipientSignature,
 		mockPublishedReceipt[0].IntermediateHashes,
 		mockPublishedReceipt[0].BlockHeight,
-		mockPublishedReceipt[0].ReceiptIndex,
+		mockPublishedReceipt[0].RMRLinked,
+		mockPublishedReceipt[0].RMRLinkedIndex,
 		mockPublishedReceipt[0].PublishedIndex,
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
@@ -1693,7 +1691,10 @@ func (*receiptSrvMockReceiptUtilSuccess) ValidateReceiptHelper(
 }
 
 func (*receiptSrvMockReceiptUtilSuccess) GeneratePublishedReceipt(
-	batchReceipt *model.BatchReceipt,
+	batchReceipt *model.Receipt,
+	PublishedIndex uint32,
+	RMRLinked []byte,
+	RMRLinkedIndex uint32,
 ) (*model.PublishedReceipt, error) {
 	return mockReceiptToPublish, nil
 }
@@ -1844,10 +1845,11 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 		Logger                   *log.Logger
 	}
 	type args struct {
-		numberOfReceipt uint32
-		blockHeight     uint32
-		blockSeed       []byte
-		secretPhrase    string
+		numberOfReceipt          uint32
+		numberOfUnlinkedReceipts uint32
+		blockHeight              uint32
+		blockSeed                []byte
+		secretPhrase             string
 	}
 	tests := []struct {
 		name    string
@@ -1924,7 +1926,8 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 				NodeConfiguration:        tt.fields.NodeConfiguration,
 				Logger:                   tt.fields.Logger,
 			}
-			got, err := rs.SelectLinkedReceipts(tt.args.numberOfReceipt, tt.args.blockHeight, tt.args.blockSeed)
+			got, err := rs.SelectLinkedReceipts(tt.args.numberOfUnlinkedReceipts, tt.args.numberOfReceipt, tt.args.blockHeight,
+				tt.args.blockSeed)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SelectLinkedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -1946,15 +1949,14 @@ func TestReceiptService_ValidateUnlinkedReceipts(t *testing.T) {
 				DatumHash:            []byte{1, 1, 1, 1, 1, 1, 1, 1},
 				ReferenceBlockHeight: 0,
 				ReferenceBlockHash:   make([]byte, 32),
-				RMRLinked:            nil,
+				RMR:                  nil,
 				RecipientSignature:   make([]byte, 64),
 			},
 			IntermediateHashes: nil,
 			BlockHeight:        1,
-			ReceiptIndex:       0,
 			PublishedIndex:     0,
-			RMR:                make([]byte, 32),
-			RMRIndex:           uint32(0),
+			RMRLinked:          make([]byte, 32),
+			RMRLinkedIndex:     uint32(0),
 		},
 	}
 	type fields struct {

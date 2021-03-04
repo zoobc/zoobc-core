@@ -70,11 +70,11 @@ var (
 			DatumHash:            []byte{1, 2, 3, 4, 5, 6},
 			ReferenceBlockHeight: uint32(1),
 			ReferenceBlockHash:   []byte{1, 2, 3, 4, 5, 6},
-			RMRLinked:            []byte{1, 2, 3, 4, 5, 6},
+			RMR:                  []byte{1, 2, 3, 4, 5, 6},
 			RecipientSignature:   []byte{1, 2, 3, 4, 5, 6},
 		},
-		RMR:      []byte{1, 2, 3, 4, 5, 6},
-		RMRIndex: uint32(4),
+		RMRBatch:      []byte{1, 2, 3, 4, 5, 6},
+		RMRBatchIndex: uint32(4),
 	}
 )
 
@@ -102,7 +102,7 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 			wantQStr: "INSERT INTO node_receipt " +
 				"(sender_public_key, recipient_public_key, " +
 				"datum_type, datum_hash, reference_block_height, " +
-				"reference_block_hash, rmr_linked, recipient_signature, rmr, rmr_index) " +
+				"reference_block_hash, rmr, recipient_signature, rmr_batch, rmr_batch_index) " +
 				"VALUES(?,? ,? ,? ,? ,? ,? ,? ,? ,? )",
 			wantArgs: []interface{}{
 				&mockBatchReceipt.Receipt.SenderPublicKey,
@@ -111,10 +111,10 @@ func TestReceiptQuery_InsertReceipts(t *testing.T) {
 				&mockBatchReceipt.Receipt.DatumHash,
 				&mockBatchReceipt.Receipt.ReferenceBlockHeight,
 				&mockBatchReceipt.Receipt.ReferenceBlockHash,
-				&mockBatchReceipt.Receipt.RMRLinked,
+				&mockBatchReceipt.Receipt.RMR,
 				&mockBatchReceipt.Receipt.RecipientSignature,
-				&mockBatchReceipt.RMR,
-				&mockBatchReceipt.RMRIndex,
+				&mockBatchReceipt.RMRBatch,
+				&mockBatchReceipt.RMRBatchIndex,
 			},
 		},
 	}
@@ -159,8 +159,8 @@ func TestReceiptQuery_InsertReceipt(t *testing.T) {
 			},
 			wantStr: "INSERT INTO node_receipt " +
 				"(sender_public_key, recipient_public_key, datum_type, datum_hash, " +
-				"reference_block_height, reference_block_hash, rmr_linked, " +
-				"recipient_signature, rmr, rmr_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
+				"reference_block_height, reference_block_hash, rmr, " +
+				"recipient_signature, rmr_batch, rmr_batch_index) VALUES(? , ? , ? , ? , ? , ? , ? , ? , ? , ? )",
 			wantArgs: []interface{}{
 				&mockBatchReceipt.Receipt.SenderPublicKey,
 				&mockBatchReceipt.Receipt.RecipientPublicKey,
@@ -168,10 +168,10 @@ func TestReceiptQuery_InsertReceipt(t *testing.T) {
 				&mockBatchReceipt.Receipt.DatumHash,
 				&mockBatchReceipt.Receipt.ReferenceBlockHeight,
 				&mockBatchReceipt.Receipt.ReferenceBlockHash,
-				&mockBatchReceipt.Receipt.RMRLinked,
+				&mockBatchReceipt.Receipt.RMR,
 				&mockBatchReceipt.Receipt.RecipientSignature,
-				&mockBatchReceipt.RMR,
-				&mockBatchReceipt.RMRIndex,
+				&mockBatchReceipt.RMRBatch,
+				&mockBatchReceipt.RMRBatchIndex,
 			},
 		},
 	}
@@ -214,8 +214,8 @@ func TestReceiptQuery_GetReceipts(t *testing.T) {
 				OrderBy: model.OrderBy_ASC,
 			}},
 			want: "SELECT sender_public_key, recipient_public_key, datum_type, " +
-				"datum_hash, reference_block_height, reference_block_hash, rmr_linked, " +
-				"recipient_signature, rmr, rmr_index FROM node_receipt ORDER BY reference_block_height " +
+				"datum_hash, reference_block_height, reference_block_hash, rmr, " +
+				"recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt ORDER BY reference_block_height " +
 				"ASC LIMIT 256 OFFSET 0",
 		},
 	}
@@ -432,7 +432,7 @@ func TestBatchReceiptQuery_GetReceiptsByRootAndDatumHash(t *testing.T) {
 				datumHash: make([]byte, 32),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
-				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
+				" rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr_batch = ? AND rc.datum_hash = ? AND rc." +
 				"datum_type = ? ORDER BY recipient_signature",
 			wantArgs: []interface{}{
 				make([]byte, 32),
@@ -482,7 +482,7 @@ func TestBatchReceiptQuery_GetReceiptsByRefBlockHeightAndRefBlockHash(t *testing
 				refHash:   make([]byte, 32),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
-				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
+				" rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
 				"reference_block_hash = ? LIMIT 1",
 			wantArgs: []interface{}{
 				uint32(1),
@@ -533,7 +533,7 @@ func TestBatchReceiptQuery_GetReceiptsByRecipientAndDatumHash(t *testing.T) {
 				recipientPubKey: make([]byte, 32),
 			},
 			wantStr: "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash," +
-				" rmr_linked, recipient_signature, rmr, rmr_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc." +
+				" rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.datum_hash = ? AND rc." +
 				"datum_type = ? AND rc.recipient_public_key = ? LIMIT 1",
 			wantArgs: []interface{}{
 				make([]byte, 32),

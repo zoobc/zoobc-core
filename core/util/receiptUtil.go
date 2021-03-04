@@ -100,7 +100,10 @@ type (
 			scrambleNodes *model.ScrambledNodes,
 		) (map[string]*model.Peer, error)
 		GeneratePublishedReceipt(
-			batchReceipt *model.BatchReceipt,
+			batchReceipt *model.Receipt,
+			PublishedIndex uint32,
+			RMRLinked []byte,
+			RMRLinkedIndex uint32,
 		) (*model.PublishedReceipt, error)
 		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
 		BuildBlockDatumHashes(
@@ -185,12 +188,14 @@ func (ru *ReceiptUtil) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (
 }
 
 func (ru *ReceiptUtil) GeneratePublishedReceipt(
-	batchReceipt *model.BatchReceipt,
+	receipt *model.Receipt,
+	PublishedIndex uint32,
+	RMRLinked []byte,
+	RMRLinkedIndex uint32,
 ) (*model.PublishedReceipt, error) {
 	var (
 		intermediateHashes [][]byte
 		merkle             = util.MerkleRoot{}
-		receipt            = batchReceipt.GetReceipt()
 	)
 
 	rcByte := ru.GetSignedReceiptBytes(receipt)
@@ -198,7 +203,7 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 
 	intermediateHashesBuffer := merkle.GetIntermediateHashes(
 		bytes.NewBuffer(rcHash[:]),
-		int32(batchReceipt.RMRIndex),
+		int32(RMRLinkedIndex),
 	)
 	for _, buf := range intermediateHashesBuffer {
 		intermediateHashes = append(intermediateHashes, buf.Bytes())
@@ -206,8 +211,9 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 	return &model.PublishedReceipt{
 		Receipt:            receipt,
 		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
-		ReceiptIndex:       batchReceipt.RMRIndex,
-		RMR:                batchReceipt.RMR,
+		RMRLinked:          RMRLinked,
+		RMRLinkedIndex:     RMRLinkedIndex,
+		PublishedIndex:     PublishedIndex,
 	}, nil
 }
 
@@ -355,7 +361,7 @@ func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uin
 func (ru *ReceiptUtil) GenerateReceipt(
 	ct chaintype.ChainType,
 	referenceBlock *storage.BlockCacheObject,
-	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
+	senderPublicKey, recipientPublicKey, datumHash, rmr []byte,
 	datumType uint32,
 ) (*model.Receipt, error) {
 
@@ -366,7 +372,7 @@ func (ru *ReceiptUtil) GenerateReceipt(
 		DatumHash:            datumHash,
 		ReferenceBlockHeight: referenceBlock.Height,
 		ReferenceBlockHash:   referenceBlock.BlockHash,
-		RMRLinked:            rmrLinked,
+		RMR:                  rmr,
 	}, nil
 }
 
@@ -380,7 +386,7 @@ func (ru *ReceiptUtil) GetUnsignedReceiptBytes(receipt *model.Receipt) []byte {
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(util.ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.RMRLinked)
+	buffer.Write(receipt.RMR)
 	return buffer.Bytes()
 }
 
@@ -393,7 +399,7 @@ func (ru *ReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte {
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(util.ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.RMRLinked)
+	buffer.Write(receipt.RMR)
 	buffer.Write(receipt.RecipientSignature)
 	return buffer.Bytes()
 }
@@ -430,7 +436,7 @@ func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) err
 	if !bytes.Equal(a.Receipt.SenderPublicKey, b.Receipt.SenderPublicKey) {
 		return errors.New("SenderPubKey")
 	}
-	if !bytes.Equal(a.Receipt.RMRLinked, b.Receipt.RMRLinked) {
+	if !bytes.Equal(a.Receipt.RMR, b.Receipt.RMR) {
 		return errors.New("RMRLinked")
 	}
 

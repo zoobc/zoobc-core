@@ -188,10 +188,10 @@ func (m *Migration) Init() error {
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"rmr_linked" BLOB,
-				"recipient_signature" BLOB,
 				"rmr" BLOB,
-				"rmr_index" INTEGER
+				"recipient_signature" BLOB,
+				"rmr_batch" BLOB,
+				"rmr_batch_index" INTEGER
 			)
 			`,
 			`
@@ -208,13 +208,12 @@ func (m *Migration) Init() error {
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"rmr_linked" BLOB,
 				"rmr" BLOB,
-				"rmr_index" INTEGER,
 				"recipient_signature" BLOB,
 				"intermediate_hashes" BLOB,
 				"block_height" INTEGER,
-				"receipt_index" INTEGER,
+				"rmr_linked" BLOB,
+				"rmr_linked_index" INTEGER
 				"published_index" INTEGER
 			)
 			`,

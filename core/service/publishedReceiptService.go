@@ -110,7 +110,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 
 	// filter unlinked receipts
 	for _, unlinked := range publishedReceipts {
-		if unlinked.Receipt.RMRLinked == nil {
+		if unlinked.Receipt.RMR == nil {
 			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, unlinked)
 		}
 	}
@@ -124,7 +124,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 
 		// filter linked receipts
 		for _, linked := range publishedReceipts {
-			if linked.Receipt.RMRLinked != nil {
+			if linked.Receipt.RMR != nil {
 				linkedReceiptsToValidate = append(linkedReceiptsToValidate, linked)
 			}
 		}

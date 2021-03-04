@@ -85,7 +85,7 @@ type (
 			blockSeed []byte,
 		) ([][]*model.PublishedReceipt, error)
 		SelectLinkedReceipts(
-			numberOfReceipt, blockHeight uint32,
+			numberOfUnlinkedReceipts, numberOfReceipt, blockHeight uint32,
 			blockSeed []byte,
 		) ([]*model.PublishedReceipt, error)
 		SelectUnlinkedReceipts(
@@ -359,8 +359,10 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 		}
 	}
 
-	for _, unlinkedBatchReceipt := range unlinkedBatchReceiptList {
-		unlinkedReceiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(unlinkedBatchReceipt)
+	for idx, batchReceipt := range unlinkedBatchReceiptList {
+		// remove RMRLinked from the batch receipt,
+		// since this is an unlinked published receipt and the way we link published receipts is different from
+		unlinkedReceiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(batchReceipt.Receipt, uint32(idx), nil, 0)
 		if err != nil {
 			rs.Logger.Error(err)
 			continue
@@ -439,7 +441,7 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 // SelectLinkedReceipts select receipts received from node's priority peers at a given block height (from either a transaction or block
 // broadcast to them by current node
 func (rs *ReceiptService) SelectLinkedReceipts(
-	numberOfReceipt, blockHeight uint32,
+	numberOfUnlinkedReceipts, numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
 ) ([]*model.PublishedReceipt, error) {
 
@@ -449,8 +451,9 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		nodePublicKey  = rs.NodeConfiguration.GetNodePublicKey()
 		// maxLookBackwardSteps max n. of times this node should look backwards trying to link receipts when he was one of the scramble nodes
 		// note: numberOfReceipts = number of max priority peers the node has
-		maxLookBackwardSteps = numberOfReceipt
-		emptyReceipts        = make([]*model.PublishedReceipt, 0)
+		maxLookBackwardSteps           = numberOfReceipt
+		emptyReceipts                  = make([]*model.PublishedReceipt, 0)
+		rmrLinkedIndex, publishedIndex uint32
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
@@ -458,6 +461,10 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		return emptyReceipts, nil
 	}
 
+	// set first index for linked published receipts one unit more than the latest unlinked receipt index
+	if numberOfUnlinkedReceipts > 0 {
+		publishedIndex = rmrLinkedIndex + numberOfUnlinkedReceipts + 1
+	}
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	for refHeightInt := int32(blockHeight - 1); refHeightInt >= 0; refHeightInt-- {
 		var (
@@ -588,7 +595,6 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		// 2. Query my receipts in the batch, to find one that matches the data hash we rolled,
 		// and also matches the receiver that we rolled. If we *do not* have a receipt in the batch that matches these 2,
 		// then we fail this block (cannot link a receipt to it), and continue iterating backwards.
-		var batchReceiptRmr model.BatchReceipt
 		batchReceiptsQ, rootArgs = rs.NodeReceiptQuery.GetReceiptsByRecipientAndDatumHash(
 			rndDatumHash,
 			rndDatumType,
@@ -613,18 +619,20 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 
 		// 3. If we DO have a matching receipt (which we should, if we’ve been doing all of our work on the network),
 		// this becomes one of our N "linked receipts", which we can publish in our new block.
-		batchReceiptToPublish := &model.BatchReceipt{
-			Receipt:  batchReceiptToLink.GetReceipt(),
-			RMR:      batchReceiptRmr.RMR,
-			RMRIndex: batchReceiptRmr.RMRIndex,
-		}
-		batchReceiptToPublish.Receipt.RMRLinked = batchReceiptToLink.RMR
-		receiptToPublish, err := rs.ReceiptUtil.GeneratePublishedReceipt(batchReceiptToPublish)
+		publishedReceipt, err := rs.ReceiptUtil.GeneratePublishedReceipt(
+			batchReceiptToLink.Receipt,
+			publishedIndex,
+			// TODO: for barton. please double check this is correct. this published receipt will have Receipt.RMR = RMRLinked
+			batchReceiptToLink.Receipt.RMR,
+			rmrLinkedIndex,
+		)
+		publishedIndex++
+		rmrLinkedIndex++
 		if err != nil {
 			rs.Logger.Error(err)
 			continue
 		}
-		linkedReceipts = append(linkedReceipts, receiptToPublish)
+		linkedReceipts = append(linkedReceipts, publishedReceipt)
 	}
 	return linkedReceipts, nil
 }
@@ -680,7 +688,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		)
 		for _, refBlockReceipt = range refBlock.GetPublishedReceipts() {
 			// did the new block creator have an unlinked receipt in ref block?
-			if refBlockReceipt.Receipt.RMRLinked == nil {
+			if refBlockReceipt.RMRLinked == nil {
 				if bytes.Equal(refBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
 					receiptFound = true
 					break
@@ -794,6 +802,7 @@ func (rs *ReceiptService) SelectReceipts(
 
 	// select linked receipts
 	linkedReceipts, err = rs.SelectLinkedReceipts(
+		uint32(len(unlinkedReceipts)),
 		numberOfReceipt,
 		blockHeight,
 		blockSeed,
@@ -899,9 +908,9 @@ func (rs *ReceiptService) GenerateReceiptsMerkleRoot(block *model.Block) error {
 		for k, receipt := range receiptsToSave {
 			b := receipt
 			batchReceipt = &model.BatchReceipt{
-				Receipt:  &b,
-				RMR:      rootMerkle,
-				RMRIndex: uint32(k),
+				Receipt:       &b,
+				RMRBatch:      rootMerkle,
+				RMRBatchIndex: uint32(k),
 			}
 			insertNodeReceiptQ, insertNodeReceiptArgs := rs.NodeReceiptQuery.InsertReceipt(batchReceipt)
 			queries[k] = append([]interface{}{insertNodeReceiptQ}, insertNodeReceiptArgs...)
