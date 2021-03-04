@@ -325,6 +325,82 @@ var (
 		RMRLinked:      []byte{2, 3, 4, 5, 6, 7},
 		RMRLinkedIndex: uint32(1),
 	}
+	mockRecSrvTransaction = &model.Transaction{
+		ID:      1,
+		BlockID: 1,
+		Height:  0,
+		SenderAccountAddress: []byte{0, 0, 0, 0, 4, 38, 68, 24, 230, 247, 88, 220, 119, 124, 51, 149, 127, 214, 82, 224,
+			72, 239, 56, 139, 255, 81, 229, 184, 77, 80, 80, 39, 254, 173, 28, 169},
+		RecipientAccountAddress: []byte{0, 0, 0, 0, 229, 176, 168, 71, 174, 217, 223, 62, 98, 47, 207, 16, 210, 190, 79, 28, 126,
+			202, 25, 79, 137, 40, 243, 132, 77, 206, 170, 27, 124, 232, 110, 14},
+		TransactionType:       1,
+		Fee:                   10,
+		Timestamp:             1000,
+		TransactionHash:       []byte{},
+		TransactionBodyLength: 8,
+		TransactionBodyBytes:  mockSendZBCTxBodyBytes,
+		Signature:             []byte{1, 2, 3, 4, 5, 6, 7, 8},
+		Version:               1,
+		TransactionIndex:      1,
+	}
+	mockRecSrvBlock1 = &model.Block{
+		ID:                   1,
+		BlockHash:            nil,
+		PreviousBlockHash:    nil,
+		Height:               1000,
+		Timestamp:            0,
+		BlockSeed:            nil,
+		BlockSignature:       nil,
+		CumulativeDifficulty: "",
+		BlocksmithPublicKey:  nil,
+		TotalAmount:          0,
+		TotalFee:             0,
+		TotalCoinBase:        0,
+		Version:              0,
+		PayloadLength:        0,
+		PayloadHash:          nil,
+		Transactions:         nil,
+		PublishedReceipts:    nil,
+	}
+	mockRecSrvBlockData = model.Block{
+		ID:        constant.MainchainGenesisBlockID,
+		BlockHash: make([]byte, 32),
+		PreviousBlockHash: []byte{167, 255, 198, 248, 191, 30, 215, 102, 81, 193, 71, 86, 160,
+			97, 214, 98, 245, 128, 255, 77, 228, 59, 73, 250, 130, 216, 10, 75, 128, 248, 67, 74},
+		Height:    1,
+		Timestamp: 1,
+		BlockSeed: []byte{153, 58, 50, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		BlockSignature:       []byte{144, 246, 37, 144, 213, 135},
+		CumulativeDifficulty: "1000",
+		PayloadLength:        1,
+		PayloadHash:          []byte{},
+		BlocksmithPublicKey: []byte{1, 2, 3, 200, 7, 61, 108, 229, 204, 48, 199, 145, 21, 99, 125, 75, 49,
+			45, 118, 97, 219, 80, 242, 244, 100, 134, 144, 246, 37, 144, 213, 135},
+		TotalAmount:   1000,
+		TotalFee:      0,
+		TotalCoinBase: 1,
+		Version:       0,
+	}
+	mockRecSrvPublishedReceipt = []*model.PublishedReceipt{
+		{
+			Receipt: &model.Receipt{
+				SenderPublicKey:      make([]byte, 32),
+				RecipientPublicKey:   make([]byte, 32),
+				DatumType:            0,
+				DatumHash:            make([]byte, 32),
+				ReferenceBlockHeight: 0,
+				ReferenceBlockHash:   make([]byte, 32),
+				RMR:                  nil,
+				RecipientSignature:   make([]byte, 64),
+			},
+			IntermediateHashes: nil,
+			BlockHeight:        1,
+			PublishedIndex:     0,
+			RMRLinked:          make([]byte, 32),
+			RMRLinkedIndex:     uint32(0),
+		},
+	}
 )
 
 func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
@@ -339,26 +415,26 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelect(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewTransactionQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockTransaction.ID,
-			mockTransaction.BlockID,
-			mockTransaction.Height,
-			mockTransaction.SenderAccountAddress,
-			mockTransaction.RecipientAccountAddress,
-			mockTransaction.TransactionType,
-			mockTransaction.Fee,
-			mockTransaction.Timestamp,
-			mockTransaction.TransactionHash,
-			mockTransaction.TransactionBodyLength,
-			mockTransaction.TransactionBodyBytes,
-			mockTransaction.Signature,
-			mockTransaction.Version,
-			mockTransaction.TransactionIndex,
-			mockTransaction.MultisigChild,
-			mockTransaction.Message,
+			mockRecSrvTransaction.ID,
+			mockRecSrvTransaction.BlockID,
+			mockRecSrvTransaction.Height,
+			mockRecSrvTransaction.SenderAccountAddress,
+			mockRecSrvTransaction.RecipientAccountAddress,
+			mockRecSrvTransaction.TransactionType,
+			mockRecSrvTransaction.Fee,
+			mockRecSrvTransaction.Timestamp,
+			mockRecSrvTransaction.TransactionHash,
+			mockRecSrvTransaction.TransactionBodyLength,
+			mockRecSrvTransaction.TransactionBodyBytes,
+			mockRecSrvTransaction.Signature,
+			mockRecSrvTransaction.Version,
+			mockRecSrvTransaction.TransactionIndex,
+			mockRecSrvTransaction.MultisigChild,
+			mockRecSrvTransaction.Message,
 		))
-	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
-		" recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
-		"datum_type = ? ORDER BY recipient_public_key, reference_block_height":
+	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr, " +
+		"recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr_batch = ? AND rc.datum_hash = ? AND rc." +
+		"datum_type = ? ORDER BY recipient_signature":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			mockReceiptQuery.Fields,
 		).AddRow(
@@ -401,24 +477,24 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-			mockGoodBlock.GetMerkleRoot(),
-			mockGoodBlock.GetMerkleTree(),
-			mockGoodBlock.GetReferenceBlockHeight(),
+			mockRecSrvBlock1.GetHeight(),
+			mockRecSrvBlock1.GetID(),
+			mockRecSrvBlock1.GetBlockHash(),
+			mockRecSrvBlock1.GetPreviousBlockHash(),
+			mockRecSrvBlock1.GetTimestamp(),
+			mockRecSrvBlock1.GetBlockSeed(),
+			mockRecSrvBlock1.GetBlockSignature(),
+			mockRecSrvBlock1.GetCumulativeDifficulty(),
+			mockRecSrvBlock1.GetPayloadLength(),
+			mockRecSrvBlock1.GetPayloadHash(),
+			mockRecSrvBlock1.GetBlocksmithPublicKey(),
+			mockRecSrvBlock1.GetTotalAmount(),
+			mockRecSrvBlock1.GetTotalFee(),
+			mockRecSrvBlock1.GetTotalCoinBase(),
+			mockRecSrvBlock1.GetVersion(),
+			mockRecSrvBlock1.GetMerkleRoot(),
+			mockRecSrvBlock1.GetMerkleTree(),
+			mockRecSrvBlock1.GetReferenceBlockHeight(),
 		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -426,24 +502,24 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-			mockGoodBlock.GetMerkleRoot(),
-			mockGoodBlock.GetMerkleTree(),
-			mockGoodBlock.GetReferenceBlockHeight(),
+			mockRecSrvBlock1.GetHeight(),
+			mockRecSrvBlock1.GetID(),
+			mockRecSrvBlock1.GetBlockHash(),
+			mockRecSrvBlock1.GetPreviousBlockHash(),
+			mockRecSrvBlock1.GetTimestamp(),
+			mockRecSrvBlock1.GetBlockSeed(),
+			mockRecSrvBlock1.GetBlockSignature(),
+			mockRecSrvBlock1.GetCumulativeDifficulty(),
+			mockRecSrvBlock1.GetPayloadLength(),
+			mockRecSrvBlock1.GetPayloadHash(),
+			mockRecSrvBlock1.GetBlocksmithPublicKey(),
+			mockRecSrvBlock1.GetTotalAmount(),
+			mockRecSrvBlock1.GetTotalFee(),
+			mockRecSrvBlock1.GetTotalCoinBase(),
+			mockRecSrvBlock1.GetVersion(),
+			mockRecSrvBlock1.GetMerkleRoot(),
+			mockRecSrvBlock1.GetMerkleTree(),
+			mockRecSrvBlock1.GetReferenceBlockHeight(),
 		))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -451,24 +527,24 @@ func (*mockQueryExecutorSuccessSelectUnlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-			mockGoodBlock.GetMerkleRoot(),
-			mockGoodBlock.GetMerkleTree(),
-			mockGoodBlock.GetReferenceBlockHeight(),
+			mockRecSrvBlock1.GetHeight(),
+			mockRecSrvBlock1.GetID(),
+			mockRecSrvBlock1.GetBlockHash(),
+			mockRecSrvBlock1.GetPreviousBlockHash(),
+			mockRecSrvBlock1.GetTimestamp(),
+			mockRecSrvBlock1.GetBlockSeed(),
+			mockRecSrvBlock1.GetBlockSignature(),
+			mockRecSrvBlock1.GetCumulativeDifficulty(),
+			mockRecSrvBlock1.GetPayloadLength(),
+			mockRecSrvBlock1.GetPayloadHash(),
+			mockRecSrvBlock1.GetBlocksmithPublicKey(),
+			mockRecSrvBlock1.GetTotalAmount(),
+			mockRecSrvBlock1.GetTotalFee(),
+			mockRecSrvBlock1.GetTotalCoinBase(),
+			mockRecSrvBlock1.GetVersion(),
+			mockRecSrvBlock1.GetMerkleRoot(),
+			mockRecSrvBlock1.GetMerkleTree(),
+			mockRecSrvBlock1.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE block_height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
@@ -499,22 +575,22 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelect(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewTransactionQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockTransaction.ID,
-			mockTransaction.BlockID,
-			mockTransaction.Height,
-			mockTransaction.SenderAccountAddress,
-			mockTransaction.RecipientAccountAddress,
-			mockTransaction.TransactionType,
-			mockTransaction.Fee,
-			mockTransaction.Timestamp,
-			mockTransaction.TransactionHash,
-			mockTransaction.TransactionBodyLength,
-			mockTransaction.TransactionBodyBytes,
-			mockTransaction.Signature,
-			mockTransaction.Version,
-			mockTransaction.TransactionIndex,
-			mockTransaction.MultisigChild,
-			mockTransaction.Message,
+			mockRecSrvTransaction.ID,
+			mockRecSrvTransaction.BlockID,
+			mockRecSrvTransaction.Height,
+			mockRecSrvTransaction.SenderAccountAddress,
+			mockRecSrvTransaction.RecipientAccountAddress,
+			mockRecSrvTransaction.TransactionType,
+			mockRecSrvTransaction.Fee,
+			mockRecSrvTransaction.Timestamp,
+			mockRecSrvTransaction.TransactionHash,
+			mockRecSrvTransaction.TransactionBodyLength,
+			mockRecSrvTransaction.TransactionBodyBytes,
+			mockRecSrvTransaction.Signature,
+			mockRecSrvTransaction.Version,
+			mockRecSrvTransaction.TransactionIndex,
+			mockRecSrvTransaction.MultisigChild,
+			mockRecSrvTransaction.Message,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
 		" recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.rmr = ? AND rc.datum_hash = ? AND rc." +
@@ -570,24 +646,24 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockBlockData.GetHeight(),
-			mockBlockData.GetID(),
-			mockBlockData.GetBlockHash(),
-			mockBlockData.GetPreviousBlockHash(),
-			mockBlockData.GetTimestamp(),
-			mockBlockData.GetBlockSeed(),
-			mockBlockData.GetBlockSignature(),
-			mockBlockData.GetCumulativeDifficulty(),
-			mockBlockData.GetPayloadLength(),
-			mockBlockData.GetPayloadHash(),
-			mockBlockData.GetBlocksmithPublicKey(),
-			mockBlockData.GetTotalAmount(),
-			mockBlockData.GetTotalFee(),
-			mockBlockData.GetTotalCoinBase(),
-			mockBlockData.GetVersion(),
-			mockBlockData.GetMerkleRoot(),
-			mockBlockData.GetMerkleTree(),
-			mockBlockData.GetReferenceBlockHeight(),
+			mockRecSrvBlockData.GetHeight(),
+			mockRecSrvBlockData.GetID(),
+			mockRecSrvBlockData.GetBlockHash(),
+			mockRecSrvBlockData.GetPreviousBlockHash(),
+			mockRecSrvBlockData.GetTimestamp(),
+			mockRecSrvBlockData.GetBlockSeed(),
+			mockRecSrvBlockData.GetBlockSignature(),
+			mockRecSrvBlockData.GetCumulativeDifficulty(),
+			mockRecSrvBlockData.GetPayloadLength(),
+			mockRecSrvBlockData.GetPayloadHash(),
+			mockRecSrvBlockData.GetBlocksmithPublicKey(),
+			mockRecSrvBlockData.GetTotalAmount(),
+			mockRecSrvBlockData.GetTotalFee(),
+			mockRecSrvBlockData.GetTotalCoinBase(),
+			mockRecSrvBlockData.GetVersion(),
+			mockRecSrvBlockData.GetMerkleRoot(),
+			mockRecSrvBlockData.GetMerkleTree(),
+			mockRecSrvBlockData.GetReferenceBlockHeight(),
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, rmr," +
 		" recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
@@ -595,19 +671,19 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewPublishedReceiptQuery().Fields,
 		).AddRow(
-			mockPublishedReceipt[0].Receipt.SenderPublicKey,
-			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
-			mockPublishedReceipt[0].Receipt.DatumType,
-			mockPublishedReceipt[0].Receipt.DatumHash,
-			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
-			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].Receipt.RMR,
-			mockPublishedReceipt[0].Receipt.RecipientSignature,
-			mockPublishedReceipt[0].IntermediateHashes,
-			mockPublishedReceipt[0].BlockHeight,
-			mockPublishedReceipt[0].RMRLinked,
-			mockPublishedReceipt[0].RMRLinkedIndex,
-			mockPublishedReceipt[0].PublishedIndex,
+			mockRecSrvPublishedReceipt[0].Receipt.SenderPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientPublicKey,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumType,
+			mockRecSrvPublishedReceipt[0].Receipt.DatumHash,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+			mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHash,
+			mockRecSrvPublishedReceipt[0].Receipt.RMR,
+			mockRecSrvPublishedReceipt[0].Receipt.RecipientSignature,
+			mockRecSrvPublishedReceipt[0].IntermediateHashes,
+			mockRecSrvPublishedReceipt[0].BlockHeight,
+			mockRecSrvPublishedReceipt[0].RMRLinked,
+			mockRecSrvPublishedReceipt[0].RMRLinkedIndex,
+			mockRecSrvPublishedReceipt[0].PublishedIndex,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, reference_block_hash, " +
 		"rmr, recipient_signature, rmr_batch, rmr_batch_index FROM node_receipt AS rc WHERE rc.reference_block_height = ? AND rc." +
@@ -632,24 +708,24 @@ func (*mockQueryExecutorSuccessSelectlinked) ExecuteSelectRow(
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
 			query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 		).AddRow(
-			mockGoodBlock.GetHeight(),
-			mockGoodBlock.GetID(),
-			mockGoodBlock.GetBlockHash(),
-			mockGoodBlock.GetPreviousBlockHash(),
-			mockGoodBlock.GetTimestamp(),
-			mockGoodBlock.GetBlockSeed(),
-			mockGoodBlock.GetBlockSignature(),
-			mockGoodBlock.GetCumulativeDifficulty(),
-			mockGoodBlock.GetPayloadLength(),
-			mockGoodBlock.GetPayloadHash(),
-			mockGoodBlock.GetBlocksmithPublicKey(),
-			mockGoodBlock.GetTotalAmount(),
-			mockGoodBlock.GetTotalFee(),
-			mockGoodBlock.GetTotalCoinBase(),
-			mockGoodBlock.GetVersion(),
-			mockGoodBlock.GetMerkleRoot(),
-			mockGoodBlock.GetMerkleTree(),
-			mockGoodBlock.GetReferenceBlockHeight(),
+			mockRecSrvBlock1.GetHeight(),
+			mockRecSrvBlock1.GetID(),
+			mockRecSrvBlock1.GetBlockHash(),
+			mockRecSrvBlock1.GetPreviousBlockHash(),
+			mockRecSrvBlock1.GetTimestamp(),
+			mockRecSrvBlock1.GetBlockSeed(),
+			mockRecSrvBlock1.GetBlockSignature(),
+			mockRecSrvBlock1.GetCumulativeDifficulty(),
+			mockRecSrvBlock1.GetPayloadLength(),
+			mockRecSrvBlock1.GetPayloadHash(),
+			mockRecSrvBlock1.GetBlocksmithPublicKey(),
+			mockRecSrvBlock1.GetTotalAmount(),
+			mockRecSrvBlock1.GetTotalFee(),
+			mockRecSrvBlock1.GetTotalCoinBase(),
+			mockRecSrvBlock1.GetVersion(),
+			mockRecSrvBlock1.GetMerkleRoot(),
+			mockRecSrvBlock1.GetMerkleTree(),
+			mockRecSrvBlock1.GetReferenceBlockHeight(),
 		))
 	case "SELECT id, block_height, tree, timestamp FROM merkle_tree WHERE block_height = 0":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows(
@@ -1157,7 +1233,7 @@ func (*mockMerkleRootUtilsSuccess) ToBytes() (root, tree []byte) {
 
 func (*mockGenerateReceiptsMerkleRootMainBlockStateStorageSuccess) GetItem(lastChange, item interface{}) error {
 	var blockCopy, _ = item.(*model.Block)
-	*blockCopy = mockBlockData
+	*blockCopy = mockRecSrvBlockData
 	return nil
 }
 
@@ -1177,24 +1253,24 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
-				mockBlockData.GetHeight(),
-				mockBlockData.GetID(),
-				mockBlockData.GetBlockHash(),
-				mockBlockData.GetPreviousBlockHash(),
-				mockBlockData.GetTimestamp(),
-				mockBlockData.GetBlockSeed(),
-				mockBlockData.GetBlockSignature(),
-				mockBlockData.GetCumulativeDifficulty(),
-				mockBlockData.GetPayloadLength(),
-				mockBlockData.GetPayloadHash(),
-				mockBlockData.GetBlocksmithPublicKey(),
-				mockBlockData.GetTotalAmount(),
-				mockBlockData.GetTotalFee(),
-				mockBlockData.GetTotalCoinBase(),
-				mockBlockData.GetVersion(),
-				mockBlockData.GetMerkleRoot(),
-				mockBlockData.GetMerkleTree(),
-				mockBlockData.GetReferenceBlockHeight(),
+				mockRecSrvBlockData.GetHeight(),
+				mockRecSrvBlockData.GetID(),
+				mockRecSrvBlockData.GetBlockHash(),
+				mockRecSrvBlockData.GetPreviousBlockHash(),
+				mockRecSrvBlockData.GetTimestamp(),
+				mockRecSrvBlockData.GetBlockSeed(),
+				mockRecSrvBlockData.GetBlockSignature(),
+				mockRecSrvBlockData.GetCumulativeDifficulty(),
+				mockRecSrvBlockData.GetPayloadLength(),
+				mockRecSrvBlockData.GetPayloadHash(),
+				mockRecSrvBlockData.GetBlocksmithPublicKey(),
+				mockRecSrvBlockData.GetTotalAmount(),
+				mockRecSrvBlockData.GetTotalFee(),
+				mockRecSrvBlockData.GetTotalCoinBase(),
+				mockRecSrvBlockData.GetVersion(),
+				mockRecSrvBlockData.GetMerkleRoot(),
+				mockRecSrvBlockData.GetMerkleTree(),
+				mockRecSrvBlockData.GetReferenceBlockHeight(),
 			))
 	case "SELECT height, id, block_hash, previous_block_hash, timestamp, block_seed, block_signature, cumulative_difficulty, " +
 		"payload_length, payload_hash, blocksmith_public_key, total_amount, total_fee, total_coinbase, version, merkle_root, merkle_tree, " +
@@ -1203,24 +1279,24 @@ func (*mockQueryExecutorGenerateReceiptsMerkleRootSuccess) ExecuteSelectRow(
 			WillReturnRows(sqlmock.NewRows(
 				query.NewBlockQuery(&chaintype.MainChain{}).Fields,
 			).AddRow(
-				mockBlockData.GetHeight(),
-				mockBlockData.GetID(),
-				mockBlockData.GetBlockHash(),
-				mockBlockData.GetPreviousBlockHash(),
-				mockBlockData.GetTimestamp(),
-				mockBlockData.GetBlockSeed(),
-				mockBlockData.GetBlockSignature(),
-				mockBlockData.GetCumulativeDifficulty(),
-				mockBlockData.GetPayloadLength(),
-				mockBlockData.GetPayloadHash(),
-				mockBlockData.GetBlocksmithPublicKey(),
-				mockBlockData.GetTotalAmount(),
-				mockBlockData.GetTotalFee(),
-				mockBlockData.GetTotalCoinBase(),
-				mockBlockData.GetVersion(),
-				mockBlockData.GetMerkleRoot(),
-				mockBlockData.GetMerkleTree(),
-				mockBlockData.GetReferenceBlockHeight(),
+				mockRecSrvBlockData.GetHeight(),
+				mockRecSrvBlockData.GetID(),
+				mockRecSrvBlockData.GetBlockHash(),
+				mockRecSrvBlockData.GetPreviousBlockHash(),
+				mockRecSrvBlockData.GetTimestamp(),
+				mockRecSrvBlockData.GetBlockSeed(),
+				mockRecSrvBlockData.GetBlockSignature(),
+				mockRecSrvBlockData.GetCumulativeDifficulty(),
+				mockRecSrvBlockData.GetPayloadLength(),
+				mockRecSrvBlockData.GetPayloadHash(),
+				mockRecSrvBlockData.GetBlocksmithPublicKey(),
+				mockRecSrvBlockData.GetTotalAmount(),
+				mockRecSrvBlockData.GetTotalFee(),
+				mockRecSrvBlockData.GetTotalCoinBase(),
+				mockRecSrvBlockData.GetVersion(),
+				mockRecSrvBlockData.GetMerkleRoot(),
+				mockRecSrvBlockData.GetMerkleTree(),
+				mockRecSrvBlockData.GetReferenceBlockHeight(),
 			))
 	default:
 		mock.ExpectQuery(regexp.QuoteMeta(qStr)).
@@ -1336,19 +1412,19 @@ func (*mockQueryExecutorGetPublishedReceiptsByHeight) ExecuteSelect(qStr string,
 
 	mockRows := mock.NewRows(query.NewPublishedReceiptQuery().Fields)
 	mockRows.AddRow(
-		mockPublishedReceipt[0].Receipt.SenderPublicKey,
-		mockPublishedReceipt[0].Receipt.RecipientPublicKey,
-		mockPublishedReceipt[0].Receipt.DatumType,
-		mockPublishedReceipt[0].Receipt.DatumHash,
-		mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
-		mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-		mockPublishedReceipt[0].Receipt.RMR,
-		mockPublishedReceipt[0].Receipt.RecipientSignature,
-		mockPublishedReceipt[0].IntermediateHashes,
-		mockPublishedReceipt[0].BlockHeight,
-		mockPublishedReceipt[0].RMRLinked,
-		mockPublishedReceipt[0].RMRLinkedIndex,
-		mockPublishedReceipt[0].PublishedIndex,
+		mockRecSrvPublishedReceipt[0].Receipt.SenderPublicKey,
+		mockRecSrvPublishedReceipt[0].Receipt.RecipientPublicKey,
+		mockRecSrvPublishedReceipt[0].Receipt.DatumType,
+		mockRecSrvPublishedReceipt[0].Receipt.DatumHash,
+		mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHeight,
+		mockRecSrvPublishedReceipt[0].Receipt.ReferenceBlockHash,
+		mockRecSrvPublishedReceipt[0].Receipt.RMR,
+		mockRecSrvPublishedReceipt[0].Receipt.RecipientSignature,
+		mockRecSrvPublishedReceipt[0].IntermediateHashes,
+		mockRecSrvPublishedReceipt[0].BlockHeight,
+		mockRecSrvPublishedReceipt[0].RMRLinked,
+		mockRecSrvPublishedReceipt[0].RMRLinkedIndex,
+		mockRecSrvPublishedReceipt[0].PublishedIndex,
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockRows)
 	return db.Query(qStr)
@@ -1383,7 +1459,7 @@ func TestReceiptService_GetPublishedReceiptsByHeight(t *testing.T) {
 			args: args{
 				blockHeight: 212,
 			},
-			want:    mockPublishedReceipt,
+			want:    mockRecSrvPublishedReceipt,
 			wantErr: false,
 		},
 	}
@@ -1508,14 +1584,14 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 	var (
 		mockReceiptCacheStorage = storage.NewReceiptPoolCacheStorage()
 		mockReceipt1            = model.Receipt{
-			ReferenceBlockHeight: mockBlockData.Height,
+			ReferenceBlockHeight: mockRecSrvBlockData.Height,
 			DatumHash:            make([]byte, 32),
-			ReferenceBlockHash:   mockBlockData.BlockHash,
+			ReferenceBlockHash:   mockRecSrvBlockData.BlockHash,
 			RecipientPublicKey:   make([]byte, 32),
 			RecipientSignature:   make([]byte, 64),
 		}
 		mockReceipt2 = model.Receipt{
-			ReferenceBlockHeight: mockBlockData.Height - 1,
+			ReferenceBlockHeight: mockRecSrvBlockData.Height - 1,
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHash:   make([]byte, 32),
 			RecipientPublicKey:   make([]byte, 32),
@@ -1565,7 +1641,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				Logger:                   log.New(),
 			},
 			args: args{
-				block: &mockBlockData,
+				block: &mockRecSrvBlockData,
 			},
 			wantErr: false,
 		},
@@ -1588,7 +1664,7 @@ func TestReceiptService_GenerateReceiptsMerkleRoot(t *testing.T) {
 				Logger:                   log.New(),
 			},
 			args: args{
-				block: &mockBlockData,
+				block: &mockRecSrvBlockData,
 			},
 			wantErr: false,
 		},
@@ -1764,29 +1840,29 @@ func TestReceiptService_SelectUnlinkedReceipts(t *testing.T) {
 			},
 			want: make([]*model.PublishedReceipt, 0),
 		},
-		// {
-		// 	name: "SelectUnlinkedReceipts:success",
-		// 	fields: fields{
-		// 		QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-		// 		TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-		// 		ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-		// 		ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
-		// 		NodeConfiguration: &mockNodeConfigurationService{
-		// 			nodePubKey: make([]byte, 32),
-		// 		},
-		// 	},
-		// 	args: args{
-		// 		numberOfReceipt: 2,
-		// 		blockHeight:     constant.BatchReceiptLookBackHeight,
-		// 		secretPhrase:    "test",
-		// 	},
-		// 	want: []*model.PublishedReceipt{
-		// 		mockReceiptToPublish,
-		// 	},
-		// },
+		{
+			name: "SelectUnlinkedReceipts:success",
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+				NodeConfiguration: &mockNodeConfigurationService{
+					nodePubKey: make([]byte, 32),
+				},
+			},
+			args: args{
+				numberOfReceipt: 2,
+				blockHeight:     constant.BatchReceiptLookBackHeight,
+				secretPhrase:    "test",
+			},
+			want: []*model.PublishedReceipt{
+				mockReceiptToPublish,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1940,7 +2016,7 @@ func TestReceiptService_SelectLinkedReceipts(t *testing.T) {
 }
 
 func TestReceiptService_ValidateUnlinkedReceipts(t *testing.T) {
-	var mockPublishedReceipt = []*model.PublishedReceipt{
+	var mockRecSrvPublishedReceipt = []*model.PublishedReceipt{
 		{
 			Receipt: &model.Receipt{
 				SenderPublicKey:      make([]byte, 32),
@@ -1997,31 +2073,31 @@ func TestReceiptService_ValidateUnlinkedReceipts(t *testing.T) {
 				NodeConfiguration: &mockNodeConfigurationService{},
 			},
 			args: args{
-				receiptsToValidate: mockPublishedReceipt,
+				receiptsToValidate: mockRecSrvPublishedReceipt,
 				blockToValidate: &model.Block{
 					Height: 10,
 				},
 			},
 			wantErr: true,
 		},
-		// {
-		// 	name: "ValidateUnlinkedReceipts:success",
-		// 	fields: fields{
-		// 		QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
-		// 		BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
-		// 		NodeReceiptQuery:    query.NewBatchReceiptQuery(),
-		// 		TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
-		// 		MerkleTreeQuery:     query.NewMerkleTreeQuery(),
-		// 		ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
-		// 		ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
-		// 		NodeConfiguration:   &mockNodeConfigurationService{},
-		// 	},
-		// 	args: args{
-		// 		receiptsToValidate: mockPublishedReceipt,
-		// 		blockToValidate:    mockGoodBlock,
-		// 	},
-		// 	wantValidReceipts: mockPublishedReceipt,
-		// },
+		{
+			name: "ValidateUnlinkedReceipts:success",
+			fields: fields{
+				QueryExecutor:       &mockQueryExecutorSuccessSelectUnlinked{},
+				BlockQuery:          query.NewBlockQuery(&chaintype.MainChain{}),
+				NodeReceiptQuery:    query.NewBatchReceiptQuery(),
+				TransactionQuery:    query.NewTransactionQuery(&chaintype.MainChain{}),
+				MerkleTreeQuery:     query.NewMerkleTreeQuery(),
+				ScrambleNodeService: &receiptSrvMockScrambleNodeService{},
+				ReceiptUtil:         &receiptSrvMockReceiptUtilSuccess{},
+				NodeConfiguration:   &mockNodeConfigurationService{},
+			},
+			args: args{
+				receiptsToValidate: mockRecSrvPublishedReceipt,
+				blockToValidate:    mockRecSrvBlock1,
+			},
+			wantValidReceipts: mockRecSrvPublishedReceipt,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

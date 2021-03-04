@@ -64,7 +64,7 @@ type (
 			block *model.Block,
 			numberOfEstimatedReceipts uint32,
 			validateReceipt bool,
-		) (unlinkedCount int, linkedCount int, err error)
+		) (unlinkedCount, linkedCount int, err error)
 	}
 
 	PublishedReceiptService struct {
@@ -98,7 +98,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 	block *model.Block,
 	numberOfEstimatedReceipts uint32,
 	validateReceipt bool,
-) (unlinkedCount int, linkedCount int, err error) {
+) (unlinkedCount, linkedCount int, err error) {
 	var (
 		publishedReceipts                                    = block.GetPublishedReceipts()
 		unlinkedReceiptsToValidate, linkedReceiptsToValidate []*model.PublishedReceipt

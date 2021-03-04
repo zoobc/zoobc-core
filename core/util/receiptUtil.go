@@ -424,7 +424,7 @@ func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) err
 	if a.BlockHeight != b.BlockHeight {
 		return errors.New("BlockHeight")
 	}
-	if a.Receipt.ReferenceBlockHeight != a.Receipt.ReferenceBlockHeight {
+	if a.Receipt.ReferenceBlockHeight != b.Receipt.ReferenceBlockHeight {
 		return errors.New("ReferenceBlockHeight")
 	}
 	if !bytes.Equal(a.Receipt.ReferenceBlockHash, b.Receipt.ReferenceBlockHash) {

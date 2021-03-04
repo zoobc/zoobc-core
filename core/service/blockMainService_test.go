@@ -1150,7 +1150,7 @@ func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([
 }
 
 func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
-	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount int, linkedCount int, err error) {
+	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount, linkedCount int, err error) {
 	return 0, 0, nil
 }
 
@@ -1861,7 +1861,7 @@ func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Bloc
 }
 
 func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
-	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount int, linkedCount int, err error) {
+	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount, linkedCount int, err error) {
 	return 0, 0, nil
 }
 
