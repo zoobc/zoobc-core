@@ -222,7 +222,7 @@ func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
 	nodePubKey []byte,
 	scrambleNodes *model.ScrambledNodes,
 ) (map[string]*model.Peer, error) {
-	var peersByPubKeyMap = make(map[string]*model.Peer, 0)
+	var peersByPubKeyMap = make(map[string]*model.Peer)
 	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
 	if !ok {
 		// return empty priority peers list if current node is not found in scramble nodes at look back height

@@ -306,6 +306,9 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 		rndDatumHash []byte
 	)
 	hashList, err = rs.ReceiptUtil.BuildBlockDatumHashes(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery)
+	if err != nil {
+		return nil, err
+	}
 	rndDatumHash, rndDatumType, err = rs.ReceiptUtil.GetRandomDatumHash(hashList, blockSeed)
 	if err != nil {
 		return nil, err
@@ -715,6 +718,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			continue
 		}
 
+		// TODO: uncomment this when implementing intermediate hash validation
 		// // Look up the "reference block" for the old receipt.
 		// refOldReceiptBlock, err := util.GetBlockByHeight(oldBlockReceipt.Receipt.ReferenceBlockHeight, rs.QueryExecutor, rs.BlockQuery)
 		// if err != nil {
@@ -786,7 +790,7 @@ func (rs *ReceiptService) SelectReceipts(
 	var (
 		err                              error
 		unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
-		selectedReceipts                 = make([][]*model.PublishedReceipt, 2, 2)
+		selectedReceipts                 = make([][]*model.PublishedReceipt, 2)
 	)
 
 	// select unlinked receipts
