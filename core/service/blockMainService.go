@@ -516,7 +516,7 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 		return nil, nil, err
 	}
 	// TODO: make use of first returned value (unlinkedCount) for pop score change?
-	_, linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(
+	unlinkedCount, linkedCount, err := bs.PublishedReceiptService.ProcessPublishedReceipts(
 		block,
 		bs.ReceiptUtil.GetNumberOfMaxReceipts(
 			len(activeRegistries)),
@@ -583,10 +583,9 @@ func (bs *BlockService) ProcessPushBlock(previousBlock,
 
 		// score won't change till we can select receipts
 		if block.Height >= constant.BatchReceiptLookBackHeight {
-			blockPublishedReceipts := block.GetPublishedReceipts()
 			popScore := commonUtils.CalculateParticipationScore(
 				uint32(linkedCount),
-				uint32(len(blockPublishedReceipts)-linkedCount),
+				uint32(unlinkedCount),
 			)
 			err = bs.updatePopScore(popScore, previousBlock, block)
 			if err != nil {

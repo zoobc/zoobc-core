@@ -65,13 +65,13 @@ func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) int64 {
 	// this is to make nodes' score falls faster and gain slower
 	if receiptCount > centerValue {
 		result = int64((receiptCount - centerValue) * float32(normalizationUnit))
-		result *= (constant.IncreaseScoreMod / (normalizationUnit))
+		result *= constant.IncreaseScoreMod / (normalizationUnit)
 
 		return result
 	}
 
 	result = int64((centerValue - receiptCount) * float32(normalizationUnit))
-	result *= (constant.DecreaseScoreMod / (normalizationUnit))
+	result *= constant.DecreaseScoreMod / (normalizationUnit)
 
 	return result
 }

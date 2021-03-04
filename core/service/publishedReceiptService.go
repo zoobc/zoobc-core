@@ -113,7 +113,7 @@ func (ps *PublishedReceiptService) ProcessPublishedReceipts(
 
 	// separate publishedReceipt and linked receipts
 	for _, publishedReceipt := range publishedReceipts {
-		if publishedReceipt.Receipt.RMR == nil {
+		if publishedReceipt.RMRLinked == nil {
 			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, publishedReceipt)
 		} else {
 			linkedReceiptsToValidate = append(linkedReceiptsToValidate, publishedReceipt)
