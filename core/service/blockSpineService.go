@@ -768,6 +768,9 @@ func (bs *BlockSpineService) GenerateBlock(
 	// get the timestamp of the block 1 MinRollbackBlocks ago
 	if lastMainBlock.Height > constant.MinRollbackBlocks {
 		newReferenceBlockHeight = lastMainBlock.Height - constant.MinRollbackBlocks
+		if newReferenceBlockHeight < newIncludedFirstBlockHeight {
+			newReferenceBlockHeight = newIncludedFirstBlockHeight
+		}
 	}
 
 	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
