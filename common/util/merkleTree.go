@@ -59,9 +59,26 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
+type MerkleRootInterface interface {
+	GenerateMerkleRoot(items []*bytes.Buffer) (*bytes.Buffer, error)
+	GetMerkleRootFromIntermediateHashes(
+		leaf []byte, leafIndex uint32,
+		intermediateHashes [][]byte,
+	) (root []byte, err error)
+	GetIntermediateHashes(leafHash *bytes.Buffer, leafIndex int32) []*bytes.Buffer
+	FlattenIntermediateHashes(intermediateHashes [][]byte) []byte
+	RestoreIntermediateHashes(flattenIntermediateHashes []byte) [][]byte
+	ToBytes() (root, tree []byte)
+	FromBytes(tree, root []byte) [][]*bytes.Buffer
+}
+
 type MerkleRoot struct {
 	// HashTree store the whole tree, only filled after calling `GenerateMerkleRoot`
 	HashTree [][]*bytes.Buffer
+}
+
+func NewMerkleRoot() MerkleRootInterface {
+	return &MerkleRoot{}
 }
 
 // GenerateMerkleRoot generate the root of merkle and build the tree in MerkleRoot.HashTree

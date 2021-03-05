@@ -787,6 +787,10 @@ func (*mockReceiptUtilSuccess) GetReceiptKey(
 	return []byte{}, nil
 }
 
+func (*mockReceiptUtilSuccess) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uint32 {
+	return 5
+}
+
 func (*mockReceiptUtilError) GetReceiptKey(
 	dataHash, senderPublicKey []byte,
 ) ([]byte, error) {
