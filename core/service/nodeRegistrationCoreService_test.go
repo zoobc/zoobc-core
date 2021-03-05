@@ -935,7 +935,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name: "fail-{ParticipationScoreNotFound}",
+			name: "success-ignore-{ParticipationScoreNotFound}",
 			fields: fields{
 				QueryExecutor:           &mockQueryExecutorAddParticipationScorePsNotFound{},
 				ParticipationScoreQuery: query.NewParticipationScoreQuery(),
@@ -947,7 +947,7 @@ func TestNodeRegistrationService_AddParticipationScore(t *testing.T) {
 				scoreDelta: 10,
 				height:     1,
 			},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "wantSuccess-{AlreadyMaxScore}",
