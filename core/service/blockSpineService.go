@@ -1087,6 +1087,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
 		intermediateHashes [][]byte
 	)
+	// TODO: "@ali" please double check that this doesn't interfere with receipt generation and validation
 	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
 	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
 	for _, buf := range intermediateHashesBuffer {

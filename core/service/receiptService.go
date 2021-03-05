@@ -640,7 +640,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		publishedReceipt, err := rs.ReceiptUtil.GeneratePublishedReceipt(
 			batchReceiptToLink.Receipt,
 			publishedIndex,
-			// TODO: for barton. please double check this is correct. this published receipt will have Receipt.RMR = RMRLinked
+			// TODO: for @barton. please double check this is correct. this published receipt will have Receipt.RMR = RMRLinked
 			batchReceiptToLink.Receipt.RMR,
 			rmrLinkedIndex,
 		)
@@ -723,7 +723,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		}
 		// new block's creator didn't produce an unlinked receipt relative to the linked receipt we are validating,
 		// when it was supposed to do it, so we skip this block
-		// TODO: for barton. should we fail new block validation or continue to the next block?
+		// TODO: for @barton. should we fail new block validation or continue to the next block?
 		if !receiptFound {
 			continue
 		}
@@ -736,7 +736,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 				break
 			}
 		}
-		// TODO: for barton. should we fail new block validation or continue to the next block?
+		// TODO: for @barton. should we fail new block validation or continue to the next block?
 		if !receiptFound {
 			continue
 		}

@@ -1077,7 +1077,6 @@ func startSpinechain() {
 	// Note: spine blocks smith even if smithing is false, because are created by every running node
 	// 		 Later we only broadcast (and accumulate) signatures of the ones who can smith
 	if len(config.NodeKey.Seed) > 0 && config.Smithing {
-		// FIXME: ask @barton double check with him that generating a pseudo random id to compute the blockSeed is ok
 		nodeID = int64(binary.LittleEndian.Uint64(config.NodeKey.PublicKey))
 		spinechainProcessor = smith.NewBlockchainProcessor(
 			spinechainBlockService.GetChainType(),
