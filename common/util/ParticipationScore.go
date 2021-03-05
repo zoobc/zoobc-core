@@ -50,34 +50,28 @@
 package util
 
 import (
-	"math/big"
-
-	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/constant"
 )
 
 // CalculateParticipationScore to calculate score change of node
-func CalculateParticipationScore(linkedReceipt, unlinkedReceipt, maxReceipt uint32) (int64, error) {
-	if maxReceipt == 0 {
-		return constant.MaxScoreChange, nil
+func CalculateParticipationScore(linkedReceipt, unlinkedReceipt uint32) int64 {
+	var (
+		result            int64
+		normalizationUnit int64 = 1000 // to normalize floating result to make the calculation easier
+	)
+	receiptCount := (float32(linkedReceipt) * constant.LinkedReceiptScore) + (float32(unlinkedReceipt) * constant.UnlinkedReceiptScore)
+	centerValue := float32(constant.MaxReceiptCount / 2)
+
+	// this is to make nodes' score falls faster and gain slower
+	if receiptCount > centerValue {
+		result = int64((receiptCount - centerValue) * float32(normalizationUnit))
+		result *= constant.IncreaseScoreMod / (normalizationUnit)
+
+		return result
 	}
-	if (linkedReceipt + unlinkedReceipt) > maxReceipt {
-		return 0, blocker.NewBlocker(
-			blocker.ValidationErr,
-			"CalculateParticipationScore, the number of receipt exceeds",
-		)
-	}
 
-	// Maximum score will get when create a block
-	maxBlockScore := int64(float32(maxReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore)
-	halfMaxBlockScore := maxBlockScore / 2
+	result = int64((centerValue - receiptCount) * float32(normalizationUnit))
+	result *= constant.DecreaseScoreMod / (normalizationUnit)
 
-	linkedBlockScore := float32(linkedReceipt) * constant.LinkedReceiptScore * constant.ScalarReceiptScore
-	unlinkedBlockScore := float32(unlinkedReceipt) * constant.UnlinkedReceiptScore * constant.ScalarReceiptScore
-	blockScore := int64(linkedBlockScore + unlinkedBlockScore)
-
-	scoreDiffBig := new(big.Int).SetInt64(blockScore - halfMaxBlockScore)
-	scoreDiffBigMul := new(big.Int).Mul(scoreDiffBig, new(big.Int).SetInt64(constant.MaxScoreChange))
-	scoreChangeOfANode := new(big.Int).Div(scoreDiffBigMul, new(big.Int).SetInt64(halfMaxBlockScore))
-	return scoreChangeOfANode.Int64(), nil
+	return result
 }

@@ -62,6 +62,7 @@ type (
 	PublishedReceiptQueryInterface interface {
 		GetPublishedReceiptByLinkedRMR(root []byte) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{})
+		GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(blockHeight uint32, recipientPubKey []byte) (str string, args []interface{})
 		GetPublishedReceiptByBlockHeightRange(
 			fromBlockHeight, toBlockHeight uint32,
 		) (str string, args []interface{})
@@ -78,6 +79,12 @@ type (
 	}
 )
 
+func NewPublishedReceipt() *model.PublishedReceipt {
+	return &model.PublishedReceipt{
+		Receipt: &model.Receipt{},
+	}
+}
+
 // NewPublishedReceiptQuery returns PublishedQuery instance
 func NewPublishedReceiptQuery() *PublishedReceiptQuery {
 	return &PublishedReceiptQuery{
@@ -88,11 +95,12 @@ func NewPublishedReceiptQuery() *PublishedReceiptQuery {
 			"datum_hash",
 			"reference_block_height",
 			"reference_block_hash",
-			"rmr_linked",
+			"rmr",
 			"recipient_signature",
 			"intermediate_hashes",
 			"block_height",
-			"receipt_index",
+			"rmr_linked",
+			"rmr_linked_index",
 			"published_index",
 		},
 		TableName: "published_receipt",
@@ -170,11 +178,28 @@ func (prq *PublishedReceiptQuery) GetPublishedReceiptByLinkedRMR(root []byte) (s
 	}
 }
 
+func (prq *PublishedReceiptQuery) GetUnlinkedPublishedReceipt(root []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE rmr_linked != ?", strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		root,
+	}
+}
+
 func (prq *PublishedReceiptQuery) GetPublishedReceiptByBlockHeight(blockHeight uint32) (str string, args []interface{}) {
 	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? ORDER BY published_index ASC",
 		strings.Join(prq.Fields, ", "), prq.getTableName())
 	return query, []interface{}{
 		blockHeight,
+	}
+}
+
+func (prq *PublishedReceiptQuery) GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(blockHeight uint32,
+	recipientPubKey []byte) (str string, args []interface{}) {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = ? AND recipient_public_key = ? AND rmr_linked IS NULL LIMIT 1",
+		strings.Join(prq.Fields, ", "), prq.getTableName())
+	return query, []interface{}{
+		blockHeight,
+		recipientPubKey,
 	}
 }
 
@@ -196,11 +221,12 @@ func (*PublishedReceiptQuery) Scan(receipt *model.PublishedReceipt, row *sql.Row
 		&receipt.Receipt.DatumHash,
 		&receipt.Receipt.ReferenceBlockHeight,
 		&receipt.Receipt.ReferenceBlockHash,
-		&receipt.Receipt.RMRLinked,
+		&receipt.Receipt.RMR,
 		&receipt.Receipt.RecipientSignature,
 		&receipt.IntermediateHashes,
 		&receipt.BlockHeight,
-		&receipt.ReceiptIndex,
+		&receipt.RMRLinked,
+		&receipt.RMRLinkedIndex,
 		&receipt.PublishedIndex,
 	)
 	return err
@@ -215,11 +241,12 @@ func (*PublishedReceiptQuery) ExtractModel(publishedReceipt *model.PublishedRece
 		&publishedReceipt.Receipt.DatumHash,
 		&publishedReceipt.Receipt.ReferenceBlockHeight,
 		&publishedReceipt.Receipt.ReferenceBlockHash,
-		&publishedReceipt.Receipt.RMRLinked,
+		&publishedReceipt.Receipt.RMR,
 		&publishedReceipt.Receipt.RecipientSignature,
 		&publishedReceipt.IntermediateHashes,
 		&publishedReceipt.BlockHeight,
-		&publishedReceipt.ReceiptIndex,
+		&publishedReceipt.RMRLinked,
+		&publishedReceipt.RMRLinkedIndex,
 		&publishedReceipt.PublishedIndex,
 	}
 }
@@ -238,11 +265,12 @@ func (prq *PublishedReceiptQuery) BuildModel(
 			&receipt.Receipt.DatumHash,
 			&receipt.Receipt.ReferenceBlockHeight,
 			&receipt.Receipt.ReferenceBlockHash,
-			&receipt.Receipt.RMRLinked,
+			&receipt.Receipt.RMR,
 			&receipt.Receipt.RecipientSignature,
 			&receipt.IntermediateHashes,
 			&receipt.BlockHeight,
-			&receipt.ReceiptIndex,
+			&receipt.RMRLinked,
+			&receipt.RMRLinkedIndex,
 			&receipt.PublishedIndex,
 		)
 		if err != nil {

@@ -122,7 +122,7 @@ func (psu *PublishedReceiptUtil) GetPublishedReceiptByLinkedRMR(root []byte) (*m
 			Receipt:            &model.Receipt{},
 			IntermediateHashes: nil,
 			BlockHeight:        0,
-			ReceiptIndex:       0,
+			PublishedIndex:     0,
 		}
 		err error
 	)

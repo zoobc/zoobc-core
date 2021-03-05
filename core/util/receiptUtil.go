@@ -51,9 +51,14 @@ package util
 
 import (
 	"bytes"
+	"crypto/ed25519"
 	"encoding/hex"
+	"errors"
 	"github.com/zoobc/zoobc-core/common/blocker"
+	"github.com/zoobc/zoobc-core/common/crypto"
+	"github.com/zoobc/zoobc-core/common/query"
 	p2pUtil "github.com/zoobc/zoobc-core/p2p/util"
+	"math/rand"
 
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
@@ -77,10 +82,36 @@ type (
 		GetReceiptKey(
 			dataHash, senderPublicKey []byte,
 		) ([]byte, error)
+		ValidateReceiptHelper(
+			receipt *model.Receipt,
+			validateRefBlock bool,
+			executor query.ExecutorInterface,
+			blockQuery query.BlockQueryInterface,
+			mainBlockStorage storage.CacheStackStorageInterface,
+			signature crypto.SignatureInterface,
+			scrambleNodesAtHeight *model.ScrambledNodes,
+		) error
 		ValidateReceiptSenderRecipient(
 			receipt *model.Receipt,
 			scrambledNode *model.ScrambledNodes,
 		) error
+		GetPriorityPeersAtHeight(
+			nodePubKey []byte,
+			scrambleNodes *model.ScrambledNodes,
+		) (map[string]*model.Peer, error)
+		GeneratePublishedReceipt(
+			batchReceipt *model.Receipt,
+			PublishedIndex uint32,
+			RMRLinked []byte,
+			RMRLinkedIndex uint32,
+		) (*model.PublishedReceipt, error)
+		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
+		BuildBlockDatumHashes(
+			block *model.Block,
+			executor query.ExecutorInterface,
+			transactionQuery query.TransactionQueryInterface,
+		) ([][]byte, error)
+		GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error)
 	}
 
 	ReceiptUtil struct{}
@@ -88,6 +119,194 @@ type (
 
 func NewReceiptUtil() *ReceiptUtil {
 	return &ReceiptUtil{}
+}
+
+// buildBlockDatumHashes build an array containing all hashes of data secured by the block (transactions and previous block)
+func (ru *ReceiptUtil) BuildBlockDatumHashes(
+	block *model.Block,
+	executor query.ExecutorInterface,
+	transactionQuery query.TransactionQueryInterface,
+) ([][]byte, error) {
+	var (
+		// hashList list of prev previousBlock hash + all previousBlock tx hashes (it should match all batch receipts the nodes already have)
+		hashList = [][]byte{
+			block.PreviousBlockHash,
+		}
+	)
+	blockTransactions, err := func() ([]*model.Transaction, error) {
+		var transactions []*model.Transaction
+		qry, args := transactionQuery.GetTransactionsByBlockID(block.ID)
+		rows, err := executor.ExecuteSelect(qry, false, args...)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		return transactionQuery.BuildModel(transactions, rows)
+	}()
+	if err != nil {
+		return nil, err
+	}
+	// add transaction hashes of current block
+	for _, tx := range blockTransactions {
+		hashList = append(hashList, tx.TransactionHash)
+	}
+	return hashList, nil
+}
+
+func (ru *ReceiptUtil) GetRandomDatumHash(hashList [][]byte, blockSeed []byte) (rndDatumHash []byte, rndDatumType uint32, err error) {
+	// roll a random number based on lastBlock's previousBlock seed to select specific data from the looked up previousBlock
+	// (lastblock height - BatchReceiptLookBackHeight)
+	var (
+		rng             = crypto.NewRandomNumberGenerator()
+		rndSelectionIdx int
+	)
+
+	// instantiate a pseudo random number generator using block seed (new block) as random seed
+	err = rng.Reset(constant.BlocksmithSelectionSeedPrefix, blockSeed)
+	if err != nil {
+		return nil, 0, err
+	}
+	rndSeedInt := rng.Next()
+	rndSelSeed := rand.NewSource(rndSeedInt)
+	rnd := rand.New(rndSelSeed)
+	// rndSelectionIdx pseudo-random number in hashList array indexes
+	if len(hashList) > 1 {
+		rndSelectionIdx = rnd.Intn(len(hashList) - 1)
+	}
+	// rndDatumHash hash to be used to find relative batch (node) receipts later on
+	if rndSelectionIdx > len(hashList)-1 {
+		return nil, 0, errors.New("BatchReceiptIndexOutOfRange")
+	}
+	rndDatumHash = hashList[rndSelectionIdx]
+	// first element of hashList array is always an hash relative to a block
+	if rndSelectionIdx == 0 {
+		rndDatumType = constant.ReceiptDatumTypeBlock
+	} else {
+		rndDatumType = constant.ReceiptDatumTypeTransaction
+	}
+	return rndDatumHash, rndDatumType, nil
+}
+
+func (ru *ReceiptUtil) GeneratePublishedReceipt(
+	receipt *model.Receipt,
+	PublishedIndex uint32,
+	RMRLinked []byte,
+	RMRLinkedIndex uint32,
+) (*model.PublishedReceipt, error) {
+	var (
+		intermediateHashes [][]byte
+		merkle             = util.MerkleRoot{}
+	)
+
+	rcByte := ru.GetSignedReceiptBytes(receipt)
+	rcHash := sha3.Sum256(rcByte)
+
+	intermediateHashesBuffer := merkle.GetIntermediateHashes(
+		bytes.NewBuffer(rcHash[:]),
+		int32(RMRLinkedIndex),
+	)
+	for _, buf := range intermediateHashesBuffer {
+		intermediateHashes = append(intermediateHashes, buf.Bytes())
+	}
+	return &model.PublishedReceipt{
+		Receipt:            receipt,
+		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
+		RMRLinked:          RMRLinked,
+		RMRLinkedIndex:     RMRLinkedIndex,
+		PublishedIndex:     PublishedIndex,
+	}, nil
+}
+
+// GetPriorityPeersAtHeight get priority peers map with peer public key (hex) as map key
+func (ru *ReceiptUtil) GetPriorityPeersAtHeight(
+	nodePubKey []byte,
+	scrambleNodes *model.ScrambledNodes,
+) (map[string]*model.Peer, error) {
+	var peersByPubKeyMap = make(map[string]*model.Peer)
+	scrambleNodeID, ok := scrambleNodes.NodePublicKeyToIDMap[hex.EncodeToString(nodePubKey)]
+	if !ok {
+		// return empty priority peers list if current node is not found in scramble nodes at look back height
+		return make(map[string]*model.Peer), nil
+	}
+	peers, err := p2pUtil.GetPriorityPeersByNodeID(
+		scrambleNodeID,
+		scrambleNodes,
+	)
+	if err != nil {
+		return make(map[string]*model.Peer), nil
+	}
+	for _, peer := range peers {
+		peersByPubKeyMap[hex.EncodeToString(peer.Info.PublicKey)] = peer
+	}
+	return peersByPubKeyMap, nil
+}
+
+// ValidateReceiptHelper helper function for better code testability
+func (ru *ReceiptUtil) ValidateReceiptHelper(
+	receipt *model.Receipt,
+	validateRefBlock bool,
+	executor query.ExecutorInterface,
+	blockQuery query.BlockQueryInterface,
+	mainBlockStorage storage.CacheStackStorageInterface,
+	signature crypto.SignatureInterface,
+	scrambleNodesAtHeight *model.ScrambledNodes,
+) error {
+	var (
+		blockAtHeight *storage.BlockCacheObject
+		err           error
+	)
+	if len(receipt.GetRecipientPublicKey()) != ed25519.PublicKeySize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptRecipientPublicKeySize",
+		)
+	}
+	if len(receipt.GetRecipientSignature()) != ed25519.SignatureSize {
+		return blocker.NewBlocker(blocker.ValidationErr,
+			"[SendBlockTransactions:MaliciousReceipt] - %d is %s",
+			len(receipt.GetRecipientPublicKey()),
+			"InvalidReceiptSignatureSize",
+		)
+	}
+
+	unsignedBytes := ru.GetUnsignedReceiptBytes(receipt)
+	if !signature.VerifyNodeSignature(
+		unsignedBytes,
+		receipt.RecipientSignature,
+		receipt.RecipientPublicKey,
+	) {
+		// rollback
+		return blocker.NewBlocker(
+			blocker.ValidationErr,
+			"InvalidReceiptSignature",
+		)
+	}
+
+	// validate reference block hash only if necessary
+	// Eg. when collecting batch receipts from peers, we don't want to check if the receipt come from a fork (or we are in a temporary fork,
+	// thus we would not collect a good receipt).
+	if validateRefBlock {
+		blockAtHeight, err = util.GetBlockByHeightUseBlocksCache(
+			receipt.ReferenceBlockHeight,
+			executor,
+			blockQuery,
+			mainBlockStorage,
+		)
+		if err != nil {
+			return err
+		}
+		// check block hash
+		if !bytes.Equal(blockAtHeight.BlockHash, receipt.ReferenceBlockHash) {
+			return blocker.NewBlocker(blocker.ValidationErr, "InvalidReceiptBlockHash")
+		}
+	}
+
+	err = ru.ValidateReceiptSenderRecipient(receipt, scrambleNodesAtHeight)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (ru *ReceiptUtil) ValidateReceiptSenderRecipient(
@@ -142,7 +361,7 @@ func (ru *ReceiptUtil) GetNumberOfMaxReceipts(numberOfSortedBlocksmiths int) uin
 func (ru *ReceiptUtil) GenerateReceipt(
 	ct chaintype.ChainType,
 	referenceBlock *storage.BlockCacheObject,
-	senderPublicKey, recipientPublicKey, datumHash, rmrLinked []byte,
+	senderPublicKey, recipientPublicKey, datumHash, rmr []byte,
 	datumType uint32,
 ) (*model.Receipt, error) {
 
@@ -153,7 +372,7 @@ func (ru *ReceiptUtil) GenerateReceipt(
 		DatumHash:            datumHash,
 		ReferenceBlockHeight: referenceBlock.Height,
 		ReferenceBlockHash:   referenceBlock.BlockHash,
-		RMRLinked:            rmrLinked,
+		RMR:                  rmr,
 	}, nil
 }
 
@@ -167,7 +386,7 @@ func (ru *ReceiptUtil) GetUnsignedReceiptBytes(receipt *model.Receipt) []byte {
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(util.ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.RMRLinked)
+	buffer.Write(receipt.RMR)
 	return buffer.Bytes()
 }
 
@@ -180,7 +399,7 @@ func (ru *ReceiptUtil) GetSignedReceiptBytes(receipt *model.Receipt) []byte {
 	buffer.Write(receipt.ReferenceBlockHash)
 	buffer.Write(util.ConvertUint32ToBytes(receipt.DatumType))
 	buffer.Write(receipt.DatumHash)
-	buffer.Write(receipt.RMRLinked)
+	buffer.Write(receipt.RMR)
 	buffer.Write(receipt.RecipientSignature)
 	return buffer.Bytes()
 }
@@ -199,4 +418,27 @@ func (ru *ReceiptUtil) GetReceiptKey(
 	}
 	receiptKey := digest.Sum([]byte{})
 	return receiptKey, nil
+}
+
+func (ru *ReceiptUtil) IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error {
+	if a.BlockHeight != b.BlockHeight {
+		return errors.New("BlockHeight")
+	}
+	if a.Receipt.ReferenceBlockHeight != b.Receipt.ReferenceBlockHeight {
+		return errors.New("ReferenceBlockHeight")
+	}
+	if !bytes.Equal(a.Receipt.ReferenceBlockHash, b.Receipt.ReferenceBlockHash) {
+		return errors.New("ReferenceBlockHash")
+	}
+	if !bytes.Equal(a.Receipt.RecipientPublicKey, b.Receipt.RecipientPublicKey) {
+		return errors.New("RecipientPubKey")
+	}
+	if !bytes.Equal(a.Receipt.SenderPublicKey, b.Receipt.SenderPublicKey) {
+		return errors.New("SenderPubKey")
+	}
+	if !bytes.Equal(a.Receipt.RMR, b.Receipt.RMR) {
+		return errors.New("RMRLinked")
+	}
+
+	return nil
 }

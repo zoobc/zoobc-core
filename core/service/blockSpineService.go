@@ -767,6 +767,9 @@ func (bs *BlockSpineService) GenerateBlock(
 	// get the timestamp of the block 1 MinRollbackBlocks ago
 	if lastMainBlock.Height > constant.MinRollbackBlocks {
 		newReferenceBlockHeight = lastMainBlock.Height - constant.MinRollbackBlocks
+		if newReferenceBlockHeight < newIncludedFirstBlockHeight {
+			newReferenceBlockHeight = newIncludedFirstBlockHeight
+		}
 	}
 
 	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
@@ -1086,6 +1089,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
 		intermediateHashes [][]byte
 	)
+	// TODO: "@ali" please double check that this doesn't interfere with receipt generation and validation
 	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
 	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
 	for _, buf := range intermediateHashesBuffer {

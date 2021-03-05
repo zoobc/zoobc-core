@@ -534,12 +534,12 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"reference_block_hash, rmr, recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
 		mockSpine.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key", "recipient_public_key", "datum_type", "datum_hash", "reference_block_height",
-			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
-			"receipt_index", "published_index",
+			"reference_block_hash", "rmr", "recipient_signature", "intermediate_hashes", "block_height",
+			"rmr_linked", "rmr_linked_index", "published_index",
 		}).AddRow(
 			mockSpinePublishedReceipt[0].Receipt.SenderPublicKey,
 			mockSpinePublishedReceipt[0].Receipt.RecipientPublicKey,
@@ -547,11 +547,12 @@ func (*mockSpineQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...
 			mockSpinePublishedReceipt[0].Receipt.DatumHash,
 			mockSpinePublishedReceipt[0].Receipt.ReferenceBlockHeight,
 			mockSpinePublishedReceipt[0].Receipt.ReferenceBlockHash,
-			mockSpinePublishedReceipt[0].Receipt.RMRLinked,
+			mockSpinePublishedReceipt[0].Receipt.RMR,
 			mockSpinePublishedReceipt[0].Receipt.RecipientSignature,
 			mockSpinePublishedReceipt[0].IntermediateHashes,
 			mockSpinePublishedReceipt[0].BlockHeight,
-			mockSpinePublishedReceipt[0].ReceiptIndex,
+			mockSpinePublishedReceipt[0].RMRLinked,
+			mockSpinePublishedReceipt[0].RMRLinkedIndex,
 			mockSpinePublishedReceipt[0].PublishedIndex,
 		))
 	case "SELECT id, node_public_key, account_address, registration_height, locked_balance, " +
@@ -582,12 +583,11 @@ var mockSpinePublishedReceipt = []*model.PublishedReceipt{
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 0,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            nil,
+			RMR:                  nil,
 			RecipientSignature:   make([]byte, 64),
 		},
 		IntermediateHashes: nil,
 		BlockHeight:        1,
-		ReceiptIndex:       0,
 		PublishedIndex:     0,
 	},
 }
@@ -1198,8 +1198,11 @@ func (ss *mockSpineBlockManifestService) GetSpineBlockManifestBySpineBlockHeight
 	return spineBlockManifests, err
 }
 
-func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(int64, uint32, uint32) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+func (*mockSpineReceiptServiceReturnEmpty) SelectReceipts(
+	numberOfReceipt, blockHeight uint32,
+	blockSeed []byte,
+) ([][]*model.PublishedReceipt, error) {
+	return [][]*model.PublishedReceipt{}, nil
 }
 
 // mockSpineQueryExecutorMempoolSuccess

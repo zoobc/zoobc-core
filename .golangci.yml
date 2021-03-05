@@ -78,6 +78,9 @@ run:
 
 issues:
     exclude-rules:
+        - text: "Using the variable on range scope"
+          linters:
+              - scopelint
         - text: "`derivate` is a misspelling of `derivative`"
           linters:
               - misspell

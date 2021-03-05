@@ -61,8 +61,11 @@ type (
 		InsertMerkleTree(
 			root, tree []byte, timestamp int64, blockHeight uint32) (qStr string, args []interface{})
 		GetMerkleTreeByRoot(root []byte) (qStr string, args []interface{})
-		SelectMerkleTree(
-			lowerHeight, upperHeight, limit uint32,
+		SelectMerkleTreeForPublishedReceipts(
+			height uint32,
+		) string
+		SelectMerkleTreeAtHeight(
+			height uint32,
 		) string
 		GetLastMerkleRoot() (qStr string)
 		PruneData(blockHeight, limit uint32) (string, []interface{})
@@ -123,17 +126,28 @@ func (mrQ *MerkleTreeQuery) GetLastMerkleRoot() (qStr string) {
 }
 
 /*
-SelectMerkleTree represents get merkle tree in range of block_height
+SelectMerkleTreeAtHeight represents get merkle tree of block_height
+*/
+func (mrQ *MerkleTreeQuery) SelectMerkleTreeAtHeight(
+	height uint32,
+) string {
+	query := fmt.Sprintf("SELECT %s FROM %s WHERE block_height = %d",
+		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), height)
+	return query
+}
+
+/*
+SelectMerkleTreeForPublishedReceipts represents get merkle tree in range of block_height
 and order by block_height ascending
 test_expression >= low_expression AND test_expression <= high_expression
 */
-func (mrQ *MerkleTreeQuery) SelectMerkleTree(
-	lowerHeight, upperHeight, limit uint32,
+func (mrQ *MerkleTreeQuery) SelectMerkleTreeForPublishedReceipts(
+	height uint32,
 ) string {
 	query := fmt.Sprintf("SELECT %s FROM %s AS mt WHERE EXISTS "+
 		"(SELECT rmr_linked FROM published_receipt AS pr WHERE mt.id = pr.rmr_linked) AND "+
-		"block_height BETWEEN %d AND %d ORDER BY block_height ASC LIMIT %d",
-		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), lowerHeight, upperHeight, limit)
+		"block_height = %d",
+		strings.Join(mrQ.Fields, ", "), mrQ.getTableName(), height)
 	return query
 }
 
