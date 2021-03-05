@@ -146,6 +146,13 @@ func (*mockNodeRegistrationServiceSuccess) GetActiveRegistryNodeWithTotalPartici
 	return []storage.NodeRegistry{}, 0, nil
 }
 
+func (*mockNodeRegistrationServiceSuccess) GetActiveRegisteredNodes() ([]*model.NodeRegistration, error) {
+	return []*model.NodeRegistration{
+		nr1,
+		nr2,
+	}, nil
+}
+
 func (*mockNodeRegistrationServiceSuccess) AddParticipationScore(
 	nodeID, scoreDelta int64,
 	height uint32,
@@ -609,12 +616,12 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			0,
 		))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"reference_block_hash, rmr, recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
 		mock.ExpectQuery(regexp.QuoteMeta(qe)).WillReturnRows(sqlmock.NewRows([]string{
 			"sender_public_key", "recipient_public_key", "datum_type", "datum_hash", "reference_block_height",
-			"reference_block_hash", "rmr_linked", "recipient_signature", "intermediate_hashes", "block_height",
-			"receipt_index", "published_index",
+			"reference_block_hash", "rmr", "recipient_signature", "intermediate_hashes", "block_height",
+			"rmr_linked", "rmr_linked_index", "published_index",
 		}).AddRow(
 			mockPublishedReceipt[0].Receipt.SenderPublicKey,
 			mockPublishedReceipt[0].Receipt.RecipientPublicKey,
@@ -622,11 +629,12 @@ func (*mockQueryExecutorSuccess) ExecuteSelect(qe string, tx bool, args ...inter
 			mockPublishedReceipt[0].Receipt.DatumHash,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 			mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-			mockPublishedReceipt[0].Receipt.RMRLinked,
+			mockPublishedReceipt[0].Receipt.RMR,
 			mockPublishedReceipt[0].Receipt.RecipientSignature,
 			mockPublishedReceipt[0].IntermediateHashes,
 			mockPublishedReceipt[0].BlockHeight,
-			mockPublishedReceipt[0].ReceiptIndex,
+			mockPublishedReceipt[0].RMRLinked,
+			mockPublishedReceipt[0].RMRLinkedIndex,
 			mockPublishedReceipt[0].PublishedIndex,
 		))
 	case "SELECT id, node_public_key, account_address, registration_height, " +
@@ -711,13 +719,14 @@ var mockPublishedReceipt = []*model.PublishedReceipt{
 			DatumHash:            make([]byte, 32),
 			ReferenceBlockHeight: 0,
 			ReferenceBlockHash:   make([]byte, 32),
-			RMRLinked:            nil,
+			RMR:                  nil,
 			RecipientSignature:   make([]byte, 64),
 		},
 		IntermediateHashes: nil,
 		BlockHeight:        1,
-		ReceiptIndex:       0,
 		PublishedIndex:     0,
+		RMRLinked:          make([]byte, 32),
+		RMRLinkedIndex:     uint32(0),
 	},
 }
 
@@ -1140,8 +1149,9 @@ func (*mockPushBlockBlocksmithServiceSuccess) RewardBlocksmithAccountAddresses([
 	return nil
 }
 
-func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
-	return 0, nil
+func (*mockPushBlockPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
+	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount, linkedCount int, err error) {
+	return 0, 0, nil
 }
 
 func (*mockPushBlockNodeAddressInfoServiceSuccess) BeginCacheTransaction() error {
@@ -1541,10 +1551,10 @@ type (
 )
 
 func (*mockReceiptServiceReturnEmpty) SelectReceipts(
-	blockTimestamp int64,
-	numberOfReceipt, lastBlockHeight uint32,
-) ([]*model.PublishedReceipt, error) {
-	return []*model.PublishedReceipt{}, nil
+	numberOfReceipt, blockHeight uint32,
+	blockSeed []byte,
+) ([][]*model.PublishedReceipt, error) {
+	return [][]*model.PublishedReceipt{}, nil
 }
 
 // mockQueryExecutorMempoolSuccess
@@ -1850,8 +1860,9 @@ func (*mockBlocksmithServiceAddGenesisSuccess) SortBlocksmiths(block *model.Bloc
 
 }
 
-func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block) (int, error) {
-	return 0, nil
+func (*mockAddGenesisPublishedReceiptServiceSuccess) ProcessPublishedReceipts(block *model.Block,
+	numberOfReceipts uint32, validateReceipt bool) (unlinkedCount, linkedCount int, err error) {
+	return 0, 0, nil
 }
 
 type (
@@ -1892,6 +1903,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 		BlockchainStatusService   BlockchainStatusServiceInterface
 		ScrambleNodeService       ScrambleNodeServiceInterface
 		PendingTransactionService PendingTransactionServiceInterface
+		ReceiptUtil               coreUtil.ReceiptUtilInterface
 	}
 	tests := []struct {
 		name    string
@@ -1935,6 +1947,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockchainStatusService:   &mockBlockchainStatusService{},
 				ScrambleNodeService:       &mockScrambleServiceAddGenesisSuccess{},
 				PendingTransactionService: &mockPendingTransactionServiceExpiringSuccess{},
+				ReceiptUtil:               &mockReceiptUtilSuccess{},
 			},
 			wantErr: false,
 		},
@@ -1965,6 +1978,7 @@ func TestBlockService_AddGenesis(t *testing.T) {
 				BlockchainStatusService:   tt.fields.BlockchainStatusService,
 				ScrambleNodeService:       tt.fields.ScrambleNodeService,
 				PendingTransactionService: tt.fields.PendingTransactionService,
+				ReceiptUtil:               tt.fields.ReceiptUtil,
 			}
 			if err := bs.AddGenesis(); (err != nil) != tt.wantErr {
 				t.Errorf("BlockService.AddGenesis() error = %v, wantErr %v", err, tt.wantErr)
@@ -4327,7 +4341,7 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 				mockTransaction.TransactionIndex,
 			))
 	case "SELECT sender_public_key, recipient_public_key, datum_type, datum_hash, reference_block_height, " +
-		"reference_block_hash, rmr_linked, recipient_signature, intermediate_hashes, block_height, receipt_index, " +
+		"reference_block_hash, rmr, recipient_signature, intermediate_hashes, block_height, rmr_linked, rmr_linked_index, " +
 		"published_index FROM published_receipt WHERE block_height = ? ORDER BY published_index ASC":
 		mockMain.ExpectQuery(regexp.QuoteMeta(qStr)).
 			WillReturnRows(sqlmock.NewRows(
@@ -4339,11 +4353,12 @@ func (*mockMainExecutorPopulateBlockDataSuccess) ExecuteSelect(qStr string, tx b
 				mockPublishedReceipt[0].Receipt.DatumHash,
 				mockPublishedReceipt[0].Receipt.ReferenceBlockHeight,
 				mockPublishedReceipt[0].Receipt.ReferenceBlockHash,
-				mockPublishedReceipt[0].Receipt.RMRLinked,
+				mockPublishedReceipt[0].Receipt.RMR,
 				mockPublishedReceipt[0].Receipt.RecipientSignature,
 				mockPublishedReceipt[0].IntermediateHashes,
 				mockPublishedReceipt[0].BlockHeight,
-				mockPublishedReceipt[0].ReceiptIndex,
+				mockPublishedReceipt[0].RMRLinked,
+				mockPublishedReceipt[0].RMRLinkedIndex,
 				mockPublishedReceipt[0].PublishedIndex,
 			))
 

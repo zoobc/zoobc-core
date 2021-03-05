@@ -54,9 +54,8 @@ package model
 
 import (
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -452,7 +451,9 @@ func init() {
 	proto.RegisterType((*GetEscrowTransactionRequest)(nil), "model.GetEscrowTransactionRequest")
 }
 
-func init() { proto.RegisterFile("model/escrow.proto", fileDescriptor_c4ffdfca00fa52ba) }
+func init() {
+	proto.RegisterFile("model/escrow.proto", fileDescriptor_c4ffdfca00fa52ba)
+}
 
 var fileDescriptor_c4ffdfca00fa52ba = []byte{
 	// 537 bytes of a gzipped FileDescriptorProto

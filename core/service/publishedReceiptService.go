@@ -50,17 +50,21 @@
 package service
 
 import (
+	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
 	"github.com/zoobc/zoobc-core/common/query"
-	commonUtils "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/util"
-	"golang.org/x/crypto/sha3"
 )
 
 type (
 	// PublishedReceiptServiceInterface act as interface for processing the published receipt data
 	PublishedReceiptServiceInterface interface {
-		ProcessPublishedReceipts(block *model.Block) (int, error)
+		ProcessPublishedReceipts(
+			block *model.Block,
+			numberOfEstimatedReceipts uint32,
+			validateReceipt bool,
+		) (unlinkedCount, linkedCount int, err error)
 	}
 
 	PublishedReceiptService struct {
@@ -90,47 +94,76 @@ func NewPublishedReceiptService(
 
 // ProcessPublishedReceipts takes published receipts in a block and validate them, this function will run in a db transaction
 // so ensure queryExecutor.Begin() is called before calling this function.
-func (ps *PublishedReceiptService) ProcessPublishedReceipts(block *model.Block) (int, error) {
+func (ps *PublishedReceiptService) ProcessPublishedReceipts(
+	block *model.Block,
+	numberOfEstimatedReceipts uint32,
+	validateReceipt bool,
+) (unlinkedCount, linkedCount int, err error) {
 	var (
-		linkedCount int
-		err         error
+		publishedReceipts                                    = block.GetPublishedReceipts()
+		unlinkedReceiptsToValidate, linkedReceiptsToValidate []*model.PublishedReceipt
 	)
-	for index, rc := range block.GetPublishedReceipts() {
-		// validate sender and recipient of receipt
-		err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt())
-		if err != nil {
-			return 0, err
+	if len(publishedReceipts) == 0 {
+		return 0, 0, nil
+	}
+	// if block carries invalid receipts, we fail the block
+	if len(publishedReceipts) > int(2*numberOfEstimatedReceipts) {
+		return 0, 0, errors.New("MaxAllowedReceiptsPerBlockExceeded")
+	}
+
+	// separate publishedReceipt and linked receipts
+	for _, publishedReceipt := range publishedReceipts {
+		if publishedReceipt.RMRLinked == nil {
+			unlinkedReceiptsToValidate = append(unlinkedReceiptsToValidate, publishedReceipt)
+		} else {
+			linkedReceiptsToValidate = append(linkedReceiptsToValidate, publishedReceipt)
 		}
-		// check if linked
-		if rc.IntermediateHashes != nil && len(rc.IntermediateHashes) > 0 {
-			merkle := &commonUtils.MerkleRoot{}
-			rcByte := ps.ReceiptUtil.GetSignedReceiptBytes(rc.GetReceipt())
-			rcHash := sha3.Sum256(rcByte)
-			root, err := merkle.GetMerkleRootFromIntermediateHashes(
-				rcHash[:],
-				rc.ReceiptIndex,
-				merkle.RestoreIntermediateHashes(rc.IntermediateHashes),
+	}
+
+	if block.Height >= constant.BatchReceiptLookBackHeight {
+		if len(unlinkedReceiptsToValidate) > 0 {
+			validUnlinkedReceipts, err := ps.ReceiptService.ValidateUnlinkedReceipts(
+				unlinkedReceiptsToValidate,
+				block,
 			)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
-			// look up root in published_receipt table
-			_, err = ps.PublishedReceiptUtil.GetPublishedReceiptByLinkedRMR(root)
+			unlinkedCount = len(validUnlinkedReceipts)
+		}
+		if len(linkedReceiptsToValidate) > 0 {
+			validLinkedReceipts, err := ps.ReceiptService.ValidateLinkedReceipts(
+				linkedReceiptsToValidate,
+				block,
+				int32(numberOfEstimatedReceipts),
+			)
 			if err != nil {
-				return 0, err
+				return 0, 0, err
 			}
-			// add to linked receipt count for calculation later
-			linkedCount++
+			linkedCount = len(validLinkedReceipts)
+		}
+	}
+
+	for index, rc := range publishedReceipts {
+		// validate sender and recipient of receipt
+		if validateReceipt {
+			// formally validate receipts
+			err = ps.ReceiptService.ValidateReceipt(rc.GetReceipt(), true)
+			if err != nil {
+				return 0, 0, err
+			}
 		}
 		// store in database
 		// assign index and height, index is the order of the receipt in the block,
 		// it's different with receiptIndex which is used to validate merkle root.
-		rc.BlockHeight, rc.PublishedIndex = block.Height, uint32(index)
+		rc.BlockHeight = block.Height
+		rc.PublishedIndex = uint32(index)
 
 		err := ps.PublishedReceiptUtil.InsertPublishedReceipt(rc, true)
 		if err != nil {
-			return 0, err
+			return 0, 0, err
 		}
 	}
-	return linkedCount, nil
+
+	return unlinkedCount, linkedCount, nil
 }

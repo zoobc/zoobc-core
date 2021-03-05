@@ -54,7 +54,7 @@ const (
 	// maintain the number scale like balance does.
 	ScalarReceiptScore = float32(OneZBC)
 	// LinkedReceiptScore the score for each receipt that proved have relation with previous published receipt via merkle root
-	LinkedReceiptScore float32 = 2
+	LinkedReceiptScore float32 = 1.5
 	// LinkedReceiptScore the score for each receipt that can't proved have relation with previous published receipt via merkle root
 	UnlinkedReceiptScore float32 = 0.5
 	// MaxScoreChange the maximum score that node wll get.
@@ -73,5 +73,7 @@ const (
 	// BetaBlockBonus beta only additional participation score
 	BetaBlockBonus = MaxParticipationScore / 420
 	// BetaBlockBonusSkipMultiplier beta only additional participation score decrease
-	BetaBlockBonusSkipMultiplier = 5
+	BetaBlockBonusSkipMultiplier       = 5
+	IncreaseScoreMod             int64 = MaxScoreChange / 10
+	DecreaseScoreMod             int64 = -(MaxScoreChange / 5)
 )

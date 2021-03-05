@@ -112,7 +112,6 @@ var (
 		Receipt:            &model.Receipt{},
 		IntermediateHashes: nil,
 		BlockHeight:        1,
-		ReceiptIndex:       1,
 	}
 	// GetPublishedReceiptByLinkedRMR mocks
 )
@@ -214,7 +213,6 @@ var (
 			Receipt:            nil,
 			IntermediateHashes: nil,
 			BlockHeight:        1,
-			ReceiptIndex:       2,
 			PublishedIndex:     3,
 		},
 	}
@@ -431,14 +429,13 @@ var (
 		DatumHash:            make([]byte, 32),
 		ReferenceBlockHeight: 1,
 		ReferenceBlockHash:   make([]byte, 32),
-		RMRLinked:            make([]byte, 32),
+		RMR:                  make([]byte, 32),
 		RecipientSignature:   make([]byte, 64),
 	}
 	mockPublishedReceipt = &model.PublishedReceipt{
 		Receipt:            mockReceipt,
 		IntermediateHashes: make([]byte, 3*32),
 		BlockHeight:        2,
-		ReceiptIndex:       1,
 		PublishedIndex:     1,
 	}
 	mockPublishedReceiptUtilGetPublishedReceiptsByBlockHeightRange = []*model.PublishedReceipt{
@@ -465,11 +462,12 @@ func (*mockPublishedReceiptUtilExecutorSuccess) ExecuteSelect(qStr string, tx bo
 		mockReceipt.DatumHash,
 		mockReceipt.ReferenceBlockHeight,
 		mockReceipt.ReferenceBlockHash,
-		mockReceipt.RMRLinked,
+		mockReceipt.RMR,
 		mockReceipt.RecipientSignature,
 		mockPublishedReceipt.IntermediateHashes,
 		mockPublishedReceipt.BlockHeight,
-		mockPublishedReceipt.ReceiptIndex,
+		mockPublishedReceipt.RMRLinked,
+		mockPublishedReceipt.RMRLinkedIndex,
 		mockPublishedReceipt.PublishedIndex,
 	)
 	mock.ExpectQuery(regexp.QuoteMeta(qStr)).WillReturnRows(mockedRows)
