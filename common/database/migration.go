@@ -208,13 +208,13 @@ func (m *Migration) Init() error {
 				"datum_hash" BLOB,
 				"reference_block_height" INTEGER,
 				"reference_block_hash" BLOB,
-				"rmr" BLOB,
+				"rmr" BLOB, -- is the receipt merkle root that came inside this receipt
 				"recipient_signature" BLOB,
 				"intermediate_hashes" BLOB,
 				"block_height" INTEGER,
-				"rmr_linked" BLOB,
-				"rmr_linked_index" INTEGER,
-				"published_index" INTEGER
+				"rmr_linked" BLOB,  -- is the receipt merkle root of the published receipt that this receipt is linked to
+				"rmr_linked_index" INTEGER, -- this is the index of the batch receipt it its original batch
+				"published_index" INTEGER -- this is the index of the receipt inside this block
 			)
 			`,
 			`
