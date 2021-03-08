@@ -52,6 +52,7 @@ package util
 import (
 	"bytes"
 	"crypto/ed25519"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"github.com/zoobc/zoobc-core/common/blocker"
@@ -104,6 +105,8 @@ type (
 			PublishedIndex uint32,
 			RMRLinked []byte,
 			RMRLinkedIndex uint32,
+			executor query.ExecutorInterface,
+			merkleTreeQuery query.MerkleTreeQueryInterface,
 		) (*model.PublishedReceipt, error)
 		IsPublishedReceiptEqual(a, b *model.PublishedReceipt) error
 		BuildBlockDatumHashes(
@@ -192,22 +195,43 @@ func (ru *ReceiptUtil) GeneratePublishedReceipt(
 	PublishedIndex uint32,
 	RMRLinked []byte,
 	RMRLinkedIndex uint32,
+	executor query.ExecutorInterface,
+	merkleTreeQuery query.MerkleTreeQueryInterface,
 ) (*model.PublishedReceipt, error) {
 	var (
 		intermediateHashes [][]byte
 		merkle             = util.MerkleRoot{}
 	)
 
-	rcByte := ru.GetSignedReceiptBytes(receipt)
-	rcHash := sha3.Sum256(rcByte)
+	// TODO: integrate unit test
+	if RMRLinked != nil {
+		var merkleTree []byte
+		qry, args := merkleTreeQuery.GetMerkleTreeByRoot(RMRLinked)
+		row, err := executor.ExecuteSelectRow(qry, false, args...)
+		if err != nil {
+			return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
+		}
+		merkleTree, err = merkleTreeQuery.ScanTree(row)
+		if err != nil {
+			if err != sql.ErrNoRows {
+				return nil, blocker.NewBlocker(blocker.DBErr, "BlockScanErr, ", err.Error())
+			}
+			return nil, blocker.NewBlocker(blocker.DBRowNotFound, "BlockNotFound")
+		}
+		merkle.HashTree = merkle.FromBytes(merkleTree, RMRLinked)
 
-	intermediateHashesBuffer := merkle.GetIntermediateHashes(
-		bytes.NewBuffer(rcHash[:]),
-		int32(RMRLinkedIndex),
-	)
-	for _, buf := range intermediateHashesBuffer {
-		intermediateHashes = append(intermediateHashes, buf.Bytes())
+		rcByte := ru.GetSignedReceiptBytes(receipt)
+		rcHash := sha3.Sum256(rcByte)
+
+		intermediateHashesBuffer := merkle.GetIntermediateHashes(
+			bytes.NewBuffer(rcHash[:]),
+			int32(RMRLinkedIndex),
+		)
+		for _, buf := range intermediateHashesBuffer {
+			intermediateHashes = append(intermediateHashes, buf.Bytes())
+		}
 	}
+
 	return &model.PublishedReceipt{
 		Receipt:            receipt,
 		IntermediateHashes: merkle.FlattenIntermediateHashes(intermediateHashes),
