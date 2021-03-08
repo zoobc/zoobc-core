@@ -643,12 +643,12 @@ func (bs *BlockSpineService) PopulateBlockData(block *model.Block) error {
 	spinePublicKeys, err := bs.SpinePublicKeyService.GetSpinePublicKeysByBlockHeight(block.Height)
 	if err != nil {
 		bs.Logger.Errorln(err)
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block spine public keys")
+		return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("error getting block spine public keys: %s", err.Error()))
 	}
 	block.SpinePublicKeys = spinePublicKeys
 	spineBlockManifests, err := bs.SpineBlockManifestService.GetSpineBlockManifestBySpineBlockHeight(block.Height)
 	if err != nil {
-		return blocker.NewBlocker(blocker.BlockErr, "error getting block spineBlockManifests")
+		return blocker.NewBlocker(blocker.BlockErr, fmt.Sprintf("error getting block spineBlockManifests: %s", err.Error()))
 	}
 	block.SpineBlockManifests = spineBlockManifests
 	return nil
@@ -767,6 +767,9 @@ func (bs *BlockSpineService) GenerateBlock(
 	// get the timestamp of the block 1 MinRollbackBlocks ago
 	if lastMainBlock.Height > constant.MinRollbackBlocks {
 		newReferenceBlockHeight = lastMainBlock.Height - constant.MinRollbackBlocks
+		if newReferenceBlockHeight < newIncludedFirstBlockHeight {
+			newReferenceBlockHeight = newIncludedFirstBlockHeight
+		}
 	}
 
 	// if the newReferenceBlockHeight is greater than previous one, advance the main block pointer to be included to spine block
@@ -1086,6 +1089,7 @@ func (bs *BlockSpineService) validateIncludedMainBlock(lastBlock, incomingBlock 
 		leafIndex          = (incomingBlock.ReferenceBlockHeight - lastBlock.ReferenceBlockHeight) - 1
 		intermediateHashes [][]byte
 	)
+	// TODO: "@ali" please double check that this doesn't interfere with receipt generation and validation
 	merkleRoot.HashTree = merkleRoot.FromBytes(incomingBlock.MerkleTree, incomingBlock.MerkleRoot)
 	intermediateHashesBuffer := merkleRoot.GetIntermediateHashes(bytes.NewBuffer(referenceBlock.BlockHash), int32(leafIndex))
 	for _, buf := range intermediateHashesBuffer {

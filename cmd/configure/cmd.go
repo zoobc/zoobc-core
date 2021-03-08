@@ -86,7 +86,7 @@ var (
 )
 
 func init() {
-	configureCmd.Flags().StringVarP(&target, "target", "t", "dev", "target configuration dev | alpha | beta")
+	configureCmd.Flags().StringVarP(&target, "target", "t", "dev", "target configuration dev | alpha | beta | mainnet")
 }
 func Commands() *cobra.Command {
 	configureCmd.Run = generateConfigFileCommand
@@ -296,6 +296,8 @@ func generateConfig(config *model.Config) error {
 
 	// WELL KNOWN PEERS
 	switch target {
+	case "mainnet":
+		config.WellknownPeers = mainnet
 	case "alpha":
 		config.WellknownPeers = alpha
 	case "dev":

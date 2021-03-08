@@ -54,7 +54,7 @@ const (
 	// maintain the number scale like balance does.
 	ScalarReceiptScore = float32(OneZBC)
 	// LinkedReceiptScore the score for each receipt that proved have relation with previous published receipt via merkle root
-	LinkedReceiptScore float32 = 2
+	LinkedReceiptScore float32 = 1.5
 	// LinkedReceiptScore the score for each receipt that can't proved have relation with previous published receipt via merkle root
 	UnlinkedReceiptScore float32 = 0.5
 	// MaxScoreChange the maximum score that node wll get.
@@ -70,4 +70,6 @@ const (
 	DefaultParticipationScore int64 = MaxParticipationScore / 5
 	// Starting score for pre seed nodes (registered at genesis)
 	GenesisParticipationScore int64 = MaxParticipationScore
+	IncreaseScoreMod          int64 = MaxScoreChange / 10
+	DecreaseScoreMod          int64 = -(MaxScoreChange / 5)
 )

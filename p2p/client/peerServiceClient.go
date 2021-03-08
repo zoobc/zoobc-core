@@ -523,7 +523,7 @@ func (psc *PeerServiceClient) SendBlock(
 	if err != nil {
 		return err
 	}
-	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt(), false)
 	if err != nil {
 		return err
 	}
@@ -575,7 +575,7 @@ func (psc *PeerServiceClient) SendTransaction(
 	if err != nil {
 		return err
 	}
-	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt())
+	err = psc.ReceiptService.ValidateReceipt(response.GetReceipt(), false)
 	if err != nil {
 		return err
 	}
@@ -629,7 +629,7 @@ func (psc *PeerServiceClient) SendBlockTransactions(
 			psc.Logger.Warnf("[SendBlockTransactions:CheckDuplication] - %s", err.Error())
 			continue
 		}
-		err = psc.ReceiptService.ValidateReceipt(receipt)
+		err = psc.ReceiptService.ValidateReceipt(receipt, false)
 		if err != nil {
 			psc.Logger.Warnf("[SendBlockTransactions:ValidateReceipt] - %s", err.Error())
 			continue

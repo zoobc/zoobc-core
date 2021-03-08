@@ -56,6 +56,7 @@ import (
 	"sync"
 
 	"github.com/zoobc/zoobc-core/common/monitoring"
+	"github.com/zoobc/zoobc-core/observer"
 
 	"github.com/zoobc/zoobc-core/common/blocker"
 	"github.com/zoobc/zoobc-core/common/model"
@@ -369,4 +370,16 @@ func (nas *NodeAddressInfoStorage) append(
 	copy(copyNodeAddress.BlockHash, nodeAddress.BlockHash)
 	copy(copyNodeAddress.Signature, nodeAddress.Signature)
 	return append(nodeAddresses, &copyNodeAddress)
+}
+
+func (nas *NodeAddressInfoStorage) GetItems(keys, items interface{}) error {
+	return nil
+}
+
+func (nas *NodeAddressInfoStorage) RemoveItems(keys interface{}) error {
+	return nil
+}
+
+func (nas *NodeAddressInfoStorage) CacheRegularCleaningListener() observer.Listener {
+	return observer.Listener{}
 }

@@ -51,6 +51,7 @@ package service
 
 import (
 	"errors"
+	"github.com/zoobc/zoobc-core/common/constant"
 	"reflect"
 	"testing"
 
@@ -119,14 +120,45 @@ type (
 
 func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateReceipt(
 	_ *model.Receipt,
+	_ bool,
 ) error {
 	return errors.New("mockedError")
 }
 
 func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateReceipt(
 	_ *model.Receipt,
+	_ bool,
 ) error {
 	return nil
+}
+
+func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateUnlinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return mockPublishedReceipt, nil
+}
+
+func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateUnlinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return []*model.PublishedReceipt{}, nil
+}
+func (*mockProcessPublishedReceiptsReceiptServiceSuccess) ValidateLinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+	maxLookBackwardSteps int32,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return mockPublishedReceipt, nil
+}
+
+func (*mockProcessPublishedReceiptsReceiptServiceFail) ValidateLinkedReceipts(
+	receiptsToValidate []*model.PublishedReceipt,
+	blockToValidate *model.Block,
+	maxLookBackwardSteps int32,
+) (validReceipts []*model.PublishedReceipt, err error) {
+	return []*model.PublishedReceipt{}, nil
 }
 
 func (*mockProcessPublishedReceiptPublishedReceiptUtilFail) InsertPublishedReceipt(
@@ -148,14 +180,17 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 		},
 	}
 	type fields struct {
-		PublishedReceiptQuery query.PublishedReceiptQueryInterface
-		ReceiptUtil           util.ReceiptUtilInterface
-		PublishedReceiptUtil  util.PublishedReceiptUtilInterface
-		ReceiptService        ReceiptServiceInterface
-		QueryExecutor         query.ExecutorInterface
+		PublishedReceiptQuery   query.PublishedReceiptQueryInterface
+		ReceiptUtil             util.ReceiptUtilInterface
+		PublishedReceiptUtil    util.PublishedReceiptUtilInterface
+		ReceiptService          ReceiptServiceInterface
+		QueryExecutor           query.ExecutorInterface
+		PublishedReceiptService PublishedReceiptServiceInterface
 	}
 	type args struct {
-		block *model.Block
+		block                     *model.Block
+		numberOfEstimatedReceipts uint32
+		validateReceipt           bool
 	}
 	tests := []struct {
 		name    string
@@ -170,53 +205,22 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				PublishedReceiptQuery: nil,
 				ReceiptUtil:           nil,
 				PublishedReceiptUtil:  nil,
-				ReceiptService:        nil,
-				QueryExecutor:         nil,
-			},
-			args: args{
-				block: &model.Block{
-					PublishedReceipts: make([]*model.PublishedReceipt, 0),
-				},
-			},
-			want:    0,
-			wantErr: false,
-		},
-		{
-			name: "ProcessPublishedReceipt-ValidateReceiptFail",
-			fields: fields{
-				PublishedReceiptQuery: nil,
-				ReceiptUtil:           nil,
-				PublishedReceiptUtil:  nil,
 				ReceiptService:        &mockProcessPublishedReceiptsReceiptServiceFail{},
 				QueryExecutor:         nil,
 			},
 			args: args{
 				block: &model.Block{
-					PublishedReceipts: dummyPublishedReceipts,
+					PublishedReceipts: make([]*model.PublishedReceipt, 0),
+					Height:            constant.BatchReceiptLookBackHeight,
 				},
+				numberOfEstimatedReceipts: 5,
+				validateReceipt:           true,
 			},
 			want:    0,
-			wantErr: true,
+			wantErr: false,
 		},
 		{
-			name: "ProcessPublishedReceipt-ValidateReceiptFail",
-			fields: fields{
-				PublishedReceiptQuery: nil,
-				ReceiptUtil:           nil,
-				PublishedReceiptUtil:  &mockProcessPublishedReceiptPublishedReceiptUtilFail{},
-				ReceiptService:        &mockProcessPublishedReceiptsReceiptServiceSuccess{},
-				QueryExecutor:         nil,
-			},
-			args: args{
-				block: &model.Block{
-					PublishedReceipts: dummyPublishedReceipts,
-				},
-			},
-			want:    0,
-			wantErr: true,
-		},
-		{
-			name: "ProcessPublishedReceipt-ValidateReceiptFail",
+			name: "ProcessPublishedReceipt-ValidateReceiptSuccess",
 			fields: fields{
 				PublishedReceiptQuery: nil,
 				ReceiptUtil:           nil,
@@ -227,9 +231,12 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 			args: args{
 				block: &model.Block{
 					PublishedReceipts: dummyPublishedReceipts,
+					Height:            constant.BatchReceiptLookBackHeight,
 				},
+				numberOfEstimatedReceipts: 5,
+				validateReceipt:           true,
 			},
-			want:    0,
+			want:    len(mockPublishedReceipt),
 			wantErr: false,
 		},
 	}
@@ -242,7 +249,7 @@ func TestPublishedReceiptService_ProcessPublishedReceipts(t *testing.T) {
 				ReceiptService:        tt.fields.ReceiptService,
 				QueryExecutor:         tt.fields.QueryExecutor,
 			}
-			got, err := ps.ProcessPublishedReceipts(tt.args.block)
+			got, _, err := ps.ProcessPublishedReceipts(tt.args.block, tt.args.numberOfEstimatedReceipts, tt.args.validateReceipt)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ProcessPublishedReceipts() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -105,6 +105,7 @@ type (
 // GetTransactionType assert transaction to TypeAction
 func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, error) {
 	var (
+		accountDatasetQuery  = query.NewAccountDatasetsQuery()
 		buf                  = util.ConvertUint32ToBytes(tx.GetTransactionType())
 		accountBalanceHelper = NewAccountBalanceHelper(ts.Executor, query.NewAccountBalanceQuery(), query.NewAccountLedgerQuery())
 		transactionHelper    = NewTransactionHelper(query.NewTransactionQuery(&chaintype.MainChain{}), ts.Executor)
@@ -112,6 +113,8 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		transactionUtil      = &Util{
 			MempoolCacheStorage: ts.MempoolCacheStorage,
 			FeeScaleService:     ts.FeeScaleService,
+			AccountDatasetQuery: accountDatasetQuery,
+			QueryExecutor:       ts.Executor,
 		}
 		err error
 	)
@@ -238,7 +241,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			return &SetupAccountDataset{
 				TransactionObject:    tx,
 				Body:                 transactionBody.(*model.SetupAccountDatasetTransactionBody),
-				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				AccountDatasetQuery:  accountDatasetQuery,
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
@@ -252,7 +255,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 			return &RemoveAccountDataset{
 				TransactionObject:    tx,
 				Body:                 transactionBody.(*model.RemoveAccountDatasetTransactionBody),
-				AccountDatasetQuery:  query.NewAccountDatasetsQuery(),
+				AccountDatasetQuery:  accountDatasetQuery,
 				QueryExecutor:        ts.Executor,
 				EscrowQuery:          query.NewEscrowTransactionQuery(),
 				AccountBalanceHelper: accountBalanceHelper,
@@ -289,15 +292,11 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 		// MultiSignatureTransaction
 		case 0:
 			// initialize service for pending_tx, pending_sig and multisig_info
-			typeSwitcher := &TypeSwitcher{
-				Executor: ts.Executor,
-			}
-
 			pendingTransactionHelper := &PendingTransactionHelper{
 				MultisignatureInfoQuery: query.NewMultisignatureInfoQuery(),
 				PendingTransactionQuery: query.NewPendingTransactionQuery(),
 				TransactionUtil:         transactionUtil,
-				TypeSwitcher:            typeSwitcher,
+				TypeSwitcher:            ts,
 				QueryExecutor:           ts.Executor,
 			}
 			multisignatureInfoHelper := &MultisignatureInfoHelper{
@@ -320,7 +319,7 @@ func (ts *TypeSwitcher) GetTransactionType(tx *model.Transaction) (TypeAction, e
 				TransactionObject:        tx,
 				Body:                     transactionBody.(*model.MultiSignatureTransactionBody),
 				TransactionUtil:          transactionUtil,
-				TypeSwitcher:             typeSwitcher,
+				TypeSwitcher:             ts,
 				Signature:                &crypto.Signature{},
 				TransactionHelper:        transactionHelper,
 				AccountBalanceHelper:     accountBalanceHelper,
