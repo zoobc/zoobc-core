@@ -509,9 +509,11 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			} else {
 				rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 100)
 			continue
 		}
 		if _, ok := priorityPeersAtHeight[hex.EncodeToString(nodePublicKey)]; !ok {
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 110)
 			continue
 		}
 
@@ -528,6 +530,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there are no published receipts to link a batch too, fail this block and continue
+				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 120)
 				continue
 			}
 			return nil, err
@@ -578,6 +581,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			} else {
 				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 130)
 			continue
 		}
 		for _, pp := range priorityPeersAtHeight {
@@ -626,10 +630,12 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			if err != sql.ErrNoRows {
 				rs.Logger.Error(err)
 			}
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 140)
 			continue
 		}
 		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
 			// batch receipt is invalid. fail the block and continue
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 150)
 			continue
 		}
 
@@ -647,6 +653,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		rmrLinkedIndex++
 		if err != nil {
 			rs.Logger.Error(err)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 160)
 			continue
 		}
 		linkedReceipts = append(linkedReceipts, publishedReceipt)
