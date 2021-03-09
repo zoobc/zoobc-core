@@ -537,7 +537,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			if err == sql.ErrNoRows {
 				// there are no published receipts to link a batch to, fail this block and continue
-				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 50)
+				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 40)
 				rs.Logger.Error("============== 40")
 				continue
 			}
