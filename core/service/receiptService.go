@@ -510,16 +510,19 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 				rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 10)
+			rs.Logger.Error("============== 10")
 			continue
 		}
 		if _, ok := priorityPeersAtHeight[hex.EncodeToString(nodePublicKey)]; !ok {
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 20)
+			rs.Logger.Error("============== 20")
 			continue
 		}
 
 		// we found one block where the node was one of the scramble nodes
 		maxLookBackwardSteps--
 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 30)
+		rs.Logger.Error("============== 30")
 
 		// get the unlinked published receipt that has current node as recipient, at reference block height
 		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackHeight, nodePublicKey)
@@ -532,9 +535,11 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			if err != sql.ErrNoRows {
 				// there are no published receipts to link a batch too, fail this block and continue
 				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 40)
+				rs.Logger.Error("============== 40")
 				continue
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 50)
+			rs.Logger.Error("============== 50")
 			return nil, err
 		}
 
@@ -584,6 +589,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 60)
+			rs.Logger.Error("============== 60")
 			continue
 		}
 		for _, pp := range priorityPeersAtHeight {
@@ -633,11 +639,13 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 				rs.Logger.Error(err)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 70)
+			rs.Logger.Error("============== 70")
 			continue
 		}
 		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
 			// batch receipt is invalid. fail the block and continue
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 80)
+			rs.Logger.Error("============== 80")
 			continue
 		}
 
@@ -656,12 +664,15 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			rs.Logger.Error(err)
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 90)
+			rs.Logger.Error("============== 90")
 			continue
 		}
 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 100)
+		rs.Logger.Error("============== 100")
 		linkedReceipts = append(linkedReceipts, publishedReceipt)
 	}
 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 110)
+	rs.Logger.Error("============== 110")
 	return linkedReceipts, nil
 }
 
@@ -707,11 +718,13 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 				rs.Logger.Debug("no priority peers for node at block height: ", lookBackHeight)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
+			rs.Logger.Error("============== 200")
 			return nil, errors.New("CannotValidatePriorityPeersAtHeight")
 		}
 
 		if _, ok := priorityPeersAtHeight[nodePubKeyHex]; !ok {
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 210)
+			rs.Logger.Error("============== 210")
 			continue
 		}
 
@@ -736,6 +749,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		// when it was supposed to do it, so we skip this block
 		if !receiptFound {
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 220)
+			rs.Logger.Error("============== 220")
 			continue
 		}
 
@@ -788,6 +802,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
 			}
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 230)
+			rs.Logger.Error("============== 230")
 			return nil, errors.New("CannotValidatePriorityPeersAtHeight")
 		}
 		for _, pp := range priorityPeersAtHeight {
@@ -827,6 +842,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		// TODO: make sure this doesn't create problems with forks. in case yes, we probably should fail the block
 		if !receiptFound {
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 240)
+			rs.Logger.Error("============== 240")
 			continue
 		}
 
@@ -846,6 +862,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		}
 		if !bytes.Equal(RMRToVerify, lookBackBlockReceipt.Receipt.RMR) {
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 250)
+			rs.Logger.Error("============== 250")
 			return nil, errors.New("InvalidLinkedRMR")
 		}
 
@@ -855,12 +872,15 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			bytes.Equal(rndPeer.Info.PublicKey, receiptToValidate.Receipt.RecipientPublicKey)) {
 			// then new block's linked receipt is valid!
 			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 260)
+			rs.Logger.Error("============== 260")
 			return nil, errors.New("LinkedReceiptsValidationError")
 		}
 		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 270)
+		rs.Logger.Error("============== 270")
 		linkedReceipts = append(linkedReceipts, receiptToValidate)
 	}
 	monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 280)
+	rs.Logger.Error("============== 280")
 	return linkedReceipts, nil
 }
 
