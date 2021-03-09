@@ -147,30 +147,30 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 		lastBlock, commonBlock           *model.Block
 	)
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 30)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 30)
 	bd.PeerHasMore = true
 	peer := bd.PeerExplorer.GetAnyResolvedPeer()
 	if peer == nil {
 		return nil, blocker.NewBlocker(blocker.P2PPeerError, "no connected peer can be found")
 	}
 	peerCumulativeDifficultyResponse, err = bd.PeerServiceClient.GetCumulativeDifficulty(peer, bd.ChainType)
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 31)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 31)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 32)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 32)
 		return &PeerBlockchainInfo{
 				Peer:        peer,
 				CommonBlock: commonBlock,
 			}, blocker.NewBlocker(blocker.AppErr,
 				fmt.Sprintf("failed to get Cumulative Difficulty of peer %v: %v", peer.Info.Address, err))
 	}
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 33)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 33)
 	peerCumulativeDifficulty, _ := new(big.Int).SetString(peerCumulativeDifficultyResponse.CumulativeDifficulty, 10)
 	peerHeight := peerCumulativeDifficultyResponse.Height
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 34)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 34)
 	lastBlock, err = bd.BlockService.GetLastBlock()
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 35)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 35)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 36)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 36)
 		return nil, blocker.NewBlocker(blocker.DBErr, err.Error())
 	}
 	lastBlockCumulativeDifficulty, _ := new(big.Int).SetString(lastBlock.CumulativeDifficulty, 10)
@@ -179,7 +179,7 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 
 	if peerCumulativeDifficulty == nil || lastBlockCumulativeDifficulty == nil ||
 		peerCumulativeDifficulty.Cmp(lastBlockCumulativeDifficulty) <= 0 {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 37)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 37)
 		return &PeerBlockchainInfo{
 				Peer:        peer,
 				CommonBlock: commonBlock,
@@ -193,34 +193,34 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 			)
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 38)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 38)
 	commonMilestoneBlockID := bd.ChainType.GetGenesisBlockID()
 	if lastBlockID != commonMilestoneBlockID {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 39)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 39)
 		commonMilestoneBlockID, err = bd.getPeerCommonBlockID(peer)
 		if err != nil {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 40)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 40)
 			return nil, err
 		}
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 41)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 41)
 	chainBlockIds := bd.getBlockIdsAfterCommon(peer, commonMilestoneBlockID)
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 42)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 42)
 	if int32(len(chainBlockIds)) < constant.MinimumPeersBlocksToDownload || !bd.PeerHasMore {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 43)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 43)
 		return &PeerBlockchainInfo{
 			Peer:        peer,
 			CommonBlock: commonBlock,
 		}, blocker.NewBlocker(blocker.ChainValidationErr, "the peer does not have more updated chain")
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 44)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 44)
 	commonBlockID := chainBlockIds[0]
 	commonBlock, err = bd.BlockService.GetBlockByID(commonBlockID, false)
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 45)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 45)
 	if err != nil {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 46)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 46)
 		return &PeerBlockchainInfo{
 				Peer:        peer,
 				CommonBlock: commonBlock,
@@ -228,16 +228,16 @@ func (bd *BlockchainDownloader) GetPeerBlockchainInfo() (*PeerBlockchainInfo, er
 				commonBlockID, commonMilestoneBlockID))
 	}
 	if commonBlock == nil || lastBlockHeight-commonBlock.GetHeight() >= constant.MinRollbackBlocks {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 47)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 47)
 		return &PeerBlockchainInfo{
 			Peer:        peer,
 			CommonBlock: commonBlock,
 		}, blocker.NewBlocker(blocker.AppErr, "invalid common block")
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 48)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 48)
 	if !bd.BlockchainStatusService.IsDownloading(bd.ChainType) && peerHeight-commonBlock.GetHeight() > 10 {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 49)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 49)
 		bd.Logger.Info("Blockchain download in progress")
 		bd.BlockchainStatusService.SetIsDownloading(bd.ChainType, true)
 	}
@@ -305,7 +305,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		stop                   = uint32(len(chainBlockIds))
 		numberOfErrorsInACycle int
 	)
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 50)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 50)
 
 	for _, peer := range bd.PeerExplorer.GetResolvedPeers() {
 		peersSlice = append(peersSlice, peer)
@@ -315,14 +315,14 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		return nil, errors.New("the host does not have resolved peers")
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 51)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 51)
 	initialPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
 	nextPeerIdx := initialPeerIdx
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
 
 	for start := uint32(0); start < stop; {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 52)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 52)
 		if start != uint32(0) {
 			peerUsed = peersSlice[nextPeerIdx]
 			nextPeerIdx++
@@ -338,13 +338,13 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		startTime := time.Now()
 		nextBlocks, err := bd.getNextBlocks(constant.BlockDownloadSegSize, peerUsed, chainBlockIds,
 			start, commonUtil.MinUint32(start+segSize, stop))
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 53)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 53)
 		if err != nil || len(nextBlocks) == 0 {
 			// counting the error in a cycle
 			numberOfErrorsInACycle++
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 54)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 54)
 			if numberOfErrorsInACycle >= (len(peersSlice)/3)*2 {
-				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 55)
+				// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 55)
 				return nil, blocker.NewBlocker(blocker.ValidationErr, fmt.Sprintf(
 					"invalid blockchain downloaded from the feeder %v",
 					peerUsed,
@@ -357,26 +357,26 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		if elapsedTime > constant.MaxResponseTime {
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 		}
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 56)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 56)
 		if len(nextBlocks) < 1 || uint32(len(nextBlocks)) > segSize {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 57)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 57)
 			bd.Logger.Warnf("disconnecting with peer %v for not responding correctly in getting the next blocks\n", peerUsed.Info.Address)
 			peersTobeDeactivated = append(peersTobeDeactivated, peerUsed)
 			continue
 		}
 		blocksSegments = append(blocksSegments, nextBlocks)
 		start += uint32(len(nextBlocks))
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 58)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 58)
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 59)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 59)
 	var blocksToBeProcessed []*model.Block
 	for _, blockSegment := range blocksSegments {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 60)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 60)
 		for i := 0; i < len(blockSegment); i++ {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 61)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 61)
 			if coreUtil.IsBlockIDExist(chainBlockIds, blockSegment[i].ID) {
-				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 62)
+				// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 62)
 				blocksToBeProcessed = append(blocksToBeProcessed, blockSegment[i])
 			}
 		}
