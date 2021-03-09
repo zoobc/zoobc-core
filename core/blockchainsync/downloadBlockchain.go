@@ -452,7 +452,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 74)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 74)
 	return &PeerForkInfo{
 		ForkBlocks: forkBlocks,
 		FeederPeer: feederPeer,

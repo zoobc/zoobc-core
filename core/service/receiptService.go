@@ -513,7 +513,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			continue
 		}
 		if _, ok := priorityPeersAtHeight[hex.EncodeToString(nodePublicKey)]; !ok {
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 110)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 200)
 			continue
 		}
 
@@ -530,7 +530,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		if err != nil {
 			if err != sql.ErrNoRows {
 				// there are no published receipts to link a batch too, fail this block and continue
-				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 120)
+				monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 300)
 				continue
 			}
 			return nil, err
@@ -581,7 +581,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			} else {
 				rs.Logger.Debug("no priority peers for node at block height: ", referenceBlock.Height)
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 130)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 400)
 			continue
 		}
 		for _, pp := range priorityPeersAtHeight {
@@ -630,12 +630,12 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 			if err != sql.ErrNoRows {
 				rs.Logger.Error(err)
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 140)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 500)
 			continue
 		}
 		if err = rs.ValidateReceipt(batchReceiptToLink.Receipt, true); err != nil {
 			// batch receipt is invalid. fail the block and continue
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 150)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 600)
 			continue
 		}
 
@@ -653,9 +653,10 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		rmrLinkedIndex++
 		if err != nil {
 			rs.Logger.Error(err)
-			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 160)
+			monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 700)
 			continue
 		}
+		monitoring.IncrementMainchainDownloadCycleDebugger(&chaintype.MainChain{}, 1000)
 		linkedReceipts = append(linkedReceipts, publishedReceipt)
 	}
 	return linkedReceipts, nil
