@@ -60,7 +60,6 @@ import (
 	"github.com/zoobc/zoobc-core/common/chaintype"
 	"github.com/zoobc/zoobc-core/common/constant"
 	"github.com/zoobc/zoobc-core/common/model"
-	"github.com/zoobc/zoobc-core/common/monitoring"
 	commonUtil "github.com/zoobc/zoobc-core/common/util"
 	"github.com/zoobc/zoobc-core/core/service"
 	coreUtil "github.com/zoobc/zoobc-core/core/util"
@@ -382,19 +381,19 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 		}
 	}
 
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 63)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 63)
 	for _, peer := range peersTobeDeactivated {
 		bd.PeerExplorer.DisconnectPeer(peer)
 	}
-	monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 64)
+	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 64)
 
 	for idx, block := range blocksToBeProcessed {
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 65)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 65)
 		if block.Height == 0 {
 			continue
 		}
 		lastBlock, err := bd.BlockService.GetLastBlock()
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 66)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 66)
 		if err != nil {
 			return nil, err
 		}
@@ -402,12 +401,12 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 			continue
 		}
 		previousBlockID := coreUtil.GetBlockIDFromHash(block.PreviousBlockHash)
-		monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 67)
+		// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 67)
 		if lastBlock.ID == previousBlockID {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 68)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 68)
 			err := bd.BlockService.ValidateBlock(block, lastBlock)
 			if err != nil {
-				monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 69)
+				// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 69)
 				blockerUsed := blocker.ValidateMainBlockErr
 				if chaintype.IsSpineChain(bd.ChainType) {
 					blockerUsed = blocker.ValidateSpineBlockErr
@@ -418,7 +417,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				)
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
-					monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)
+					// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 70)
 					bd.Logger.Errorf("Failed to add blacklist: %v\n", blacklistErr)
 				}
 				return &PeerForkInfo{
@@ -446,7 +445,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 				}, err
 			}
 		} else {
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 73)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 73)
 			forkBlocks = blocksToBeProcessed[idx:]
 			break
 		}
