@@ -297,7 +297,7 @@ func (rs *ReceiptService) SelectUnlinkedReceipts(
 	}
 	batchMerkleRoot, err = rs.MerkleTreeQuery.ScanRoot(mrRow)
 	if err != nil {
-		if err != sql.ErrNoRows {
+		if err == sql.ErrNoRows {
 			return emptyReceipts, nil
 		}
 		return nil, err
@@ -452,6 +452,9 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 		}
 		validReceipts = append(validReceipts, publishedReceipt)
 	}
+	if len(validReceipts) != len(receiptsToValidate) {
+		return nil, errors.New("LinkedReceiptFinalValidationError")
+	}
 	return validReceipts, nil
 }
 
@@ -526,8 +529,8 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		}
 		err = rs.PublishedReceiptQuery.Scan(refPublishedReceipt, row)
 		if err != nil {
-			if err != sql.ErrNoRows {
-				// there are no published receipts to link a batch too, fail this block and continue
+			if err == sql.ErrNoRows {
+				// there are no published receipts to link a batch to, fail this block and continue
 				continue
 			}
 			return nil, err
@@ -583,6 +586,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		for _, pp := range priorityPeersAtHeight {
 			priorityPeersArray = append(priorityPeersArray, pp)
 		}
+		priorityPeersArray = sortPeers(priorityPeersArray)
 
 		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
 		// This determines the “receiver” I must produce a receipt for.
@@ -663,21 +667,15 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		linkedReceipts []*model.PublishedReceipt
 	)
 
-	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
+	// loop backwards searching for blocks where current block creators was in priority peers of another block creator
 	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
 		var (
 			lookBackHeight       = uint32(lookBackHeightInt)
 			lookBackBlockReceipt *model.PublishedReceipt
 			lookBackBlock, err   = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
 			receiptToValidate    *model.PublishedReceipt
-			nodePubKeyHex        = hex.EncodeToString(rs.NodeConfiguration.GetNodePublicKey())
 		)
 		// this should not happen, since we already verify that this block exists when validating the receipt
-		if err != nil {
-			return nil, err
-		}
-		// get block transactions and published receipts
-		err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
 		if err != nil {
 			return nil, err
 		}
@@ -688,7 +686,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 
 		// check if the new block's creator is one of Priority Peers at look back height and if not skip this block and continue
 		// if not returns and empty peer array
-		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(blockToValidate.BlocksmithPublicKey, lookBackHeight)
+		priorityPeersAtHeight, err := rs.getPriorityPeersAtHeight(lookBackBlock.BlocksmithPublicKey, lookBackHeight)
 		if err != nil || len(priorityPeersAtHeight) == 0 {
 			if err != nil {
 				rs.Logger.Error(err)
@@ -698,8 +696,14 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			return nil, errors.New("CannotValidatePriorityPeersAtHeight")
 		}
 
-		if _, ok := priorityPeersAtHeight[nodePubKeyHex]; !ok {
+		if _, ok := priorityPeersAtHeight[hex.EncodeToString(blockToValidate.BlocksmithPublicKey)]; !ok {
 			continue
+		}
+
+		// get block transactions and published receipts
+		err = util.PopulateBlockData(lookBackBlock, rs.QueryExecutor, rs.TransactionQuery, rs.PublishedReceiptQuery)
+		if err != nil {
+			return nil, err
 		}
 
 		// we found one block where the new block's creator was one of the priority peers to that block's creator :)
@@ -713,7 +717,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		for _, lookBackBlockReceipt = range lookBackBlock.GetPublishedReceipts() {
 			// did the new block creator have an unlinked receipt in ref block?
 			if lookBackBlockReceipt.RMRLinked == nil {
-				if bytes.Equal(lookBackBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
+				if bytes.Equal(lookBackBlockReceipt.RMRLinked, []byte{}) && bytes.Equal(lookBackBlockReceipt.Receipt.RecipientPublicKey, blockToValidate.BlocksmithPublicKey) {
 					receiptFound = true
 					break
 				}
@@ -778,6 +782,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 		for _, pp := range priorityPeersAtHeight {
 			priorityPeersArray = append(priorityPeersArray, pp)
 		}
+		priorityPeersArray = sortPeers(priorityPeersArray)
 
 		// Use the new block seed (from the block I am creating) to "roll" a random number to select one of my N assigned receivers.
 		// This determines the “receiver” I must produce a receipt for.
@@ -840,6 +845,9 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 			return nil, errors.New("LinkedReceiptsValidationError")
 		}
 		linkedReceipts = append(linkedReceipts, receiptToValidate)
+	}
+	if len(linkedReceipts) != len(receiptsToValidate) {
+		return nil, errors.New("LinkedReceiptFinalValidationError")
 	}
 	return linkedReceipts, nil
 }
@@ -1158,6 +1166,14 @@ func SortReceipts(receipts []model.Receipt) []model.Receipt {
 	sort.SliceStable(receipts, func(i, j int) bool {
 		// sort by signature bytes
 		return bytes.Compare(receipts[i].GetRecipientSignature(), receipts[j].GetRecipientSignature()) < 0
+	})
+	return receipts
+}
+
+func sortPeers(receipts []*model.Peer) []*model.Peer {
+	sort.SliceStable(receipts, func(i, j int) bool {
+		// sort by signature bytes
+		return bytes.Compare(receipts[i].Info.GetPublicKey(), receipts[j].Info.GetPublicKey()) < 0
 	})
 	return receipts
 }
