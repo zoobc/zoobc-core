@@ -425,9 +425,9 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 					FeederPeer: feederPeer,
 				}, err
 			}
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 71)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 71)
 			err = bd.BlockService.PushBlock(lastBlock, block, false, true)
-			monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 72)
+			// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 72)
 			if err != nil {
 				blacklistErr := bd.PeerExplorer.PeerBlacklist(feederPeer, err.Error())
 				if blacklistErr != nil {
