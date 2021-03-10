@@ -54,20 +54,23 @@ import (
 	"testing"
 )
 
-func TestGetSecureRandom(t *testing.T) {
+func TestGetSecurePositiveRandom(t *testing.T) {
 	tests := []struct {
 		name string
 	}{
-		// Add test cases.
 		{
-			name: "TestGetSecureRandom",
+			name: "TestGetSecurePostiveRandom",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			newRandom := GetSecureRandom()
-			if got := GetSecureRandom(); got == newRandom {
-				t.Errorf("GetSecureRandom() want different value between %v and %v", got, newRandom)
+			newRandom := GetSecurePositiveRandom()
+			got := GetSecurePositiveRandom()
+			if got == newRandom {
+				t.Errorf("GetSecurePositiveRandom() want different value between %v and %v", got, newRandom)
+			}
+			if got < 0 || newRandom < 0 {
+				t.Errorf("GetSecurePositiveRandom() want positive values. got: %v and %v", got, newRandom)
 			}
 		})
 	}

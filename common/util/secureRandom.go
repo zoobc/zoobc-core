@@ -59,12 +59,16 @@ import (
 	"github.com/tyler-smith/go-bip39"
 )
 
-// GetSecureRandom generates a int64 secure random
+// GetSecurePositiveRandom generates a int64 secure random
 // TODO: implement the real function to generate a secure random. for now we generate a pseudo-secure number
-func GetSecureRandom() int64 {
+func GetSecurePositiveRandom() int64 {
 	max := *big.NewInt(math.MaxInt64)
 	newNumber, _ := rand.Int(rand.Reader, &max)
-	return newNumber.Int64()
+	result := newNumber.Int64()
+	if result < 0 {
+		return -result
+	}
+	return result
 }
 
 // GetSecureRandomSeed generates a new random seed, a mnemonic that can be used to derive a private key
