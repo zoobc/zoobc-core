@@ -315,7 +315,7 @@ func (bd *BlockchainDownloader) DownloadFromPeer(feederPeer *model.Peer, chainBl
 	}
 
 	// monitoring.IncrementMainchainDownloadCycleDebugger(bd.ChainType, 51)
-	initialPeerIdx := int(commonUtil.GetSecureRandom()) % len(peersSlice)
+	initialPeerIdx := int(commonUtil.GetSecurePositiveRandom()) % len(peersSlice)
 	nextPeerIdx := initialPeerIdx
 	peerUsed := feederPeer
 	blocksSegments := [][]*model.Block{}
