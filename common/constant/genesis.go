@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 8803315773763412846
+	MainchainGenesisBlockID int64 = 2199833642895311356
 )
 
 type (
@@ -94,9 +94,9 @@ var (
 			AccountAddressType: 0,
 			AccountAddress:     "ZBC_TJ36K47M_HJJKKEMF_JK25H2L3_562N5LP4_LGTAAO2X_Z7ZTQ3L2_FYHJCPJP",
 			AccountBalance:     0,
-			// ZNK_V4ETOGA7_SSO3L3N5_ZLOC2PGQ_VXPSHBTP_WQ322N2I_O2I76UIO_GA2KN25G
-			NodePublicKey: []byte{175, 9, 55, 24, 31, 148, 157, 181, 237, 189, 202, 220, 45, 60, 208, 173, 223, 35, 134,
-				111, 180, 55, 173, 55, 72, 118, 145, 255, 81, 14, 48, 52},
+			// ZNK_GC5PEYSS_RW7SOMDY_3WTH74WT_X6GR7JIJ_C42PLAYE_FGZN7GOC_TFOBXDH3
+			NodePublicKey: []byte{48, 186, 242, 98, 82, 141, 191, 39, 48, 120, 221, 166, 127, 242, 211, 191, 141, 31, 165, 9, 23, 52, 245,
+				131, 4, 41, 178, 223, 153, 194, 153, 92},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "ZooBC Node 01",
