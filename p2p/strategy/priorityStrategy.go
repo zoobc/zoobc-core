@@ -968,7 +968,7 @@ func (ps *PriorityStrategy) GetAnyResolvedPeer() *model.Peer {
 	if lengthResolvoedPeers < 1 {
 		return nil
 	}
-	randomIdx := int(util.GetSecureRandom())
+	randomIdx := int(util.GetSecurePositiveRandom())
 	if randomIdx != 0 {
 		randomIdx %= lengthResolvoedPeers
 	}
@@ -1106,7 +1106,7 @@ func (ps *PriorityStrategy) GetAnyUnresolvedPeer() *model.Peer {
 	if len(unresolvedPeers) < 1 {
 		return nil
 	}
-	randomIdx := int(util.GetSecureRandom()) % len(unresolvedPeers)
+	randomIdx := int(util.GetSecurePositiveRandom()) % len(unresolvedPeers)
 	idx := 0
 	for _, peer := range unresolvedPeers {
 		if idx == randomIdx {
@@ -1310,7 +1310,7 @@ func (ps *PriorityStrategy) GetAnyKnownPeer() *model.Peer {
 	if len(knownPeers) < 1 {
 		panic("No well known peer is found")
 	}
-	randomIdx := int(util.GetSecureRandom()) % len(knownPeers)
+	randomIdx := int(util.GetSecurePositiveRandom()) % len(knownPeers)
 	idx := 0
 	for _, peer := range knownPeers {
 		if idx == randomIdx {
