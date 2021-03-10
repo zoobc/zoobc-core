@@ -529,7 +529,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		rs.Logger.Error("============== 30")
 
 		// get the unlinked published receipt that has current node as recipient, at reference block height
-		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(unlinkedReceiptLookback, nodePublicKey)
+		batchReceiptsQ, rootArgs := rs.PublishedReceiptQuery.GetUnlinkedPublishedReceiptByBlockHeightAndReceiver(lookBackHeight, nodePublicKey)
 		row, err := rs.QueryExecutor.ExecuteSelectRow(batchReceiptsQ, false, rootArgs...)
 		if err != nil {
 			return nil, err
