@@ -490,7 +490,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 		var (
 			refPublishedReceipt     = query.NewPublishedReceipt()
 			lookBackHeight          = uint32(lookBackHeightInt)
-			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight - 1
+			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
 		)
 
 		if maxLookBackwardSteps == 0 {
@@ -694,7 +694,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
 		var (
 			lookBackHeight          = uint32(lookBackHeightInt)
-			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight - 1
+			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
 			lookBackBlockReceipt    *model.PublishedReceipt
 			lookBackBlock, err      = util.GetBlockByHeight(lookBackHeight, rs.QueryExecutor, rs.BlockQuery)
 			receiptToValidate       *model.PublishedReceipt
