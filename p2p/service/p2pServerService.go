@@ -761,6 +761,7 @@ func (ps *P2PServerService) needToGenerateReceipt(
 	if err != nil {
 		return []*model.Receipt{}, err
 	}
-	generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, ps.NodeConfigurationService.GetHost().GetInfo(), requester)
+	// generateReceipt = ps.PeerExplorer.ValidatePriorityPeer(&scrambleNodes, ps.NodeConfigurationService.GetHost().GetInfo(), requester)
+	generateReceipt = true
 	return process(generateReceipt)
 }
