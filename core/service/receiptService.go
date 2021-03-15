@@ -911,10 +911,9 @@ func (rs *ReceiptService) SelectReceipts(
 	blockSeed []byte,
 ) ([][]*model.PublishedReceipt, error) {
 	var (
-		err error
-		// unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
-		unlinkedReceipts []*model.PublishedReceipt
-		selectedReceipts = make([][]*model.PublishedReceipt, 2)
+		err                              error
+		unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
+		selectedReceipts                 = make([][]*model.PublishedReceipt, 2)
 	)
 
 	// select unlinked receipts
@@ -928,17 +927,17 @@ func (rs *ReceiptService) SelectReceipts(
 	}
 	selectedReceipts[0] = unlinkedReceipts
 
-	// // select linked receipts
-	// linkedReceipts, err = rs.SelectLinkedReceipts(
-	// 	uint32(len(unlinkedReceipts)),
-	// 	numberOfReceipt,
-	// 	blockHeight,
-	// 	blockSeed,
-	// )
-	// if err != nil {
-	// 	rs.Logger.Error(err)
-	// }
-	// selectedReceipts[1] = linkedReceipts
+	// select linked receipts
+	linkedReceipts, err = rs.SelectLinkedReceipts(
+		uint32(len(unlinkedReceipts)),
+		numberOfReceipt,
+		blockHeight,
+		blockSeed,
+	)
+	if err != nil {
+		rs.Logger.Error(err)
+	}
+	selectedReceipts[1] = linkedReceipts
 
 	return selectedReceipts, nil
 }
