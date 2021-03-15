@@ -54,8 +54,8 @@ var (
 	ProofOfOwnershipExpiration uint32 = 100
 	MaxNodeAdmittancePerCycle  uint32 = 1
 
-	NodeAdmissionGenesisDelay int64 = 0            // TODO: revert after demo ,  3 months in production
-	NodeAdmissionBaseDelay    int64 = OneHour      // 1 year in production
-	NodeAdmissionMinDelay     int64 = 60           // 1 hour in production
+	NodeAdmissionGenesisDelay int64 = 15555555     // 6 months (in seconds)
+	NodeAdmissionBaseDelay    int64 = OneYear      // 1 year in production
+	NodeAdmissionMinDelay     int64 = OneHour      // 1 hour in production
 	NodeAdmissionMaxDelay     int64 = 72 * OneHour // 72 hours in production
 )

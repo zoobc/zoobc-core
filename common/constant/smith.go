@@ -54,8 +54,8 @@ import (
 )
 
 var (
-	CoinbaseTotalDistribution        int64   = 3000000 * OneZBC // 3 million * 10^8 in production
-	CoinbaseTime                     int64   = OneYear          // 15 years in production
+	CoinbaseTotalDistribution        int64   = 33000000 * OneZBC // 33 million * 10^8 in production
+	CoinbaseTime                     int64   = 15 * OneYear      // 15 years in production
 	CoinbaseSigmoidStart             float64 = 3
 	CoinbaseSigmoidEnd               float64 = 6
 	CoinbaseNumberRewardsPerSecond   int64   = 1 // probably this will always be 1
@@ -71,9 +71,9 @@ var (
 	CheckTimedOutBlock        = 30 * time.Second
 	SpineChainSmithIdlePeriod = 500 * time.Millisecond
 	// SpineChainSmithingPeriod intervals between spine blocks in seconds
-	// reduce to 60 for testing locally (300 in production)
-	SpineChainSmithingPeriod = int64(300)
-	MainChainSmithIdlePeriod = 500 * time.Millisecond
+	// reduce to 24 hours
+	SpineChainSmithingPeriod = int64(24 * OneHour)
+	MainChainSmithIdlePeriod = 5 * time.Second
 	// MainChainSmithingPeriod one main block every 15 seconds + block pool delay (max +30 seconds)
 	MainChainSmithingPeriod = int64(15)
 	// EmptyBlockSkippedBlocksmithLimit state the number of allowed skipped blocksmith until only empty block can be generated
@@ -91,8 +91,8 @@ var (
 		Spinechain smithing
 	*/
 
-	SpineSmithingBlockCreationTime  = int64(30)
-	SpineSmithingNetworkTolerance   = int64(15)
-	SpineSmithingBlocksmithTimeGap  = int64(10)
+	SpineSmithingBlockCreationTime  = int64(300)
+	SpineSmithingNetworkTolerance   = int64(150)
+	SpineSmithingBlocksmithTimeGap  = int64(100)
 	SpineReferenceBlockHeightOffset = uint32(5)
 )

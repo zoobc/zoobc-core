@@ -60,6 +60,7 @@ const (
 	// MaxScoreChange the maximum score that node wll get.
 	// note that in small networks if this value is too high it will lead to nodes being expelled from registry quickly
 	// in production 100000000 * int64(ScalarReceiptScore). reduce to 10 * int64(ScalarReceiptScore) to test with less than 10 nodes
+	// TODO: still waiting correct value (should depend on network size)
 	MaxScoreChange = 10000000 * int64(ScalarReceiptScore)
 	// punishment amount
 	ParticipationScorePunishAmount = -1 * MaxScoreChange / 2
@@ -70,6 +71,8 @@ const (
 	DefaultParticipationScore int64 = MaxParticipationScore / 5
 	// Starting score for pre seed nodes (registered at genesis)
 	GenesisParticipationScore int64 = MaxParticipationScore
-	IncreaseScoreMod          int64 = MaxScoreChange / 10
-	DecreaseScoreMod          int64 = -(MaxScoreChange / 5)
+	// TODO: double check if this number is calculated correctrly
+	IncreaseScoreMod int64 = MaxScoreChange / 10
+	// TODO: double check if this number is calculated correctrly
+	DecreaseScoreMod int64 = -(MaxScoreChange / 5)
 )

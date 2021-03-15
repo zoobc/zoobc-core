@@ -51,5 +51,6 @@ package constant
 
 const (
 	// MaxBlocksCacheStorage maximum number of blocks to be cache
+	// TODO: double check this when fixing block cache
 	MaxBlocksCacheStorage = 2 * MinRollbackBlocks
 )
