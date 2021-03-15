@@ -476,7 +476,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
-	if numberOfReceipt == 0 || blockHeight < constant.BatchReceiptLookBackHeight {
+	if numberOfReceipt == 0 || blockHeight < 2*constant.BatchReceiptLookBackHeight {
 		return nil, nil
 	}
 
@@ -689,6 +689,10 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 	var (
 		linkedReceipts []*model.PublishedReceipt
 	)
+
+	if receiptsToValidate == nil || len(receiptsToValidate) == 0 {
+		return receiptsToValidate, nil
+	}
 
 	// loop backwards searching for blocks where current block creators was in priority peers of another block creator
 	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
