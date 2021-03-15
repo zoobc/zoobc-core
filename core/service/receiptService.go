@@ -464,6 +464,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfUnlinkedReceipts, numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
 ) ([]*model.PublishedReceipt, error) {
+	return nil, nil
 
 	var (
 		linkedReceipts []*model.PublishedReceipt
