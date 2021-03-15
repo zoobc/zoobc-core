@@ -60,9 +60,9 @@ core-linux: $(XGO)
 
 .PHONY: core-arm
 core-arm: $(XGO)
-	$(info    build core with linux/arm as target...)
+	$(info    build core with linux/arm-7 as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/arm -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
+	xgo --targets=linux/arm-7 -out=$(CORE_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./
 
 .PHONY: core-windows
 core-windows: $(XGO)
@@ -90,9 +90,9 @@ cmd-linux: $(XGO)
 
 .PHONY: cmd-arm
 cmd-arm: $(XGO)
-	$(info    build cmd with linux/arm as target...)
+	$(info    build cmd with linux/arm-7 as target...)
 	mkdir -p $(ZBCPATH)
-	xgo --targets=linux/arm -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
+	xgo --targets=linux/arm-7 -out=$(CLI_OUPUT) --go-private=github.com/zoobc/* --github-token=$(GITHUB_TOKEN)  ./cmd/
 
 .PHONY: cmd-windows
 cmd-windows: $(XGO)
@@ -123,6 +123,9 @@ cmd-common-os: $(XGO)
 
 .PHONY: build-all-common
 build-all-common: core-common-os cmd-common-os
+
+.PHONY: build-raspi
+build-raspi: cmd-arm core-arm
 
 .PHONY: release-core
 release-core: core-linux
