@@ -55,7 +55,7 @@
 package constant
 
 const (
-	MainchainGenesisBlockID int64 = 941185716856080494
+	MainchainGenesisBlockID int64 = -2906227358259412649
 )
 
 type (
@@ -1128,6 +1128,40 @@ var (
 			// ZNK_MNG4BCO2_LVYO3T2K_XYSZCUBX_ROPVNB36_WNODCOJK_W4QNNAH4_TGE7WCCQ
 			NodePublicKey: []byte{99, 77, 192, 137, 218, 93, 112, 237, 207, 74, 190, 37, 145, 80, 55, 139, 159, 86, 135,
 				126, 179, 92, 49, 57, 42, 183, 32, 214, 128, 252, 153, 137},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "",
+		},
+		// RasPi
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_FFK7CVJE_QR7MZI2O_YMYKQ7NA_HRLYAOZU_TY7TXNEH_KZRUPKMF_MO36RWQ5",
+			AccountBalance:     0,
+			// ZNK_OT7INXI2_Z4AMRMPM_JBHRRNYT_HRMAL5AU_WT6JRVZG_UTDCON47_I65JXGDC
+			NodePublicKey: []byte{116, 254, 134, 221, 26, 207, 0, 200, 177, 236, 72, 79, 24, 183, 19, 60, 88, 5, 244,
+				20, 180, 252, 152, 215, 38, 164, 198, 39, 55, 159, 71, 186},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_QFVW5OWQ_3PQMBDOX_4XJXZ4PL_SH7FBFKN_LVUOVPSO_22BHUQTZ_EA2CF7LQ",
+			AccountBalance:     0,
+			// ZNK_AYRFBAZT_S4GQA53V_TLCUV2ZD_LAUFAB4A_4NO466U5_DGS4X4ZN_HOBODSRU
+			NodePublicKey: []byte{6, 34, 80, 131, 51, 151, 13, 0, 119, 117, 154, 197, 74, 235, 35, 88, 40, 80, 7,
+				128, 227, 93, 207, 122, 157, 25, 165, 203, 243, 45, 59, 130},
+			LockedBalance:      0,
+			ParticipationScore: GenesisParticipationScore,
+			Message:            "",
+		},
+		{
+			AccountAddressType: 0,
+			AccountAddress:     "ZBC_MVSCRODC_M7MPBOZJ_EGEVP7OS_5LNMXF7A_5NWKQRPV_EZ26CEKD_MWLMFXVK",
+			AccountBalance:     0,
+			// ZNK_J4F2MA6O_KM4QWOVE_4XRLYELM_IE57WOBA_C7JOK4ZX_ZLRCIWBC_RJS4SUYR
+			NodePublicKey: []byte{79, 11, 166, 3, 206, 83, 57, 11, 58, 164, 229, 226, 188, 17, 108, 65, 59, 251, 56,
+				32, 23, 210, 229, 115, 55, 202, 226, 36, 88, 34, 138, 101},
 			LockedBalance:      0,
 			ParticipationScore: GenesisParticipationScore,
 			Message:            "",
