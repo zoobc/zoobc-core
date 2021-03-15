@@ -487,6 +487,9 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	// loop backwards searching for blocks where current node was one of the block creators (when was in scramble node list)
 	// TODO: add a limit to the number of max blocks that can be scanned
 	for lookBackHeightInt := int32(blockHeight - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
+		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+			break
+		}
 		var (
 			refPublishedReceipt     = query.NewPublishedReceipt()
 			lookBackHeight          = uint32(lookBackHeightInt)
@@ -696,6 +699,9 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 
 	// loop backwards searching for blocks where current block creators was in priority peers of another block creator
 	for lookBackHeightInt := int32(blockToValidate.Height - 1); lookBackHeightInt >= 0; lookBackHeightInt-- {
+		if lookBackHeightInt < constant.BatchReceiptLookBackHeight {
+			break
+		}
 		var (
 			lookBackHeight          = uint32(lookBackHeightInt)
 			unlinkedReceiptLookback = lookBackHeight - constant.BatchReceiptLookBackHeight
