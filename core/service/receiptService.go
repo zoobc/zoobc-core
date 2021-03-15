@@ -396,7 +396,7 @@ func (rs *ReceiptService) ValidateUnlinkedReceipts(
 	)
 
 	// possible no connected node || lastblock height is too low to select receipts
-	if blockToValidateHeight < constant.BatchReceiptLookBackHeight {
+	if blockToValidateHeight < constant.BatchReceiptLookBackHeight || len(receiptsToValidate) == 0 {
 		return nil, nil
 	}
 
@@ -464,8 +464,6 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	numberOfUnlinkedReceipts, numberOfReceipt, blockHeight uint32,
 	blockSeed []byte,
 ) ([]*model.PublishedReceipt, error) {
-	return nil, nil
-
 	var (
 		linkedReceipts []*model.PublishedReceipt
 		referenceBlock *model.Block
@@ -913,9 +911,10 @@ func (rs *ReceiptService) SelectReceipts(
 	blockSeed []byte,
 ) ([][]*model.PublishedReceipt, error) {
 	var (
-		err                              error
-		unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
-		selectedReceipts                 = make([][]*model.PublishedReceipt, 2)
+		err error
+		// unlinkedReceipts, linkedReceipts []*model.PublishedReceipt
+		unlinkedReceipts []*model.PublishedReceipt
+		selectedReceipts = make([][]*model.PublishedReceipt, 2)
 	)
 
 	// select unlinked receipts
@@ -929,17 +928,17 @@ func (rs *ReceiptService) SelectReceipts(
 	}
 	selectedReceipts[0] = unlinkedReceipts
 
-	// select linked receipts
-	linkedReceipts, err = rs.SelectLinkedReceipts(
-		uint32(len(unlinkedReceipts)),
-		numberOfReceipt,
-		blockHeight,
-		blockSeed,
-	)
-	if err != nil {
-		rs.Logger.Error(err)
-	}
-	selectedReceipts[1] = linkedReceipts
+	// // select linked receipts
+	// linkedReceipts, err = rs.SelectLinkedReceipts(
+	// 	uint32(len(unlinkedReceipts)),
+	// 	numberOfReceipt,
+	// 	blockHeight,
+	// 	blockSeed,
+	// )
+	// if err != nil {
+	// 	rs.Logger.Error(err)
+	// }
+	// selectedReceipts[1] = linkedReceipts
 
 	return selectedReceipts, nil
 }
