@@ -198,7 +198,7 @@ func (ppdc *PriorityPeersDestinationCacheHybridStorage) RemoveItem(key interface
 
 	for key, blockHeights := range ppdc.priorityPeersDestinations {
 		indexCount := 0
-		for {
+		for indexCount < len(blockHeights) {
 			if blockHeights[indexCount] > popOffToHeight {
 				break
 			}
