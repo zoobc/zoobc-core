@@ -87,6 +87,7 @@ var (
 		"local":        3,
 		"experimental": 4,
 		"beta":         5,
+		"mainnet":      6,
 	}
 )
 
