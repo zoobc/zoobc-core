@@ -483,7 +483,7 @@ func (rs *ReceiptService) SelectLinkedReceipts(
 	)
 	rs.PriorityPeersDestinationCacheHybridStorage.GetItem(publicKeyString, &priorityPeerAtHeights)
 
-	for i := len(priorityPeerAtHeights); i >= 0; i-- {
+	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
 			refPublishedReceipt = query.NewPublishedReceipt()
 			lookBackHeight      = priorityPeerAtHeights[i]
@@ -879,7 +879,7 @@ func (rs *ReceiptService) ValidateLinkedReceipts(
 
 	rs.PriorityPeersDestinationCacheHybridStorage.GetItem(hex.EncodeToString(blockToValidate.GetBlocksmithPublicKey()), &priorityPeerAtHeights)
 
-	for i := len(priorityPeerAtHeights); i >= 0; i-- {
+	for i := len(priorityPeerAtHeights) - 1; i >= 0; i-- {
 		var (
 			lookBackHeight       = priorityPeerAtHeights[i]
 			lookBackBlock        *model.Block
